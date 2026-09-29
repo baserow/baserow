@@ -279,7 +279,18 @@ export default {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
     fieldTypes() {
-      return this.$registry.getAll('field')
+      const allFieldTypes = this.$registry.getAll('field')
+      // The type of the field being edited is always listed, even when hidden,
+      // otherwise the dropdown has no item matching its own value and renders
+      // blank for an existing field of a hidden type.
+      const currentType = this.defaultValues?.type
+      return Object.fromEntries(
+        Object.entries(allFieldTypes).filter(
+          ([type, fieldType]) =>
+            type === currentType ||
+            fieldType.isVisibleInDropdown(this.workspace)
+        )
+      )
     },
     hasFormComponent() {
       return !!this.values.type && this.getFormComponent(this.values.type)
@@ -376,6 +387,11 @@ export default {
     }
   },
   methods: {
+    /** Tells a sub-form it is being looked at again, in case the server has
+     * changed what it holds. */
+    onShow() {
+      this.$refs.childForm?.onShow?.()
+    },
     async submit(deep) {
       this.dbIndexError = false
       this.fieldConstraintError = null
@@ -447,6 +463,26 @@ export default {
     isDescriptionFieldNotEmpty() {
       this.showDescription = !!this.values.description
       return this.showDescription
+    },
+    /**
+     * Lets a field type persist whatever it keeps outside the field itself,
+     * once the field is saved and its id is known. Called by the create and
+     * update contexts.
+     */
+    async afterFieldSaved(fieldId, options = {}) {
+      if (typeof this.$refs.childForm?.afterFieldSaved === 'function') {
+        await this.$refs.childForm.afterFieldSaved(fieldId, options)
+      }
+    },
+    /**
+     * Field values the save response got wrong, because the field type wrote
+     * more after it was built. `null` when the type has nothing to correct.
+     */
+    fieldValuesAfterSave() {
+      if (typeof this.$refs.childForm?.fieldValuesAfterSave === 'function') {
+        return this.$refs.childForm.fieldValuesAfterSave()
+      }
+      return null
     },
     getFormValues() {
       // Only set the `db_index` to true if the frontend knows for certain that the

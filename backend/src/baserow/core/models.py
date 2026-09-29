@@ -19,8 +19,15 @@ from baserow.core.jobs.mixins import (
 from baserow.core.jobs.models import Job
 from baserow.core.user_files.models import UserFile
 
+from .abuse_reports.models import AbuseReport
 from .action.models import Action
+from .ai_provider.models import (
+    AIProviderConfig,
+    AIProviderFeatureSetting,
+    AIProviderModel,
+)
 from .integrations.models import Integration
+from .last_viewed.models import UserLastViewedItem
 from .mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -35,9 +42,11 @@ from .services.models import Service
 
 __all__ = [
     "Settings",
+    "UserLastViewedItem",
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
+    "Agent",
     "Application",
     "TemplateCategory",
     "Template",
@@ -52,10 +61,14 @@ __all__ = [
     "Service",
     "Notification",
     "BlacklistedToken",
+    "AIProviderConfig",
+    "AIProviderFeatureSetting",
+    "AIProviderModel",
     "ExportApplicationsJob",
     "ImportApplicationsJob",
     "ImportExportResource",
     "ImportExportTrustedSource",
+    "AbuseReport",
 ]
 
 from baserow.core.trash.registries import (
@@ -162,6 +175,12 @@ class Settings(models.Model):
         db_default=True,
         help_text="Indicates whether the signature of imported files should be verified.",
     )
+    allow_reporting_abuse = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether anonymous visitors can report publicly shared "
+        "resources, like views and forms, for abuse.",
+    )
 
 
 class UserProfile(models.Model):
@@ -228,6 +247,13 @@ class UserProfile(models.Model):
         default=list,
         blank=True,
         null=True,
+    )
+    preferences = models.JSONField(
+        default=dict,
+        db_default={},
+        blank=True,
+        help_text="Values of the registered user preference types, keyed by type. "
+        "Only explicitly changed preferences are stored here.",
     )
 
     def iat_before_last_password_change(self, iat: int) -> bool:
@@ -355,6 +381,34 @@ class WorkspaceUser(
     def get_last_order(cls, user):
         queryset = cls.objects.filter(user=user)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+
+class Agent(
+    HierarchicalModelMixin,
+    TrashableModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """A non-authenticating subject owned by a workspace."""
+
+    workspace = models.ForeignKey(
+        Workspace,
+        related_name="agents",
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField(max_length=160)
+    role_uid = models.CharField(
+        max_length=32,
+        default=WORKSPACE_USER_PERMISSION_MEMBER,
+        db_default=WORKSPACE_USER_PERMISSION_MEMBER,
+    )
+    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    def get_parent(self):
+        return self.workspace
+
+    class Meta:
+        ordering = ("name", "id")
 
 
 class WorkspaceInvitation(

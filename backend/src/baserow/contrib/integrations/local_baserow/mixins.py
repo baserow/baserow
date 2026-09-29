@@ -3,12 +3,11 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Type, 
 from django.db.models import OrderBy, Prefetch, QuerySet
 
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
-from baserow.contrib.database.fields.field_filters import FilterBuilder
+from baserow.contrib.database.fields.field_filters import AdvancedFilterBuilder
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.integrations.local_baserow.api.serializers import (
     LocalBaserowTableServiceFilterSerializerMixin,
     LocalBaserowTableServiceSortSerializerMixin,
@@ -17,8 +16,12 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowTableServiceFilter,
+    LocalBaserowTableServiceFilterGroup,
     LocalBaserowTableServiceSort,
     LocalBaserowViewService,
+)
+from baserow.contrib.integrations.local_baserow.service_filter_groups import (
+    LocalBaserowServiceGroupedFiltersAdapter,
 )
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -33,6 +36,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.types import (
+    DispatchResult,
     FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
@@ -43,10 +47,12 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
+    from baserow.contrib.automation.nodes.models import AutomationNode
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableService,
     )
+    from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -64,6 +70,7 @@ class LocalBaserowTableServiceFilterableMixin:
     class SerializedDict(ServiceDict):
         filter_type: str
         filters: List[Dict]
+        filter_groups: List[Dict]
 
     def enhance_queryset(self, queryset):
         return (
@@ -75,6 +82,10 @@ class LocalBaserowTableServiceFilterableMixin:
                     queryset=LocalBaserowTableServiceFilter.objects.select_related(
                         "field"
                     ).all(),
+                ),
+                Prefetch(
+                    "service_filter_groups",
+                    queryset=LocalBaserowTableServiceFilterGroup.objects.all(),
                 ),
             )
         )
@@ -92,10 +103,57 @@ class LocalBaserowTableServiceFilterableMixin:
                 "field_id": f.field_id,
                 "type": f.type,
                 "value": f.value,
-                "value_is_formula": f.value_is_formula,
+                "group": f.group_id,
             }
             for f in service.service_filters_with_untrashed_fields
         ]
+
+    def serialize_filter_groups(self, service: ServiceSubClass):
+        """
+        Responsible for serializing the service `filter_groups`.
+
+        :param service: the service instance.
+        :return: A list of serialized filter group dictionaries.
+        """
+
+        return [
+            {
+                "id": g.id,
+                "filter_type": g.filter_type,
+                "parent_group": g.parent_group_id,
+            }
+            for g in service.service_filter_groups.all()
+        ]
+
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service filters and filter groups live on related models (rebuilt in
+        # `after_update`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the exact shapes `update_service_filters`
+        # restores them from. Note that these deliberately differ from the
+        # import/export shapes of `serialize_filters`/`serialize_filter_groups`:
+        # the restore path expects the API-validated keys (`group_id`,
+        # `parent_group_id`), and passing e.g. a `group` key alongside the
+        # explicit `group=` kwarg would crash the rebuild.
+        values["service_filter_groups"] = [
+            {
+                "id": g.id,
+                "filter_type": g.filter_type,
+                "parent_group_id": g.parent_group_id,
+            }
+            for g in instance.service_filter_groups.all()
+        ]
+        values["service_filters"] = [
+            {
+                "field_id": f.field_id,
+                "type": f.type,
+                "value": f.value,
+                "value_is_formula": f.value_is_formula,
+                "group_id": f.group_id,
+            }
+            for f in instance.service_filters_with_untrashed_fields
+        ]
+        return values
 
     def serialize_property(
         self,
@@ -106,7 +164,7 @@ class LocalBaserowTableServiceFilterableMixin:
         cache=None,
     ):
         """
-        Responsible for serializing the `filters` properties.
+        Responsible for serializing the `filters` and `filter_groups` properties.
 
         :param service: The LocalBaserowListRows service.
         :param prop_name: The property name we're serializing.
@@ -115,6 +173,9 @@ class LocalBaserowTableServiceFilterableMixin:
 
         if prop_name == "filters":
             return self.serialize_filters(service)
+
+        if prop_name == "filter_groups":
+            return self.serialize_filter_groups(service)
 
         return super().serialize_property(
             service, prop_name, files_zip=files_zip, storage=storage, cache=cache
@@ -135,12 +196,17 @@ class LocalBaserowTableServiceFilterableMixin:
 
         for f in value:
             formula = BaserowFormulaObject.to_formula(f["value"])
+            value_is_formula = f.get(
+                "value_is_formula", formula["mode"] != BASEROW_FORMULA_MODE_RAW
+            )
+            if not value_is_formula:
+                formula["mode"] = BASEROW_FORMULA_MODE_RAW
             field_id = id_mapping.get("database_fields", {}).get(
                 f["field_id"], f["field_id"]
             )
 
             if (
-                f["value_is_formula"]
+                value_is_formula
                 or not formula["formula"].isdigit()
                 or "database_field_select_options" not in id_mapping
             ):
@@ -156,7 +222,9 @@ class LocalBaserowTableServiceFilterableMixin:
                     version=formula["version"],
                 )
 
-            result.append({**f, "field_id": field_id, "value": val})
+            result_filter = {**f, "field_id": field_id, "value": val}
+            result_filter.pop("value_is_formula", None)
+            result.append(result_filter)
 
         return result
 
@@ -178,6 +246,7 @@ class LocalBaserowTableServiceFilterableMixin:
         """
 
         filters = serialized_values.pop("filters", [])
+        filter_groups = serialized_values.pop("filter_groups", [])
 
         service = super().create_instance_from_serialized(
             serialized_values,
@@ -188,11 +257,36 @@ class LocalBaserowTableServiceFilterableMixin:
             **kwargs,
         )
 
-        # Create filters
+        # Create the filter groups first, so that filters can reference them. Groups
+        # are serialized with parents before children (see the model's `Meta.ordering`),
+        # so the parent group has always been created (and mapped) by the time a child
+        # references it.
+        group_id_mapping = id_mapping.setdefault(
+            "integration_service_filter_groups", {}
+        )
+        for filter_group in filter_groups:
+            parent_group_id = filter_group["parent_group"]
+            new_group = LocalBaserowTableServiceFilterGroup.objects.create(
+                service=service,
+                filter_type=filter_group["filter_type"],
+                parent_group_id=(
+                    group_id_mapping.get(parent_group_id)
+                    if parent_group_id is not None
+                    else None
+                ),
+            )
+            group_id_mapping[filter_group["id"]] = new_group.id
+
+        # Create filters, mapping each filter's group to the newly-created group.
         LocalBaserowTableServiceFilter.objects.bulk_create(
             [
                 LocalBaserowTableServiceFilter(
-                    **service_filter,
+                    **{k: v for k, v in service_filter.items() if k != "group"},
+                    group_id=(
+                        group_id_mapping.get(service_filter.get("group"))
+                        if service_filter.get("group") is not None
+                        else None
+                    ),
                     order=index,
                     service=service,
                 )
@@ -261,40 +355,16 @@ class LocalBaserowTableServiceFilterableMixin:
                 "One or more filtered properties no longer exist.",
             )
 
-        service_filter_builder = FilterBuilder(filter_type=service.filter_type)
-        for service_filter in service.service_filters_with_untrashed_fields:
-            field_object = model._field_objects[service_filter.field_id]
-            field_name = field_object["name"]
-            model_field = model._meta.get_field(field_name)
-            view_filter_type = view_filter_type_registry.get(service_filter.type)
-
-            # We need this test for compatibility purposes with old values
-            if (
-                service_filter.value_is_formula
-                or service_filter.value["mode"] == BASEROW_FORMULA_MODE_RAW
-            ):
-                try:
-                    resolved_value = ensure_string(
-                        resolve_formula(
-                            service_filter.value,
-                            formula_runtime_function_registry,
-                            dispatch_context,
-                        )
-                    )
-                except Exception as exc:
-                    raise ServiceImproperlyConfiguredDispatchException(
-                        f"The {field_name} service filter formula can't be "
-                        "resolved: {exc}"
-                    ) from exc
-            else:
-                resolved_value = service_filter.value["formula"]
-
-            service_filter_builder.filter(
-                view_filter_type.get_filter(
-                    field_name, resolved_value, model_field, field_object["field"]
-                )
-            )
-
+        # Build the service filters, nesting them into their filter groups (if any)
+        # using the same machinery the database views use. Filters without a group
+        # are combined under the service's top-level `filter_type`, preserving the
+        # behaviour of services which don't use groups.
+        adapter = LocalBaserowServiceGroupedFiltersAdapter(
+            service, model, dispatch_context
+        )
+        service_filter_builder = AdvancedFilterBuilder(
+            adapter
+        ).construct_filter_builder()
         return service_filter_builder.apply_to_queryset(queryset)
 
     def formula_generator(
@@ -309,11 +379,7 @@ class LocalBaserowTableServiceFilterableMixin:
         yield from super().formula_generator(service)
 
         for service_filter in service.service_filters_with_untrashed_fields:
-            is_formula = service_filter.value_is_formula
             formula = BaserowFormulaObject.to_formula(service_filter.value)
-
-            if not is_formula:
-                formula["mode"] = BASEROW_FORMULA_MODE_RAW
 
             # Service types like LocalBaserowGetRow do not have a value attribute.
             new_formula = yield formula
@@ -344,7 +410,11 @@ class LocalBaserowTableServiceFilterableMixin:
         queryset = super().get_table_queryset(service, table, dispatch_context, model)
         queryset = self.get_dispatch_filters(service, queryset, model, dispatch_context)
         dispatch_filters = dispatch_context.filters()
-        if dispatch_filters is not None and dispatch_context.is_publicly_filterable:
+        if (
+            dispatch_filters is not None
+            and dispatch_context.is_publicly_filterable
+            and dispatch_context.is_adhoc_refinable(service)
+        ):
             deserialized_filters = AdHocFilters.deserialize_dispatch_filters(
                 dispatch_filters
             )
@@ -362,20 +432,165 @@ class LocalBaserowTableServiceFilterableMixin:
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
+    def sync_service_filter_groups(
+        self,
+        service: Union[LocalBaserowGetRow, LocalBaserowListRows],
+        service_filter_groups: List[Dict],
+    ) -> Dict[str, LocalBaserowTableServiceFilterGroup]:
+        """
+        Reconciles the service's filter groups against the given payload **in place**,
+        preserving the primary keys of groups that already exist. Groups present in the
+        payload are updated (or created when new), and groups no longer present are
+        deleted.
+
+        Preserving group primary keys is essential: filters reference their group by id,
+        and because the data source is saved as a whole payload with only the changed
+        keys sent, a partial update (e.g. only the filters, or only the groups) must not
+        invalidate the links between the filters and groups that were not resent.
+
+        Every incoming group id is treated as an opaque correlation key: it is either the
+        id of an existing group (returned on read) or a client-generated id for a new
+        group. Both are used only to link filters and nested groups together.
+
+        :param service: The service the groups belong to.
+        :param service_filter_groups: The list of validated filter group dictionaries.
+        :return: A mapping of client group id to the persisted group instance.
+        """
+
+        existing_by_id = {
+            str(group.id): group for group in service.service_filter_groups.all()
+        }
+        incoming_ids = {str(group["id"]) for group in service_filter_groups}
+
+        # Delete groups which are no longer present in the payload. This cascades to
+        # their filters, which is correct: removing a group removes its filters.
+        for group_id, group in list(existing_by_id.items()):
+            if group_id not in incoming_ids:
+                group.delete()
+                del existing_by_id[group_id]
+
+        client_id_to_group: Dict[str, LocalBaserowTableServiceFilterGroup] = {}
+        pending = list(service_filter_groups)
+
+        def upsert(group, parent):
+            group_id = str(group["id"])
+            existing = existing_by_id.get(group_id)
+            if existing is not None:
+                existing.filter_type = group["filter_type"]
+                existing.parent_group = parent
+                existing.save()
+                return existing
+            return LocalBaserowTableServiceFilterGroup.objects.create(
+                service=service,
+                filter_type=group["filter_type"],
+                parent_group=parent,
+            )
+
+        # Resolve parent references iteratively so that a parent group is always
+        # persisted before its children, regardless of the order in the payload.
+        while pending:
+            still_pending = []
+            for group in pending:
+                parent_client_id = group.get("parent_group_id")
+                parent_resolved = (
+                    parent_client_id is None
+                    or str(parent_client_id) in client_id_to_group
+                )
+                if not parent_resolved:
+                    still_pending.append(group)
+                    continue
+                parent = (
+                    client_id_to_group[str(parent_client_id)]
+                    if parent_client_id is not None
+                    else None
+                )
+                client_id_to_group[str(group["id"])] = upsert(group, parent)
+
+            if len(still_pending) == len(pending):
+                # No progress: the remaining groups reference missing parents. Persist
+                # them as top-level groups so we never loop forever or lose data.
+                for group in still_pending:
+                    client_id_to_group[str(group["id"])] = upsert(group, None)
+                break
+
+            pending = still_pending
+
+        return client_id_to_group
+
     def update_service_filters(
         self,
         service: Union[LocalBaserowGetRow, LocalBaserowListRows],
         service_filters: Optional[List[ServiceFilterDictSubClass]] = None,
+        service_filter_groups: Optional[List[Dict]] = None,
     ):
+        """
+        Persists the given filters and/or filter groups for the service.
+
+        Because the data source is saved as a whole payload but only the changed keys
+        are sent, `service_filters` and/or `service_filter_groups` may be `None`,
+        meaning "this part was not part of this update, leave it as-is". An empty list
+        means "clear this part". This decoupling is what keeps a filter-only edit from
+        wiping the groups (and vice versa).
+        """
+
         with atomic_if_not_already():
+            # Reconcile groups first (preserving their ids) so that filters can be
+            # linked to them. When the groups are not part of this update, index the
+            # existing groups by id so filters can still reference them.
+            if service_filter_groups is not None:
+                client_id_to_group = self.sync_service_filter_groups(
+                    service, service_filter_groups
+                )
+            else:
+                client_id_to_group = {
+                    str(group.id): group
+                    for group in service.service_filter_groups.all()
+                }
+
+            if service_filters is None:
+                return
+
             service.service_filters.all().delete()
+
+            def build_filter(index, service_filter):
+                service_filter = {**service_filter}
+                group_client_id = service_filter.pop("group_id", None)
+                group = (
+                    client_id_to_group.get(str(group_client_id))
+                    if group_client_id is not None
+                    else None
+                )
+                return LocalBaserowTableServiceFilter(
+                    **service_filter, service=service, order=index, group=group
+                )
+
             LocalBaserowTableServiceFilter.objects.bulk_create(
                 [
-                    LocalBaserowTableServiceFilter(
-                        **service_filter, service=service, order=index
-                    )
+                    build_filter(index, service_filter)
                     for index, service_filter in enumerate(service_filters)
                 ]
+            )
+
+    def _invalidate_refinement_prefetch_cache(self, service):
+        """
+        The service may have been fetched with its filters/groups prefetched (see
+        `enhance_queryset`). After mutating them, drop the stale prefetch cache so that
+        a response serialized from the same instance reflects the changes.
+        """
+
+        prefetch_cache = getattr(service, "_prefetched_objects_cache", None)
+        if prefetch_cache is not None:
+            prefetch_cache.pop("service_filters", None)
+            prefetch_cache.pop("service_filter_groups", None)
+
+    def after_create(self, instance: ServiceSubClass, values: Dict) -> None:
+        super().after_create(instance, values)
+
+        if "service_filters" in values or "service_filter_groups" in values:
+            self.update_service_filters(
+                instance,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
             )
 
     def after_update(
@@ -385,28 +600,40 @@ class LocalBaserowTableServiceFilterableMixin:
         changes: Dict[str, Tuple],
     ) -> None:
         """
-        Responsible for updating service filters which have been
-        PATCHED to the data source / service endpoint. At the moment we
-        destroy all current filters, and create the ones present
-        in `service_filters`.
+        Responsible for updating the service filters and filter groups which have been
+        PATCHED to the data source / service endpoint. Because only the changed keys are
+        sent, filters and filter groups are updated independently: a part that is absent
+        from the payload is left untouched (see `update_service_filters`).
 
         :param instance: The service we want to manage filters for.
-        :param values: A dictionary which may contain filters.
+        :param values: A dictionary which may contain `service_filters` and/or
+            `service_filter_groups`.
         :param changes: A dictionary containing all changes which were made to the
             service prior to `after_update` being called.
         """
 
         super().after_update(instance, values, changes)
 
-        # Following a Table change, from one Table to another, we drop all filters.
-        # This is due to the fact that they point at specific table fields.
+        # Following a Table change, from one Table to another, we drop all filters and
+        # filter groups. This is due to the fact that they point at specific table
+        # fields.
         from_table, to_table = changes.get("table", (None, None))
 
         if from_table and to_table:
             instance.service_filters.all().delete()
+            instance.service_filter_groups.all().delete()
+            self._invalidate_refinement_prefetch_cache(instance)
         else:
-            if "service_filters" in values:
-                self.update_service_filters(instance, values["service_filters"])
+            if "service_filters" in values or "service_filter_groups" in values:
+                # Pass `None` (not `[]`) for a part that wasn't sent, so it is left
+                # untouched rather than cleared. This is what keeps a filter-only edit
+                # from wiping the groups, and a group-only edit from wiping the filters.
+                self.update_service_filters(
+                    instance,
+                    values.get("service_filters"),
+                    values.get("service_filter_groups"),
+                )
+                self._invalidate_refinement_prefetch_cache(instance)
 
 
 class LocalBaserowTableServiceSortableMixin:
@@ -451,6 +678,15 @@ class LocalBaserowTableServiceSortableMixin:
             }
             for s in service.service_sorts_with_untrashed_fields
         ]
+
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service sorts live on a related model (rebuilt in `after_update`), so the
+        # base export - which only reads `allowed_fields` - misses them. Capture them in
+        # the same shape `after_update` restores them from, so that changing a sort can
+        # be undone/redone.
+        values["service_sorts"] = self.serialize_sortings(instance)
+        return values
 
     def serialize_property(
         self,
@@ -625,7 +861,11 @@ class LocalBaserowTableServiceSortableMixin:
         queryset = super().get_table_queryset(service, table, dispatch_context, model)
 
         adhoc_sort = dispatch_context.sortings()
-        if adhoc_sort and dispatch_context.is_publicly_sortable:
+        if (
+            adhoc_sort
+            and dispatch_context.is_publicly_sortable
+            and dispatch_context.is_adhoc_refinable(service)
+        ):
             field_names = [field.strip("-") for field in adhoc_sort.split(",")]
             dispatch_context.validate_filter_search_sort_fields(
                 field_names, ServiceAdhocRefinements.SORT
@@ -777,7 +1017,11 @@ class LocalBaserowTableServiceSearchableMixin:
                 service_search_query, search_mode=search_mode
             )
         adhoc_search_query = dispatch_context.search_query()
-        if adhoc_search_query is not None and dispatch_context.is_publicly_searchable:
+        if (
+            adhoc_search_query is not None
+            and dispatch_context.is_publicly_searchable
+            and dispatch_context.is_adhoc_refinable(service)
+        ):
             # This mixin's `get_queryset` method does not validate any adhoc
             # refinements, as the search query is not a field. We instead
             # restrict the fields that we search against to only those which
@@ -826,3 +1070,38 @@ class LocalBaserowTableServiceSpecificRowMixin:
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]
+
+
+class UpdateRowRequiresRowIdMixin:
+    """
+    For an action or node type that updates a row through the upsert row
+    service. That service creates a row when its row ID formula is empty, so an
+    update type refuses to dispatch without one. List it before the action or
+    node type base, so that its `dispatch` runs first.
+    """
+
+    def raise_if_misconfigured(
+        self, instance: "WorkflowAction | AutomationNode"
+    ) -> None:
+        """
+        Refuses an update that names no row.
+
+        :param instance: The action or node whose service is checked.
+        :raises ServiceImproperlyConfiguredDispatchException: When the row ID
+            formula is empty.
+        """
+
+        super().raise_if_misconfigured(instance)
+
+        if not instance.service.specific.row_id["formula"].strip():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A row ID is required to update a row."
+            )
+
+    def dispatch(
+        self,
+        instance: "WorkflowAction | AutomationNode",
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        self.raise_if_misconfigured(instance)
+        return super().dispatch(instance, dispatch_context)

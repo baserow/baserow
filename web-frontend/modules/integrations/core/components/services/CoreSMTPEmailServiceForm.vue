@@ -24,11 +24,12 @@
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
+        :allow-editing="editableFromHere"
       />
     </FormGroup>
 
     <FormGroup
-      v-if="!values.use_instance_smtp_settings"
+      v-if="!sendsThroughInstance"
       small-label
       :label="$t('smtpEmailForm.fromEmail')"
       required
@@ -41,7 +42,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="!values.use_instance_smtp_settings"
+      v-if="!sendsThroughInstance"
       small-label
       :label="$t('smtpEmailForm.fromName')"
       class="margin-bottom-2"
@@ -150,6 +151,23 @@ export default {
       required: false,
       default: null,
     },
+    // False where the service cannot carry an integration, such as a button
+    // field's actions. The instance server is then the only way to send, so
+    // neither the choice nor the dropdown is worth offering.
+    allowIntegration: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    // Whether this installation can send through its own server, for a
+    // caller that knows better than the saved service, such as a button
+    // field's action. False offers only an integration, without changing the
+    // stored choice until the user makes one. Null reads the service.
+    instanceSmtpAvailable: {
+      type: Boolean,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
@@ -167,7 +185,11 @@ export default {
       ],
       values: {
         integration_id: null,
-        use_instance_smtp_settings: false,
+        // Where the service cannot carry an integration the instance server is
+        // the only way to send, so that is what an untouched form holds. Set
+        // here rather than after mount, or the mixin's watcher would report a
+        // change the user never made.
+        use_instance_smtp_settings: !this.allowIntegration,
         from_email: {},
         from_name: {},
         to_emails: {},
@@ -186,12 +208,32 @@ export default {
         : ['raw', 'simple']
     },
     showInstanceSmtpOption() {
-      return Boolean(this.service?.instance_smtp_settings_enabled)
+      if (this.instanceSmtpAvailable !== null) {
+        return this.allowIntegration && this.instanceSmtpAvailable
+      }
+      return (
+        this.allowIntegration &&
+        Boolean(this.service?.instance_smtp_settings_enabled)
+      )
     },
     showIntegrationSelector() {
       return (
-        !this.showInstanceSmtpOption || !this.values.use_instance_smtp_settings
+        this.allowIntegration &&
+        (!this.showInstanceSmtpOption || !this.sendsThroughInstance)
       )
+    },
+    // Where the instance is not offered, an integration is what sends, even
+    // if the stored choice still names the instance.
+    sendsThroughInstance() {
+      if (this.instanceSmtpAvailable === false) {
+        return false
+      }
+      return this.values.use_instance_smtp_settings
+    },
+    // A database has no integrations page of its own, so the dropdown is the
+    // only place to edit one, as with the Slack action.
+    editableFromHere() {
+      return this.application?.type === 'database'
     },
     integrations() {
       if (!this.application) {

@@ -411,6 +411,7 @@ export default {
         this.selectedDataSourceReturnsList &&
         !this.selectedDataSourceType.isInError({
           service: this.selectedDataSource,
+          workspace: this.builder.workspace,
         })
       ) {
         this.values.fields =

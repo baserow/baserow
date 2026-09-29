@@ -5,6 +5,7 @@
         {{ $t('apiDocs.authent') }}
       </h2>
       <i18n-t
+        scope="global"
         keypath="apiDocsAuth.description"
         tag="p"
         class="api-docs__content"

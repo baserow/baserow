@@ -24,10 +24,16 @@ class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
         "The accept token is going to be appended to the base_url (base_url "
         "'/token')."
     )
+    captcha_token = serializers.CharField(
+        required=False,
+        default="",
+        allow_blank=True,
+        help_text="The captcha response token, required when captcha is enabled.",
+    )
 
     class Meta:
         model = WorkspaceInvitation
-        fields = ("email", "permissions", "base_url")
+        fields = ("email", "permissions", "base_url", "captcha_token")
 
 
 class UpdateWorkspaceInvitationSerializer(serializers.ModelSerializer):
@@ -44,6 +50,7 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
 
     invited_by = serializers.SerializerMethodField()
     workspace = serializers.SerializerMethodField()
+    workspace_id = serializers.IntegerField(read_only=True)
     email_exists = serializers.SerializerMethodField()
 
     class Meta:
@@ -52,6 +59,7 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
             "id",
             "invited_by",
             "workspace",
+            "workspace_id",
             "email",
             "created_on",
             "email_exists",

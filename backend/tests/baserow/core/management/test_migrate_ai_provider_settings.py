@@ -1,0 +1,466 @@
+from io import StringIO
+from unittest.mock import patch
+
+from django.core.management import call_command
+
+import pytest
+
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
+    AI_PROVIDER_FEATURE_AI_FIELDS,
+    PROVIDER_ENVIRONMENT_SETTINGS,
+)
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
+from baserow.core.ai_provider.registries import (
+    ai_provider_model_feature_type_registry,
+)
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+
+
+def _clear_provider_environment(settings):
+    for config in PROVIDER_ENVIRONMENT_SETTINGS.values():
+        if config["api_key"]:
+            setattr(settings, config["api_key"], "")
+        setattr(settings, config["models"], [])
+        for setting_name in config["extra_settings"].values():
+            setattr(settings, setting_name, "")
+
+
+@pytest.mark.django_db
+def test_command_previews_then_imports_without_printing_secrets(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OPENAI_API_KEY = "super-secret"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4o", "gpt-4o-mini"]
+    settings.BASEROW_OPENAI_ORGANIZATION = "org-1"
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+
+    assert not AIProviderConfig.objects.exists()
+    assert "Preview complete" in out.getvalue()
+    assert "super-secret" not in out.getvalue()
+
+    out = StringIO()
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "instance",
+        "--apply",
+        stdout=out,
+    )
+
+    provider = AIProviderConfig.objects.get(provider_type="openai")
+    assert provider.api_key == "super-secret"
+    assert provider.extra_settings == {"organization": "org-1"}
+    assert list(provider.models.values_list("model_identifier", flat=True)) == [
+        "gpt-4o",
+        "gpt-4o-mini",
+    ]
+    assert list(provider.models.values_list("feature_types", flat=True)) == [
+        [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT],
+        [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT],
+    ]
+    assert "Imported 1 missing instance provider(s)." in out.getvalue()
+    assert "super-secret" not in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_command_imports_on_oss_only_installations(settings, monkeypatch):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OPENAI_API_KEY = "oss-secret"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4o-mini"]
+    monkeypatch.setattr(ai_provider_model_feature_type_registry, "registry", {})
+
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "instance",
+        "--apply",
+        stdout=StringIO(),
+    )
+
+    model = AIProviderModel.objects.get()
+    assert model.feature_types == [
+        AI_PROVIDER_FEATURE_AI_FIELDS,
+        AI_PROVIDER_FEATURE_AI_AGENT,
+    ]
+
+
+@pytest.mark.django_db
+def test_command_is_idempotent_and_preserves_existing_providers(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OPENAI_API_KEY = "environment-secret"
+    settings.BASEROW_OPENAI_MODELS = ["environment-model"]
+    existing = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-secret"
+    )
+
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "instance",
+        "--apply",
+        stdout=StringIO(),
+    )
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "instance",
+        "--apply",
+        stdout=StringIO(),
+    )
+
+    existing.refresh_from_db()
+    assert existing.api_key == "database-secret"
+    assert existing.models.count() == 0
+    assert AIProviderConfig.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_command_reports_when_no_environment_settings_exist(settings):
+    _clear_provider_environment(settings)
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+    output = out.getvalue()
+
+    assert "nothing to import" in output
+    assert "BASEROW_OPENAI_API_KEY" in output
+    assert "BASEROW_OLLAMA_HOST" in output
+
+
+@pytest.mark.django_db
+def test_command_skips_incomplete_provider_settings(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OLLAMA_MODELS = ["llama3.3"]
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+
+    assert "Ollama: skipping" in out.getvalue()
+    assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_command_rejects_whitespace_only_environment_credentials(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_MISTRAL_API_KEY = "   "
+    settings.BASEROW_MISTRAL_MODELS = ["mistral-large-latest"]
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+
+    assert "Mistral: skipping" in out.getvalue()
+    assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_command_reports_preview_counts(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OPENAI_API_KEY = "secret"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4o"]
+    settings.BASEROW_ANTHROPIC_API_KEY = "secret"
+    settings.BASEROW_ANTHROPIC_MODELS = ["claude-sonnet"]
+    AIProviderConfig.objects.create(provider_type="anthropic")
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+
+    assert "1 provider(s) to import, 1 left unchanged" in out.getvalue()
+    assert "--apply" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_workspace_scope_previews_then_imports_idempotently_without_secrets(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {
+                "api_key": "workspace-secret",
+                "models": ["gpt-5.4", "gpt-5.4-mini"],
+                "organization": "workspace-org",
+            }
+        }
+    )
+
+    preview = StringIO()
+    call_command("migrate_ai_provider_settings", "--scope", "workspace", stdout=preview)
+
+    assert not AIProviderConfig.objects.exists()
+    assert "2 model(s)" in preview.getvalue()
+    assert "workspace-secret" not in preview.getvalue()
+
+    for _ in range(2):
+        call_command(
+            "migrate_ai_provider_settings",
+            "--scope",
+            "workspace",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+    provider = AIProviderConfig.objects.get(workspace=workspace, provider_type="openai")
+    assert provider.api_key == "workspace-secret"
+    assert provider.extra_settings == {"organization": "workspace-org"}
+    assert list(provider.models.values_list("model_identifier", flat=True)) == [
+        "gpt-5.4",
+        "gpt-5.4-mini",
+    ]
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings["openai"]["api_key"] == (
+        "workspace-secret"
+    )
+
+    AIProviderHandler.delete_provider(provider)
+    workspace.refresh_from_db()
+    assert "openai" not in workspace.generative_ai_models_settings
+
+
+@pytest.mark.django_db
+def test_workspace_scope_migrates_every_current_legacy_provider_setting(data_fixture):
+    legacy_settings = {
+        "openai": {
+            "api_key": "openai-key",
+            "models": ["gpt-5.4", "gpt-5.4-mini"],
+            "organization": "openai-org",
+            "base_url": "https://openai.example/v1",
+        },
+        "anthropic": {
+            "api_key": "anthropic-key",
+            "models": ["claude-sonnet-4-6"],
+        },
+        "mistral": {
+            "api_key": "mistral-key",
+            "models": ["mistral-large-latest"],
+        },
+        "ollama": {
+            "models": ["llama3.3", "qwen3"],
+            "host": "https://ollama.example",
+        },
+        "openrouter": {
+            "api_key": "openrouter-key",
+            "models": ["openai/gpt-5.4"],
+            "organization": "openrouter-org",
+        },
+    }
+    expected_extra_settings = {
+        "openai": {
+            "organization": "openai-org",
+            "base_url": "https://openai.example/v1",
+        },
+        "anthropic": {},
+        "mistral": {},
+        "ollama": {"host": "https://ollama.example"},
+        "openrouter": {"organization": "openrouter-org"},
+    }
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings=legacy_settings
+    )
+
+    # A direct upgrade preserves complete workspace connections before import.
+    for provider_type, legacy_values in legacy_settings.items():
+        model_type = generative_ai_model_type_registry.get(provider_type)
+        assert model_type.get_model_settings_override(
+            legacy_values["models"][0], workspace
+        ) == {
+            "api_key": legacy_values.get("api_key", ""),
+            "models": legacy_values["models"],
+            **expected_extra_settings[provider_type],
+        }
+
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "workspace",
+        "--apply",
+        stdout=StringIO(),
+    )
+
+    assert AIProviderConfig.objects.filter(workspace=workspace).count() == len(
+        legacy_settings
+    )
+    for provider_type, legacy_values in legacy_settings.items():
+        provider = AIProviderConfig.objects.get(
+            workspace=workspace, provider_type=provider_type
+        )
+        expected_api_key = legacy_values.get("api_key", "")
+        expected_models = legacy_values["models"]
+        expected_extra = expected_extra_settings[provider_type]
+
+        assert provider.api_key == expected_api_key
+        assert provider.extra_settings == expected_extra
+        assert (
+            list(provider.models.values_list("model_identifier", flat=True))
+            == expected_models
+        )
+        assert list(provider.models.values_list("feature_types", flat=True)) == [
+            [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT]
+            for _ in expected_models
+        ]
+
+        model_type = generative_ai_model_type_registry.get(provider_type)
+        assert model_type.get_model_settings_override(
+            expected_models[0], workspace
+        ) == {
+            "api_key": expected_api_key,
+            "models": expected_models,
+            **expected_extra,
+        }
+
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings == legacy_settings
+
+
+@pytest.mark.django_db
+def test_workspace_scope_keeps_conflicts_and_reports_invalid_settings(data_fixture):
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {
+                "api_key": "legacy-openai-key",
+                "models": ["legacy-only", "shared-model"],
+                "organization": "legacy-org",
+                "base_url": "https://legacy.example",
+            },
+            "anthropic": {"models": ["legacy-claude"]},
+            "mistral": "invalid-settings",
+        }
+    )
+    existing = AIProviderConfig.objects.create(
+        workspace=workspace,
+        provider_type="openai",
+        api_key="database-key",
+        extra_settings={
+            "organization": "database-org",
+            "database_only_setting": "database-setting-value",
+        },
+    )
+    AIProviderModel.objects.create(
+        provider_config=existing,
+        model_identifier="shared-model",
+        is_enabled=False,
+    )
+    AIProviderModel.objects.create(
+        provider_config=existing, model_identifier="database-only"
+    )
+
+    output = StringIO()
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "workspace",
+        "--apply",
+        stdout=output,
+    )
+
+    assert AIProviderConfig.objects.filter(workspace=workspace).count() == 1
+    existing.refresh_from_db()
+    assert existing.api_key == "database-key"
+    command_output = output.getvalue()
+    assert command_output.count("skipping incomplete legacy settings") == 2
+    assert "keeping existing database configuration" in command_output
+    assert "credential differs" in command_output
+    assert "settings only in legacy settings: base_url" in command_output
+    assert "settings only in database: database_only_setting" in command_output
+    assert "settings with different values: organization" in command_output
+    assert "models only in legacy settings: legacy-only" in command_output
+    assert "models only in database: database-only" in command_output
+    assert "models disabled in database: shared-model" in command_output
+    for secret in (
+        "legacy-openai-key",
+        "database-key",
+        "legacy-org",
+        "database-org",
+        "database-setting-value",
+        "https://legacy.example",
+    ):
+        assert secret not in command_output
+
+
+@pytest.mark.django_db
+def test_workspace_scope_import_is_atomic(data_fixture):
+    data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "openai-key", "models": ["gpt-5.4"]},
+            "anthropic": {
+                "api_key": "anthropic-key",
+                "models": ["claude-sonnet-4-6"],
+            },
+        }
+    )
+
+    def fail_after_providers(*args, **kwargs):
+        raise RuntimeError("stop after creating the providers")
+
+    with (
+        patch.object(
+            AIProviderModel.objects,
+            "bulk_create",
+            side_effect=fail_after_providers,
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        call_command(
+            "migrate_ai_provider_settings",
+            "--scope",
+            "workspace",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+    assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_workspace_scope_does_not_opt_out_of_inheritance_but_warns(data_fixture):
+    """
+    Only the upgrade migration opts imported workspaces out of instance inheritance.
+
+    The command is the manual recovery path, so it imports and reports instead,
+    leaving the operator to disable the inherited provider deliberately.
+    """
+
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-4o"]}
+        }
+    )
+    AIProviderConfig.objects.create(
+        workspace=None, provider_type="openai", api_key="instance-key"
+    )
+
+    out = StringIO()
+    call_command(
+        "migrate_ai_provider_settings", "--scope", "workspace", "--apply", stdout=out
+    )
+
+    assert AIProviderConfig.objects.filter(workspace=workspace).count() == 1
+    assert not AIProviderWorkspaceOverride.objects.exists()
+    assert "will also inherit the instance provider" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_instance_scope_warns_that_existing_workspaces_will_inherit(
+    data_fixture, settings
+):
+    """The recovery path must flag the inheritance the migration would have prevented."""
+
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    workspace = data_fixture.create_workspace()
+    AIProviderConfig.objects.create(
+        workspace=workspace, provider_type="openai", api_key="workspace-key"
+    )
+
+    out = StringIO()
+    call_command(
+        "migrate_ai_provider_settings", "--scope", "instance", "--apply", stdout=out
+    )
+
+    assert "1 workspace(s) with their own provider of this type" in out.getvalue()
+    assert not AIProviderWorkspaceOverride.objects.exists()

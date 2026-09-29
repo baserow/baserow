@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed Data Input fields not displaying the number 0 when number validation is enabled.",
+    "issue_origin": "github",
+    "issue_number": 5835,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-05"
+}

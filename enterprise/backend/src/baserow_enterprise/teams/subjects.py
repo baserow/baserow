@@ -18,13 +18,16 @@ class TeamSubjectType(SubjectType):
     model_class = Team
 
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: Workspace
+        self,
+        subjects: List[Subject],
+        workspace: Workspace,
+        include_trash: bool = False,
     ) -> List[bool]:
+        team_manager = Team.objects_and_trash if include_trash else Team.objects
         team_ids_in_workspace = set(
-            Team.objects.filter(
+            team_manager.filter(
                 id__in=[s.id for s in subjects],
                 workspace=workspace,
-                trashed=False,
             ).values_list("id", flat=True)
         )
 

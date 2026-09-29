@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds a Go to node action that jumps to another node when a condition is true",
+    "issue_origin": "github",
+    "issue_number": 5559,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-06-24"
+}

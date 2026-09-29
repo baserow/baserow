@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed link URL protocol validation to prevent code execution.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-11"
+}

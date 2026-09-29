@@ -1,6 +1,10 @@
 <template>
   <header class="layout__col-2-1 header">
-    <div class="header__loading"></div>
+    <SkeletonBlock
+      class="header__loading"
+      width="140px"
+      height="12px"
+    ></SkeletonBlock>
   </header>
 </template>
 

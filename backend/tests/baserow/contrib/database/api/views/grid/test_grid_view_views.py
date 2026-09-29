@@ -1888,6 +1888,130 @@ def test_can_get_aggregation_if_result_is_nan(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_can_get_median_aggregation_if_result_is_float_nan(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    # Median aggregation uses FloatField output, so Decimal("NaN") rows come back
+    # as float("nan") — which must also be sanitized.
+    formula_field = data_fixture.create_formula_field(table=table, formula="1 / 0")
+
+    RowHandler().create_row(user, table)
+
+    ViewHandler().update_field_options(
+        view=grid_view,
+        field_options={
+            formula_field.id: {
+                "aggregation_type": "median",
+                "aggregation_raw_type": "median",
+            }
+        },
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregations",
+        kwargs={"view_id": grid_view.id},
+    )
+
+    response = api_client.get(
+        url,
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {f"field_{formula_field.id}": "NaN"}
+
+
+@pytest.mark.django_db
+def test_can_get_singular_field_aggregation_if_result_is_float_nan(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    formula_field = data_fixture.create_formula_field(table=table, formula="1 / 0")
+
+    RowHandler().create_row(user, table)
+
+    url = reverse(
+        "api:database:views:grid:field-aggregation",
+        kwargs={"view_id": grid_view.id, "field_id": formula_field.id},
+    )
+
+    response = api_client.get(
+        url + "?type=median",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"value": "NaN"}
+
+
+@pytest.mark.django_db
+def test_can_get_decile_aggregation_if_result_is_float_nan(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    formula_field = data_fixture.create_formula_field(table=table, formula="1 / 0")
+
+    RowHandler().create_row(user, table)
+
+    ViewHandler().update_field_options(
+        view=grid_view,
+        field_options={
+            formula_field.id: {
+                "aggregation_type": "decile",
+                "aggregation_raw_type": "decile",
+            }
+        },
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregations",
+        kwargs={"view_id": grid_view.id},
+    )
+
+    response = api_client.get(
+        url,
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {f"field_{formula_field.id}": ["NaN"] * 9}
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (Decimal("NaN"), "NaN"),
+        (Decimal("sNaN"), "NaN"),
+        (float("nan"), "NaN"),
+        (Decimal("Infinity"), "Infinity"),
+        (Decimal("-Infinity"), "-Infinity"),
+        (float("inf"), "Infinity"),
+        (float("-inf"), "-Infinity"),
+        (Decimal("42.5"), Decimal("42.5")),
+        (3.14, 3.14),
+        (None, None),
+        ("text", "text"),
+        ([float("nan"), 1.0, float("inf")], ["NaN", 1.0, "Infinity"]),
+        ([Decimal("NaN"), Decimal("-Infinity")], ["NaN", "-Infinity"]),
+    ],
+)
+def test_json_safe_aggregation_value(value, expected):
+    from baserow.contrib.database.api.views.utils import json_safe_aggregation_value
+
+    result = json_safe_aggregation_value(value)
+    if isinstance(expected, str) and expected == "NaN":
+        assert result == "NaN"
+    else:
+        assert result == expected
+
+
+@pytest.mark.django_db
 def test_public_view_aggregations_view_doesnt_exist(api_client):
     url = reverse(
         "api:database:views:grid:public-field-aggregations",
@@ -3358,6 +3482,7 @@ def test_get_public_grid_view(api_client, data_fixture):
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
             "frozen_column_count": 1,
+            "group_by_layout": grid_view.group_by_layout,
             "show_logo": True,
             "allow_public_export": False,
             "ownership_type": "collaborative",
@@ -3721,6 +3846,83 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
 
 
 @pytest.mark.django_db
+def test_list_rows_public_all_fields_hidden_rejects_adhoc_filter(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    hidden_field = data_fixture.create_text_field(table=table, name="hidden")
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
+
+    RowHandler().create_row(
+        user, table, values={"hidden": "secret"}, user_field_names=True
+    )
+
+    url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
+    )
+    advanced_filters = {
+        "filter_type": "AND",
+        "filters": [
+            {
+                "field": hidden_field.id,
+                "type": "contains",
+                "value": "secret",
+            }
+        ],
+    }
+    get_params = ["filters=" + json.dumps(advanced_filters)]
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
+def test_public_view_aggregations_all_fields_hidden_rejects_adhoc_filter(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    hidden_field = data_fixture.create_text_field(table=table, name="hidden")
+    grid = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid, hidden_field, hidden=True)
+    data_fixture.create_grid_view_field_option(
+        grid_view=grid,
+        field=hidden_field,
+        aggregation_type="whatever",
+        aggregation_raw_type="empty_count",
+    )
+
+    advanced_filters = {
+        "filter_type": "AND",
+        "filters": [
+            {
+                "field": hidden_field.id,
+                "type": "equal",
+                "value": "secret",
+            }
+        ],
+    }
+    get_params = [f"filters={json.dumps(advanced_filters)}", "include=total"]
+    response = api_client.get(
+        reverse(
+            "api:database:views:grid:public-field-aggregations",
+            kwargs={"slug": grid.slug},
+        )
+        + f"?{'&'.join(get_params)}"
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
 def test_list_rows_with_query_param_order(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -3914,7 +4116,7 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
 
 
 @pytest.mark.django_db
@@ -4062,7 +4264,7 @@ def test_list_rows_public_with_query_param_group_by_and_type(api_client, data_fi
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
 
     response = api_client.get(
         f"{url}?group_by=field_{select_1.id}[order]",
@@ -5425,3 +5627,230 @@ def test_list_rows_with_page_and_invalid_numbers(api_client, data_fixture):
         assert response_json["results"][0][f"field_{text_field.id}"] == "0"
         assert response_json["results"][99][f"field_{text_field.id}"] == "99"
         assert count_calls == 0  # count is not called again
+
+
+@pytest.mark.django_db
+def test_list_rows_adhoc_order_by_with_group_by_multiple_select(
+    api_client, data_fixture
+):
+    """
+    When a user sends both ``order_by`` and ``group_by`` query parameters
+    (the adhoc sorting path used by Editors), the rows endpoint must use
+    ``get_group_by_sort_order`` for the group-by fields so that the row
+    ordering matches the group tree built by the group-by data endpoint.
+
+    Regression test for the bug where ``order_by_fields_string`` always used
+    ``get_order`` (StringAgg, insertion-order dependent) instead of
+    ``get_group_by_sort_order`` (ArrayAgg, set-based) for multiple select
+    fields, causing group offsets to misalign.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Tags",
+        type_name="multiple_select",
+    )
+    option_a = data_fixture.create_select_option(field=field, value="A", color="red")
+    option_b = data_fixture.create_select_option(field=field, value="B", color="blue")
+    option_c = data_fixture.create_select_option(field=field, value="C", color="green")
+
+    # Row 1: select A then C (insertion order: A, C)
+    row1 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_a.id, option_c.id], user=user
+    )
+    # Row 2: select B only
+    row2 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_b.id], user=user
+    )
+    # Row 3: select C then A (insertion order: C, A — same set as row 1)
+    row3 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_c.id, option_a.id], user=user
+    )
+
+    grid_view = data_fixture.create_grid_view(table=table, user=user)
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+
+    # Simulate the adhoc sorting path: group_by and order_by both reference the
+    # multiple select field. The group_by param tells the backend which fields
+    # are group-by fields so it can use set-based ordering.
+    response = api_client.get(
+        f"{url}?order_by=field_{field.id}&group_by=field_{field.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    results = response.json()["results"]
+    assert len(results) == 3
+
+    # Rows 1 and 3 share the same set {A, C} and must be adjacent (contiguous
+    # group). With the old get_order (StringAgg), insertion order could
+    # separate them.
+    result_ids = [r["id"] for r in results]
+    idx1 = result_ids.index(row1.id)
+    idx3 = result_ids.index(row3.id)
+    assert abs(idx1 - idx3) == 1, (
+        f"Rows with same option set {{A,C}} must be adjacent but were at "
+        f"positions {idx1} and {idx3}"
+    )
+
+
+@pytest.mark.django_db
+def test_list_rows_public_adhoc_group_by_multiple_select_uses_set_ordering(
+    api_client, data_fixture
+):
+    """
+    Same as the private-view test above, but for the public rows endpoint
+    which has its own ``group_by`` handling in
+    ``get_public_rows_queryset_and_field_ids``.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Tags",
+        type_name="multiple_select",
+    )
+    option_a = data_fixture.create_select_option(field=field, value="A", color="red")
+    option_b = data_fixture.create_select_option(field=field, value="B", color="blue")
+    option_c = data_fixture.create_select_option(field=field, value="C", color="green")
+
+    row1 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_a.id, option_c.id], user=user
+    )
+    row2 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_b.id], user=user
+    )
+    row3 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_c.id, option_a.id], user=user
+    )
+
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, field, hidden=False)
+
+    url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
+    )
+    response = api_client.get(
+        f"{url}?group_by=field_{field.id}",
+    )
+    assert response.status_code == HTTP_200_OK
+    results = response.json()["results"]
+    assert len(results) == 3
+
+    result_ids = [r["id"] for r in results]
+    idx1 = result_ids.index(row1.id)
+    idx3 = result_ids.index(row3.id)
+    assert abs(idx1 - idx3) == 1, (
+        f"Rows with same option set {{A,C}} must be adjacent but were at "
+        f"positions {idx1} and {idx3}"
+    )
+
+
+@pytest.mark.django_db
+def test_list_rows_group_by_only_without_order_by(api_client, data_fixture):
+    """
+    After the frontend separates group_by from order_by, a request may send
+    only ``group_by`` without including those fields in ``order_by``. The
+    backend must still apply group ordering.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Label")
+    number_field = data_fixture.create_number_field(
+        table=table, name="Priority", number_decimal_places=0
+    )
+
+    model = table.get_model()
+    row_b2 = model.objects.create(
+        **{f"field_{text_field.id}": "B", f"field_{number_field.id}": 2}
+    )
+    row_a1 = model.objects.create(
+        **{f"field_{text_field.id}": "A", f"field_{number_field.id}": 1}
+    )
+    row_a3 = model.objects.create(
+        **{f"field_{text_field.id}": "A", f"field_{number_field.id}": 3}
+    )
+    row_b1 = model.objects.create(
+        **{f"field_{text_field.id}": "B", f"field_{number_field.id}": 1}
+    )
+
+    grid_view = data_fixture.create_grid_view(table=table, user=user)
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+
+    response = api_client.get(
+        f"{url}?group_by=field_{text_field.id}&order_by=field_{number_field.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    results = response.json()["results"]
+    result_ids = [r["id"] for r in results]
+    assert result_ids == [row_a1.id, row_a3.id, row_b1.id, row_b2.id]
+
+
+@pytest.mark.django_db
+def test_list_rows_group_by_alone_applies_ordering(api_client, data_fixture):
+    """
+    When only ``group_by`` is provided (no ``order_by``), rows must be ordered
+    by the group_by fields.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Category")
+
+    model = table.get_model()
+    row_c = model.objects.create(**{f"field_{text_field.id}": "C"})
+    row_a = model.objects.create(**{f"field_{text_field.id}": "A"})
+    row_b = model.objects.create(**{f"field_{text_field.id}": "B"})
+
+    grid_view = data_fixture.create_grid_view(table=table, user=user)
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
+
+    response = api_client.get(
+        f"{url}?group_by=field_{text_field.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    results = response.json()["results"]
+    result_ids = [r["id"] for r in results]
+    assert result_ids == [row_a.id, row_b.id, row_c.id]
+
+
+@pytest.mark.django_db
+def test_update_grid_view_group_by_layout(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    url = reverse("api:database:views:item", kwargs={"view_id": grid_view.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["group_by_layout"] == "section"
+
+    for group_by_layout in ("column", "section"):
+        response = api_client.patch(
+            url,
+            {"group_by_layout": group_by_layout},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["group_by_layout"] == group_by_layout
+        grid_view.refresh_from_db()
+        assert grid_view.group_by_layout == group_by_layout
+
+    response = api_client.patch(
+        url,
+        {"group_by_layout": "vertical"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

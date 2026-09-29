@@ -40,6 +40,12 @@ export default {
       nuxt: {
         domEnvironment: 'happy-dom',
         overrides: {
+          // Enable all feature flags in tests, like the backend test settings do.
+          runtimeConfig: {
+            public: {
+              featureFlags: '*',
+            },
+          },
           i18n: {
             // prevents dynamic importing `.../en.json?import`
             lazy: false,

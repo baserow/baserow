@@ -19,18 +19,22 @@ import {
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
+  CoreGotoServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
   CoreStartWorkflowServiceType,
   CoreManualTriggerServiceType,
+  CoreResponseServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
+import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
   dependsOn: ['core'],
@@ -43,6 +47,11 @@ export default defineNuxtPlugin({
     $registry.register('integration', new SMTPIntegrationType(context))
     $registry.register('integration', new AIIntegrationType(context))
     $registry.register('integration', new SlackBotIntegrationType(context))
+
+    $registry.register(
+      'aiProviderModelFeature',
+      new AIAgentAIProviderModelFeatureType(context)
+    )
 
     $registry.register('service', new LocalBaserowGetRowServiceType(context))
     $registry.register('service', new LocalBaserowListRowsServiceType(context))
@@ -73,11 +82,17 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreHTTPRequestServiceType(context))
     $registry.register('service', new CoreSMTPEmailServiceType(context))
     $registry.register('service', new CoreRouterServiceType(context))
+    $registry.register('service', new CoreGotoServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
+    $registry.register(
+      'service',
+      new CoreInboundEmailTriggerServiceType(context)
+    )
     $registry.register('service', new CoreManualTriggerServiceType(context))
     $registry.register('service', new CoreIteratorServiceType(context))
     $registry.register('service', new CoreCSVFileReaderServiceType(context))
     $registry.register('service', new CoreStartWorkflowServiceType(context))
+    $registry.register('service', new CoreResponseServiceType(context))
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))

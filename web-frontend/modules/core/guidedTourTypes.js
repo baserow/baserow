@@ -20,7 +20,17 @@ export class GuidedTourType extends Registerable {
 
   /**
    * Hook that is called when whole onboarding completes, and this one was included.
+   */
   completed() {}
+
+  /**
+   * Indicates whether this tour must be included when the user manually replays the
+   * guided tour. Tours that must only be seen the first time, like one-off
+   * announcements, can return false here.
+   */
+  get showOnReplay() {
+    return true
+  }
 
   /**
    * Should return true if the guided tour should is active and should be shown. This
@@ -103,6 +113,23 @@ export class GuidedTourStep {
   }
 
   /**
+   * Indicates whether this step must be included when the user manually replays the
+   * guided tour. Steps that must only be seen the first time can return false here.
+   */
+  get showOnReplay() {
+    return true
+  }
+
+  /**
+   * Can optionally contain Baserow academy YouTube video ids related to this step. The
+   * first one is shown as a thumbnail in the step, and clicking it plays all of them in
+   * the given order.
+   */
+  get videos() {
+    return []
+  }
+
+  /**
    * Hook that is called before the step is shown. This can be used to open a context
    * menu, for example.
    */
@@ -162,6 +189,10 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'right-top'
   }
+
+  get videos() {
+    return ['aXZzQRRTt9c']
+  }
 }
 
 class CreateNewGuidedTourStep extends GuidedTourStep {
@@ -181,6 +212,10 @@ class CreateNewGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'right-bottom'
+  }
+
+  get videos() {
+    return ['KNK1rgK3bJY']
   }
 }
 
@@ -202,6 +237,12 @@ export class SidebarGuidedTourType extends GuidedTourType {
   }
 
   isActive() {
-    return true
+    // The tour highlights elements of the workspace specific sidebar, so it must
+    // only start on pages that render that sidebar, and not on the all workspaces
+    // homepage for example. Use the `routeMounted` because that gives us the route
+    // that's actually mounted, making sure that the selector elements have been
+    // rendered.
+    const route = this.app.$store.getters['routeMounted/routeMounted']
+    return !!route && (route.meta?.sidebarType ?? 'workspace') === 'workspace'
   }
 }

@@ -74,6 +74,13 @@ export class AdminType extends Registerable {
   }
 
   /**
+   * Indicates whether this admin type should be rendered in navigation.
+   */
+  isVisible() {
+    return true
+  }
+
+  /**
    * Indicates if the admin type is disabled.
    */
   isDeactivated() {
@@ -187,6 +194,28 @@ export class SettingsAdminType extends AdminType {
 
   getOrder() {
     return 9999
+  }
+}
+
+export class AIProvidersAdminType extends AdminType {
+  static getType() {
+    return 'ai-providers'
+  }
+
+  getIconClass() {
+    return 'iconoir-sparks'
+  }
+
+  getName() {
+    return this.app.$i18n.t('adminType.aiProviders')
+  }
+
+  getRouteName() {
+    return 'admin-ai-providers'
+  }
+
+  getOrder() {
+    return 130
   }
 }
 

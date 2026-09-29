@@ -9,7 +9,6 @@ from .views import (
     ImportExportResourceUploadFileView,
     ImportExportResourceView,
     ListExportWorkspaceApplicationsView,
-    WorkspaceGenerativeAISettingsView,
     WorkspaceLeaveView,
     WorkspaceOrderView,
     WorkspacePermissionsView,
@@ -33,11 +32,6 @@ urlpatterns = [
     ),
     re_path(r"(?P<workspace_id>[0-9]+)/$", WorkspaceView.as_view(), name="item"),
     re_path(r"order/$", WorkspaceOrderView.as_view(), name="order"),
-    re_path(
-        r"(?P<workspace_id>[0-9]+)/settings/generative-ai/$",
-        WorkspaceGenerativeAISettingsView.as_view(),
-        name="generative_ai_settings",
-    ),
     re_path(
         r"create-initial-workspace/$",
         CreateInitialWorkspaceView.as_view(),

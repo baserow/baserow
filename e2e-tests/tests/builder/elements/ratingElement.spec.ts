@@ -42,15 +42,15 @@ test.describe("Builder page heading element test suite", () => {
       if (node) node.remove();
     });
 
+    // Subscribe before clicking: the Preview handler calls window.open()
+    // synchronously, so the "page" event can fire before click() resolves.
+    const newPagePromise = context.waitForEvent("page");
     await page.getByRole("button", { name: "Preview" }).click();
-
-    const newPage = await context.waitForEvent("page");
+    const newPage = await newPagePromise;
 
     await newPage.waitForLoadState();
 
-    const title = await newPage.title();
-    await expect(title).toBe("Default page");
-
+    await expect(newPage).toHaveTitle("Default page");
     await expect(newPage.locator(".rating")).toHaveCount(3);
   });
 });

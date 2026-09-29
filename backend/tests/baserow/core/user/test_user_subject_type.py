@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 import pytest
 
+from baserow.core.models import User, Workspace
 from baserow.core.subjects import UserSubjectType
 
 
@@ -39,6 +40,67 @@ def test_user_subject_type_is_in_workspace(data_fixture):
 
 
 @pytest.mark.django_db
+def test_user_subject_type_uses_prefetched_workspace_memberships(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    member = data_fixture.create_user(workspace=workspace)
+    inactive_member = data_fixture.create_user(workspace=workspace, is_active=False)
+    deleted_member = data_fixture.create_user(workspace=workspace, to_be_deleted=True)
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+    users_by_id = User.objects.select_related("profile").in_bulk(
+        [member.id, inactive_member.id, deleted_member.id]
+    )
+    subjects = [
+        users_by_id[member.id],
+        users_by_id[inactive_member.id],
+        users_by_id[deleted_member.id],
+    ]
+
+    with django_assert_num_queries(0):
+        assert UserSubjectType().are_in_workspace(subjects, workspace) == [
+            True,
+            False,
+            False,
+        ]
+
+
+@pytest.mark.django_db
+def test_user_subject_type_checks_members_missing_from_prefetch(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+    member = data_fixture.create_user(workspace=workspace)
+    non_member = data_fixture.create_user()
+
+    # Missing subjects are verified together because the prefetch cache might be
+    # stale, regardless of how many subjects are missing.
+    with django_assert_num_queries(1):
+        assert UserSubjectType().are_in_workspace([member, non_member], workspace) == [
+            True,
+            False,
+        ]
+
+
+@pytest.mark.django_db
 def test_user_subject_get_users_included_in_subject(data_fixture):
     user = data_fixture.create_user()
     assert UserSubjectType().get_users_included_in_subject(user) == [user]
+
+
+@pytest.mark.django_db
+def test_user_subject_type_can_include_trashed_workspace_membership(data_fixture):
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user(workspace=workspace)
+    workspace.trashed = True
+    workspace.save(update_fields=("trashed",))
+
+    subject_type = UserSubjectType()
+
+    assert not subject_type.is_in_workspace(user, workspace)
+    assert subject_type.is_in_workspace(user, workspace, include_trash=True)

@@ -5,7 +5,7 @@ import {
   addRouteMiddleware,
   extendPages,
 } from 'nuxt/kit'
-import { routes } from './routes'
+import { rootChildRoutes, routes } from './routes'
 import { locales } from '../../config/locales.js'
 
 export default defineNuxtModule({
@@ -28,17 +28,19 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'tableLoading',
-      path: resolve('./middleware/tableLoading'),
-    })
-
-    addRouteMiddleware({
       name: 'selectWorkspaceDatabaseTable',
       path: resolve('./middleware/selectWorkspaceDatabaseTable'),
     })
 
     extendPages((pages) => {
       pages.push(...routes)
+
+      const rootRoute = pages.find((route) => route.name === 'root')
+      rootChildRoutes.forEach((route) => {
+        if (!rootRoute.children.find(({ name }) => name === route.name)) {
+          rootRoute.children.push(route)
+        }
+      })
     })
 
     nuxt.hook('i18n:registerModule', (register) => {
@@ -47,5 +49,10 @@ export default defineNuxtModule({
         locales,
       })
     })
+
+    // Database specific styles. Added as its own entry rather than replacing
+    // core's, so it lands after whichever default.scss premium or enterprise
+    // has put in first place.
+    nuxt.options.css.push(resolve('./assets/scss/default.scss'))
   },
 })

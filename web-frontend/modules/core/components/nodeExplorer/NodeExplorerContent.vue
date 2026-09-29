@@ -27,7 +27,14 @@
       >
         {{ $t('dataExplorerNode.selectNode') }}
       </span>
-      <NodeHelpTooltip ref="nodeHelpTooltip" :node="node" />
+      <NodeHelpTooltip
+        ref="nodeHelpTooltip"
+        :node="node"
+        clickable-examples
+        @example-click="onExampleClick"
+        @mouseenter="onTooltipEnter"
+        @mouseleave="onTooltipLeave"
+      />
     </div>
     <div v-if="hasChildren && isOpen" class="node-explorer-content__children">
       <template v-if="node.type !== 'array'">
@@ -50,6 +57,7 @@
           :search="search"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
+          @example-click="$emit('example-click', $event)"
         />
       </template>
       <div v-else>
@@ -66,6 +74,7 @@
           :search-path="`${searchPath}.__any__`"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
+          @example-click="$emit('example-click', $event)"
         />
         <button
           v-tooltip="$t('dataExplorerNode.showMore')"
@@ -127,9 +136,9 @@ export default {
       validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
   },
-  emits: ['click', 'toggle'],
+  emits: ['click', 'toggle', 'example-click'],
   data() {
-    return { count: 3, tooltipTimer: null }
+    return { count: 3, tooltipTimer: null, tooltipHideTimer: null }
   },
   computed: {
     hasChildren() {
@@ -188,6 +197,13 @@ export default {
       return []
     },
   },
+  beforeUnmount() {
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer)
+      this.tooltipTimer = null
+    }
+    this.cancelTooltipHide()
+  },
   methods: {
     showNodeSelector(node) {
       if (this.depth === 0) {
@@ -232,11 +248,11 @@ export default {
       if (this.tooltipTimer) {
         clearTimeout(this.tooltipTimer)
       }
+      this.cancelTooltipHide()
 
       if (
         (node.type === 'function' || node.type === 'operator') &&
-        node.example &&
-        node.description
+        (node.examples?.length || node.description)
       ) {
         this.tooltipTimer = setTimeout(() => {
           if (this.$refs.nodeHelpTooltip) {
@@ -257,7 +273,33 @@ export default {
         this.tooltipTimer = null
       }
 
+      // Hide with a delay so the mouse can travel from the node row into the
+      // tooltip; entering the tooltip cancels the pending hide.
+      this.armTooltipHide()
+    },
+    onTooltipEnter() {
+      this.cancelTooltipHide()
+    },
+    onExampleClick(example) {
+      this.cancelTooltipHide()
       this.hideTooltip()
+      this.$emit('example-click', example)
+    },
+    onTooltipLeave() {
+      this.armTooltipHide()
+    },
+    armTooltipHide() {
+      this.cancelTooltipHide()
+      this.tooltipHideTimer = setTimeout(() => {
+        this.tooltipHideTimer = null
+        this.hideTooltip()
+      }, 250)
+    },
+    cancelTooltipHide() {
+      if (this.tooltipHideTimer) {
+        clearTimeout(this.tooltipHideTimer)
+        this.tooltipHideTimer = null
+      }
     },
     hideTooltip() {
       if (this.$refs.nodeHelpTooltip) {

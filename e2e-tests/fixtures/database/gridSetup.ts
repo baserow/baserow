@@ -29,7 +29,9 @@ export type FieldType =
   | "date"
   | "single_select"
   | "long_text"
-  | "formula";
+  | "formula"
+  | "button"
+  | "last_modified_by";
 
 export type SelectOptionSpec =
   | string
@@ -340,12 +342,29 @@ export async function resetRows(
   g: GridSetupResult,
   newRows: Record<string, unknown>[],
 ): Promise<void> {
-  const existing = await listRows(g.user, g.table);
-  if (existing.length > 0) {
+  // Drained in pages: `listRows` caps at 200, so one pass leaves a backlog
+  // behind on a table the suite's own actions have grown, and later lookups
+  // then return old rows instead of the ones a test just created.
+  const maxPasses = 50;
+  let drained = false;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const existing = await listRows(g.user, g.table);
+    if (existing.length === 0) {
+      drained = true;
+      break;
+    }
     await deleteRows(
       g.user,
       g.table,
       existing.map((r) => r.id),
+    );
+  }
+
+  // Falling through would leave behind the very rows this drains, and the
+  // suite would fail later on a stale lookup instead of here.
+  if (!drained) {
+    throw new Error(
+      `resetRows could not empty table ${g.table.id} in ${maxPasses} passes.`,
     );
   }
 

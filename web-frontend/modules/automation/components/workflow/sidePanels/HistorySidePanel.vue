@@ -49,11 +49,13 @@
       </div>
     </div>
 
-    <WorkflowHistory
-      v-for="item in workflowHistoryItems"
-      :key="item.id"
-      :item="item"
-    />
+    <div class="history-side-panel__items">
+      <WorkflowHistory
+        v-for="item in workflowHistoryItems"
+        :key="item.id"
+        :item="item"
+      />
+    </div>
   </div>
 </template>
 

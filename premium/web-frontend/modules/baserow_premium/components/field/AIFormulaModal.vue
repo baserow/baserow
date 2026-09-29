@@ -27,6 +27,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import FieldService from '@baserow_premium/services/field'
 import AIFormulaForm from '@baserow_premium/components/field/AIFormulaForm.vue'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 
 export default {
   name: 'AIFormulaModal',
@@ -54,9 +55,9 @@ export default {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
     hasModels() {
-      return Object.values(this.workspace.generative_ai_models_enabled).some(
-        (models) => models.length > 0
-      )
+      return Object.values(
+        getEnabledModelsForAIProviderFeature(this.workspace, 'ai_fields')
+      ).some((models) => models.length > 0)
     },
   },
   methods: {

@@ -61,7 +61,9 @@ class UserSourceSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.DATETIME)
     def get_user_count_updated_at(self, instance):
         user_count = instance.get_type().get_user_count(instance)
-        return user_count.last_updated if user_count else None
+        if not user_count or user_count.last_updated is None:
+            return None
+        return serializers.DateTimeField().to_representation(user_count.last_updated)
 
     auth_providers = ReadPolymorphicAppAuthProviderSerializer(
         required=False,

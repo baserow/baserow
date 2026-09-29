@@ -1,3 +1,4 @@
+import math
 from decimal import Decimal
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type
 
@@ -24,6 +25,7 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.views.serializers import serialize_group_by_metadata
+from baserow.contrib.database.fields.field_sortings import serialize_sorts_to_string
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.registries import row_metadata_registry
@@ -75,6 +77,7 @@ def get_view_filtered_queryset(
     query_params: Optional[Dict[str, Any]] = None,
     model: Optional[GeneratedTableModel] = None,
     hidden_field_ids: Optional[Set[int]] = None,
+    group_by: Optional[str] = None,
 ) -> QuerySet:
     """
     Returns a queryset that is filtered based on the provided view, adhoc filters, and
@@ -89,6 +92,9 @@ def get_view_filtered_queryset(
     :param model: The model to filter the queryset by.
     :param hidden_field_ids: Optional set of field IDs hidden from the user. When
         provided, search will be restricted to visible fields only.
+    :param group_by: The raw ``group_by`` query parameter string. Fields listed
+        here will use ``get_group_by_sort_order`` instead of ``get_order`` so
+        that their row ordering matches the group tree.
     :return: The filtered queryset.
     """
 
@@ -99,9 +105,12 @@ def get_view_filtered_queryset(
         query_params = {}
 
     has_adhoc_filters = filters is not None and filters.has_any_filters
-    has_adhoc_sorts = order_by is not None
     search_value = query_params.get("search")
     search_mode = query_params.get("search_mode")
+
+    has_adhoc_sorting = order_by is not None
+    has_adhoc_grouping = group_by is not None
+    has_any_adhoc_ordering = has_adhoc_sorting or has_adhoc_grouping
 
     only_search_by_field_ids = None
     if hidden_field_ids:
@@ -114,7 +123,7 @@ def get_view_filtered_queryset(
     queryset = ViewHandler().get_queryset(
         user,
         view,
-        apply_sorts=not has_adhoc_sorts,
+        apply_sorts=not has_any_adhoc_ordering,
         apply_filters=not has_adhoc_filters,
         search=search_value,
         search_mode=search_mode,
@@ -122,8 +131,23 @@ def get_view_filtered_queryset(
         only_search_by_field_ids=only_search_by_field_ids,
     )
 
-    if has_adhoc_sorts:
-        queryset = queryset.order_by_fields_string(order_by, False)
+    if has_any_adhoc_ordering:
+        effective_group_by = group_by or ""
+        effective_order_by = order_by or ""
+
+        if not has_adhoc_grouping:
+            view_type = view_type_registry.get_by_model(view.specific_class)
+            if view_type.can_group_by:
+                effective_group_by = serialize_sorts_to_string(
+                    view.viewgroupby_set.all()
+                )
+
+        if not has_adhoc_sorting:
+            effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+
+        queryset = queryset.order_by_fields_string(
+            effective_order_by, False, group_by_string=effective_group_by or None
+        )
 
     if has_adhoc_filters:
         queryset = filters.apply_to_queryset(model, queryset)
@@ -427,8 +451,19 @@ def json_safe_aggregation_value(value: Any) -> Any:
     # token), so it's substituted with its string form. Ideally each field type would
     # own how its aggregated value is represented; this single helper keeps that
     # concern in one place until that field-type-level refactor is worth doing.
-    if isinstance(value, Decimal) and value.is_nan():
-        return "NaN"
+    if isinstance(value, (list, tuple)):
+        return [json_safe_aggregation_value(v) for v in value]
+    if isinstance(value, Decimal):
+        if value.is_nan():
+            return "NaN"
+        if value.is_infinite():
+            return "-Infinity" if value < 0 else "Infinity"
+        return value
+    if isinstance(value, float):
+        if math.isnan(value):
+            return "NaN"
+        if math.isinf(value):
+            return "-Infinity" if value < 0 else "Infinity"
     return value
 
 

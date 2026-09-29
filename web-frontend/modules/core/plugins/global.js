@@ -43,6 +43,7 @@ import RadioGroup from '@baserow/modules/core/components/RadioGroup'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import Scrollbars from '@baserow/modules/core/components/Scrollbars'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
+import SkeletonBlock from '@baserow/modules/core/components/SkeletonBlock'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
 import SwitchButton from '@baserow/modules/core/components/SwitchButton'
 import SwitchInput from '@baserow/modules/core/components/SwitchInput'
@@ -54,6 +55,7 @@ import autoScroll from '@baserow/modules/core/directives/autoScroll'
 import clickOutside from '@baserow/modules/core/directives/clickOutside'
 import preventParentScroll from '@baserow/modules/core/directives/preventParentScroll'
 import scroll from '@baserow/modules/core/directives/scroll'
+import skeleton from '@baserow/modules/core/directives/skeleton'
 import sortable from '@baserow/modules/core/directives/sortable'
 import tooltip from '@baserow/modules/core/directives/tooltip'
 import userFileUpload from '@baserow/modules/core/directives/userFileUpload'
@@ -108,10 +110,12 @@ function setupVue(app) {
   app.component('ReadOnlyForm', ReadOnlyForm)
   app.component('FormSection', FormSection)
   app.component('SegmentControl', SegmentControl)
+  app.component('SkeletonBlock', SkeletonBlock)
   app.component('SwitchButton', SwitchButton)
   app.component('Icon', Icon)
 
   app.directive('scroll', scroll)
+  app.directive('skeleton', skeleton)
   app.directive('preventParentScroll', preventParentScroll)
   app.directive('tooltip', tooltip)
   app.directive('sortable', sortable)

@@ -32,6 +32,12 @@ from baserow.contrib.builder.api.pages.serializers import (
     UpdatePageSerializer,
 )
 from baserow.contrib.builder.handler import BuilderHandler
+from baserow.contrib.builder.pages.actions import (
+    CreatePageActionType,
+    DeletePageActionType,
+    OrderPagesActionType,
+    UpdatePageActionType,
+)
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
@@ -100,7 +106,7 @@ class PagesView(APIView):
     def post(self, request, data: Dict, builder_id: int):
         builder = BuilderHandler().get_builder(builder_id)
 
-        page = PageService().create_page(
+        page = CreatePageActionType.do(
             request.user,
             builder,
             data["name"],
@@ -164,7 +170,7 @@ class PageView(APIView):
     def patch(self, request, data: Dict, page_id: int):
         page = PageService().get_page(request.user, page_id)
 
-        page_updated = PageService().update_page(request.user, page, **data)
+        page_updated = UpdatePageActionType.do(request.user, page, **data)
 
         serializer = PageSerializer(page_updated)
         return Response(serializer.data)
@@ -201,7 +207,7 @@ class PageView(APIView):
     def delete(self, request, page_id: int):
         page = PageService().get_page(request.user, page_id)
 
-        PageService().delete_page(request.user, page)
+        DeletePageActionType.do(request.user, page)
 
         return Response(status=204)
 
@@ -246,7 +252,7 @@ class OrderPagesView(APIView):
     def post(self, request, data: Dict, builder_id: int):
         builder = BuilderHandler().get_builder(builder_id)
 
-        PageService().order_pages(request.user, builder, data["page_ids"])
+        OrderPagesActionType.do(request.user, builder, data["page_ids"])
 
         return Response(status=204)
 

@@ -1,4 +1,113 @@
+import {
+  NodeType,
+  CoreRouterNodeType,
+  CoreInboundEmailTriggerNodeType,
+} from '@baserow/modules/automation/nodeTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
+
+describe('NodeType.getHistoryLabel', () => {
+  class TestNodeType extends NodeType {
+    static getType() {
+      return 'test'
+    }
+
+    get name() {
+      return 'Test node'
+    }
+  }
+
+  test('uses the label the designer gave the node', () => {
+    const nodeType = new TestNodeType({ app: {} })
+    expect(
+      nodeType.getHistoryLabel({ nodeHistory: { node_label: 'My node' } })
+    ).toBe('My node')
+  })
+
+  test('falls back to the node type name when the node has no label', () => {
+    const nodeType = new TestNodeType({ app: {} })
+    expect(nodeType.getHistoryLabel({ nodeHistory: { node_label: '' } })).toBe(
+      'Test node'
+    )
+  })
+})
+
+describe('NodeType service validation context', () => {
+  test('forwards the workspace and application to the service type', () => {
+    const service = { id: 1 }
+    const workspace = { id: 2 }
+    const application = { id: 3 }
+    const serviceType = {
+      isDeactivatedReason: vi.fn(() => null),
+      isInError: vi.fn(() => true),
+      getErrorMessage: vi.fn(() => 'Unavailable model'),
+    }
+
+    class ContextAwareNodeType extends NodeType {
+      static getType() {
+        return 'context-aware'
+      }
+
+      get serviceType() {
+        return serviceType
+      }
+    }
+
+    const nodeType = new ContextAwareNodeType({ app: {} })
+
+    expect(nodeType.isInError({ service, workspace, application })).toBe(true)
+    expect(nodeType.getErrorMessage({ service, workspace, application })).toBe(
+      'Unavailable model'
+    )
+    expect(serviceType.isInError).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
+    expect(serviceType.getErrorMessage).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
+  })
+})
+
+describe('CoreRouterNodeType.getHistoryLabel', () => {
+  const makeApp = () => ({
+    $i18n: {
+      t: (key, values) => (values ? `${key}:${JSON.stringify(values)}` : key),
+    },
+    $registry: { get: () => ({ name: 'Router' }) },
+  })
+
+  test('appends the branch that was taken', () => {
+    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    expect(
+      nodeType.getHistoryLabel({
+        nodeHistory: { node_label: 'My router', edge_label: 'Yes' },
+      })
+    ).toBe('nodeType.routerHistoryLabel:{"label":"My router","edge":"Yes"}')
+  })
+
+  test('appends the fallback edge label when no branch was recorded', () => {
+    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    expect(
+      nodeType.getHistoryLabel({
+        nodeHistory: { node_label: 'My router', edge_label: '' },
+      })
+    ).toBe(
+      'nodeType.routerHistoryLabel:{"label":"My router","edge":"nodeType.defaultEdgeLabelFallback"}'
+    )
+  })
+
+  test('falls back to the node type name when the node has no label', () => {
+    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    expect(
+      nodeType.getHistoryLabel({
+        nodeHistory: { node_label: '', edge_label: 'Yes' },
+      })
+    ).toBe('nodeType.routerHistoryLabel:{"label":"Router","edge":"Yes"}')
+  })
+})
 
 describe('Automation node types', () => {
   let testApp = null
@@ -31,12 +140,93 @@ describe('Automation node types', () => {
       'http_request',
       'smtp_email',
       'code',
-      'iterator',
+      'response',
       'ai_agent',
       'router',
+      'iterator',
       'csv_file_reader',
       'xls_file_reader',
+      'goto',
       'slack_write_message',
     ])
+  })
+
+  test('groups HTTP trigger and request nodes under HTTP', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['http_trigger', 'http_request'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['http', 'http'])
+  })
+
+  test('groups file reader nodes under Files', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['csv_file_reader', 'xls_file_reader'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['files', 'files'])
+  })
+
+  test('groups workflow nodes under Workflow', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['start_workflow', 'iterator', 'router'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['workflow', 'workflow', 'workflow'])
+  })
+
+  test('uses service-specific icons and images for workflow action nodes', () => {
+    const registry = testApp.getRegistry()
+    const createRow = registry.get('node', 'local_baserow_create_row')
+    const updateRow = registry.get('node', 'local_baserow_update_row')
+    const aiAgent = registry.get('node', 'ai_agent')
+    const smtp = registry.get('node', 'smtp_email')
+    const slack = registry.get('node', 'slack_write_message')
+
+    expect([createRow.iconClass, updateRow.iconClass]).toEqual([
+      'iconoir-plus',
+      'iconoir-edit-pencil',
+    ])
+    expect([createRow.iconColor, updateRow.iconColor]).toEqual([
+      'darker-blue',
+      'darker-blue',
+    ])
+    expect([createRow.image, updateRow.image]).toEqual([undefined, undefined])
+    expect(aiAgent.iconColor).toBe('muted-blue')
+    expect(smtp.iconColor).toBe('muted-red')
+    expect(slack.iconClass).toBe('iconoir-message-text')
+    expect(slack.iconColor).toBe('darker-pink')
+    expect(slack.image).toBeUndefined()
+  })
+})
+
+describe('NodeType.isEnabled', () => {
+  class TestNodeType extends NodeType {
+    static getType() {
+      return 'test'
+    }
+  }
+
+  test('node types are enabled by default', () => {
+    expect(new TestNodeType({ app: {} }).isEnabled()).toBe(true)
+  })
+
+  test('the email trigger follows the instance settings flag', () => {
+    const makeType = (settings) =>
+      new CoreInboundEmailTriggerNodeType({
+        app: { $store: { getters: { 'settings/get': settings } } },
+      })
+
+    expect(makeType({ inbound_email_enabled: true }).isEnabled()).toBe(true)
+    expect(makeType({ inbound_email_enabled: false }).isEnabled()).toBe(false)
+    // Settings not loaded yet, or an older backend without the flag.
+    expect(makeType({}).isEnabled()).toBe(false)
+    expect(makeType(null).isEnabled()).toBe(false)
   })
 })

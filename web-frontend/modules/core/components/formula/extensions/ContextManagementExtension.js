@@ -67,6 +67,12 @@ export const ContextManagementExtension = Extension.create({
           editor.commands.unselectNode()
           this.options.showExplorerContextMenu()
 
+          // Focus and click can both show the context before it is hidden.
+          if (this.storage.clickOutsideEventCancel) {
+            this.storage.clickOutsideEventCancel()
+            this.storage.clickOutsideEventCancel = null
+          }
+
           const rootEl = this.options.getRootEl()
           if (rootEl) {
             this.storage.clickOutsideEventCancel = onClickOutside(

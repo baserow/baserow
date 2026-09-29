@@ -1,7 +1,7 @@
 {
     "premium": {
         "adminType": {
-            "licenses": "Licenties"
+            "licenses": "Licenties beheren"
         },
         "viewType": {
             "kanban": "Kanban",
@@ -22,7 +22,7 @@
         "noComment": "Er zijn nog geen opmerkingen voor deze rij. Gebruik het formulier hieronder om een opmerking toe te voegen.",
         "comment": "Opmerking",
         "more": "Meer informatie",
-        "name": "Rij opmerkingen"
+        "name": "Opmerkingen"
     },
     "rowComment": {
         "you": "Jij",
@@ -114,7 +114,7 @@
         "applicationUsers": "Applicatie gebruikers"
     },
     "license": {
-        "title": "{product_code} plan",
+        "title": "{name}-plan",
         "users": "Gebruikers",
         "description": "Kies de gebruikers die het {product_code} plan kunnen gebruiken. Deze licentie staat je toe {product_code} aan een maximum van {seats} gebruikers toe te kennen.",
         "seatLeft": "U heeft geen plaatsen meer over|Je hebt nog één plaats over|Je hebt {count} plaatsen over",
@@ -139,7 +139,7 @@
         "rowUsage": "Rijgebruik",
         "storeUsage": "Opslaggebruik",
         "disconnectLicense": "Licentie ontkoppelen",
-        "disconnectDescription": "Als je deze licentie ontkoppelt terwijl deze actief is, hebben de toegewezen gebruikers geen toegang meer tot het relevante plan. Deze handeling zal de licentie effectief verwijderen. Neem contact op met ons support team via {contact} als je deze licentie wilt gebruiken in een andere zelf-gehoste installatie.",
+        "disconnectDescription": "Weet je zeker dat je deze licentie wilt ontkoppelen? Als je deze licentie ontkoppelt terwijl deze actief is, hebben de toegewezen gebruikers geen toegang meer tot het plan. De licentie wordt daarmee effectief van deze installatie verwijderd. Je kunt de installatie-ID van je abonnement wijzigen via de abonnementenpagina op {subscriptions} of, als je enterprise gebruikt, door contact op te nemen met ons supportteam via {contact}.",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} betaalde stoelen en {free_users_count} vrije stoelen in gebruik",
         "moreSeatsNeededTitle": "Meer seats nodig",
         "contactSalesMoreSeats": "Neem contact op met sales voor meer seats",
@@ -168,8 +168,8 @@
         "chooseAColor": "Met welk enkel select veld moet de rij gekleurd worden?"
     },
     "conditionalColorValueProviderForm": {
-        "addCondition": "voorwaarde toevoegen",
-        "colorAlwaysApply": "Deze kleur is standaard van toepassing. U kunt voorwaarden toevoegen door te klikken op de \"Voeg voorwaarde toe\" knop.",
+        "addCondition": "Voorwaarde toevoegen",
+        "colorAlwaysApply": "Je kunt voorwaarden toevoegen door op de knop \"Voorwaarde toevoegen\" te klikken.",
         "addColor": "kleur toevoegen",
         "title": "Kleuren",
         "deleteColor": "Verwijder kleur",
@@ -177,8 +177,8 @@
         "addConditionGroup": "Voorwaarde groep toevoegen"
     },
     "redirectToBaserowModal": {
-        "title": "Doorverwijzen naar http://baserow.io",
-        "content": "U verlaat uw zelf gehoste instantie en u wordt omgeleid naar http://baserow.io."
+        "title": "Doorverwijzen naar https://baserow.io",
+        "content": "Je verlaat je zelf-gehoste installatie en wordt doorgestuurd naar https://baserow.io."
     },
     "premiumTopSidebar": {
         "impersonateDescription": "Dit account wordt geïmiteerd. Een paginavernieuwing stopt het.",
@@ -190,13 +190,13 @@
         "rowColoring": "Rij kleuren",
         "rowComments": "Rij opmerkingen",
         "kanbanView": "Kanban-weergave",
-        "exports": "JSON- en XML-export",
+        "exports": "Tabelexport",
         "admin": "Admin functionaliteit",
         "surveyForm": "Enquêteformulier",
         "publicLogoRemoval": "Publiek logo verwijderen",
         "personalViews": "Persoonlijke weergave",
         "calendarView": "Kalenderweergave",
-        "aiFeatures": "AI veld",
+        "aiFeatures": "AI-functies",
         "timelineView": "Tijdlijn weergave",
         "calendarViewContent": "Bekijk je rijen eenvoudig op een kalender met een datumveld naar keuze. Perfect om deadlines, evenementen en planningen in één oogopslag bij te houden.",
         "timelineViewContent": "Geef rijen weer langs een horizontale tijdlijn met begin- en einddatum. Ideaal voor projectplanning en stappenplannen.",
@@ -206,6 +206,8 @@
         "rowCommentsContent": "Werk direct samen in je tabel. Voeg opmerkingen toe aan individuele rijen, noem teamleden en houd het gesprek in context.",
         "surveyFormContent": "Verzamel reacties één vraag per keer met de enquêtemodus. Een vereenvoudigde versie van de formulierweergave, geoptimaliseerd voor focus en gebruiksgemak.",
         "chartWidgetContent": "Visualiseer je gegevens met grafieken op dashboards. Gebruik elke tabel als gegevensbron, voeg meerdere reeksen toe en groepeer of sorteer op velden met uitgebreide samenvattingsopties.",
+        "groupedAggregateRowsDataSource": "Rijen groeperen en samenvatten",
+        "groupedAggregateRowsDataSourceContent": "Groepeer rijen uit een Baserow-tabel en bereken samenvattingen voor gebruik in pagina's van de applicatiebouwer.",
         "publicLogoRemovalContent": "Verwijder het Baserow-logo uit openbare weergaven om je gedeelde inhoud een schoner, meer merkachtig uiterlijk te geven.",
         "rowNotificationsContent": "Blijf op de hoogte met aanpasbare meldingen voor reacties op rijen. Kies tussen het ontvangen van meldingen voor alle opmerkingen of alleen wanneer je wordt genoemd.",
         "rowColoringContent": "Markeer rijen met kleuren op basis van een enkel selectieveld of aangepaste voorwaarden. Dit maakt het gemakkelijker om patronen en prioriteiten te herkennen.",
@@ -286,6 +288,7 @@
     },
     "gridViewFieldAI": {
         "regenerate": "Opnieuw genereren",
+        "promptBroken": "De prompt werkt niet en moet worden hersteld voordat er waarden kunnen worden gegenereerd.",
         "generate": "Genereren"
     },
     "fieldAISubForm": {
@@ -301,11 +304,13 @@
         "outputTypeChangedWarning": "Wist de gegenereerde celwaarden.",
         "autoUpdate": "Automatisch bijwerken",
         "autoUpdateHelp": "Als deze optie is ingeschakeld, wordt de waarde van het AI-veld automatisch opnieuw gegenereerd als een van de velden waarnaar wordt verwezen als de prompt wordt bijgewerkt.",
-        "autoUpdateDescription": "Opnieuw genereren wanneer velden waarnaar wordt verwezen veranderen"
+        "autoUpdateDescription": "Opnieuw genereren wanneer velden waarnaar wordt verwezen veranderen",
+        "invalidPrompt": "De promptformule is ongeldig."
     },
     "rowEditFieldAI": {
         "generate": "Genereren",
-        "createRowBefore": "De AI-waarde kan worden gegenereerd nadat de rij is aangemaakt."
+        "createRowBefore": "De AI-waarde kan worden gegenereerd nadat de rij is aangemaakt.",
+        "promptBroken": "De prompt werkt niet en moet worden hersteld voordat er waarden kunnen worden gegenereerd."
     },
     "premiumFieldType": {
         "ai": "AI prompt",
@@ -317,7 +322,7 @@
         "label": "Prompt",
         "labelDescription": "Beschrijf de formule die je wilt genereren",
         "generate": "Genereren",
-        "noModels": "In je Baserow-instantie en workspace zijn geen AI-modellen geconfigureerd. Klik op de drie puntjes naast je workspace en vervolgens op instellingen om ze te configureren."
+        "noModels": "In je Baserow-installatie en werkruimte zijn geen AI-modellen geconfigureerd. Ga naar de startpagina, klik op de naam van je werkruimte en vervolgens op instellingen om ze te configureren."
     },
     "formulaFieldAI": {
         "generateWithAI": "Genereer met AI",
@@ -392,6 +397,48 @@
         "true": "waar",
         "false": "onwaar"
     },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Series",
+        "addSeries": "Series toevoegen",
+        "data": "Gegevens",
+        "sourceFieldLabel": "Bron",
+        "viewFieldLabel": "Weergave",
+        "notSelected": "Niet geselecteerd"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Series",
+        "addSeries": "Series toevoegen"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Rijen groeperen en samenvatten",
+        "localBaserowGroupedAggregateRowsDescription": "Groepeer rijen uit een Baserow-tabel en bereken samenvattingen.",
+        "errorNoAggregationSeriesDefined": "Geen samenvattingsseries gedefinieerd.",
+        "errorIncompleteAggregationSeries": "Een of meer samenvattingsseries zijn onvolledig.",
+        "errorTrashedAggregationField": "Ten minste één geconfigureerd veld is naar de prullenbak verplaatst."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Veld",
+        "aggregationTypeLabel": "Samenvatting",
+        "deleteSeries": "Serie verwijderen",
+        "chartType": "Grafiektype",
+        "barChart": "Staaf",
+        "lineChart": "Lijn",
+        "pieChart": "Cirkel",
+        "doughnutChart": "Donut",
+        "polarAreaChart": "Poolgebied"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Groeperen op",
+        "groupByNone": "Geen",
+        "groupByRowId": "Rij-ID",
+        "rowIdDisabledTooltip": "Groeperen op rij-ID is momenteel niet beschikbaar omdat het primaire veld meerdere waarden kan bevatten."
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Sorteer op",
+        "none": "Geen",
+        "ascending": "Oplopend",
+        "descending": "Aflopend"
+    },
     "generateAIValuesModal": {
         "title": "Genereer alle AI-waarden",
         "noPreviousJobs": "Geen eerdere taken",
@@ -424,5 +471,9 @@
     "viewOwnershipType": {
         "personal": "Persoonlijk",
         "personalDescription": "Alleen jij kunt de weergave zien."
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "AI-velden",
+        "aiFieldsDescription": "Genereer waarden in AI-velden."
     }
 }

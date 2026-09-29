@@ -1,6 +1,16 @@
 <template>
   <div :class="`guided-tour-step guided-tour-step--${position}`">
     <div v-auto-overflow-scroll class="guided-tour-step__body">
+      <a
+        v-if="stoppable"
+        href="#"
+        class="guided-tour-step__close"
+        :title="$t('guidedTourStep.stopTour')"
+        :aria-label="$t('guidedTourStep.stopTour')"
+        @click.prevent="$emit('stop')"
+      >
+        <i class="iconoir-cancel"></i>
+      </a>
       <div class="guided-tour-step__page">
         {{ $t('guidedTourStep.step', { step, totalSteps }) }}
       </div>
@@ -9,6 +19,34 @@
       </div>
       <div class="guided-tour-step__description">
         <MarkdownIt :content="content" />
+      </div>
+      <div
+        v-if="videos.length > 0 && !thumbnailFailed"
+        class="guided-tour-step__video"
+      >
+        <a
+          class="guided-tour-step__video-thumbnail"
+          @click="$refs.videoModal.show(0)"
+        >
+          <img
+            v-show="thumbnailLoaded"
+            :key="videos[0]"
+            :src="thumbnailUrl"
+            :alt="$t('guidedTourStep.watchVideo')"
+            @load="thumbnailLoaded = true"
+            @error="thumbnailFailed = true"
+          />
+          <i v-if="thumbnailLoaded" class="iconoir-play"></i>
+          <div v-else class="guided-tour-step__video-loading"></div>
+        </a>
+        <a
+          class="guided-tour-step__academy"
+          :href="academyUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ $t('academy.learnMore') }}</a
+        >
+        <GuidedTourVideoModal ref="videoModal" :videos="videos" />
       </div>
     </div>
     <div class="guided-tour-step__foot">
@@ -30,8 +68,13 @@
 </template>
 
 <script>
+import GuidedTourVideoModal from '@baserow/modules/core/components/guidedTour/GuidedTourVideoModal'
+import { BASEROW_ACADEMY_URL } from '@baserow/modules/core/utils/academy'
+import { getYouTubeThumbnailUrl } from '@baserow/modules/core/utils/youtube'
+
 export default {
   name: 'GuidedTourStep',
+  components: { GuidedTourVideoModal },
   props: {
     position: {
       required: true,
@@ -79,8 +122,38 @@ export default {
       required: false,
       default: null,
     },
+    videos: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    stoppable: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
-  emits: ['next', 'previous'],
+  emits: ['next', 'previous', 'stop'],
+  data() {
+    return {
+      thumbnailFailed: false,
+      thumbnailLoaded: false,
+    }
+  },
+  computed: {
+    academyUrl() {
+      return BASEROW_ACADEMY_URL
+    },
+    thumbnailUrl() {
+      return getYouTubeThumbnailUrl(this.videos[0])
+    },
+  },
+  watch: {
+    thumbnailUrl() {
+      this.thumbnailFailed = false
+      this.thumbnailLoaded = false
+    },
+  },
   async mounted() {
     const updatePosition = () => {
       const rect = this.$el.getBoundingClientRect()

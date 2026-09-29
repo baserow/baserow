@@ -37,7 +37,7 @@ exports[`Dropdown component > With items 1`] = `
       />
     </div>
     <ul
-      class="select__items"
+      class="select__items prevent-scroll"
       tabindex="-1"
     >
       
@@ -119,7 +119,7 @@ exports[`Dropdown component > With items 2`] = `
       />
     </div>
     <ul
-      class="select__items"
+      class="select__items prevent-scroll"
       tabindex="-1"
     >
       
@@ -301,7 +301,7 @@ exports[`Dropdown component > With items 3`] = `
       />
     </div>
     <ul
-      class="select__items"
+      class="select__items prevent-scroll"
       tabindex="-1"
     >
       
@@ -567,7 +567,7 @@ exports[`Dropdown component > change value prop 1`] = `
       />
     </div>
     <ul
-      class="select__items"
+      class="select__items prevent-scroll"
       tabindex="-1"
     >
       
@@ -1061,7 +1061,7 @@ exports[`Dropdown component > slots 1`] = `
       />
     </div>
     <ul
-      class="select__items"
+      class="select__items prevent-scroll"
       tabindex="-1"
     >
       

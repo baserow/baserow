@@ -33,11 +33,16 @@ export default {
       type: Boolean,
       required: true,
     },
+    initialSearchTerm: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['close-modals', 'search-changed'],
-  data: () => {
+  data() {
     return {
-      headerSearchTerm: '',
+      headerSearchTerm: this.initialSearchTerm,
       searchDebounce: null,
     }
   },
@@ -61,6 +66,10 @@ export default {
       event.preventDefault()
       this.$bus.$emit('close-modals')
       this.$refs.searchInput.focus()
+    },
+    setSearchTerm(term) {
+      this.headerSearchTerm = term
+      this.doSearch(term, true)
     },
     doSearch(query, immediate) {
       const search = () => {

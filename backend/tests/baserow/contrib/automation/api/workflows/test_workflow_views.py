@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import patch
 
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -20,7 +21,11 @@ from baserow.contrib.automation.api.workflows.serializers import (
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.nodes.node_types import (
+    CoreManualTriggerNodeType,
+    CorePeriodicTriggerNodeType,
+)
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
@@ -431,6 +436,7 @@ def test_duplicate_workflow(api_client, data_fixture):
     assert response.json() == {
         "duplicated_automation_workflow": None,
         "human_readable_error": "",
+        "error_code": "",
         "id": AnyInt(),
         "original_automation_workflow": {
             "allow_test_run_until": None,
@@ -475,6 +481,27 @@ def test_enable_workflow_test_run(api_client, data_fixture):
     assert workflow.allow_test_run_until == datetime.datetime(
         2025, 6, 4, 11, ALLOW_TEST_RUN_MINUTES, tzinfo=datetime.timezone.utc
     )
+
+
+@pytest.mark.django_db
+def test_a_test_run_records_who_started_it(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=CoreManualTriggerNodeType.type
+    )
+    url = reverse(API_URL_WORKFLOW_TEST, kwargs={"workflow_id": workflow.id})
+
+    with patch(
+        "baserow.contrib.automation.workflows.handler.start_workflow_celery_task"
+    ):
+        response = api_client.post(
+            url, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+
+    assert response.status_code == HTTP_202_ACCEPTED
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.is_test_run is True
+    assert history.triggered_by_id == user.id
 
 
 @pytest.mark.django_db
@@ -590,6 +617,7 @@ def test_publish_workflow(api_client, data_fixture):
     assert response.status_code == HTTP_202_ACCEPTED
     assert response.json() == {
         "human_readable_error": "",
+        "error_code": "",
         "id": AnyInt(),
         "progress_percentage": AnyInt(),
         "state": "pending",
@@ -678,9 +706,27 @@ def test_get_workflow_histories(api_client, data_fixture):
                 "message": "",
                 "status": "success",
                 "simulate_until_node": None,
+                "cancellation_requested_on": None,
                 "plugin_data": {},
+                "triggered_by": None,
             },
         ],
+    }
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_names_who_triggered_the_run(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(first_name="Ada")
+    history = data_fixture.create_workflow_history(user=user, triggered_by=user)
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": history.workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"][0]["triggered_by"] == {
+        "id": user.id,
+        "type": "auth.User",
+        "name": "Ada",
     }
 
 
@@ -751,12 +797,15 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
     handler = AutomationHistoryHandler()
 
     def _create_histories(count):
-        for _ in range(count):
+        for index in range(count):
             workflow_history = handler.create_workflow_history(
                 original_workflow=workflow,
                 workflow=workflow,
                 started_on=timezone.now(),
                 is_test_run=False,
+                # Every other run names its user, so the serializer's
+                # nested starter is exercised without a query per row.
+                triggered_by=user if index % 2 else None,
             )
             node_history = handler.create_node_history(
                 workflow_history=workflow_history,

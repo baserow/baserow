@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.authentication import JSONWebTokenAuthentication
 from baserow.api.decorators import (
     map_exceptions,
     require_request_data_type,
@@ -20,7 +21,11 @@ from baserow.api.services.errors import (
     ERROR_SERVICE_IMPROPERLY_CONFIGURED,
     ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,
     ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
+    ERROR_SERVICE_INVALID_TYPE,
     ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
+)
+from baserow.api.user_sources.authentication import (
+    UserSourceJSONWebTokenAuthentication,
 )
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -32,6 +37,7 @@ from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_E
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
+    ERROR_INVALID_WORKFLOW_ACTION_EVENT,
     ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
     ERROR_WORKFLOW_ACTION_NOT_IN_ELEMENT,
@@ -50,8 +56,15 @@ from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.workflow_actions.actions import (
+    CreateBuilderWorkflowActionActionType,
+    DeleteBuilderWorkflowActionActionType,
+    OrderBuilderWorkflowActionsActionType,
+    UpdateBuilderWorkflowActionActionType,
+)
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
+    InvalidWorkflowActionEvent,
     WorkflowActionNotInElement,
 )
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -70,6 +83,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    ServiceTypeDoesNotExist,
     UnexpectedDispatchException,
 )
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
@@ -110,6 +124,8 @@ class BuilderWorkflowActionsView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKFLOW_ACTION_EVENT",
+                    "ERROR_SERVICE_INVALID_TYPE",
                 ]
             ),
             404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
@@ -120,6 +136,8 @@ class BuilderWorkflowActionsView(APIView):
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
+            InvalidWorkflowActionEvent: ERROR_INVALID_WORKFLOW_ACTION_EVENT,
+            ServiceTypeDoesNotExist: ERROR_SERVICE_INVALID_TYPE,
         }
     )
     @validate_body_custom_fields(
@@ -131,7 +149,7 @@ class BuilderWorkflowActionsView(APIView):
         workflow_action_type = builder_workflow_action_type_registry.get(type_name)
         page = PageHandler().get_page(page_id)
 
-        workflow_action = BuilderWorkflowActionService().create_workflow_action(
+        workflow_action = CreateBuilderWorkflowActionActionType.do(
             request.user, workflow_action_type, page, **data
         )
 
@@ -227,9 +245,7 @@ class BuilderWorkflowActionView(APIView):
             workflow_action_id
         )
 
-        BuilderWorkflowActionService().delete_workflow_action(
-            request.user, workflow_action
-        )
+        DeleteBuilderWorkflowActionActionType.do(request.user, workflow_action)
 
         return Response(status=204)
 
@@ -258,6 +274,8 @@ class BuilderWorkflowActionView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKFLOW_ACTION_EVENT",
+                    "ERROR_SERVICE_INVALID_TYPE",
                 ]
             ),
             404: get_error_schema(
@@ -271,6 +289,8 @@ class BuilderWorkflowActionView(APIView):
     @map_exceptions(
         {
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
+            InvalidWorkflowActionEvent: ERROR_INVALID_WORKFLOW_ACTION_EVENT,
+            ServiceTypeDoesNotExist: ERROR_SERVICE_INVALID_TYPE,
         }
     )
     @require_request_data_type(dict)
@@ -290,7 +310,7 @@ class BuilderWorkflowActionView(APIView):
             partial=True,
         )
 
-        workflow_action_updated = BuilderWorkflowActionService().update_workflow_action(
+        workflow_action_updated = UpdateBuilderWorkflowActionActionType.do(
             request.user, workflow_action, **data
         )
 
@@ -348,7 +368,7 @@ class OrderBuilderWorkflowActionsView(APIView):
             ElementHandler().get_element(element_id) if element_id is not None else None
         )
 
-        BuilderWorkflowActionService().order_workflow_actions(
+        OrderBuilderWorkflowActionsActionType.do(
             request.user, page, data["workflow_action_ids"], element=element
         )
 
@@ -357,6 +377,10 @@ class OrderBuilderWorkflowActionsView(APIView):
 
 class DispatchBuilderWorkflowActionView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = (
+        UserSourceJSONWebTokenAuthentication,
+        JSONWebTokenAuthentication,
+    )
 
     @extend_schema(
         parameters=[
@@ -395,8 +419,12 @@ class DispatchBuilderWorkflowActionView(APIView):
             UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
         }
     )
-    @atomic_with_retry_on_deadlock()
-    def post(self, request, workflow_action_id: int):
+    def post(
+        self,
+        request,
+        workflow_action_id: int,
+        builder_id: int | None = None,
+    ):
         """
         Call the given workflow_action related service dispatch method.
         """
@@ -411,10 +439,19 @@ class DispatchBuilderWorkflowActionView(APIView):
             workflow_action=workflow_action,
         )
 
-        response = BuilderWorkflowActionService().dispatch_action(
-            request.user,
-            workflow_action,
-            dispatch_context,  # type: ignore
-        )
+        def dispatch_action():
+            return BuilderWorkflowActionService().dispatch_action(
+                request.user,
+                workflow_action,
+                dispatch_context,  # type: ignore
+            )
+
+        service = workflow_action.service.specific
+        if service.get_type().requires_autocommit(service):
+            # Waiting dispatches must commit their history before starting Celery.
+            # An outer transaction would hide it from the worker until we time out.
+            response = dispatch_action()
+        else:
+            response = atomic_with_retry_on_deadlock()(dispatch_action)()
 
         return Response(response.data, status=response.status)

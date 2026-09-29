@@ -19,6 +19,10 @@ class ElementsGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'bottom-left'
   }
+
+  get videos() {
+    return ['LemdgnR9Sak', 'SVWSeqf_YMg', 'I6ITCnA6fCY']
+  }
 }
 
 class DataGuidedTourStep extends GuidedTourStep {
@@ -37,6 +41,10 @@ class DataGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'bottom-left'
   }
+
+  get videos() {
+    return ['Tw6PrSdLUhg']
+  }
 }
 
 class PreviewGuidedTourStep extends GuidedTourStep {
@@ -54,6 +62,10 @@ class PreviewGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'right-top'
+  }
+
+  get videos() {
+    return ['sW0v-U3z9oQ', 'k027ccEMzAY']
   }
 }
 
@@ -96,6 +108,10 @@ class SidePanelPublishGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'left-top'
   }
+
+  get videos() {
+    return ['EuagnEJgK4w', 'kaLF5o9lj00']
+  }
 }
 
 class PreviewPublishGuidedTourStep extends GuidedTourStep {
@@ -116,6 +132,10 @@ class PreviewPublishGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'left-top'
+  }
+
+  get videos() {
+    return ['a92GF1pX2X8']
   }
 }
 

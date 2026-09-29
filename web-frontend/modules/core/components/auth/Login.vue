@@ -182,7 +182,7 @@ export default {
         if (original && isRelativeUrl(original)) {
           await this.$router.push(original)
         } else {
-          await this.$router.push({ name: 'dashboard' })
+          await this.$router.push({ name: 'all-workspaces' })
         }
         await pageFinished(this.nuxtApp)
         await nextTick()

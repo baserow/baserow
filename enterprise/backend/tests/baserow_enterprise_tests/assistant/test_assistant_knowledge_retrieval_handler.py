@@ -555,3 +555,82 @@ class TestKnowledgeHandler:
         assert parent_cat.parent is None
         assert child_cat.parent == parent_cat
         assert grandchild_cat.parent == child_cat
+
+
+@pytest.mark.django_db
+def test_search_recovers_exact_terms_missing_from_vector_candidates():
+    KnowledgeBaseChunk.try_init_vector_field()
+    handler = KnowledgeBaseHandler(vector_handler=VectorHandler(MockEmbeddings()))
+    vector = [1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1)
+    for i in range(20):
+        doc = KnowledgeBaseDocument.objects.create(
+            title=f"Introduction {i}",
+            slug=f"intro-{i}",
+            status=KnowledgeBaseDocument.Status.READY,
+        )
+        KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="General database introduction.",
+            index=0,
+            embedding=vector,
+        )
+    reference = KnowledgeBaseDocument.objects.create(
+        title="elapsed_days() formula reference",
+        slug="formulas",
+        status=KnowledgeBaseDocument.Status.READY,
+    )
+    expected = KnowledgeBaseChunk.objects.create(
+        source_document=reference,
+        content="Use elapsed_days() to calculate elapsed days.",
+        index=0,
+        embedding=[0.0] * DEFAULT_EMBEDDING_DIMENSIONS,
+    )
+    assert expected in handler.search(
+        "How can I use elapsed_days() in my database?", num_results=5
+    )
+    reference.status = KnowledgeBaseDocument.Status.DISABLED
+    reference.save()
+    assert expected not in handler.search("elapsed_days()", num_results=5)
+
+
+@pytest.mark.django_db
+def test_embedder_closes_client_on_failed_batch():
+    from httpx import HTTPStatusError, Request, Response
+
+    error = HTTPStatusError(
+        "Embedding service unavailable",
+        request=Request("POST", "http://test/embed"),
+        response=Response(503),
+    )
+    with patch(
+        "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
+    ) as client:
+        response = client.return_value.post.return_value
+        response.raise_for_status.side_effect = error
+        with pytest.raises(HTTPStatusError):
+            BaserowEmbedder("http://test")(["one passage"])
+        response.json.assert_not_called()
+        client.return_value.close.assert_called_once()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    ["records " * 700, " ".join(f"term{i}" for i in range(700))],
+    ids=["repeated-terms", "distinct-terms"],
+)
+def test_search_long_questions_keep_semantic_results(query):
+    KnowledgeBaseChunk.try_init_vector_field()
+    handler = KnowledgeBaseHandler(vector_handler=VectorHandler(MockEmbeddings()))
+    doc = KnowledgeBaseDocument.objects.create(
+        title="Records",
+        slug="records",
+        status=KnowledgeBaseDocument.Status.READY,
+    )
+    chunk = KnowledgeBaseChunk.objects.create(
+        source_document=doc,
+        index=0,
+        content="Manage records in a table.",
+        embedding=[0.0] * DEFAULT_EMBEDDING_DIMENSIONS,
+    )
+    assert handler.search(query, num_results=1) == [chunk]

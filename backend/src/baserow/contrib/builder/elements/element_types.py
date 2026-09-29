@@ -29,6 +29,7 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.mixins import (
@@ -81,7 +82,10 @@ from baserow.contrib.builder.theme.theme_config_block_types import (
     TableThemeConfigBlockType,
 )
 from baserow.contrib.builder.types import ElementDict
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.core.constants import (
     DATE_FORMAT,
     DATE_FORMAT_CHOICES,
@@ -104,7 +108,6 @@ from baserow.core.formula.types import (
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
-    ensure_integer,
     ensure_numeric,
     ensure_string_or_integer,
 )
@@ -311,9 +314,22 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         self, place_in_container: str, instance: ColumnElement
     ):
         max_place_in_container = instance.column_amount - 1
-        if int(place_in_container) > max_place_in_container:
+        try:
+            place_in_container_casted = int(place_in_container)
+        except (TypeError, ValueError) as exc:
             raise DRFValidationError(
-                f"place_in_container can at most be {max_place_in_container}, ({place_in_container}, was given)"
+                f"place_in_container must be an integer between 0 and "
+                f"{max_place_in_container}, ({place_in_container!r} was given)"
+            ) from exc
+        if place_in_container_casted < 0:
+            raise DRFValidationError(
+                f"place_in_container must be at least 0, "
+                f"({place_in_container} was given)"
+            )
+        if place_in_container_casted > max_place_in_container:
+            raise DRFValidationError(
+                f"place_in_container can at most be {max_place_in_container}, "
+                f"({place_in_container}, was given)"
             )
 
     @property
@@ -347,6 +363,9 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         submit_button_label: BaserowFormulaObject
         reset_initial_values_post_submission: bool
+
+    def get_event_names(self, instance: FormContainerElement) -> List[str]:
+        return [EventTypes.SUBMIT.value]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
@@ -750,23 +769,33 @@ class RecordSelectorElementType(
             msg = "A valid data source is required"
             raise ElementImproperlyConfigured(msg)
 
-        data_source = DataSourceHandler().get_data_source(element.data_source_id)
+        try:
+            data_source = DataSourceHandler().get_data_source(element.data_source_id)
+        except DataSourceDoesNotExist:
+            # The referenced data source has been trashed; the element is misconfigured
+            # (treated the same as having no data source) rather than crashing.
+            raise ElementImproperlyConfigured("A valid data source is required")
 
         service = data_source.service
         service_type = service.get_type()
 
         try:
-            record_ids = set(map(ensure_integer, ensure_array(value)))
+            raw_record_ids = (
+                ensure_array(value)
+                if element.multiple
+                else ([] if value is None or value == "" else [value])
+            )
+            record_ids = set(service_type.prepare_record_ids(raw_record_ids))
             record_names = service_type.get_record_names(
                 service.specific,
                 record_ids,
                 dispatch_context,
             )
             available_record_ids = set(record_names.keys())
-        except ValidationError as err:
+        except (ValidationError, DRFValidationError) as err:
             msg = (
-                "The value must be an array of integers, or convertible to an"
-                "array of integers"
+                "The value must be an array of valid record identifiers, or "
+                "convertible to an array of valid record identifiers"
             )
             raise TypeError(msg) from err
 
@@ -779,7 +808,7 @@ class RecordSelectorElementType(
                 msg = f"{value} is not a valid option"
                 raise ValueError(msg)
         else:
-            record_id = value
+            record_id = next(iter(record_ids), None)
 
             if not record_id:
                 if element.required:
@@ -1671,6 +1700,9 @@ class ButtonElementType(ElementType):
     class SerializedDict(ElementDict):
         value: BaserowFormulaObject
 
+    def get_event_names(self, instance: ButtonElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     @property
     def serializer_field_overrides(self):
         from baserow.contrib.builder.api.theme.serializers import (
@@ -2096,8 +2128,14 @@ class IFrameElementType(ElementType):
     display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
-    allowed_fields = ["source_type", "url", "embed", "height"]
-    serializer_field_names = ["source_type", "url", "embed", "height"]
+    allowed_fields = ["source_type", "url", "embed", "height", "allow_same_origin"]
+    serializer_field_names = [
+        "source_type",
+        "url",
+        "embed",
+        "height",
+        "allow_same_origin",
+    ]
     simple_formula_fields = ["url", "embed"]
 
     class SerializedDict(ElementDict):
@@ -2105,6 +2143,7 @@ class IFrameElementType(ElementType):
         url: BaserowFormulaObject
         embed: BaserowFormulaObject
         height: int
+        allow_same_origin: bool
 
     @property
     def serializer_field_overrides(self):
@@ -2130,6 +2169,11 @@ class IFrameElementType(ElementType):
                 min_value=1,
                 max_value=2000,
             ),
+            "allow_same_origin": serializers.BooleanField(
+                help_text=IFrameElement._meta.get_field("allow_same_origin").help_text,
+                required=False,
+                default=False,
+            ),
         }
 
         return overrides
@@ -2148,6 +2192,7 @@ class IFrameElementType(ElementType):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             ),
             "height": 300,
+            "allow_same_origin": False,
         }
 
 
@@ -2330,6 +2375,17 @@ class MenuElementType(ElementType):
         alignment: str
         menu_items: List[Dict]
         variant: Dict[str, str]
+
+    def get_event_names(self, instance: MenuElement) -> List[str]:
+        """
+        Only the menu items of type `button` can fire a `click` event.
+        """
+
+        return [
+            f"{item.uid}_{EventTypes.CLICK.value}"
+            for item in instance.menu_items.all()
+            if item.type == MenuItemElement.TYPES.BUTTON
+        ]
 
     @property
     def serializer_field_overrides(self) -> Dict[str, Any]:

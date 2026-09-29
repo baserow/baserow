@@ -1,0 +1,108 @@
+name: Run Backend Tests
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: The backend CI image to test
+        required: true
+        type: string
+      is_fork:
+        description: Whether the image was uploaded as a fork artifact
+        required: true
+        type: string
+      run_once_per_day:
+        description: Include tests marked to run once per day in CI
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  test-backend:
+    name: Backend Tests (Group ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    services:
+      db:
+        image: pgvector/pgvector:pg14
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
+    steps:
+      - name: Log in to GitHub Container Registry
+        if: inputs.is_fork != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download backend image artifact
+        if: inputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp
+
+      - name: Load backend image from artifact
+        if: inputs.is_fork == 'true'
+        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
+
+      - name: Run backend tests for group ${{ matrix.group }}
+        env:
+          BACKEND_IMAGE: ${{ inputs.image }}
+          RUN_ONCE_PER_DAY: ${{ inputs.run_once_per_day }}
+        run: |
+          pytest_extra_args=()
+          if [[ "$RUN_ONCE_PER_DAY" == "true" ]]; then
+            pytest_extra_args+=(--run-once-per-day-in-ci)
+          fi
+
+          mkdir -p reports
+          docker run \
+            --name=baserow_backend_test_container \
+            --network="${{ job.services.db.network }}" \
+            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e SECRET_KEY=test-secret-key \
+            "$BACKEND_IMAGE" ci-test "${pytest_extra_args[@]}"
+          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
+          docker rm baserow_backend_test_container
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-group-${{ matrix.group }}
+          path: reports/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/report.xml
+          check_name: ${{ github.workflow }} - Backend Tests (Group ${{ matrix.group }})
+          comment_mode: off

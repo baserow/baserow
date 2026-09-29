@@ -6,7 +6,7 @@
     "integrationType": {
         "localBaserow": "로컬 Baserow",
         "smtp": "SMTP 이메일",
-        "slackBot": "슬랙 봇",
+        "slackBot": "Slack",
         "ai": "AI"
     },
     "localBaserowIntegrationType": {
@@ -45,7 +45,7 @@
         "errorNoTableSelected": "선택된 테이블이 없습니다",
         "errorFilterInError": "적어도 하나의 필터가 잘못 구성되었습니다",
         "errorSortingInError": "적어도 하나의 종류가 잘못 구성되었습니다",
-        "errorNoFieldSelected": "선택된 필드가 없습니다",
+        "errorNoFieldSelected": "선택한 필드가 없습니다",
         "errorNoAggregationTypeSelected": "선택된 집계 유형이 없습니다",
         "coreRouter": "라우터",
         "coreRouterEdgesRequired": "최소 하나의 연결지점이 필요합니다",
@@ -88,7 +88,10 @@
         "errorCSVFileMissing": "CSV 파일 속성이 누락되었습니다",
         "errorCSVContentMissing": "CSV 데이터 속성이 누락되었습니다",
         "errorNoWorkflowSelected": "선택된 워크플로 없음",
-        "errorWorkflowNotImmediateDispatch": "선택한 워크플로는 즉시 시작될 수 있는 트리거를 사용해야 합니다."
+        "errorWorkflowNotImmediateDispatch": "선택한 워크플로는 즉시 시작될 수 있는 트리거를 사용해야 합니다.",
+        "coreGoto": "이동",
+        "coreGotoDescription": "조건이 참일 때 워크플로의 다른 지점으로 이동합니다.",
+        "coreGotoDestinationRequired": "대상이 필요합니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -129,7 +132,7 @@
         "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요."
     },
     "localBaserowTableServiceConditionalForm": {
-        "addFilter": "추가 필터 추가",
+        "addFilter": "필터 추가",
         "noFilterTitle": "아직 데이터 소스 필터를 생성하지 않았습니다",
         "noFilterText": "데이터 소스 필터를 사용하면 조건에 적용되는 Baserow 테이블 행을 표시할 수 있습니다.",
         "relatedFieldNotFound": "관련 필드를 찾을 수 없습니다.",
@@ -139,7 +142,10 @@
         "formulaFilterInputPlaceholder": "수식을 선택하세요...",
         "useFormulaForValue": "이 필터에 수식 사용",
         "useDefaultForValue": "이 필드에 기본 필터 사용",
-        "textFilterInputPlaceholder": "텍스트를 입력하세요..."
+        "textFilterInputPlaceholder": "텍스트를 입력하세요...",
+        "addFilterGroup": "필터 그룹 추가",
+        "expressionFilterInputPlaceholder": "표현식 선택...",
+        "useExpressionForValue": "이 필터에 표현식 사용"
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "아직 데이터 소스 정렬을 생성하지 않았습니다",
@@ -391,11 +397,19 @@
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "행",
         "rowsPlaceholder": "행 객체 목록을 선택하세요",
-        "rowsHelper": "이 수식은 행 객체 배열 또는 행 객체로 파싱되는 JSON 문자열을 반환해야 합니다. 객체 키로는 필드 이름이나 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 생성할 수 있습니다."
+        "rowsHelper": "이 표현식은 행 객체 배열 또는 해당 배열로 구문 분석되는 JSON 문자열을 반환해야 합니다. 객체 키에는 필드 이름이나 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 생성할 수 있습니다."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "행",
         "rowsPlaceholder": "ID가 있는 행 객체 목록을 선택하세요",
-        "rowsHelper": "이 수식은 행 객체 배열 또는 행 객체로 파싱되는 JSON 문자열을 반환해야 합니다. 각 객체에는 id 속성이 포함되어야 합니다. 객체 키로는 필드 이름 또는 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 업데이트할 수 있습니다."
+        "rowsHelper": "이 표현식은 행 객체 배열 또는 해당 배열로 구문 분석되는 JSON 문자열을 반환해야 합니다. 각 객체에는 id 속성이 포함되어야 합니다. 객체 키에는 필드 이름이나 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 업데이트할 수 있습니다."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "조건",
+        "conditionDescription": "이 조건이 참이면 워크플로가 다음 노드로 계속 진행하는 대신 대상 노드로 이동합니다.",
+        "conditionPlaceholder": "참이면 대상 노드로 이동합니다.",
+        "destinationLabel": "대상 노드",
+        "destinationDescription": "조건이 참일 때 이동할 노드입니다.",
+        "destinationPlaceholder": "대상 노드 선택..."
     }
 }

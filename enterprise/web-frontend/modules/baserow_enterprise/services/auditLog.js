@@ -1,6 +1,6 @@
 import baseService from '@baserow/modules/core/crudTable/baseService'
 import jobService from '@baserow/modules/core/services/job'
-import { ADMIN_WORKSPACE_OPTIONS_URL } from '@baserow_enterprise/services/adminWorkspaces'
+import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
 
 export default (client) => {
   return Object.assign(baseService(client, `/audit-log/`), {
@@ -14,17 +14,7 @@ export default (client) => {
       return userPaginatedService.fetch(usersUrl, page, search, [], filters)
     },
     fetchWorkspaces(page, search) {
-      const workspacePaginatedService = baseService(
-        client,
-        ADMIN_WORKSPACE_OPTIONS_URL
-      )
-      return workspacePaginatedService.fetch(
-        ADMIN_WORKSPACE_OPTIONS_URL,
-        page,
-        search,
-        [],
-        {}
-      )
+      return fetchWorkspaceOptions(client, page, search)
     },
     fetchActionTypes(page, search, workspaceId = null) {
       const actionTypesUrl = `/audit-log/action-types/`

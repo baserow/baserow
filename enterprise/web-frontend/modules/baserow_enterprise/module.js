@@ -88,6 +88,7 @@ export default defineNuxtModule({
     nuxt.options.runtimeConfig.public = _.defaultsDeep(
       nuxt.options.runtimeConfig.public,
       {
+        // Deprecated environment fallback. Select a Kuma model in AI providers.
         baserowEnterpriseAssistantLlmModel: '',
         baserowEnterpriseCodeRunnerDefaultType: 'wasmtime_quickjs',
         baserowExtraClientScriptUrls: '',

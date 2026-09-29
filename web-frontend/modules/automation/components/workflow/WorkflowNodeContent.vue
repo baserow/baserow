@@ -1,6 +1,7 @@
 <template>
   <div
     class="workflow-node-content"
+    :data-node-id="node.id"
     :class="{
       'workflow-node-content--selected': selected,
       'workflow-node-content--dragging': isDragging,
@@ -18,6 +19,7 @@
     <div class="workflow-node-content__icon">
       <i
         v-if="nodeType.iconClass"
+        :style="nodeIconStyle"
         :class="{
           loading: loading,
           'iconoir-hammer': !loading && !isInteractionReady,
@@ -39,6 +41,29 @@
     >
       {{ $t('workflowNode.actionConfigure') }}
     </Badge>
+
+    <div v-if="gotoMarkers.length" class="workflow-node-content__goto-markers">
+      <span
+        v-for="(item, index) in gotoMarkers"
+        :key="`${item.direction}-${item.marker}-${index}`"
+        v-tooltip="
+          item.direction === 'out'
+            ? $t('workflowNode.gotoMarkerSource', { marker: item.marker })
+            : $t('workflowNode.gotoMarkerDestination', { marker: item.marker })
+        "
+        class="workflow-node-content__goto-marker"
+        :class="{
+          'workflow-node-content__goto-marker--active': item.active,
+        }"
+      >
+        <i
+          :class="
+            item.arrow === 'up' ? 'iconoir-arrow-up' : 'iconoir-arrow-down'
+          "
+        ></i>
+        {{ item.marker }}
+      </span>
+    </div>
 
     <div
       v-if="isInteractionReady"
@@ -120,6 +145,7 @@ import { useVueFlow } from '@vue-flow/core'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import { resolveColor } from '@baserow/modules/core/utils/colors'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -204,6 +230,22 @@ const workspace = inject('workspace')
 const nodeType = computed(() => {
   return app.$registry.get('node', props.node.type)
 })
+const nodeIconStyle = computed(() =>
+  nodeType.value.iconColor
+    ? {
+        '--workflow-node-icon-color': resolveColor(
+          nodeType.value.iconColor,
+          {}
+        ),
+      }
+    : undefined
+)
+
+// Markers identifying this node's "Go to node" jumps (provided by the editor).
+// A jump's source and destination share the same marker so they can be paired
+// by eye instead of with a drawn line.
+const gotoMarkersMap = inject('gotoMarkers', null)
+const gotoMarkers = computed(() => gotoMarkersMap?.value?.[props.node.id] || [])
 
 const isDraggable = computed(() => {
   return !props.readOnly && !nodeType.value.isFixed
@@ -226,6 +268,7 @@ const isInError = computed(() => {
   return nodeType.value.isInError({
     service: props.node.service,
     workspace: workspace.value,
+    application: automation.value,
   })
 })
 
@@ -239,6 +282,7 @@ const errorMessage = computed(() => {
     service: props.node.service,
     node: props.node,
     workspace: workspace.value,
+    application: automation.value,
   })
 })
 

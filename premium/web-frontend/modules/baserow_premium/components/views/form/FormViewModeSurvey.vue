@@ -57,11 +57,12 @@
           </div>
         </div>
       </form>
-      <div
-        class="form-view-survey__footer"
-        :class="{ 'form-view-survey__footer--single': !showLogo }"
-      >
-        <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+      <div class="form-view-survey__footer">
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+          :identifier="$route.params.slug"
+        ></FormViewFooterLinks>
         <div class="form-view-survey__pagination">
           <div class="form-view-survey__pagination-buttons">
             <a
@@ -102,7 +103,7 @@
 <script>
 import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
 
 export default {
@@ -110,7 +111,7 @@ export default {
   emits: ['submit'],
   components: {
     FormPageField,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewSubmitted,
   },
   mixins: [baseFormViewMode],

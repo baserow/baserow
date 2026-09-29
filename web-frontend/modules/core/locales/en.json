@@ -3,6 +3,51 @@
     "page": "Page",
     "of": "of {pages}"
   },
+  "allWorkspaces": {
+    "title": "Your workspaces",
+    "searchResults": "Search results",
+    "searchPlaceholder": "Search",
+    "allItems": "All items",
+    "itemsSelected": "{count} item type | {count} item types",
+    "createWorkspace": "Create workspace",
+    "expandedView": "Expanded view",
+    "compactView": "Compact view",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "workspacesSection": "Workspaces",
+    "itemsSection": "Items",
+    "noResultsTitle": "No results found",
+    "noResultsDescription": "We couldn't find anything for \"{search}\". Check your spelling or use different keywords.",
+    "clearSearch": "Clear search",
+    "membersCount": "0 members | 1 member | {count} members",
+    "itemsCount": "0 items | 1 item | {count} items",
+    "moreElements": "{count} more element | {count} more elements",
+    "noApplications": "No builders yet",
+    "noFilterMatches": "No items match the selected types.",
+    "create": "Create",
+    "members": "Members",
+    "settings": "Settings"
+  },
+  "recentlyViewed": {
+    "title": "Recently viewed",
+    "yourItems": "Your items",
+    "name": "Name",
+    "lastViewed": "Last viewed",
+    "workspace": "Workspace",
+    "allWorkspaces": "All workspaces",
+    "workspacesSelected": "{count} workspace | {count} workspaces",
+    "allItems": "All items",
+    "itemTypesSelected": "{count} item type | {count} item types",
+    "tableView": "Table",
+    "cardsView": "Cards",
+    "loadMore": "Load more",
+    "emptyTitle": "Nothing viewed recently",
+    "emptyDescription": "The views, pages, dashboards and workflows you open show up here.",
+    "noFilterMatchesTitle": "No items match the selected filters",
+    "noFilterMatchesDescription": "Try selecting other workspaces or item types.",
+    "clearFilters": "Clear filters",
+    "goToWorkspaces": "Go to your workspaces"
+  },
   "workspaceSearch": {
     "title": "Search",
     "searchEverything": "Search...",
@@ -32,7 +77,8 @@
     "showErrorLabel": "Show error",
     "downloadFullPayload": "Download full payload",
     "truncatedLabel": "[Output truncated]",
-    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer."
+    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer.",
+    "noHtmlContent": "This email has no HTML body."
   },
   "action": {
     "cancel": "Cancel",
@@ -61,10 +107,15 @@
     "logoff": "Log out",
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
-    "home": "Home",
+    "recents": "Recents",
+    "allWorkspaces": "All workspaces",
+    "recentlyViewed": "Recently viewed",
+    "backToHome": "Back to home",
+    "templates": "Templates",
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
+    "replayGuidedTour": "Replay guided tour",
     "notifications": "Notifications",
     "adminSettings": "Admin settings",
     "general": "General",
@@ -331,45 +382,84 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "generativeAI": "Generative AI"
+    "aiProviders": "AI providers"
   },
   "generativeAIModelType": {
     "openai": "OpenAI",
     "openaiApiKeyLabel": "API Key",
-    "openaiApiKeyDescription": "Provide an OpenAI API key if you would like to enable the integration. [Instructions on getting an API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+    "openaiApiKeyDescription": "Enter an OpenAI API key. [Instructions on getting an API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
     "openaiOrganization": "Organization (optional)",
     "openaiModelsLabel": "Enabled Models",
-    "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
+    "openaiModelsDescription": "Provide a comma-separated list of [OpenAI model identifiers](https://developers.openai.com/api/docs/models) that can be used in Baserow. For example: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
+    "openaiModelIdentifierDescription": "Enter an [OpenAI model identifier](https://developers.openai.com/api/docs/models). For example: `gpt-5.6`, `gpt-5.6-terra`, or `gpt-5.6-luna`.",
     "openaiBaseUrl": "Base URL",
     "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, or any other OpenAI compatible API.",
     "anthropic": "Anthropic",
     "anthropicApiKeyLabel": "API Key",
-    "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
+    "anthropicApiKeyDescription": "Enter an Anthropic API key. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
     "anthropicModelsLabel": "Enabled Models",
-    "anthropicModelsDescription": "Provide a list of comma separated [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) that can be used in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+    "anthropicModelsDescription": "Provide a comma-separated list of [Anthropic model identifiers](https://platform.claude.com/docs/en/about-claude/models/overview) that can be used in Baserow. For example: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
+    "anthropicModelIdentifierDescription": "Enter an [Anthropic model identifier](https://platform.claude.com/docs/en/about-claude/models/overview). For example: `claude-sonnet-5`, `claude-opus-4-8`, or `claude-haiku-4-5`.",
+    "bedrock": "Amazon Bedrock",
+    "bedrockSecretLabel": "API key or secret access key",
+    "bedrockSecretDescription": "Enter an [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html), or the secret access key of the access key ID.",
+    "bedrockChangeSecret": "Change API key or secret access key",
+    "bedrockSecretUpdateHint": "Enter a new API key or secret access key. Enter it again whenever you add or remove the access key ID.",
+    "bedrockAccessKeyIdLabel": "Access key ID",
+    "bedrockAccessKeyIdDescription": "The [IAM access key ID](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) that belongs to the secret access key. Leave it empty to use a Bedrock API key.",
+    "bedrockRegionLabel": "Region",
+    "bedrockRegionDescription": "The AWS region to call Bedrock in, for example `eu-central-1`.",
+    "bedrockModelsLabel": "Enabled Models",
+    "bedrockModelsDescription": "Provide a comma-separated list of [Bedrock inference profile or model IDs](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html) that can be used in Baserow. For example: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+    "bedrockModelIdentifierDescription": "Enter a [Bedrock inference profile ID](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html) such as `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Newer models reject their base model ID.",
     "mistral": "Mistral",
     "mistralApiKeyLabel": "API Key",
-    "mistralApiKeyDescription": "Provide a Mistral API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/).",
+    "mistralApiKeyDescription": "Enter a Mistral API key. [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/).",
     "mistralModelsLabel": "Enabled Models",
-    "mistralModelsDescription": "Provide a list of comma separated [Mistral models](https://docs.mistral.ai/getting-started/models/models_overview/) that can be used in Baserow. (e.g. `mistral-large-latest,mistral-small-latest`)",
+    "mistralModelsDescription": "Provide a comma-separated list of [Mistral model identifiers](https://docs.mistral.ai/models/) that can be used in Baserow. For example: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`.",
+    "mistralModelIdentifierDescription": "Enter a [Mistral model identifier](https://docs.mistral.ai/models/). For example: `mistral-large-latest`, `mistral-medium-latest`, or `mistral-small-latest`.",
     "ollama": "Ollama",
     "ollamaHostLabel": "Host",
     "ollamaHostDescription": "Provide the hostname to your [Ollama](https://ollama.com/) server. This typically runs locally on your own device.",
     "ollamaModelsLabel": "Enabled Models",
-    "ollamaModelsDescription": "Provide a list of comma separated [Ollama installed models](https://ollama.com/library). Note that the model must be downloaded and installed before it can be used. (e.g. `llama2,mistral`)",
+    "ollamaModelsDescription": "Provide a comma-separated list of [models installed in Ollama](https://ollama.com/library). A model must be downloaded and installed before Baserow can use it. For example: `gemma3,qwen3,llama3.3`.",
+    "ollamaModelIdentifierDescription": "Enter the identifier of a [model installed in Ollama](https://ollama.com/library). For example: `gemma3`, `qwen3`, or `llama3.3`.",
     "openRouter": "OpenRouter",
     "openRouterApiKeyLabel": "API Key",
-    "openRouterApiKeyDescription": "Provide an OpenRouter API key if you would like to enable the integration. [get an API key](https://openrouter.ai/settings/keys).",
+    "openRouterApiKeyDescription": "Enter an OpenRouter API key. [Get an API key](https://openrouter.ai/settings/keys).",
     "openRouterOrganization": "Organization (optional)",
     "openRouterModelsLabel": "Enabled Models",
-    "openRouterModelsDescription": "Provide a list of comma separated [OpenRouter models](https://openrouter.ai/models) that can be used in Baserow. (e.g. `openai/gpt-4o,anthropic/claude-3-haiku`)"
+    "openRouterModelsDescription": "Provide a comma-separated list of [OpenRouter model identifiers](https://openrouter.ai/models) that can be used in Baserow. For example: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
+    "openRouterModelIdentifierDescription": "Enter an [OpenRouter model identifier](https://openrouter.ai/models). For example: `openai/gpt-5.6` or `anthropic/claude-sonnet-5`.",
+    "google": "Google Gemini",
+    "googleApiKeyLabel": "API Key",
+    "googleApiKeyDescription": "Enter a Google AI Studio API key. [Create or view an API key](https://aistudio.google.com/apikey).",
+    "googleModelsLabel": "Enabled Models",
+    "googleModelsDescription": "Provide a comma-separated list of [Gemini model identifiers](https://ai.google.dev/gemini-api/docs/models) that can be used in Baserow. For example: `gemini-3.6-flash,gemini-3.5-flash`.",
+    "googleModelIdentifierDescription": "Enter a [Gemini model identifier](https://ai.google.dev/gemini-api/docs/models). For example: `gemini-3.6-flash` or `gemini-3.5-flash`.",
+    "groq": "Groq",
+    "groqApiKeyLabel": "API Key",
+    "groqApiKeyDescription": "Enter a Groq API key. [Create or view an API key](https://console.groq.com/keys).",
+    "groqModelsLabel": "Enabled Models",
+    "groqModelsDescription": "Provide a comma-separated list of [Groq model identifiers](https://console.groq.com/docs/models) that can be used in Baserow. For example: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+    "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`.",
+    "xai": "xAI",
+    "xaiApiKeyLabel": "API Key",
+    "xaiApiKeyDescription": "Enter an xAI API key. [Create or view an API key](https://console.x.ai).",
+    "xaiModelsLabel": "Enabled Models",
+    "xaiModelsDescription": "Provide a comma-separated list of [xAI model identifiers](https://docs.x.ai/developers/models) that can be used in Baserow. For example: `grok-4.3,grok-4.20-non-reasoning`.",
+    "xaiModelIdentifierDescription": "Enter an [xAI model identifier](https://docs.x.ai/developers/models). For example: `grok-4.3` or `grok-4.20-non-reasoning`."
   },
   "generativeAIWorkspaceSettings": {
-    "title": "Generative AI settings",
-    "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
-    "changedTitle": "Settings updated correctly",
-    "changedDescription": "The settings have been updated and they will be now used in this workspace.",
-    "submitButton": "Update settings",
+    "providerTitle": "AI providers",
+    "providerDescription": "Manage providers owned by this workspace or enable and disable providers inherited from the instance.",
+    "sharedModelsTitle": "Shared across workspaces",
+    "addWorkspaceConfiguration": "Add workspace configuration",
+    "overridden": "Overridden",
+    "overriddenByWorkspace": "Overridden by workspace",
+    "disabledInWorkspace": "Disabled in workspace",
+    "noProviders": "No AI providers are available",
+    "noProvidersDescription": "Add a provider for this workspace, or ask an instance administrator to configure one.",
     "openSettings": "Open settings",
     "hideSettings": "Hide settings"
   },
@@ -385,7 +475,8 @@
     "title": "Templates"
   },
   "templateHeader": {
-    "use": "Use this template"
+    "use": "Use this template",
+    "selectWorkspace": "Choose workspace"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",
@@ -413,6 +504,10 @@
     "restore": "Restore",
     "andMore": "... and {count} more",
     "unnamed": "Unnamed {type} {id}"
+  },
+  "trashType": {
+    "integration": "integration",
+    "user_source": "user source"
   },
   "trashModal": {
     "emptyTitle": "No workspaces found",
@@ -517,9 +612,10 @@
     "action": "Reload"
   },
   "errorLayout": {
+    "pageNotFoundTitle": "Page not found",
     "notFound": "The page you are looking for has not been found. This might be because URL is incorrect or that you don’t have permission to view this page.",
-    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the dashboard.",
-    "backDashboard": "Back to dashboard",
+    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the homepage.",
+    "backDashboard": "Back to home",
     "backLogin": "Back to login",
     "wrong": "Something went wrong",
     "refresh": "Refresh page"
@@ -536,25 +632,21 @@
     "shareOnReddit": "Share on Reddit",
     "shareOnFacebook": "Share on Facebook",
     "shareOnLinkedIn": "Share on LinkedIn",
-    "suggestedTemplates": "Suggested templates",
-    "resources": "Resources",
+    "templates": "Templates",
+    "templatesMessage": "Start with a ready made solution",
     "knowledgeBase": "Knowledge base",
     "knowledgeBaseMessage": "Find answers to all of your questions",
     "tutorials": "Tutorials",
     "tutorialsMessage": "Discover the potential of Baserow",
     "apiDocumentation": "API documentation",
     "apiDocumentationMessage": "Learn more about our code",
+    "academy": "Baserow Academy",
+    "academyMessage": "Follow courses and become an expert",
     "emptyWorkspace": "This workspace is empty",
     "emptyWorkspaceMessage": "Get started by creating a new database or application.",
     "addNew": "Add new...",
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Get started by creating a new workspace"
-  },
-  "dashboardApplication": {
-    "createdAt": "created"
-  },
-  "templateCard": {
-    "viewMore": "View more"
   },
   "login": {
     "title": "Welcome back",
@@ -653,7 +745,9 @@
     "emailVerificationRecommended": "Recommended",
     "emailVerificationEnforced": "Enforced",
     "settingsVerifyImportSignature": "Verify import signature",
-    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
+    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
+    "settingAllowReportingAbuseName": "Allow reporting abuse",
+    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report."
   },
   "formSidebar": {
     "fields": "Fields",
@@ -789,6 +883,10 @@
         "userAlreadyInWorkspace": {
           "title": "User is already in the workspace.",
           "text": "It is not possible to send an invitation when the user is already a member of the workspace."
+        },
+        "tooManyInvitations": {
+          "title": "Too many invitations sent.",
+          "text": "You have sent too many invitations. Please try again later."
         }
       }
     }
@@ -817,7 +915,9 @@
   "integrationCreateEditModal": {
     "createTitle": "New integration",
     "editTitle": "Edit integration",
-    "warningTitle": "Warning"
+    "warningTitle": "Warning",
+    "credentialRequiredTitle": "Credential required",
+    "credentialRequiredMessage": "Enter the credential again to change where this integration connects."
   },
   "integrationEditForm": {
     "name": "Name",
@@ -827,10 +927,18 @@
     "addIntegration": "Add new integration",
     "noIntegrations": "No integrations found.",
     "selectTypeFirst": "Choose the type first",
-    "integrationPlaceholder": "Select an integration"
+    "integrationPlaceholder": "Select an integration",
+    "editIntegration": "Edit integration"
   },
   "dropdown": {
-    "empty": "No items available"
+    "empty": "No items available",
+    "clearSearch": "Clear search"
+  },
+  "groupedMenu": {
+    "core": "Core",
+    "files": "Files",
+    "http": "HTTP",
+    "workflow": "Workflow"
   },
   "richTextEditorMentionsList": {
     "notFound": "No users found"
@@ -850,6 +958,30 @@
   "versionUpgradeNotification": {
     "title": "{version} is here! Check out what's new."
   },
+  "abuseReportCreatedNotification": {
+    "title": "{resourceName} has been reported for abuse by {reporterEmail}",
+    "openResource": "Open the reported page",
+    "showMore": "Show more",
+    "detailsTitle": "Abuse report",
+    "reportedBy": "Reported by {reporterName} ({reporterEmail})."
+  },
+  "reportAbuseModal": {
+    "title": "Report abuse",
+    "description": "Do you believe this page is being used for phishing, impersonation, scams or other abusive purposes? Let the administrators of this Baserow instance know by submitting the form below.",
+    "submit": "Submit report",
+    "close": "Close",
+    "successTitle": "Thank you for your report",
+    "successDescription": "The report has been submitted and the administrators of this Baserow instance have been notified so that they can take action.",
+    "reportingDisabledTitle": "Reporting is disabled",
+    "reportingDisabledDescription": "Reporting abuse has been disabled by the administrator of this Baserow instance."
+  },
+  "reportAbuseForm": {
+    "nameLabel": "Your name",
+    "emailLabel": "Your email address",
+    "descriptionLabel": "Why are you reporting this page?",
+    "descriptionHelper": "Please describe in detail why you believe this page is abusive.",
+    "descriptionPlaceholder": "For example: this page pretends to be a login page of another company and asks visitors for their password."
+  },
   "emailNotifications": {
     "title": "Email notifications",
     "label": "Mentions, comments and other notifications",
@@ -864,7 +996,9 @@
     "errorInvalidFormula": "The formula is invalid.",
     "advancedFormulaMode": "Advanced formula mode",
     "invalidFormulaTitle": "Invalid formula",
-    "invalidSyntax": "Not a valid expert formula, please check the syntax."
+    "invalidSyntax": "Not a valid expert formula, please check the syntax.",
+    "useFormulaMode": "Use formula mode",
+    "useRawMode": "Use raw mode"
   },
   "formulaInputErrorContext": {
     "viewFullError": "View full error"
@@ -895,6 +1029,10 @@
     "showMore": "Show more repetitions",
     "selectNode": "Select"
   },
+  "richTextEditor": {
+    "errorUnsupportedImageTitle": "Image can't be embedded",
+    "errorUnsupportedImageMessage": "{name} is not a supported image and was not added."
+  },
   "richTextEditorBubbleMenu": {
     "bold": "Bold",
     "italic": "Italic",
@@ -919,6 +1057,7 @@
   "selectAIModelForm": {
     "AIType": "AI Type",
     "AIModel": "AI Model",
+    "modelUnavailable": "This model is disabled or no longer available.",
     "fileField": "File field",
     "temperatureLabel": "Temperature",
     "temperatureDescription": "The temperature of an LLM, a parameter set between 0 and {max}, adjusts response randomness—lower values yield focused answers, while higher values increase creativity."
@@ -927,6 +1066,7 @@
     "title": "Onboarding",
     "creating": "Creating your first workspace",
     "continue": "Continue",
+    "back": "Back",
     "skip": "Skip for now",
     "cancel": "I don't want help setting up",
     "failedTitle": "Something went wrong",
@@ -984,7 +1124,92 @@
   "adminType": {
     "dashboard": "Dashboard",
     "users": "Users",
-    "workspaces": "Workspaces"
+    "workspaces": "Workspaces",
+    "aiProviders": "AI providers"
+  },
+  "aiProviderAdmin": {
+    "title": "AI providers",
+    "description": "Manage the instance-level providers and models available to workspaces and automations.",
+    "addProvider": "Add provider",
+    "editProvider": "Edit provider",
+    "providerType": "Provider type",
+    "apiKey": "API key",
+    "changeApiKey": "Change API key",
+    "apiKeyUpdateHint": "Enter a new API key to replace the existing key.",
+    "extraField_organization": "Organization",
+    "extraField_base_url": "Base URL",
+    "extraField_host": "Host",
+    "extraField_region": "Region",
+    "extraField_access_key_id": "Access key ID",
+    "models": "Models",
+    "addModel": "Add model",
+    "removeModel": "Remove model",
+    "editModel": "Edit model",
+    "modelIdentifier": "Model identifier",
+    "availableFor": "Available for",
+    "availableForDescription": "Choose which listed AI features may use this model.",
+    "availableForList": "Available for: {features}",
+    "availableForNone": "Not available to any listed feature",
+    "featureSettingsTitle": "AI features",
+    "featureSettingsDescription": "Choose a configured provider model for each feature. Environment models are deprecated.",
+    "kumaDisabled": "Disabled",
+    "kumaInvalidFallback": "Selected model unavailable — using deprecated environment model: {model}",
+    "kumaInvalidNoFallback": "Selected model unavailable — no environment model configured",
+    "kumaDisabledInWorkspace": "Disabled in this workspace",
+    "kumaUseInstance": "Use instance setting — {model}",
+    "kumaInheritedUnavailable": "selected instance model unavailable",
+    "kumaUseLegacy": "Use environment model (deprecated): {model}",
+    "kumaLegacyFallback": "environment model (deprecated): {model}",
+    "kumaLegacyEmpty": "empty",
+    "kumaNotConfigured": "not configured",
+    "featureModelLabel": "Model for {feature}",
+    "modelScopeInstance": "Instance",
+    "modelScopeWorkspace": "Workspace",
+    "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
+    "featureSettingError": "The AI feature setting could not be saved.",
+    "featureSettingErrorDescription": "Refresh the page and choose an available model.",
+    "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",
+    "modelDiscoveryUnavailable": "Known model suggestions are unavailable. Enter an identifier manually.",
+    "modelDiscoveryEmpty": "No known models for this provider. Enter an identifier manually.",
+    "modelDiscoveryNoMatch": "No known model matches. You can use the identifier you entered.",
+    "noProviders": "No instance AI providers configured",
+    "noProvidersDescription": "Add a provider to configure the models available to your workspaces.",
+    "noModels": "No models are configured for this provider.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "inherited": "Inherited",
+    "enable": "Enable",
+    "disable": "Disable",
+    "modelDisabled": "Disabled",
+    "moreActions": "More actions",
+    "testAllModels": "Test all models",
+    "testModel": "Test model",
+    "testPassed": "Test passed",
+    "testFailed": "Test failed",
+    "someTestsFailed": "Some tests failed",
+    "featureTestPassed": "{feature}: Passed",
+    "featureTestFailed": "{feature}: {error}",
+    "testing": "Testing…",
+    "notTested": "Not tested",
+    "deleteProviderTitle": "Delete {name}?",
+    "deleteProviderDescription": "This permanently removes the provider and its models.",
+    "deleteModelTitle": "Delete {name}?",
+    "deleteModelDescription": "This permanently removes the model.",
+    "disableModelTitle": "Disable {name}?",
+    "disableModelDescription": "The model stays selected where it is configured, but it cannot be used until it is enabled again.",
+    "modelFeaturesRemovedTitle": "Change what {name} is available for?",
+    "modelFeaturesRemovedDescription": "The features you unchecked can no longer use this model.",
+    "modelInUse": "{features} uses this model. | {features} use this model.",
+    "modelUsageUnknown": "Baserow could not check what still uses this model.",
+    "modelUsageFeature": "{feature} ({count})",
+    "modelIdentifierRenamedTitle": "Rename {name}?",
+    "modelIdentifierRenamedDescription": "They keep pointing at the old identifier and stop working until they are repointed.",
+    "loadError": "The AI provider settings could not be loaded.",
+    "loadErrorDescription": "Check the connection and try again.",
+    "retry": "Retry",
+    "saveError": "The AI provider could not be saved.",
+    "saveModelError": "The AI provider model could not be saved.",
+    "actionError": "The AI provider change could not be completed."
   },
   "workspacesAdminTable": {
     "allWorkspaces": "All workspaces",
@@ -1098,11 +1323,21 @@
   "userSourceType": {
     "userCountSummary": "{count} users ({lastUpdated})"
   },
+  "academy": {
+    "learnMore": "Learn more at the Baserow academy"
+  },
   "guidedTourStep": {
     "step": "{step} of {totalSteps}",
     "gotIt": "Got it",
     "next": "Next",
-    "back": "Back"
+    "back": "Back",
+    "watchVideo": "Watch video",
+    "stopTour": "Stop tour"
+  },
+  "guidedTourVideoModal": {
+    "previous": "Previous video",
+    "next": "Next video",
+    "close": "Close"
   },
   "welcomeGuidedTourStep": {
     "title": "Welcome to Baserow",
@@ -1148,7 +1383,60 @@
     "methodsOptionLabel": "Allowed HTTP methods",
     "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
     "methodsOptionAll": "All",
-    "methodsOptionExcludeGet": "Exclude GET"
+    "methodsOptionExcludeGet": "Exclude GET",
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreManualTriggerServiceForm": {
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreResponseServiceForm": {
+    "statusCode": "Status code",
+    "statusCode200": "200 - OK",
+    "statusCode201": "201 - Created",
+    "statusCode202": "202 - Accepted",
+    "statusCode204": "204 - No Content",
+    "statusCode400": "400 - Bad Request",
+    "statusCode401": "401 - Unauthorized",
+    "statusCode403": "403 - Forbidden",
+    "statusCode404": "404 - Not Found",
+    "statusCode405": "405 - Method Not Allowed",
+    "statusCode409": "409 - Conflict",
+    "statusCode422": "422 - Unprocessable Content",
+    "statusCode429": "429 - Too Many Requests",
+    "bodyType": "Body type",
+    "bodyTypeEmpty": "Empty",
+    "bodyTypeJson": "JSON",
+    "bodyTypeText": "Text",
+    "body": "Body",
+    "bodyPlaceholder": "Response body",
+    "headers": "Headers",
+    "name": "Name",
+    "value": "Value",
+    "namePlaceholder": "Header name",
+    "valuePlaceholder": "Header value",
+    "addHeader": "Add header",
+    "nameFieldRequired": "A header name is required.",
+    "nameFieldInvalid": "Header names can only contain letters, numbers, dashes, and underscores, and cannot start with a dash or underscore."
+  },
+  "inboundEmailTriggerServiceForm": {
+    "title": "Email address",
+    "addressVersionTest": "Test",
+    "addressVersionPublished": "Published",
+    "copyAddress": "Copy email address",
+    "description": "Any email sent to this address will start the workflow with the email's sender, subject, body and attachment details as the payload.",
+    "limits": "Emails up to {size} MB are accepted, and the text and HTML bodies are passed on up to 1 MB each. Attachments are not stored: only their name, type and size are included in the payload.",
+    "autoForwardTip": "Tip: you can also add this address as an auto-forward rule in your own inbox, so the workflow runs whenever you receive an email.",
+    "secretWarning": "Treat this address as a secret: anyone who knows it can start this workflow.",
+    "regenerate": "Regenerate address",
+    "infoDescription": "After you send an email, it may take up to several minutes to be received, depending on the provider."
   },
   "twoFactorAuthEmpty": {
     "title": "You have not yet enabled 2FA",
@@ -1158,8 +1446,9 @@
     "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
   },
   "nodeHelpTooltip": {
-    "exampleLabel": "Example",
-    "result": "Result: {result}"
+    "exampleLabel": "Example | Examples",
+    "result": "Result: {result}",
+    "clickToInsert": "Click an example to insert it"
   },
   "enableWithQRCode": {
     "scanQRCode": "Scan QR code",
@@ -1179,5 +1468,28 @@
   },
   "adminWorkspaces": {
     "title": "Workspaces"
+  },
+  "subjectType": {
+    "user": "User",
+    "users": "Users",
+    "agent": "Agent",
+    "agents": "Agents"
+  },
+  "agents": {
+    "saved": "Changes saved",
+    "tabTitle": "Agents",
+    "title": "{count} agents in {workspace}",
+    "create": "Create agent",
+    "createTitle": "Create agent",
+    "updateTitle": "Edit agent",
+    "save": "Save agent",
+    "edit": "Edit agent",
+    "delete": "Delete agent",
+    "general": "General",
+    "mcpServerPlaceholder": "MCP server settings will be available here.",
+    "name": "Name",
+    "invalidNameTitle": "Agent name not allowed",
+    "lastActive": "Last active",
+    "workspaceRole": "Workspace role"
   }
 }

@@ -4,7 +4,11 @@
       {{ $t('registerLicenseModal.titleRegisterLicense') }}
     </h2>
     <div>
-      <i18n-t keypath="registerLicenseModal.licenseDescription" tag="p">
+      <i18n-t
+        scope="global"
+        keypath="registerLicenseModal.licenseDescription"
+        tag="p"
+      >
         <template #pricingLink>
           <a target="_blank" :href="viewPricingURL">{{
             $t('registerLicenseModal.viewPricing')

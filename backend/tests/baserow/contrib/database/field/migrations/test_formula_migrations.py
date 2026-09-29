@@ -6,15 +6,19 @@ from django.db.models import Q
 import pytest
 
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula.migrations.handler import FormulaMigrationHandler
 from baserow.contrib.database.formula.migrations.migrations import (
     ALL_FORMULAS,
+    BASEROW_FORMULA_VERSION,
     FORMULA_MIGRATIONS,
+    FORMULAS_USING_INDEX,
     NO_FORMULAS,
     FormulaMigration,
     FormulaMigrations,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 
 
 def assert_all_rows_are_none(data_fixture, field):
@@ -795,3 +799,74 @@ def test_can_force_recalculate_for_formulas_with_invalid_syntax_or_of_error_type
             f"{formula_of_type_number_to_recreate_col.db_column}'"
         )
         assert [r[0] for r in cursor.fetchall()] == ["numeric"]
+
+
+# v6 stopped writing index()'s 4th argument. These cover upgrading an instance
+# whose stored internal formulas still carry one of the older shapes.
+
+
+def _index_formula_on_a_file_field(data_fixture, formula, name="idx"):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_file_field(table=table, name="Files", primary=True)
+    RowHandler().create_rows(user, table, [{}])
+    field = FieldHandler().create_field(
+        user, table, "formula", name=name, formula=formula
+    )
+    return user, table, field
+
+
+@pytest.mark.django_db
+def test_v6_rewrites_a_legacy_four_argument_internal_formula(data_fixture):
+    _, _, field = _index_formula_on_a_file_field(
+        data_fixture, "index(field('Files'), 0)"
+    )
+
+    legacy = field.internal_formula[:-1] + ",'{elem}')"
+    FormulaField.objects.filter(id=field.id).update(internal_formula=legacy, version=5)
+
+    FormulaMigrationHandler.migrate_formulas_to_latest_version()
+
+    field.refresh_from_db()
+    assert "{elem}" not in field.internal_formula
+    assert field.version == BASEROW_FORMULA_VERSION
+
+
+@pytest.mark.django_db
+def test_v6_rewrites_a_legacy_two_argument_internal_formula(data_fixture):
+    """Pre-2.2.0 rows carry no mode and evaluate as text, breaking jsonb callers."""
+
+    _, _, field = _index_formula_on_a_file_field(
+        data_fixture, "get_file_visible_name(index(field('Files'),0))"
+    )
+
+    legacy = field.internal_formula.replace(",'single_file')", ")")
+    assert legacy != field.internal_formula
+    FormulaField.objects.filter(id=field.id).update(internal_formula=legacy, version=5)
+
+    FormulaMigrationHandler.migrate_formulas_to_latest_version()
+
+    field.refresh_from_db()
+    assert "'single_file'" in field.internal_formula
+    assert field.version == BASEROW_FORMULA_VERSION
+
+
+@pytest.mark.django_db
+def test_v6_selector_matches_index_formulas_only(data_fixture):
+    user, table, indexed = _index_formula_on_a_file_field(
+        data_fixture, "index(field('Files'), 0)", name="indexed"
+    )
+    shortcut = FieldHandler().create_field(
+        user, table, "formula", name="shortcut", formula="first(field('Files'))"
+    )
+    unrelated = FieldHandler().create_field(
+        user, table, "formula", name="unrelated", formula="'a' + 'b'"
+    )
+
+    matched = set(
+        FormulaField.objects.filter(FORMULAS_USING_INDEX).values_list("id", flat=True)
+    )
+
+    assert indexed.id in matched
+    assert shortcut.id in matched, "first()/last() expand to index() internally"
+    assert unrelated.id not in matched

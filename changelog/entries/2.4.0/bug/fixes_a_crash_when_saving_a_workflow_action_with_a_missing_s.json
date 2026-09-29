@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes a crash when saving a workflow action with a missing service type.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-21"
+}

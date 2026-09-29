@@ -84,6 +84,21 @@ describe('Dropdown component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
+  test('multiple selection handles an undefined value', async () => {
+    const wrapper = await mountComponent({
+      props: { modelValue: ['a'], multiple: true },
+      slots: {
+        default: `<DropdownItem value="a" name="A"/>`,
+      },
+    })
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe('A')
+
+    await wrapper.setProps({ modelValue: undefined })
+
+    expect(wrapper.find('.dropdown__selected-placeholder').exists()).toBe(true)
+  })
+
   test('interactions', async () => {
     let wrapper = null
 

@@ -1,3 +1,7 @@
+.service-form__row {
+  --gap: 6px;
+}
+
 .service-form__sort-form-tab {
   padding-left: 0;
 }
@@ -14,23 +18,27 @@
 }
 
 .service-form__context {
-  &--filter,
-  &--sort {
+  &--filter {
     width: 660px;
+  }
 
-    .sortings__field {
-      flex: none;
-      flex-grow: 1;
-
-      .dropdown,
-      .dropdown__selected {
-        width: 100%;
-      }
-    }
+  &--group,
+  &--sort {
+    width: 320px;
   }
 
   &--search {
     width: 400px;
+  }
+
+  .sortings__field {
+    flex: none;
+    flex-grow: 1;
+
+    .dropdown,
+    .dropdown__selected {
+      width: 100%;
+    }
   }
 
   .filters__none {

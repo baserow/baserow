@@ -1,16 +1,23 @@
+import time
+from types import SimpleNamespace
 from unittest.mock import ANY, patch
+
+from django.test.utils import override_settings
+from django.utils import timezone
 
 import pytest
 from celery.canvas import Signature
 
 from baserow.config.celery import clear_local
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationNodeResult,
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.tasks import resume_deferred_node_celery_task
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -20,6 +27,62 @@ TRIGGER_NODE_TYPE_PATH = (
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 TASKS_PATH = "baserow.contrib.automation.workflows.tasks"
+
+
+def test_resume_deferred_node_retries_with_response_poll_interval():
+    """An unfinished child workflow schedules another response poll."""
+
+    deferred_history = SimpleNamespace(status=HistoryStatusChoices.STARTED)
+    retry_error = RuntimeError("retry requested")
+
+    with (
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history",
+            return_value=deferred_history,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history_response",
+            return_value=None,
+        ),
+        patch.object(
+            resume_deferred_node_celery_task,
+            "retry",
+            side_effect=retry_error,
+        ) as retry,
+        pytest.raises(RuntimeError, match="retry requested"),
+    ):
+        resume_deferred_node_celery_task.run(1, 2, "", time.time() + 10)
+
+    retry.assert_called_once_with(countdown=0.1)
+
+
+@pytest.mark.django_db
+def test_resume_deferred_node_does_not_load_response_after_timeout():
+    """An expired poll completes as timed out without loading a late response."""
+
+    deferred_history = SimpleNamespace(status=HistoryStatusChoices.STARTED)
+    with (
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history",
+            return_value=deferred_history,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history_response"
+        ) as get_response,
+        patch(
+            "baserow.contrib.automation.nodes.handler."
+            "AutomationNodeHandler.complete_deferred_node",
+            return_value=None,
+        ) as complete_deferred_node,
+    ):
+        resume_deferred_node_celery_task.run(1, 2, "", time.time() - 1)
+
+    get_response.assert_not_called()
+    complete_deferred_node.assert_called_once_with(1, 2, "", True, None)
 
 
 def assert_dispatches_next_node(result, *expected_tasks):
@@ -173,6 +236,22 @@ def create_workflow_history(data_fixture, workflow, trigger_table_fields):
             "has_next_page": False,
         },
     )
+
+
+def create_dispatch_limit_workflow(data_fixture, simulate=False):
+    """
+    Build a workflow + history for exercising the per-run node dispatch cap.
+    """
+
+    data = create_workflow(data_fixture)
+    node = data["trigger_node"]
+    history = data["workflow_history"]
+
+    if simulate:
+        history.simulate_until_node = node
+        history.save()
+
+    return node, history
 
 
 @pytest.mark.django_db
@@ -521,6 +600,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=100)
 def test_dispatch_node_fully_dispatches_nested_iterator_workflow(data_fixture):
     data = data_fixture.nested_iterator_graph_fixture()
     trigger_node = data["trigger_node"]
@@ -646,6 +726,7 @@ def test_dispatch_node_dispatches_trigger_simulation(
         },
         "status": 200,
         "output_uid": "",
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(
@@ -722,6 +803,7 @@ def test_dispatch_node_dispatches_action_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -943,6 +1025,7 @@ def test_dispatch_node_dispatches_iterator_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -1444,6 +1527,7 @@ def test_dispatch_node_dispatches_router_edge_simulation(
         },
         "output_uid": AnyStr(),
         "status": 200,
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(
@@ -1564,6 +1648,115 @@ def test_dispatch_node_with_deleted_node(mock_logger, data_fixture):
         "deleted before the task was executed."
     )
     mock_logger.warning.assert_called_once_with(expected_error)
+
+
+@pytest.mark.django_db
+def test_dispatch_node_finalizes_requested_cancellation(data_fixture):
+    """
+    When a cancellation was requested, the runner stops before dispatching the
+    next node: the node is not executed, no node history is written and the run
+    is marked as cancelled.
+    """
+
+    user = data_fixture.create_user(first_name="Ada")
+    data = create_workflow(data_fixture, user=user)
+    action_node = data["action_node"]
+    action_table = data["action_table"]
+    workflow_history = data["workflow_history"]
+    workflow_history.cancellation_requested_by = user
+    workflow_history.cancellation_requested_on = timezone.now()
+    workflow_history.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        action_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+    assert action_table.get_model().objects.count() == 0
+    assert not AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history
+    ).exists()
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+    assert workflow_history.message == f"Cancelled by Ada ({user.id})."
+    assert workflow_history.completed_on is not None
+
+
+@pytest.mark.django_db
+def test_dispatch_node_skips_already_cancelled_run(data_fixture):
+    """
+    The remaining tasks of a run can still fire after it was finalized (e.g. the
+    tasks of an iterator's chain, or after the timeout sweep). They must not
+    execute anything nor touch the resolved run.
+    """
+
+    data = create_workflow(data_fixture)
+    action_node = data["action_node"]
+    action_table = data["action_table"]
+    workflow_history = data["workflow_history"]
+    completed_on = timezone.now()
+    workflow_history.status = HistoryStatusChoices.CANCELLED
+    workflow_history.message = "Cancelled."
+    workflow_history.completed_on = completed_on
+    workflow_history.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        action_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+    assert action_table.get_model().objects.count() == 0
+    assert not AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history
+    ).exists()
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+    assert workflow_history.message == "Cancelled."
+    assert workflow_history.completed_on == completed_on
+
+
+@pytest.mark.django_db
+def test_dispatch_node_cancellation_requested_mid_run(data_fixture):
+    """
+    End-to-end: the trigger runs, the user requests a cancellation, the next
+    node is not dispatched and the dispatch-done handler does not flip the
+    cancelled run back to success.
+    """
+
+    user = data_fixture.create_user(first_name="Ada")
+    data = create_workflow(data_fixture, user=user)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    action_table = data["action_table"]
+    workflow_history = data["workflow_history"]
+    handler = AutomationNodeHandler()
+
+    result = handler.dispatch_node(trigger_node.id, history_id=workflow_history.id)
+    assert_dispatches_next_node(result, (action_node, workflow_history, None))
+
+    AutomationHistoryHandler().request_workflow_history_cancellation(
+        workflow_history, user
+    )
+
+    result = handler.dispatch_node(action_node.id, history_id=workflow_history.id)
+    assert result is None
+    assert action_table.get_model().objects.count() == 0
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.CANCELLED
+    assert workflow_history.message == f"Cancelled by Ada ({user.id})."
+
+    # Only the trigger ran, and its own entry resolved normally.
+    node_histories = list(
+        AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+    )
+    assert len(node_histories) == 1
+    assert node_histories[0].node_id == trigger_node.id
+    assert node_histories[0].status == HistoryStatusChoices.SUCCESS
 
 
 @pytest.mark.django_db
@@ -1740,32 +1933,60 @@ def test_dispatch_node_does_not_send_completed_signal_on_error(
 
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
-@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
-def test_dispatch_node_returns_early_if_started_signal_has_error(
-    mock_dispatch,
-    mock_dispatch_completed,
-    mock_dispatch_started,
-    data_fixture,
-):
-    # Simulate an exception raised when the started signal is sent.
-    mock_dispatch_started.send.side_effect = Exception("Foo error")
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
+def test_dispatch_node_enforces_per_run_dispatch_limit(data_fixture):
+    node, history = create_dispatch_limit_workflow(data_fixture)
 
-    data = create_workflow(data_fixture)
-    trigger_node = data["trigger_node"]
-    workflow_history = data["workflow_history"]
+    # First dispatch is within the limit.
+    AutomationNodeHandler().dispatch_node(node.id, history.id)
+    clear_local()
+    history.refresh_from_db()
+    assert history.status != HistoryStatusChoices.ERROR
 
-    result = AutomationNodeHandler().dispatch_node(
-        trigger_node.id,
-        history_id=workflow_history.id,
-    )
-
+    # Second dispatch exceeds the limit and errors the run at the workflow level.
+    result = AutomationNodeHandler().dispatch_node(node.id, history.id)
     assert result is None
-    node_history = AutomationNodeHistory.objects.get(node=trigger_node)
-    assert node_history.status == HistoryStatusChoices.ERROR
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "exceeded the maximum of 1 node dispatches" in history.message
 
-    # Both node_dispatch() and the completed signal shouldn't be called
-    # because the started signal raised an error.
-    mock_dispatch.assert_not_called()
-    mock_dispatch_completed.send.assert_not_called()
+
+@pytest.mark.django_db
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_enforces_dispatch_limit_when_simulating(
+    mock_automation_node_updated, data_fixture
+):
+    # The cap is a backstop against infinite loops and applies to simulations
+    # too. A legitimate simulation dispatches each node on the path to the
+    # simulated node once, so it never gets near the cap.
+    node, history = create_dispatch_limit_workflow(data_fixture, simulate=True)
+
+    # First dispatch is within the limit.
+    AutomationNodeHandler().dispatch_node(node.id, history.id)
+    clear_local()
+    history.refresh_from_db()
+    assert history.status != HistoryStatusChoices.ERROR
+
+    # Second dispatch exceeds the limit and errors the run at the workflow level.
+    result = AutomationNodeHandler().dispatch_node(node.id, history.id)
+    assert result is None
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "exceeded the maximum of 1 node dispatches" in history.message
+
+    # The frontend is notified about the simulated node on the error path too,
+    # in addition to the notification sent by the first, successful dispatch.
+    assert mock_automation_node_updated.send.call_count == 2
+    mock_automation_node_updated.send.assert_called_with(ANY, user=None, node=node)
+
+
+@pytest.mark.django_db
+def test_check_node_dispatch_limit_counts_per_run(data_fixture):
+    _, history = create_dispatch_limit_workflow(data_fixture)
+    handler = AutomationNodeHandler()
+
+    with override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=2):
+        assert handler._check_node_dispatch_limit(history.id) is False
+        assert handler._check_node_dispatch_limit(history.id) is False
+        assert handler._check_node_dispatch_limit(history.id) is True

@@ -7,7 +7,7 @@ and/or released.
 
 Add/remove features flags to the list below:
 
-
+- `agents` — workspace Agent management and Agent creation.
 
 ## Enabling feature flags
 
@@ -23,7 +23,7 @@ or `.env.local` file (for local development).
 
 ## Enabling all feature flags
 
-Use the `*` feature flag to enable every single feature flag without having to specify 
+Use the `*` feature flag to enable every single feature flag without having to specify
 each one.
 
 ```bash
@@ -37,7 +37,7 @@ Feature flags should be:
 1. Alphanumeric with dashes.
 2. Not start or end with spaces (flags from the env variable will be trimmed for ease of
    use).
-3. Unique per feature. 
+3. Unique per feature.
 
 ## Creating a feature flag
 
@@ -46,11 +46,11 @@ Feature flags should be:
 ```python
 # Add variable with feature flag to baserow.core.feature_flag in format
 # FF_<FEATURE_NAME> = "feature_name"
-# i.e. 
+# i.e.
 FF_FEATURE1 = "feature1"
 
 # In your feature file import flag you need and feature flag function
-from baserow.core.feature_flag import FF_FEATURE1, feature_flag_is_enabled 
+from baserow.core.feature_flag import FF_FEATURE1, feature_flag_is_enabled
 
 # Use to check if feature is enabled
 if feature_flag_is_enabled(FF_FEATURE1):
@@ -62,8 +62,6 @@ feature_flag_is_enabled(FF_FEATURE1, raise_if_disabled=True)
 
 ### In the Web-frontend
 
-
-
 ```javascript
 // add feature flag variable in @core/plugins/featureFlags.js in format
 // FF_<FEATURE_NAME> = "feature_name"
@@ -71,12 +69,11 @@ feature_flag_is_enabled(FF_FEATURE1, raise_if_disabled=True)
 export const FF_FEATURE1 = "feature1";
 
 methods: {
-    someComponentMethod()
+    someComponentMethod();
     {
-        if (this.$featureFlagIsEnabled(FF_FEATURE1)){
+        if (this.$featureFlagIsEnabled(FF_FEATURE1)) {
             // do the feature
         }
     }
 }
 ```
-

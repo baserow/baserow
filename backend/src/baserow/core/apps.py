@@ -6,13 +6,17 @@ from django.db.models.signals import post_migrate, pre_migrate
 from health_check.storage.backends import DefaultFileStorageHealthCheck
 
 from baserow.cachalot_patch import clear_cachalot_cache
-from baserow.core.sentry import patch_user_model_str
 
 
 class CoreConfig(AppConfig):
     name = "baserow.core"
 
     def ready(self):
+        import pydantic_ai
+
+        # Otherwise the first uninstrumented agent run prints a Logfire promo to stderr.
+        pydantic_ai.BANNER_ENABLED = False
+
         # Patch Django's DecimalField to have lenient conversion
         # regarding NaN values
         from django.db.models import DecimalField
@@ -33,6 +37,9 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(WorkspaceTrashableItemType())
         trash_item_type_registry.register(ApplicationTrashableItemType())
+        from .agents.trash_types import AgentTrashableItemType
+
+        trash_item_type_registry.register(AgentTrashableItemType())
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
@@ -48,6 +55,8 @@ class CoreConfig(AppConfig):
             RuntimeDay,
             RuntimeDivide,
             RuntimeDurationFormat,
+            RuntimeEncodeUri,
+            RuntimeEncodeUriComponent,
             RuntimeEqual,
             RuntimeFromJson,
             RuntimeGenerateUUID,
@@ -138,6 +147,8 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeSplit())
         formula_runtime_function_registry.register(RuntimeIsEmpty())
         formula_runtime_function_registry.register(RuntimeStrip())
+        formula_runtime_function_registry.register(RuntimeEncodeUri())
+        formula_runtime_function_registry.register(RuntimeEncodeUriComponent())
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
@@ -158,6 +169,7 @@ class CoreConfig(AppConfig):
             StaffOnlyPermissionManagerType,
             StaffOnlySettingOperationPermissionManagerType,
             WorkspaceMemberOnlyPermissionManagerType,
+            WorkspaceRoleAvailabilityPermissionManagerType,
         )
         from baserow.core.registries import (
             email_context_registry,
@@ -170,6 +182,9 @@ class CoreConfig(AppConfig):
 
         email_context_registry.register(CoreEmailContextType())
 
+        permission_manager_type_registry.register(
+            WorkspaceRoleAvailabilityPermissionManagerType()
+        )
         permission_manager_type_registry.register(CorePermissionManagerType())
         permission_manager_type_registry.register(StaffOnlyPermissionManagerType())
         permission_manager_type_registry.register(BasicPermissionManagerType())
@@ -201,13 +216,22 @@ class CoreConfig(AppConfig):
 
         from baserow.core.registries import subject_type_registry
 
+        from .agents.subjects import AgentSubjectType
         from .subjects import AnonymousUserSubjectType, UserSubjectType
         from .user_sources.subjects import UserSourceUserSubjectType
 
         subject_type_registry.register(UserSubjectType())
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
+        subject_type_registry.register(AgentSubjectType())
 
+        from .agents.operations import (
+            CreateAgentOperationType,
+            DeleteAgentOperationType,
+            ListAgentsWorkspaceOperationType,
+            UpdateAgentOperationType,
+        )
+        from .ai_provider.operations import ManageAIProvidersOperationType
         from .notifications.operations import (
             ClearNotificationsOperationType,
             ListNotificationsOperationType,
@@ -276,6 +300,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(DuplicateApplicationOperationType())
         operation_type_registry.register(DeleteApplicationOperationType())
         operation_type_registry.register(UpdateSettingsOperationType())
+        operation_type_registry.register(ManageAIProvidersOperationType())
         operation_type_registry.register(CreateSnapshotApplicationOperationType())
         operation_type_registry.register(DeleteApplicationSnapshotOperationType())
         operation_type_registry.register(ListSnapshotsApplicationOperationType())
@@ -287,6 +312,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(RestoreApplicationOperationType())
         operation_type_registry.register(RestoreWorkspaceOperationType())
         operation_type_registry.register(ReadApplicationOperationType())
+        operation_type_registry.register(ListAgentsWorkspaceOperationType())
+        operation_type_registry.register(CreateAgentOperationType())
+        operation_type_registry.register(UpdateAgentOperationType())
+        operation_type_registry.register(DeleteAgentOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,
@@ -406,6 +435,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(AdminDisableTwoFactorAuthActionType())
 
         from baserow.core.action.scopes import (
+            AllWorkspacesActionScopeType,
             ApplicationActionScopeType,
             RootActionScopeType,
             WorkspaceActionScopeType,
@@ -413,6 +443,7 @@ class CoreConfig(AppConfig):
 
         action_scope_registry.register(RootActionScopeType())
         action_scope_registry.register(WorkspaceActionScopeType())
+        action_scope_registry.register(AllWorkspacesActionScopeType())
         action_scope_registry.register(ApplicationActionScopeType())
 
         from baserow.core.jobs.registries import job_type_registry
@@ -440,6 +471,21 @@ class CoreConfig(AppConfig):
 
         user_data_registry.register(GlobalPermissionsDataType())
         user_data_registry.register(UnreadUserNotificationsCountPermissionsDataType())
+
+        from baserow.core.preference_types import (
+            AllWorkspacesSortByPreferenceType,
+            AllWorkspacesViewModePreferenceType,
+            RecentlyViewedViewModePreferenceType,
+            WorkspaceRecentlyViewedViewModePreferenceType,
+        )
+        from baserow.core.user.registries import user_preference_type_registry
+
+        user_preference_type_registry.register(AllWorkspacesSortByPreferenceType())
+        user_preference_type_registry.register(AllWorkspacesViewModePreferenceType())
+        user_preference_type_registry.register(RecentlyViewedViewModePreferenceType())
+        user_preference_type_registry.register(
+            WorkspaceRecentlyViewedViewModePreferenceType()
+        )
 
         from baserow.core.auth_provider.auth_provider_types import (
             PasswordAuthProviderType,
@@ -488,12 +534,24 @@ class CoreConfig(AppConfig):
         )
         notification_type_registry.register(BaserowVersionUpgradeNotificationType())
 
+        from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
+        from baserow.core.abuse_reports.notification_types import (
+            AbuseReportCreatedNotificationType,
+        )
+
+        action_type_registry.register(SubmitAbuseReportActionType())
+        notification_type_registry.register(AbuseReportCreatedNotificationType())
+
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
+            BedrockGenerativeAIModelType,
+            GoogleGenerativeAIModelType,
+            GroqGenerativeAIModelType,
             MistralGenerativeAIModelType,
             OllamaGenerativeAIModelType,
             OpenAIGenerativeAIModelType,
             OpenRouterGenerativeAIModelType,
+            XaiGenerativeAIModelType,
         )
         from baserow.core.generative_ai.registries import (
             generative_ai_model_type_registry,
@@ -501,6 +559,10 @@ class CoreConfig(AppConfig):
 
         generative_ai_model_type_registry.register(OpenAIGenerativeAIModelType())
         generative_ai_model_type_registry.register(AnthropicGenerativeAIModelType())
+        generative_ai_model_type_registry.register(BedrockGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GoogleGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GroqGenerativeAIModelType())
+        generative_ai_model_type_registry.register(XaiGenerativeAIModelType())
         generative_ai_model_type_registry.register(MistralGenerativeAIModelType())
         generative_ai_model_type_registry.register(OllamaGenerativeAIModelType())
         generative_ai_model_type_registry.register(OpenRouterGenerativeAIModelType())
@@ -519,12 +581,21 @@ class CoreConfig(AppConfig):
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
 
         if settings.SENTRY_DSN:
+            from baserow.core.sentry import patch_user_model_str
+
             patch_user_model_str()
 
+        import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 
         setup_logging()
+
+        # Must run after setup_logging so the notice reaches the configured
+        # sink and the OpenTelemetry log exporter.
+        from baserow.config.helpers import log_ai_provider_env_deprecations
+
+        log_ai_provider_env_deprecations()
 
     def _setup_health_checks(self):
         from health_check.plugins import plugin_dir
@@ -548,6 +619,7 @@ class CoreConfig(AppConfig):
             ListIntegrationsApplicationOperationType,
             OrderIntegrationsOperationType,
             ReadIntegrationOperationType,
+            RestoreIntegrationOperationType,
             UpdateIntegrationOperationType,
         )
 
@@ -557,6 +629,24 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ListIntegrationsApplicationOperationType())
         operation_type_registry.register(ReadIntegrationOperationType())
         operation_type_registry.register(OrderIntegrationsOperationType())
+        operation_type_registry.register(RestoreIntegrationOperationType())
+
+        from baserow.core.action.registries import action_type_registry
+        from baserow.core.integrations.actions import (
+            CreateIntegrationActionType,
+            DeleteIntegrationActionType,
+            MoveIntegrationActionType,
+            UpdateIntegrationActionType,
+        )
+        from baserow.core.integrations.trash_types import IntegrationTrashableItemType
+        from baserow.core.trash.registries import trash_item_type_registry
+
+        trash_item_type_registry.register(IntegrationTrashableItemType())
+
+        action_type_registry.register(CreateIntegrationActionType())
+        action_type_registry.register(UpdateIntegrationActionType())
+        action_type_registry.register(DeleteIntegrationActionType())
+        action_type_registry.register(MoveIntegrationActionType())
 
         from baserow.core.user_sources.object_scopes import UserSourceObjectScopeType
 
@@ -570,6 +660,7 @@ class CoreConfig(AppConfig):
             LoginUserSourceOperationType,
             OrderUserSourcesOperationType,
             ReadUserSourceOperationType,
+            RestoreUserSourceOperationType,
             UpdateUserSourceOperationType,
         )
 
@@ -581,6 +672,22 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(UpdateUserSourceOperationType())
         operation_type_registry.register(AuthenticateUserSourceOperationType())
         operation_type_registry.register(LoginUserSourceOperationType())
+        operation_type_registry.register(RestoreUserSourceOperationType())
+
+        from baserow.core.user_sources.actions import (
+            CreateUserSourceActionType,
+            DeleteUserSourceActionType,
+            MoveUserSourceActionType,
+            UpdateUserSourceActionType,
+        )
+        from baserow.core.user_sources.trash_types import UserSourceTrashableItemType
+
+        trash_item_type_registry.register(UserSourceTrashableItemType())
+
+        action_type_registry.register(CreateUserSourceActionType())
+        action_type_registry.register(UpdateUserSourceActionType())
+        action_type_registry.register(DeleteUserSourceActionType())
+        action_type_registry.register(MoveUserSourceActionType())
 
         from baserow.core.mcp.operations import (
             CreateMCPEndpointOperationType,
@@ -605,6 +712,8 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+        import baserow.core.integrations.ws.signals  # noqa: F403, F401
+        import baserow.core.user_sources.ws.signals  # noqa: F403, F401
 
         # pgvector extension setup. Because the extension is optional, we must
         # dynamically check if it's available and adjust the models accordingly.

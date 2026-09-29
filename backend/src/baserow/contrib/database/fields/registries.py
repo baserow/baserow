@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     NoReturn,
@@ -145,6 +146,13 @@ class FieldType(
     can_be_in_form_view = True
     """Indicates whether the field is compatible with the form view."""
 
+    can_be_in_public_view = True
+    """
+    Indicates whether the field can be exposed to the visitors of a publicly shared
+    view. When `False` the field is left out of every public payload, even when the
+    view's field options say it's visible.
+    """
+
     can_get_unique_values = True
     """
     Indicates whether this field can generate a list of unique values using the
@@ -163,6 +171,13 @@ class FieldType(
     read_only = False
     """Indicates whether the field allows inserting/updating row values or if it is
     read only."""
+
+    write_only = False
+    """
+    Indicates whether the stored value must never be handed back, as the password
+    field's hash must not be. Serializers and exports mask such a value already;
+    this marks it for the paths that read the column itself.
+    """
 
     keep_data_on_duplication = True
     """
@@ -413,6 +428,18 @@ class FieldType(
         """
 
         return queryset
+
+    def enhance_field_queryset_for_serialization(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        """
+        Like `enhance_field_queryset`, for fields fetched to be serialized to a
+        client. Unlike it, not applied when a table's model is generated, whose
+        field instances are cached until the table's own schema changes. Use it
+        for values that depend on other tables and must be read fresh.
+        """
+
+        return self.enhance_field_queryset(queryset, field)
 
     def enhance_queryset_in_bulk(
         self, queryset: QuerySet, field_objects: List[dict], **kwargs
@@ -998,6 +1025,36 @@ class FieldType(
         :return: The ordering applied to the group-by data groups.
         """
 
+        return self.get_group_by_sort_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
+
+    def get_group_by_sort_order(
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Returns the raw ordering expression used to sort groups in a group-by
+        query, before any subquery wrapping that ``get_group_by_order`` may
+        apply. By default this delegates to ``get_order`` so groups sort the
+        same way rows do. Field types that need a different ordering for
+        group-by (e.g. set-based ordering for many-to-many fields) can override
+        this without duplicating the subquery logic in
+        ``ManyToManyGroupByMixin.get_group_by_order``.
+
+        :param field: The related field object instance.
+        :param field_name: The name of the field.
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param sort_type: The sort type that must be used.
+        :param table_model: The table model instance that the field is part of,
+            if available.
+        :return: The ordering applied to the group-by data groups.
+        """
+
         return self.get_order(
             field, field_name, order_direction, sort_type, table_model=table_model
         )
@@ -1067,7 +1124,10 @@ class FieldType(
         return serialized
 
     def export_serialized(
-        self, field: Field, include_allowed_fields: bool = True
+        self,
+        field: Field,
+        include_allowed_fields: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Dict[str, Any]:
         """
         Exports the field to a serialized dict that can be imported by the
@@ -1076,6 +1136,9 @@ class FieldType(
         :param field: The field instance that must be exported.
         :param include_allowed_fields: Indicates whether or not the allowed fields
             should automatically be added to the serialized object.
+        :param import_export_config: What the export is for. A field carrying
+            something secret reads `exclude_sensitive_data` from it; the
+            callers that duplicate rather than export leave it out.
         :return: The exported field in as serialized dict.
         """
 
@@ -1210,6 +1273,27 @@ class FieldType(
         :param field: A field instance of this field type.
         :param field_cache: A field cache to be used when fetching fields.
         :param id_mapping:
+        """
+
+    def after_field_duplicated(
+        self,
+        original_field: Field,
+        new_field: Field,
+        serialized_field: Dict[str, Any],
+        user: Optional[AbstractUser] = None,
+    ) -> None:
+        """
+        Called after a single field has been duplicated, once the new field
+        exists. `duplicate_field` does not go through the serialization import
+        path, so anything a field type keeps outside its own allowed fields has
+        to be copied here.
+
+        :param original_field: The field that was duplicated.
+        :param new_field: The newly created copy.
+        :param serialized_field: The original field's exported representation,
+            minus the keys `duplicate_field` strips.
+        :param user: Who asked for the copy, for anything the field type
+            carries that they have to be allowed to reuse.
         """
 
     def after_rows_imported(
@@ -1522,8 +1606,42 @@ class FieldType(
         and the field name is returned.
 
         :param serialized_field: The serialized field that is being imported.
+        :param serialized_fields_map: A map of all the serialized fields in the import,
+            keyed by their original field id.
+        :param primary_table_fields_map: A map of table id to the id of that table's
+            primary field, for all the tables in the import.
         :return: A list of field name dependencies that must be imported before this
             field.
+        """
+
+        return None
+
+    def get_import_dependency_when_referenced(
+        self,
+        serialized_field: Dict[str, Any],
+        reference_name: str,
+        serialized_fields_map: Dict[int, Dict[str, Any]],
+        primary_table_fields_map: Dict[int, int],
+    ) -> Optional[Tuple[Union[int, str], Union[int, str]]]:
+        """
+        Returns the dependency implied by referencing this field by name from another
+        field in the same table, or `None` if referencing it does not imply a
+        dependency on anything other than the field itself.
+
+        Field types whose value is borrowed from another table, like `link_row` which
+        renders the linked table's primary field, must return that other field here.
+        Otherwise the import would order the referencing field before the field it
+        actually reads from.
+
+        :param serialized_field: The serialized field that is being referenced.
+        :param reference_name: The name the referencing field used, which is the name
+            of this field and therefore the `via` of any returned dependency.
+        :param serialized_fields_map: A map of all the serialized fields in the import,
+            keyed by their original field id.
+        :param primary_table_fields_map: A map of table id to the id of that table's
+            primary field, for all the tables in the import.
+        :return: A `(field_name, via_field_name)` dependency, or `None` when
+            referencing this field implies no further dependency.
         """
 
         return None
@@ -2173,6 +2291,16 @@ class FieldType(
 
         return field_name
 
+    def get_query_value_serializer(self, field: Field) -> Callable[[Any], Any]:
+        """
+        Returns a serializer function for raw values produced by queries.
+
+        Field types can override this when the raw query value differs from the
+        public API representation of the field value.
+        """
+
+        return lambda value: value
+
     def to_runtime_formula_value(self, field, value):
         """
         Transform the value to be usable in runtime formula land.
@@ -2284,7 +2412,7 @@ class ManyToManyGroupByMixin:
     def get_group_by_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
-        order = self.get_order(
+        order = self.get_group_by_sort_order(
             field, field_name, order_direction, sort_type, table_model=table_model
         )
         if order.annotation is None or table_model is None:
@@ -2292,9 +2420,9 @@ class ManyToManyGroupByMixin:
 
         # In a group-by data query an aggregated ArrayField annotation shadows the
         # relation column (see `get_group_by_field_filters_and_annotations`), so joins
-        # `get_order` relies on aren't reachable. Recompute the same ordering as per-row
-        # correlated subqueries against the table model, where the relation exists, so
-        # groups and rows order identically.
+        # `get_group_by_sort_order` relies on aren't reachable. Recompute the same
+        # ordering as per-row correlated subqueries against the table model, where the
+        # relation exists, so groups and rows order identically.
         wrapped_annotation = {
             alias: Subquery(
                 table_model.objects.filter(id=OuterRef("id"))
@@ -2714,3 +2842,45 @@ field_aggregation_registry: FieldAggregationTypeRegistry = (
     FieldAggregationTypeRegistry()
 )
 field_constraint_registry: FieldConstraintRegistry = FieldConstraintRegistry()
+
+
+def get_content_type_ids_not_allowed_in_public_views() -> Set[int]:
+    """
+    Returns the content type ids of the field types that must never reach the
+    visitors of a publicly shared view.
+    """
+
+    from django.contrib.contenttypes.models import ContentType
+
+    models = [
+        field_type.model_class
+        for field_type in field_type_registry.get_all()
+        if not field_type.can_be_in_public_view
+    ]
+    if not models:
+        return set()
+
+    # Django caches content types per model, so this doesn't query per call.
+    return {
+        content_type.id
+        for content_type in ContentType.objects.get_for_models(*models).values()
+    }
+
+
+def exclude_field_options_not_allowed_in_public_views(
+    field_options: QuerySet,
+) -> QuerySet:
+    """
+    Drops the options of the fields that must never reach the visitors of a
+    publicly shared view, so that a visible field option isn't enough to expose
+    them.
+
+    :param field_options: The field options queryset to filter.
+    :return: The filtered field options queryset.
+    """
+
+    content_type_ids = get_content_type_ids_not_allowed_in_public_views()
+    if not content_type_ids:
+        return field_options
+
+    return field_options.exclude(field__content_type_id__in=content_type_ids)

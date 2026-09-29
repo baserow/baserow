@@ -11,5 +11,10 @@ export default (client) => {
     getNodeResult(nodeHistoryId) {
       return client.get(`automation/node_histories/${nodeHistoryId}/result/`)
     },
+    cancelWorkflowHistory(workflowHistoryId) {
+      return client.post(
+        `automation/workflow_histories/${workflowHistoryId}/cancel/`
+      )
+    },
   }
 }

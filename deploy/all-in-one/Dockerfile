@@ -65,6 +65,7 @@ RUN ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn
 # Copy su-exec from backend image (already built with pinned version + SHA256 verification)
 COPY --from=backend_image /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=backend_image /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=backend_image /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=backend_image /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 
 ENV POSTGRES_LOCATION=/etc/postgresql/15/main \
@@ -106,6 +107,8 @@ HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-ent
 ENTRYPOINT ["/baserow.sh"]
 CMD ["start"]
 EXPOSE 80
+# SMTP for the optional email-receiver role (only bound when enabled).
+EXPOSE 25
 
 
 # =============================================================================
@@ -154,3 +157,5 @@ HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-ent
 ENTRYPOINT ["/baserow.sh"]
 CMD ["start"]
 EXPOSE 80
+# SMTP for the optional email-receiver role (only bound when enabled).
+EXPOSE 25

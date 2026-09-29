@@ -54,6 +54,7 @@ class CsvQuerysetSerializer(QuerysetSerializer):
         export_charset="utf-8",
         csv_column_separator=",",
         csv_include_header=True,
+        **kwargs,
     ):
         """
         Writes the queryset to the provided file in csv format using the provided

@@ -1,0 +1,11 @@
+{
+  "type": "breaking_change",
+  "message": "Update row actions now require a row ID",
+  "issue_origin": "github",
+  "issue_number": 5934,
+  "domain": "integration",
+  "bullet_points": [
+    "Breaking change: an update row action in the application builder, automations or a button field whose row ID is empty, or resolves to 0, now fails instead of creating a new row. Use a create row action to add rows."
+  ],
+  "created_at": "2026-09-14"
+}

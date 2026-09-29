@@ -1,11 +1,13 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import TemplateOnboardingCancelModal from '@baserow/modules/database/components/onboarding/TemplateOnboardingCancelModal'
 import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import TemplateService from '@baserow/modules/core/services/template'
+import { getAirtableJobErrorMessage } from '@baserow/modules/database/utils/airtableErrors'
 
 /**
  * Base class for database onboarding step types. Each type represents a different
@@ -99,6 +101,20 @@ export class DatabaseOnboardingStepType extends Registerable {
   }
 
   /**
+   * Get a specific error explanation for the failed job returned by
+   * `getJobForPolling`.
+   * @param job - The failed job, including its `error_code` and
+   *  `human_readable_error`
+   * @param data - The data object containing all onboarding form data
+   * @param responses - The responses object from all completed steps
+   * @returns {object|null} - Object containing a `title` and `message`, or null to
+   *  show the generic failure message
+   */
+  getJobErrorMessage(job, data, responses) {
+    return null
+  }
+
+  /**
    * Get the route to navigate to after completion.
    * @param data - The data object containing all onboarding form data
    * @param responses - The responses object from all completed steps (completed
@@ -106,6 +122,17 @@ export class DatabaseOnboardingStepType extends Registerable {
    * @returns {object|null} - Route object or null
    */
   getCompletedRoute(data, responses) {
+    return null
+  }
+
+  /**
+   * Called when the user cancels the onboarding, before it's actually cancelled. Can
+   * return an object containing the `component` of a modal offering this step type as
+   * an alternative to cancelling, and optionally the `props` passed into it. The modal
+   * must emit `selected` with the step data, and `hidden` if the user dismissed it. It
+   * can emit `cancel` if it offers a way to cancel the onboarding after all.
+   */
+  async getCancelModal() {
     return null
   }
 }
@@ -207,6 +234,10 @@ export class AirtableDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
     return responses[DatabaseOnboardingType.getType()]?.job
   }
 
+  getJobErrorMessage(job, data, responses) {
+    return getAirtableJobErrorMessage((key) => this.app.$i18n.t(key), job)
+  }
+
   getCompletedRoute(data, responses) {
     // After job completion, the response IS the completed job (it overwrites the
     // original response)
@@ -258,6 +289,30 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
       return DatabaseTemplatePreview
     }
     return null
+  }
+
+  /**
+   * Cancelling the onboarding results in an empty workspace, which doesn't help the
+   * user to get started. Installing a template does, so it's offered as an alternative
+   * as long as the instance actually has templates.
+   */
+  async getCancelModal() {
+    if (!this.isVisible()) {
+      return null
+    }
+
+    const { data: categories } = await TemplateService(
+      this.app.$client
+    ).fetchAll()
+
+    if (categories.every((category) => category.templates.length === 0)) {
+      return null
+    }
+
+    return {
+      component: TemplateOnboardingCancelModal,
+      props: { categories, databaseStepType: this.getType() },
+    }
   }
 
   async completeAfterWorkspace(workspace, stepData) {

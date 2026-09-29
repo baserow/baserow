@@ -43,6 +43,7 @@ from django.db.models.functions import (
     Log,
     Lower,
     Mod,
+    NullIf,
     Power,
     Replace,
     Reverse,
@@ -79,6 +80,9 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowStringLiteral,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ALLOWED_ARRAY_INDEX_SQL,
+    ARRAY_INDEX_SQL_BY_MODE,
+    DEFAULT_ARRAY_INDEX_SQL,
     AndExpr,
     BaserowStringAgg,
     EqualsExpr,
@@ -271,6 +275,7 @@ def register_formula_functions(registry):
     registry.register(BaserowLast())
     # ManyToMany functions
     registry.register(BaserowStringAggManyToManyValues())
+    registry.register(BaserowStringAggCollaboratorValues())
     registry.register(BaserowManyToManyCount())
     registry.register(BaserowManyToManyAgg())
 
@@ -1986,6 +1991,10 @@ class BaserowWhenEmpty(TwoArgumentBaserowFunction):
         )
 
     def to_django_expression(self, arg1: Expression, arg2: Expression) -> Expression:
+        if isinstance(arg2.output_field, (fields.CharField, fields.TextField)):
+            return Coalesce(
+                NullIf(arg1, Value("")), arg2, output_field=arg2.output_field
+            )
         return Coalesce(arg1, arg2, output_field=arg2.output_field)
 
 
@@ -2361,22 +2370,46 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
         BaserowFormulaMultipleCollaboratorsType,
     ]
     aggregate = True
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Can be overridden in type_function from the arg.expression_type
-        self.value_key = "value"
+    # The key extracted from each JSON object being aggregated. This is a
+    # class-level constant on purpose: function defs are registry singletons,
+    # so per-call mutation would leak into every other formula compiled in the
+    # same process. Argument types needing a different key get their own
+    # function def (see `BaserowStringAggCollaboratorValues`), selected at
+    # typing time below.
+    value_key = "value"
 
     def type_function(
         self,
         func_call: BaserowFunctionCall,
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if value_key := getattr(
+        custom_value_key = getattr(
             arg.expression_type, "custom_string_agg_value_key", None
-        ):
-            self.value_key = value_key
-        return func_call.with_valid_type(BaserowFormulaTextType())
+        )
+        if custom_value_key is None or custom_value_key == self.value_key:
+            return func_call.with_valid_type(BaserowFormulaTextType())
+        if custom_value_key == BaserowStringAggCollaboratorValues.value_key:
+            # The multiple collaborators type aggregates `first_name` instead
+            # of `value`. Rewrite to the dedicated function so the key is bound
+            # to the call instead of mutated on this singleton. Typing re-runs
+            # whenever a formula is recompiled, so previously saved internal
+            # formulas referencing this function are rewritten too.
+            from baserow.contrib.database.formula.registries import (
+                formula_function_registry,
+            )
+
+            return formula_function_registry.get(
+                BaserowStringAggCollaboratorValues.type
+            )(arg)
+        # A new type declaring another custom key needs its own dedicated
+        # function def with a matching class-level `value_key` - fail loudly
+        # instead of silently aggregating the wrong key.
+        return func_call.with_invalid_type(
+            f"custom_string_agg_value_key must be either None, "
+            f"'{self.value_key}' or "
+            f"'{BaserowStringAggCollaboratorValues.value_key}', "
+            f"got '{custom_value_key}'"
+        )
 
     def to_django_expression(self, arg: Expression) -> Expression:
         return Func(
@@ -2399,6 +2432,21 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
                 function="array_to_string",
             )
         )
+
+
+class BaserowStringAggCollaboratorValues(BaserowStringAggManyToManyValues):
+    """
+    Variant of `string_agg_many_to_many_values` for the multiple collaborators
+    type, which aggregates each collaborator's `first_name` rather than a
+    `value` key.
+    """
+
+    type = "string_agg_collaborator_values"
+    arg_type = [BaserowFormulaMultipleCollaboratorsType]
+    # Matches `BaserowFormulaMultipleCollaboratorsType.custom_string_agg_value_key`.
+    # The inherited `type_function` recognises the argument type's custom key as
+    # this class's `value_key` and types the call as-is.
+    value_key = "first_name"
 
 
 # Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility
@@ -3029,6 +3077,9 @@ def _index_output_field(mode):
         _lookup_formula_type_from_string,
     )
 
+    if mode == "date_with_time":
+        mode = "date"
+
     try:
         return _lookup_formula_type_from_string(mode).output_field_class()
     except Exception:
@@ -3054,6 +3105,8 @@ def _unwrap_literal_value(django_expr):
 
 class BaserowIndex(BaserowFunctionDefinition):
     type = "index"
+    # A 4th argument is still parsed so internal formulas written before it was
+    # dropped keep working, but the typing step below refuses to produce one.
     num_args = NumOfArgsBetween(2, 4)
 
     @property
@@ -3064,7 +3117,7 @@ class BaserowIndex(BaserowFunctionDefinition):
             elif arg_index == 1:
                 return [BaserowFormulaNumberType]
             else:
-                return [BaserowFormulaTextType]  # mode + sql literals
+                return [BaserowFormulaTextType]  # mode literal
 
         return type_checker
 
@@ -3073,7 +3126,7 @@ class BaserowIndex(BaserowFunctionDefinition):
         args: List[BaserowExpression[BaserowFormulaValidType]],
         func_call: BaserowFunctionCall[UnTyped],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if len(args) not in (2, 4):
+        if len(args) != 2:
             return func_call.with_invalid_type(
                 "index requires exactly 2 arguments: an array and an index."
             )
@@ -3088,19 +3141,12 @@ class BaserowIndex(BaserowFunctionDefinition):
 
         sub_type = arg1.expression_type.sub_type
 
-        if len(args) == 4:
-            return func_call.with_args(list(args)).with_valid_type(sub_type)
-
+        # Always regenerated so the stored mode matches the resolved sub type.
         mode_literal = BaserowStringLiteral(
             sub_type.array_index_mode, BaserowFormulaTextType()
         )
-        sql_literal = BaserowStringLiteral(
-            sub_type.array_index_sql, BaserowFormulaTextType()
-        )
 
-        return func_call.with_args(
-            [arg1, arg2, mode_literal, sql_literal]
-        ).with_valid_type(sub_type)
+        return func_call.with_args([arg1, arg2, mode_literal]).with_valid_type(sub_type)
 
     def to_django_expression_given_args(
         self,
@@ -3109,10 +3155,18 @@ class BaserowIndex(BaserowFunctionDefinition):
     ) -> "WrappedExpressionWithMetadata":
         # Fall back to text defaults if args weren't augmented at type time.
         mode = "text"
-        value_sql = "{elem} ->> 'value'"
-        if len(args) >= 4:
+        if len(args) >= 3:
             mode = _unwrap_literal_value(args[2].expression) or mode
-            value_sql = _unwrap_literal_value(args[3].expression) or value_sql
+
+        value_sql = None
+        if len(args) >= 4:
+            # Internal formulas predating the mode lookup carry the template
+            # itself; it is used only when a formula type still produces it.
+            legacy_sql = _unwrap_literal_value(args[3].expression)
+            if legacy_sql in ALLOWED_ARRAY_INDEX_SQL:
+                value_sql = legacy_sql
+        if value_sql is None:
+            value_sql = ARRAY_INDEX_SQL_BY_MODE.get(mode, DEFAULT_ARRAY_INDEX_SQL)
         safe_index = handle_arg_being_nan(
             args[1].expression,
             Value(None, output_field=fields.IntegerField()),

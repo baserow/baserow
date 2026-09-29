@@ -8,10 +8,10 @@ from baserow.contrib.database.fields.models import (
     FileField,
     SingleSelectField,
 )
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View as BaserowView
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow_enterprise.assistant.types import BaseModel
-from baserow_premium.permission_manager import Table
 
 # ---------------------------------------------------------------------------
 # Shared types
@@ -84,7 +84,7 @@ _VIEW_EXAMPLES: dict[str, dict] = {
 
 
 def _grid_to_orm(v, table):
-    return {"row_height": v.row_height}
+    return {"row_height_size": v.row_height}
 
 
 def _kanban_to_orm(v, table):
@@ -104,11 +104,17 @@ def _calendar_to_orm(v, table):
 
 
 def _gallery_to_orm(v, table):
+    """
+    Build gallery view ORM kwargs.
+
+    :raises ValueError: When cover_field_id is not a File field.
+    """
+
     model = table.get_model()
     cover_field = model.get_field_object_by_id(v.cover_field_id)["field"]
     if not isinstance(cover_field, FileField):
         raise ValueError("The cover_field_id must be a File field.")
-    return {"card_cover_image_field_id": v.cover_field_id}
+    return {"card_cover_image_field": cover_field}
 
 
 def _timeline_to_orm(v, table):

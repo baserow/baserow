@@ -6,7 +6,11 @@ from django.db import connections
 import pytest
 import responses
 
-from baserow.contrib.database.airtable.exceptions import AirtableShareIsNotABase
+from baserow.contrib.database.airtable.exceptions import (
+    AirtableBaseNotPublic,
+    AirtableBaseRequiresAuthentication,
+    AirtableShareIsNotABase,
+)
 from baserow.contrib.database.airtable.models import AirtableImportJob
 from baserow.core.jobs.cache import job_progress_key
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
@@ -95,8 +99,35 @@ def test_run_import_shared_view(mock_import_from_airtable_to_workspace, data_fix
     job.refresh_from_db()
     assert job.state == JOB_FAILED
     assert job.error == "The `shared_id` is not a base."
-    assert (
-        job.human_readable_error
-        == "The shared link is not a base. It's probably a view and the Airtable "
-        "import tool only supports shared bases."
-    )
+    assert job.human_readable_error == "The shared link is not a base or a view."
+    assert job.error_code == "AirtableShareIsNotABase"
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+@patch(
+    "baserow.contrib.database.airtable.handler.AirtableHandler"
+    ".import_from_airtable_to_workspace"
+)
+@pytest.mark.parametrize(
+    "exception_class",
+    [AirtableBaseNotPublic, AirtableBaseRequiresAuthentication],
+)
+def test_run_import_error_codes_consumed_by_the_web_frontend(
+    mock_import_from_airtable_to_workspace, data_fixture, exception_class
+):
+    # The web-frontend maps these exact codes to specific instructions in
+    # `airtableErrors.js`, so renaming the exception classes breaks that mapping.
+    mock_import_from_airtable_to_workspace.side_effect = exception_class("error")
+
+    job = data_fixture.create_airtable_import_job()
+
+    run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert job.error_code == exception_class.__name__
+    assert job.error_code in [
+        "AirtableBaseNotPublic",
+        "AirtableBaseRequiresAuthentication",
+    ]

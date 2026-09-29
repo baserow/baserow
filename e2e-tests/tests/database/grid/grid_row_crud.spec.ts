@@ -873,7 +873,7 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
   });
 
-  test("2.4.4a paused formula-grouped edit shows typed value immediately but no move warning until backend responds", async ({
+  test("2.4.4a paused formula-grouped edit moves immediately after the backend resolves the group", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -893,16 +893,14 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
 
     pausedUpdate.release();
-    // The "Row has moved" warning appears only after the backend computes the
-    // formula group.
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row has moved");
-    await grid.expectRowNotLoading(1);
-
-    await grid.clickAway();
+    // Formula fields are read-only, so after the backend resolves the new group
+    // there is no editable group value to preserve with a move-warning placeholder.
     await grid.expectGroupByBanner("Long", 2);
     await grid.expectNoGroupByBanner("Short");
     await grid.expectRowCount(2);
+    await grid.expectPrimaryText(0, "Alexander");
+    await grid.expectRowNoWarning(0);
+    await grid.expectRowNotLoading(0);
   });
 
   test("2.4.4b deselecting before backend confirmation keeps the row in its group then moves it after the backend responds", async ({
@@ -1240,6 +1238,159 @@ test.describe("1.3.3 Create with active sort outside the current buffer", () => 
     await grid.expectPrimaryText(1, "Row 001");
     await grid.expectRowNoWarning(0);
     await grid.expectRowNoWarning(1);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 1.7  Create from the floating add button
+// -----------------------------------------------------------------------------
+
+test.describe("1.7 Create from the floating add button", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFloatingAddDb",
+      fields: [{ name: "Score", type: "number" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [{ Name: "Alice", Score: 10 }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await waitForInitialRows(grid, 1);
+  });
+
+  test("1.7.1 floating add button creates the row through the modal without selecting it", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const createRequest = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        new URL(request.url()).pathname ===
+          `/api/database/rows/table/${g.table.id}/`,
+    );
+
+    await grid.expectFloatingAddRowButtonAboveFooter();
+    await grid.openCreateRowModal();
+    await grid.fillRowModalTextField("Name", "Bob");
+    await grid.submitCreateRowModal();
+
+    const request = await createRequest;
+    expect(new URL(request.url()).searchParams.get("view")).toBe(
+      String(g.view.id),
+    );
+    await grid.expectRowModalClosed();
+    await grid.expectRowCount(2);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectPrimaryNotSelected(1);
+  });
+
+  test("1.7.4 failed floating-button create keeps the modal open with an error", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const { failed } = await failRows(page, g.table.id, "POST");
+
+    await grid.openCreateRowModal();
+    await grid.fillRowModalTextField("Name", "Bob");
+    await grid.submitCreateRowModal();
+    await failed;
+
+    await grid.expectRowModalError();
+    await grid.expectRowCount(1);
+    await grid.expectPrimaryText(0, "Alice");
+  });
+});
+
+test.describe("1.7.2 Create from the floating add button away from the bottom", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFloatingAddOutsideBufferDb",
+      fields: [{ name: "Score", type: "number" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    // 200 rows exceed the 120-row buffer, so the table end is not loaded at the top.
+    await resetRows(g, numberedRows(200));
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryText(0, "Row 001");
+  });
+
+  test("1.7.2 floating-button create at the top keeps the scroll position and appends at the end", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.openCreateRowModal();
+    await grid.fillRowModalTextField("Name", "Zed");
+    await grid.submitCreateRowModal();
+
+    await grid.expectRowModalClosed();
+    await grid.expectFooterRowCount(201);
+    await grid.expectPrimaryText(0, "Row 001");
+
+    await grid.scrollPrimaryIntoView("Zed");
+    await grid.expectLastRowPrimaryText("Zed");
+  });
+});
+
+test.describe("1.7.3 Create from the floating add button with group-by", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFloatingAddGroupByDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Score", type: "number" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Team: "A", Score: 10 },
+      { Name: "Bob", Team: "A", Score: 20 },
+      { Name: "Carol", Team: "B", Score: 30 },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+  });
+
+  test("1.7.3 floating-button create lands the row in its value-derived group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.openCreateRowModal();
+    await grid.fillRowModalTextField("Name", "Dan");
+    await grid.fillRowModalTextField("Team", "B");
+    await grid.submitCreateRowModal();
+
+    await grid.expectRowModalClosed();
+    await grid.expectRowCount(4);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectPrimaryText(2, "Carol");
+    await grid.expectPrimaryText(3, "Dan");
+    await grid.expectFieldText(3, 0, "B");
   });
 });
 

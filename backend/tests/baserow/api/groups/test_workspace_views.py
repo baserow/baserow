@@ -5,9 +5,259 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_FIELDS,
+    AI_PROVIDER_FEATURE_KUMA,
+    AI_PROVIDER_FEATURE_MODE_DISABLED,
+    AI_PROVIDER_FEATURE_MODE_MODEL,
+)
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderFeatureSetting,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.test_utils.helpers import is_dict_subset
+
+
+@pytest.mark.django_db
+def test_listing_workspaces_resolves_ai_models_in_a_workspace_independent_way(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    def count_queries_for_listing():
+        with CaptureQueriesContext(connection) as captured:
+            response = api_client.get(reverse("api:workspaces:list"), **headers)
+            assert response.status_code == HTTP_200_OK
+            assert response.json()[0]["generative_ai_models_enabled"]["openai"] == [
+                "gpt-5"
+            ]
+        return len(captured.captured_queries)
+
+    data_fixture.create_user_workspace(user=user, permissions="ADMIN")
+    one_workspace = count_queries_for_listing()
+
+    for _ in range(4):
+        data_fixture.create_user_workspace(user=user, permissions="ADMIN")
+
+    assert count_queries_for_listing() == one_workspace
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_models",
+    [("", ["database-model"]), ("workspace-secret", ["legacy-model"])],
+)
+def test_listing_workspaces_resolves_legacy_models_alongside_instance_provider(
+    api_client, data_fixture, legacy_api_key, expected_models
+):
+    user, token = data_fixture.create_user_and_token()
+    data_fixture.create_workspace(
+        user=user,
+        generative_ai_models_settings={
+            "openai": {
+                "api_key": legacy_api_key,
+                "models": ["legacy-model"],
+            }
+        },
+    )
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "database-model"}],
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert (
+        response.json()[0]["generative_ai_models_enabled"]["openai"] == expected_models
+    )
+    assert response.json()[0]["ai_features"]["ai_fields"] == {
+        "is_enabled": True,
+        "models": {"openai": expected_models},
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("workspace_count", [1, 10])
+def test_listing_workspaces_resolves_ai_state_independently_of_workspace_count(
+    api_client, data_fixture, settings, workspace_count
+):
+    """
+    The AI provider state of every listed workspace is loaded in one batch.
+
+    Resolving it per workspace would put an N+1 on the busiest endpoint, so the
+    query count must not grow with the number of workspaces. The request cache
+    is switched off here because it must not be what keeps this flat.
+    """
+
+    settings.BASEROW_USE_LOCAL_CACHE = False
+    user, token = data_fixture.create_user_and_token()
+    for _ in range(workspace_count):
+        data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="shared-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA, AI_PROVIDER_FEATURE_MODE_MODEL, model=model
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.get(reverse("api:workspaces:list"), **headers)
+
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == workspace_count
+    provider_tables = {
+        AIProviderConfig._meta.db_table,
+        AIProviderModel._meta.db_table,
+        AIProviderFeatureSetting._meta.db_table,
+        AIProviderWorkspaceOverride._meta.db_table,
+    }
+    provider_queries = [
+        query["sql"]
+        for query in queries.captured_queries
+        if any(table in query["sql"] for table in provider_tables)
+    ]
+    assert len(provider_queries) == 4, provider_queries
+
+
+@pytest.mark.django_db
+def test_listing_workspaces_includes_effective_kuma_availability(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=model,
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    response = api_client.get(reverse("api:workspaces:list"), **headers)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[0]["ai_features"]["kuma"] == {
+        "is_enabled": True,
+        "state": "inherited",
+    }
+
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_DISABLED,
+        workspace=workspace,
+    )
+    response = api_client.get(reverse("api:workspaces:list"), **headers)
+    assert response.json()[0]["ai_features"]["kuma"] == {
+        "is_enabled": False,
+        "state": "disabled",
+    }
+
+
+@pytest.mark.django_db
+def test_listing_workspaces_keeps_inherited_kuma_after_instance_provider_switch_off(
+    api_client, data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = ""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    kuma_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="fields-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
+    )
+    AIProviderHandler.set_workspace_provider_enabled(workspace, provider, False)
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA, AI_PROVIDER_FEATURE_MODE_MODEL, model=kuma_model
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    ai_features = response.json()[0]["ai_features"]
+    assert ai_features["kuma"] == {"is_enabled": True, "state": "inherited"}
+    assert ai_features["ai_fields"] == {"is_enabled": False, "models": {}}
+
+
+@pytest.mark.django_db
+def test_listing_workspaces_keeps_generic_models_and_filters_ai_fields(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="ai-fields-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="unassigned-model",
+        feature_types=[],
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    workspace = response.json()[0]
+    assert workspace["generative_ai_models_enabled"]["openai"] == [
+        "ai-fields-model",
+        "kuma-model",
+        "unassigned-model",
+    ]
+    assert workspace["ai_features"]["ai_fields"] == {
+        "is_enabled": True,
+        "models": {"openai": ["ai-fields-model"]},
+    }
 
 
 @pytest.mark.django_db
@@ -174,6 +424,11 @@ def test_workspace_name_validation(api_client, data_fixture):
         "www.evil.com",
         "https://evil.com",
         "bad\nname",
+        "🅰🅱🅲-❶❷❸❹❺❻◆⓿◆🅐❶❷'s workspace",
+        "💬🅰🅱🅲-❶❷❸-₁₂₃🅂❹❺.'s workspace",
+        "群1234567890聯絡加入's workspace",
+        "優惠活動1234567890加群12's workspace",
+        "call 0\u200b6\u200b1\u200b2\u200b3\u200b4\u200b5\u200b6",
     ]
     for invalid_name in invalid_names:
         response = api_client.post(
@@ -201,8 +456,18 @@ def test_workspace_name_validation(api_client, data_fixture):
     workspace.refresh_from_db()
     assert workspace.name == "Old name"
 
-    # Dotted names without a high risk TLD or path must still be allowed.
-    valid_names = ["Dept. Marketing", "rocket.ia", "team.exenra"]
+    # Dotted names without a high risk TLD or path, emoji, flags and short numbers
+    # must still be allowed.
+    valid_names = [
+        "Dept. Marketing",
+        "rocket.ia",
+        "team.exenra",
+        "🚀 Marketing",
+        "🇳🇱 Sales",
+        "2025-2026 Budget",
+        "12345 Main",
+        "👨\u200d👩\u200d👧 Family",
+    ]
     for valid_name in valid_names:
         url = reverse("api:workspaces:item", kwargs={"workspace_id": workspace.id})
         response = api_client.patch(
@@ -381,107 +646,60 @@ def test_trashed_workspace_not_returned_by_views(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_only_admin_can_list_generative_ai_settings(api_client, data_fixture):
-    data_fixture.register_fake_generate_ai_type()
-    user, token = data_fixture.create_user_and_token(email="test@test.nl")
-    member_user, member_token = data_fixture.create_user_and_token(
-        email="test2@test.nl",
-    )
-
+def test_legacy_workspace_generative_ai_settings_endpoint_is_removed(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_user_workspace(
-        workspace=workspace, user=member_user, permissions="MEMBER"
+    url = f"/api/workspaces/{workspace.id}/settings/generative-ai/"
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    get_response = api_client.get(url, **headers)
+    patch_response = api_client.patch(
+        url, {"openai": {"models": ["gpt-5"]}}, format="json", **headers
     )
 
-    response = api_client.get(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json == {}
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        **{"HTTP_AUTHORIZATION": f"JWT {member_token}"},
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert get_response.status_code == HTTP_404_NOT_FOUND
+    assert patch_response.status_code == HTTP_404_NOT_FOUND
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings == {}
 
 
 @pytest.mark.django_db
-def test_workspace_settings_override_global_generative_ai_settings(
-    api_client, data_fixture
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_models",
+    [("", []), ("workspace-secret", ["gpt-5"])],
+)
+def test_list_workspaces_resolves_disabled_instance_models_with_legacy_settings(
+    api_client, data_fixture, legacy_api_key, expected_models
 ):
-    data_fixture.register_fake_generate_ai_type()
-    user, token = data_fixture.create_user_and_token(email="test@test.nl")
-    member_user, member_token = data_fixture.create_user_and_token(
-        email="test2@test.nl",
-    )
-
+    user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_user_workspace(
-        workspace=workspace, user=member_user, permissions="MEMBER"
-    )
-
-    # the default value
-    response = api_client.get(
-        reverse("api:workspaces:list"), **{"HTTP_AUTHORIZATION": f"JWT {member_token}"}
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json()[0]["generative_ai_models_enabled"] == {
-        "test_generative_ai": ["test_1"],
-        "test_generative_ai_prompt_error": ["test_1"],
-        "test_generative_ai_with_files": ["test_1"],
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": legacy_api_key,
+            "models": ["gpt-5"],
+        }
     }
-
-    response = api_client.patch(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {"test_generative_ai": {"models": ["cannot_change_it"]}},
-        format="json",
-        **{"HTTP_AUTHORIZATION": f"JWT {member_token}"},
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
-
-    response = api_client.patch(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {"test_generative_ai": {"models": ["wp_model_setting"]}},
-        format="json",
-        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json == {
-        "id": workspace.id,
-        "name": workspace.name,
-        "generative_ai_models_enabled": {
-            "test_generative_ai": ["wp_model_setting"],  # it was "test_1"
-            "test_generative_ai_prompt_error": ["test_1"],
-            "test_generative_ai_with_files": ["test_1"],
-        },
-    }
 
     response = api_client.get(
-        reverse("api:workspaces:list"), **{"HTTP_AUTHORIZATION": f"JWT {member_token}"}
+        reverse("api:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    # The global settings is overridden by the workspace settings
     assert response.status_code == HTTP_200_OK
-    settings = response.json()[0]["generative_ai_models_enabled"]
-    assert settings["test_generative_ai"] == ["wp_model_setting"]  # it was "test_1"
+    enabled_models = response.json()[0]["generative_ai_models_enabled"]
+    assert enabled_models.get("openai", []) == expected_models
+    assert response.json()[0]["ai_features"]["ai_fields"] == {
+        "is_enabled": bool(expected_models),
+        "models": {"openai": expected_models} if expected_models else {},
+    }
 
 
 @pytest.mark.django_db

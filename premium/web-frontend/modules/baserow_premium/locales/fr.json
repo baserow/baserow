@@ -42,7 +42,7 @@
         "titleRegisterLicense": "Activer une licence",
         "registerLicense": "Activer la licence",
         "viewPricing": "Consultez les tarifs",
-        "licenseDescription": "Une licence peut-être obtenue uniquement sur baserow.io. Si vous avez déjà acheté une licence, elle vous sera envoyée par email et vous pourrez la consulter dans votre compte. Copiez-collez la clé de licence dans le champ ci-dessous et cliquez sur le bouton afin d'activer la licence pour cette instance de Baserow. Il n'est pas possible d'utiliser la même clé pour plusieurs instances. {pricingLink} si vous n'avez pas encore de clé.",
+        "licenseDescription": "Une licence peut être obtenue uniquement sur baserow.io. Si vous avez déjà acheté une licence, elle vous sera envoyée par e-mail et vous pourrez la consulter dans votre compte. Copiez-collez la clé de licence dans le champ ci-dessous et cliquez sur le bouton afin d'activer la licence pour cette instance de Baserow. Il n'est pas possible d'utiliser la même clé pour plusieurs instances. {pricingLink} si vous n'avez pas encore de clé.",
         "licenseError": {
             "invalidTitle": "Invalide",
             "invalid": "La licence fournie est invalide.",
@@ -74,7 +74,7 @@
         "editStack": "Modifier la colonne",
         "deleteStack": "Supprimer la colonne",
         "delete": "Supprimer {name}",
-        "deleteDescription": "Êtes-vous sur·e de vouloir supprimer la colonne {name} ? Supprimer une valeur revient à supprimer l'option correspondante de la liste déroulante, ce qui peut impliquer une perte d'information car les lignes contenant cette valeur auront désormais une valeur vide à la place pour ce champ."
+        "deleteDescription": "Êtes-vous sûr·e de vouloir supprimer la colonne {name} ? Supprimer une valeur revient à supprimer l'option correspondante de la liste déroulante, ce qui peut impliquer une perte d'information car les lignes contenant cette valeur auront désormais une valeur vide à la place pour ce champ."
     },
     "kanbanViewHeader": {
         "stackBy": "Regrouper par",
@@ -136,13 +136,13 @@
         "premiumFeatures": "Fonctionnalités premium",
         "applications": "Applications / Bases de données",
         "unlimited": "Illimité",
-        "rowUsage": "Nombre de ligne",
+        "rowUsage": "Nombre de lignes",
         "storeUsage": "Espace disponible",
         "disconnectLicense": "Déconnecter la licence",
-        "disconnectDescription": "Êtes-vous sûr.e de vouloir désactiver cette licence ? Si vous désactivez cette licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence pour cette instance. Vous pouvez changer l'identifiant d'instance via la page de gestion des abbonements sur {subscriptions} ou via notre support {contact} si vous disposez d'une licence Entreprise.",
-        "moreSeatsNeededTitle": "Besoin de plus d´utilisateurs",
+        "disconnectDescription": "Êtes-vous sûr·e de vouloir désactiver cette licence ? Si vous désactivez cette licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence pour cette instance. Vous pouvez changer l'identifiant d'instance via la page de gestion des abonnements sur {subscriptions} ou via notre support {contact} si vous disposez d'une licence Entreprise.",
+        "moreSeatsNeededTitle": "Besoin de plus d'utilisateurs",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} utilisateurs payants et {free_users_count} utilisateurs gratuits",
-        "contactSalesMoreSeats": "Contacter un Vendeur pour plus d´utilisateurs",
+        "contactSalesMoreSeats": "Contacter un vendeur pour plus d'utilisateurs",
         "premiumFeatureName": "Premium",
         "supportFeatureName": "Support",
         "enterpriseFeatureName": "Enterprise",
@@ -216,7 +216,9 @@
         "exportsContent": "Exportez facilement vos données dans des formats supplémentaires tels qu'Excel, JSON et XML, ou téléchargez en masse tous les fichiers d'une table - idéal pour les sauvegardes, les rapports et le partage avec d'autres personnes.",
         "personalViewsContent": "Créez des vues que seul l'auteur peut voir. Cela vous permet d'expérimenter, de filtrer et de trier les données sans affecter l'espace de travail des autres.",
         "publicLogoRemovalContent": "Supprimez le logo Baserow des vues publiques pour donner à votre contenu partagé un aspect plus professionnel.",
-        "kanbanViewContent": "Organisez visuellement vos données sur un Kanban. Les cartes sont regroupées en colonnes sur la base d'un champ de sélection, et vous pouvez facilement les faire glisser et les déposer d'une colonne à l'autre."
+        "kanbanViewContent": "Organisez visuellement vos données sur un Kanban. Les cartes sont regroupées en colonnes sur la base d'un champ de sélection, et vous pouvez facilement les faire glisser et les déposer d'une colonne à l'autre.",
+        "groupedAggregateRowsDataSource": "Grouper et résumer les lignes",
+        "groupedAggregateRowsDataSourceContent": "Groupez les lignes d'une table Baserow et calculez des résumés à utiliser dans les pages du générateur d'applications."
     },
     "formViewModePreviewSurvey": {
         "deactivated": "Les sondages sont disponibles dans la version premium.",
@@ -283,7 +285,8 @@
     },
     "gridViewFieldAI": {
         "generate": "Générer",
-        "regenerate": "Regénérer"
+        "regenerate": "Regénérer",
+        "promptBroken": "Le prompt est défectueux et doit être corrigé avant de pouvoir générer des valeurs."
     },
     "premiumFieldType": {
         "ai": "Prompt pour l'IA",
@@ -302,10 +305,12 @@
         "outputType": "Format du résultat",
         "autoUpdate": "Mise à jour automatique",
         "autoUpdateHelp": "Lorsque cette option est activée, la valeur du champ IA est automatiquement régénérée lorsque l'un des champs référencés dans l'invite est mis à jour.",
-        "autoUpdateDescription": "Régénérer lorsque les champs référencés changent"
+        "autoUpdateDescription": "Régénérer lorsque les champs référencés changent",
+        "invalidPrompt": "La formule du prompt est invalide."
     },
     "rowEditFieldAI": {
         "createRowBefore": "La valeur du champ IA peut être générée après la création de la ligne.",
+        "promptBroken": "Le prompt est défectueux et doit être corrigé avant de pouvoir générer des valeurs.",
         "generate": "Générer"
     },
     "functionalGridViewFieldAI": {
@@ -424,5 +429,51 @@
     "viewOwnershipType": {
         "personal": "Personnelle",
         "personalDescription": "Vous êtes le seul à voir cette Vue."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Séries",
+        "addSeries": "Ajouter une série",
+        "data": "Données",
+        "sourceFieldLabel": "Source",
+        "viewFieldLabel": "Vue",
+        "notSelected": "Non sélectionnée"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Séries",
+        "addSeries": "Ajouter une série"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Grouper et résumer les lignes",
+        "localBaserowGroupedAggregateRowsDescription": "Groupe les lignes d'une table Baserow et calcule des résumés.",
+        "errorNoAggregationSeriesDefined": "Aucune série de résumé définie.",
+        "errorIncompleteAggregationSeries": "Une ou plusieurs séries de résumé sont incomplètes.",
+        "errorTrashedAggregationField": "Au moins un champ configuré a été placé dans la corbeille."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Champ",
+        "aggregationTypeLabel": "Résumé",
+        "deleteSeries": "Supprimer la série",
+        "chartType": "Type de graphique",
+        "barChart": "Barres",
+        "lineChart": "Courbes",
+        "pieChart": "Secteurs",
+        "doughnutChart": "Anneau",
+        "polarAreaChart": "Aire polaire"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Grouper par",
+        "groupByNone": "Aucun",
+        "groupByRowId": "ID de ligne",
+        "rowIdDisabledTooltip": "Le regroupement par ID de ligne est actuellement indisponible, car le champ principal peut contenir plusieurs valeurs."
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Trier par",
+        "none": "Aucun",
+        "ascending": "Croissant",
+        "descending": "Décroissant"
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Champs IA",
+        "aiFieldsDescription": "Générez des valeurs dans les champs IA."
     }
 }

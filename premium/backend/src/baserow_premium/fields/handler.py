@@ -9,11 +9,14 @@ from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
 from baserow.contrib.database.table.models import Table
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_FIELDS
+from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.db import specific_iterator
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow_premium.prompts import get_generate_formula_prompt
 
 from .ai_file import AIFile
@@ -29,12 +32,20 @@ if TYPE_CHECKING:
 
 class AIFieldHandler:
     @classmethod
-    def get_valid_model_type_or_raise(cls, ai_field: AIField) -> GenerativeAIModelType:
+    def get_valid_model_type_or_raise(
+        cls, ai_field: AIField, state: ScopedAIProviderState | None = None
+    ) -> GenerativeAIModelType:
         """
         Return the generative AI model type for the given AI field, raising if
         the configured model is not enabled for the workspace.
 
+        The field stores the provider type and model identifier as logical keys;
+        the model type registry resolves the effective workspace or instance
+        provider configuration.
+
         :param ai_field: The AI field to validate.
+        :param state: Pre-loaded provider state, so a batch generating many
+            rows resolves the workspace once instead of once per row.
         :raises ModelDoesNotBelongToType: If the model is not enabled.
         """
 
@@ -42,7 +53,9 @@ class AIFieldHandler:
             ai_field.ai_generative_ai_type
         )
         workspace = ai_field.table.database.workspace
-        ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
+        ai_models = generative_ai_model_type.get_enabled_models_for_feature(
+            AI_PROVIDER_FEATURE_AI_FIELDS, workspace=workspace, state=state
+        )
 
         if ai_field.ai_generative_ai_model not in ai_models:
             raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
@@ -71,17 +84,27 @@ class AIFieldHandler:
         """
 
         generative_ai_model_type = generative_ai_model_type_registry.get(ai_type)
-        ai_models = generative_ai_model_type.get_enabled_models(
-            table.database.workspace
+        ai_models = generative_ai_model_type.get_enabled_models_for_feature(
+            AI_PROVIDER_FEATURE_AI_FIELDS,
+            workspace=table.database.workspace,
         )
 
         if ai_model not in ai_models:
             raise ModelDoesNotBelongToType(model_name=ai_model)
 
+        # The schema leaves this installation for a third party model, so it is
+        # serialized the way an export is. A button field's actions can carry
+        # an API key in their headers, and reading a formula field needs far
+        # less permission than configuring a button does.
+        prompt_config = ImportExportConfig(
+            include_permission_data=False, exclude_sensitive_data=True
+        )
         table_schema = []
         for field in specific_iterator(table.field_set.all()):
             field_type = field_type_registry.get_by_model(field)
-            table_schema.append(field_type.export_serialized(field))
+            table_schema.append(
+                field_type.export_serialized(field, import_export_config=prompt_config)
+            )
 
         table_schema_json = json.dumps(table_schema, indent=4)
         message = get_generate_formula_prompt().format(
@@ -102,6 +125,7 @@ class AIFieldHandler:
         cls,
         ai_field: AIField,
         row: GeneratedTableModel,
+        state: ScopedAIProviderState | None = None,
     ) -> Any:
         """
         Generate a single AI field value for the given row. Handles model
@@ -110,11 +134,13 @@ class AIFieldHandler:
 
         :param ai_field: The AI field configuration.
         :param row: The row to generate a value for.
+        :param state: Pre-loaded provider state, so a batch generating many
+            rows resolves the workspace once instead of once per row.
         :return: The generated value.
         :raises AIFieldEmptyPromptError: If the resolved prompt is empty.
         """
 
-        generative_ai_model_type = cls.get_valid_model_type_or_raise(ai_field)
+        generative_ai_model_type = cls.get_valid_model_type_or_raise(ai_field, state)
         ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
         workspace = ai_field.table.database.workspace
 
@@ -146,10 +172,17 @@ class AIFieldHandler:
             generative_ai_model_type.supports_files
             and ai_field.ai_file_field_id is not None
         )
+        settings_override = generative_ai_model_type.get_model_settings_override(
+            ai_field.ai_generative_ai_model, workspace, state=state
+        )
+        if settings_override is not None:
+            prompt_kwargs["settings_override"] = settings_override
         try:
             if use_files:
                 ai_files = cls._collect_ai_files(ai_field, row)
-                prepared = generative_ai_model_type.prepare_files(ai_files, workspace)
+                prepared = generative_ai_model_type.prepare_files(
+                    ai_files, workspace, settings_override
+                )
                 if prepared:
                     prompt_kwargs["content"] = [f.content for f in prepared]
                 skipped = [f for f in ai_files if f.content is None]
@@ -171,7 +204,9 @@ class AIFieldHandler:
             # cleanup uses ai_files (not prepared) so that files uploaded
             # before a mid-prepare failure are still cleaned up.
             if ai_files:
-                generative_ai_model_type.cleanup_files(ai_files, workspace)
+                generative_ai_model_type.cleanup_files(
+                    ai_files, workspace, settings_override
+                )
 
         # 4. Resolve choice if needed
         if choices is not None:

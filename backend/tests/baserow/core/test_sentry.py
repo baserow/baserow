@@ -1,14 +1,45 @@
 import logging
+import os
+import subprocess
+import sys
 from unittest.mock import patch
 
 import pytest
 from sentry_sdk.envelope import Envelope
 
 from baserow.core.sentry import (
-    ConsoleSentryTransport,
-    drop_expected_asyncio_websocket_disconnect_events,
+    drop_expected_asyncio_disconnect_events,
     log_sentry_event_to_console,
 )
+from baserow.core.sentry_transport import ConsoleSentryTransport
+
+
+def test_sentry_sdk_is_not_loaded_when_sentry_is_disabled():
+    code = """
+import sys
+from types import SimpleNamespace
+
+from django.conf import settings
+
+settings.configure(SENTRY_DSN="")
+
+from baserow.core.sentry import setup_user_in_sentry
+
+setup_user_in_sentry(SimpleNamespace(id=1))
+assert not any(
+    module == "sentry_sdk" or module.startswith("sentry_sdk.")
+    for module in sys.modules
+)
+"""
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+
+    subprocess.run(  # noqa: S603 - only the current interpreter runs fixed test code.
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
 
 
 def _asyncio_record(msg: str, name: str = "asyncio") -> logging.LogRecord:
@@ -55,7 +86,7 @@ KEPT_MESSAGES = [
         "finished exception=ConnectionClosedError(Close(code=1002, reason="
         "'WebSocket Protocol Error'), None, None)>"
     ),
-    # A cancelled in-flight request is not a websocket close, so no metric covers it.
+    # A cancelled request without request data may be a real user request.
     (
         "CancelledError exception in shielded future future: "
         "<Future finished exception=CancelledError()>"
@@ -72,11 +103,11 @@ KEPT_MESSAGES = [
 
 
 @pytest.mark.parametrize("message", DROPPED_MESSAGES)
-def test_drop_expected_asyncio_websocket_disconnect_events_drops_expected(message):
+def test_drop_expected_asyncio_disconnect_events_drops_expected(message):
     event = {"logger": "asyncio"}
 
     assert (
-        drop_expected_asyncio_websocket_disconnect_events(
+        drop_expected_asyncio_disconnect_events(
             event, {"log_record": _asyncio_record(message)}
         )
         is None
@@ -84,33 +115,73 @@ def test_drop_expected_asyncio_websocket_disconnect_events_drops_expected(messag
 
 
 @pytest.mark.parametrize("message", KEPT_MESSAGES)
-def test_drop_expected_asyncio_websocket_disconnect_events_keeps_real_errors(message):
+def test_drop_expected_asyncio_disconnect_events_keeps_real_errors(message):
     event = {"logger": "asyncio"}
 
     assert (
-        drop_expected_asyncio_websocket_disconnect_events(
+        drop_expected_asyncio_disconnect_events(
             event, {"log_record": _asyncio_record(message)}
         )
         == event
     )
 
 
-def test_drop_expected_asyncio_websocket_disconnect_events_keeps_non_asyncio_loggers():
+CANCELLED_REQUEST_MESSAGE = (
+    "CancelledError exception in shielded future\n"
+    "future: <Future finished exception=CancelledError()>"
+)
+
+
+def test_drop_expected_asyncio_disconnect_events_drops_cancelled_health_check() -> None:
+    event = {
+        "logger": "asyncio",
+        "request": {"url": "http://localhost:8000/api/_health/"},
+    }
+
+    assert (
+        drop_expected_asyncio_disconnect_events(
+            event, {"log_record": _asyncio_record(CANCELLED_REQUEST_MESSAGE)}
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "request_data",
+    [
+        {"url": "http://localhost:8000/api/_health/full/"},
+        {"url": "http://localhost:8000/assistant/chat/"},
+        {},
+    ],
+)
+def test_drop_expected_asyncio_disconnect_events_keeps_other_cancelled_requests(
+    request_data: dict[str, str],
+) -> None:
+    event = {"logger": "asyncio", "request": request_data}
+
+    assert (
+        drop_expected_asyncio_disconnect_events(
+            event, {"log_record": _asyncio_record(CANCELLED_REQUEST_MESSAGE)}
+        )
+        == event
+    )
+
+
+def test_drop_expected_asyncio_disconnect_events_keeps_non_asyncio_loggers():
     event = {"logger": "django"}
     record = _asyncio_record(
         "ConnectionClosedOK exception in shielded future", name="django.request"
     )
 
     assert (
-        drop_expected_asyncio_websocket_disconnect_events(event, {"log_record": record})
-        == event
+        drop_expected_asyncio_disconnect_events(event, {"log_record": record}) == event
     )
 
 
-def test_drop_expected_asyncio_websocket_disconnect_events_without_log_record():
+def test_drop_expected_asyncio_disconnect_events_without_log_record():
     event = {"logger": "asyncio"}
 
-    assert drop_expected_asyncio_websocket_disconnect_events(event, {}) == event
+    assert drop_expected_asyncio_disconnect_events(event, {}) == event
 
 
 @patch("baserow.core.sentry.logger")

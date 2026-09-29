@@ -23,9 +23,8 @@ export class GenerativeAIModelType extends Registerable {
   }
 
   /**
-   * Returns an array of objects that define the settings for workspace
-   * Generative AI and integration overrides. The array can be empty if
-   * the model type is not configurable.
+   * Returns setting metadata used by provider forms and integration overrides.
+   * The array can be empty if the model type is not configurable.
    *
    * Each setting object in the array describes a form field. See
    * `modelSettings` for a full example. A setting may only define
@@ -35,6 +34,74 @@ export class GenerativeAIModelType extends Registerable {
    */
   getSettings() {
     return []
+  }
+
+  getSetting(key) {
+    return this.getSettings().find((setting) => setting.key === key) || null
+  }
+
+  /**
+   * Settings which must be present for an integration override to own the
+   * provider connection instead of inheriting it from the workspace.
+   *
+   * @returns {string[]} The required connection setting keys.
+   */
+  getRequiredIntegrationSettings() {
+    return this.getSetting('api_key') ? ['api_key'] : []
+  }
+
+  /**
+   * Whether an integration settings object contains its own complete
+   * connection. Partial objects may narrow model availability, but must never
+   * be combined with credentials inherited from another scope.
+   *
+   * @param {object|null} settings The integration's settings for this provider.
+   * @returns {boolean} Whether every required connection setting is nonempty.
+   */
+  isIntegrationSettingsComplete(settings) {
+    if (!settings || typeof settings !== 'object') {
+      return false
+    }
+    return this.getRequiredIntegrationSettings().every((key) => {
+      const value = settings[key]
+      return typeof value === 'string' ? value.trim() !== '' : Boolean(value)
+    })
+  }
+
+  /**
+   * Whether the backend owns this provider's settings contract in
+   * `AI_PROVIDER_TYPES`, which lets an integration override that omits `models`
+   * inherit the workspace allowlist.
+   *
+   * @returns {boolean} Whether Baserow ships this provider type itself.
+   */
+  isBuiltInProviderType() {
+    return false
+  }
+
+  getModelIdentifierDescription() {
+    return null
+  }
+
+  /** Admin form wording for the write-only secret stored as `api_key`. */
+  getSecretFieldText() {
+    const { $i18n: i18n } = this.app
+    return {
+      label: i18n.t('aiProviderAdmin.apiKey'),
+      change: i18n.t('aiProviderAdmin.changeApiKey'),
+      updateHint: i18n.t('aiProviderAdmin.apiKeyUpdateHint'),
+    }
+  }
+}
+
+/**
+ * Base class for the provider types Baserow ships and the backend knows in
+ * `AI_PROVIDER_TYPES`. Plugin providers extend `GenerativeAIModelType` directly
+ * and keep their own authoritative integration model list.
+ */
+export class BuiltInGenerativeAIModelType extends GenerativeAIModelType {
+  isBuiltInProviderType() {
+    return true
   }
 }
 
@@ -53,7 +120,7 @@ const modelSettings = (label, description) => ({
   },
 })
 
-export class OpenAIModelType extends GenerativeAIModelType {
+export class OpenAIModelType extends BuiltInGenerativeAIModelType {
   static getType() {
     return 'openai'
   }
@@ -80,6 +147,7 @@ export class OpenAIModelType extends GenerativeAIModelType {
         key: 'base_url',
         label: i18n.t('generativeAIModelType.openaiBaseUrl'),
         description: i18n.t('generativeAIModelType.openaiBaseUrlDescription'),
+        optional: true,
         validations: {
           url: helpers.withMessage(this.app.$i18n.t('error.invalidURL'), url),
         },
@@ -91,6 +159,12 @@ export class OpenAIModelType extends GenerativeAIModelType {
     ]
   }
 
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.openaiModelIdentifierDescription'
+    )
+  }
+
   canPromptWithFiles() {
     return true
   }
@@ -100,7 +174,7 @@ export class OpenAIModelType extends GenerativeAIModelType {
   }
 }
 
-export class AnthropicModelType extends GenerativeAIModelType {
+export class AnthropicModelType extends BuiltInGenerativeAIModelType {
   static getType() {
     return 'anthropic'
   }
@@ -125,6 +199,12 @@ export class AnthropicModelType extends GenerativeAIModelType {
     ]
   }
 
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.anthropicModelIdentifierDescription'
+    )
+  }
+
   getOrder() {
     return 20
   }
@@ -138,7 +218,77 @@ export class AnthropicModelType extends GenerativeAIModelType {
   }
 }
 
-export class MistralModelType extends GenerativeAIModelType {
+export class BedrockModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'bedrock'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.bedrock')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.bedrockSecretLabel'),
+        description: i18n.t('generativeAIModelType.bedrockSecretDescription'),
+      },
+      {
+        key: 'access_key_id',
+        label: i18n.t('generativeAIModelType.bedrockAccessKeyIdLabel'),
+        description: i18n.t(
+          'generativeAIModelType.bedrockAccessKeyIdDescription'
+        ),
+        optional: true,
+      },
+      {
+        key: 'region',
+        label: i18n.t('generativeAIModelType.bedrockRegionLabel'),
+        description: i18n.t('generativeAIModelType.bedrockRegionDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.bedrockModelsLabel'),
+        i18n.t('generativeAIModelType.bedrockModelsDescription')
+      ),
+    ]
+  }
+
+  getSecretFieldText() {
+    const { $i18n: i18n } = this.app
+    return {
+      label: i18n.t('generativeAIModelType.bedrockSecretLabel'),
+      change: i18n.t('generativeAIModelType.bedrockChangeSecret'),
+      updateHint: i18n.t('generativeAIModelType.bedrockSecretUpdateHint'),
+    }
+  }
+
+  getRequiredIntegrationSettings() {
+    return ['api_key', 'region']
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.bedrockModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 25
+  }
+
+  getMaxTemperature() {
+    return 1
+  }
+}
+
+export class MistralModelType extends BuiltInGenerativeAIModelType {
   static getType() {
     return 'mistral'
   }
@@ -163,8 +313,14 @@ export class MistralModelType extends GenerativeAIModelType {
     ]
   }
 
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.mistralModelIdentifierDescription'
+    )
+  }
+
   getOrder() {
-    return 30
+    return 50
   }
 
   canPromptWithFiles() {
@@ -176,7 +332,7 @@ export class MistralModelType extends GenerativeAIModelType {
   }
 }
 
-export class OllamaModelType extends GenerativeAIModelType {
+export class OllamaModelType extends BuiltInGenerativeAIModelType {
   static getType() {
     return 'ollama'
   }
@@ -201,12 +357,25 @@ export class OllamaModelType extends GenerativeAIModelType {
     ]
   }
 
+  /**
+   * @returns {string[]} Ollama requires its own host to override the connection.
+   */
+  getRequiredIntegrationSettings() {
+    return ['host']
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.ollamaModelIdentifierDescription'
+    )
+  }
+
   canPromptWithFiles() {
     return true
   }
 
   getOrder() {
-    return 40
+    return 60
   }
 
   getMaxTemperature() {
@@ -214,7 +383,7 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 }
 
-export class OpenRouterModelType extends GenerativeAIModelType {
+export class OpenRouterModelType extends BuiltInGenerativeAIModelType {
   static getType() {
     return 'openrouter'
   }
@@ -246,11 +415,133 @@ export class OpenRouterModelType extends GenerativeAIModelType {
     ]
   }
 
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.openRouterModelIdentifierDescription'
+    )
+  }
+
   canPromptWithFiles() {
     return true
   }
 
   getOrder() {
-    return 50
+    return 70
+  }
+}
+
+export class GoogleModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'google'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.google')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.googleApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.googleApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.googleModelsLabel'),
+        i18n.t('generativeAIModelType.googleModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.googleModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 30
+  }
+}
+
+export class GroqModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'groq'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.groq')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.groqApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.groqApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.groqModelsLabel'),
+        i18n.t('generativeAIModelType.groqModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.groqModelIdentifierDescription'
+    )
+  }
+
+  getOrder() {
+    return 40
+  }
+}
+
+export class XaiModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'xai'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.xai')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.xaiApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.xaiApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.xaiModelsLabel'),
+        i18n.t('generativeAIModelType.xaiModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.xaiModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 45
   }
 }

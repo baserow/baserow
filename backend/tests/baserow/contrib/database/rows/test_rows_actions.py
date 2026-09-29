@@ -57,7 +57,7 @@ def test_can_undo_creating_row(data_fixture):
     assert model.objects.all().count() == 1
     assert getattr(row, f"field_{name_field.id}") == "Tesla"
     assert getattr(row, f"field_{speed_field.id}") == 240
-    assert getattr(row, f"field_{price_field.id}") == 59999.99
+    assert getattr(row, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row, "field_9999", None)
 
     action_undone = ActionHandler.undo(
@@ -103,7 +103,7 @@ def test_can_undo_redo_creating_row(data_fixture):
     assert model.objects.all().count() == 1
     assert getattr(row, f"field_{name_field.id}") == "Tesla"
     assert getattr(row, f"field_{speed_field.id}") == 240
-    assert getattr(row, f"field_{price_field.id}") == 59999.99
+    assert getattr(row, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row, "field_9999", None)
 
     ActionHandler.undo(
@@ -120,7 +120,7 @@ def test_can_undo_redo_creating_row(data_fixture):
 
     assert getattr(row, f"field_{name_field.id}") == "Tesla"
     assert getattr(row, f"field_{speed_field.id}") == 240
-    assert getattr(row, f"field_{price_field.id}") == 59999.99
+    assert getattr(row, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row, "field_9999", None)
 
 
@@ -440,7 +440,7 @@ def test_can_undo_deleting_row(data_fixture):
     assert model.objects.all().count() == 1
     assert getattr(row, f"field_{name_field.id}") == "Tesla"
     assert getattr(row, f"field_{speed_field.id}") == 240
-    assert getattr(row, f"field_{price_field.id}") == 59999.99
+    assert getattr(row, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row, "field_9999", None)
 
 

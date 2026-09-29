@@ -1,9 +1,13 @@
 import { getUndoRedoActionRequestConfig } from '@baserow/modules/database/utils/action'
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 export default (client) => {
   return {
-    fetchAll(tableId, viewId) {
-      const config = { params: {} }
+    fetchAll(tableId, viewId, realtimeRecovery = false) {
+      const config = {
+        params: {},
+        ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+      }
 
       if (viewId) {
         config.params.view = viewId
@@ -34,8 +38,9 @@ export default (client) => {
         config
       )
     },
-    update(fieldId, values) {
-      return client.patch(`/database/fields/${fieldId}/`, values)
+    update(fieldId, values, undoRedoActionGroupId = null) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      return client.patch(`/database/fields/${fieldId}/`, values, config)
     },
     delete(fieldId) {
       return client.delete(`/database/fields/${fieldId}/`)

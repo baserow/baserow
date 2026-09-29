@@ -1,5 +1,5 @@
 import { SettingsType } from '@baserow/modules/core/settingsTypes'
-import GenerativeAIWorkspaceSettings from '@baserow/modules/core/components/workspace/GenerativeAIWorkspaceSettings'
+import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 
 export class GenerativeAIWorkspaceSettingsType extends SettingsType {
   static getType() {
@@ -7,16 +7,16 @@ export class GenerativeAIWorkspaceSettingsType extends SettingsType {
   }
 
   getIconClass() {
-    return 'iconoir-magic-wand'
+    return 'iconoir-sparks'
   }
 
   getName() {
     const { $i18n: i18n } = this.app
-    return i18n.t('workspaceSettingType.generativeAI')
+    return i18n.t('workspaceSettingType.aiProviders')
   }
 
   getComponent() {
-    return GenerativeAIWorkspaceSettings
+    return AIProviderWorkspaceSettings
   }
 
   getOrder() {

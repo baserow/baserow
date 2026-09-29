@@ -219,7 +219,9 @@
         "aiFeatures": "Функції ШІ",
         "aiFeaturesContent": "Використовуйте ШІ для автоматизації та покращення ваших робочих процесів. За допомогою типу поля ШІ-промпт ви можете генерувати текст, резюме або аналітику безпосередньо в комірках на основі динамічних промптів, які можуть посилатися на інші поля. Окремо ви також можете попросити ШІ створити для вас формули.",
         "chartWidget": "Віджет діаграми",
-        "chartWidgetContent": "Візуалізуйте свої дані за допомогою діаграм на інформаційних панелях. Використовуйте будь-яку таблицю як джерело даних, додавайте кілька серій та групуйте або сортуйте за полями з багатими параметрами підсумків."
+        "chartWidgetContent": "Візуалізуйте свої дані за допомогою діаграм на інформаційних панелях. Використовуйте будь-яку таблицю як джерело даних, додавайте кілька серій та групуйте або сортуйте за полями з багатими параметрами підсумків.",
+        "groupedAggregateRowsDataSource": "Групуйте та підсумовуйте рядки",
+        "groupedAggregateRowsDataSourceContent": "Групуйте рядки з таблиці Baserow і обчислюйте підсумкові значення для використання на сторінках Application Builder."
     },
     "licenses": {
         "titleNoLicenses": "Ліцензій не знайдено",
@@ -431,7 +433,8 @@
     },
     "gridViewFieldAI": {
         "generate": "Згенерувати",
-        "regenerate": "Перегенерувати"
+        "regenerate": "Перегенерувати",
+        "promptBroken": "Запит сформовано неправильно. Перш ніж генерувати значення, його потрібно виправити."
     },
     "fieldAISubForm": {
         "prompt": "Промпт",
@@ -444,11 +447,13 @@
         "outputTypeChangedWarning": "Очищає згенеровані значення комірок.",
         "autoUpdate": "Автооновлення",
         "autoUpdateHelp": "Коли увімкнено, значення поля ШІ буде автоматично перегенеровано при оновленні будь-якого з полів, на які посилається промпт.",
-        "autoUpdateDescription": "Перегенерувати при зміні полів, на які є посилання"
+        "autoUpdateDescription": "Перегенерувати при зміні полів, на які є посилання",
+        "invalidPrompt": "Формула запиту недійсна."
     },
     "rowEditFieldAI": {
         "generate": "Згенерувати",
-        "createRowBefore": "Значення ШІ може бути згенеровано після створення рядка."
+        "createRowBefore": "Значення ШІ може бути згенеровано після створення рядка.",
+        "promptBroken": "Запит сформовано неправильно. Перш ніж генерувати значення, його потрібно виправити."
     },
     "aiFormulaModal": {
         "title": "Згенерувати формулу за допомогою ШІ",
@@ -508,5 +513,51 @@
     "viewOwnershipType": {
         "personal": "Персональне",
         "personalDescription": "Тільки ви можете бачити це подання."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Серії",
+        "addSeries": "Додати серію",
+        "data": "Дані",
+        "sourceFieldLabel": "Джерело",
+        "viewFieldLabel": "Представлення",
+        "notSelected": "Не вибрано"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Серії",
+        "addSeries": "Додати серію"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Групувати та підсумовувати рядки",
+        "localBaserowGroupedAggregateRowsDescription": "Групуйте рядки з таблиці Baserow і обчислюйте підсумкові значення.",
+        "errorNoAggregationSeriesDefined": "Не визначено жодної серії для підсумку.",
+        "errorIncompleteAggregationSeries": "Одна або кілька серій для підсумку заповнені не повністю.",
+        "errorTrashedAggregationField": "Одне або кілька налаштованих полів було видалено."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Поле",
+        "aggregationTypeLabel": "Підсумок",
+        "deleteSeries": "Видалити серію",
+        "chartType": "Тип графіка",
+        "barChart": "Стовпчаста",
+        "lineChart": "Лінійна",
+        "pieChart": "Кругова",
+        "doughnutChart": "Кільцева",
+        "polarAreaChart": "Полярна діаграма"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Групувати за",
+        "groupByNone": "Жодного",
+        "groupByRowId": "ID рядка",
+        "rowIdDisabledTooltip": "Групування за ID рядка наразі недоступне, оскільки основне поле може містити кілька значень."
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Сортувати за",
+        "none": "Жоден",
+        "ascending": "За зростанням",
+        "descending": "За спаданням"
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Поля ШІ",
+        "aiFieldsDescription": "Генерувати значення в полях ШІ."
     }
 }

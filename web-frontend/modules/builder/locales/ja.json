@@ -1,1 +1,1111 @@
-{}
+{
+    "common": {
+        "dateFormatTitle": "日付書式",
+        "dateFormatEU": "ヨーロッパ式",
+        "dateFormatUS": "米国式",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "時刻書式",
+        "timeFormat24Hour": "24 時間制",
+        "timeFormat12Hour": "12 時間制"
+    },
+    "builderToast": {
+        "details": "詳細",
+        "defaultTitle": "予期しないエラー",
+        "defaultMessage": "予期しないエラーが発生しました。しばらくしてからもう一度お試しください。",
+        "invalidContextTitle": "無効なリクエスト",
+        "invalidContextMessage": "リクエストが無効です。",
+        "InvalidContentTitle": "無効なフォーム",
+        "invalidContentMessage": "1 つ以上のフィールドに無効な値が含まれています。",
+        "serviceMisconfiguredTitle": "設定が不完全です",
+        "serviceMisconfiguredMessage": "設定を確認してください。",
+        "errorWorkflowActionDispatch": "「{name}」アクションに失敗しました: ",
+        "errorDataSourceDispatch": "「{name}」のデータを読み込めませんでした: "
+    },
+    "dataProviderType": {
+        "dataSource": "データレコード",
+        "dataSourceContext": "利用可能な選択肢",
+        "pageParameter": "パラメーター",
+        "currentRecord": "データソース",
+        "formData": "フォームデータ",
+        "previousAction": "前のアクション",
+        "user": "ユーザー"
+    },
+    "formDataProviderType": {
+        "nodeMissing": "不足"
+    },
+    "builderForm": {
+        "submit": "アプリケーションを追加"
+    },
+    "sidebarComponentBuilder": {
+        "settings": "設定",
+        "createPage": "新しいページ"
+    },
+    "builderSettingsModal": {
+        "title": "アプリケーション"
+    },
+    "builderSettingTypes": {
+        "generalName": "一般",
+        "integrationsName": "連携",
+        "themeName": "テーマ",
+        "domainsName": "ドメイン",
+        "userSourcesName": "ユーザー"
+    },
+    "pageErrors": {
+        "errorValidPathCharacters": "パスに無効な文字が含まれています",
+        "errorPathNotUnique": "同じ名前のパスがすでに存在します",
+        "errorUniquePathParams": "パスパラメーターは一意である必要があります。",
+        "errorUniqueValidQueryParams": "クエリパラメーター名は一意かつ有効である必要があります。",
+        "errorStartingSlash": "パスは「/」で始める必要があります"
+    },
+    "createPageModal": {
+        "submit": "ページを追加",
+        "header": "ページを作成"
+    },
+    "pageHeaderItemTypes": {
+        "labelElements": "要素",
+        "labelDataSource": "データ",
+        "labelVariables": "変数",
+        "labelSettings": "ページ設定"
+    },
+    "pageActionTypes": {
+        "preview": "プレビュー",
+        "publish": "公開"
+    },
+    "publishActionModal": {
+        "title": "公開",
+        "description": "いずれかのドメインに公開して、アプリケーションを一般公開します。アプリケーションには複数のドメインを設定でき、ドメインごとに異なるバージョンを実行できます。",
+        "publish": "公開",
+        "publishSucceedDescription": "サイトを正常に公開しました。",
+        "publishSucceedTitle": "サイトを公開しました",
+        "publishSucceedLink": "サイトを表示",
+        "publishFailedTitle": "サイトの公開に失敗しました",
+        "publishFailedDescription": "サイトを公開できませんでした。しばらくしてからもう一度お試しください。",
+        "openInNewTab": "新しいタブで開く",
+        "importingState": "インポート中",
+        "noDomain": "アプリケーションを公開するには、少なくとも 1 つのドメインが必要です。",
+        "addDomain": "ドメインを追加"
+    },
+    "lastPublishedDomainDate": {
+        "neverPublished": "未公開",
+        "lastPublished": "最終公開日時:"
+    },
+    "elementsContext": {
+        "searchPlaceholder": "要素を検索",
+        "noPageElements": "このページに要素がありません",
+        "noElements": "要素が見つかりません"
+    },
+    "elementType": {
+        "heading": "見出し",
+        "headingDescription": "ページの見出しタイトル",
+        "text": "テキスト",
+        "textDescription": "複数行テキスト",
+        "linkDescription": "ページまたは URL へのリンク",
+        "link": "リンク",
+        "image": "画像",
+        "imageDescription": "画像を表示",
+        "inputText": "データ入力",
+        "inputTextDescription": "データ入力フィールド",
+        "column": "列",
+        "columnDescription": "列コンテナ",
+        "button": "ボタン",
+        "buttonDescription": "ボタン要素",
+        "table": "テーブル",
+        "tableDescription": "テーブル要素",
+        "formContainerDescription": "フォーム要素",
+        "formContainer": "フォーム",
+        "choice": "選択肢",
+        "choiceDescription": "単一または複数の値を選択",
+        "checkbox": "チェックボックス",
+        "checkboxDescription": "チェックボックス要素",
+        "iframe": "IFrame",
+        "iframeDescription": "インラインフレーム",
+        "authForm": "ログインフォーム",
+        "authFormDescription": "ユーザー用ログインフォーム",
+        "repeat": "繰り返し",
+        "repeatDescription": "繰り返し可能な要素の組",
+        "recordSelector": "レコード選択",
+        "recordSelectorDescription": "関連レコードの選択",
+        "dateTimePicker": "日時選択",
+        "dateTimePickerDescription": "日付と時刻の入力フィールド",
+        "header": "複数ページ共通ヘッダー",
+        "headerDescription": "ページ間で共有されるコンテナ",
+        "footer": "複数ページ共通フッター",
+        "footerDescription": "ページ間で共有されるコンテナ",
+        "notAllowedUnlessTop": "この要素はページの最上部にのみ配置できます",
+        "notAllowedUnlessHeader": "この要素はページヘッダー内にのみ配置できます",
+        "notAllowedUnlessBottom": "この要素はページの最下部にのみ配置できます",
+        "notAllowedUnlessFooter": "この要素はページフッター内にのみ配置できます",
+        "notAllowedInsideContainer": "この要素はコンテナ内に配置できません",
+        "notAllowedInsideSameType": "この要素は同じ種類のコンテナ内に配置できません",
+        "ratingInput": "評価入力",
+        "ratingInputDescription": "評価入力要素",
+        "rating": "評価",
+        "ratingDescription": "評価要素",
+        "invalidElementValue": "要素の値が無効です: {value}",
+        "notAllowedLocation": "この要素はこの場所に配置できません",
+        "menu": "メニュー",
+        "menuDescription": "メニュー要素",
+        "simpleContainer": "コンテナ",
+        "simpleContainerDescription": "他の要素を格納するコンテナ",
+        "fileInput": "ファイル入力",
+        "fileInputDescription": "ファイルアップロード用の入力欄",
+        "errorValueMissing": "value プロパティがありません",
+        "errorEmptyContainer": "このコンテナは空です",
+        "errorParentWithDataSourceMissing": "要素または親コンテナでデータソースが選択されていません",
+        "errorDataSourceMissing": "データソースが選択されていません",
+        "errorSchemaPropertyMissing": "スキーマプロパティが選択されていません",
+        "errorWorkflowActionInError": "1 つ以上のアクションが正しく設定されていません",
+        "errorCollectionFieldInError": "1 つ以上のフィールドが正しく設定されていません",
+        "errorNavigateToPageMissing": "「ページへ移動」プロパティがありません",
+        "errorPageParameterInError": "1 つ以上のページパラメーターが正しく設定されていません",
+        "errorNavigationUrlMissing": "ナビゲーション URL プロパティがありません",
+        "errorImageFileMissing": "画像ファイルがありません",
+        "errorImageUrlMissing": "画像 URL プロパティがありません",
+        "errorNoWorkflowAction": "ワークフローアクションが設定されていません",
+        "errorOptionsMissing": "選択肢が設定されていません",
+        "errorMenuItemInError": "1 つ以上のメニュー項目が正しく設定されていません",
+        "errorNoMenuItem": "メニュー項目が設定されていません",
+        "errorIframeContentMissing": "IFrame の内容がありません",
+        "errorIframeUrlMissing": "IFrame URL プロパティがありません",
+        "errorSubMenuItemInError": "1 つ以上のサブメニューが正しく設定されていません"
+    },
+    "addElementButton": {
+        "label": "要素"
+    },
+    "addElementCategory": {
+        "layoutElement": "レイアウト要素",
+        "formElement": "フォーム要素",
+        "suggestedElement": "おすすめの要素",
+        "baseElement": "基本要素"
+    },
+    "pageSidePanelType": {
+        "visibility": "表示設定",
+        "general": "一般",
+        "style": "スタイル",
+        "events": "イベント",
+        "eventsTabDeactivatedNoEvents": "この要素はイベントに対応していません",
+        "eventsTabInError": "1 つ以上のアクションが正しく設定されていません。"
+    },
+    "addElementModal": {
+        "title": "新しい要素を追加",
+        "searchPlaceholder": "要素を検索",
+        "elementInProgress": "要素を追加中..."
+    },
+    "duplicatePageJobType": {
+        "duplicatedTitle": "ページを複製しました",
+        "name": "ページを複製",
+        "duplicating": "複製中"
+    },
+    "elementMenu": {
+        "moveRight": "右へ移動",
+        "drag": "ドラッグして並べ替え",
+        "moveUp": "上へ移動",
+        "selectParent": "親を選択",
+        "moveLeft": "左へ移動",
+        "moveDown": "下へ移動"
+    },
+    "emptySidePanelState": {
+        "message": "詳細を表示する要素をクリックしてください"
+    },
+    "pagePreview": {
+        "emptyMessage": "クリックして要素を作成",
+        "fixedFooter": "固定フッター",
+        "fixedHeader": "固定ヘッダー",
+        "footer": "フッター",
+        "header": "ヘッダー"
+    },
+    "headingElement": {
+        "missingValue": "タイトルがありません...",
+        "emptyValue": "タイトルが空です..."
+    },
+    "elementForms": {
+        "textInputPlaceholder": "テキストを入力...",
+        "urlInputPlaceholder": "URL を入力..."
+    },
+    "headingElementForm": {
+        "textPlaceholder": "テキストを入力...",
+        "textError": "値が無効です。",
+        "levelTitle": "レベル",
+        "textTitle": "テキスト",
+        "headingName": "見出し {level} <h{level}>"
+    },
+    "textElement": {
+        "missingValue": "テキストがありません...",
+        "emptyValue": "テキストが空です..."
+    },
+    "textElementForm": {
+        "textTitle": "テキスト",
+        "textPlaceholder": "テキストを入力...",
+        "textError": "値が無効です。",
+        "textFormatTypeLabel": "形式",
+        "textFormatTypePlain": "プレーンテキスト",
+        "textFormatTypeMarkdown": "Markdown"
+    },
+    "orientations": {
+        "label": "方向",
+        "horizontal": "横",
+        "vertical": "縦"
+    },
+    "menuElement": {
+        "missingValue": "メニュー項目がありません",
+        "separator": "区切り線",
+        "spacer": "スペーサー",
+        "missingLinkValue": "リンク名がありません...",
+        "emptyLinkValue": "リンク名が空です...",
+        "missingButtonValue": "ボタン名がありません...",
+        "emptyButtonValue": "ボタン名が空です..."
+    },
+    "menuElementForm": {
+        "addMenuItemLink": "追加...",
+        "menuItemsLabel": "メニュー項目",
+        "menuItemDefaultName": "ページ",
+        "alignment": "配置",
+        "menuItemLabelLabel": "ラベル",
+        "menuItemTypeLabel": "種類",
+        "menuItemTypeSeparator": "区切り線",
+        "menuItemVariantLabel": "バリエーション",
+        "menuItemVariantLink": "リンク",
+        "menuItemVariantButton": "ボタン",
+        "namePlaceholder": "ページ",
+        "addSubLink": "サブリンクを追加",
+        "menuItemSubLinkDefaultName": "サブリンク",
+        "variant": "デバイス種別ごとのバリエーション",
+        "expanded": "展開",
+        "compact": "コンパクト",
+        "previewCompactMenuLabel": "コンパクトメニューをプレビュー",
+        "previewCompactMenuHelper": "コンパクトメニューのプレビューを表示または非表示にします。",
+        "openEditorCompactMenu": "メニューを開く",
+        "closeEditorCompactMenu": "メニューを閉じる",
+        "menuItemAddLink": "リンク",
+        "menuItemAddButton": "ボタン",
+        "menuItemAddSeparator": "区切り線",
+        "menuItemAddSpacer": "スペーサー",
+        "eventDescription": "このボタンのアクションを設定するには、この要素の「イベント」タブを開いてください。",
+        "noMenuItemsMessage": "「追加」をクリックして、最初のメニュー項目を追加してください。"
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "コンテナ要素には設定項目がありません。"
+    },
+    "imageElement": {
+        "missingValue": "代替テキストがありません...",
+        "emptyValue": "代替テキストが空です..."
+    },
+    "generalForm": {
+        "labelTitle": "ラベル",
+        "labelPlaceholder": "ラベルを入力",
+        "valueTitle": "値",
+        "defaultValueTitle": "既定値",
+        "defaultValuePlaceholder": "既定値を入力",
+        "valuePlaceholder": "値を入力",
+        "placeholderTitle": "プレースホルダー",
+        "placeholderPlaceholder": "プレースホルダーを入力",
+        "requiredTitle": "必須",
+        "validationTitle": "検証"
+    },
+    "inputTextElementForm": {
+        "multilineTitle": "複数行",
+        "rowsTitle": "行数",
+        "rowsPlaceholder": "この入力欄の行数を入力",
+        "validationTypeAnyLabel": "任意",
+        "validationTypeAnyDescription": "この入力欄には任意の値を設定できます。",
+        "validationTypeIntegerLabel": "数値",
+        "validationTypeIntegerDescription": "この入力欄には数値（整数および小数）を入力する必要があります。",
+        "validationTypeEmailLabel": "メールアドレス",
+        "validationTypeEmailDescription": "この入力欄にはメールアドレスを入力する必要があります。",
+        "inputType": "入力タイプ",
+        "inputTypeTextLabel": "テキスト",
+        "inputTypePasswordLabel": "パスワード",
+        "passwordTypeWarning": "パスワードは機密データです。アプリケーションでのパスワードの取り扱いと保存には十分注意してください。"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "時刻を含める",
+        "invalidDateError": "無効な日付です。入力した日付が指定の形式と一致していることを確認してください。"
+    },
+    "imageElementForm": {
+        "fileLabel": "画像",
+        "invalidUrlError": "URL が無効です",
+        "altTextTitle": "代替テキスト",
+        "altTextDescription": "スクリーンリーダーで使用され、画像を読み込めない場合に表示されます",
+        "fileSourceTypeUpload": "アップロード",
+        "fileSourceTypeURL": "URL",
+        "urlWarning": "注: 入力した URL を自身で管理しているか、信頼できることを確認してください。",
+        "uploadFileButton": "ファイルをアップロード"
+    },
+    "iframeElementForm": {
+        "missingValue": "IFrame のソースがありません...",
+        "emptyValue": "IFrame のソースが空です...",
+        "sourceTypeLabel": "ソースの種類",
+        "urlLabel": "URL",
+        "urlPlaceholder": "埋め込む外部リソースへのリンク",
+        "urlHelp": "注: 入力した URL を自身で管理しているか、信頼できることを確認してください。",
+        "allowSameOriginLabel": "IFrame が自身のサイトデータにアクセスすることを許可",
+        "allowSameOriginHelp": "信頼できる外部 URL に対してのみ有効にしてください。これにより、プレビューおよび公開済みアプリケーションで IFrame が Cookie、ストレージ、その他の同一オリジン機能を使用できます。",
+        "embedLabel": "埋め込み",
+        "embedPlaceholder": "埋め込む未加工の HTML コンテンツ",
+        "warningTitle": "信頼できるコンテンツのみを使用",
+        "warningMessage": "IFrame のコンテンツはエディター内ではサンドボックス化され、埋め込み HTML は隔離された状態でスクリプトを実行できます。プレビューおよび公開済みアプリケーションでは、埋め込み HTML は制限なしで実行でき、外部 URL はスクリプトの実行、フォームの送信、ポップアップの表示が可能です。",
+        "heightLabel": "高さ (px)",
+        "heightPlaceholder": "ピクセル単位の高さ"
+    },
+    "columnElementForm": {
+        "columnAmountTitle": "レイアウト",
+        "verticalAlignment": "垂直方向の配置",
+        "columnAmountName": "列なし | 1 列 | {columnAmount} 列",
+        "columnGapTitle": "列間の間隔",
+        "columnGapPlaceholder": "列間の間隔を入力...",
+        "customLayout": "カスタム",
+        "customWeightsTitle": "カスタム列の比率",
+        "customWeightsHelper": "列をコンテンツ幅だけにする場合は 0 を使用します。残りの列で残りのスペースを分け合います。",
+        "errorCustomWeightsMinimum": "列の比率は 0 以上である必要があります",
+        "columnStackingTitle": "デバイス種別ごとの列の積み重ね",
+        "columnStackingHorizontal": "横並び",
+        "columnStackingStacked": "縦積み"
+    },
+    "domainSettings": {
+        "titleOverview": "ドメイン",
+        "titleAddDomain": "ドメインを追加",
+        "addDomain": "ドメインを追加",
+        "noDomainMessage": "このアプリケーションにはまだドメインが関連付けられていません。アプリケーションを公開するには、ドメインを追加する必要があります。ここに表示される各ドメインごとに、異なるバージョンのアプリケーションを公開できます。"
+    },
+    "userSourceSettings": {
+        "titleAddUserSource": "新しいユーザーソース",
+        "titleUpdateUserSource": "ユーザーソースを編集",
+        "noUserSourceMessage": "このアプリケーションにはまだユーザーソースが追加されていません。ユーザーがアプリケーションで認証できるようにする場合は、ユーザーソースを追加する必要があります。",
+        "titleOverview": "ユーザーソース",
+        "addUserSource": "ユーザーソースを追加"
+    },
+    "themeSettings": {
+        "titleOverview": "テーマ"
+    },
+    "generalSettings": {
+        "titleOverview": "一般",
+        "labelForm": "ファビコン",
+        "labelDescription": "128×128 px の ICO、PNG、GIF、JPEG ファイルを選択してください。",
+        "labelButton": "ファビコンをアップロード",
+        "cantUploadFaviconTitle": "ファビコンファイルをアップロードできませんでした",
+        "cantUploadFaviconDescription": "申し訳ありません。ファビコン画像をアップロードできませんでした。画像ファイルが他と重複しておらず、対応する画像形式であることを確認してください。",
+        "cantUpdateApplicationTitle": "アプリケーションを更新できませんでした",
+        "cantUpdateApplicationDescription": "申し訳ありません。アプリケーションを更新できませんでした。"
+    },
+    "dnsStatus": {
+        "description": "ドメインの DNS 設定を開き、次のように変更してください",
+        "typeHeader": "種類",
+        "hostHeader": "ホスト",
+        "valueHeader": "値"
+    },
+    "domainForm": {
+        "invalidDomain": "指定されたドメイン名は無効です",
+        "notUniqueDomain": "指定されたドメインはすでに使用されています"
+    },
+    "customDomainForm": {
+        "domainNameLabel": "ドメイン名"
+    },
+    "subDomainForm": {
+        "domainNameLabel": "ドメイン名"
+    },
+    "subDomainDetails": {
+        "text": "ドメインの DNS 設定はすでに構成および確認済みです。追加の変更を行わなくても動作します。"
+    },
+    "domainCard": {
+        "refresh": "設定を更新",
+        "detailLabel": "詳細を表示",
+        "unpublishedDomainWarning": "このドメインで利用できるようにするには、アプリケーションを公開してください。"
+    },
+    "domainTypes": {
+        "customName": "カスタムドメイン",
+        "subDomainName": "サブドメイン",
+        "subDomain": "{domain} のサブドメイン"
+    },
+    "linkElement": {
+        "missingValue": "リンクテキストがありません...",
+        "emptyValue": "リンクテキストが空です..."
+    },
+    "linkNavigationSelection": {
+        "navigateTo": "移動先",
+        "navigateToCustom": "カスタム URL",
+        "paramPlaceholder": "値を入力...",
+        "urlPlaceholder": "URL を入力...",
+        "url": "移動先 URL",
+        "paramsInErrorDescription": "保存されたパラメーターがページのパラメーターと一致しません。ページが削除または更新された可能性があります。",
+        "paramsInErrorButton": "パラメーターを更新",
+        "target": "開く場所...",
+        "targetSelf": "同じタブ",
+        "targetNewTab": "新しいタブ"
+    },
+    "linkElementForm": {
+        "text": "テキスト",
+        "textPlaceholder": "テキストを入力...",
+        "variant": "バリエーション",
+        "variantLink": "リンク",
+        "variantButton": "ボタン",
+        "buttonColor": "ボタンの色"
+    },
+    "widthSelector": {
+        "width": "幅",
+        "widthAuto": "自動",
+        "widthFull": "全幅"
+    },
+    "backgroundTypes": {
+        "none": "なし",
+        "color": "色"
+    },
+    "widthTypes": {
+        "fullBleed": "フルブリード",
+        "fullWidth": "全幅",
+        "normal": "標準",
+        "medium": "中",
+        "small": "小"
+    },
+    "horizontalAlignmentSelector": {
+        "alignmentCenter": "中央",
+        "alignmentRight": "右",
+        "alignmentLeft": "左"
+    },
+    "verticalAlignmentSelector": {
+        "alignmentTop": "上",
+        "alignmentCenter": "中央",
+        "alignmentBottom": "下"
+    },
+    "pageSettingsTypes": {
+        "pageName": "ページ"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "表示設定",
+        "logInPageWarningTitle": "ログインページが設定されていません",
+        "logInPagewarningMessage": "匿名ユーザーがこのページにアクセスしようとすると、ログインページにリダイレクトされます。アプリケーションの「一般」設定でログインページを設定してください。",
+        "logInPageInfoTitle": "匿名ユーザーはリダイレクトされます",
+        "logInPageInfoMessage": "このページにアクセスしようとした匿名ユーザーは、{logInPageName} ページにリダイレクトされます。"
+    },
+    "pageSettings": {
+        "pageUpdatedTitle": "変更しました",
+        "pageUpdatedDescription": "ページ設定を更新しました。",
+        "title": "ページ"
+    },
+    "pageVisibilitySettings": {
+        "title": "表示設定",
+        "allVisitors": "すべての訪問者",
+        "loggedInVisitors": "ログイン済みの訪問者",
+        "description": "このページを表示できるユーザー"
+    },
+    "pageForm": {
+        "defaultName": "ページ",
+        "nameTitle": "名前",
+        "nameSubtitle": "ページの一意の名前",
+        "namePlaceholder": "名前を入力...",
+        "pathTitle": "パス",
+        "addAnotherParameter": "別のクエリ文字列パラメーターを追加",
+        "addParameter": "クエリ文字列パラメーターを追加",
+        "queryParamsSubtitleTutorial": "指定されたパラメーターに応じてデータを動的に読み込むために、クエリパラメーターを使用できます。",
+        "pathSubtitle": "パラメーターは :parameter を使って追加できます",
+        "pathPlaceholder": "パスを入力...",
+        "pathParamsTitle": "パスパラメーター",
+        "queryParamsTitle": "クエリ文字列パラメーター",
+        "pathParamsSubtitle": "パス内の :parameter で定義されます",
+        "pathParamsSubtitleTutorial": "指定されたパラメーターに応じてデータを動的に読み込むために、パスパラメーターを使用できます。追加するには、パスに :parameter を含めてください。"
+    },
+    "pathParamTypes": {
+        "textName": "テキスト",
+        "numericName": "数値"
+    },
+    "queryParamTypes": {
+        "textName": "テキスト",
+        "numericName": "数値"
+    },
+    "pageEditor": {
+        "title": "アプリケーションビルダー",
+        "pageNotFound": "ページが見つかりません"
+    },
+    "publicPage": {
+        "siteNotFound": "サイトが見つかりません",
+        "pageNotFound": "ページが見つかりません",
+        "loginToastTitle": "認証に成功しました",
+        "loginToastMessage": "正常にログインしました。",
+        "authorizedToastTitle": "認証が必要です",
+        "authorizedToastMessage": "このページにアクセスするにはログインが必要です。続行するにはログインしてください。"
+    },
+    "integrationSettings": {
+        "title": "連携",
+        "noIntegrationMessage": "まだ連携が作成されていません。データソース、アクション、またはユーザー認証を追加すると作成できます。",
+        "integrationMessage": "データソース、アクション、またはユーザー認証を追加して、新しい連携を作成できます。"
+    },
+    "dataSourceForm": {
+        "namePlaceholder": "ソース名",
+        "nameLabel": "名前",
+        "actionLabel": "アクション",
+        "integrationLabel": "接続",
+        "servicePlaceholder": "アクションを選択...",
+        "integrationPlaceholder": "接続を選択...",
+        "searchActionPlaceholder": "アクションを検索",
+        "noActionsFound": "アクションが見つかりません",
+        "errorUniqueName": "データソース名は一意である必要があります。"
+    },
+    "dataSourceContext": {
+        "addDataSource": "新しいデータソースを追加",
+        "noDataSourceTitle": "まだデータソースが追加されていません。",
+        "noDataSourceMessage": "データソースを使うと、内部または外部のソースからデータを取得してページに表示できます。",
+        "sharedDataSourceTitle": "ページ間で共有",
+        "pageDataSourceTitle": "このページ用",
+        "sharedDataSourceDescription": "すべてのページからアクセスでき、最初のページ読み込み時に一度だけ取得されます。",
+        "pageDataSourceDescription": "ユーザーがこのページに移動したときに取得されます。"
+    },
+    "dataSourceItem": {
+        "notConfigured": "未設定"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "ページ間で共有",
+        "unshareBetweenPages": "他のページとの共有を解除"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "データソースを編集",
+        "createTitle": "データソースを作成",
+        "sharedWarning": "このデータソースは共有されているため、変更が複数のページに影響する可能性があります。"
+    },
+    "defaultStyleForm": {
+        "boxTop": "上",
+        "boxBottom": "下",
+        "boxLeft": "左",
+        "boxRight": "右",
+        "backgroundLabel": "背景",
+        "backgroundColor": "背景色",
+        "widthLabel": "幅",
+        "backgroundImage": "画像",
+        "backgroundImageMode": "表示モード",
+        "cssClasses": "CSS クラス",
+        "cssClassesHelp": "生成される HTML に表示する、この要素のクラスをスペース区切りで設定します。",
+        "cssClassesPlaceholder": "CSS クラスを入力..."
+    },
+    "styleBoxForm": {
+        "borderColor": "境界線の色",
+        "borderLabel": "サイズ",
+        "paddingLabel": "パディング",
+        "marginLabel": "マージン"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "角の丸み",
+        "backgroundRadiusLabel": "背景",
+        "borderRadiusLabel": "境界線"
+    },
+    "themeConfigBlockType": {
+        "color": "色",
+        "page": "ページ",
+        "typography": "タイポグラフィ",
+        "button": "ボタン",
+        "link": "リンク",
+        "image": "画像",
+        "input": "入力",
+        "table": "テーブル"
+    },
+    "colorThemeConfigBlock": {
+        "transparent": "透明",
+        "primaryColor": "プライマリ",
+        "secondaryColor": "セカンダリ",
+        "borderColor": "境界線",
+        "successColor": "成功",
+        "warningColor": "警告",
+        "errorColor": "エラー",
+        "customColors": "カスタムカラー",
+        "addCustomColor": "カスタムカラーを追加",
+        "customColorPrefix": "カスタム"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundColor": "背景色",
+        "backgroundImage": "背景画像",
+        "backgroundMode": "背景モード"
+    },
+    "colorThemeConfigBlockType": {
+        "primary": "プライマリ",
+        "transparent": "透明",
+        "secondary": "セカンダリ",
+        "border": "境界線",
+        "success": "成功",
+        "warning": "警告",
+        "error": "エラー"
+    },
+    "typographyThemeConfigBlock": {
+        "headingLabel": "見出し {i} (h{i})",
+        "headingValue": "見出し <h{i}>",
+        "size": "サイズ",
+        "color": "色",
+        "weight": "太さ",
+        "textAlignment": "配置",
+        "bodyLabel": "本文",
+        "decoration": "テキスト装飾",
+        "fontFamily": "フォント"
+    },
+    "fontWeightType": {
+        "thin": "シン",
+        "extraLight": "エクストラライト",
+        "light": "ライト",
+        "regular": "レギュラー",
+        "medium": "ミディアム",
+        "semiBold": "セミボールド",
+        "bold": "ボールド",
+        "extraBold": "エクストラボールド",
+        "black": "ブラック",
+        "extraBlack": "エクストラブラック"
+    },
+    "buttonThemeConfigBlock": {
+        "backgroundColor": "背景色",
+        "button": "ボタン",
+        "defaultState": "通常状態",
+        "hoverState": "ホバー状態",
+        "activeState": "アクティブ状態",
+        "textAlignment": "テキストの配置",
+        "textColor": "テキストの色",
+        "alignment": "配置",
+        "borderColor": "境界線の色",
+        "width": "幅",
+        "borderSize": "境界線のサイズ",
+        "borderRadius": "境界線の丸み",
+        "padding": "パディング",
+        "fontFamily": "フォント",
+        "size": "フォントサイズ",
+        "weight": "フォントの太さ"
+    },
+    "linkThemeConfigBlock": {
+        "color": "色",
+        "link": "リンク",
+        "defaultState": "通常状態",
+        "hoverState": "ホバー状態",
+        "activeState": "アクティブ状態",
+        "alignment": "配置",
+        "fontFamily": "フォント",
+        "size": "フォントサイズ",
+        "weight": "フォントの太さ",
+        "decoration": "テキスト装飾"
+    },
+    "inputThemeConfigBlock": {
+        "label": "ラベル",
+        "input": "入力",
+        "backgroundColor": "背景色",
+        "textColor": "テキストの色",
+        "borderColor": "境界線の色",
+        "borderSize": "境界線のサイズ",
+        "padding": "パディング",
+        "borderRadius": "境界線の丸み",
+        "fontFamily": "フォント",
+        "size": "フォントサイズ",
+        "weight": "フォントの太さ"
+    },
+    "imageThemeConfigBlock": {
+        "alignment": "配置",
+        "maxWidthLabel": "最大幅",
+        "maxHeightLabel": "最大高さ",
+        "maxHeightPlaceholder": "最大高さを入力",
+        "maxWidthPlaceholder": "最大幅を入力",
+        "imageConstraintsLabel": "制約",
+        "imageConstraintFullWidth": "最大幅まで広げる",
+        "imageConstraintCover": "カバー",
+        "imageConstraintCoverDisabled": "最大高さが空の場合は使用できません。",
+        "imageConstraintContain": "コンテイン",
+        "imageConstraintContainDisabled": "最大高さが設定されている場合は使用できません。",
+        "imageBorderRadiusLabel": "境界線の丸み",
+        "imageBorderRadiusPlaceholder": "画像の境界線の丸みを入力してください。"
+    },
+    "tableThemeConfigBlock": {
+        "borderColor": "境界線の色",
+        "backgroundAlternateColor": "偶数行の色",
+        "backgroundColor": "背景色",
+        "textColor": "テキストの色",
+        "borderSize": "境界線のサイズ",
+        "borderRadius": "境界線の丸み",
+        "padding": "パディング",
+        "fontFamily": "フォント",
+        "size": "サイズ",
+        "fontSize": "フォントサイズ",
+        "fontWeight": "フォントの太さ",
+        "table": "テーブル",
+        "header": "ヘッダー",
+        "alignment": "配置",
+        "cells": "セル",
+        "separators": "区切り線",
+        "verticalSeparatorColor": "垂直線の色",
+        "verticalSeparatorSize": "垂直線のサイズ",
+        "horizontalSeparatorColor": "水平線の色",
+        "horizontalSeparatorSize": "水平線のサイズ"
+    },
+    "buttonElementForm": {
+        "valueLabel": "ボタンのテキスト",
+        "valuePlaceholder": "テキストを入力..."
+    },
+    "buttonElement": {
+        "missingValue": "ボタンのテキストがありません...",
+        "emptyValue": "ボタンのテキストが空です..."
+    },
+    "eventTypes": {
+        "clickLabel": "クリック時",
+        "submitLabel": "送信時",
+        "afterLoginLabel": "ログイン後"
+    },
+    "fontSidePanelForm": {
+        "label": "フォントの色"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "無効な参照"
+    },
+    "choiceElementForm": {
+        "multiple": "複数の値を許可",
+        "display": "表示形式",
+        "dropdown": "ドロップダウン",
+        "checkbox": "チェックボックス",
+        "radio": "ラジオボタン"
+    },
+    "dropdown": {
+        "empty": "利用可能な項目がありません"
+    },
+    "tableElementForm": {
+        "fields": "フィールド",
+        "dataSource": "データソース",
+        "fieldValueLabel": "値",
+        "fieldValuePlaceholder": "値を入力...",
+        "addField": "フィールドを追加",
+        "itemsPerPage": "1 ページあたりの項目数",
+        "fieldDefaultName": "列",
+        "name": "名前",
+        "noName": "名前なし",
+        "fieldType": "種類",
+        "itemsPerPagePlaceholder": "値を入力...",
+        "selectSourceFirst": "フィールドの設定を始めるには、データソースまたはプロパティを選択してください。",
+        "buttonColor": "ボタンの色",
+        "refreshFieldsFromDataSource": "データソースからフィールドを更新",
+        "buttonLoadMoreLabel": "「さらに表示」のラベル",
+        "propertySelectorMissingArrays": "行として使用できる複数値フィールドが見つかりません。"
+    },
+    "tableElement": {
+        "showMore": "さらに表示"
+    },
+    "abTable": {
+        "loading": "読み込み中...",
+        "empty": "項目が見つかりませんでした。"
+    },
+    "repeatElement": {
+        "empty": "項目が見つかりませんでした。",
+        "showMore": "さらに表示",
+        "missingDataSourceTooltip": "要素の追加を始めるには、データソースを選択してください。",
+        "missingSchemaPropertyTooltip": "要素の追加を始めるには、プロパティを選択してください。",
+        "emptyState": "レコードが見つかりませんでした。"
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "すべての結果を一覧表示するには複数行のデータソースを、行内のプロパティを選ぶには単一行のデータソースを選択してください。",
+        "noSchemaPropertyMessage": "要素のリストデータとして使用するプロパティをデータソース内から選択してください。",
+        "propertyOptionLabel": "ユーザーアクション"
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "フィールド",
+        "filterHeading": "フィルター",
+        "searchHeading": "検索",
+        "noPropertiesAvailable": "利用可能なフィールドがありません。",
+        "formDescription": "ページの訪問者がフィルター、並べ替え、検索に使用できるプロパティを、この要素のデータソース内から選択します。",
+        "sortHeading": "並べ替え",
+        "optionUnavailable": "利用不可"
+    },
+    "repeatElementForm": {
+        "dataSource": "データソース",
+        "itemsPerPagePlaceholder": "値を入力...",
+        "itemsPerPage": "1 ページあたりの項目数",
+        "itemsPerRowLabel": "1 行あたりの項目数",
+        "itemsPerRowDescription": "行およびデバイス種別ごとの列数。",
+        "buttonLoadMoreLabel": "「さらに表示」のラベル",
+        "toggleEditorRepetitionsLabel": "繰り返しを一時的に無効化",
+        "propertySelectorMissingArrays": "繰り返しに使用できる複数値フィールドが見つかりません。",
+        "gapLabel": "繰り返し間の間隔",
+        "gapVerticalLabel": "垂直",
+        "gapHorizontalLabel": "水平"
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "「{query}」に一致するレコードが見つかりませんでした。",
+        "emptyState": "レコードが見つかりませんでした。"
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "レコードの選択元",
+        "noDataSourceMessage": "すべての結果を一覧表示するには、複数行のデータソースを選択してください。",
+        "optionNameSuffix": "オプション名の接尾辞",
+        "optionNameSuffixPlaceholder": "接尾辞を入力...",
+        "optionNameSuffixHelper": "この接尾辞はドロップダウンを開いたときに各オプション名へ追加され、オプションを区別しやすくします。",
+        "itemsPerPage": "1 ページあたりの項目数",
+        "itemsPerPagePlaceholder": "値を入力...",
+        "multipleLabel": "複数の値を許可",
+        "record": "レコード {id}"
+    },
+    "currentRecordDataProviderType": {
+        "index": "インデックス",
+        "firstPartName": "データソース: {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "{actionLabel} のペイロード",
+        "sampleDataModalSubTitle": "JSON ペイロード",
+        "testActionDescription": "このアクションをプレビューで実行して出力を取得し、後続のアクションで利用できるようにします。"
+    },
+    "workflowActionTypes": {
+        "notificationLabel": "通知を表示",
+        "notificationDescription": "ユーザーに通知メッセージを表示します。",
+        "openPageLabel": "ページを開く",
+        "openPageDescription": "ユーザーを別のページまたは URL に移動します。",
+        "logoutLabel": "ログアウト",
+        "logoutDescription": "現在のユーザーをログアウトさせます。",
+        "refreshDataSourceLabel": "データソースを更新",
+        "refreshDataSourceDescription": "データソースを再読み込みし、それを使用している要素を更新します。",
+        "httpRequest": "HTTP リクエストを送信",
+        "errorNavigateToPageMissing": "移動先プロパティがありません",
+        "errorPageParameterInError": "1 つ以上のページパラメーターが正しく設定されていません",
+        "errorNavigationUrlMissing": "移動先 URL プロパティがありません",
+        "errorDataSourceMissing": "データソースが選択されていません"
+    },
+    "notificationWorkflowActionForm": {
+        "titleLabel": "タイトル",
+        "titlePlaceholder": "テキストを入力...",
+        "descriptionLabel": "説明",
+        "descriptionPlaceholder": "テキストを入力..."
+    },
+    "event": {
+        "addAction": "アクションを追加",
+        "searchActions": "アクションを検索",
+        "noActionsFound": "アクションが見つかりません"
+    },
+    "collectionFieldType": {
+        "boolean": "真偽値",
+        "button": "ボタン",
+        "text": "テキスト",
+        "link": "リンク",
+        "tags": "タグ",
+        "image": "画像",
+        "rating": "評価",
+        "errorValueMissing": "値プロパティがありません"
+    },
+    "linkFieldForm": {
+        "buttonColor": "ボタンの色",
+        "fieldLinkNameLabel": "リンクテキスト",
+        "fieldValueLabel": "URL",
+        "fieldValuePlaceholder": "値を入力...",
+        "fieldLinkNamePlaceholder": "値を入力..."
+    },
+    "textFieldForm": {
+        "fieldValueLabel": "値",
+        "fieldValuePlaceholder": "値を入力..."
+    },
+    "tagsFieldForm": {
+        "fieldValuesPlaceholder": "値を入力...",
+        "fieldValuesLabel": "値",
+        "fieldColorsPlaceholder": "色を入力...",
+        "fieldColorsLabel": "色"
+    },
+    "linkField": {
+        "details": "詳細"
+    },
+    "imageFieldForm": {
+        "fieldSrcPlaceholder": "値を入力",
+        "fieldSrcLabel": "画像ソース",
+        "fieldAltLabel": "代替テキスト",
+        "fieldAltHelp": "スクリーンリーダーで使用され、画像を読み込めない場合に表示されます",
+        "fieldAltPlaceholder": "値を入力..."
+    },
+    "createUserSourceForm": {
+        "userSourceType": "種類",
+        "userSourceIntegration": "連携",
+        "userSourceName": "名前"
+    },
+    "updateUserSourceForm": {
+        "nameFieldLabel": "名前",
+        "nameFieldPlaceholder": "名前を入力...",
+        "integrationFieldLabel": "連携",
+        "addProvider": "プロバイダーを追加",
+        "authTitle": "認証"
+    },
+    "formContainerElement": {
+        "submitDeactivatedText": "送信するには必須項目をすべて入力してください",
+        "defaultSubmitButtonLabel": "送信"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownPlaceholder": "ページを選択",
+        "pageDropdownDescription": "ログインしていないユーザーが制限付きページへアクセスしようとしたときにリダイレクトするログインページを選択します。",
+        "pageDropdownLabel": "ログインページ"
+    },
+    "formContainerElementForm": {
+        "buttonColor": "ボタンの色",
+        "submitButtonLabel": "送信ボタン",
+        "submitButtonPlaceholder": "値を入力...",
+        "resetToInitialValuesTitle": "送信後に既定値へリセット",
+        "resetToInitialValuesDescription": "オンにすると、送信に成功した後にフォームの既定値を使ってリセットします。オフの場合は、ユーザーが入力した値を保持します。"
+    },
+    "choiceOptionSelector": {
+        "label": "オプション",
+        "value": "オプションの値",
+        "valuePlaceholder": "値を入力",
+        "name": "オプション名",
+        "namePlaceholder": "名前を入力",
+        "addOption": "オプションを追加",
+        "addOptionDescription": "「オプションを追加」をクリックして、ドロップダウンにオプションを追加します",
+        "optionType": "オプションの種類",
+        "manual": "手動",
+        "dataSource": "データソース",
+        "expressions": "式"
+    },
+    "fieldMappingContext": {
+        "enableField": "フィールドを有効化",
+        "disableField": "フィールドを無効化"
+    },
+    "checkboxElementForm": {
+        "labelTitle": "オプション名",
+        "valueTitle": "既定値",
+        "requiredTitle": "必須"
+    },
+    "userSourceUsersContext": {
+        "unnamed": "名前なし",
+        "anonymous": "匿名",
+        "searchPlaceholder": "ユーザーを検索",
+        "noEmail": "メールアドレスなし"
+    },
+    "visibilityForm": {
+        "excludedRolesLabel": "次を除くすべてのロール",
+        "switchDisallowLabel": "許可しない",
+        "warningMessage": "データの保護方法の詳細については、{link} をご覧ください。",
+        "allVisitors": "すべての訪問者",
+        "notLoggedInVisitors": "ログアウト中の訪問者",
+        "loggedInVisitors": "ログイン済みの訪問者",
+        "rolesSelectAll": "すべて選択",
+        "warningTitle": "これはセキュリティ機能です",
+        "switchAllowLabel": "許可",
+        "documentationLink": "ドキュメント",
+        "rolesDeselectAll": "すべての選択を解除",
+        "rolesSelectHint": "1 つ以上のロールを選択",
+        "roleTypesHint": "ロールの種類を選択",
+        "roleTypeAllowAllRoles": "すべてのロール",
+        "roleTypeAllowAllRolesExcept": "許可しないロール...",
+        "roleTypeDisallowAllRolesExcept": "許可するロール...",
+        "noRole": "ロールなし",
+        "rolesAllMembersOf": "{name} のすべてのメンバー",
+        "errorFetchingRolesTitle": "ユーザーロールを取得できませんでした",
+        "errorFetchingRolesMessage": "ユーザーロールの取得中に問題が発生しました。",
+        "visibilityConditionHelper": "この式の結果が true で、上記の訪問者の選択条件も満たされている場合、要素が表示されます。この条件は要素の表示だけに影響します。代わりにサーバー応答からデータを除外するには、上記のユーザーロールフィルタリングオプションを使用してください。",
+        "visibilityCondition": "表示条件",
+        "visibilityConditionPlaceholder": "条件..."
+    },
+    "userSelector": {
+        "anonymous": "匿名",
+        "member": "{prefix} のメンバー",
+        "viewAs": "{user} として表示"
+    },
+    "choiceElement": {
+        "addOptions": "この要素を使い始めるにはオプションを追加してください..."
+    },
+    "userDataProviderType": {
+        "isAuthenticated": "認証済み",
+        "id": "ID",
+        "email": "メールアドレス",
+        "username": "ユーザー名",
+        "role": "ロール"
+    },
+    "buttonField": {
+        "noLabel": "名前なし..."
+    },
+    "buttonFieldForm": {
+        "infoMessage": "このボタンのアクションを設定するには、現在の要素の「イベント」タブを開いてください。",
+        "labelPlaceholder": "ラベルを入力..."
+    },
+    "resetButton": {
+        "reset": "テーマの既定値に戻す"
+    },
+    "backgroundModes": {
+        "fill": "塗りつぶし",
+        "tile": "タイル",
+        "fit": "フィット"
+    },
+    "customStyle": {
+        "backToElement": "要素の設定に戻る",
+        "configureThemeOverrides": "この要素のテーマ上書きを設定"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "プロパティ",
+        "noProperties": "利用可能なプロパティがありません"
+    },
+    "userSourceDropdown": {
+        "label": "ユーザーソース",
+        "noUserSources": "利用可能なユーザーソースがありません",
+        "addUserSource": "新しいユーザーソースを追加"
+    },
+    "dataSourceDropdown": {
+        "label": "データソース",
+        "addNew": "新しいデータソースを追加",
+        "noDataSources": "利用可能なデータソースがありません",
+        "pageOnly": "このページ",
+        "shared": "共有",
+        "noSharedDataSources": "利用可能な共有データソースがありません"
+    },
+    "multiPageContainerElementForm": {
+        "display": "表示形式",
+        "selectAll": "すべて選択",
+        "deselectAll": "すべての選択を解除",
+        "behaviour": "動作",
+        "pagePosition": "位置"
+    },
+    "ratingFieldForm": {
+        "color": "色",
+        "style": "スタイル",
+        "value": "値",
+        "maxValue": "最大値",
+        "star": "星",
+        "heart": "ハート",
+        "thumbsUp": "高評価",
+        "flag": "旗"
+    },
+    "ratingElementForm": {
+        "color": "色",
+        "ratingStyle": "スタイル",
+        "maxValue": "最大値",
+        "star": "星",
+        "smile": "笑顔",
+        "heart": "ハート",
+        "thumbsUp": "高評価",
+        "flag": "旗"
+    },
+    "abFileInput": {
+        "delete": "削除"
+    },
+    "pageShareType": {
+        "all": "すべてのページ",
+        "only": "選択したページのみ",
+        "except": "選択したページを除外"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "このプロバイダーを編集してエラーを修正してください。",
+        "title": "プロバイダーを編集: {name}"
+    },
+    "textDecorationSelector": {
+        "underline": "下線",
+        "stroke": "取り消し線",
+        "italic": "斜体",
+        "uppercase": "大文字"
+    },
+    "automationSettingsModal": {
+        "title": "ワークフロー"
+    },
+    "elementsGuidedTourStep": {
+        "title": "ページに要素を追加",
+        "content": "どのアプリにもコンポーネントが必要です。テーブル、フォーム、ボタンなどの要素を追加して、アプリを形にしましょう。"
+    },
+    "dataGuidedTourStep": {
+        "title": "データを接続",
+        "content": "Baserow のテーブルをここに接続し、さまざまな要素でデータを動的に表示、フィルター、更新できます。"
+    },
+    "previewGuidedTourStep": {
+        "title": "コントロールセンター",
+        "content": "ここでアプリのページを設定します。要素を追加し、結果をプレビューして、思いどおりにアプリを構成できます。"
+    },
+    "devicesGuidedTourStep": {
+        "title": "さまざまなデバイスでプレビュー",
+        "content": "デスクトップ、タブレット、モバイルのプレビューを切り替えて、さまざまな画面サイズでのアプリの見え方を確認できます。すべてのデバイスでデザインが適切に表示されることを確認しましょう。"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "サイドパネル: 要素をカスタマイズ",
+        "content": "**一般タブ** – 選択した要素を設定します。\n\n**スタイルタブ** – パディング、マージン、境界線などをカスタマイズします。\n\n**表示設定タブ** – この要素を表示できるユーザー（ログイン済み、ログアウト中、または特定のロール）を制御します。\n\n**イベントタブ** – 要素がアクションに対応している場合、動的な操作のためのアクションをここで設定します。"
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "アプリをプレビューして公開",
+        "content": "**プレビュー**をクリックして、アプリを非公開でテストします。準備ができたら**公開**をクリックし、ドメインを通じて一般公開します。"
+    },
+    "pageElementBehaviour": {
+        "normal": "標準",
+        "fixed": "固定"
+    }
+}

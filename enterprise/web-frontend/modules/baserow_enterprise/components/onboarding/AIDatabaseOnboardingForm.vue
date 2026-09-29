@@ -1,105 +1,102 @@
 <template>
-  <form @submit.prevent="submit">
-    <FormGroup
-      :label="$t('aiDatabaseOnboardingForm.label')"
-      :helper-text="$t('aiDatabaseOnboardingForm.description')"
-      small-label
-      required
+  <form @submit.prevent>
+    <i18n-t
+      scope="global"
+      keypath="aiDatabaseOnboardingForm.progress"
+      tag="div"
+      class="ai-onboarding-questions__progress"
     >
-      <FormTextarea
-        ref="promptInput"
-        v-model="values.prompt"
-        :placeholder="$t('aiDatabaseOnboardingForm.placeholder')"
-        :rows="4"
-        @input=";[v$.values.prompt.$touch(), updateValue()]"
-      />
-    </FormGroup>
-    <div class="flex flex-wrap margin-top-2 margin-bottom-2">
-      <Button
-        v-for="example in examples"
-        :key="example.id"
-        tag="a"
-        type="secondary"
-        @click="setPrompt(example.prompt)"
-        >{{ example.name }}</Button
+      <template #current>
+        <span>{{ phaseIndex + 1 }}</span>
+      </template>
+      <template #total>{{ phases.length }}</template>
+    </i18n-t>
+    <p class="ai-onboarding-questions__explanation">
+      {{ $t('aiDatabaseOnboardingForm.explanation') }}
+    </p>
+    <Transition name="ai-onboarding-question" mode="out-in" @enter="focus()">
+      <FormGroup
+        :key="phase"
+        :label="$t(`aiDatabaseOnboardingForm.${phase}Label`)"
+        :helper-text="$t(`aiDatabaseOnboardingForm.${phase}Description`)"
+        small-label
+        required
       >
-    </div>
+        <FormInput
+          ref="input"
+          v-model="values[phase]"
+          :placeholder="$t(`aiDatabaseOnboardingForm.${phase}Placeholder`)"
+          :maxlength="48"
+          size="large"
+          @input="updateValue()"
+          @keydown.enter.prevent="continueOnEnter()"
+        />
+      </FormGroup>
+    </Transition>
   </form>
 </template>
 
 <script>
-import form from '@baserow/modules/core/mixins/form'
-import { useVuelidate } from '@vuelidate/core'
-import { required } from '@vuelidate/validators'
-import { useI18n } from 'vue-i18n'
-
 export default {
   name: 'AIDatabaseOnboardingForm',
-  mixins: [form],
-  emits: ['input'],
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-  },
-  mounted() {
-    this.$nextTick(() => {
-      this.$refs.promptInput.focus()
-    })
-  },
+  emits: ['input', 'next-step'],
   data() {
-    const { t } = useI18n()
     return {
+      phases: ['industry', 'team'],
+      phaseIndex: 0,
       values: {
-        prompt: '',
+        industry: '',
+        team: '',
       },
-      examples: [
-        {
-          id: 'project-tracker',
-          name: t('aiDatabaseOnboardingForm.exampleProjectTrackerName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleProjectTrackerPrompt'),
-        },
-        {
-          id: 'product-roadmap',
-          name: t('aiDatabaseOnboardingForm.exampleProductRoadmapName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleProductRoadmapPrompt'),
-        },
-        {
-          id: 'company-asset-tracker',
-          name: t('aiDatabaseOnboardingForm.exampleCompanyAssetTrackerName'),
-          prompt: t(
-            'aiDatabaseOnboardingForm.exampleCompanyAssetTrackerPrompt'
-          ),
-        },
-        {
-          id: 'team-check-ins',
-          name: t('aiDatabaseOnboardingForm.exampleTeamCheckInsName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleTeamCheckInsPrompt'),
-        },
-        {
-          id: 'bug-tracker',
-          name: t('aiDatabaseOnboardingForm.exampleBugTrackerName'),
-          prompt: t('aiDatabaseOnboardingForm.exampleBugTrackerPrompt'),
-        },
-      ],
     }
   },
+  computed: {
+    phase() {
+      return this.phases[this.phaseIndex]
+    },
+  },
+  mounted() {
+    this.focus()
+    this.updateValue()
+  },
   methods: {
+    beforeNext() {
+      if (this.phaseIndex >= this.phases.length - 1) {
+        return false
+      }
+      this.goToPhase(this.phaseIndex + 1)
+      return true
+    },
+    canGoBack() {
+      return this.phaseIndex > 0
+    },
+    goBack() {
+      this.goToPhase(this.phaseIndex - 1)
+    },
+    goToPhase(index) {
+      this.phaseIndex = index
+      // The input of the new question is only in the DOM once the transition
+      // enters, so focussing is done from there.
+      this.updateValue()
+    },
+    continueOnEnter() {
+      if (this.isValid() && !this.beforeNext()) {
+        this.$emit('next-step')
+      }
+    },
+    focus() {
+      this.$nextTick(() => {
+        this.$refs.input?.focus()
+      })
+    },
+    isValid() {
+      return this.values[this.phase].trim() !== ''
+    },
     updateValue() {
       this.$nextTick(() => {
         this.$emit('input', this.values)
       })
     },
-    setPrompt(prompt) {
-      this.values.prompt = prompt
-      this.v$.values.prompt.$touch()
-      this.updateValue()
-    },
-  },
-  validations() {
-    return {
-      values: {
-        prompt: { required },
-      },
-    }
   },
 }
 </script>

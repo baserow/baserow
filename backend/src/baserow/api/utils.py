@@ -374,7 +374,8 @@ def get_serializer_class(
         base_class = ModelSerializer
 
     extends_meta = object
-    meta_extra_kwargs = meta_extra_kwargs or {}
+    # Copy it: the base class kwargs are merged in below, and the dict is shared.
+    meta_extra_kwargs = {**(meta_extra_kwargs or {})}
 
     if hasattr(base_class, "Meta"):
         extends_meta = base_class.Meta
@@ -449,13 +450,20 @@ class CustomFieldRegistryMappingSerializer:
         base_class,
         many=False,
         request=False,
+        partial_request=False,
     ):
+        """
+        :param partial_request: Documents every type as a partial update, for a
+            view that validates the request with `partial=True`.
+        """
+
         self.read_only = False
         self.registry = registry
         self.base_class = base_class
         self.many = many
         self.partial = False
         self.request = request
+        self.partial_request = partial_request
 
 
 class DiscriminatorCustomFieldsMappingSerializer:

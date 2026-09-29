@@ -4,6 +4,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 export const state = () => ({
   loaded: false,
   settings: {},
+  requestGeneration: 0,
 })
 
 export const mutations = {
@@ -16,15 +17,23 @@ export const mutations = {
   SET_LOADED(state, value) {
     state.loaded = value
   },
+  SET_REQUEST_GENERATION(state, value) {
+    state.requestGeneration = value
+  },
   HIDE_ADMIN_SIGNUP_PAGE(state) {
     state.settings.show_admin_signup_page = false
   },
 }
 
 export const actions = {
-  async load({ commit }) {
+  async load({ commit, state }) {
     const { $client } = this
+    const requestGeneration = state.requestGeneration + 1
+    commit('SET_REQUEST_GENERATION', requestGeneration)
     const { data } = await SettingsService($client).get()
+    if (state.requestGeneration !== requestGeneration) {
+      return
+    }
     commit('SET_SETTINGS', data)
     commit('SET_LOADED', true)
   },

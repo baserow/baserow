@@ -46,6 +46,23 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
     return this.app.$i18n.t('workflowActionTypes.notificationLabel')
   }
 
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.notificationDescription')
+  }
+
+  getErrorMessage(workflowAction, applicationContext) {
+    if (
+      !workflowAction.title?.formula &&
+      !workflowAction.description?.formula
+    ) {
+      return this.app.$i18n.t(
+        'workflowActionTypes.errorNotificationContentMissing'
+      )
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
+  }
+
   execute({ workflowAction: { title, description }, resolveFormula }) {
     return this.app.$store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
@@ -77,6 +94,10 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
 
   get label() {
     return this.app.$i18n.t('workflowActionTypes.openPageLabel')
+  }
+
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.openPageDescription')
   }
 
   /**
@@ -171,6 +192,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return this.app.$i18n.t('workflowActionTypes.logoutLabel')
   }
 
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.logoutDescription')
+  }
+
   execute({ applicationContext }) {
     return this.app.$store.dispatch('userSourceUser/logoff', {
       application: applicationContext.builder,
@@ -201,6 +226,10 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
 
   get label() {
     return this.app.$i18n.t('workflowActionTypes.refreshDataSourceLabel')
+  }
+
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.refreshDataSourceDescription')
   }
 
   getErrorMessage(workflowAction, applicationContext) {
@@ -266,8 +295,20 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return WorkflowActionWithService
   }
 
+  /**
+   * Whether the form should offer an integration dropdown. False for services
+   * that offer one themselves.
+   */
+  get picksIntegration() {
+    return false
+  }
+
   get label() {
     return this.serviceType.name
+  }
+
+  get description() {
+    return this.serviceType.description
   }
 
   get icon() {
@@ -276,6 +317,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
   get image() {
     return this.serviceType.image
+  }
+
+  get group() {
+    return this.serviceType.group
   }
 
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
@@ -316,9 +361,22 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return null
   }
 
+  /**
+   * Validate the service using workspace and integration configuration in the
+   * editor. Preview and public pages do not load integration settings.
+   *
+   * @param {object} workflowAction The workflow action with its service.
+   * @param {object} applicationContext The owning workspace, builder, and mode.
+   * @returns {string|null} The first service or action configuration error.
+   */
   getErrorMessage(workflowAction, applicationContext) {
+    const isEditing = applicationContext?.mode === 'editing'
     const serviceError = this.serviceType.getErrorMessage({
       service: workflowAction.service,
+      // Outside the editor, missing integration overrides must not turn a valid
+      // action into a configuration error and hide its element.
+      workspace: isEditing ? applicationContext.workspace : undefined,
+      application: isEditing ? applicationContext.builder : undefined,
     })
 
     if (serviceError) {
@@ -350,6 +408,16 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
   getDeactivatedClickModal({ workspace }) {
     return this.serviceType.getDeactivatedClickModal({ workspace })
+  }
+}
+
+/**
+ * A Local Baserow action reaches its tables through an integration, which the
+ * action itself chooses.
+ */
+export class LocalBaserowWorkflowActionServiceType extends WorkflowActionServiceType {
+  get picksIntegration() {
+    return true
   }
 }
 
@@ -418,7 +486,7 @@ export class CoreStartWorkflowWorkflowActionType extends WorkflowActionServiceTy
   }
 }
 
-export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
+export class CreateRowWorkflowActionType extends LocalBaserowWorkflowActionServiceType {
   static getType() {
     return 'create_row'
   }
@@ -435,7 +503,7 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class LocalBaserowCreateRowsWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowCreateRowsWorkflowActionType extends LocalBaserowWorkflowActionServiceType {
   static getType() {
     return 'local_baserow_create_rows'
   }
@@ -456,7 +524,7 @@ export class LocalBaserowCreateRowsWorkflowActionType extends WorkflowActionServ
   }
 }
 
-export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
+export class UpdateRowWorkflowActionType extends LocalBaserowWorkflowActionServiceType {
   static getType() {
     return 'update_row'
   }
@@ -473,7 +541,7 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class LocalBaserowUpdateRowsWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowUpdateRowsWorkflowActionType extends LocalBaserowWorkflowActionServiceType {
   static getType() {
     return 'local_baserow_update_rows'
   }
@@ -494,7 +562,7 @@ export class LocalBaserowUpdateRowsWorkflowActionType extends WorkflowActionServ
   }
 }
 
-export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
+export class DeleteRowWorkflowActionType extends LocalBaserowWorkflowActionServiceType {
   static getType() {
     return 'delete_row'
   }

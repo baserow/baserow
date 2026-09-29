@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Sanitize float NaN and infinity values in grid view aggregation responses to prevent 500 errors.",
+    "issue_origin": "github",
+    "issue_number": 5831,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-03"
+}

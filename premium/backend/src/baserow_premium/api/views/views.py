@@ -29,6 +29,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+    ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
 )
 from baserow.contrib.database.api.views.serializers import ViewSerializer
 from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
@@ -46,6 +47,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
     ViewFilterTypeDoesNotExist,
     ViewFilterTypeNotAllowedForField,
+    ViewGroupByFieldNotSupported,
 )
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
@@ -169,6 +171,7 @@ class ExportPublicViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_ORDER_BY_FIELD_NOT_FOUND",
                     "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
+                    "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
@@ -185,6 +188,7 @@ class ExportPublicViewView(APIView):
             ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
             OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
             OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
+            ViewGroupByFieldNotSupported: ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
         }
     )
     def post(self, request, slug):
@@ -202,7 +206,7 @@ class ExportPublicViewView(APIView):
 
         # Delete the provided view ID because it can be identified using the slug
         # path parameter.
-        del option_data["view_id"]
+        option_data.pop("view_id", None)
 
         job = ExportHandler.create_and_start_new_job(None, table, view, option_data)
         serialized_job = ExportJobSerializer(job).data

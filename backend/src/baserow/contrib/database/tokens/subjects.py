@@ -12,8 +12,14 @@ class TokenSubjectType(SubjectType):
     type = "core.Token"
     model_class = Token
 
+    def get_display_name(self, subject: Token) -> str:
+        return subject.name
+
     def are_in_workspace(
-        self, subjects: List[Token], workspace: Workspace
+        self,
+        subjects: List[Token],
+        workspace: Workspace,
+        include_trash: bool = False,
     ) -> List[bool]:
         """
         Check whether the given subjects are member of the given workspace.

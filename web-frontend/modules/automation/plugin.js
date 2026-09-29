@@ -5,6 +5,7 @@ import {
 } from '@baserow/modules/automation/automationSettingTypes'
 
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
+import { AutomationWorkflowLastViewedItemType } from '@baserow/modules/automation/lastViewedItemTypes'
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
@@ -22,13 +23,16 @@ import {
   LocalBaserowRowsDeletedTriggerNodeType,
   LocalBaserowFieldsUpdatedTriggerNodeType,
   CoreHTTPTriggerNodeType,
+  CoreInboundEmailTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
   CoreCSVFileReaderNodeType,
   CoreHttpRequestNodeType,
   CoreIteratorNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
+  CoreGotoNodeType,
   CorePeriodicTriggerNodeType,
+  CoreResponseNodeType,
   CoreStartWorkflowNodeType,
   CoreManualTriggerNodeType,
   AIAgentActionNodeType,
@@ -82,6 +86,10 @@ export default defineNuxtPlugin({
     // Automation data providers
     $registry.register('application', new AutomationApplicationType(context))
     $registry.register(
+      'lastViewedItem',
+      new AutomationWorkflowLastViewedItemType(context)
+    )
+    $registry.register(
       'automationDataProvider',
       new PreviousNodeDataProviderType(context)
     )
@@ -108,6 +116,7 @@ export default defineNuxtPlugin({
       new LocalBaserowFieldsUpdatedTriggerNodeType(context)
     )
     $registry.register('node', new CoreHTTPTriggerNodeType(context))
+    $registry.register('node', new CoreInboundEmailTriggerNodeType(context))
     $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
     $registry.register(
       'node',
@@ -121,6 +130,8 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreHttpRequestNodeType(context))
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))
+    $registry.register('node', new CoreGotoNodeType(context))
+    $registry.register('node', new CoreResponseNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
     $registry.register('node', new CoreCSVFileReaderNodeType(context))
     $registry.register('node', new CoreStartWorkflowNodeType(context))

@@ -26,14 +26,19 @@ import {
   OpenAIModelType,
   OllamaModelType,
   AnthropicModelType,
+  BedrockModelType,
   MistralModelType,
   OpenRouterModelType,
+  GoogleModelType,
+  GroqModelType,
+  XaiModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
   UploadViaURLUserFileUploadType,
 } from '@baserow/modules/core/userFileUploadTypes'
 import {
+  AIProvidersAdminType,
   DashboardAdminType,
   UsersAdminType,
   WorkspacesAdminType,
@@ -53,12 +58,14 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   InvitesWorkspaceSettingsPageType,
+  AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
   WorkspaceInvitationAcceptedNotificationType,
   WorkspaceInvitationRejectedNotificationType,
   BaserowVersionUpgradeNotificationType,
+  AbuseReportCreatedNotificationType,
 } from '@baserow/modules/core/notificationTypes'
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
@@ -66,6 +73,14 @@ import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 import { CloudflareTurnstileCaptchaProviderType } from '@baserow/modules/core/captchaProviderTypes'
 
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
+import {
+  GeneralAgentSettingsType,
+  McpServerAgentSettingsType,
+} from '@baserow/modules/core/agentSettingsTypes'
+import {
+  AgentSubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes'
 
 import {
   RuntimeAdd,
@@ -116,6 +131,8 @@ import {
   RuntimeSplit,
   RuntimeIsEmpty,
   RuntimeStrip,
+  RuntimeEncodeUri,
+  RuntimeEncodeUriComponent,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -143,6 +160,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('authProvider')
     registry.registerNamespace('job')
     registry.registerNamespace('view')
+    registry.registerNamespace('lastViewedItem')
     registry.registerNamespace('field')
     registry.registerNamespace('settings')
     registry.registerNamespace('workspaceSettings')
@@ -157,15 +175,25 @@ export default defineNuxtPlugin({
     registry.registerNamespace('appAuthProvider')
     registry.registerNamespace('roles')
     registry.registerNamespace('generativeAIModel')
+    registry.registerNamespace('aiProviderModelFeature')
     registry.registerNamespace('onboarding')
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
     registry.registerNamespace('workspaceSettingsPage')
+    registry.registerNamespace('agentExtension')
+    registry.registerNamespace('agentSettings')
+    registry.registerNamespace('subject')
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
     registry.registerNamespace('captchaProvider')
 
     const context = { app: nuxtApp }
+
+    registry.register('subject', new UserSubjectType(context))
+    registry.register('subject', new AgentSubjectType(context))
+
+    registry.register('agentSettings', new GeneralAgentSettingsType(context))
+    registry.register('agentSettings', new McpServerAgentSettingsType(context))
 
     registry.register('settings', new AccountSettingsType(context))
     registry.register('settings', new PasswordSettingsType(context))
@@ -182,6 +210,10 @@ export default defineNuxtPlugin({
 
     registry.register('generativeAIModel', new OpenAIModelType(context))
     registry.register('generativeAIModel', new AnthropicModelType(context))
+    registry.register('generativeAIModel', new BedrockModelType(context))
+    registry.register('generativeAIModel', new GoogleModelType(context))
+    registry.register('generativeAIModel', new GroqModelType(context))
+    registry.register('generativeAIModel', new XaiModelType(context))
     registry.register('generativeAIModel', new MistralModelType(context))
     registry.register('generativeAIModel', new OllamaModelType(context))
     registry.register('generativeAIModel', new OpenRouterModelType(context))
@@ -223,6 +255,7 @@ export default defineNuxtPlugin({
     registry.register('admin', new DashboardAdminType(context))
     registry.register('admin', new UsersAdminType(context))
     registry.register('admin', new WorkspacesAdminType(context))
+    registry.register('admin', new AIProvidersAdminType(context))
     registry.register('admin', new SettingsAdminType(context))
     registry.register('admin', new HealthCheckAdminType(context))
 
@@ -242,6 +275,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new InvitesWorkspaceSettingsPageType(context)
+    )
+    registry.register(
+      'workspaceSettingsPage',
+      new AgentsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))
@@ -300,6 +337,11 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeSplit(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsEmpty(context))
     registry.register('runtimeFormulaFunction', new RuntimeStrip(context))
+    registry.register('runtimeFormulaFunction', new RuntimeEncodeUri(context))
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeEncodeUriComponent(context)
+    )
     registry.register('runtimeFormulaFunction', new RuntimeSum(context))
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
     registry.register('runtimeFormulaFunction', new RuntimeAt(context))
@@ -380,6 +422,10 @@ export default defineNuxtPlugin({
     registry.register(
       'notification',
       new BaserowVersionUpgradeNotificationType(context)
+    )
+    registry.register(
+      'notification',
+      new AbuseReportCreatedNotificationType(context)
     )
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))

@@ -37,28 +37,33 @@ class UserSourceJSONWebTokenAuthentication(JWTAuthentication):
     """
 
     def __init__(
-        self, use_user_source_authentication_header: bool = False, *args, **kwargs
+        self,
+        use_user_source_authentication_header: bool = False,
+        authentication_header: str | None = None,
+        *args,
+        **kwargs,
     ):
         """
         :param use_user_source_authentication_header: Set to True if you want to
-          authentication using a special `settings.USER_SOURCE_AUTHENTICATION_HEADER`
-          header. This is useful when you want to keep the main authentication in the
-          `Authorization` header but still want a "double" authentication with a user
-          source user.
+          authenticate using a secondary header. This is useful when you want
+          "double" authentication with a primary actor in request.user and a user
+          source user in request.user_source_user.
+        :param authentication_header: The header to read when
+          `use_user_source_authentication_header` is enabled.
         """
 
         self.use_user_source_authentication_header = (
             use_user_source_authentication_header
         )
+        self.authentication_header = (
+            authentication_header or settings.USER_SOURCE_AUTHENTICATION_HEADER
+        )
         super().__init__(*args, **kwargs)
 
     def get_header(self, request):
         if self.use_user_source_authentication_header:
-            # Instead of reading the usual `Authorization` header we use a custom
-            # header to authenticate the user source user.
-            header = request.headers.get(
-                settings.USER_SOURCE_AUTHENTICATION_HEADER, None
-            )
+            # Read the configured secondary header for double authentication.
+            header = request.headers.get(self.authentication_header, None)
             if isinstance(header, str):
                 # Work around django test client oddness
                 header = header.encode(HTTP_HEADER_ENCODING)

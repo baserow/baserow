@@ -44,7 +44,7 @@ export async function createUser(
 ): Promise<User> {
   const password = faker.internet.password();
   const response: any = await getClient().post("user/", {
-    name: faker.name.fullName(),
+    name: faker.person.fullName(),
     email: faker.internet.email(),
     password,
     language: "en",

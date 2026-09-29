@@ -536,3 +536,73 @@ def test_undoing_field_delete_whilst_field_locked_works(api_client, data_fixture
 
     assert TextField.objects.filter(id=field.id).exists()
     assert Action.objects.get().is_undone()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_application_action_undoable_from_all_workspaces_but_not_another_workspace(
+    api_client, data_fixture
+):
+    session_id = str(uuid.uuid4())
+    user, token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_2 = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(
+        workspace=workspace_1, name="Before"
+    )
+
+    def undo(scopes):
+        response = api_client.patch(
+            reverse("api:user:undo"),
+            {"scopes": scopes},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            HTTP_CLIENTSESSIONID=session_id,
+        )
+        assert response.status_code == HTTP_200_OK
+        return response.json()["result_code"]
+
+    def redo(scopes):
+        response = api_client.patch(
+            reverse("api:user:redo"),
+            {"scopes": scopes},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            HTTP_CLIENTSESSIONID=session_id,
+        )
+        assert response.status_code == HTTP_200_OK
+        return response.json()["result_code"]
+
+    # Renamed from the all workspaces homepage, which has no workspace selected.
+    response = api_client.patch(
+        reverse("api:applications:item", kwargs={"application_id": application.id}),
+        {"name": "After"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # Another workspace never sees it.
+    assert (
+        undo({"root": True, "workspace": workspace_2.id})
+        == UndoRedoResultCodeField.NOTHING_TO_DO
+    )
+    # The homepage does.
+    assert (
+        undo({"root": True, "all_workspaces": True}) == UndoRedoResultCodeField.SUCCESS
+    )
+    application.refresh_from_db()
+    assert application.name == "Before"
+    assert (
+        redo({"root": True, "all_workspaces": True}) == UndoRedoResultCodeField.SUCCESS
+    )
+    application.refresh_from_db()
+    assert application.name == "After"
+    # And so does its own workspace.
+    assert (
+        undo({"root": True, "workspace": workspace_1.id})
+        == UndoRedoResultCodeField.SUCCESS
+    )
+    application.refresh_from_db()
+    assert application.name == "Before"

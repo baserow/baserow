@@ -100,11 +100,35 @@ export class DatabaseOnboardingType extends OnboardingType {
     return null
   }
 
+  getJobErrorMessage(job, data, responses) {
+    const type = data[DatabaseOnboardingType.getType()]?.type
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getJobErrorMessage(job, data, responses)
+    }
+    return null
+  }
+
   getCompletedRoute(data, responses) {
     const type = data[DatabaseOnboardingType.getType()]?.type
     if (type) {
       const stepType = this.app.$registry.get('databaseOnboardingStep', type)
       return stepType.getCompletedRoute(data, responses)
+    }
+    return null
+  }
+
+  async getCancelModal() {
+    // No type has been chosen yet at this point, so every step type gets the chance to
+    // offer an alternative to cancelling the onboarding.
+    const stepTypes = this.app.$registry.getOrderedList(
+      'databaseOnboardingStep'
+    )
+    for (const stepType of stepTypes) {
+      const modal = await stepType.getCancelModal()
+      if (modal) {
+        return modal
+      }
     }
     return null
   }

@@ -13,6 +13,7 @@ from baserow.contrib.builder.api.elements.serializers import (
     CollectionElementPropertyOptionsSerializer,
     CollectionFieldSerializer,
 )
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
@@ -412,7 +413,7 @@ class CollectionElementTypeMixin:
             else:
                 max_count = 20
 
-            if values["items_per_page"] > max_count:
+            if max_count is not None and values["items_per_page"] > max_count:
                 raise RequestBodyValidationException(
                     {
                         "items_per_page": [
@@ -471,7 +472,19 @@ class CollectionElementTypeMixin:
         **kwargs,
     ) -> Any:
         if prop_name == "data_source_id" and value:
-            return id_mapping["builder_data_sources"][value]
+            # The element may still reference a data source that has since been
+            # trashed (soft-deleted). Trashed data sources aren't serialized, so
+            # they won't be in the mapping.
+            try:
+                data_sources = id_mapping["builder_data_sources"]
+            except KeyError:
+                # A full-application import (publish / duplicate-application) whose
+                # page had no live data sources never creates this key, so the
+                # dangling reference resolves to None. We index rather than `.get`
+                # with a default so a `MirrorDict` id_mapping (same-instance paste /
+                # duplicate) still maps the id to itself via its factory.
+                return None
+            return data_sources.get(value)
 
         return super().deserialize_property(
             prop_name,
@@ -568,8 +581,13 @@ class CollectionElementTypeMixin:
             data_source_id = import_context.get("data_source_id")
             service = None
             if data_source_id:
-                data_source = DataSourceHandler().get_data_source(data_source_id)
-                service = data_source.service.specific
+                try:
+                    data_source = DataSourceHandler().get_data_source(data_source_id)
+                    service = data_source.service.specific
+                except DataSourceDoesNotExist:
+                    # The element may reference a data source that has since been
+                    # trashed; skip the property options rather than crash the import.
+                    service = None
 
             service_type = (
                 service_type_registry.get_by_model(service) if service else None
@@ -622,11 +640,18 @@ class CollectionElementTypeMixin:
         # if we have a data_source_id in the context from a parent or from the
         # current instance
         data_source_id = instance.data_source_id or kwargs.get("data_source_id", None)
-        data_source = (
-            DataSourceHandler().get_data_source(data_source_id, with_cache=True)
-            if data_source_id
-            else None
-        )
+        data_source = None
+        if data_source_id:
+            try:
+                data_source = DataSourceHandler().get_data_source(
+                    data_source_id, with_cache=True
+                )
+            except DataSourceDoesNotExist:
+                # The element may still reference a data source that has since been
+                # trashed (soft-deleted): the reference is kept so it can be restored.
+                # Treat it as absent so property extraction skips it rather than
+                # crashing the (public) property computation.
+                data_source = None
 
         if (schema_property := instance.schema_property) and data_source:
             properties[data_source.service_id] = [schema_property]
@@ -671,6 +696,18 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         fields: List[Dict]
+
+    def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
+        """
+        The events of an element with fields are the events of its collection
+        fields, prefixed with the field's uid.
+        """
+
+        return [
+            f"{field.uid}_{event_name}"
+            for field in instance.fields.all()
+            for event_name in collection_field_type_registry.get(field.type).event_names
+        ]
 
     def serialize_property(
         self,

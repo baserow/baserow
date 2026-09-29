@@ -307,7 +307,7 @@ export default {
           (value) => this.fieldIndexMap[value] !== undefined
         ) &&
         (!this.useUpsertField ||
-          Object.values(this.mapping).includes(this.upsertField))
+          this.availableUpsertFields.some(({ id }) => id === this.upsertField))
       )
     },
     fieldTypes() {
@@ -359,8 +359,8 @@ export default {
       return Object.entries(this.mapping)
         .filter(
           ([, targetFieldId]) =>
-            !!targetFieldId ||
-            // Check if we have an id from a removed field
+            !!targetFieldId &&
+            // Check if we have an id from an unavailable field
             this.fieldIndexMap[targetFieldId] !== undefined
         )
         .map(([importIndex, targetFieldId]) => {
@@ -407,7 +407,7 @@ export default {
     },
     availableUpsertFields() {
       const selected = Object.values(this.mapping)
-      return this.sortedFields.filter((field) => {
+      return this.writableFields.filter((field) => {
         return (
           selected.includes(field.id) && this.fieldTypes[field.type].canUpsert()
         )
@@ -541,23 +541,31 @@ export default {
       this.showProgressBar = false
       this.reset(false)
       let data = null
-      const importConfiguration = {}
+      const writableFields = [...this.writableFields]
+      const fieldIndexMap = Object.fromEntries(
+        writableFields.map((field, index) => [field.id, index])
+      )
+      const mapping = { ...this.mapping }
+      const upsertField = this.useUpsertField ? this.upsertField : undefined
+      const importConfiguration = {
+        import_fields: writableFields.map(({ id }) => id),
+      }
 
-      if (this.upsertField) {
+      if (upsertField) {
         // at the moment we use only one field, but the key may be composed of several
         // fields.
-        importConfiguration.upsert_fields = [this.upsertField]
+        importConfiguration.upsert_fields = [upsertField]
         importConfiguration.upsert_values = []
       }
 
-      const mappedFieldIds = Object.values(this.mapping).filter(
-        (id) => id !== 0
+      const mappedFieldIds = Object.values(mapping).filter(
+        (id) => fieldIndexMap[id] !== undefined
       )
-      const skippedFieldIds = this.writableFields
+      const skippedFieldIds = writableFields
         .filter((field) => !mappedFieldIds.includes(field.id))
         .map((field) => field.id)
 
-      if (skippedFieldIds.length > 0) {
+      if (upsertField && skippedFieldIds.length > 0) {
         importConfiguration.skipped_fields = skippedFieldIds
       }
 
@@ -572,32 +580,30 @@ export default {
           const upsertValues = importConfiguration.upsert_values || []
           const upsertFieldIndexes = []
 
-          Object.entries(this.mapping).forEach(
-            ([importIndex, targetFieldId]) => {
-              if (upsertFields.includes(targetFieldId)) {
-                upsertFieldIndexes.push(importIndex)
-              }
+          Object.entries(mapping).forEach(([importIndex, targetFieldId]) => {
+            if (upsertFields.includes(targetFieldId)) {
+              upsertFieldIndexes.push(importIndex)
             }
-          )
+          })
 
-          const fieldMapping = Object.entries(this.mapping)
+          const fieldMapping = Object.entries(mapping)
             .filter(
               ([, targetFieldId]) =>
-                !!targetFieldId ||
-                // Check if we have an id from a removed field
-                this.fieldIndexMap[targetFieldId] !== undefined
+                !!targetFieldId &&
+                // Check if we have an id from an unavailable field
+                fieldIndexMap[targetFieldId] !== undefined
             )
             .map(([importIndex, targetFieldId]) => {
-              return [importIndex, this.fieldIndexMap[targetFieldId]]
+              return [importIndex, fieldIndexMap[targetFieldId]]
             })
 
           // Template row with default values
-          const defaultRow = this.writableFields.map((field) =>
+          const defaultRow = writableFields.map((field) =>
             this.fieldTypes[field.type].getDefaultValue(field, true)
           )
 
           // Precompute the prepare value function for each field
-          const prepareValueByField = this.writableFields.map(
+          const prepareValueByField = writableFields.map(
             (field) => (value) =>
               this.fieldTypes[field.type].prepareValueForUpdate(
                 field,
@@ -668,7 +674,7 @@ export default {
           {
             onUploadProgress,
           },
-          importConfiguration.upsert_fields ? importConfiguration : null,
+          importConfiguration,
           {
             importer_type: this.importer,
             original_file_name: this.$refs.importerRef?.values?.filename || '',

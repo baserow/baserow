@@ -4,7 +4,7 @@
             "licenses": "Gestionar licencias"
         },
         "viewType": {
-            "kanban": "tabla kanban",
+            "kanban": "Kanban",
             "calendar": "Calendario",
             "timeline": "Línea de tiempo"
         },
@@ -217,7 +217,8 @@
         "publicLogoRemovalContent": "Quita el logotipo de Baserow de las vistas públicas para que tu contenido compartido tenga un aspecto más limpio y con una imagen de marca más clara.",
         "personalViewsContent": "Crea vistas que solo el autor pueda ver. Esto te da espacio para experimentar, filtrar y ordenar datos sin afectar el espacio de trabajo de los demás.",
         "chartWidget": "Widget de gráfico",
-        "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen."
+        "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen.",
+        "groupedAggregateRowsDataSourceContent": "Agrupa filas de una tabla de Baserow y calcula resúmenes para usar en páginas del constructor de aplicaciones."
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -284,7 +285,8 @@
     },
     "gridViewFieldAI": {
         "regenerate": "Regenerar",
-        "generate": "Generar"
+        "generate": "Generar",
+        "promptBroken": "El prompt está roto y debe arreglarse antes de que se puedan generar valores."
     },
     "fieldAISubForm": {
         "AIType": "Tipo de IA",
@@ -303,7 +305,8 @@
     },
     "rowEditFieldAI": {
         "generate": "Generar",
-        "createRowBefore": "El valor de IA puede generarse después de crear la fila."
+        "createRowBefore": "El valor de IA puede generarse después de crear la fila.",
+        "promptBroken": "El prompt está roto y debe arreglarse antes de que se puedan generar valores."
     },
     "premiumFieldType": {
         "ai": "Aviso de IA",
@@ -425,5 +428,13 @@
     "viewOwnershipType": {
         "personalDescription": "Solo tú puedes ver la vista.",
         "personal": "Personal"
+    },
+    "aggregationGroupByForm": {
+        "rowIdDisabledTooltip": "Agrupar por ID de fila no está disponible actualmente porque el campo primario puede contener varios valores."
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRowsDescription": "Agrupa filas de una tabla de Baserow y calcula resúmenes.",
+        "errorTrashedAggregationField": "Al menos un campo configurado ha sido enviado a la papelera.",
+        "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas."
     }
 }

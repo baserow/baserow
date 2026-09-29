@@ -1,11 +1,12 @@
-import json
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 from loguru import logger
-from sentry_sdk.transport import Transport
 
 SENTRY_LOG_PREFIX = "[SENTRY]"
 
@@ -38,31 +39,6 @@ def log_sentry_event_to_console(event: dict[str, Any]) -> None:
     logger.error(f"{SENTRY_LOG_PREFIX} [{level}] [{event_id}] {message}")
 
 
-class ConsoleSentryTransport(Transport):
-    """
-    A transport that logs Sentry events locally instead of sending them to Sentry.
-    """
-
-    def capture_event(self, event):
-        log_sentry_event_to_console(event)
-
-    def capture_envelope(self, envelope):
-        for item in envelope.items:
-            item_type = item.headers.get("type", "unknown")
-            payload = item.get_bytes().decode("utf-8", errors="replace")
-
-            if item_type == "event":
-                try:
-                    log_sentry_event_to_console(json.loads(payload))
-                    continue
-                except json.JSONDecodeError:
-                    pass
-
-            logger.error(
-                f"{SENTRY_LOG_PREFIX} [ENVELOPE] [{item_type.upper()}] {payload}"
-            )
-
-
 # asyncio logs a benign websocket close as "<ExceptionType> exception in shielded
 # future". A clean ConnectionClosedOK is always noise; a ConnectionClosedError is
 # only noise for a keepalive timeout. Their rate lives in the
@@ -71,12 +47,19 @@ class ConsoleSentryTransport(Transport):
 # disconnects from worker restarts) and protocol errors.
 _OK_CLOSE_LOG = "ConnectionClosedOK exception in shielded future"
 _ERR_CLOSE_LOG = "ConnectionClosedError exception in shielded future"
+# Logged since Python 3.14 when a timed-out health probe cancels its request.
+_CANCELLED_REQUEST_LOG = "CancelledError exception in shielded future"
 
 
-def drop_expected_asyncio_websocket_disconnect_events(
+def _is_health_check_event(event: dict[str, Any]) -> bool:
+    url = (event.get("request") or {}).get("url") or ""
+    return urlparse(url).path == reverse("api:health:public_health_check")
+
+
+def drop_expected_asyncio_disconnect_events(
     event: dict[str, Any], hint: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Sentry before_send hook that drops expected websocket-close noise."""
+    """Sentry before_send hook that drops expected client-disconnect noise."""
 
     log_record = hint.get("log_record")
     if not isinstance(log_record, logging.LogRecord):
@@ -97,6 +80,8 @@ def drop_expected_asyncio_websocket_disconnect_events(
         return None
     if message.startswith(_ERR_CLOSE_LOG) and "keepalive ping timeout" in message:
         return None
+    if message.startswith(_CANCELLED_REQUEST_LOG) and _is_health_check_event(event):
+        return None
 
     return event
 
@@ -108,6 +93,9 @@ def setup_user_in_sentry(user):
 
     :param user: The user that needs to be set in the Sentry context.
     """
+
+    if not settings.SENTRY_DSN:
+        return
 
     from sentry_sdk import set_user
 

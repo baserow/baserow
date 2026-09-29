@@ -39,7 +39,12 @@ class BuilderDispatchContext(DispatchContext):
         "count",
         "only_record_id",
         "only_expose_public_allowed_properties",
+        "workspace",
     ]
+
+    # The answer and the body have always had a whole timeout each here, so
+    # an external request keeps both until #6117 settles a stricter one.
+    external_request_timeouts = 2
 
     def __init__(
         self,
@@ -79,6 +84,8 @@ class BuilderDispatchContext(DispatchContext):
             only_expose_public_allowed_properties
         )
 
+        kwargs["workspace"] = page.builder.get_workspace()
+
         super().__init__(**kwargs)
 
         # Early call to quickly trigger a validation error
@@ -106,11 +113,7 @@ class BuilderDispatchContext(DispatchContext):
             data=getattr(self.request, "data", {}).get("metadata", {}),
             context={
                 "page": self.page,
-                "user": getattr(
-                    self.request,
-                    "user_source_user",
-                    getattr(self.request, "user", None),
-                ),
+                "user": getattr(self.request, "user", None),
             },
         )
         serializer.is_valid(raise_exception=True)
@@ -166,10 +169,10 @@ class BuilderDispatchContext(DispatchContext):
                     pass
 
         # max prevent negative values
-        return [
+        return (
             max(0, offset),
             max(0, count) if count is not None else None,
-        ]
+        )
 
     def get_element_property_options(self) -> Dict[str, Dict[str, bool]]:
         """
@@ -200,6 +203,22 @@ class BuilderDispatchContext(DispatchContext):
             self.cache["element_property_options"] = property_options
 
         return self.cache["element_property_options"]
+
+    def is_adhoc_refinable(self, service) -> bool:
+        """
+        Adhoc refinements (search, filters and sortings) provided by the HTTP
+        request only apply to the data source the request targets. While that
+        data source is being dispatched, formulas (e.g. in its service
+        filters) can trigger nested dispatches of other data sources; the
+        request's refinements must not be applied to those, as e.g. the
+        searchable field ids of the requested data source's element don't
+        exist in the nested data source's table.
+
+        :param service: The service that is currently being dispatched.
+        :return: Whether adhoc refinements may be applied to this service.
+        """
+
+        return self.data_source is None or self.data_source.service_id == service.id
 
     @property
     def is_publicly_searchable(self) -> bool:

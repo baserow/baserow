@@ -31,7 +31,15 @@ test.describe("Builder page show notification action test suite", () => {
     const eventsTab = await builderPagePage.getElementEventsTab();
 
     await eventsTab.getByText("add action").click();
-    await page.locator(".context").getByText("Show Notification").click();
+    const actionMenu = page.locator(".event__add-action-context:visible");
+    await actionMenu
+      .locator(".grouped-menu__navigation")
+      .getByRole("menuitem", { name: "Core", exact: true })
+      .click();
+    await actionMenu
+      .locator(".grouped-menu__actions")
+      .getByRole("menuitem", { name: "Show Notification" })
+      .click();
 
     await expect(
       eventsTab.getByText("Show Notification").locator("visible=true"),

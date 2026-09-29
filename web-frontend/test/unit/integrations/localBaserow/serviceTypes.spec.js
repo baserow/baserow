@@ -7,6 +7,17 @@ import {
   LocalBaserowFieldsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/integrations/locales/en.json'),
+    'utf8'
+  )
+)
 
 describe('Local baserow service types', () => {
   let testApp = null
@@ -61,6 +72,35 @@ describe('Local baserow service types', () => {
     expect(
       serviceType.prepareValuePath(service, ['field_42', 'value'])
     ).toEqual(['Field 42', 'value'])
+  })
+
+  test('List service preserves specialized default Table columns', () => {
+    const serviceType = new LocalBaserowListRowsServiceType({})
+    const types = {
+      boolean: 'boolean',
+      rating: 'number',
+      url: 'string',
+      file: 'array',
+      created_by: 'object',
+      last_modified_by: 'object',
+      single_select: 'object',
+      multiple_select: 'array',
+      multiple_collaborators: 'array',
+      formula: 'string',
+    }
+    const properties = Object.fromEntries(
+      Object.entries(types).map(([originalType, type], index) => [
+        `field_${index}`,
+        { type, original_type: originalType, title: originalType },
+      ])
+    )
+    properties.id = { type: 'number', title: 'Id' }
+    expect(
+      serviceType.getDefaultCollectionFields({
+        schema: { items: { properties } },
+      })
+    ).toMatchSnapshot()
+    expect(serviceType.getDefaultCollectionFields({ schema: null })).toEqual([])
   })
 
   test('List service should resolve correctly in builder data provider', () => {
@@ -287,5 +327,105 @@ describe('Local baserow service types', () => {
     expect(
       serviceType.isInError({ service: { table_id: 1, field_ids: [1, 2] } })
     ).toBe(false)
+  })
+
+  test('getErrorMessage flags a data source whose integration is not resolvable', () => {
+    const application = { id: 1 }
+    const fakeApp = {
+      $store: {
+        getters: {
+          'integration/getIntegrationById': (app, id) =>
+            id === 5 ? { id: 5, type: 'local_baserow' } : undefined,
+        },
+      },
+      $i18n: { t: (key) => key },
+    }
+    const serviceType = new LocalBaserowGetRowServiceType({ app: fakeApp })
+
+    // Live integration + table selected → valid.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, table_id: 99 },
+        application,
+      })
+    ).toBe(null)
+
+    // Integration trashed/absent (not in the store) → misconfigured.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 41, table_id: 99 },
+        application,
+      })
+    ).toBe('serviceType.errorMisconfiguredIntegration')
+
+    // Without an application the integration can't be resolved, so the check is
+    // skipped (no false positive); other checks still apply.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 41, table_id: 99 },
+      })
+    ).toBe(null)
+
+    // A service with no integration configured must not be flagged by the
+    // integration check even when an application is present - the more specific
+    // checks (e.g. no table selected) cover that case.
+    expect(
+      serviceType.getErrorMessage({
+        service: { table_id: 99 },
+        application,
+      })
+    ).toBe(null)
+  })
+
+  test('the update row service is in error without a row ID, the create row service is not', () => {
+    const registry = testApp.getRegistry()
+    const updateRow = registry.get('service', 'local_baserow_update_row')
+    const createRow = registry.get('service', 'local_baserow_create_row')
+    const emptyRowId = { formula: '', mode: 'simple', version: '0.1' }
+    const rowId = { formula: "get('row.id')", mode: 'simple', version: '0.1' }
+
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: 1, row_id: emptyRowId },
+      })
+    ).toBe('serviceType.errorNoRowIdSelected')
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: 1, row_id: { ...emptyRowId, formula: '  ' } },
+      })
+    ).toBe('serviceType.errorNoRowIdSelected')
+    expect(
+      updateRow.getErrorMessage({ service: { table_id: 1, row_id: rowId } })
+    ).toBe(null)
+    // A public page's service carries no formulas, so nothing to check.
+    expect(updateRow.getErrorMessage({ service: { table_id: 1 } })).toBe(null)
+    // The table comes first: the row ID input is disabled until one is chosen.
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: null, row_id: emptyRowId },
+      })
+    ).toBe('serviceType.errorNoTableSelected')
+    expect(
+      createRow.getErrorMessage({
+        service: { table_id: 1, row_id: emptyRowId },
+      })
+    ).toBe(null)
+    expect(en.serviceType.errorNoRowIdSelected).toBe('No row ID selected')
+  })
+
+  test('the create rows service reports a missing table before missing rows', () => {
+    const createRows = testApp
+      .getRegistry()
+      .get('service', 'local_baserow_create_rows')
+    const emptyRows = { formula: '', mode: 'simple', version: '0.1' }
+
+    expect(
+      createRows.getErrorMessage({
+        service: { table_id: null, rows: emptyRows },
+      })
+    ).toBe('serviceType.errorNoTableSelected')
+    expect(
+      createRows.getErrorMessage({ service: { table_id: 1, rows: emptyRows } })
+    ).toBe('serviceType.errorNoRowsSelected')
   })
 })

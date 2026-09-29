@@ -11,15 +11,21 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.core.exceptions import PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.builder.themes import (
     THEME_CATALOG,
     ThemeName,
     apply_theme,
+)
+from baserow_enterprise.assistant.tools.shared import (
+    permission_denied_result,
+    raise_if_permission_denied,
+    require_payload,
 )
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
@@ -118,10 +124,23 @@ def list_pages(
         user_source_data.append(entry)
 
     return {
+        "application_id": builder.id,
         "pages": [p.model_dump() for p in pages],
         "login_page_id": builder.login_page_id,
         "user_sources": user_source_data,
         "available_roles": UserSourceHandler().get_all_roles_for_application(builder),
+        "next_steps": (
+            "For a requested new page, use create_pages with this application_id "
+            "first, then use its returned page ID in setup_page or element tools. "
+            "An application ID is not a page ID. Do not replace a different existing "
+            "page when the user asked for a new one. If a new presentation page's "
+            "CTA has no specified destination and a Home page is listed, link the "
+            "CTA to that page and state this assumption instead of blocking the "
+            "build with a question. Do not modify that destination page. "
+            "For pages displaying records, "
+            "find the matching table before creating the page; if the records are "
+            "missing, ask where they should come from first."
+        ),
     }
 
 
@@ -140,6 +159,7 @@ def create_pages(
     WHAT it does: Creates pages with paths and parameters. Skips duplicates by name.
     RETURNS: Created pages with id, name, path.
     DO NOT USE when: Pages with those names already exist — check with list_pages first.
+    REQUIRED: `application_id` and `pages` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Page Setup
     - Each page needs a unique name and path.
@@ -154,8 +174,7 @@ def create_pages(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not pages:
-        return {"created_pages": []}
+    require_payload("create_pages", "pages", pages)
 
     builder = helpers.get_builder(user, workspace, application_id)
 
@@ -195,8 +214,13 @@ def create_pages(
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
     if created_pages:
         result["next_steps"] = (
-            "Pages created. Next: create data sources (create_data_sources), "
-            "then elements (create_display_elements, create_layout_elements, "
+            "Pages created. Add the requested content now. Draft sensible headings, "
+            "descriptions, and button labels rather than asking for this copy. "
+            "If the request names an internal navigation destination that is "
+            "missing, create that supporting page too and link to its returned ID. "
+            "Add data sources only for content backed by existing records "
+            "(create_data_sources). Then add elements "
+            "(create_display_elements, create_layout_elements, "
             "create_form_elements, create_collection_elements), "
             "then actions for buttons/forms (create_actions)."
         )
@@ -293,6 +317,7 @@ def create_data_sources(
     WHAT it does: Creates list_rows or get_row data sources. Skips duplicates by name.
     RETURNS: Created data sources with ref-to-ID mapping.
     DO NOT USE when: Data sources with those names already exist on the page.
+    REQUIRED: `page_id` and `data_sources` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Data Source Types
     - list_rows: Fetches multiple rows — use when the page displays a collection (table, repeat, dropdown).
@@ -311,8 +336,7 @@ def create_data_sources(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not data_sources:
-        return {"created_data_sources": [], "ref_to_id_map": {}}
+    require_payload("create_data_sources", "data_sources", data_sources)
 
     page = helpers.get_page(user, page_id)
     integration = helpers.get_local_baserow_integration(user, page.builder)
@@ -444,7 +468,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, order, parent_element_id, is_container.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -474,9 +498,6 @@ def _create_elements_internal(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not elements:
-        return {"created_elements": [], "ref_to_id_map": {}}
-
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
 
@@ -487,6 +508,7 @@ def _create_elements_internal(
 
     ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
     element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
+    created_elements_by_id: dict[int, Any] = {}
     ds_ref_to_id = _get_data_source_refs(tool_helpers, page_id)
     shared_page_refs: set[str] = set(
         _get_element_refs(tool_helpers, shared_page.id).keys()
@@ -508,11 +530,13 @@ def _create_elements_internal(
                     shared_page_refs,
                     before_element_id,
                 )
-            except (ValueError, Exception) as exc:
+            except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"{el_create.ref}: {exc}")
                 continue
             ref_to_id[el_create.ref] = el_id
             element_mapping[el_create.ref] = (element, el_create)
+            created_elements_by_id[el_id] = element
             table_action_pairs.extend(action_pairs)
             created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
 
@@ -542,16 +566,40 @@ def _create_elements_internal(
     if errors:
         result["errors"] = errors
 
-    # Guide the model to create workflow actions for interactive elements
+    # Report the saved graph after the entire batch, including children added by
+    # post-create hooks. A container's successful creation does not add content.
+    empty_containers = [
+        item
+        for item in created
+        if (element := created_elements_by_id[item["id"]]).get_type().is_container
+        and not element.page.get_graph().get_children(element)
+    ]
+    next_steps = []
+    if empty_containers:
+        result["empty_containers"] = empty_containers
+        next_steps.append(
+            "The empty_containers have no child elements. If the user requested "
+            "content, add that requested content before finishing, using "
+            "parent_element with the returned container ID or ref. Creating a "
+            "container does not complete its requested content. Inside a repeat, "
+            "use current_record for each row's dynamic values. Do not add "
+            "unrequested content or invent missing data."
+        )
+
+    # Guide the model to create workflow actions for interactive elements.
     actionable = [
-        el.ref for el in elements if el.type in ("button", "link", "form_container")
+        el.ref
+        for el in elements
+        if el.ref in element_mapping and el.type in ("button", "form_container")
     ]
     if actionable:
-        result["next_steps"] = (
+        next_steps.append(
             f"Elements {actionable} need workflow actions. "
-            "Call create_actions next: 'click' event for buttons/links, "
+            "Call create_actions next: 'click' event for buttons, "
             "'submit' event for form_container."
         )
+    if next_steps:
+        result["next_steps"] = " ".join(next_steps)
 
     # Navigate to the page containing the created elements
     if created:
@@ -584,10 +632,15 @@ def create_display_elements(
     """\
     Create display elements on a page: heading, text, button, link, image.
 
+    For navigation, use a link (link_variant='button' gives a button appearance),
+    or create a button and then create_actions(type='open_page', event='click').
+    Button elements do not accept navigation properties.
+
     PREREQUISITE: The page must already exist. Call create_pages first if it doesn't.
     WHEN to use: User wants to add text content, headings, buttons, links, or images.
     WHAT it does: Creates display elements with formula support for dynamic values.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Element Structure
     - parent_element: int ID (existing container) or string ref (same batch)
@@ -597,10 +650,12 @@ def create_display_elements(
     - Heading/text value: "$formula: the product name from the products data source"
     - Image URL: "$formula: the image URL from the product data source"
     - Static text: use plain strings (auto-wrapped in quotes)
+    - Inside a collection, descriptions use current_record for that collection's row.
+      For intentional fixed-row access, supply an explicit runtime expression.
 
-    ## After Creating Buttons/Links
-    Buttons/links need a click action (open_page, notification, etc.) via create_actions.
-    ALWAYS call create_actions after creating buttons or links.
+    ## After Creating Buttons
+    Buttons need a click action (open_page, notification, etc.) via create_actions.
+    Links use their navigation properties directly.
 
     ## Buttons/Links in Shared Headers
     - In shared headers, only use links that navigate to a FIXED page (navigate_to_page_id).
@@ -608,6 +663,7 @@ def create_display_elements(
     - For page-specific navigation (back, contextual links), place buttons on the page itself.
     """
 
+    require_payload("create_display_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
     return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
@@ -632,6 +688,7 @@ def create_layout_elements(
     WHEN to use: User wants page structure — columns, containers, headers, footers, menus.
     WHAT it does: Creates container elements that hold child elements.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Element Structure
     - Layout elements are containers — add children via parent_element ref.
@@ -645,9 +702,12 @@ def create_layout_elements(
     - NEVER put page-specific content in shared headers (e.g., "back" button,
       page-specific data, breadcrumbs). These vary per page and will be wrong.
     - A menu element inside a header/footer is also shared.
+    - `page_id` is still required for shared elements: pass any existing page of the
+      application, such as the Home page from list_pages. There is no application_id.
     - Shared elements CANNOT reference page-specific data sources.
     """
 
+    require_payload("create_layout_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
     return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
@@ -672,6 +732,7 @@ def create_form_elements(
     WHEN to use: User wants a form to collect input data.
     WHAT it does: Creates form containers and input elements with validation.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Form Structure
     - Create a form_container first, then add inputs inside it via parent_element.
@@ -689,6 +750,7 @@ def create_form_elements(
     ALWAYS call create_actions after creating form_container elements.
     """
 
+    require_payload("create_form_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
     return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
@@ -714,6 +776,7 @@ def create_collection_elements(
     WHEN to use: User wants to display data from a data source in a table or repeating layout.
     WHAT it does: Creates collection elements connected to data sources.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Prerequisites
     Create data sources first (create_data_sources), then reference them here.
@@ -728,6 +791,7 @@ def create_collection_elements(
     - Add child elements inside the repeat via parent_element ref.
     """
 
+    require_payload("create_collection_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
     return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
@@ -756,11 +820,19 @@ def update_element(
     ## Usage
     - element_id: ID of the element to update (from list_elements).
     - Only set the fields you want to change — unset fields are left unchanged.
-    - Invalid fields for the element type are silently ignored.
+    - Unsupported fields reject the update without applying any changes.
+    - Button navigation belongs in create_actions(type='open_page', event='click'),
+      not in update_element. Links support navigation properties directly.
+    - Table fields accept literal values or explicit runtime expressions on update;
+      natural-language formula generation for table fields is creation-only.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
     - default_value: "$formula: the current user's email"
+    - Inside a collection, descriptions use current_record for that collection's row.
+      For intentional fixed-row access, supply an explicit runtime expression.
+    - Switching a link/image to a generated URL applies only if that URL succeeds.
+      Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
     - To add/replace menu items on a menu element, set menu_items with the full list.
@@ -781,18 +853,37 @@ def update_element(
 
     # Handle formula generation for $formula: fields (separate transaction)
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
+    applied_formulas: list[str] = []
+    errors: list[str] = []
     if formulas:
-        agents.update_single_element_formulas(
-            user, page, orm_element, element, element_type, tool_helpers
-        )
+        try:
+            applied_formulas, errors = agents.update_single_element_formulas(
+                user, page, orm_element, element, element_type, tool_helpers
+            )
+        except PermissionException:
+            errors = [
+                "Permission denied while applying element formulas. "
+                "Previous formula values were retained. Do not retry the denied operation."
+            ]
 
-    updated_fields = element.get_updated_field_names()
-    return {
-        "status": "ok",
+    dependent_fields = element.get_formula_dependent_fields(element_type)
+    updated_fields = []
+    for field in element.get_updated_field_names():
+        formula_field = (
+            "value" if element_type == "button" and field == "label" else field
+        )
+        formula_field = dependent_fields.get(field, formula_field)
+        if formula_field not in formulas or formula_field in applied_formulas:
+            updated_fields.append(field)
+    result = {
+        "status": ("partial" if updated_fields else "error") if errors else "ok",
         "element_id": element.element_id,
         "element_type": element_type,
         "updated_fields": updated_fields,
     }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -926,8 +1017,12 @@ def move_elements(
                     "element_id": element.id,
                     "parent_element_id": element.parent_element_id,
                     "place_in_container": element.place_in_container,
-                    "order": str(element.order),
                 }
+            )
+        except PermissionException:
+            errors.append(
+                f"Permission denied for element {element_move.element_id}; it was not moved. "
+                "Do not retry the denied operation."
             )
         except Exception as exc:
             errors.append(f"element {element_move.element_id}: {exc}")
@@ -986,6 +1081,7 @@ def create_actions(
     WHEN to use: User wants buttons/forms to perform actions (navigate, create/update rows, show notifications).
     WHAT it does: Creates workflow actions with formula support for dynamic values.
     RETURNS: Created actions with id, type, element_ref, event.
+    REQUIRED: `page_id` and `actions` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Attaching Actions
     - element_ref: attach to newly created element (auto-tracked)
@@ -1010,8 +1106,7 @@ def create_actions(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not actions:
-        return {"created_actions": []}
+    require_payload("create_actions", "actions", actions)
 
     page = helpers.get_page(user, page_id)
     integration = helpers.get_local_baserow_integration(user, page.builder)
@@ -1032,7 +1127,8 @@ def create_actions(
                 orm_action, action_id = helpers.create_workflow_action(
                     user, page, action_create, el_refs, ds_refs, integration
                 )
-            except (ValueError, Exception) as exc:
+            except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"{action_create.type} on {action_create.element}: {exc}")
                 continue
             action_pairs.append((orm_action, action_create))
@@ -1101,9 +1197,16 @@ def _setup_data_sources(
     integration,
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create data sources, skipping duplicates by name or structural match.
+    """
+    Create data sources, skipping duplicates by name or structural match.
 
-    Mutates *ds_ref_to_id* in place. Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create data sources on.
+    :param data_sources: The requested data source definitions.
+    :param ds_ref_to_id: Ref-to-ID mapping, mutated in place.
+    :param integration: The local Baserow integration to attach to.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1145,6 +1248,7 @@ def _setup_data_sources(
                     }
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"data_source {ds_create.ref}: {exc}")
     errors.extend(
         agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
@@ -1161,10 +1265,17 @@ def _setup_elements(
     shared_page_refs: set[str],
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create elements in order, generate formulas, and handle table actions.
+    """
+    Create elements in order, generate formulas, and handle table actions.
 
-    Mutates *el_ref_to_id* and *shared_page_refs* in place.
-    Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create elements on.
+    :param elements: The requested element definitions.
+    :param el_ref_to_id: Ref-to-ID mapping, mutated in place.
+    :param ds_ref_to_id: Data source ref-to-ID mapping.
+    :param shared_page_refs: Refs placed on the shared page, mutated in place.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1199,6 +1310,7 @@ def _setup_elements(
                     {"id": el_id, "ref": el_create.ref, "type": el_create.type}
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"element {el_create.ref}: {exc}")
     errors.extend(
         agents.update_element_formulas(
@@ -1223,9 +1335,17 @@ def _setup_actions(
     integration,
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create workflow actions and generate their formulas.
+    """
+    Create workflow actions and generate their formulas.
 
-    Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create actions on.
+    :param actions: The requested action definitions.
+    :param el_ref_to_id: Element ref-to-ID mapping.
+    :param ds_ref_to_id: Data source ref-to-ID mapping.
+    :param integration: The local Baserow integration to attach to.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1259,6 +1379,7 @@ def _setup_actions(
                     }
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(
                     f"action {action_create.type} on {action_create.element}: {exc}"
                 )
@@ -1275,7 +1396,12 @@ def _setup_actions(
 
 def setup_page(
     ctx: RunContext[AssistantDeps],
-    page_id: Annotated[int, Field(description="The page ID.")],
+    page_id: Annotated[
+        int,
+        Field(
+            description="Existing page ID from list_pages or create_pages, never an application ID. Create a requested new page with create_pages first."
+        ),
+    ],
     data_sources: Annotated[
         list[DataSourceCreate] | None,
         Field(default=None, description="Data sources to create."),
@@ -1293,11 +1419,12 @@ def setup_page(
     ] = "",
 ) -> dict[str, Any]:
     """\
-    Set up a complete page: data sources, elements, and actions in one call.
+    Populate an existing page with data sources, elements, and actions.
 
     WHEN to use: Building a complete page with data, UI elements, and interactions.
-    WHAT it does: Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
+    WHAT it does: Adds content to an existing page; it does not create the page itself. For a requested new page, call create_pages first and use its returned ID. Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
     RETURNS: Created items with ref-to-ID mappings and any errors. Partial success is possible — some items may be created even when others fail. Check the ``errors`` key.
+    ARGS: ``page_id`` is WHERE to build; ``data_sources``, ``elements`` and ``actions`` are WHAT to build. Each of the three is optional on its own, but a call carrying none of them creates nothing and is rejected. To only open a page, use ``navigate``.
 
     ## Deduplication
     Data sources are deduplicated by name (case-insensitive) and by structural match (same type and table). Existing data sources are reused and their IDs mapped to the provided refs.
@@ -1343,6 +1470,15 @@ def setup_page(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
+    if not data_sources and not elements and not actions:
+        raise ModelRetry(
+            "setup_page was called with no content: `data_sources`, `elements` "
+            "and `actions` were all empty, so nothing was created. An ID "
+            "argument says where to act, never what to do — send the items to "
+            "build in the same call that carries the ID. To only open a page, "
+            "use `navigate` instead."
+        )
+
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
     integration = helpers.get_local_baserow_integration(user, page.builder)
@@ -1357,24 +1493,38 @@ def setup_page(
     all_errors: list[str] = []
 
     # Phase 1: Data sources
-    created_ds, ds_errors = _setup_data_sources(
-        user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
-    )
+    try:
+        created_ds, ds_errors = _setup_data_sources(
+            user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(ds_errors)
     _track_data_source_refs(tool_helpers, page_id, ds_ref_to_id)
     if created_ds:
         result["created_data_sources"] = created_ds
 
     # Phase 2: Elements
-    created_el, el_errors = _setup_elements(
-        user,
-        page,
-        elements or [],
-        el_ref_to_id,
-        ds_ref_to_id,
-        shared_page_refs,
-        tool_helpers,
-    )
+    try:
+        created_el, el_errors = _setup_elements(
+            user,
+            page,
+            elements or [],
+            el_ref_to_id,
+            ds_ref_to_id,
+            shared_page_refs,
+            tool_helpers,
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(el_errors)
     _track_element_refs(tool_helpers, page_id, el_ref_to_id)
     _track_element_refs(
@@ -1386,15 +1536,22 @@ def setup_page(
         result["created_elements"] = created_el
 
     # Phase 3: Actions
-    created_actions, action_errors = _setup_actions(
-        user,
-        page,
-        actions or [],
-        el_ref_to_id,
-        ds_ref_to_id,
-        integration,
-        tool_helpers,
-    )
+    try:
+        created_actions, action_errors = _setup_actions(
+            user,
+            page,
+            actions or [],
+            el_ref_to_id,
+            ds_ref_to_id,
+            integration,
+            tool_helpers,
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(action_errors)
     if created_actions:
         result["created_actions"] = created_actions
@@ -1445,6 +1602,7 @@ def setup_user_source(
     try:
         builder = helpers.get_builder(user, workspace, application_id)
     except Exception as exc:
+        raise_if_permission_denied(exc)
         return {"error": f"Could not find application: {exc}"}
 
     tool_helpers.update_status(_("Setting up user source..."))
@@ -1468,6 +1626,7 @@ def setup_user_source(
                 user, builder, setup.name, table, field_map, integration
             )
     except Exception as exc:
+        raise_if_permission_denied(exc)
         return {"error": str(exc)}
 
     # Create login page if not already set
@@ -1579,18 +1738,3 @@ TOOL_FUNCTIONS = [
     set_theme,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
-
-ROUTING_RULES = """\
-- New page with content: call create_pages first, then setup_page for the NEW page. If elements don't fit the current page context, ask which page to target.
-- switch_mode: switch domain if task needs tools not in the current mode.
-- Use setup_page when creating all content for a page at once. Use individual tools (create_data_sources, create_*_elements, create_actions) when adding to or modifying a page that already has content.
-- Button/form actions (click, submit) → create_actions. Do NOT switch to database mode to use load_row_tools for this — that is for direct database CRUD, not builder page behavior.
-- switch_mode when the task needs tools from another domain. Examples:
-  - Filtering: switch_mode("database") → create_views + create_view_filters → switch_mode("application") → create_data_sources with view_id.
-  - New tables for an app: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page.
-- User authentication: if the app needs login/roles, call setup_user_source before creating pages with visibility="logged-in".
-- Completeness checks before finishing:
-  - Every page that displays data needs at least one data source.
-  - Table/repeat elements must specify their columns/fields.
-  - Forms need input elements + a submit action (create_row or update_row).
-  - Buttons and links need a click action (open_page, notification, etc.)."""

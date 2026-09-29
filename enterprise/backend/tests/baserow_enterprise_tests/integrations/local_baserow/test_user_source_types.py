@@ -1,8 +1,10 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
+from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils.timezone import now
 
 import pytest
 from freezegun import freeze_time
@@ -34,6 +36,8 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.models import AppAuthProvider
+from baserow.core.cache import global_cache
+from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -43,11 +47,17 @@ from baserow.core.user_sources.registries import (
 )
 from baserow.core.user_sources.service import UserSourceService
 from baserow.core.utils import MirrorDict, Progress
-from baserow.test_utils.helpers import AnyStr
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
+from baserow_enterprise.application_users.usage import get_over_limit_cache_key
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
+)
+from baserow_premium.license.plugin import LicensePlugin
+from baserow_premium.plugins import PremiumPlugin
 
 from .helpers import populate_local_baserow_test_data
 
@@ -1105,9 +1115,14 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
         table=table,
         row_id="2",
     )
+    for field in fields:
+        data_fixture.create_builder_heading_element(
+            page=page,
+            value=f"get('data_source.{data_source.id}.field_{field.id}')",
+        )
 
     # Create the user table for the user_source
-    user_table, user_fields, user_rows = data_fixture.build_table(
+    user_table, user_fields, _ = data_fixture.build_table(
         user=user,
         columns=[
             ("Email", "text"),
@@ -1138,11 +1153,12 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     DomainHandler().publish(domain1, progress)
     domain1.refresh_from_db()
 
-    user_source_type = user_source.get_type()
-
-    user = user_rows[0]
-
-    user_source_user = user_source_type.get_user(user_source, email="test@baserow.io")
+    published_user_source = user_source.get_type().model_class.objects.get(
+        application=domain1.published_to
+    )
+    user_source_user = published_user_source.get_type().get_user(
+        published_user_source, email="test@baserow.io"
+    )
 
     refresh_token = user_source_user.get_refresh_token()
     access_token = refresh_token.access_token
@@ -1151,7 +1167,7 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     published_data_source = published_page.datasource_set.first()
 
     url = reverse(
-        "api:builder:data_source:dispatch",
+        "api:builder:domains:public_dispatch",
         kwargs={"data_source_id": published_data_source.id},
     )
 
@@ -1159,13 +1175,11 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION_US=f"JWT {access_token}",
+        HTTP_AUTHORIZATION=f"JWT {access_token}",
     )
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "id": 2,
-        "order": AnyStr(),
         fields[0].name: "Audi",
         fields[1].name: "Orange",
     }
@@ -1540,6 +1554,33 @@ def test_local_baserow_user_source_authentication_is_configured(
         setattr(user_source, field, prev_field)
 
 
+@pytest.mark.django_db
+def test_local_baserow_user_source_is_configured_with_trashed_integration(
+    data_fixture,
+):
+    """
+    When the integration is trashed, `UserSourceHandler` still loads the user source
+    but caches its `integration` as `None` while `integration_id` stays set. The user
+    source must then be reported as misconfigured instead of raising an
+    `AttributeError`.
+    """
+
+    data = populate_local_baserow_test_data(data_fixture)
+    integration = data["user_source"].integration
+    integration.trashed = True
+    integration.save()
+
+    user_source = UserSourceHandler().get_user_source(data["user_source"].id)
+    assert user_source.integration_id == integration.id
+    assert user_source.integration is None
+
+    user_source_type = LocalBaserowUserSourceType()
+    assert user_source_type.is_configured(user_source) is False
+
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.is_configured(user_source, raise_exception=True)
+
+
 @pytest.fixture(autouse=True)
 def role_field_id_test_fixture(data_fixture):
     """Fixture to help test the role_field_id."""
@@ -1657,7 +1698,7 @@ def test_prepare_values_role_field_id_raises_if_field_id_mismatch(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_autonumber_field",
         "create_boolean_field",
@@ -1715,7 +1756,7 @@ def test_prepare_values_role_field_id_raises_if_field_type_wrong(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_formula_field",
         "create_single_select_field",
@@ -1754,7 +1795,7 @@ def test_prepare_values_role_field_id_returns_values(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_formula_field",
         "create_single_select_field",
@@ -2566,3 +2607,128 @@ def test_local_baserow_after_user_source_update_requires_user_recount():
         )
         is True
     )
+
+
+@pytest.fixture
+def self_hosted_license_plugin():
+    """
+    The application user limit tests below cover the self-hosted resolution where
+    the limit comes from the registered licenses. Under the SaaS settings the
+    premium plugin resolves a per-workspace subscription quota instead, so force
+    the self-hosted license plugin to keep the tests deterministic in both
+    environments.
+    """
+
+    premium_plugin = plugin_registry.get_by_type(PremiumPlugin)
+    with patch.object(
+        premium_plugin,
+        "get_license_plugin",
+        lambda cache_queries=False: LicensePlugin(cache_queries),
+    ):
+        yield
+
+
+def mark_over_limit_since(user_source, since):
+    workspace = user_source.application.specific.get_workspace()
+    global_cache.update(
+        get_over_limit_cache_key(workspace.id), lambda _: since.isoformat()
+    )
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_authentication_refused_over_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT + 1
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    with pytest.raises(ApplicationUserLimitReached):
+        user_source.get_type().authenticate(
+            user_source, email="test@baserow.io", password="super not secret"
+        )
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_authentication_allowed_within_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    # The limit check runs on the authentication path (with a stale over limit
+    # stamp that forces the live usage re-check), but the usage is within the
+    # limit so the normal authentication flow must not be affected.
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    user = user_source.get_type().authenticate(
+        user_source, email="test@baserow.io", password="super not secret"
+    )
+    assert user.email == "test@baserow.io"
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_get_or_create_user_refused_over_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT + 1
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    UserModel = data["user_table"].get_model()
+    count_before = UserModel.objects.count()
+
+    with pytest.raises(ApplicationUserLimitReached):
+        user_source.get_type().get_or_create_user(
+            user_source, email="new@baserow.io", name="New user"
+        )
+
+    # The refused user must not be created, it would otherwise count towards the
+    # usage without ever having signed in.
+    assert UserModel.objects.count() == count_before
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_get_or_create_user_allowed_within_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    user, created = user_source.get_type().get_or_create_user(
+        user_source, email="new@baserow.io", name="New user"
+    )
+    assert created is True
+    assert user.email == "new@baserow.io"

@@ -73,12 +73,10 @@ export default {
     }),
     /*
      * When a form element has been modified (e.g. a user has inputted a value),
-     * this method is responsible for updating the form data in the store, and
-     * if it's not inside a form container, marking the form element as having
-     * been 'touched' by the user.
+     * mark it as touched if it's not inside a form container. Call this from
+     * user input events, not value watchers: defaults and resets aren't user edits.
      */
-    handleFormElementChange(value) {
-      this.setFormData(value)
+    handleFormElementChange() {
       if (!this.isDescendantOfFormContainer) {
         this.onFormElementTouch()
       }
@@ -91,7 +89,10 @@ export default {
           value,
           elementId: this.element.id,
           touched: this.formElementTouched,
-          type: this.elementType.formDataType(this.element),
+          type: this.elementType.formDataType(
+            this.element,
+            this.applicationContext
+          ),
           isValid: this.elementType.isValid(
             this.element,
             value,
@@ -139,7 +140,7 @@ export default {
     },
     inputValue: {
       handler(newValue) {
-        this.handleFormElementChange(newValue)
+        this.setFormData(newValue)
       },
       immediate: true,
     },

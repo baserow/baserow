@@ -6,7 +6,7 @@
   "integrationType": {
     "localBaserow": "Local Baserow",
     "smtp": "SMTP Email",
-    "slackBot": "Slack Bot",
+    "slackBot": "Slack",
     "ai": "AI"
   },
   "localBaserowIntegrationType": {
@@ -18,9 +18,14 @@
     "inheritingWorkspace": "Inheriting workspace AI settings",
     "overridingProviders": "Overriding {count} provider|Overriding {count} providers"
   },
+  "aiProviderModelFeature": {
+    "aiAgent": "AI agent",
+    "aiAgentDescription": "Run AI Agent actions in Automation and Application Builder workflows."
+  },
   "slackBotIntegrationType": {
     "slackBotSummary": "Slack Bot",
-    "slackBotNoToken": "Slack Bot - Not configured"
+    "slackBotNoToken": "Slack Bot - Not configured",
+    "slackBotWarning": "Anyone who can build in this application can send messages through this bot, and can replace its token. Use a bot whose access you are happy to share."
   },
   "serviceType": {
     "localBaserowGetRow": "Get a single row",
@@ -49,6 +54,8 @@
     "localBaserowFieldsUpdatedDescription": "Triggered when rows are updated in specific fields of a Baserow table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
+    "inboundEmailTrigger": "Email Trigger",
+    "inboundEmailTriggerDescription": "Triggered when an email is received on the generated email address.",
     "coreManualTrigger": "Manual trigger",
     "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow.",
     "coreHTTPRequest": "Send an HTTP request",
@@ -59,6 +66,9 @@
     "coreRouterEdgeLabelRequired": "A branch label is required.",
     "coreRouterEdgeConditionRequired": "A branch condition is required.",
     "coreRouterDescription": "Routes the workflow to the next branch based on a condition.",
+    "coreGoto": "Go to",
+    "coreGotoDescription": "Jumps to another point in the workflow when a condition is true.",
+    "coreGotoDestinationRequired": "A destination is required.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
     "coreIterationDescription": "Iterate on items.",
@@ -66,16 +76,21 @@
     "coreCSVFileReaderDescription": "Reads rows from a CSV file.",
     "coreStartWorkflow": "Start workflow",
     "coreStartWorkflowDescription": "Starts an automation workflow.",
+    "coreResponse": "Response",
+    "coreResponseDescription": "Returns the workflow response only when the trigger supports waiting for responses and has waiting enabled.",
+    "errorResponseBodyMissing": "The JSON response body cannot be empty.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
     "trashedField": "Trashed field",
     "errorUrlMissing": "Missing Url property",
     "errorNoTableSelected": "No table selected",
+    "errorMisconfiguredIntegration": "The integration is missing or has been trashed",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
     "errorNoFieldSelected": "No fields selected",
     "errorNoRowsSelected": "No rows selected",
+    "errorNoRowIdSelected": "No row ID selected",
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
@@ -90,6 +105,7 @@
     "errorNoIntegrationSelected": "No integration selected",
     "errorNoAIProviderSelected": "No AI provider selected",
     "errorNoAIModelSelected": "No AI model selected",
+    "errorAIModelUnavailable": "The selected AI model is disabled or no longer available",
     "errorNoPromptProvided": "No prompt provided",
     "errorNoChoicesProvided": "No choices provided for choice output type",
     "slackWriteMessage": "Send a Slack message",
@@ -108,7 +124,7 @@
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",
     "workspaceSettingsTitle": "Workspace AI Settings",
-    "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. You can override specific providers below.",
+    "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. A provider override is self-contained: include its own credentials or host, because connection fields are never combined with inherited credentials.",
     "overrideWorkspaceSettings": "Override workspace settings for this provider",
     "inherited": "Inherited",
     "overridden": "Overridden"
@@ -152,10 +168,12 @@
   },
   "serviceRefinementForms": {
     "filterTabTitle": "Filter | 1 Filter | {count} Filters",
+    "groupTabTitle": "Group by | 1 Group | {count} Groups",
     "sortTabTitle": "Sort | 1 Sort | {count} Sorts",
     "searchTabTitle": "Search | 1 Search | {count} Searches",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
+    "noTableChosenForGrouping": "Choose a table to begin using data source groups.",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
     "refinements": "Refinements"
   },
@@ -170,7 +188,8 @@
     "fieldHelper": "The workflow only triggers when one of these fields' values changes."
   },
   "localBaserowTableServiceConditionalForm": {
-    "addFilter": "Add additional filter",
+    "addFilter": "Add filter",
+    "addFilterGroup": "Add filter group",
     "noFilterTitle": "You have not yet created a data source filter",
     "noFilterText": "Data source filters allow you to show Baserow table rows that apply to your conditions.",
     "relatedFieldNotFound": "The related field is not found.",
@@ -240,7 +259,15 @@
   "coreStartWorkflowServiceForm": {
     "automation": "Automation",
     "workflow": "Workflow",
-    "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
+    "workflowHelperText": "Only published workflows whose trigger can start on demand, such as a manual or periodic trigger, can be started. If this workflow has unpublished changes, the latest published version will run."
+  },
+  "coreGotoServiceForm": {
+    "conditionLabel": "Condition",
+    "conditionDescription": "When this condition is true, the workflow jumps to the destination node instead of continuing to the next node.",
+    "conditionPlaceholder": "If true, we jump to the destination node.",
+    "destinationLabel": "Destination node",
+    "destinationDescription": "The node to jump to when the condition is true.",
+    "destinationPlaceholder": "Choose a destination node..."
   },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
@@ -258,7 +285,9 @@
     "supportPairingHeading": "2. Pairing with your Slack app",
     "supportPairingStep1": "If your app is new: navigate to 'Settings' > 'Install App'. Click the green button to install the app to your workspace.",
     "supportPairingStep2": "Copy your 'Bot User OAuth Token' and store it in the 'Bot User Token' field in this form.",
-    "supportPairingStep3": "Finally, if your app is new: in Slack, invite your app to your chosen channel with {command}"
+    "supportPairingStep3": "Finally, if your app is new: in Slack, invite your app to your chosen channel with {command}",
+    "tokenKeepPlaceholder": "Leave blank to keep the saved token",
+    "tokenConfigured": "A token is saved. Leave blank to keep it."
   },
   "slackWriteMessageServiceForm": {
     "alertMessage": "This action must be paired with a Slack app. Please follow the guide in the integrations popup to get started.",
@@ -289,7 +318,9 @@
     "username": "Username",
     "usernamePlaceholder": "your-email{'@'}example.com",
     "password": "Password",
-    "passwordPlaceholder": "your-password"
+    "passwordPlaceholder": "your-password",
+    "passwordConfigured": "A password is saved. Leave blank to keep it.",
+    "passwordKeepPlaceholder": "Leave blank to keep the saved password"
   },
   "smtpEmailForm": {
     "smtpConfigurationMode": "SMTP configuration",
@@ -346,15 +377,17 @@
     "minuteFrequency": "Every minutes",
     "dayOfWeek": "Day of week",
     "dayOfMonth": "Day of month",
+    "timezone": "Timezone",
+    "timezoneHelper": "The schedule keeps this local time when the clocks change",
     "hourPlaceholder": "0-23",
     "minutePlaceholder": "0-59",
     "minuteFrequencyPlaceholder": "15",
     "dayOfMonthPlaceholder": "1-31",
     "minuteHelper": "This workflow will run every specified minutes",
-    "hourHelper": "This workflow will run every hour at the specified minute in your local timezone ({timezone})",
-    "dayHelper": "This workflow will run every day at the specified time in your local timezone ({timezone})",
-    "weekHelper": "This workflow will run every week on the specified day and time in your local timezone ({timezone})",
-    "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
+    "hourHelper": "This workflow will run every hour at the specified minute",
+    "dayHelper": "This workflow will run every day at the specified time",
+    "weekHelper": "This workflow will run every week on the specified day and time",
+    "monthHelper": "This workflow will run every month on the specified day and time",
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
   },
@@ -372,6 +405,7 @@
     "fieldMappingPlaceholderDecimal": "Choose a decimal value, e.g. 3.14",
     "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
+    "noTableAccess": "You don't have access to this table, so its fields can't be shown here.",
     "noWritableFields": "This table does not contain any writable fields."
   },
   "localBaserowDeleteRowServiceForm": {

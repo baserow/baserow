@@ -45,6 +45,8 @@ import {
   RuntimeSplit,
   RuntimeIsEmpty,
   RuntimeStrip,
+  RuntimeEncodeUri,
+  RuntimeEncodeUriComponent,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -57,6 +59,8 @@ import {
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { Timedelta } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
+import * as runtimeFormulaTypes from '@baserow/modules/core/runtimeFormulaTypes'
+import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { expect } from 'vitest'
 
 /** Tests for the RuntimeConcat class. */
@@ -2026,6 +2030,58 @@ describe('RuntimeStrip', () => {
   })
 })
 
+// The backend resolves the same formulas, so these must match
+// `RuntimeEncodeUri` / `RuntimeEncodeUriComponent` in Python exactly.
+describe('RuntimeEncodeUri', () => {
+  test.each([
+    { args: [''], expected: '' },
+    {
+      args: ['https://example.com/a b'],
+      expected: 'https://example.com/a%20b',
+    },
+    {
+      args: ['https://example.com/?q=1&x=2#top'],
+      expected: 'https://example.com/?q=1&x=2#top',
+    },
+    { args: ['100%'], expected: '100%25' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeEncodeUri()
+    expect(formulaType.execute({}, formulaType.parseArgs(args))).toBe(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    expect(new RuntimeEncodeUri().validateNumberOfArgs(args)).toBe(expected)
+  })
+})
+
+describe('RuntimeEncodeUriComponent', () => {
+  test.each([
+    { args: [''], expected: '' },
+    { args: ['shoes#7'], expected: 'shoes%237' },
+    { args: ['a&b=1'], expected: 'a%26b%3D1' },
+    { args: ['a b'], expected: 'a%20b' },
+    { args: ['100%'], expected: '100%25' },
+    { args: ["-_.!~*'()"], expected: "-_.!~*'()" },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeEncodeUriComponent()
+    expect(formulaType.execute({}, formulaType.parseArgs(args))).toBe(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    expect(new RuntimeEncodeUriComponent().validateNumberOfArgs(args)).toBe(
+      expected
+    )
+  })
+})
+
 describe('RuntimeSum', () => {
   test.each([
     { args: [['2', '3', '4']], expected: 9 },
@@ -2701,5 +2757,38 @@ describe('RuntimeToDatetime', () => {
     const formulaType = new RuntimeToDatetime()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toBe(expected)
+  })
+})
+
+/**
+ * Every runtime formula type feeds the help tooltip in the formula editor,
+ * which renders all of its examples and lets the user insert them. Keep the
+ * examples present and syntactically valid.
+ */
+describe('runtime formula type examples', () => {
+  const { RuntimeFormulaFunction } = runtimeFormulaTypes
+  const formulaTypes = Object.values(runtimeFormulaTypes).filter(
+    (candidate) =>
+      typeof candidate === 'function' &&
+      candidate !== RuntimeFormulaFunction &&
+      candidate.prototype instanceof RuntimeFormulaFunction
+  )
+
+  test('finds the runtime formula types to check', () => {
+    expect(formulaTypes.length).toBeGreaterThan(0)
+  })
+
+  test.each(
+    formulaTypes.map((FormulaType) => [FormulaType.getType(), FormulaType])
+  )('%s defines parsable examples', (type, FormulaType) => {
+    const examples = new FormulaType().getExamples()
+
+    expect(examples.length).toBeGreaterThan(0)
+    for (const example of examples) {
+      expect(typeof example.formula).toBe('string')
+      expect(example.formula).not.toBe('')
+      expect(typeof example.result).toBe('string')
+      expect(() => parseBaserowFormula(example.formula)).not.toThrow()
+    }
   })
 })

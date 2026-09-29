@@ -275,6 +275,16 @@ def test_create_element(api_client, data_fixture):
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
+        {"type": "iframe"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is False
+
+    response = api_client.post(
+        url,
         {
             "type": "heading",
             "place_in_container": "",
@@ -306,6 +316,41 @@ def test_create_element(api_client, data_fixture):
         "version": "0.1",
         "mode": "simple",
     }
+
+
+@pytest.mark.django_db
+def test_create_and_update_iframe_element_same_origin_permission(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "iframe",
+            "allow_same_origin": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is True
+
+    element_url = reverse(
+        "api:builder:element:item", kwargs={"element_id": response.json()["id"]}
+    )
+    response = api_client.patch(
+        element_url,
+        {"allow_same_origin": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is False
 
 
 @pytest.mark.django_db
@@ -629,8 +674,12 @@ def test_move_element_reference_element_not_in_same_page(api_client, data_fixtur
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
+    # Without an explicit target_page_id the move targets the element's own
+    # page (the target is deliberately NOT derived from the reference's page —
+    # a concurrently moved reference must not teleport the element), so a
+    # reference on another page is rejected.
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_PAGE_NOT_IN_BUILDER"
+    assert response.json()["error"] == "ERROR_ELEMENT_NOT_IN_SAME_PAGE"
 
 
 @pytest.mark.django_db
@@ -905,6 +954,7 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
         url,
         {
             "reference_element_id": column_element.id,
+            "target_page_id": target_page.id,
             "place_in_container": "9999",
             "position": GraphPointPosition.CHILD,
         },
@@ -1579,3 +1629,13 @@ def test_element_full_lifecycle(api_client, data_fixture, element_type):
     assert not Element.objects_and_trash.filter(id=element_id).exists()
     if child_id is not None:
         assert not Element.objects_and_trash.filter(id=child_id).exists()
+
+
+def test_graph_patch_header_is_cors_exposed(settings):
+    # The graph patch is applied by browser-side JS. On cross-origin requests
+    # (e.g. the dev web-frontend talking to the backend on another port) the
+    # browser hides non-safelisted response headers from JS unless they are
+    # explicitly exposed — without this, the patch silently never applies and
+    # the editor needs a second reload to see a healed graph.
+    assert settings.BUILDER_GRAPH_PATCH_HEADER == "X-Baserow-Builder-Graph-Patch"
+    assert settings.BUILDER_GRAPH_PATCH_HEADER in settings.CORS_EXPOSE_HEADERS

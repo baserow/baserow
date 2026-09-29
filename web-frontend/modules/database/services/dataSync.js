@@ -12,8 +12,23 @@ export default (client) => {
     syncTable(dataSyncId) {
       return client.post(`/database/data-sync/${dataSyncId}/sync/async/`)
     },
-    fetchProperties(values) {
-      return client.post(`/database/data-sync/properties/`, values)
+    fetchSyncJobs(dataSyncId, { limit = 10, offset = 0, states = null } = {}) {
+      const params = {
+        type: 'sync_data_sync_table',
+        sync_data_sync_table_data_sync_id: dataSyncId,
+        limit,
+        offset,
+      }
+      if (states) {
+        params.states = states.join(',')
+      }
+      return client.get(`/jobs/`, { params })
+    },
+    fetchProperties(databaseId, values) {
+      return client.post(
+        `/database/data-sync/database/${databaseId}/properties/`,
+        values
+      )
     },
     fetchPropertiesOfDataSync(dataSyncId) {
       return client.get(`/database/data-sync/${dataSyncId}/properties/`)

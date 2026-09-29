@@ -15,6 +15,7 @@ from baserow.core.jobs.constants import (
     JOB_PENDING,
     JOB_STARTED,
 )
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
 from baserow.core.jobs.registries import JobType
 from baserow.core.jobs.tasks import clean_up_jobs, run_async_job
@@ -111,6 +112,7 @@ def test_run_task_with_exception(mock_get_by_model, data_fixture):
         job.human_readable_error
         == "Something went wrong during the custom_job_type job execution."
     )
+    assert job.error_code == ""
 
 
 @pytest.mark.django_db(transaction=True)
@@ -153,6 +155,7 @@ def test_run_task_failing_time_limit(mock_get_by_model, data_fixture):
         job.human_readable_error
         == "The custom_job_type job took too long and was timed out."
     )
+    assert job.error_code == "SoftTimeLimitExceeded"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -169,6 +172,108 @@ def test_run_task_with_exception_mapping(mock_get_by_model, data_fixture):
     job.refresh_from_db()
     assert job.state == JOB_FAILED
     assert job.error == "connection error"
+    assert job.human_readable_error == "Error message"
+    assert job.error_code == "ConnectionError"
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.registries.JobTypeRegistry.get_by_model")
+def test_run_task_calls_on_error_for_mapped_exception(mock_get_by_model, data_fixture):
+    job_type = TmpCustomJobType()
+    exception = ConnectionError("connection error")
+    job_type.run = Mock(side_effect=exception)
+    job_type.on_error = Mock()
+    mock_get_by_model.return_value = job_type
+
+    job = data_fixture.create_fake_job()
+
+    run_async_job(job.id)
+
+    job_type.on_error.assert_called_once()
+    called_job, called_error = job_type.on_error.call_args.args
+    assert called_job.id == job.id
+    assert called_error is exception
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.registries.JobTypeRegistry.get_by_model")
+def test_run_task_calls_on_error_for_unmapped_exception(
+    mock_get_by_model, data_fixture
+):
+    job_type = TmpCustomJobType()
+    exception = Exception("test-1")
+    job_type.run = Mock(side_effect=exception)
+    job_type.on_error = Mock()
+    mock_get_by_model.return_value = job_type
+
+    job = data_fixture.create_fake_job()
+
+    with pytest.raises(Exception):
+        run_async_job(job.id)
+
+    job_type.on_error.assert_called_once()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.registries.JobTypeRegistry.get_by_model")
+def test_run_task_does_not_call_on_error_on_success_or_cancellation(
+    mock_get_by_model, data_fixture
+):
+    job_type = TmpCustomJobType()
+    job_type.run = Mock()
+    job_type.on_error = Mock()
+    mock_get_by_model.return_value = job_type
+
+    job = data_fixture.create_fake_job()
+    run_async_job(job.id)
+    job_type.on_error.assert_not_called()
+
+    cancelled_job = data_fixture.create_fake_job()
+    JobHandler.cancel_job(cancelled_job)
+    run_async_job(cancelled_job.id)
+    job_type.on_error.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.registries.JobTypeRegistry.get_by_model")
+def test_on_error_runs_after_failed_state_is_saved(mock_get_by_model, data_fixture):
+    job_type = TmpCustomJobType()
+    job_type.run = Mock(side_effect=ConnectionError("connection error"))
+
+    def on_error(failed_job, error):
+        Job.objects.filter(id=failed_job.id).update(
+            human_readable_error="from-on-error"
+        )
+
+    job_type.on_error = Mock(side_effect=on_error)
+    mock_get_by_model.return_value = job_type
+
+    job = data_fixture.create_fake_job()
+
+    run_async_job(job.id)
+
+    # A hook running before the failure save would be overwritten by it.
+    job.refresh_from_db()
+    assert job.human_readable_error == "from-on-error"
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.registries.JobTypeRegistry.get_by_model")
+def test_on_error_exception_does_not_mask_job_failure(mock_get_by_model, data_fixture):
+    job_type = TmpCustomJobType()
+    job_type.run = Mock(side_effect=ConnectionError("connection error"))
+    job_type.on_error = Mock(side_effect=RuntimeError("hook broke"))
+    mock_get_by_model.return_value = job_type
+
+    job = data_fixture.create_fake_job()
+
+    run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
     assert job.human_readable_error == "Error message"
 
 
@@ -206,6 +311,10 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
     assert Job.objects.is_running().count() == 2
     assert Job.objects.is_ended().count() == 5
     assert Job.objects.is_pending_or_running().count() == 3
+
+    expired_jobs = Job.objects.filter(error="Timeout error")
+    assert expired_jobs.count() > 0
+    assert all(job.error_code == "SoftTimeLimitExceeded" for job in expired_jobs)
 
     # Should delete the job that has been automatically expired by the previous cleanup
     with freeze_time(now):

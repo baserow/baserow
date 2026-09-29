@@ -45,7 +45,10 @@ class SelectColorValueProviderType(PremiumDecoratorValueProviderType):
     value_provider_conf_serializer_class = SelectColorValueProviderConfSerializer
 
     def set_import_serialized_value(
-        self, value: Dict[str, Any], id_mapping: Dict[str, Any]
+        self,
+        value: Dict[str, Any],
+        id_mapping: Dict[str, Any],
+        fields_by_id: Optional[Dict[int, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Update the field id with the newly created one.
@@ -124,13 +127,17 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
     )
 
     def set_import_serialized_value(
-        self, value: Dict[str, Any], id_mapping: Dict[str, Any]
+        self,
+        value: Dict[str, Any],
+        id_mapping: Dict[str, Any],
+        fields_by_id: Optional[Dict[int, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Update the field ids of each filter with the newly created one.
         """
 
         value_provider_conf = value["value_provider_conf"]
+        fields_by_id = fields_by_id or {}
 
         for color in value_provider_conf["colors"]:
             # templates can have colors without an id, but we need one to be able to
@@ -147,7 +154,9 @@ class ConditionalColorValueProviderType(PremiumDecoratorValueProviderType):
                         color_filter.get("type")
                     )
                     imported_value = filter_type.set_import_serialized_value(
-                        color_filter["value"], id_mapping
+                        color_filter["value"],
+                        id_mapping,
+                        fields_by_id.get(new_field_id),
                     )
                     color_filter["value"] = imported_value
                     new_filters.append(color_filter)

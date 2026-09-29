@@ -1,4 +1,5 @@
 import baseService from '@baserow/modules/core/crudTable/baseService'
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 export default (client) => {
   return Object.assign(
@@ -8,8 +9,11 @@ export default (client) => {
       false
     ),
     {
-      fetchAll() {
-        return client.get('/workspaces/')
+      fetchAll(realtimeRecovery = false) {
+        return client.get(
+          '/workspaces/',
+          realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}
+        )
       },
       order(order) {
         return client.post('/workspaces/order/', {
@@ -28,8 +32,11 @@ export default (client) => {
       delete(id) {
         return client.delete(`/workspaces/${id}/`)
       },
-      sendInvitation(workspaceId, baseUrl, values) {
+      sendInvitation(workspaceId, baseUrl, { captchaToken = '', ...values }) {
         values.base_url = baseUrl
+        if (captchaToken) {
+          values.captcha_token = captchaToken
+        }
         return client.post(
           `/workspaces/invitations/workspace/${workspaceId}/`,
           values
@@ -61,15 +68,6 @@ export default (client) => {
       },
       acceptInvitation(invitationId) {
         return client.post(`/workspaces/invitations/${invitationId}/accept/`)
-      },
-      getGenerativeAISettings(workspaceId) {
-        return client.get(`/workspaces/${workspaceId}/settings/generative-ai/`)
-      },
-      updateGenerativeAISettings(workspaceId, values) {
-        return client.patch(
-          `/workspaces/${workspaceId}/settings/generative-ai/`,
-          values
-        )
       },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)

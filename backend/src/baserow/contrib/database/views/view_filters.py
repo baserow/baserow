@@ -1144,7 +1144,7 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, value, model_field, field)
 
-    def set_import_serialized_value(self, value, id_mapping):
+    def set_import_serialized_value(self, value, id_mapping, field=None):
         mapping = id_mapping["database_field_select_options"]
         try:
             return map_ids_from_csv_string(value, mapping)[0]
@@ -1201,7 +1201,9 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+    def set_import_serialized_value(
+        self, value: str | None, id_mapping: dict, field=None
+    ) -> str:
         select_option_map = id_mapping["database_field_select_options"]
         new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
@@ -1461,7 +1463,9 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
         filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
-    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+    def set_import_serialized_value(
+        self, value: str | None, id_mapping: dict, field=None
+    ) -> str:
         select_option_map = id_mapping["database_field_select_options"]
         new_values = map_ids_from_csv_string(value or "", select_option_map)
         return ",".join(new_values)
@@ -1516,7 +1520,7 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
         return id_mapping[self.COLLABORATORS_KEY].get(value, "")
 
-    def set_import_serialized_value(self, value, id_mapping):
+    def set_import_serialized_value(self, value, id_mapping, field=None):
         workspace_id = id_mapping.get("workspace_id", None)
         if workspace_id is None:
             return ""
@@ -1585,7 +1589,7 @@ class UserIsViewFilterType(ViewFilterType):
 
         return id_mapping[self.USER_KEY].get(value, "")
 
-    def set_import_serialized_value(self, value, id_mapping):
+    def set_import_serialized_value(self, value, id_mapping, field=None):
         workspace_id = id_mapping.get("workspace_id", None)
         if workspace_id is None:
             return ""

@@ -1,4 +1,33 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { ensureInteger } from '@baserow/modules/core/utils/validator'
+
+export const getCoreGroup = (app) => ({
+  id: 'core',
+  label: app.$i18n.t('groupedMenu.core'),
+  icon: 'iconoir-package',
+  iconColor: 'muted-green',
+})
+
+export const getFilesGroup = (app) => ({
+  id: 'files',
+  label: app.$i18n.t('groupedMenu.files'),
+  icon: 'iconoir-page',
+  iconColor: 'muted-yellow',
+})
+
+export const getHTTPGroup = (app) => ({
+  id: 'http',
+  label: app.$i18n.t('groupedMenu.http'),
+  icon: 'iconoir-globe',
+  iconColor: 'muted-cyan',
+})
+
+export const getWorkflowGroup = (app) => ({
+  id: 'workflow',
+  label: app.$i18n.t('groupedMenu.workflow'),
+  icon: 'iconoir-git-fork',
+  iconColor: 'muted-purple',
+})
 
 export class ServiceType extends Registerable {
   get name() {
@@ -12,6 +41,21 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  get group() {
+    const integrationType = this.integrationType
+    if (!integrationType) {
+      return getCoreGroup(this.app)
+    }
+
+    return {
+      id: `integration-${integrationType.getType()}`,
+      label: integrationType.name,
+      image: integrationType.image,
+      icon: integrationType.iconClass,
+      iconColor: integrationType.iconColor,
+    }
+  }
+
   /**
    * The form component to edit this service.
    */
@@ -21,6 +65,10 @@ export class ServiceType extends Registerable {
 
   get icon() {
     return 'iconoir-question-mark'
+  }
+
+  get iconColor() {
+    return this.group.iconColor
   }
 
   /**
@@ -38,12 +86,20 @@ export class ServiceType extends Registerable {
    * @param service - The service object.
    * @returns {String} - The error message
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, workspace = null }) {
+    const deactivatedReason =
+      workspace && this.isDeactivatedReason({ workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
+
     return null
   }
 
   /**
    * Whether the service is valid.
+   * Override `getErrorMessage` instead of this method so an invalid service also
+   * provides a user-facing explanation.
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
@@ -63,6 +119,23 @@ export class ServiceType extends Registerable {
    */
   getSampleData(service) {
     return service.sample_data || null
+  }
+
+  /**
+   * The content type of the sample data returned by this service. Service
+   * types returning 'html' get an extra HTML preview tab in the sample data
+   * modal, rendering the value of `getSampleDataHtml`.
+   */
+  getSampleDataContentType(service) {
+    return 'json'
+  }
+
+  /**
+   * The HTML document to render in the sample data modal's HTML tab, for
+   * service types whose sample data content type is 'html'.
+   */
+  getSampleDataHtml(service) {
+    return null
   }
 
   /**
@@ -132,10 +205,39 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * Convert record-name endpoint keys back to the value type used by this service.
+     */
+    parseRecordId(value) {
+      return ensureInteger(value)
+    }
+
+    /**
+     * Returns the JSON-schema type used by this service's record identifiers.
+     */
+    getRecordIdDataType(service) {
+      return 'number'
+    }
+
+    /**
+     * Some list services use record identifiers that can be displayed without
+     * fetching the record name endpoint. Return null to fall back to the endpoint.
+     */
+    getRecordNameFromId(service, recordId) {
+      return null
+    }
+
+    /**
      * The maximum number of records that can be returned by this service
      */
     getMaxResultLimit(service) {
       return null
+    }
+
+    /**
+     * Whether this list data source supports frontend paging controls.
+     */
+    get supportsPagination() {
+      return this.returnsList
     }
 
     /**

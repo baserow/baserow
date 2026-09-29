@@ -45,14 +45,23 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_published_on(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        return str(published_workflow.created_on) if published_workflow else None
+        try:
+            # Set by `AutomationWorkflowHandler.annotate_published_workflow_data` when
+            # many workflows are serialized at once.
+            published_on = obj.published_workflow_created_on
+        except AttributeError:
+            published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
+            published_on = published_workflow.created_on if published_workflow else None
+        return str(published_on) if published_on else None
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_state(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        state = published_workflow.state if published_workflow else WorkflowState.DRAFT
-        return WorkflowState(state).value
+        try:
+            state = obj.published_workflow_state
+        except AttributeError:
+            published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
+            state = published_workflow.state if published_workflow else None
+        return WorkflowState(state if state is not None else WorkflowState.DRAFT).value
 
     @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_notification_recipient_ids(self, obj):
@@ -124,20 +133,39 @@ class AutomationHistorySerializer(serializers.ModelSerializer):
         )
 
 
+class AutomationWorkflowHistoryTriggeredBySerializer(serializers.Serializer):
+    """Who started the run, as `{id, type, name}` for the collaborator UI."""
+
+    id = serializers.IntegerField(source="triggered_by_id", read_only=True)
+    type = serializers.CharField(source="triggered_by_type", read_only=True)
+    name = serializers.CharField(source="triggered_by_name", read_only=True)
+
+
 class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
     plugin_data = serializers.SerializerMethodField()
+    triggered_by = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflowHistory
         fields = AutomationHistorySerializer.Meta.fields + (
             "is_test_run",
             "simulate_until_node",
+            "cancellation_requested_on",
             "plugin_data",
+            "triggered_by",
         )
 
     @extend_schema_field(serializers.DictField())
     def get_plugin_data(self, obj):
         return self.context.get("workflow_history_plugin_data", {}).get(obj.id, {})
+
+    @extend_schema_field(
+        AutomationWorkflowHistoryTriggeredBySerializer(allow_null=True)
+    )
+    def get_triggered_by(self, obj):
+        if obj.triggered_by_id is None:
+            return None
+        return AutomationWorkflowHistoryTriggeredBySerializer(obj).data
 
 
 class AutomationWorkflowHistoryPagination(PageNumberPagination):

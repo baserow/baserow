@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-01-18 13:32+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/baserow/contrib/builder/action_scopes.py:10
+#, python-format
+msgid ""
+"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+"van type \"%(element_type)s\" op pagina (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:45
 msgid "Homepage"
@@ -46,30 +55,57 @@ msgstr "Naam"
 msgid "Last name"
 msgstr "Achternaam"
 
-#: src/baserow/contrib/builder/data_sources/service.py:128
-msgid "Data source"
-msgstr "Gegevensbron"
-
-#: src/baserow/contrib/builder/elements/element_types.py:184
-#: src/baserow/contrib/builder/elements/element_types.py:189
-#: src/baserow/contrib/builder/elements/element_types.py:194
-#, python-format
-msgid "Column %(count)s"
-msgstr "Kolom %(count)s"
-
-#: src/baserow/contrib/builder/action_scopes.py:10
-#, python-format
-msgid ""
-"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
-"\"%(builder_name)s\" (%(builder_id)s)."
-msgstr ""
-"van type \"%(element_type)s\" op pagina (%(page_id)s) in builder "
-"\"%(builder_name)s\" (%(builder_id)s)."
-
-#: src/baserow/contrib/builder/data_providers/data_provider_types.py:650
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:656
 #, python-format
 msgid "%(user_source_name)s member"
 msgstr "%(user_source_name)s lid"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:29
+#: src/baserow/contrib/builder/workflow_actions/actions.py:36
+#, python-format
+msgid "of page (%(page_id)s) in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+"van pagina (%(page_id)s) in applicatie \"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/data_sources/actions.py:50
+msgid "Create data source"
+msgstr "Gegevensbron maken"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:51
+#, python-format
+msgid "Data source (%(data_source_id)s) created"
+msgstr "Gegevensbron (%(data_source_id)s) aangemaakt"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:114
+msgid "Update data source"
+msgstr "Gegevensbron bijwerken"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:115
+#, python-format
+msgid "Data source (%(data_source_id)s) updated"
+msgstr "Gegevensbron (%(data_source_id)s) bijgewerkt"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:206
+msgid "Delete data source"
+msgstr "Gegevensbron verwijderen"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:207
+#, python-format
+msgid "Data source (%(data_source_id)s) deleted"
+msgstr "Gegevensbron (%(data_source_id)s) verwijderd"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:262
+msgid "Move data source"
+msgstr "Gegevensbron verplaatsen"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:263
+#, python-format
+msgid "Data source (%(data_source_id)s) moved"
+msgstr "Gegevensbron (%(data_source_id)s) verplaatst"
+
+#: src/baserow/contrib/builder/data_sources/service.py:169
+msgid "Data source"
+msgstr "Gegevensbron"
 
 #: src/baserow/contrib/builder/elements/actions.py:48
 msgid "Create element"
@@ -116,90 +152,185 @@ msgstr "Element verplaatsen"
 msgid "Element (%(element_id)s) moved"
 msgstr "Element (%(element_id)s) verplaatst"
 
-#: src/baserow/contrib/builder/elements/element_types.py:137
+#: src/baserow/contrib/builder/elements/element_types.py:141
 msgid "Column"
 msgstr "Kolommen"
 
-#: src/baserow/contrib/builder/elements/element_types.py:220
+#: src/baserow/contrib/builder/elements/element_types.py:350
 msgid "Form"
 msgstr "Formulier"
 
-#: src/baserow/contrib/builder/elements/element_types.py:292
+#: src/baserow/contrib/builder/elements/element_types.py:425
 msgid "Container"
 msgstr "Container"
 
-#: src/baserow/contrib/builder/elements/element_types.py:304
+#: src/baserow/contrib/builder/elements/element_types.py:437
 msgid "Table"
 msgstr "Tabel"
 
-#: src/baserow/contrib/builder/elements/element_types.py:369
+#: src/baserow/contrib/builder/elements/element_types.py:502
 msgid "Repeat"
 msgstr "Herhaal"
 
-#: src/baserow/contrib/builder/elements/element_types.py:437
+#: src/baserow/contrib/builder/elements/element_types.py:570
 msgid "Record selector"
 msgstr "Recordkiezer"
 
-#: src/baserow/contrib/builder/elements/element_types.py:686
+#: src/baserow/contrib/builder/elements/element_types.py:829
 msgid "Heading"
 msgstr "Kop"
 
-#: src/baserow/contrib/builder/elements/element_types.py:753
+#: src/baserow/contrib/builder/elements/element_types.py:896
 msgid "Text"
 msgstr "Paragraaf"
 
-#: src/baserow/contrib/builder/elements/element_types.py:975
+#: src/baserow/contrib/builder/elements/element_types.py:1118
 msgid "Link"
 msgstr "Link"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1113
+#: src/baserow/contrib/builder/elements/element_types.py:1256
 msgid "Image"
 msgstr "Afbeelding"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1277
+#: src/baserow/contrib/builder/elements/element_types.py:1420
 msgid "Rating"
 msgstr "Beoordeling"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1324
+#: src/baserow/contrib/builder/elements/element_types.py:1467
 msgid "Rating input"
 msgstr "Beoordeling invoer"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1410
+#: src/baserow/contrib/builder/elements/element_types.py:1553
 msgid "Input text"
 msgstr "Tekstinvoer"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1550
+#: src/baserow/contrib/builder/elements/element_types.py:1693
 msgid "Button"
 msgstr "Knop"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1595
+#: src/baserow/contrib/builder/elements/element_types.py:1741
 msgid "Checkbox"
 msgstr "Checkbox"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1669
+#: src/baserow/contrib/builder/elements/element_types.py:1815
 msgid "Choice"
 msgstr "Keuze"
 
-#: src/baserow/contrib/builder/elements/element_types.py:1982
+#: src/baserow/contrib/builder/elements/element_types.py:2128
 msgid "Iframe"
 msgstr "IFrame"
 
-#: src/baserow/contrib/builder/elements/element_types.py:2041
+#: src/baserow/contrib/builder/elements/element_types.py:2200
 msgid "Date time picker"
 msgstr "Datum tijd kiezer"
 
-#: src/baserow/contrib/builder/elements/element_types.py:2185
+#: src/baserow/contrib/builder/elements/element_types.py:2344
 msgid "Shared header"
 msgstr "Gedeelde header"
 
-#: src/baserow/contrib/builder/elements/element_types.py:2195
+#: src/baserow/contrib/builder/elements/element_types.py:2354
 msgid "Shared footer"
 msgstr "Gedeelde footer"
 
-#: src/baserow/contrib/builder/elements/element_types.py:2205
+#: src/baserow/contrib/builder/elements/element_types.py:2364
 msgid "Menu"
 msgstr "Menu"
+
+#: src/baserow/contrib/builder/elements/mixins.py:744
+#: src/baserow/contrib/builder/elements/mixins.py:749
+#: src/baserow/contrib/builder/elements/mixins.py:754
+#, python-format
+msgid "Column %(count)s"
+msgstr "Kolom %(count)s"
 
 #: src/baserow/contrib/builder/elements/registries.py:68
 msgid "Unnamed element"
 msgstr "Naamloos element"
+
+#: src/baserow/contrib/builder/pages/actions.py:24
+#, python-format
+msgid "in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr "in applicatie \"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/pages/actions.py:30
+msgid "Create page"
+msgstr "Pagina maken"
+
+#: src/baserow/contrib/builder/pages/actions.py:31
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) created"
+msgstr "Pagina \"%(page_name)s\" (%(page_id)s) aangemaakt"
+
+#: src/baserow/contrib/builder/pages/actions.py:86
+msgid "Update page"
+msgstr "Pagina bijwerken"
+
+#: src/baserow/contrib/builder/pages/actions.py:87
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) updated"
+msgstr "Pagina \"%(page_name)s\" (%(page_id)s) bijgewerkt"
+
+#: src/baserow/contrib/builder/pages/actions.py:141
+msgid "Delete page"
+msgstr "Pagina verwijderen"
+
+#: src/baserow/contrib/builder/pages/actions.py:142
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) deleted"
+msgstr "Pagina \"%(page_name)s\" (%(page_id)s) verwijderd"
+
+#: src/baserow/contrib/builder/pages/actions.py:185
+msgid "Duplicate page"
+msgstr "Pagina dupliceren"
+
+#: src/baserow/contrib/builder/pages/actions.py:187
+#, python-format
+msgid ""
+"Page \"%(page_name)s\" (%(page_id)s) duplicated from "
+"\"%(original_page_name)s\" (%(original_page_id)s)"
+msgstr ""
+"Pagina \"%(page_name)s\" (%(page_id)s) gedupliceerd van "
+"\"%(original_page_name)s\" (%(original_page_id)s)"
+
+#: src/baserow/contrib/builder/pages/actions.py:251
+msgid "Order pages"
+msgstr "Pagina's ordenen"
+
+#: src/baserow/contrib/builder/pages/actions.py:252
+msgid "Pages ordered"
+msgstr "Pagina's geordend"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:57
+msgid "Create workflow action"
+msgstr "Workflow-actie maken"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:58
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) created"
+msgstr "Workflow-actie (%(workflow_action_id)s) aangemaakt"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:120
+msgid "Update workflow action"
+msgstr "Workflow-actie bijwerken"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:121
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) updated"
+msgstr "Workflow-actie (%(workflow_action_id)s) bijgewerkt"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:188
+msgid "Delete workflow action"
+msgstr "Workflow-actie verwijderen"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:189
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) deleted"
+msgstr "Workflow-actie (%(workflow_action_id)s) verwijderd"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:244
+msgid "Order workflow actions"
+msgstr "Workflow-acties ordenen"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:245
+msgid "Workflow actions ordered"
+msgstr "Workflow-acties geordend"

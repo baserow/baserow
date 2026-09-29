@@ -1,7 +1,7 @@
 import hashlib
 import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -51,7 +51,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import generate_hash, get_baserow_saas_base_url
 from baserow.throttling.handler import rate_limit
 
-from ..telemetry.utils import baserow_trace_methods
+from ..telemetry.utils import baserow_trace, baserow_trace_handler
 from .emails import (
     AccountDeleted,
     AccountDeletionCanceled,
@@ -76,6 +76,7 @@ from .exceptions import (
     UserIsLastAdmin,
     UserNotFound,
 )
+from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
 from .utils import normalize_email_address
@@ -87,7 +88,8 @@ tracer = trace.get_tracer(__name__)
 LAST_LOGIN_UPDATE_DELAY = timedelta(minutes=1)
 
 
-class UserHandler(metaclass=baserow_trace_methods(tracer)):
+@baserow_trace_handler
+class UserHandler:
     def get_active_user(
         self,
         user_id: Optional[int] = None,
@@ -186,6 +188,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         workspace_invitation_token: Optional[str] = None,
         template: Template = None,
         auth_provider: Optional[AuthProviderModel] = None,
+        email_verified: bool = False,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -203,6 +206,8 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :param auth_provider: If provided, a reference to the authentication
             provider will be stored in order to be able to provide different options
             for the user to login.
+        :param email_verified: Whether the auth provider confirmed the email as
+            verified. When True, the profile is marked verified at creation time.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -250,6 +255,11 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         if instance_settings.show_admin_signup_page:
             instance_settings.show_admin_signup_page = False
             instance_settings.save()
+
+        if email_verified:
+            profile = user.profile
+            profile.email_verified = True
+            profile.save(update_fields=["email_verified"])
 
         # If we have an invitation to a workspace, then accept it.
         if workspace_invitation_token:
@@ -376,6 +386,44 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         user_updated.send(self, performed_by=user, user=user)
 
         return user
+
+    def get_user_preferences(self, user: AbstractUser) -> Dict[str, Any]:
+        """
+        :param user: The user to get the preferences of.
+        :return: A value for every registered preference type: the stored one when
+            the user changed it and it is still valid, the type's default
+            otherwise. Stored keys whose type is no longer registered are left
+            out.
+        """
+
+        try:
+            stored = user.profile.preferences
+        except UserProfile.DoesNotExist:
+            # Users created outside `create_user`, like with `createsuperuser`.
+            stored = {}
+        return {
+            preference_type.type: preference_type.get_value(stored)
+            for preference_type in user_preference_type_registry.get_all()
+        }
+
+    def update_user_preferences(
+        self, user: AbstractUser, preferences: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Stores the provided preferences, keeping the ones that are not provided.
+        The values are expected to be validated against the registered types
+        already, which the API serializer does.
+
+        :param user: The user to update the preferences of.
+        :param preferences: The changed values keyed by preference type.
+        :return: All preferences of the user, see `get_user_preferences`.
+        """
+
+        profile, _ = UserProfile.objects.select_for_update().get_or_create(user=user)
+        profile.preferences = {**profile.preferences, **preferences}
+        profile.save(update_fields=["preferences"])
+        user.profile = profile
+        return self.get_user_preferences(user)
 
     @staticmethod
     def _get_password_state_hash(user: AbstractUser) -> str:
@@ -716,6 +764,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         for plugin in plugin_registry.registry.values():
             plugin.user_signed_in(user)
 
+    @baserow_trace(tracer)
     def delete_user_log_entries_older_than(self, cutoff: datetime):
         """
         Deletes all UserLogEntry entries that are older than the given cutoff date.
@@ -783,6 +832,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_restored.send(self, performed_by=user, user=user)
 
+    @baserow_trace(tracer)
     def delete_expired_users_and_related_workspaces_if_last_admin(
         self, grace_delay: Optional[timedelta] = None
     ):
@@ -1044,6 +1094,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             how=how,
         )
 
+    @baserow_trace(tracer)
     def share_onboarding_details_with_baserow(
         self, email, team, role, size, country, how
     ):

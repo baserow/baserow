@@ -1,6 +1,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 
 import FieldService from '@baserow_premium/services/field'
+import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
 
 export default {
   data() {
@@ -13,8 +15,12 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     modelAvailable() {
+      if (!this.workspace) {
+        return false
+      }
+
       const aIModels =
-        this.$store.getters['settings/get'].generative_ai[
+        getEnabledModelsForAIProviderFeature(this.workspace, 'ai_fields')[
           this.field.ai_generative_ai_type
         ] || []
       return (
@@ -29,9 +35,11 @@ export default {
         .get('field', this.field.type)
         .isDeactivated(this.workspaceId)
     },
-    // Indicates if the field's prompt is broken and can't be used to generate values.
-    promptBroken() {
-      return !!this.field.error
+    fieldError() {
+      return this.field.error || null
+    },
+    fieldHasError() {
+      return !!this.fieldError
     },
     deactivatedClickComponent() {
       return this.$registry
@@ -47,7 +55,7 @@ export default {
   methods: {
     async generate() {
       // Guard every caller and not just the disabled button.
-      if (!this.modelAvailable || this.generating || this.promptBroken) {
+      if (!this.modelAvailable || this.generating || this.fieldHasError) {
         return
       }
 
@@ -57,6 +65,12 @@ export default {
           this.$parent.row.id,
         ])
       } catch (error) {
+        setAIFieldErrorFromGenerationError(
+          this.$store,
+          this.field,
+          error,
+          this.$t('clientHandler.modelDoesNotBelongToTypeDescription')
+        )
         notifyIf(error, 'field')
         this.generating = false
       }

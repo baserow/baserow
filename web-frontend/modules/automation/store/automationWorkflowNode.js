@@ -3,6 +3,10 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { clone } from '@baserow/modules/core/utils/object'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
@@ -27,7 +31,7 @@ const updateCachedValues = (workflow) => {
 }
 
 export function populateNode(node) {
-  return { ...node, _: { loading: false } }
+  return { ...node, _: { loading: false, ...realtimeMetadata() } }
 }
 
 export function getWorkflowImmediateDispatch($registry, workflow) {
@@ -66,16 +70,30 @@ const mutations = {
   },
   UPDATE_ITEM(
     state,
-    { workflow, node: nodeToUpdate, values, override = false }
+    {
+      workflow,
+      node: nodeToUpdate,
+      values,
+      override = false,
+      viaRealtime = false,
+    }
   ) {
     if (override) {
       const index = workflow.nodes.findIndex(
         (item) => item.id === nodeToUpdate.id
       )
-      workflow.nodes[index] = populateNode(values)
+      const previous = workflow.nodes[index]
+      const newNode = populateNode(values)
+      // Carry the realtime version over the object replacement so a subsequent
+      // increment is still detected as a change by watchers.
+      newNode._.realtimeVersion = previous?._?.realtimeVersion || 0
+      markRealtimeMetadata(newNode, viaRealtime)
+      workflow.nodes[index] = newNode
       updateCachedValues(workflow)
     } else {
-      Object.assign(workflow.nodeMap[nodeToUpdate.id], values)
+      const node = workflow.nodeMap[nodeToUpdate.id]
+      Object.assign(node, values)
+      markRealtimeMetadata(node, viaRealtime)
     }
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
@@ -297,13 +315,60 @@ const actions = {
       throw error
     }
   },
-  forceUpdate({ commit }, { workflow, node, values, override }) {
+  /**
+   * Reloads one node from the server and applies it as a realtime update.
+   * Used when a websocket event was too large to carry the node's sample data
+   * and arrived with `requires_refresh` instead; the list endpoint is the only
+   * read endpoint for nodes, so the workflow's nodes are fetched and the one we
+   * need is picked out, leaving the selection and the other nodes untouched.
+   */
+  async refetch({ dispatch, getters }, { workflow, nodeId }) {
+    const { data: nodes } = await AutomationWorkflowNodeService(
+      this.$client
+    ).get(workflow.id)
+    const values = nodes.find((node) => node.id === nodeId)
+    const existing = getters.findById(workflow, nodeId)
+    if (!values || !existing) return null
+    await dispatch('forceUpdate', {
+      workflow,
+      node: existing,
+      values,
+      override: true,
+      viaRealtime: true,
+    })
+    return getters.findById(workflow, nodeId)
+  },
+  forceUpdate({ commit }, { workflow, node, values, override, viaRealtime }) {
     commit('UPDATE_ITEM', {
       workflow,
       node,
       values,
       override,
+      viaRealtime,
     })
+  },
+  /**
+   * Sends an update straight away. `updateDebounced` waits half a second after
+   * the last change so keystrokes batch into one request, which for a one-shot
+   * command such as regenerating the inbound email address is only a delay
+   * before the spinner and the request. There is nothing to show optimistically
+   * either: the server produces the result, so the node is updated from its
+   * response alone and the loading flag covers the whole round trip. Pending
+   * debounced changes are left untouched so the two paths stay independent.
+   */
+  async update({ dispatch, commit }, { workflow, node, values }) {
+    commit('SET_LOADING', { node, value: true })
+    try {
+      const { data } = await AutomationWorkflowNodeService(this.$client).update(
+        node.id,
+        values
+      )
+      // As in `updateDebounced`, the id is never written back.
+      delete data.id
+      await dispatch('forceUpdate', { workflow, node, values: data })
+    } finally {
+      commit('SET_LOADING', { node, value: false })
+    }
   },
   async updateDebounced(
     { dispatch, commit, getters },
@@ -530,6 +595,11 @@ const actions = {
         position,
         output,
       })
+
+      // A move can change a node's level or path, which may invalidate
+      // cross-node references. Let each node type reconcile the workflow, as
+      // the backend does after its own move.
+      dispatch('afterMove', { workflow })
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -541,6 +611,21 @@ const actions = {
       })
 
       throw error
+    }
+  },
+  /**
+   * Mirrors the backend, which calls `after_move` on every node type after a
+   * move: lets each node reconcile state the move may have invalidated (e.g. a
+   * "Go to node" whose destination now sits on a different branch or level).
+   */
+  afterMove({ dispatch, getters }, { workflow }) {
+    for (const node of getters.getNodes(workflow)) {
+      const values = this.$registry
+        .get('node', node.type)
+        .afterMove({ workflow, node })
+      if (values) {
+        dispatch('forceUpdate', { workflow, node, values })
+      }
     }
   },
   async duplicate({ commit, dispatch, getters }, { workflow, nodeId }) {
@@ -682,6 +767,15 @@ const getters = {
     if (!workflow) return []
     return workflow.nodes
   },
+  /**
+   * The nodes in the order they appear in the editor, top to bottom. `getNodes`
+   * returns them in creation order (the backend orders by id), which diverges
+   * from the graph as soon as a node is inserted between two others or moved.
+   */
+  getNodesInOrder: (state) => (workflow) => {
+    if (!workflow) return []
+    return new NodeGraphHandler(workflow).getOrderedNodes()
+  },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes || !nodeId) return null
     const nodeIdStr = nodeId.toString()
@@ -689,6 +783,14 @@ const getters = {
       return workflow.nodeMap[nodeIdStr]
     }
     return null
+  },
+  findByServiceId: (state, getters) => (workflow, serviceId) => {
+    if (!workflow || !serviceId) return null
+    return (
+      getters
+        .getNodes(workflow)
+        .find((node) => node.service?.id === serviceId) || null
+    )
   },
   getSelected: (state) => (workflow) => {
     if (!workflow) return null

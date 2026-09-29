@@ -1,0 +1,466 @@
+import { TestApp } from '@baserow/test/helpers/testApp'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+
+describe('Database data provider types', () => {
+  let testApp = null
+
+  const row = { id: 42, field_1: 'Ada' }
+  const fields = [{ id: 1, type: 'text', name: 'Name' }]
+  const applicationContext = { row, fields }
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const fieldsProvider = () =>
+    testApp.getRegistry().get('databaseDataProvider', 'fields')
+
+  // A URL is resolved through the fields provider only, so without this the
+  // clicked row's id cannot reach a button's URL at all.
+  test('the fields provider offers the row id alongside the fields', () => {
+    const schema = fieldsProvider().getDataSchema(applicationContext)
+
+    expect(Object.keys(schema.properties)).toStrictEqual(['id', 'field_1'])
+    expect(schema.properties.id.type).toBe('number')
+  })
+
+  test('the fields provider resolves the row id', () => {
+    expect(fieldsProvider().getDataChunk(applicationContext, ['id'])).toBe(42)
+  })
+
+  test('the fields provider still stringifies a field value', () => {
+    expect(fieldsProvider().getDataChunk(applicationContext, ['field_1'])).toBe(
+      'Ada'
+    )
+  })
+
+  test('the row provider keeps offering the row id', () => {
+    const provider = testApp.getRegistry().get('databaseDataProvider', 'row')
+
+    expect(
+      provider.getDataSchema(applicationContext).properties.id
+    ).toBeTruthy()
+    expect(provider.getDataChunk(applicationContext, ['id'])).toBe(42)
+  })
+
+  const previousProvider = () =>
+    testApp.getRegistry().get('databaseDataProvider', 'previous_action')
+
+  const CREATE_ROW = {
+    id: 1,
+    type: 'local_baserow_create_row',
+    service: { table_id: 7 },
+  }
+  const UPDATE_ROW = {
+    id: 2,
+    type: 'local_baserow_update_row',
+    service: { table_id: 7 },
+  }
+  const OPEN_URL = {
+    id: 3,
+    type: 'open_url',
+    url: { formula: '', mode: 'raw' },
+  }
+
+  const editorContext = (actions, current) => ({
+    workflowActions: actions,
+    workflowAction: current,
+    tableFields: {
+      7: [
+        { id: 10, name: 'Name', type: 'text', read_only: false },
+        { id: 11, name: 'Created on', type: 'created_on', read_only: true },
+        { id: 12, name: 'Files', type: 'file', read_only: false },
+        { id: 13, name: 'Stage', type: 'single_select', read_only: false },
+        { id: 14, name: 'Done', type: 'boolean', read_only: false },
+        { id: 15, name: 'Amount', type: 'number', read_only: false },
+      ],
+    },
+  })
+
+  test('the first action is offered no previous actions', () => {
+    const context = editorContext([CREATE_ROW, UPDATE_ROW], CREATE_ROW)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual([])
+  })
+
+  test('a later action is offered the ones before it, and not itself', () => {
+    const context = editorContext([CREATE_ROW, UPDATE_ROW, OPEN_URL], OPEN_URL)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual(['1', '2'])
+  })
+
+  test('an action is never offered one that sits after it', () => {
+    const context = editorContext([CREATE_ROW, UPDATE_ROW], UPDATE_ROW)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
+  test('an unsaved action is described from the target table fields', () => {
+    const unsaved = {
+      _clientId: 'abc',
+      type: 'local_baserow_create_row',
+      service: { table_id: 7 },
+    }
+    const context = editorContext([unsaved, OPEN_URL], OPEN_URL)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // Keyed by the client id until the action is saved.
+    expect(Object.keys(schema.properties)).toStrictEqual(['abc'])
+    // A read only field is still readable out of a created row.
+    expect(Object.keys(schema.properties.abc.properties)).toStrictEqual([
+      'id',
+      'field_10',
+      'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
+    ])
+    // Named as the backend names it, so saving the action does not rename
+    // the node under the user.
+    expect(schema.properties.abc.properties.id.title).toBe(
+      'dataProviderTypes.previousActionRowId'
+    )
+  })
+
+  test('the third action is offered the first two, and not itself', () => {
+    const third = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, UPDATE_ROW, third], third)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual(['1', '2'])
+  })
+
+  test('reordering changes what each action is offered, with no save', () => {
+    // The same three actions, the third moved to the front.
+    const third = { ...CREATE_ROW, id: 5 }
+    const moved = previousProvider().getDataSchema(
+      editorContext([third, CREATE_ROW, UPDATE_ROW], third)
+    )
+
+    expect(Object.keys(moved.properties)).toStrictEqual([])
+  })
+
+  test('deleting a middle action removes it from what follows', () => {
+    const third = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, third], third)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // UPDATE_ROW is gone from the list, so it is gone from the tree.
+    expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
+  test('an action after an open_url is not offered the open_url', () => {
+    const after = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, OPEN_URL, after], after)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // The create row before it, and nothing for the URL action between them.
+    expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
+  test('a table whose fields could not be fetched offers only the row id', () => {
+    // The saved schema describes whichever table the action pointed at when it
+    // was last saved, so falling back to it would offer fields of the wrong
+    // table for as long as the fetch keeps failing.
+    const unsaved = {
+      _clientId: 'gone',
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 9,
+        schema: {
+          type: 'object',
+          properties: { field_99: { type: 'string', title: 'Stale' } },
+        },
+      },
+    }
+    const context = {
+      workflowActions: [unsaved, OPEN_URL],
+      workflowAction: OPEN_URL,
+      tableFields: { 9: FIELDS_UNAVAILABLE },
+    }
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties.gone.properties)).toStrictEqual(['id'])
+  })
+
+  test('a write only field is not offered out of a created row', () => {
+    const unsaved = {
+      _clientId: 'pw',
+      type: 'local_baserow_create_row',
+      service: { table_id: 9 },
+    }
+    const context = {
+      workflowActions: [unsaved, OPEN_URL],
+      workflowAction: OPEN_URL,
+      tableFields: {
+        9: [
+          { id: 20, name: 'Name', type: 'text', read_only: false },
+          { id: 21, name: 'Secret', type: 'password', read_only: false },
+        ],
+      },
+    }
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // The dispatch refuses to read one, and the response masks it, so offering
+    // it would only build a formula that resolves to nothing useful.
+    expect(Object.keys(schema.properties.pw.properties)).toStrictEqual([
+      'id',
+      'field_20',
+    ])
+  })
+
+  test('a repointed table wins over the schema saved before it', () => {
+    // The editor buffers a table change without clearing the schema the API
+    // returned, so preferring that schema would offer fields of a table this
+    // action no longer writes to.
+    const repointed = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          properties: {
+            field_99: { title: 'Old table field', type: 'string' },
+          },
+        },
+      },
+    }
+    const context = editorContext([repointed, OPEN_URL], OPEN_URL)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties['1'].properties)).toStrictEqual([
+      'id',
+      'field_10',
+      'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
+    ])
+  })
+
+  test('a saved schema fills out what a composite field contains', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          properties: {
+            field_13: {
+              title: 'Stage',
+              type: 'object',
+              properties: {
+                id: { title: 'id', type: 'number' },
+                value: { title: 'value', type: 'string' },
+                color: { title: 'color', type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(Object.keys(properties.field_13.properties)).toStrictEqual([
+      'id',
+      'value',
+      'color',
+    ])
+  })
+
+  test('a field added since the last save is still offered', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          title: 'Table7Schema',
+          properties: { field_10: { title: 'Name', type: 'string' } },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(Object.keys(properties)).toStrictEqual([
+      'id',
+      'field_10',
+      'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
+    ])
+  })
+
+  test('a field renamed since the last save is offered its current name', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          title: 'Table7Schema',
+          properties: {
+            field_10: { title: 'Called this before', type: 'string' },
+          },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(properties.field_10.title).toBe('Name')
+  })
+
+  test('a field is typed as the backend types it', () => {
+    const unsaved = {
+      _clientId: 'abc',
+      type: 'local_baserow_create_row',
+      service: { table_id: 7 },
+    }
+    const context = editorContext([unsaved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties.abc
+
+    // Only the shapes that decide whether a node can have children.
+    expect(properties.field_12.type).toBe('array')
+    expect(properties.field_13.type).toBe('object')
+    expect(properties.field_14.type).toBe('boolean')
+    // A number field comes back from the API as a string, and the backend's
+    // own schema says so too.
+    expect(properties.field_15.type).toBe('string')
+    expect(properties.field_10.type).toBe('string')
+  })
+
+  test('open_url contributes nothing, having no result', () => {
+    const context = editorContext([OPEN_URL, CREATE_ROW], CREATE_ROW)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual([])
+  })
+
+  test('two actions of the same type are told apart', () => {
+    const second = { ...CREATE_ROW, id: 4 }
+    const context = editorContext([CREATE_ROW, second, OPEN_URL], OPEN_URL)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(schema.properties['1'].title).not.toBe(schema.properties['4'].title)
+    expect(schema.properties['4'].title).toMatch(/2$/)
+  })
+
+  test('a result is resolved through the field names it came with', () => {
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99, Name: 'Ada' }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    expect(previousProvider().getDataChunk(context, ['1', 'id'])).toBe(99)
+    expect(previousProvider().getDataChunk(context, ['1', 'field_10'])).toBe(
+      'Ada'
+    )
+  })
+
+  test('an action that did not run raises, rather than resolving empty', () => {
+    // The backend raises for the same reference. Coming back empty here would
+    // leave a hole in a URL and open it anyway.
+    const context = { previousActionResults: {} }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'id'])
+    ).toThrow()
+  })
+
+  test('the editor resolves to null, having no results yet', () => {
+    // Formulas are resolved for preview while the editor is open, before any
+    // click. Throwing there would break the input the user is typing into.
+    expect(previousProvider().getDataChunk({}, ['1', 'id'])).toBe(null)
+  })
+
+  test('a field missing from the result raises', () => {
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99, Name: 'Ada' }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    // Deleted after the reference was written, so it is not among the names
+    // the result carried.
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'field_777'])
+    ).toThrow()
+  })
+
+  test('a segment the result does not carry raises, whatever it is named', () => {
+    // The backend raises for any missing segment, not only a `field_` one.
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99, Name: 'Ada' }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'bogus'])
+    ).toThrow()
+    // A name resolves, as on the backend: the result is keyed by name.
+    expect(previousProvider().getDataChunk(context, ['1', 'Name'])).toBe('Ada')
+  })
+
+  test('a field named in the result but absent from it raises', () => {
+    // Deleted between the dispatch naming the fields and building the row.
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99 }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'field_10'])
+    ).toThrow()
+  })
+
+  test('an action that returned no row at all raises', () => {
+    const context = {
+      previousActionResults: { 1: { data: null, fieldNames: {} } },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'id'])
+    ).toThrow()
+  })
+})

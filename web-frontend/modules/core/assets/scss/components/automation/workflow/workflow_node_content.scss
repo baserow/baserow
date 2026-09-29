@@ -93,7 +93,6 @@
 
 .workflow-node-content__icon {
   display: flex;
-  height: 40px;
   padding: 12px;
   justify-content: center;
   gap: 8px;
@@ -102,6 +101,17 @@
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
+
+  i {
+    color: var(--workflow-node-icon-color, $palette-neutral-900);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+
+    &.loading {
+      border-width: 2px;
+    }
+  }
 
   &:has(img) {
     padding: 8px;
@@ -124,4 +134,45 @@
 
 .workflow-node-content__wrapper--dragging {
   opacity: 0.5;
+}
+
+// Paired markers linking a "Go to node" to its destination: the same letter is
+// shown on both cards (one "out", one "in") in place of a drawn connector.
+// Anchored just outside the card's left edge — where the old connector line
+// ran — so they never eat into the node's label, however many jumps point here.
+.workflow-node-content__goto-markers {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.workflow-node-content__goto-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: $palette-neutral-700;
+  background: $palette-neutral-100;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+
+  i {
+    font-size: 14px;
+  }
+
+  &--active {
+    color: $white;
+    background: $palette-blue-600;
+    border-color: $palette-blue-600;
+  }
 }

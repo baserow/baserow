@@ -12,7 +12,33 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
-      name: http
+      name: {{ .Values.service.name }}
   selector:
     {{- include "baserow.selectorLabels" . | nindent 4 }}
+{{- end }}
+{{- range $name, $service := .Values.additionalServices }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "baserow.fullname" $ }}-{{ $name }}
+  namespace: {{ include "baserow.namespace" $ }}
+  {{- with $service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "baserow.labels" $ | nindent 4 }}
+spec:
+  type: {{ $service.type | default "ClusterIP" }}
+  {{- with $service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  ports:
+    - port: {{ $service.port }}
+      targetPort: {{ $service.targetPort | default $service.port }}
+      protocol: {{ $service.protocol | default "TCP" }}
+      name: {{ $service.portName | default $name }}
+  selector:
+    {{- include "baserow.selectorLabels" $ | nindent 4 }}
 {{- end }}

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
@@ -10,6 +10,7 @@ from baserow.contrib.automation.action_scopes import (
 )
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -392,6 +393,9 @@ class MoveAutomationNodeActionType(UndoableActionType):
         destination_reference_node_id: int
         destination_position: GraphPointPositionType
         destination_output: str
+        # Reversible modifications node types made to reconcile the workflow
+        # after the move, keyed by node type. Reverted on undo.
+        move_extra_data: dict = field(default_factory=dict)
 
     @classmethod
     def do(
@@ -425,6 +429,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 reference_node_id,
                 position,
                 output,
+                move.move_extra_data,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
@@ -449,6 +454,12 @@ class MoveAutomationNodeActionType(UndoableActionType):
             params.origin_position,
             params.origin_output,
         )
+        # The node is back at its original level, so revert the reconciliations
+        # the move made (e.g. restore Go to links it cleared).
+        for node_type_str, modifications in params.move_extra_data.items():
+            automation_node_type_registry.get(node_type_str).revert_move(
+                user, modifications
+            )
 
     @classmethod
     def redo(

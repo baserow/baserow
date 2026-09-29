@@ -1,13 +1,46 @@
 import os
+from importlib import import_module
+
+from django.db import connection
 
 import pytest
 from fakeredis.aioredis import FakeRedis
 
 from baserow.config.settings.test import _fake_redis_server
-from baserow.core.async_redis import set_async_redis
+from baserow.core.async_redis import (
+    get_cache_redis_url,
+    set_async_cache_redis,
+    set_async_redis,
+)
 from baserow.ws.registries import PageType, page_registry
 
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+
+
+@pytest.fixture(scope="session")
+def _install_realtime_targets(django_db_setup, django_db_blocker):
+    # Test settings skip migrations. Install the database-derived routing fields
+    # once, before pytest-django starts any per-test transaction.
+    migration = import_module("baserow.ws.migrations.0002_realtime_event_indexes")
+    with django_db_blocker.unblock(), connection.schema_editor(atomic=False) as editor:
+        migration.forwards(None, editor)
+
+
+@pytest.fixture(scope="session")
+def _install_realtime_history(_install_realtime_targets, django_db_blocker):
+    migration = import_module("baserow.ws.migrations.0003_realtime_event_history")
+    with django_db_blocker.unblock(), connection.schema_editor(atomic=False) as editor:
+        migration.forwards(None, editor)
+
+
+@pytest.fixture
+def _django_db_helper(_install_realtime_history, _django_db_helper):
+    # Initialize known history inside pytest-django's per-test transaction.
+    from baserow.ws.models import RealtimeEventHistoryState
+
+    RealtimeEventHistoryState.objects.update_or_create(
+        pk=1, defaults={"floor": 0, "compacted_event_id": 0}
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -20,8 +53,13 @@ def _inject_fake_async_redis():
 
     client = FakeRedis(server=_fake_redis_server, decode_responses=True)
     set_async_redis(client)
+    cache_db = int(get_cache_redis_url().rpartition("/")[2] or 0)
+    set_async_cache_redis(
+        FakeRedis(server=_fake_redis_server, decode_responses=False, db=cache_db)
+    )
     yield
     set_async_redis(None)
+    set_async_cache_redis(None)
 
 
 class PresenceTestPageType(PageType):

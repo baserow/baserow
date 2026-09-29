@@ -1,24 +1,9 @@
 <template>
-  <div class="data-table" :class="{ 'data-table--loading': loading }">
-    <div
-      v-if="
-        hasEmptySlot &&
-        !loading &&
-        rows.length === 0 &&
-        page === 1 &&
-        searchQuery === false &&
-        Object.keys(filters).length === 0
-      "
-    >
+  <div class="data-table">
+    <div v-if="showEmptyState">
       <slot name="empty"></slot>
     </div>
-    <template
-      v-else-if="
-        !(hasEmptySlot && loading) ||
-        searchQuery !== false ||
-        Object.keys(filters).length > 0
-      "
-    >
+    <template v-else>
       <header class="data-table__header">
         <h1 class="data-table__title">
           <slot name="title"></slot>
@@ -26,7 +11,9 @@
         <div class="data-table__actions">
           <CrudTableSearch
             v-if="enableSearch"
-            :loading="loading"
+            ref="crudTableSearch"
+            :loading="loading && loaded"
+            :initial-search-term="defaultSearch || ''"
             @search-changed="doSearch"
           />
           <slot name="header-right-side"></slot>
@@ -36,7 +23,17 @@
       <div class="data-table__body">
         <table class="data-table__table">
           <thead>
-            <tr class="data-table__table-row">
+            <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
+              <th
+                class="data-table__table-cell data-table__table-cell--header"
+                :colspan="columns.length"
+              >
+                <div class="data-table__table-cell-head skeleton">
+                  <SkeletonBlock width="200px"></SkeletonBlock>
+                </div>
+              </th>
+            </tr>
+            <tr v-else class="data-table__table-row">
               <th
                 v-for="col in columns"
                 :key="'head-' + col.key"
@@ -77,7 +74,13 @@
             </tr>
           </thead>
           <tbody>
+            <CrudTableSkeletonRows
+              v-if="loading"
+              :columns="columns"
+              :count="skeletonRowCount"
+            ></CrudTableSkeletonRows>
             <slot
+              v-else
               name="rows"
               :rows="rows"
               :columns="columns"
@@ -123,6 +126,7 @@
       </div>
       <div v-if="service.options.isPaginated" class="data-table__footer">
         <Paginator
+          v-skeleton="{ loading: initialLoading, height: '20px' }"
           :page="page"
           :total-pages="totalPages"
           @change-page="fetch"
@@ -136,6 +140,7 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
+import CrudTableSkeletonRows from '@baserow/modules/core/components/crudTable/CrudTableSkeletonRows'
 import Paginator from '@baserow/modules/core/components/Paginator'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import _ from 'lodash'
@@ -160,7 +165,7 @@ import isObject from 'lodash/isObject'
  */
 export default {
   name: 'CrudTable',
-  components: { Paginator, CrudTableSearch },
+  components: { Paginator, CrudTableSearch, CrudTableSkeletonRows },
   inheritAttrs: false,
   props: {
     /**
@@ -239,14 +244,25 @@ export default {
       type: Boolean,
       default: true,
     },
+    /**
+     * Optionally makes the table start with the provided search query already applied,
+     * for example based on a route query parameter.
+     */
+    defaultSearch: {
+      required: false,
+      type: String,
+      default: null,
+    },
   },
-  emits: ['row-context', 'rows-update'],
+  emits: ['row-context', 'rows-update', 'total-count-update'],
   data() {
     return {
       loading: true,
+      loaded: false,
       page: 1,
       totalPages: 0,
-      searchQuery: false,
+      lastFetchId: 0,
+      searchQuery: this.defaultSearch || false,
       rows: [],
       columnSorts: this.defaultColumnSorts,
     }
@@ -254,6 +270,26 @@ export default {
   computed: {
     hasEmptySlot() {
       return !!this.$slots.empty
+    },
+    initialLoading() {
+      return this.loading && !this.loaded
+    },
+    /**
+     * Matches the number of rows that are already there, so that refetching
+     * doesn't change the height of the table.
+     */
+    skeletonRowCount() {
+      return this.rows.length || 10
+    },
+    showEmptyState() {
+      return (
+        this.hasEmptySlot &&
+        !this.loading &&
+        this.rows.length === 0 &&
+        this.page === 1 &&
+        this.searchQuery === false &&
+        Object.keys(this.filters).length === 0
+      )
     },
   },
   watch: {
@@ -309,6 +345,13 @@ export default {
       this.searchQuery = searchQuery
       await this.fetch(1)
     },
+    setSearch(searchQuery) {
+      if (this.$refs.crudTableSearch) {
+        this.$refs.crudTableSearch.setSearchTerm(searchQuery)
+      } else {
+        this.doSearch(searchQuery)
+      }
+    },
     /**
      * Fetches the rows of a given page and adds them to the state.
      */
@@ -317,6 +360,9 @@ export default {
         page = 1
       }
 
+      // A newer request can resolve before an older one, so the response of an
+      // older request must never overwrite the state of a newer one.
+      const fetchId = ++this.lastFetchId
       this.loading = true
       try {
         const { data } = await this.service.fetch(
@@ -328,17 +374,26 @@ export default {
           this.service.options
         )
 
+        if (fetchId !== this.lastFetchId) {
+          return
+        }
+
         if (this.service.options.isPaginated) {
           this.page = page
           this.totalPages = Math.max(Math.ceil(data.count / 100), 1)
+          this.$emit('total-count-update', data.count)
         }
 
         this.rows = _.isArray(data) ? data : data.results
       } catch (error) {
+        if (fetchId !== this.lastFetchId) {
+          return
+        }
         notifyIf(error, 'row')
       }
 
       this.loading = false
+      this.loaded = true
     },
     updateRow(updatedRow) {
       const i = this.rows.findIndex(

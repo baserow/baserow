@@ -255,10 +255,25 @@ implemented. However, a subclass can also:
 * Hook into a job creation by preprocessing values provided by a user/postprocessing a
   created job.
 * Hook into a job deletion process.
-* Provide a job error handler.
+* Provide a job error handler (`JobType.on_error`). It's called after a failed job's
+  transaction has been rolled back and its failed state has been saved, so database
+  changes made in the hook are kept. Use it to persist error details on related models
+  (e.g. `SyncDataSyncTableJobType` stores `data_sync.last_error` there).
 * Provide custom job serializer fields or a custom serializer for a job model.
 * Pap exceptions to specific HTTP response codes.
 * Have [a model class](#job-sub-models).
+* Declare listing filters (`JobType.get_filters_serializer`) so `GET /api/jobs/` can
+  filter jobs of that type by a related object, e.g.
+  `?type=sync_data_sync_table&sync_data_sync_table_data_sync_id=1&limit=10`.
+* Widen listing visibility (`JobType.scope_queryset_to_user`). By default users only
+  see their own jobs. A job type can override this queryset scoping, after an explicit
+  object-level permission check, to expose runs started by other users (including
+  server-triggered ones). This applies both to type-filtered listings and to polling
+  by `job_ids`.
+* Add the relations required by its response serializer with
+  `JobType.enhance_queryset`. The jobs listing invokes this hook on each concrete job
+  queryset, avoiding per-job relation queries without coupling the generic endpoint to
+  fields owned by a particular job type.
 
 `JobType` subclasses are registered and managed with a job type registry, so it should
 be easy to add new job types without modifying existing code. Each job type should have
@@ -424,4 +439,3 @@ The component should use the `ProgressBar` subcomponent to display the progress:
 
 The buttons for the job creation/cancellation are up to the component. Their state can
 utilize properties above to control visibility.
-

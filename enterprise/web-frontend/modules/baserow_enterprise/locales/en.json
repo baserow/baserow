@@ -71,9 +71,12 @@
     "submit": "Save",
     "nameTitle": "Name",
     "roleTitle": "Default role",
-    "inviteMembers": "Add members",
-    "membersTitle": "Members",
-    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team users.",
+    "inviteMembers": "Manage access",
+    "agentLabel": "Agent",
+    "membersTitle": "Team members",
+    "noSubjectsSelected": "No one has access through this team yet.",
+    "accessModalTitle": "Manage team access",
+    "accessModalDescription": "Choose the people and agents who belong to this team.",
     "roleHelpText": "User specific roles will always override Team roles."
   },
   "editTeamContext": {
@@ -91,6 +94,13 @@
   },
   "subjectSampleField": {
     "titleAttr": "{subjectCount} members in this team."
+  },
+  "enterpriseAgents": {
+    "teams": "Teams",
+    "noTeams": "No teams",
+    "teamsLoadError": "The teams could not be loaded.",
+    "teamsLoadErrorDescription": "Check the connection and try again.",
+    "retry": "Retry"
   },
   "teamsSettings": {
     "teamsTabTitle": "Teams"
@@ -187,6 +197,10 @@
     "titlePlural": "{count} new results found for {scanName}",
     "description": "Review the results in the admin data scanner."
   },
+  "applicationUserLimitNotification": {
+    "titleWarning": "{workspaceName} has used {usage} of the {limit} available application users.",
+    "titleReached": "{workspaceName} has reached the application user limit of {limit}. Once it goes over, no one can sign in to its published apps until you upgrade."
+  },
   "auditLog": {
     "adminTitle": "Audit log",
     "workspaceTitle": "Audit log - {workspaceName}",
@@ -252,7 +266,8 @@
     "firstNameAttrKey": "First name",
     "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
     "lastNameAttrKey": "Last name",
-    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'."
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
+    "emailVerificationNotice": "Ensure your identity provider requires verified email addresses before authenticating users. SAML signatures authenticate the provider, not email ownership."
   },
   "createSettingsAuthProviderModal": {
     "title": "Add a new {type}"
@@ -283,8 +298,10 @@
     "errorProviderDoesNotExist": "this authentication provider doesn't exist or is not available.",
     "errorAuthFlowError": "an error occurred during the authentication flow with the selected provider.",
     "errorDifferentProvider": "please use the provider that you originally signed up with.",
+    "errorUnverifiedEmail": "the identity provider has not verified your email address. Please verify your email with the provider and try again.",
     "errorWorkspaceInvitationEmailMismatch": "your email address does not match with the invitation.",
-    "errorSignupDisabled": "sign up has been disabled by the administrator."
+    "errorSignupDisabled": "sign up has been disabled by the administrator.",
+    "errorApplicationUserLimitReached": "Login is temporarily unavailable. Please contact the website owner or try again later."
   },
   "roles": {
     "admin": {
@@ -354,6 +371,7 @@
   },
   "roleAssignmentModal": {
     "membersTab": "Members",
+    "agentsTab": "Agents",
     "teamsTab": "Teams",
     "subjectTypeNameMembers": "members",
     "subjectTypeNameTeams": "teams"
@@ -366,13 +384,22 @@
     "searchPlaceholder": "Find teams...",
     "selectedAmountLabel": "{count} teams selected"
   },
+  "selectAgentsList": {
+    "searchPlaceholder": "Find agents...",
+    "selectedAmountLabel": "{count} agents selected"
+  },
+  "subjectType": {
+    "team": "Team",
+    "teams": "Teams"
+  },
   "selectSubjectsListFooter": {
     "invite": "Invite {count} {type}",
     "types": {
       "members": "members",
+      "agents": "agents",
       "teams": "teams"
     },
-    "helpTooltip": "Member role assignments override team role assignments."
+    "helpTooltip": "Member and Agent role assignments override team role assignments."
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",
@@ -402,7 +429,8 @@
     "lastNameAttrKey": "Last Name",
     "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
     "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
-    "callbackUrl": "Callback URL"
+    "callbackUrl": "Callback URL",
+    "emailVerificationNotice": "Ensure your identity provider requires verified email addresses before authenticating users. Baserow trusts the email address reported by the provider."
   },
   "loginButton": {
     "continueWith": "Continue with"
@@ -428,6 +456,8 @@
     "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
     "builderFileInputElement": "File input element",
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
+    "builderGraphElement": "Graph element",
+    "builderGraphElementContent": "Display formula-driven data as a graph in application pages.",
     "builderCustomCode": "Custom code for applications",
     "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
     "codeRunner": "Code runner",
@@ -717,7 +747,7 @@
     "multiple": "Multiple files?",
     "required": "Required",
     "fileTypes": "File types",
-    "fileTypesHelper": "Choose which file extensions are allowed (one per line) by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of these types. Leave empty to permit all file types.",
+    "fileTypesHelper": "Choose which file types are allowed (one per line). Enter a file extension (e.g. jpg, .png, pdf), a full MIME type (e.g. image/jpeg, application/pdf), or a MIME wildcard (e.g. image/*, text/*, application/*) to allow all files of that type. Leave empty to permit all file types.",
     "preview": "Preview images?",
     "maxFileSize": "Maximum file size",
     "maxFileSizePlaceholder": "Enter a number...",
@@ -737,10 +767,23 @@
     "builderDescription": "Users with Builder and Admin roles",
     "adminTitle": "Admins only",
     "adminDescription": "Users with Admin roles",
+    "customTitle": "Specific users, agents, or teams",
+    "customDescription": "Only selected users, agents, and team members who already have an Editor, Builder, or Admin role",
     "nobodyTitle": "Nobody",
     "nobodyDescription": "No users",
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "fieldPermissionSubjectsSelector": {
+    "accessNote": "Selection does not grant table access. A selected user, agent, or a member of a selected team, must also have an Editor, Builder, or Admin role where this table is located.",
+    "canEdit": "Selected users, agents, and teams",
+    "noSelectedSubjects": "Nobody is selected yet. Use the search above to add a user, agent, or team.",
+    "addPeopleOrTeams": "Add users, agents, or teams",
+    "searchPlaceholder": "Search users, agents, or teams",
+    "searchHint": "Search by name",
+    "teamDescription": "Team",
+    "teamSearchDescription": "Team · {count} member | Team · {count} members",
+    "remove": "Remove {subject}"
   },
   "builderSettingTypes": {
     "customCode": "Custom CSS/JS"
@@ -773,8 +816,31 @@
     "crossoriginTypeCredentials": "Use credentials"
   },
   "elementType": {
+    "graph": "Graph",
+    "graphDescription": "Display formula-driven data as a graph.",
     "errorUserSourceHasNoLoginOption": "The selected user source has no login option",
     "errorUserSourceMissing": "No user source selected"
+  },
+  "graphElementForm": {
+    "labels": "Labels",
+    "labelsHelper": "The formula must resolve to an array. Each item becomes one label on the graph.",
+    "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+    "seriesList": "Series",
+    "series": "Series {number}",
+    "addSeries": "Add series",
+    "seriesLabel": "Series label",
+    "seriesLabelPlaceholder": "'Revenue'",
+    "seriesValues": "Values",
+    "seriesValuesHelper": "The formula must resolve to one numeric value per label.",
+    "seriesValuesPlaceholder": "to_array('10,20,30')",
+    "chartType": "Chart type",
+    "seriesColor": "Color",
+    "barChart": "Bar",
+    "lineChart": "Line"
+  },
+  "graphElement": {
+    "series": "Series {number}",
+    "noData": "No graph data"
   },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"
@@ -833,24 +899,46 @@
     "ai": "Kuma AI"
   },
   "aiDatabaseOnboardingForm": {
-    "label": "Describe your database",
-    "placeholder": "e.g. Create project management solution",
-    "description": "Describe what you want to track. Kuma will create the tables and fields.",
-    "exampleProjectTrackerName": "Project Tracker",
-    "exampleProjectTrackerPrompt": "Create a project tracker with Projects, Tasks, Assignees, Status, Priority, Due dates, and dependencies.",
-    "exampleProductRoadmapName": "Product Roadmap",
-    "exampleProductRoadmapPrompt": "Create a product roadmap with Initiatives, Features, Owners, Status, Priority, Target quarter, and release notes.",
-    "exampleCompanyAssetTrackerName": "Company Asset Tracker",
-    "exampleCompanyAssetTrackerPrompt": "Create an asset tracker with Assets, Categories, Serial numbers, Purchase date, Assigned to, Location, and warranty expiry.",
-    "exampleTeamCheckInsName": "Team Check-ins",
-    "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups.",
-    "exampleBugTrackerName": "Bug Tracker",
-    "exampleBugTrackerPrompt": "Create a bug tracker with Bugs, Severity, Status, Steps to reproduce, Environment, Reporter, Assignee, and fix version."
+    "progress": "Question {current} of {total}",
+    "explanation": "Kuma builds your workspace for you. Answering a couple of questions lets it suggest what to build first, so you start with something that matches the work you actually do.",
+    "industryLabel": "What industry are you in?",
+    "industryDescription": "A few words are enough, like \"Manufacturing\", \"Aerospace\" or \"Digital marketing\".",
+    "industryPlaceholder": "e.g. Digital marketing",
+    "teamLabel": "Which team are you on?",
+    "teamDescription": "For example \"Client services\", \"Finance\" or \"Operations\".",
+    "teamPlaceholder": "e.g. Client services"
   },
-  "aiDatabaseOnboardingStepType": {
-    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}"
+  "aiPromptStep": {
+    "title": "What should Kuma build for you?",
+    "description": "We've written a first suggestion based on your answers. Change it, or pick another one below.",
+    "label": "Describe your database",
+    "placeholder": "e.g. Track client projects with deadlines, owners and status.",
+    "generating": "Kuma is writing a suggestion for you…",
+    "suggestionsTitle": "Or start with one of these",
+    "editDetails": "Edit details",
+    "modelNotSupportedTitle": "Kuma is unavailable",
+    "modelNotSupportedMessage": "Kuma can't be reached because no working AI model is configured, so it can't build a database for you right now. Trying again won't help until that's fixed.",
+    "errorOtherOptions": "Go back to start a database in another way, for example from a template, an import, or from scratch."
+  },
+  "aiOnboardingDetailsModal": {
+    "title": "Edit your details",
+    "submit": "Update suggestions"
+  },
+  "aiPromptOnboardingType": {
+    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}",
+    "context": "The person asking works in {industry}, on the {team} team. Use that to pick realistic tables, fields and example rows.",
+    "language": "Write everything you create in the language with ISO 639-1 code \"{language}\"."
   },
   "assistantOnboardingMessage": {
     "instructing": "Instructing Kuma to create your database."
+  },
+  "aiProviderModelFeature": {
+    "kuma": "Kuma",
+    "kumaDescription": "Power the Kuma AI assistant."
+  },
+  "assistantDashboardPrompt": {
+    "title": "Tell us what you want to create",
+    "placeholder": "Create company asset tracker",
+    "build": "Build it"
   }
 }

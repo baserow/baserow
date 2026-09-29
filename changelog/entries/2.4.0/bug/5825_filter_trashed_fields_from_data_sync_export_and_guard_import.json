@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Filter trashed fields from data sync export and guard import against missing field mappings.",
+    "issue_origin": "github",
+    "issue_number": 5825,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-03"
+}

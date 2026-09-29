@@ -1,6 +1,10 @@
 from rest_framework.exceptions import ValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.builder.models import (
+    BuilderBreakpointsValidationError,
+    validate_builder_breakpoints,
+)
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.user_files.models import UserFile
@@ -25,6 +29,15 @@ def login_page_id_validator(value: int) -> int:
         ) from exc
 
     return value
+
+
+def breakpoints_validator(value: object) -> None:
+    """Adapt the canonical Builder breakpoint validation for DRF fields."""
+
+    try:
+        validate_builder_breakpoints(value)
+    except BuilderBreakpointsValidationError as exc:
+        raise DRFValidationError(detail=exc.errors, code="invalid_breakpoints") from exc
 
 
 def image_file_validation(file: UserFile) -> None:

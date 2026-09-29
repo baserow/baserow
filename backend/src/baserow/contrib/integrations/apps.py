@@ -23,6 +23,17 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(AIIntegrationType())
         integration_type_registry.register(SlackBotIntegrationType())
 
+        from baserow.contrib.integrations.ai.ai_provider_feature_types import (
+            AIAgentAIProviderModelFeatureType,
+        )
+        from baserow.core.ai_provider.registries import (
+            ai_provider_model_feature_type_registry,
+        )
+
+        ai_provider_model_feature_type_registry.register(
+            AIAgentAIProviderModelFeatureType()
+        )
+
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
             LocalBaserowCreateRowsServiceType,
@@ -57,11 +68,14 @@ class IntegrationsConfig(AppConfig):
 
         from baserow.contrib.integrations.core.service_types import (
             CoreCSVFileReaderServiceType,
+            CoreGotoServiceType,
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
+            CoreInboundEmailTriggerServiceType,
             CoreIteratorServiceType,
             CoreManualTriggerServiceType,
             CorePeriodicServiceType,
+            CoreResponseServiceType,
             CoreRouterServiceType,
             CoreSMTPEmailServiceType,
             CoreStartWorkflowServiceType,
@@ -70,15 +84,25 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
+        service_type_registry.register(CoreGotoServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
+        service_type_registry.register(CoreInboundEmailTriggerServiceType())
         service_type_registry.register(CoreManualTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
         service_type_registry.register(CoreCSVFileReaderServiceType())
         service_type_registry.register(CoreStartWorkflowServiceType())
+        service_type_registry.register(CoreResponseServiceType())
 
         from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 
         service_type_registry.register(AIAgentServiceType())
+
+        from baserow.api.settings.registries import settings_data_registry
+        from baserow.contrib.integrations.core.settings_data_types import (
+            InstanceSMTPSettingsDataType,
+        )
+
+        settings_data_registry.register(InstanceSMTPSettingsDataType())
 
         import baserow.contrib.integrations.signals  # noqa: F403, F401

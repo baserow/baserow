@@ -12,8 +12,7 @@ from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
-from baserow.core.user_sources.handler import UserSourceHandler
-from baserow.core.user_sources.models import UserSource
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
@@ -24,11 +23,18 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 # The duration of the cached public properties for the builder API views.
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60 * 10
 
+# Computing the used properties parses every formula of the builder, which
+# can take a long time for large applications. The `lock_timeout` guarding
+# that computation must outlive it, otherwise concurrent requests take the
+# lock over and repeat the work.
+BUILDER_USED_PROPERTIES_LOCK_TIMEOUT_SECONDS = 60
+
 SENTINEL = "__no_results__"
 
 User = get_user_model()
 
 
+@baserow_trace_handler
 class BuilderHandler:
     def get_builder(self, builder_id: int) -> Builder:
         """
@@ -112,6 +118,7 @@ class BuilderHandler:
             timeout=settings.BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS
             if not builder.workspace_id
             else BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS,
+            lock_timeout=BUILDER_USED_PROPERTIES_LOCK_TIMEOUT_SECONDS,
         )
 
         return result if result != SENTINEL else None
@@ -131,25 +138,7 @@ class BuilderHandler:
         :return: A queryset of published applications.
         """
 
-        applications = Builder.objects.exclude(domains__published_to=None)
+        applications = Builder.objects.filter(
+            domains__published_to__isnull=False
+        ).distinct()
         return applications.filter(workspace=workspace) if workspace else applications
-
-    def aggregate_user_source_counts(
-        self,
-        workspace: Optional[Workspace] = None,
-    ) -> int:
-        """
-        The builder implementation of the `UserSourceHandler.aggregate_user_counts`
-        method, we need it to only count user sources in published applications.
-
-        :param workspace: If provided, only count user sources in published
-            applications within this workspace.
-        :return: The total number of user sources in published applications.
-        """
-
-        queryset = UserSourceHandler().get_user_sources(
-            base_queryset=UserSource.objects.filter(
-                application__in=self.get_published_applications(workspace)
-            )
-        )
-        return UserSourceHandler().aggregate_user_counts(workspace, queryset)

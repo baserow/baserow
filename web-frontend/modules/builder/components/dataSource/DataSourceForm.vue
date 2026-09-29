@@ -8,29 +8,24 @@
           required
           :error-message="getFirstErrorMessage('type')"
         >
-          <Dropdown
+          <GroupedDropdown
             v-model="computedType"
-            fixed-items
             class="data-source-form__type-dropdown"
+            :items="serviceTypeOptions"
             :placeholder="$t('dataSourceForm.servicePlaceholder')"
-          >
-            <template
-              v-for="[, serviceTypesForDrop] in serviceTypesPerIntegration"
-            >
-              <DropdownItem
-                v-for="serviceTypeForDrop in serviceTypesForDrop"
-                :key="serviceTypeForDrop.getType()"
-                :name="serviceTypeForDrop.name"
-                :value="serviceTypeForDrop.getType()"
-                :image="serviceTypeForDrop.integrationType.image"
-                :disabled="isServiceTypeDeactivated(serviceTypeForDrop)"
-                :description="
-                  getServiceTypeDeactivatedReason(serviceTypeForDrop)
-                "
-              >
-              </DropdownItem>
-            </template>
-          </Dropdown>
+            :search-placeholder="$t('dataSourceForm.searchActionPlaceholder')"
+            :empty-text="$t('dataSourceForm.noActionsFound')"
+            panel-height="240px"
+            @disabled-click="onServiceTypeDisabledClick"
+          />
+          <component
+            :is="deactivatedClickModal[0]"
+            v-if="deactivatedClickModal !== null"
+            ref="deactivatedClickModal"
+            v-bind="deactivatedClickModal[1]"
+            :name="deactivatedServiceTypeName"
+            :workspace="builder.workspace"
+          />
         </FormGroup>
         <FormGroup
           :label="$t('dataSourceForm.integrationLabel')"
@@ -42,9 +37,10 @@
             v-model="v$.values.integration_id.$model"
             class="data-source-form__integration-dropdown"
             :application="builder"
-            :integrations="integrations"
+            :integrations="availableIntegrations"
             :disabled="!v$.values.type.$model"
             :integration-type="serviceType?.integrationType"
+            :placeholder="$t('dataSourceForm.integrationPlaceholder')"
           />
         </FormGroup>
         <FormGroup
@@ -71,6 +67,7 @@
         :service-type="serviceType"
         :default-values="defaultValues"
         :context-data="integration.context_data"
+        :databases="integration.context_data?.databases || []"
         @values-changed="emitChange($event)"
       />
     </template>
@@ -80,6 +77,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
+import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { required, maxLength, helpers } from '@vuelidate/validators'
@@ -88,7 +86,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 export default {
   name: 'DataSourceForm',
-  components: { IntegrationDropdown },
+  components: { GroupedDropdown, IntegrationDropdown },
   mixins: [form, applicationContext],
   provide() {
     return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }
@@ -124,6 +122,8 @@ export default {
     return {
       allowedValues: ['name', 'integration_id', 'type'],
       values: { name: '', integration_id: null, type: null },
+      deactivatedClickModal: null,
+      deactivatedServiceTypeName: '',
     }
   },
   computed: {
@@ -134,6 +134,12 @@ export default {
       set(newValue) {
         this.v$.values.type.$model = newValue
         this.v$.values.name.$model = this.suggestedName
+        const selectedIntegrationIsAvailable = this.availableIntegrations.some(
+          ({ id }) => id === this.v$.values.integration_id.$model
+        )
+        if (!selectedIntegrationIsAvailable) {
+          this.v$.values.integration_id.$model = null
+        }
         if (this.availableIntegrations.length === 1) {
           this.v$.values.integration_id.$model =
             this.availableIntegrations[0].id
@@ -175,7 +181,7 @@ export default {
       )
     },
     availableIntegrations() {
-      return this.serviceType
+      return this.serviceType?.integrationType
         ? this.integrations.filter(
             ({ type }) => type === this.serviceType.integrationType.getType()
           )
@@ -191,11 +197,29 @@ export default {
           ),
         ])
     },
+    serviceTypeOptions() {
+      return this.serviceTypesPerIntegration
+        .map(([integrationType, serviceTypes]) => ({
+          id: `integration-${integrationType.getType()}`,
+          label: integrationType.name,
+          image: integrationType.image,
+          icon: integrationType.iconClass,
+          iconColor: integrationType.iconColor,
+          children: serviceTypes.map((serviceType) => ({
+            id: `service-${serviceType.getType()}`,
+            label: serviceType.name,
+            value: serviceType.getType(),
+            icon: serviceType.icon,
+            iconColor: serviceType.iconColor,
+            description: serviceType.description,
+            disabled: this.isServiceTypeDeactivated(serviceType),
+            disabledReason: this.getServiceTypeDeactivatedReason(serviceType),
+          })),
+        }))
+        .filter(({ children }) => children.length > 0)
+    },
   },
   methods: {
-    mustHaveUniqueName(param) {
-      return !this.existingNames.includes(param.trim())
-    },
     getFormValues(deep = false) {
       const values = Object.assign(
         {},
@@ -224,6 +248,25 @@ export default {
     isServiceTypeDeactivated(serviceType) {
       return this.getServiceTypeDeactivatedReason(serviceType) !== null
     },
+    onServiceTypeDisabledClick(item) {
+      this.onServiceTypeClick(this.$registry.get('service', item.value))
+    },
+    onServiceTypeClick(serviceType) {
+      const deactivatedClickModal = serviceType.getDeactivatedClickModal?.({
+        workspace: this.builder.workspace,
+      })
+      if (
+        deactivatedClickModal === null ||
+        deactivatedClickModal === undefined
+      ) {
+        return
+      }
+      this.deactivatedClickModal = deactivatedClickModal
+      this.deactivatedServiceTypeName = serviceType.name
+      this.$nextTick(() => {
+        this.$refs.deactivatedClickModal.show()
+      })
+    },
   },
   validations() {
     return {
@@ -236,10 +279,6 @@ export default {
           maxLength: helpers.withMessage(
             this.$t('error.maxLength', { max: 255 }),
             maxLength(255)
-          ),
-          unique: helpers.withMessage(
-            this.$t('dataSourceForm.errorUniqueName'),
-            this.mustHaveUniqueName
           ),
         },
         integration_id: {

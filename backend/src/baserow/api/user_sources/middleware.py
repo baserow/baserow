@@ -12,7 +12,9 @@ class AddUserSourceUserMiddleware(MiddlewareMixin):
     data provider later.
     If the authenticated user is an instance of the UserSourceUser class we use this
     one otherwise we try to authenticate one with the
-    custom header used for "double" authentication.
+    secondary header used for "double" authentication.
+    Primary actors can override the header containing the user source token with
+    `user_source_authentication_header`.
     That way we can have the permission of the currently logged in user and use the
     data of the user source user.
     """
@@ -23,9 +25,16 @@ class AddUserSourceUserMiddleware(MiddlewareMixin):
                 # We already have a UserSourceUser so we use it
                 return request.user
             else:
-                # Otherwise we try to authenticate with the custom user source header
+                # Otherwise we try to authenticate with the secondary user source
+                # header.
+                authentication_header = getattr(
+                    getattr(request, "user", None),
+                    "user_source_authentication_header",
+                    None,
+                )
                 result = UserSourceJSONWebTokenAuthentication(
-                    use_user_source_authentication_header=True
+                    use_user_source_authentication_header=True,
+                    authentication_header=authentication_header,
                 ).authenticate(request)
 
                 if result is None:

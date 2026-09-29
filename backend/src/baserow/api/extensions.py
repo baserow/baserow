@@ -31,11 +31,13 @@ class MappingSerializerExtension(OpenApiSerializerExtension):
     def map_serializer(self, auto_schema, direction):
         return self._map_serializer(auto_schema, direction, self.target.mapping)
 
-    def _map_serializer(self, auto_schema, direction, mapping):
+    def _map_serializer(self, auto_schema, direction, mapping, partial=False):
         sub_components = []
 
         for key, serializer_class in mapping.items():
             sub_serializer = force_instance(serializer_class)
+            if partial:
+                sub_serializer.partial = True
             resolved_sub_serializer = auto_schema.resolve_serializer(
                 sub_serializer, direction
             )
@@ -87,7 +89,8 @@ class CustomFieldRegistryMappingSerializerExtension(MappingSerializerExtension):
             for types in self.target.registry.registry.values()
         }
 
-        return self._map_serializer(auto_schema, direction, mapping)
+        partial = getattr(self.target, "partial_request", False)
+        return self._map_serializer(auto_schema, direction, mapping, partial=partial)
 
 
 class DiscriminatorMappingSerializerExtension(OpenApiSerializerExtension):

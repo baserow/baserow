@@ -69,11 +69,13 @@ export default defineNuxtModule({
         baserowFrontendSameSiteCookie: 'lax',
         baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,
+        baserowDashboardDataSourceDispatchConcurrency: 5,
         posthogProjectApiKey: '',
         posthogHost: '',
         baserowEmbeddedShareUrl: 'http://localhost:3000',
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
+        automationWorkflowResponseTimeoutMaxSeconds: 20,
         formulaRangeMaxItems: 10000,
         integrationLocalBaserowBatchOperationSizeLimit: 1000,
         extraPublicWebFrontendHostnames: [],
@@ -120,6 +122,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/global.js'))
     addPlugin(resolve('plugins/i18n.js'))
     addPlugin(resolve('plugins/clientHandler.js'))
+    addPlugin(resolve('plugins/userSourceClientHandler.js'))
     addPlugin(resolve('plugins/priorityBus.js'))
     addPlugin(resolve('plugins/registry.js'))
     addPlugin(resolve('plugins/permissions.js'))
@@ -179,8 +182,8 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'dashboardRedirect',
-      path: resolve('./middleware/dashboardRedirect'),
+      name: 'redirectCompletedOnboarding',
+      path: resolve('./middleware/redirectCompletedOnboarding'),
     })
 
     // Changes the stroke-width of the iconoir svg files because this way, we don't

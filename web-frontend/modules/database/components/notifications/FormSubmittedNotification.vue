@@ -5,7 +5,11 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t keypath="formSubmittedNotification.title" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="formSubmittedNotification.title"
+        tag="span"
+      >
         <template #formName>
           <strong>{{ notification.data.form_name }}</strong>
         </template>

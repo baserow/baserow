@@ -103,21 +103,20 @@ def test_dispatch_data_sources_list_rows_no_elements(
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=data_source_fixture["user"],
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=data_source_fixture["table"],
     )
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": data_source_fixture["page"].id},
+        kwargs={"page_id": data_source_fixture["public_page"].id},
     )
 
     response = api_client.post(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {data_source_fixture['token']}",
     )
 
     assert response.status_code == HTTP_200_OK
@@ -143,7 +142,7 @@ def test_dispatch_data_sources_get_row_no_elements(
 
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=data_source_fixture["user"],
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=data_source_fixture["table"],
         row_id="2",
@@ -151,14 +150,13 @@ def test_dispatch_data_sources_get_row_no_elements(
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": data_source_fixture["page"].id},
+        kwargs={"page_id": data_source_fixture["public_page"].id},
     )
 
     response = api_client.post(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {data_source_fixture['token']}",
     )
 
     assert response.status_code == HTTP_200_OK
@@ -179,7 +177,7 @@ def test_dispatch_data_sources_list_rows_with_elements(
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=data_source_fixture["user"],
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=data_source_fixture["table"],
     )
@@ -189,7 +187,7 @@ def test_dispatch_data_sources_list_rows_with_elements(
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         data_source=data_source,
         fields=[
             {
@@ -202,14 +200,13 @@ def test_dispatch_data_sources_list_rows_with_elements(
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": data_source_fixture["page"].id},
+        kwargs={"page_id": data_source_fixture["public_page"].id},
     )
 
     response = api_client.post(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {data_source_fixture['token']}",
     )
 
     expected_results = [
@@ -252,7 +249,7 @@ def test_dispatch_data_sources_get_row_with_elements(
 
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=data_source_fixture["user"],
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=data_source_fixture["table"],
         row_id=table_row_id,
@@ -262,7 +259,7 @@ def test_dispatch_data_sources_get_row_with_elements(
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         data_source=data_source,
         fields=[
             {
@@ -277,14 +274,13 @@ def test_dispatch_data_sources_get_row_with_elements(
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": data_source_fixture["page"].id},
+        kwargs={"page_id": data_source_fixture["public_page"].id},
     )
 
     response = api_client.post(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {data_source_fixture['token']}",
     )
 
     rows = data_source_fixture["rows"]
@@ -325,7 +321,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     )
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=data_source_fixture["user"],
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=table_1,
         row_id=1,
@@ -342,7 +338,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     )
     data_source_2 = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=user,
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         integration=data_source_fixture["integration"],
         table=table_2,
     )
@@ -354,7 +350,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
         f"get('data_source.{data_source_1.id}.field_{fields_1[0].id}'))"
     )
     data_fixture.create_builder_table_element(
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         data_source=data_source_1,
         fields=[
             {
@@ -367,7 +363,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
 
     # Create another table, this time using the List Row data source
     data_fixture.create_builder_table_element(
-        page=data_source_fixture["page"],
+        page=data_source_fixture["public_page"],
         data_source=data_source_2,
         fields=[
             {
@@ -380,14 +376,13 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": data_source_fixture["page"].id},
+        kwargs={"page_id": data_source_fixture["public_page"].id},
     )
 
     response = api_client.post(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {data_source_fixture['token']}",
     )
 
     assert response.status_code == HTTP_200_OK

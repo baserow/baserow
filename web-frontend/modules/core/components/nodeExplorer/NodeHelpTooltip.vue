@@ -1,6 +1,11 @@
 <template>
   <Context ref="context" class="node-help-tooltip-context">
-    <div v-if="node" class="node-help-tooltip">
+    <div
+      v-if="node"
+      class="node-help-tooltip"
+      @mouseenter="$emit('mouseenter')"
+      @mouseleave="$emit('mouseleave')"
+    >
       <div class="node-help-tooltip__header">
         <div class="node-help-tooltip__icon">
           <i
@@ -14,28 +19,62 @@
       </div>
 
       <div class="node-help-tooltip__content">
-        <p class="node-help-tooltip__description">
+        <p v-if="node.description" class="node-help-tooltip__description">
           {{ node.description }}
         </p>
 
-        <FormGroup
-          v-if="node.example"
-          class="node-help-tooltip__example"
-          :label="$t('nodeHelpTooltip.exampleLabel')"
-          small-label
-          required
-          :helper-text="
-            $t('nodeHelpTooltip.result', { result: node.example.result })
-          "
-        >
-          <FormulaInputField
-            class="node-help-tooltip__example-code"
-            :value="node.example.formula"
-            :read-only="true"
-            :nodes-hierarchy="nodesHierarchy"
-            mode="advanced"
-          />
-        </FormGroup>
+        <template v-if="node.examples && node.examples.length > 0">
+          <label class="control__label control__label--small">
+            {{
+              $t('nodeHelpTooltip.exampleLabel', {
+                count: node.examples.length,
+              })
+            }}
+          </label>
+          <div
+            class="node-help-tooltip__examples"
+            :class="{
+              'node-help-tooltip__examples--clickable': clickableExamples,
+            }"
+          >
+            <div
+              v-for="(example, index) in node.examples"
+              :key="index"
+              class="node-help-tooltip__example"
+              :class="{
+                'node-help-tooltip__example--clickable': clickableExamples,
+              }"
+              @mousedown="onExampleMouseDown"
+              @click="onExampleClick(example, $event)"
+            >
+              <FormulaInputField
+                class="node-help-tooltip__example-code"
+                :value="example.formula"
+                :read-only="true"
+                :nodes-hierarchy="nodesHierarchy"
+                mode="advanced"
+              />
+              <div
+                v-if="example.result || clickableExamples"
+                class="node-help-tooltip__example-footer"
+              >
+                <span
+                  v-if="example.result"
+                  class="node-help-tooltip__example-result"
+                >
+                  {{ $t('nodeHelpTooltip.result', { result: example.result }) }}
+                </span>
+                <i
+                  v-if="clickableExamples"
+                  class="node-help-tooltip__example-insert-icon iconoir-arrow-right"
+                ></i>
+              </div>
+            </div>
+          </div>
+          <p v-if="clickableExamples" class="node-help-tooltip__examples-hint">
+            {{ $t('nodeHelpTooltip.clickToInsert') }}
+          </p>
+        </template>
       </div>
     </div>
   </Context>
@@ -67,8 +106,33 @@ export default {
       required: false,
       default: () => [],
     },
+    clickableExamples: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
+  emits: ['example-click', 'mouseenter', 'mouseleave'],
   methods: {
+    onExampleMouseDown(event) {
+      if (this.clickableExamples) {
+        // The tooltip is teleported to <body>, so a mousedown here would blur
+        // the formula editor and unmount the explorer (tooltip included)
+        // before the click can land. Preventing the default keeps focus in
+        // the editor, which also preserves the cursor position the example
+        // will be inserted at.
+        event.preventDefault()
+      }
+    },
+    onExampleClick(example, event) {
+      if (this.clickableExamples) {
+        // Keep the click from reaching the document-level click-outside
+        // handlers, which would treat it as outside the formula context and
+        // hide the explorer.
+        event.stopPropagation()
+        this.$emit('example-click', example)
+      }
+    },
     show(
       targetElement,
       verticalPosition = 'bottom',

@@ -36,6 +36,8 @@
     <SampleDataViewer
       v-if="hasSampleData && !isLoading"
       :sample-data="sampleData"
+      :content-type="sampleDataContentType"
+      :sample-data-html="sampleDataHtml"
       :is-error="isErrorSample"
       :modal-title="sampleDataModalTitle"
       :modal-subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
@@ -107,6 +109,18 @@ const hasSampleData = computed(() => sample.value !== null)
 
 const isErrorSample = computed(() => Boolean(sample.value?._error))
 
+// Error samples are plain text, so they always render as JSON regardless of
+// the node's sample data content type.
+const sampleDataContentType = computed(() =>
+  isErrorSample.value
+    ? 'json'
+    : nodeType.value.getSampleDataContentType(props.node)
+)
+
+const sampleDataHtml = computed(() =>
+  isErrorSample.value ? null : nodeType.value.getSampleDataHtml(props.node)
+)
+
 /**
  * All previous nodes must have been tested, i.e. they must have sample
  * data and shouldn't be in error.
@@ -116,6 +130,7 @@ const cantBeTestedReason = computed(() => {
     nodeType.value.isInError({
       service: props.node.service,
       workspace: workspace.value,
+      application: automation.value,
     })
   ) {
     return $i18n.t('simulateDispatch.errorNodeNotConfigured')
@@ -135,6 +150,7 @@ const cantBeTestedReason = computed(() => {
       previousNodeType.isInError({
         service: previousNode.service,
         workspace: workspace.value,
+        application: automation.value,
       })
     ) {
       return $i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {

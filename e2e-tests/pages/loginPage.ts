@@ -18,6 +18,10 @@ export class LoginPage extends BaserowPage {
     await this.emailInput.fill(email);
     await this.passwordInput.fill(password);
     await this.loginButton.click();
-    await this.page.locator(".tree__item").getByText("Home").waitFor();
+    // After the login the user is redirected to the all workspaces homepage.
+    await this.page
+      .locator(".tree__item")
+      .getByText("All workspaces")
+      .waitFor();
   }
 }

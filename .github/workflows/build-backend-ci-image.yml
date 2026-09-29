@@ -1,0 +1,94 @@
+name: Build Backend CI Image
+
+on:
+  workflow_call:
+    inputs:
+      clear_cache:
+        description: Clear the Docker build cache before building
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      image:
+        description: The full backend CI image name
+        value: ${{ jobs.build-backend.outputs.image }}
+      is_fork:
+        description: Whether the caller is running for a fork pull request
+        value: ${{ jobs.build-backend.outputs.is_fork }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  CI_IMAGE_TAG_PREFIX: ci-
+  REAL_GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  build-backend:
+    name: Build Backend CI Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+      is_fork: ${{ steps.fork-check.outputs.is_fork }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if PR is from a fork
+        id: fork-check
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && \
+                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.fork-check.outputs.is_fork != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend CI image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: ci
+          push: ${{ steps.fork-check.outputs.is_fork != 'true' }}
+          load: ${{ steps.fork-check.outputs.is_fork == 'true' }}
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
+          cache-to: ${{ steps.fork-check.outputs.is_fork != 'true' && 'type=gha,scope=backend-ci,mode=max' || '' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Save Docker image for fork PRs
+        if: steps.fork-check.outputs.is_fork == 'true'
+        run: docker save ${{ steps.image.outputs.full }} | gzip > /tmp/backend-ci-image.tar.gz
+
+      - name: Upload Docker image artifact
+        if: steps.fork-check.outputs.is_fork == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp/backend-ci-image.tar.gz
+          retention-days: 1

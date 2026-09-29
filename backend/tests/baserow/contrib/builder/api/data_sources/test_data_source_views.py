@@ -24,6 +24,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
 
@@ -166,7 +167,7 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+def test_create_data_source_with_duplicate_name_is_allowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -183,11 +184,10 @@ def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source.name}' already exists.",
-    }
+    # Data source names are not unique (like database table names), so creating a
+    # second data source with the same name on the same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source.name
 
 
 @pytest.mark.django_db
@@ -319,7 +319,38 @@ def test_update_data_source_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+def test_update_data_source_page_only_preserves_service_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(user=user, builder=page.builder)
+    table = data_fixture.create_database_table(user=user)
+    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="name", table=table, row_id="'42'"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"page_id": page2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["page_id"] == page2.id
+    assert response.json()["row_id"]["formula"] == "'42'"
+    assert response.json()["table_id"] == table.id
+
+    data_source1.refresh_from_db()
+    assert data_source1.service.specific.row_id["formula"] == "'42'"
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_duplicate_name_is_allowed_on_same_page(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -341,11 +372,10 @@ def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source_1.name}' already exists.",
-    }
+    # Data source names are not unique, so renaming one to match a sibling on the
+    # same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source_1.name
 
 
 @pytest.mark.django_db
@@ -403,7 +433,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_RAW,
                     ),
-                    "value_is_formula": False,
                 },
                 {
                     "field": formula_field.id,
@@ -413,7 +442,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_SIMPLE,
                     ),
-                    "value_is_formula": True,
                 },
             ]
         },
@@ -435,7 +463,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
-            "value_is_formula": False,
+            "group": None,
         },
         {
             "id": service_filters[1].id,
@@ -448,8 +476,12 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
-            "value_is_formula": True,
+            "group": None,
         },
+    ]
+    assert [service_filter.value["mode"] for service_filter in service_filters] == [
+        BASEROW_FORMULA_MODE_RAW,
+        BASEROW_FORMULA_MODE_SIMPLE,
     ]
 
     # Reset the filters to nothing.
@@ -479,7 +511,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_RAW,
                     ),
-                    "value_is_formula": False,
                 }
             ]
         },
@@ -501,9 +532,232 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
-            "value_is_formula": False,
+            "group": None,
         }
     ]
+    assert service_filter.value["mode"] == BASEROW_FORMULA_MODE_RAW
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_filter_groups(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source1 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    # The frontend sends the whole filters + filter_groups payload, linking filters to
+    # groups (and nested groups to their parents) via client-generated correlation ids.
+    response = api_client.patch(
+        url,
+        {
+            "filter_groups": [
+                {"id": "group-a", "filter_type": "OR", "parent_group": None},
+                {"id": "group-b", "filter_type": "AND", "parent_group": "group-a"},
+            ],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "group-a",
+                },
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="bar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "group-b",
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    groups = list(data_source1.service.service_filter_groups.order_by("id"))
+    assert len(groups) == 2
+    group_a, group_b = groups
+    assert group_a.filter_type == "OR"
+    assert group_a.parent_group_id is None
+    assert group_b.filter_type == "AND"
+    assert group_b.parent_group_id == group_a.id
+
+    filters = list(data_source1.service.service_filters.order_by("order"))
+    assert [f.group_id for f in filters] == [group_a.id, group_b.id]
+
+    # The response exposes the persisted groups, and each filter references its group.
+    response_json = response.json()
+    assert {g["id"] for g in response_json["filter_groups"]} == {
+        str(group_a.id),
+        str(group_b.id),
+    }
+    assert [f["group"] for f in response_json["filters"]] == [
+        str(group_a.id),
+        str(group_b.id),
+    ]
+
+
+@pytest.mark.django_db
+def test_update_data_source_filters_only_preserves_groups(api_client, data_fixture):
+    """
+    Regression: editing a filter sends only `filters` in the PATCH (not
+    `filter_groups`). The existing groups must be preserved and the filters re-linked
+    to them, rather than the groups being wiped and the filters flattened.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+
+    # Create a group with a filter inside it.
+    api_client.patch(
+        url,
+        {
+            "filter_groups": [{"id": "g1", "filter_type": "AND", "parent_group": None}],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "g1",
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    group = data_source.service.service_filter_groups.get()
+
+    # Simulate editing the filter value: only `filters` is sent, referencing the
+    # existing group by its persisted id. `filter_groups` is intentionally absent.
+    response = api_client.patch(
+        url,
+        {
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="bar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": str(group.id),
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # The group survives with the same id and the filter is still linked to it.
+    groups = list(data_source.service.service_filter_groups.all())
+    assert [g.id for g in groups] == [group.id]
+    filters = list(data_source.service.service_filters.all())
+    assert len(filters) == 1
+    assert filters[0].group_id == group.id
+    # The response reflects the preserved group (not a stale/empty list).
+    assert [g["id"] for g in response.json()["filter_groups"]] == [str(group.id)]
+    assert [f["group"] for f in response.json()["filters"]] == [str(group.id)]
+
+
+@pytest.mark.django_db
+def test_update_data_source_filter_groups_only_preserves_filters(
+    api_client, data_fixture
+):
+    """
+    Regression: toggling a group's AND/OR sends only `filter_groups` in the PATCH (not
+    `filters`). The group must be updated in place (keeping its id) and the filters must
+    be preserved, rather than the group being recreated (new id) which would cascade
+    delete the filters.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+
+    api_client.patch(
+        url,
+        {
+            "filter_groups": [{"id": "g1", "filter_type": "AND", "parent_group": None}],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "g1",
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    group = data_source.service.service_filter_groups.get()
+    service_filter = data_source.service.service_filters.get()
+
+    # Simulate toggling the group's operator: only `filter_groups` is sent.
+    response = api_client.patch(
+        url,
+        {
+            "filter_groups": [
+                {"id": str(group.id), "filter_type": "OR", "parent_group": None}
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # The group is updated in place (same id, new operator).
+    groups = list(data_source.service.service_filter_groups.all())
+    assert [(g.id, g.filter_type) for g in groups] == [(group.id, "OR")]
+    # The filter is untouched (same id) and still linked to the group.
+    filters = list(data_source.service.service_filters.all())
+    assert [f.id for f in filters] == [service_filter.id]
+    assert filters[0].group_id == group.id
 
 
 @pytest.mark.django_db
@@ -789,7 +1043,14 @@ def test_delete_data_source(api_client, data_fixture):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    # Ensure the service also is deleted
+    # The data source is trashed (soft-deleted) so it can be restored via undo.
+    assert not DataSource.objects.filter(id=data_source1.id).exists()
+    assert DataSource.trash.filter(id=data_source1.id).exists()
+    # The underlying service is preserved while trashed so a restore brings it back.
+    assert Service.objects.count() == 1
+
+    # Permanently deleting the data source also cleans up the service.
+    TrashHandler.permanently_delete(data_source1)
     assert Service.objects.count() == 0
 
 
@@ -1318,6 +1579,89 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
         "results": [],
         "has_next_page": False,
     }
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+def test_dispatch_data_source_with_adhoc_search_and_filter_referencing_other_data_source(
+    api_client, data_fixture
+):
+    """
+    The adhoc refinements of the request (search, filters, sortings) must only
+    be applied to the data source the request targets. When that data source's
+    filter formula references another data source, the nested dispatch used to
+    apply the adhoc search too, and because the element's searchable field ids
+    don't exist in the referenced table, the full-text search crashed with an
+    `IndexError`.
+    """
+
+    with transaction.atomic():
+        user, token = data_fixture.create_user_and_token()
+        members_table, _, _ = data_fixture.build_table(
+            user=user,
+            columns=[("Email", "text")],
+            rows=[["a@x.com"]],
+        )
+        clients_table, _, _ = data_fixture.build_table(
+            user=user,
+            columns=[("Client name", "text"), ("Tenant", "text")],
+            rows=[["Acme", "a@x.com"], ["Globex", "b@x.com"]],
+        )
+    email_field = members_table.field_set.get(name="Email")
+    client_name_field = clients_table.field_set.get(name="Client name")
+    tenant_field = clients_table.field_set.get(name="Tenant")
+
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+
+    members_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=members_table,
+        row_id="1",
+    )
+    clients_data_source = (
+        data_fixture.create_builder_local_baserow_list_rows_data_source(
+            user=user, page=page, integration=integration, table=clients_table
+        )
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=clients_data_source.service,
+        field=tenant_field,
+        value=f"get('data_source.{members_data_source.id}.field_{email_field.id}')",
+        value_is_formula=True,
+        order=0,
+    )
+    element = data_fixture.create_builder_table_element(
+        page=page, data_source=clients_data_source
+    )
+    element.property_options.create(
+        schema_property=client_name_field.db_column, searchable=True
+    )
+
+    url = reverse(
+        "api:builder:data_source:dispatch",
+        kwargs={"data_source_id": clients_data_source.id},
+    )
+
+    response = api_client.post(
+        f"{url}?search_query=Acme",
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    results = response.json()["results"]
+    assert len(results) == 1
+    assert results[0][client_name_field.name] == "Acme"
 
 
 @pytest.mark.django_db
@@ -1990,6 +2334,55 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("actor", ["anonymous", "user_source", "other_builder"])
+def test_get_record_names_published_builder(
+    api_client, data_fixture, data_source_fixture, actor
+):
+    primary_field = data_source_fixture["fields"][0]
+    primary_field.primary = True
+    primary_field.save()
+    page = data_source_fixture["page"]
+    page.builder.workspace = None
+    page.builder.save()
+    data_fixture.create_builder_custom_domain(published_to=page.builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+    url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    token = data_source_fixture["user_source_user_token"]
+    if actor == "other_builder":
+        other_builder = data_fixture.create_builder_application(workspace=None)
+        data_fixture.create_builder_custom_domain(published_to=other_builder)
+        source = data_fixture.create_local_baserow_table_user_source(
+            application=other_builder,
+            user=data_source_fixture["user"],
+            integration=data_fixture.create_local_baserow_integration(
+                application=other_builder, user=data_source_fixture["user"]
+            ),
+        )
+        external_user = data_fixture.create_user_source_user(
+            user_source=source, user_id=source.table.get_model().objects.first().id
+        )
+        token = external_user.get_refresh_token().access_token
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if actor != "anonymous" else {}
+    row = data_source_fixture["rows"][0]
+    response = api_client.get(f"{url}?record_ids={row.id}", **headers)
+
+    if actor == "other_builder":
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    else:
+        assert response.status_code == HTTP_200_OK
+        assert response.json() == {str(row.id): "Apple"}
+
+
+@pytest.mark.django_db
 def test_get_record_names(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
@@ -2036,6 +2429,17 @@ def test_get_record_names(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["record_ids"] == ["The provided record ids are not valid."]
 
+    # Malformed CSV must return a validation error instead of a server error.
+    response = api_client.get(
+        base_url,
+        {"record_ids": "one\ntwo"},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["record_ids"][0].startswith(
+        "Could not split comma separated string:"
+    )
+
     # If the data source is not a list data source, it should raise an error
     non_list_data_source = (
         data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -2080,7 +2484,7 @@ def test_dispatch_data_source_anonymous_unpublished_builder_is_denied(
     response = api_client.post(url, {}, format="json")
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.json()["detail"] == "Authentication credentials were not provided."
 
 
 @pytest.mark.django_db
@@ -2392,6 +2796,7 @@ def test_dispatch_data_source_view(
     mock_builder_dispatch_context,
     mock_dispatch_data_source,
     api_client,
+    data_fixture,
 ):
     """
     Test the DispatchDataSourceView endpoint.
@@ -2400,7 +2805,9 @@ def test_dispatch_data_source_view(
     filter any fields in the Editor.
     """
 
+    user, token = data_fixture.create_user_and_token()
     mock_data_source = MagicMock()
+    mock_data_source.page.builder.is_published = False
     mock_get_data_source.return_value = mock_data_source
 
     mock_dispatch_context = MagicMock()
@@ -2414,7 +2821,7 @@ def test_dispatch_data_source_view(
         "api:builder:data_source:dispatch",
         kwargs={"data_source_id": mock_data_source_id},
     )
-    response = api_client.post(url)
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == 200
     assert response.json() == mock_response
@@ -2499,6 +2906,41 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("dispatch_all", [False, True])
+@pytest.mark.parametrize("authenticated", [False, True])
+def test_published_internal_dispatch_is_denied(
+    api_client, data_fixture, dispatch_all, authenticated
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+    )
+
+    builder.workspace = None
+    builder.save()
+    data_fixture.create_builder_custom_domain(published_to=builder)
+
+    if dispatch_all:
+        url = reverse(
+            "api:builder:data_source:dispatch-all", kwargs={"page_id": page.id}
+        )
+    else:
+        url = reverse(
+            "api:builder:data_source:dispatch",
+            kwargs={"data_source_id": data_source.id},
+        )
+
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if authenticated else {}
+    response = api_client.post(url, {}, format="json", **headers)
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
 @patch(
     "baserow.contrib.builder.api.data_sources.views.DataSourceService.dispatch_page_data_sources"
 )
@@ -2509,6 +2951,7 @@ def test_dispatch_data_sources_view(
     mock_builder_dispatch_context,
     mock_dispatch_page_data_sources,
     api_client,
+    data_fixture,
 ):
     """
     Test the DispatchDataSourcesView
@@ -2518,7 +2961,9 @@ def test_dispatch_data_sources_view(
     filter any fields in the Editor.
     """
 
+    user, token = data_fixture.create_user_and_token()
     mock_page = MagicMock()
+    mock_page.builder.is_published = False
     mock_get_page.return_value = mock_page
 
     mock_dispatch_context = MagicMock()
@@ -2531,7 +2976,7 @@ def test_dispatch_data_sources_view(
     url = reverse(
         "api:builder:data_source:dispatch-all", kwargs={"page_id": mock_page_id}
     )
-    response = api_client.post(url)
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == 200
     assert response.json() == mock_service_contents

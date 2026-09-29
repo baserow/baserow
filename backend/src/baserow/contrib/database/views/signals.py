@@ -33,6 +33,12 @@ view_decoration_deleted = Signal()
 
 view_field_options_updated = Signal()
 
+# Sent when multiple parts of a view's configuration have been replaced at once, for
+# example when the configuration of another view is copied into it. Granular signals
+# are deliberately not sent in that case so that connected clients receive a single
+# event with the complete new view state.
+view_configuration_changed = Signal()
+
 rows_entered_view = Signal()
 rows_exited_view = Signal()
 
@@ -90,6 +96,14 @@ def update_view_index_if_view_group_bys_prioritized(sender, view, **kwargs):
     from baserow.contrib.database.views.handler import ViewIndexingHandler
 
     ViewIndexingHandler.schedule_index_update(view)
+
+
+@receiver(view_configuration_changed)
+def update_view_index_if_configuration_changed(sender, view, categories, **kwargs):
+    if "sorts" in categories or "group_bys" in categories:
+        from baserow.contrib.database.views.handler import ViewIndexingHandler
+
+        ViewIndexingHandler.schedule_index_update(view)
 
 
 @receiver(view_loaded)

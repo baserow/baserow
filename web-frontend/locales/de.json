@@ -24,6 +24,13 @@
         "saturday": "Samstag",
         "sunday": "Sonntag",
         "value": "Wert",
+        "created": "Erstellt",
+        "lastViewed": "Zuletzt angesehen",
+        "nameAsc": "Name (A–Z)",
+        "nameDesc": "Name (Z–A)",
+        "neverViewed": "Nie angesehen",
+        "createdAgo": "Erstellt {ago}",
+        "viewedAgo": "Angesehen {ago}",
         "workspace": "Arbeitsbereich"
     },
     "action": {
@@ -127,6 +134,7 @@
         "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
         "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte versuchen Sie es erneut.",
         "nameContainsUrl": "Namen dürfen keine Links, Domains oder Webadressen enthalten.",
+        "nameContainsSpam": "Namen dürfen keine dekorativen Zeichen oder langen Zahlen enthalten.",
         "nameCantBeEmail": "Bitte geben Sie Ihren Namen ein, nicht Ihre E-Mail-Adresse."
     },
     "permission": {
@@ -174,7 +182,8 @@
         "ai": "KI-Eingabeaufforderung",
         "multipleCollaboratorsDropdown": "Dropdown-Menü",
         "multipleCollaboratorsCheckboxes": "Kontrollkästchen",
-        "defaultValueFunctionNow": "Aktuelles Datum"
+        "defaultValueFunctionNow": "Aktuelles Datum",
+        "button": "Button"
     },
     "fieldErrors": {
         "invalidNumber": "Ungültige Zahl",
@@ -187,7 +196,9 @@
         "overflowDuration": "Der Wert liegt außerhalb des zulässigen Bereichs.",
         "higherThan": "Wert ist höher als {max}.",
         "maxChars": "Maximal {max} Zeichen.",
-        "minChars": "Mindestens {min} Zeichen."
+        "maxCharsExceeded": "Max. {max} Zeichen (-{over}).",
+        "minChars": "Mindestens {min} Zeichen.",
+        "maxImagesExceeded": "Max {max} Bilder ({über} entfernen)."
     },
     "fieldDocs": {
         "readOnly": "Dies ist ein schreibgeschütztes Feld.",
@@ -223,7 +234,9 @@
         "uuid": "Eine schreibgeschützte, eindeutige und dauerhafte UUID.",
         "autonumber": "Ein schreibgeschütztes Feld, das bei jeder neuen Zeile automatisch eine Zahl hochzählt.",
         "password": "Ein schreibgeschütztes Feld, das ein gehashtes Passwort enthält. Der Wert ist `null`, wenn es nicht gesetzt ist, oder `true`, wenn es gesetzt wurde. Es akzeptiert eine Zeichenkette, um es zu setzen.",
-        "formViewEditRow": "Ein schreibgeschütztes Feld, das eine eindeutige, signierte URL erzeugt, mit der die Zeile über die verknüpfte Formularansicht bearbeitet werden kann."
+        "formViewEditRow": "Ein schreibgeschütztes Feld, das eine eindeutige, signierte URL erzeugt, mit der die Zeile über die verknüpfte Formularansicht bearbeitet werden kann.",
+        "button": "Ein Button-Feld. Ein Klick auf den Button öffnet eine URL, die aus den Werten der Zeile erstellt wird. Die Zelle speichert keine Daten und Schreibvorgänge werden abgelehnt.",
+        "longTextRichText": "Akzeptiert mehrzeiligen Text im Markdown-Format. Um ein Bild einzubinden, laden Sie es über den Endpunkt zum Hochladen von Dateien hoch und verweisen Sie auf den zurückgegebenen Namen im Format ![alt][name]. Die Antworten enthalten eine temporäre URL, ![alt][name](url), die beim Zurücksenden des Werts ignoriert wird. Ein Wert kann auf bis zu 100 Bilder verweisen, und jeder Name muss ein hochgeladenes Bild sein."
     },
     "fieldConstraint": {
         "uniqueWithEmpty": "Eindeutig mit leeren Werten"
@@ -349,6 +362,7 @@
     },
     "trashType": {
         "workspace": "Arbeitsbereich",
+        "agent": "Agent",
         "application": "Applikation",
         "automation_workflow": "Automatisierungs-Workflow",
         "automation_node": "Automatisierungs-Knoten",
@@ -357,6 +371,7 @@
         "row": "Zeile",
         "rows": "Zeilen",
         "view": "Ansicht",
+        "database_workflow_action": "Button-Aktion",
         "builder_page": "Builder-Seite",
         "builder_element": "Builder-Element"
     },
@@ -459,8 +474,8 @@
         "cannotCreateFieldTypeDescription": "Der gewünschte Feldtyp kann derzeit nicht erstellt werden. Möglicherweise handelt es sich nur um ein vorübergehendes Problem mit älteren Tabellen. Bitte versuchen Sie es später noch einmal.",
         "generativeAIDoesNotExistTitle": "Generative KI existiert nicht",
         "generativeAIDoesNotExistDescription": "Das generative KI-Modell existiert nicht.",
-        "modelDoesNotBelongToTypeTitle": "Das ausgewählte Modell gehört nicht zum KI-Typ",
-        "modelDoesNotBelongToTypeDescription": "Das ausgewählte Modell gehört nicht zum ausgewählten KI-Typ.",
+        "modelDoesNotBelongToTypeTitle": "KI-Modell nicht verfügbar",
+        "modelDoesNotBelongToTypeDescription": "Das ausgewählte KI-Modell ist deaktiviert oder nicht mehr verfügbar.",
         "generateAIPromptTitle": "Eingabeaufforderungs-Fehler",
         "generateAIPromptDescription": "Etwas stimmte mit der konstruierten Eingabeaufforderung nicht.",
         "fieldIsAlreadyPrimaryTitle": "Das Feld ist bereits das Primärfeld",
@@ -476,7 +491,9 @@
         "fieldConstraintTitle": "Verletzung der Feldeinschränkung",
         "fieldConstraintDescription": "Einschränkung kann nicht angewendet werden.",
         "fieldDataConstraintTitle": "Verletzung der Felddateneinschränkung",
-        "fieldDataConstraintDescription": "Vorgang kann aufgrund von Verletzungen bestehender Einschränkungen nicht abgeschlossen werden."
+        "fieldDataConstraintDescription": "Vorgang kann aufgrund von Verletzungen bestehender Einschränkungen nicht abgeschlossen werden.",
+        "userFileDoesNotExistTitle": "Das Bild existiert nicht",
+        "userFileDoesNotExistDescription": "Der Wert verweist auf ein Bild, das nicht mehr vorhanden ist. Entfernen Sie es und versuchen Sie es erneut."
     },
     "importerType": {
         "csv": "Importieren einer CSV-Datei",
@@ -682,6 +699,7 @@
         "minuteDescription": "Gibt die Minute aus dem Datum-Zeit-Argument zurück.",
         "secondDescription": "Gibt die Sekunde aus dem Datum-Zeit-Argument zurück.",
         "todayDescription": "Gibt das aktuelle Datum zurück.",
+        "nowDescription": "Gibt das aktuelle Datum und die aktuelle Uhrzeit zurück.",
         "getPropertyDescription": "Gibt die Eigenschaft aus dem Objekt zurück.",
         "randomIntDescription": "Gibt eine zufällige Ganzzahl aus dem durch die Argumente angegebenen Bereich zurück.",
         "randomFloatDescription": "Gibt eine zufällige Gleitkommazahl aus dem durch die Argumente angegebenen Bereich zurück.",
@@ -698,6 +716,8 @@
         "splitDescription": "Teilt das erste Argument unter Verwendung des optionalen zweiten Arguments als Trennzeichen. Wird das zweite Argument nicht angegeben, wird ' ' als Trennzeichen verwendet.",
         "isEmptyDescription": "Gibt true zurück, wenn das Argument leer ist, andernfalls false",
         "stripDescription": "Entfernt führende und nachfolgende Leerzeichen aus dem Argument",
+        "encodeUriDescription": "Prozent-kodiert die Zeichen, die in einer URL nicht erlaubt sind, wobei die URL-Struktur intakt bleibt",
+        "encodeUriComponentDescription": "Prozent-kodiert das Argument, damit es sicher als einzelner Teil einer URL verwendet werden kann, z. B. als Pfadsegment oder Query-Parameter",
         "sumDescription": "Summiert die Zahlen innerhalb des Arguments.",
         "avgDescription": "Berechnet den Durchschnitt der Zahlen innerhalb des Arguments.",
         "atDescription": "Gibt das Element im ersten Argument an dem durch das zweite Argument angegebenen Index zurück.",

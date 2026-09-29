@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 
@@ -144,11 +142,8 @@ def test_guess_cast_function_from_response_serialize_field(serializer, expected)
 @pytest.mark.django_db
 def test_guess_cast_function_for_filefieldserializer(data_fixture, fake):
     user = data_fixture.create_user()
-    service = MagicMock()
-    service.integration = MagicMock()
-    service.integration.authorized_user = user
     prepare = guess_cast_function_from_response_serializer_field(
-        FileFieldRequestSerializer(), service
+        FileFieldRequestSerializer(), user
     )
 
     value = {

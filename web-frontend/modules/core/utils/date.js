@@ -14,8 +14,26 @@ export function isValidDatetimeFormat(value) {
   return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
 }
 
-export const getHumanPeriodAgoCount = (dateTime) => {
-  const now = moment()
+/**
+ * The relative "ago" wording shared by the listing pages, like "just now" or
+ * "3 days ago". Seconds are never counted because a moment that fresh is always
+ * the item the user just came from. `t` is the translate function, because the
+ * options API only exposes it as `$t`. `now` is optional, see
+ * `getHumanPeriodAgoCount`.
+ */
+export const getHumanAgoLabel = (t, dateTime, now = undefined) => {
+  const { period, count } = getHumanPeriodAgoCount(dateTime, now)
+  if (period === 'seconds') {
+    return t(count <= 5 ? 'datetime.justNow' : 'datetime.lessThanMinuteAgo')
+  }
+  // `count` picks the plural form and `n` fills the placeholder of the messages.
+  return t(`datetime.${period}Ago`, { count, n: count })
+}
+
+export const getHumanPeriodAgoCount = (dateTime, now = undefined) => {
+  // `now` can be pinned so the server and the hydrating client agree on the
+  // label, otherwise the current moment is used.
+  now = moment(now)
   const d = moment(dateTime)
 
   const diffYears = now.diff(d, 'years')

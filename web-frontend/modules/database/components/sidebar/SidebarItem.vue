@@ -225,8 +225,6 @@ import SidebarDuplicateTableContextItem from '@baserow/modules/database/componen
 import SidebarImportTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarImportTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
-import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarItem',
@@ -247,10 +245,6 @@ export default {
       type: Object,
       required: true,
     },
-  },
-  setup() {
-    const nuxtApp = useNuxtApp()
-    return { nuxtApp }
   },
   data() {
     return {
@@ -332,30 +326,20 @@ export default {
         value,
       })
     },
-    async selectTable(database, table) {
+    selectTable(database, table) {
       if (table._.selected) {
         return
       }
 
-      this.setLoading(database, true)
-
-      try {
-        // Vue Router 4: push() resolves to undefined on success, or a
-        // NavigationFailure on failure (e.g. duplicate navigation).
-        const failure = await this.$router.push({
-          name: 'database-table',
-          params: {
-            databaseId: database.id,
-            tableId: table.id,
-          },
-        })
-        if (failure === undefined) {
-          await pageFinished(this.nuxtApp)
-          await nextTick()
-        }
-      } finally {
-        this.setLoading(database, false)
-      }
+      // No loading state is needed here because the table page renders its own
+      // skeleton loading state right away.
+      return this.$router.push({
+        name: 'database-table',
+        params: {
+          databaseId: database.id,
+          tableId: table.id,
+        },
+      })
     },
     exportTable() {
       this.$refs.context.hide()

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed ad-hoc filter field validation not raising an error when all view fields are hidden in public views.",
+    "issue_origin": "github",
+    "issue_number": 5778,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-24"
+}

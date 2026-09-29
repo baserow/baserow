@@ -186,16 +186,18 @@ export default {
         return
       }
       event.preventDefault()
+      let horizontal = 'right'
       if (target === undefined) {
         target = {
           left: event.clientX,
           top: event.clientY,
         }
+        horizontal = 'left'
       }
 
       const action = row.id === this.focusedTeam.id ? 'toggle' : 'show'
       this.focusedTeam = row
-      this.$refs.editTeamContext[action](target, 'bottom', 'left', 4)
+      this.$refs.editTeamContext[action](target, 'bottom', horizontal, 4)
     },
     onEditRoleContext({ row, target }) {
       const action = row.id === this.editRoleTeam.id ? 'toggle' : 'show'

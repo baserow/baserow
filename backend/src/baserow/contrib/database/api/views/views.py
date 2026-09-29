@@ -67,10 +67,14 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.fields.registries import (
+    exclude_field_options_not_allowed_in_public_views,
+)
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.actions import (
+    CopyViewConfigurationActionType,
     CreateDecorationActionType,
     CreateViewActionType,
     CreateViewFilterActionType,
@@ -98,10 +102,12 @@ from baserow.contrib.database.views.actions import (
     UpdateViewSortActionType,
 )
 from baserow.contrib.database.views.exceptions import (
+    CannotCopyViewConfigurationToSameView,
     CannotShareViewTypeError,
     DecoratorValueProviderTypeNotCompatible,
     NoAuthorizationToPubliclySharedView,
     UnrelatedFieldError,
+    ViewConfigurationCopyCategoryNotSupported,
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
@@ -149,9 +155,11 @@ from baserow.core.handler import CoreHandler
 
 from ..constants import SEARCH_MODE_API_PARAM
 from .errors import (
+    ERROR_CANNOT_COPY_VIEW_CONFIGURATION_TO_SAME_VIEW,
     ERROR_CANNOT_SHARE_VIEW_TYPE,
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_UNRELATED_FIELD,
+    ERROR_VIEW_CONFIGURATION_COPY_CATEGORY_NOT_SUPPORTED,
     ERROR_VIEW_DECORATION_DOES_NOT_EXIST,
     ERROR_VIEW_DECORATION_NOT_SUPPORTED,
     ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
@@ -178,6 +186,7 @@ from .errors import (
     ERROR_VIEW_SORT_NOT_SUPPORTED,
 )
 from .serializers import (
+    CopyViewConfigurationSerializer,
     CreateViewDecorationSerializer,
     CreateViewFilterGroupSerializer,
     CreateViewFilterSerializer,
@@ -721,6 +730,92 @@ class DuplicateViewView(APIView):
 
         serializer = view_type_registry.get_serializer(
             duplicate_view,
+            ViewSerializer,
+            filters=True,
+            sortings=True,
+            decorations=True,
+            group_bys=True,
+            default_row_values=True,
+            context={"user": request.user},
+        )
+        return Response(serializer.data)
+
+
+class CopyViewConfigurationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The view to copy the configuration into.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table views"],
+        operation_id="copy_database_table_view_configuration",
+        description=(
+            "Copies the requested configuration categories, the filters or "
+            "sorts for example, of another view in the same table into this "
+            "view, replacing this view's existing configuration of those "
+            "categories. Only categories supported by both view types can be "
+            "copied. The whole copy can be reverted with a single undo."
+        ),
+        request=CopyViewConfigurationSerializer,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                view_type_registry, ViewSerializer
+            ),
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_VIEW_NOT_IN_TABLE",
+                    "ERROR_VIEW_CONFIGURATION_COPY_CATEGORY_NOT_SUPPORTED",
+                    "ERROR_CANNOT_COPY_VIEW_CONFIGURATION_TO_SAME_VIEW",
+                ]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @validate_body(CopyViewConfigurationSerializer)
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
+            ViewConfigurationCopyCategoryNotSupported: (
+                ERROR_VIEW_CONFIGURATION_COPY_CATEGORY_NOT_SUPPORTED
+            ),
+            CannotCopyViewConfigurationToSameView: (
+                ERROR_CANNOT_COPY_VIEW_CONFIGURATION_TO_SAME_VIEW
+            ),
+        }
+    )
+    def post(self, request: Request, data: Dict[str, Any], view_id: int):
+        """Copies the configuration of another view into this view."""
+
+        view_handler = ViewHandler()
+        dest_view = view_handler.get_view_for_update(request.user, view_id).specific
+        source_view = view_handler.get_view_as_user(
+            request.user, data["source_view_id"]
+        ).specific
+
+        dest_view = action_type_registry.get_by_type(
+            CopyViewConfigurationActionType
+        ).do(
+            user=request.user,
+            source_view=source_view,
+            dest_view=dest_view,
+            categories=data["categories"],
+        )
+
+        serializer = view_type_registry.get_serializer(
+            dest_view,
             ViewSerializer,
             filters=True,
             sortings=True,
@@ -1863,7 +1958,9 @@ class ViewFieldOptionsView(APIView):
             raise ViewDoesNotSupportFieldOptions(
                 "The view type does not have a `field_options_serializer_class`"
             ) from exc
-        return Response(serializer_class(view).data)
+        response = Response(serializer_class(view).data)
+        view_type.after_field_options_loaded(view, request.user)
+        return response
 
     @extend_schema(
         parameters=[
@@ -2221,7 +2318,9 @@ class PublicViewInfoView(APIView):
         if not view_type.has_public_info:
             raise ViewDoesNotExist()
 
-        field_options = view_type.get_visible_field_options_in_order(view_specific)
+        field_options = exclude_field_options_not_allowed_in_public_views(
+            view_type.get_visible_field_options_in_order(view_specific)
+        )
         ordered_field_ids = list(field_options.values_list("field_id", flat=True))
         fields = specific_iterator(
             Field.objects.filter(id__in=ordered_field_ids)

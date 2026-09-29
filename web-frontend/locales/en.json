@@ -24,7 +24,14 @@
     "friday": "Friday",
     "saturday": "Saturday",
     "sunday": "Sunday",
-    "value": "value"
+    "value": "value",
+    "created": "Created",
+    "lastViewed": "Last viewed",
+    "nameAsc": "Name (A-Z)",
+    "nameDesc": "Name (Z-A)",
+    "neverViewed": "Never viewed",
+    "createdAgo": "Created {ago}",
+    "viewedAgo": "Viewed {ago}"
   },
   "action": {
     "close": "Close",
@@ -116,6 +123,7 @@
     "maxLength": "A maximum of {max} characters is allowed here.",
     "minMaxLength": "A minimum of {min} and a maximum of {max} characters is allowed here.",
     "nameContainsUrl": "Names can't contain links, domains or web addresses.",
+    "nameContainsSpam": "Names can't contain decorative characters or long numbers.",
     "nameCantBeEmail": "Please enter your name, not your email address.",
     "invalidCharacters": "This field contains invalid characters.",
     "requiredField": "This field is required.",
@@ -174,7 +182,8 @@
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
     "multipleCollaboratorsCheckboxes": "Checkboxes",
-    "defaultValueFunctionNow": "Current date"
+    "defaultValueFunctionNow": "Current date",
+    "button": "Button"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",
@@ -188,12 +197,14 @@
     "higherThan": "Value is higher than {max}.",
     "maxChars": "Max {max} chars.",
     "maxCharsExceeded": "Max {max} chars (-{over}).",
+    "maxImagesExceeded": "Max {max} images (remove {over}).",
     "minChars": "Min {min} chars."
   },
   "fieldDocs": {
     "readOnly": "This is a read only field.",
     "text": "Accepts single line text.",
     "longText": "Accepts multi line text. If the rich text formatting is enabled, you can use markdown to format the text.",
+    "longTextRichText": "Accepts multi line text formatted with markdown. To embed an image, upload it with the upload file endpoint and reference its returned name as ![alt][name]. Responses add a temporary URL, ![alt][name](url), which is ignored when the value is sent back. A value can reference up to 100 images, and every name must be an uploaded image.",
     "linkRow": "Accepts an array containing the identifiers or main field text values of the related rows from table id {table}. All identifiers must be provided every time the relations are updated. If an empty array is provided all relations will be deleted. In case of a text value instead of an identifier, a row with the matching value for its main field will be searched. If more than one match is found, the first one in the order of the table is selected. You can send a string with names separated by comma in which case the string is converted into an array of row names. You can also send only an ID of a row alone.",
     "number": "Accepts a number.",
     "numberPositive": "Accepts a positive number.",
@@ -224,7 +235,8 @@
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
-    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
+    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view.",
+    "button": "A button field. Clicking the button opens a URL built from the row's values. The cell stores no data and writes are rejected."
   },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"
@@ -350,12 +362,14 @@
   },
   "trashType": {
     "workspace": "workspace",
+    "agent": "agent",
     "application": "application",
     "table": "table",
     "field": "field",
     "row": "row",
     "rows": "rows",
     "view": "view",
+    "database_workflow_action": "button action",
     "automation_workflow": "automation workflow",
     "automation_node": "automation node",
     "builder_page": "builder page",
@@ -416,6 +430,8 @@
     "fileUrlCouldNotBeReachedDescription": "The provided file URL could not be reached.",
     "invalidFileUrlTitle": "Invalid URL",
     "invalidFileUrlDescription": "The provided file URL is invalid or not allowed.",
+    "userFileDoesNotExistTitle": "Image doesn't exist",
+    "userFileDoesNotExistDescription": "The value references an image that doesn't exist anymore. Remove it and try again.",
     "adminCannotDeactivateSelfTitle": "Action not allowed.",
     "adminCannotDeactivateSelfDescription": "You cannot de-activate or un-staff yourself.",
     "adminCannotDeleteSelfTitle": "Action not allowed.",
@@ -460,8 +476,8 @@
     "cannotCreateFieldTypeDescription": "The requested field type cannot be created at the moment. It might be just a temporary problem with older tables. Please try again later.",
     "generativeAIDoesNotExistTitle": "Generative AI does not exist",
     "generativeAIDoesNotExistDescription": "The generative AI model does not exist.",
-    "modelDoesNotBelongToTypeTitle": "The selected model does not belong to the AI Type",
-    "modelDoesNotBelongToTypeDescription": "The selected model does not belong to the selected AI type.",
+    "modelDoesNotBelongToTypeTitle": "AI model unavailable",
+    "modelDoesNotBelongToTypeDescription": "The selected AI model is disabled or no longer available.",
     "generateAIPromptTitle": "Prompt error",
     "generateAIPromptDescription": "Something was wrong with the constructed prompt.",
     "fieldIsAlreadyPrimaryTitle": "Field is already primary",
@@ -684,6 +700,7 @@
     "minuteDescription": "Returns the minute from the date time argument.",
     "secondDescription": "Returns the second from the date time argument.",
     "todayDescription": "Returns the current date.",
+    "nowDescription": "Returns the current date and time.",
     "getPropertyDescription": "Returns the property from the object.",
     "randomIntDescription": "Returns a random integer from the range specified by the arguments.",
     "randomFloatDescription": "Returns a random float from the range specified by the arguments.",
@@ -700,6 +717,8 @@
     "splitDescription": "Splits the first argument using the optional second argument as the separator. If the second argument is not provided, uses ' ' as the separator.",
     "isEmptyDescription": "Returns true if the argument is empty, otherwise returns false",
     "stripDescription": "Strips any leading and trailing whitespace from the argument",
+    "encodeUriDescription": "Percent encodes the characters that are not allowed in a URL, leaving the URL structure intact",
+    "encodeUriComponentDescription": "Percent encodes the argument so it can safely be used as a single part of a URL, like a path segment or a query parameter",
     "sumDescription": "Sums the numbers inside the argument.",
     "avgDescription": "Averages the numbers inside the argument.",
     "atDescription": "Returns the item in the first argument at the index specified by the second argument.",

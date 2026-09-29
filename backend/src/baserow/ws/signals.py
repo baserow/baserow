@@ -1,7 +1,10 @@
+from typing import Any
+
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
 
+from baserow.api.agents.serializers import AgentSerializer
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
@@ -15,10 +18,14 @@ from baserow.api.workspaces.serializers import (
     WorkspaceUserWorkspaceSerializer,
 )
 from baserow.core import signals
+from baserow.core.agents import signals as agent_signals
+from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
+from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs import signals as jobs_signals
-from baserow.core.models import Application, WorkspaceUser
+from baserow.core.last_viewed.handler import LastViewedHandler
+from baserow.core.models import Application, Workspace, WorkspaceUser
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
     ReadApplicationOperationType,
@@ -28,6 +35,7 @@ from baserow.core.user import signals as user_signals
 from baserow.core.utils import generate_hash
 
 from .tasks import (
+    broadcast_ai_provider_update,
     broadcast_application_created,
     broadcast_to_group,
     broadcast_to_groups,
@@ -35,6 +43,32 @@ from .tasks import (
     broadcast_to_users,
     force_disconnect_users,
 )
+
+
+@receiver(ai_provider_updated)
+def broadcast_ai_provider_updated(
+    sender: type,
+    model_availability_updated: bool,
+    workspace: Workspace | None = None,
+    **kwargs: Any,
+) -> None:
+    """
+    Queue the changed scope's realtime snapshot once the transaction commits.
+
+    :param sender: The service class that sent the signal.
+    :param model_availability_updated: Whether the change can alter which models
+        are available.
+    :param workspace: The workspace whose providers changed, or None for the
+        instance scope.
+    :param kwargs: The remaining signal arguments, which this receiver ignores.
+    """
+
+    workspace_id = workspace.id if workspace is not None else None
+    transaction.on_commit(
+        lambda: broadcast_ai_provider_update.delay(
+            workspace_id, model_availability_updated
+        )
+    )
 
 
 @receiver(signals.user_updated)
@@ -104,7 +138,8 @@ def workspace_created(sender, workspace, user, **kwargs):
 
 
 @receiver(signals.workspace_updated)
-def workspace_updated(sender, workspace, user, **kwargs):
+def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
+    updated_fields = updated_fields or []
     transaction.on_commit(
         lambda: broadcast_to_group.delay(
             workspace.id,
@@ -112,6 +147,7 @@ def workspace_updated(sender, workspace, user, **kwargs):
                 "type": "group_updated",
                 "workspace_id": workspace.id,
                 "workspace": WorkspaceSerializer(workspace).data,
+                "updated_fields": updated_fields,
             },
             getattr(user, "web_socket_id", None),
         )
@@ -204,11 +240,17 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
         applications_qs,
         workspace=workspace_user.workspace,
     )
-    applications_qs = specific_iterator(applications_qs)
+    applications_qs = list(specific_iterator(applications_qs))
+    context = {
+        "user": workspace_user.user,
+        "last_viewed_per_application": (
+            LastViewedHandler.get_last_viewed_per_application(
+                workspace_user.user, [a.id for a in applications_qs]
+            )
+        ),
+    }
     applications = [
-        PolymorphicApplicationResponseSerializer(
-            application, context={"user": workspace_user.user}
-        ).data
+        PolymorphicApplicationResponseSerializer(application, context=context).data
         for application in applications_qs
     ]
 
@@ -301,6 +343,66 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
                 "type": "applications_reordered",
                 "workspace_id": workspace.id,
                 "order": order,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_created)
+def agent_created(sender, agent, user=None, **kwargs):
+    """Notify permitted users when an agent is created or restored."""
+
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
+            agent.workspace_id,
+            {
+                "type": "agent_created",
+                "workspace_id": agent.workspace_id,
+                "agent": AgentSerializer(agent).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_updated)
+def agent_updated(sender, agent, user, **kwargs):
+    """Notify users who can list agents about updated agent details."""
+
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
+            agent.workspace_id,
+            {
+                "type": "agent_updated",
+                "workspace_id": agent.workspace_id,
+                "agent": AgentSerializer(agent).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_deleted)
+def agent_deleted(sender, agent, user, **kwargs):
+    """Notify users who can list agents that an agent was deleted."""
+
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
+            agent.workspace_id,
+            {
+                "type": "agent_deleted",
+                "workspace_id": agent.workspace_id,
+                "agent_id": agent.id,
             },
             getattr(user, "web_socket_id", None),
         )

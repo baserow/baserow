@@ -55,7 +55,7 @@ export class Event {
           'dataSource/getPagesDataSourceById'
         ](pages, parseInt(workflowAction.data_source_id))
         workflowActionContext.dataSourcePage = pages.find(
-          (page) => page.id === workflowActionContext.dataSource.page_id
+          (page) => page.id === workflowActionContext.dataSource?.page_id
         )
       }
 

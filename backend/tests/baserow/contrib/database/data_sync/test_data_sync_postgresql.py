@@ -10,7 +10,10 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
-from baserow.contrib.database.data_sync.exceptions import SyncError
+from baserow.contrib.database.data_sync.exceptions import (
+    DataSyncCredentialRequired,
+    SyncError,
+)
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import (
     DataSync,
@@ -18,6 +21,7 @@ from baserow.contrib.database.data_sync.models import (
     SyncDataSyncTableJob,
 )
 from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
+    PostgreSQLDataSyncType,
     TextPostgreSQLSyncProperty,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -306,8 +310,12 @@ def test_postgresql_data_sync_get_properties(
 ):
     default_database = settings.DATABASES["default"]
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -425,6 +433,7 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
 ):
     default_database = settings.DATABASES["default"]
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
     with patch(
         "baserow.contrib.database.data_sync.postgresql_data_sync_type.column_type_to_baserow_field_type",
@@ -432,7 +441,10 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
             "char": TextPostgreSQLSyncProperty,
         },
     ):
-        url = reverse("api:database:data_sync:properties")
+        url = reverse(
+            "api:database:data_sync:properties",
+            kwargs={"database_id": database.id},
+        )
         response = api_client.post(
             url,
             {
@@ -461,6 +473,75 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
             "initially_selected": True,
         }
     ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_get_properties_private_host_rejected(
+    data_fixture, api_client
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
+    with override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False, TESTS=False):
+        response = api_client.post(
+            url,
+            {
+                "type": "postgresql",
+                "postgresql_host": "192.168.1.1",
+                "postgresql_username": "user",
+                "postgresql_password": "pass",
+                "postgresql_port": 5432,
+                "postgresql_database": "db",
+                "postgresql_table": "t",
+                "postgresql_sslmode": "prefer",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SYNC_ERROR"
+    assert "not allowed" in response.json()["detail"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_sync_private_host_rejected(
+    data_fixture, create_postgresql_test_table
+):
+    """Syncing an existing data sync that points at a private host fails
+    gracefully when BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is False."""
+
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync.postgresql_host = "192.168.1.1"
+    data_sync.save(update_fields=["postgresql_host"])
+
+    with override_settings(TESTS=False, BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error == "It's not allowed to connect to this hostname."
 
 
 @pytest.mark.django_db(transaction=True)
@@ -579,7 +660,10 @@ def test_postgresql_data_sync_connection_error(data_fixture):
         )
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
-    assert "failed" in str(e.value)
+    error_message = str(e.value)
+    assert "Could not connect" in error_message
+    assert "NOT_EXISTING_USER" not in error_message
+    assert default_database["HOST"] not in error_message
 
 
 @pytest.mark.django_db(transaction=True)
@@ -928,3 +1012,174 @@ def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
         job["human_readable_error"]
         == f"The value for field {fields[1].id} cannot be negative."
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_rejects_host_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with pytest.raises(DataSyncCredentialRequired):
+        handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["id"],
+            postgresql_host="attacker.com",
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_rejects_port_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with pytest.raises(DataSyncCredentialRequired):
+        handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["id"],
+            postgresql_port=9999,
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_allows_host_change_with_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_password=default_database["PASSWORD"],
+    )
+    assert data_sync.postgresql_host == default_database["HOST"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_allows_non_target_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id"],
+        postgresql_schema="public",
+    )
+    assert data_sync.postgresql_schema == "public"
+
+
+def test_check_host_not_blocked_ipv4_mapped_bypass():
+    """IPv4-mapped IPv6 addresses are normalized before blacklist comparison,
+    preventing ::ffff:<ip> from bypassing the app-database check."""
+
+    with override_settings(
+        BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE=True,
+        DATABASES={"default": {"HOST": "172.18.0.2"}},
+    ):
+        # Direct IPv4 is blocked
+        with pytest.raises(SyncError):
+            PostgreSQLDataSyncType._check_host_not_blocked("172.18.0.2", ["172.18.0.2"])
+
+        # IPv4-mapped IPv6 of the same address is also blocked
+        with pytest.raises(SyncError):
+            PostgreSQLDataSyncType._check_host_not_blocked(
+                "::ffff:172.18.0.2", ["::ffff:172.18.0.2"]
+            )
+
+
+def test_check_host_not_blocked_ipv4_mapped_blacklist():
+    """IPv4-mapped addresses are also caught by the blacklist."""
+
+    with override_settings(
+        BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE=False,
+        BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST=["10.0.0.5"],
+    ):
+        with pytest.raises(SyncError):
+            PostgreSQLDataSyncType._check_host_not_blocked(
+                "::ffff:10.0.0.5", ["::ffff:10.0.0.5"]
+            )
+
+
+def test_normalize_ip():
+    assert PostgreSQLDataSyncType._normalize_ip("::ffff:10.0.0.1") == "10.0.0.1"
+    assert PostgreSQLDataSyncType._normalize_ip("10.0.0.1") == "10.0.0.1"
+    assert PostgreSQLDataSyncType._normalize_ip("2001:db8::1") == "2001:db8::1"

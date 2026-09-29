@@ -48,6 +48,11 @@ from baserow.contrib.database.views.registries import (
 )
 from baserow.core.registry import Instance, Registry
 
+# Sentinel that can be returned by `after_field_objects_prepared` to exclude the
+# field from the import. This must be explicit because `None` means that the
+# existing field object is kept.
+REMOVE_FIELD_OBJECT = object()
+
 
 class AirtableColumnType(Instance):
     def to_baserow_field(
@@ -78,14 +83,26 @@ class AirtableColumnType(Instance):
     def after_field_objects_prepared(
         self,
         field_mapping_per_table: Dict[str, Dict[str, Any]],
-        baserow_field: Field,
-        raw_airtable_column: dict,
-    ):
+        raw_airtable_table: dict,
+        field_object: Dict[str, Any],
+        import_report: AirtableImportReport,
+    ) -> Optional[Dict[str, Any]]:
         """
         Hook that is called after all field objects of all tables are prepared. This
-        allows to do some post-processing on the fields in case they depend on each
-        other.
+        allows to do some post-processing on the fields in case they depend on other
+        fields or tables, which might not all be part of the import.
+
+        :param field_mapping_per_table: All prepared field objects per table id.
+        :param raw_airtable_table: The raw Airtable table data related to the field.
+        :param field_object: The prepared field object of this column type.
+        :param import_report: Used to collect what wasn't imported to report to the
+            user.
+        :return: The field object that replaces the existing one,
+            `REMOVE_FIELD_OBJECT` to exclude the field from the import, or `None` to
+            keep the existing field object unchanged.
         """
+
+        return field_object
 
     def to_baserow_export_serialized_value(
         self,

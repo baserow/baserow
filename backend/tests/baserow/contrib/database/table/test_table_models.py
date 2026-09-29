@@ -1343,3 +1343,138 @@ def test_update_returning_ids_with_provably_empty_filter(data_fixture):
         **{name_field.db_column: "Falcon 1"}
     )
     assert updated_row_ids == []
+
+
+@pytest.mark.django_db
+def test_order_by_fields_string_without_group_by_string(data_fixture):
+    """
+    When group_by_string is not provided (the default), order_by_fields_string
+    behaves identically to the pre-refactor version: all fields use get_order.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+    number_field = data_fixture.create_number_field(
+        table=table, name="Priority", number_decimal_places=0
+    )
+
+    model = table.get_model()
+    row_b = model.objects.create(
+        **{f"field_{text_field.id}": "B", f"field_{number_field.id}": 2}
+    )
+    row_a = model.objects.create(
+        **{f"field_{text_field.id}": "A", f"field_{number_field.id}": 1}
+    )
+    row_c = model.objects.create(
+        **{f"field_{text_field.id}": "C", f"field_{number_field.id}": 3}
+    )
+
+    results = model.objects.all().order_by_fields_string(f"field_{text_field.id}")
+    assert [r.id for r in results] == [row_a.id, row_b.id, row_c.id]
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{text_field.id}", group_by_string=None
+    )
+    assert [r.id for r in results] == [row_a.id, row_b.id, row_c.id]
+
+
+@pytest.mark.django_db
+def test_order_by_fields_string_with_group_by_string_uses_group_by_sort_order(
+    data_fixture,
+):
+    """
+    When group_by_string is provided, those fields use get_group_by_sort_order
+    (set-based ArrayAgg for M2M) while order_string fields use get_order
+    (insertion-order StringAgg). This test verifies the dispatch by checking
+    that rows with the same set of options in a multiple_select field are
+    grouped adjacently when using group_by_string.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    ms_field = FieldHandler().create_field(
+        user=user, table=table, name="Tags", type_name="multiple_select"
+    )
+    option_a = data_fixture.create_select_option(field=ms_field, value="A", color="red")
+    option_b = data_fixture.create_select_option(
+        field=ms_field, value="B", color="blue"
+    )
+    option_c = data_fixture.create_select_option(
+        field=ms_field, value="C", color="green"
+    )
+
+    # Row 1: A then C (insertion order: A, C)
+    row1 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_a.id, option_c.id], user=user
+    )
+    # Row 2: B only
+    row2 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_b.id], user=user
+    )
+    # Row 3: C then A (insertion order: C, A — same set as row 1)
+    row3 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_c.id, option_a.id], user=user
+    )
+
+    model = table.get_model()
+
+    # With group_by_string: rows with same option set {A, C} must be adjacent
+    results = model.objects.all().order_by_fields_string(
+        "", group_by_string=f"field_{ms_field.id}"
+    )
+    result_ids = [r.id for r in results]
+    assert result_ids == [row1.id, row3.id, row2.id], (
+        f"Expected [{row1.id}, {row3.id}, {row2.id}] but got {result_ids}. "
+        f"Rows with same set {{A,C}} must precede {{B}} and tie-break by order/id."
+    )
+
+    # With group_by_string for grouping + a second M2M sort field:
+    # Exercises a second M2M join to verify isolated aggregates.
+    # Cardinalities: row1={X,Y}(2), row2={X}(1), row3={Y}(1)
+    ms_sort_field = FieldHandler().create_field(
+        user=user, table=table, name="Priority", type_name="multiple_select"
+    )
+    option_x = data_fixture.create_select_option(
+        field=ms_sort_field, value="X", color="red"
+    )
+    option_y = data_fixture.create_select_option(
+        field=ms_sort_field, value="Y", color="blue"
+    )
+
+    handler = RowHandler()
+    handler.update_row_by_id(
+        user,
+        table,
+        row1.id,
+        {f"field_{ms_sort_field.id}": [option_x.id, option_y.id]},
+    )
+    handler.update_row_by_id(
+        user,
+        table,
+        row2.id,
+        {f"field_{ms_sort_field.id}": [option_x.id]},
+    )
+    handler.update_row_by_id(
+        user,
+        table,
+        row3.id,
+        {f"field_{ms_sort_field.id}": [option_y.id]},
+    )
+
+    model = table.get_model()
+    results = model.objects.all().order_by_fields_string(
+        f"field_{ms_sort_field.id}",
+        group_by_string=f"field_{ms_field.id}",
+    )
+    result_ids = [r.id for r in results]
+    assert len(result_ids) == 3, (
+        f"Expected 3 rows but got {len(result_ids)}: {result_ids}"
+    )
+
+    # Group {A,C} (row1, row3) before {B} (row2) in ASC.
+    # Within {A,C}: row1 sort={X,Y} before row3 sort={Y} in ASC.
+    assert result_ids == [row1.id, row3.id, row2.id], (
+        f"Expected group-first then sort ordering [row1, row3, row2] "
+        f"but got {result_ids}"
+    )

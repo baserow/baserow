@@ -16,6 +16,10 @@ export const baserowConfig = {
   PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL
     ? process.env.PUBLIC_BACKEND_URL
     : `http://localhost:${defaultBackendPort}`,
+  BUILDER_PREVIEW_URL:
+    process.env.BASEROW_BUILDER_PREVIEW_URL ??
+    process.env.PUBLIC_WEB_FRONTEND_URL ??
+    `http://localhost:${defaultFrontendPort}`,
   BASEROW_FRONTEND_COOKIE_PREFIX:
     process.env.BASEROW_FRONTEND_COOKIE_PREFIX ??
     process.env.NUXT_PUBLIC_BASEROW_FRONTEND_COOKIE_PREFIX ??

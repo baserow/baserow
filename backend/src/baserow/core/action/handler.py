@@ -11,12 +11,13 @@ from loguru import logger
 from opentelemetry import trace
 
 from baserow.core.exceptions import LockConflict
-from baserow.core.telemetry.utils import baserow_trace, baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace
 
 from .models import Action
 from .registries import (
     ActionScopeStr,
     UndoableActionCustomCleanupMixin,
+    action_scope_registry,
     action_type_registry,
 )
 from .signals import ActionCommandType
@@ -42,7 +43,7 @@ class OneActionHasErrorAndCannotBeRedone(Exception):
     """
 
 
-class ActionHandler(metaclass=baserow_trace_methods(tracer)):
+class ActionHandler:
     """
     Contains methods to do high level operations on ActionType's like undoing or
     redoing them.
@@ -98,6 +99,7 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
         # events triggered by the action.
         user.web_socket_id = None
 
+        scopes = action_scope_registry.resolve(user, scopes)
         latest_not_undone_action = (
             Action.objects.filter(user=user, undone_at__isnull=True, session=session)
             .filter(scopes_to_q_filter(scopes))
@@ -180,7 +182,7 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
         # events triggered by the action.
         user.web_socket_id = None
 
-        scopes_filter = scopes_to_q_filter(scopes)
+        scopes_filter = scopes_to_q_filter(action_scope_registry.resolve(user, scopes))
         latest_undone_action = (
             Action.objects.filter(user=user, undone_at__isnull=False, session=session)
             .filter(scopes_filter)

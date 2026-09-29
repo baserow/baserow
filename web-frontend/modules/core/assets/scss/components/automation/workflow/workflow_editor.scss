@@ -16,11 +16,11 @@ $connectorHeight: 32px;
 .workflow-editor__trigger-selector {
   background: $white;
   border: 1.5px solid $palette-neutral-200;
+  overflow: hidden;
   cursor: default;
   pointer-events: auto;
 
-  @include elevation($elevation-low);
-  @include rounded($rounded-xl);
+  @include rounded($rounded-lg);
 }
 
 .workflow-editor__trigger-selector-title {

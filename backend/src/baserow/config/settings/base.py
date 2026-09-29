@@ -105,6 +105,9 @@ if BASEROW_BACKEND_PLUGIN_NAMES:
     INSTALLED_APPS.extend(BASEROW_BACKEND_PLUGIN_NAMES)
 
 MIDDLEWARE = [
+    # Keep this before CorsMiddleware so it can post-process the broad CORS
+    # headers after django-cors-headers has added them.
+    "baserow.middleware.BaserowCredentialedCorsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -321,12 +324,53 @@ CACHES = {
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
     # Default TTL is 2 hours
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
-    or 60 * 10 * 2
+    or 60 * 60 * 2
 )
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     # Default TTL is 5 minutes
     os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS") or 300
 )
+# How long a button field click holds its lock. A backstop for a process that
+# dies mid-click; normally the lock goes as soon as the sequence finishes. Raise
+# it if a button's actions can legitimately run for longer.
+DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS = int(
+    # A floor rather than the answer: a click whose actions may wait longer
+    # than this takes a lock sized to what they are allowed to wait for. Raise
+    # it for a button whose actions are slow for some other reason.
+    os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 120
+)
+# The most a click may remember of an external answer, so a large response
+# cannot bloat the field's configuration. Only the editor's copy is capped.
+DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES = int(
+    os.getenv("BASEROW_DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES") or 64 * 1024
+)
+# How often a button that reaches outside Baserow may be clicked. Both keys are
+# needed: an abuser can make workspaces, and one workspace should not drown the
+# rest. Local clicks are not counted. Leaving a variable empty keeps the
+# default; a single comma switches its limits off.
+try:
+    DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS")
+            or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+    DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS")
+            or "120/m,1200/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS and "
+        "BASEROW_DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
 
 
 CELERY_SINGLETON_BACKEND_CLASS = (
@@ -401,7 +445,6 @@ SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "baserow.api.user_sources.authentication.UserSourceJSONWebTokenAuthentication",
         "baserow.api.authentication.JSONWebTokenAuthentication",
     ),
     "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
@@ -419,6 +462,20 @@ BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = int(
     os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS", "") or -1
 )
 BASEROW_THROTTLE_IP_ENABLED = str_to_bool(os.getenv("BASEROW_THROTTLE_IP_ENABLED", ""))
+
+try:
+    BASEROW_WORKSPACE_INVITATION_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in os.getenv("BASEROW_WORKSPACE_INVITATION_RATE_LIMITS", "").split(
+            ","
+        )
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_WORKSPACE_INVITATION_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,100/h'. {exc}"
+    ) from exc
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
@@ -443,6 +500,13 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
+BASEROW_ABUSE_REPORT_THROTTLE_RATE = os.getenv(
+    "BASEROW_ABUSE_REPORT_THROTTLE_RATE", "5/h"
+)
+BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS = int(
+    os.getenv("BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS", 60 * 60 * 24)
+)
+
 BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
@@ -456,6 +520,7 @@ MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP = 20
 WEBSOCKET_ID_HEADER = "WebsocketId"
 
 USER_SOURCE_AUTHENTICATION_HEADER = "UserSourceAuthorization"
+REALTIME_RECOVERY_HEADER = "X-Baserow-Realtime-Recovery"
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
@@ -463,6 +528,16 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
+    REALTIME_RECOVERY_HEADER,
+]
+
+BUILDER_GRAPH_PATCH_HEADER = "X-Baserow-Builder-Graph-Patch"
+
+# Response headers the browser is allowed to read on cross-origin requests
+CORS_EXPOSE_HEADERS = [
+    BUILDER_GRAPH_PATCH_HEADER,
+    # Lets the web frontend honor the throttling cooldown on 429 responses.
+    "Retry-After",
 ]
 
 ACCESS_TOKEN_LIFETIME = timedelta(
@@ -494,7 +569,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.3.3",
+    "VERSION": "2.4.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -610,6 +685,17 @@ SPECTACULAR_SETTINGS = {
 BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
     Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
 )  # ~1TB by default
+
+# The max size of a JSON or form encoded request body.
+_body_limit_mb = os.getenv("BASEROW_REQUEST_BODY_SIZE_LIMIT_MB", "").strip()
+DATA_UPLOAD_MAX_MEMORY_SIZE = (
+    int(Decimal(_body_limit_mb) * 1024 * 1024) if _body_limit_mb else None
+)
+if DATA_UPLOAD_MAX_MEMORY_SIZE is not None and DATA_UPLOAD_MAX_MEMORY_SIZE <= 0:
+    raise ImproperlyConfigured(
+        "BASEROW_REQUEST_BODY_SIZE_LIMIT_MB must be greater than zero. Unset it "
+        "to allow request bodies of any size."
+    )
 
 FILE_UPLOAD_ACTIVE_CONTENT_POLICY = os.getenv(
     "BASEROW_FILE_UPLOAD_ACTIVE_CONTENT_POLICY", "download"
@@ -787,6 +873,33 @@ BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:
     BASEROW_EMBEDDED_SHARE_URL = PUBLIC_WEB_FRONTEND_URL
 
+BUILDER_PREVIEW_URL = os.getenv("BASEROW_BUILDER_PREVIEW_URL")
+if not BUILDER_PREVIEW_URL:
+    BUILDER_PREVIEW_URL = PUBLIC_WEB_FRONTEND_URL
+
+
+def _get_origin_from_url(url):
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+BASEROW_CORS_ALLOWED_CREDENTIAL_ORIGINS = [
+    origin
+    for origin in {
+        _get_origin_from_url(PUBLIC_WEB_FRONTEND_URL),
+        _get_origin_from_url(BUILDER_PREVIEW_URL),
+    }
+    if origin is not None
+]
+
+BUILDER_PREVIEW_GRANT_TTL = timedelta(
+    seconds=int(os.getenv("BASEROW_BUILDER_PREVIEW_GRANT_TTL_SECONDS", 60 * 30))
+)
+BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 60
+FRONTEND_COOKIE_PREFIX = os.getenv("BASEROW_FRONTEND_COOKIE_PREFIX", "")
+
 MEDIA_URL_PATH = "/media/"
 MEDIA_URL = os.getenv("MEDIA_URL", urljoin(PUBLIC_BACKEND_URL, MEDIA_URL_PATH))
 
@@ -794,6 +907,7 @@ PRIVATE_BACKEND_URL = os.getenv("PRIVATE_BACKEND_URL", "http://backend:8000")
 PUBLIC_BACKEND_HOSTNAME = urlparse(PUBLIC_BACKEND_URL).hostname
 PUBLIC_WEB_FRONTEND_HOSTNAME = urlparse(PUBLIC_WEB_FRONTEND_URL).hostname
 BASEROW_EMBEDDED_SHARE_HOSTNAME = urlparse(BASEROW_EMBEDDED_SHARE_URL).hostname
+BUILDER_PREVIEW_HOSTNAME = urlparse(BUILDER_PREVIEW_URL).hostname
 MEDIA_URL_HOSTNAME = urlparse(MEDIA_URL).hostname
 PRIVATE_BACKEND_HOSTNAME = urlparse(PRIVATE_BACKEND_URL).hostname
 
@@ -802,6 +916,9 @@ if PUBLIC_BACKEND_HOSTNAME:
 
 if MEDIA_URL_HOSTNAME:
     ALLOWED_HOSTS.append(MEDIA_URL_HOSTNAME)
+
+if BUILDER_PREVIEW_HOSTNAME:
+    ALLOWED_HOSTS.append(BUILDER_PREVIEW_HOSTNAME)
 
 if PRIVATE_BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(PRIVATE_BACKEND_HOSTNAME)
@@ -883,8 +1000,41 @@ INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
     os.getenv("BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS", "true")
 )
 
+# The domain used to generate inbound email addresses for email triggers, e.g.
+# "inbound.baserow.io" results in addresses like "{token}@inbound.baserow.io".
+# When empty, the email trigger feature is not configured on this instance.
+INBOUND_EMAIL_DOMAIN = os.getenv("BASEROW_INBOUND_EMAIL_DOMAIN", "")
+# The shared secret the inbound mail server must send in the Authorization
+# header when delivering inbound email webhooks to this instance. When empty,
+# the inbound email webhook endpoint rejects all requests.
+INBOUND_EMAIL_WEBHOOK_SECRET = os.getenv("BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET", "")
+# The password the backend authenticates with when deleting handed-over messages
+# through the bundled mail server's web API. Empty means the webhook secret is
+# used (see `inbound_email_receiver.py`), so one secret configures the whole
+# feature; set it to keep the secret that travels in every webhook request out
+# of the receiver's credentials.
+INBOUND_EMAIL_RECEIVER_PASSWORD = os.getenv(
+    "BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD", ""
+)
+# The largest raw email, in MB, the bundled inbound mail server accepts. The
+# limit itself is enforced by the mail server (see generate-mox-config.sh); it
+# is mirrored here so it can be shown next to the trigger's address.
+INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB = int(
+    os.getenv("BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB") or 25
+)
+# Where the backend reaches the bundled inbound mail server's web API. Mox keeps
+# every accepted message on disk and has no retention setting, so the backend
+# deletes each message through this API shortly after receiving its webhook.
+# Empty disables that (see `inbound_email_receiver.py`).
+INBOUND_EMAIL_RECEIVER_URL = os.getenv("BASEROW_INBOUND_EMAIL_RECEIVER_URL", "").rstrip(
+    "/"
+)
+
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
+)
+AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS", 20)
 )
 _legacy_workflow_rate_limit_max_runs = os.getenv(
     "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
@@ -974,6 +1124,11 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 )
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
+)
+# The maximum number of node dispatches allowed in a single workflow run.
+# This protects against infinite dispatches due to a misconfigured node.
+AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN = int(
+    os.getenv("BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN", 1000)
 )
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
@@ -1220,6 +1375,19 @@ INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
 BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
     os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS") or "true"
 )
+# The most an HTTP request service will read of an answer, measured while the
+# body arrives so an endpoint cannot decide how much memory a worker spends.
+# Zero reads it whole, with only the timeout bounding it.
+INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = int(
+    os.getenv("BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES") or 32 * 1024 * 1024
+)
+
+# Where the Slack service posts. Only an environment with no way to reach
+# slack.com, the e2e stack for one, points it somewhere else.
+INTEGRATIONS_SLACK_API_URL = (
+    os.getenv("BASEROW_INTEGRATIONS_SLACK_API_URL") or "https://slack.com/api"
+).rstrip("/")
+
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.
@@ -1253,6 +1421,13 @@ BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
     "BASEROW_BACKEND_DATABASE_LOG_LEVEL", "ERROR"
 )
+BASEROW_OTEL_LOG_LEVEL = os.getenv("BASEROW_OTEL_LOG_LEVEL") or "WARNING"
+BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS") or 10
+)
+BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS") or 60
+)
 
 BASEROW_JOB_EXPIRATION_TIME_LIMIT = int(
     os.getenv("BASEROW_JOB_EXPIRATION_TIME_LIMIT", 30 * 24 * 60)  # 30 days
@@ -1268,6 +1443,18 @@ BASEROW_ROW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
 )
 BASEROW_ROW_HISTORY_RETENTION_DAYS = int(
     os.getenv("BASEROW_ROW_HISTORY_RETENTION_DAYS", 180)
+)
+# Delay between a user opening an item and the "last viewed" write, so bursts of
+# requests for the same item collapse into one database write.
+BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS = int(
+    os.getenv("BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS") or 2
+)
+# Minimum age of a stored "last viewed" value before it is refreshed again.
+BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS = int(
+    os.getenv("BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS") or 60
+)
+BASEROW_LAST_VIEWED_CLEANUP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_LAST_VIEWED_CLEANUP_INTERVAL_MINUTES") or 60 * 24
 )
 BASEROW_MAX_ROW_REPORT_ERROR_COUNT = int(
     os.getenv("BASEROW_MAX_ROW_REPORT_ERROR_COUNT", 30)
@@ -1297,11 +1484,13 @@ BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT = int(
 )
 
 PERMISSION_MANAGERS = [
+    "workspace_role_availability",
     "view_ownership",
     "core",
     "setting_operation",
     "staff",
     "allow_if_template",
+    "allow_builder_preview",
     "allow_public_builder",
     "element_visibility",
     "member",
@@ -1473,10 +1662,8 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import (
-        ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_disconnect_events,
-    )
+    from baserow.core.sentry import drop_expected_asyncio_disconnect_events
+    from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
@@ -1536,7 +1723,7 @@ if SENTRY_DSN:
         ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_websocket_disconnect_events,
+        before_send=drop_expected_asyncio_disconnect_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,
@@ -1544,6 +1731,9 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
+# Deprecated provider connection/model environment variables. Manage providers and
+# models under AI providers instead. Keep these settings for compatibility and the
+# migrate_ai_provider_settings import command; runtime fallback remains supported.
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
 BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None
@@ -1596,6 +1786,9 @@ BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
     BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST.split(",")
     if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
     else []
+)
+BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT = int(
+    os.getenv("BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT", "") or 180
 )
 
 # Default compression level for creating zip files. This setting balances the need to
@@ -1721,3 +1914,11 @@ BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv(
 BASEROW_REALTIME_REPLAY_MAX_EVENTS = int(
     os.getenv("BASEROW_REALTIME_REPLAY_MAX_EVENTS", 200)
 )
+
+REALTIME_REPLAY_RETENTION_HOURS = int(
+    os.getenv("BASEROW_REALTIME_REPLAY_RETENTION_HOURS", 24)
+)
+if REALTIME_REPLAY_RETENTION_HOURS <= 0:
+    raise ImproperlyConfigured(
+        "BASEROW_REALTIME_REPLAY_RETENTION_HOURS must be a positive integer."
+    )

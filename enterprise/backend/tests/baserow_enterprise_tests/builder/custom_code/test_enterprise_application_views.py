@@ -1,11 +1,22 @@
 from django.shortcuts import reverse
+from django.test import override_settings
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
+
+
+def authenticate_builder_preview(api_client, builder, user):
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.mark.django_db
@@ -124,7 +135,7 @@ def test_create_enterprise_builder_application_no_licence(api_client, data_fixtu
 def test_get_enterprise_builder_custom_code_preview(
     enable_enterprise, api_client, data_fixture
 ):
-    user, token = data_fixture.create_user_and_token(
+    user, _token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
     workspace = data_fixture.create_workspace(user=user)
@@ -136,21 +147,52 @@ def test_get_enterprise_builder_custom_code_preview(
     builder.custom_code.js = "testJs"
     builder.custom_code.save()
 
-    url = reverse("api:enterprise:custom_code:js", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:js",
+        kwargs={"builder_id": builder.id},
+    )
+    authenticate_builder_preview(api_client, builder, user)
 
     response = api_client.get(
         url,
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testJs"
 
-    url = reverse("api:enterprise:custom_code:css", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:css",
+        kwargs={"builder_id": builder.id},
+    )
 
     response = api_client.get(
         url,
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    assert response.status_code == HTTP_200_OK
+    assert response.content == b"testCss"
+
+
+@pytest.mark.django_db
+@override_settings(FRONTEND_COOKIE_PREFIX="baserow_3010_")
+def test_get_enterprise_builder_custom_code_preview_with_prefixed_session_cookie(
+    enable_enterprise, api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    builder.custom_code.css = "testCss"
+    builder.custom_code.save()
+
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:css",
+        kwargs={"builder_id": builder.id},
+    )
+    authenticate_builder_preview(api_client, builder, user)
+    assert "baserow_3010_baserow_builder_preview" in api_client.cookies
+
+    response = api_client.get(
+        url,
+    )
+
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testCss"
 
@@ -168,7 +210,10 @@ def test_get_enterprise_builder_custom_code_preview_no_user(
     builder.custom_code.js = "testJs"
     builder.custom_code.save()
 
-    url = reverse("api:enterprise:custom_code:js", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:js",
+        kwargs={"builder_id": builder.id},
+    )
 
     response = api_client.get(
         url,

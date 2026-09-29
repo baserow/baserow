@@ -25,12 +25,21 @@
         "createWorkspace": "グループ作成",
         "inviteOthers": "招待する",
         "members": "メンバー",
-        "logoff": "ログオフ",
+        "logoff": "ログアウト",
         "errorNoWorkspace": "グループがありません。",
         "admin": "管理者",
         "dashboard": "ダッシュボード",
         "trash": "ゴミ箱",
-        "settings": "設定"
+        "settings": "個人設定",
+        "general": "一般",
+        "addNewWorkspace": "新しいワークスペースを追加",
+        "adminTools": "管理ツール",
+        "home": "ホーム",
+        "replayGuidedTour": "ガイドツアーを再開",
+        "notifications": "通知",
+        "adminSettings": "管理者設定",
+        "people": "ユーザー",
+        "licenses": "ライセンス"
     },
     "accountForm": {
         "nameLabel": "あなたの名前",
@@ -43,7 +52,7 @@
         "submitButton": "アカウント更新"
     },
     "settingsModal": {
-        "title": "設定"
+        "title": "個人設定"
     },
     "passwordSettings": {
         "title": "パスワード変更",
@@ -89,7 +98,9 @@
         "incorrectCredentialMessage": "Eメールアドレスかパスワードが間違っています。",
         "inputRequired": "入力して下さい。",
         "disabledPasswordProviderTitle": "パスワード認証は利用できません。",
-        "disabledPasswordProviderMessage": "他の認証方法を利用して下さい。"
+        "disabledPasswordProviderMessage": "他の認証方法を利用して下さい。",
+        "captchaVerificationFailedTitle": "CAPTCHA の確認に失敗しました",
+        "captchaVerificationFailedMessage": "CAPTCHA の確認に失敗しました。もう一度お試しください。"
     },
     "field": {
         "language": "言語",
@@ -99,7 +110,7 @@
         "passwordRepeat": "パスワード再入力"
     },
     "invitationTitle": "招待",
-    "invitationMessage": "{invitedBy} から {group} への招待が届きました。",
+    "invitationMessage": "{invitedBy} があなたを {workspace} に招待しました。",
     "workspaceForm": {
         "nameLabel": "名前"
     },
@@ -130,7 +141,8 @@
         "invitationFormTitle": "Eメールで招待する",
         "optionalMessagePlaceholder": "追加のメッセージ",
         "errorInvalidEmail": "正しいEメールアドレスを入力して下さい。",
-        "errorTooLongMessage": "メッセージは {amount} 文字以内にして下さい。"
+        "errorTooLongMessage": "メッセージは {amount} 文字以内にして下さい。",
+        "additionalRoles": "追加ロール"
     },
     "workspacesContext": {
         "search": "グループ検索",
@@ -142,7 +154,11 @@
         "members": "メンバー",
         "viewTrash": "ゴミ箱を見る",
         "leaveWorkspace": "グループ退出",
-        "deleteWorkspace": "グループ削除"
+        "deleteWorkspace": "グループ削除",
+        "exportWorkspace": "データをエクスポート",
+        "importWorkspace": "データをインポート",
+        "settings": "設定",
+        "auditLog": "監査ログ"
     },
     "createWorkspaceModal": {
         "createNew": "グループ新規作成",
@@ -160,7 +176,8 @@
     },
     "trashSidebar": {
         "title": "ゴミ箱",
-        "unnamedWorkspace": "新しいグループ {id}"
+        "unnamedWorkspace": "新しいグループ {id}",
+        "workspaces": "ワークスペース"
     },
     "trashContents": {
         "message": "{duration} 前からの削除されたアイテムを復元する",
@@ -186,9 +203,9 @@
         "unnamed": "新しい {type} {id}"
     },
     "trashModal": {
-        "emptyTitle": "グループが見つかりません",
-        "emptyMessage": "あなたはグループに所属していません。アプリケーションはグループに所属しますので作成するには、まずグループへ所属する必要があります。",
-        "emptyMessageWithoutCreatePermission": "あなたはグループに所属していません。アプリケーションはグループに所属しますので作成するには、まず管理者よりグループへ招待してもらう必要があります。"
+        "emptyTitle": "ワークスペースが見つかりません",
+        "emptyMessage": "どのワークスペースにも参加していません。データベースなどのアプリケーションはワークスペースに属するため、作成するにはワークスペースを作る必要があります。",
+        "emptyMessageWithoutCreatePermission": "どのワークスペースにも参加していません。データベースなどのアプリケーションはワークスペースに属するため、作成するにはまず管理者からワークスペースへ招待してもらう必要があります。"
     },
     "uploadViaURLUserFileUpload": {
         "title": "URLからアップロード",
@@ -205,10 +222,16 @@
         "retry": "やり直す"
     },
     "createApplicationContext": {
-        "fromTemplate": "テンプレートから"
+        "fromTemplate": "テンプレートから",
+        "table": "テーブル",
+        "importWorkspace": "データをインポート",
+        "importWorkspaceDesc": "Baserow インスタンスから既存のデータを追加します。",
+        "fromTemplateDesc": "おすすめのテンプレートですぐに始める",
+        "tableDesc": "データベース内のデータを管理する新しい場所を作成します。"
     },
     "applicationForm": {
-        "nameLabel": "名前"
+        "nameLabel": "名前",
+        "namePlaceholder": "名前を入力..."
     },
     "connectingNotification": {
         "title": "再接続中",
@@ -274,7 +297,7 @@
     "dashboard": {
         "title": "ダッシュボード",
         "alertTitle": "皆さんの協力が必要です！",
-        "alertText": "Baserow が役に立つと思って頂ける方は、スターを付けるかシェアしてもらえると幸いです。 Baserow をシェアしてもらうと、製品をよりよく便利に改良することが出来るようになります。",
+        "alertText": "Baserow を共有すると、製品の改善と、より役立つサービス作りにご協力いただけます。",
         "tweetContent": "Airtableライクな、オープン・ソースのノーコード・データベース・ツール、{'@'}baserow に注目して下さい！",
         "redditTitle": "Baserow - オープン・ソース・ノーコード・データベース",
         "noWorkspaceTitle": "グループが見つかりません",
@@ -286,7 +309,23 @@
         "shareOnTwitter": "Baserow についてツイート",
         "shareOnReddit": "Reddit でシェア",
         "shareOnFacebook": "Fasebook でシェア",
-        "shareOnLinkedIn": "LinkedIn でシェア"
+        "shareOnLinkedIn": "LinkedIn でシェア",
+        "starOnGitHub": "GitHub でスターを付ける",
+        "suggestedTemplates": "おすすめのテンプレート",
+        "knowledgeBase": "ナレッジベース",
+        "resources": "リソース",
+        "knowledgeBaseMessage": "あらゆる疑問の答えを見つける",
+        "tutorials": "チュートリアル",
+        "tutorialsMessage": "Baserow の可能性を発見する",
+        "apiDocumentation": "API ドキュメント",
+        "apiDocumentationMessage": "コードの詳細を見る",
+        "academyMessage": "コースを受講してエキスパートになる",
+        "academy": "Baserow Academy",
+        "emptyWorkspace": "このワークスペースは空です",
+        "emptyWorkspaceMessage": "新しいデータベースまたはアプリケーションを作成して始めましょう。",
+        "addNew": "新規追加...",
+        "noWorkspace": "ワークスペースがありません",
+        "noWorkspaceDescription": "新しいワークスペースを作成して始めましょう"
     },
     "dashboardSidebar": {
         "workspaces": "グループ",
@@ -298,12 +337,12 @@
         "logoff": "ログオフ"
     },
     "login": {
-        "title": "ログイン",
+        "title": "おかえりなさい",
         "emailPlaceholder": "Eメールアドレスを入力して下さい...",
         "passwordPlaceholder": "パスワードを入力して下さい...",
-        "forgotPassword": "パスワードを忘れましたか？",
-        "signUpText": "アカウントはまだですか？",
-        "signUp": "新規登録",
+        "forgotPassword": "お忘れですか？",
+        "signUpText": "Baserow は初めてですか？",
+        "signUp": "登録",
         "displayPasswordLogin": "Eメールとパスワードでログイン",
         "redirecting": "認証プロバイダへリダイレクトします..."
     },
@@ -318,10 +357,14 @@
         "errorLinkExpiredTitle": "リンクの期限切れ",
         "errorLinkExpiredMessage": "パスワード再設定のリンクが期限切れです。もう一度リクエストして下さい。",
         "disabled": "パスワードの再設定は利用出来ません",
-        "disabledMessage": "パスワードの再設定は利用出来ません。"
+        "disabledMessage": "パスワードの再設定は利用出来ません。",
+        "repeatPasswordPlaceholder": "新しいパスワードをもう一度入力",
+        "message": "新しいパスワードで Baserow にログインできるようになりました。",
+        "errorLinkAlreadyUsedTitle": "リンクは使用済みです",
+        "errorLinkAlreadyUsedMessage": "このパスワード再設定リンクはすでに使用されています。新しいリンクをリクエストしてください。"
     },
     "signup": {
-        "headTitle": "新しいアカウント作成",
+        "headTitle": "アカウントを作成",
         "title": "新規登録",
         "disabled": "新規登録は利用できません",
         "disabledMessage": "新規アカウント作成は利用できません。",
@@ -336,12 +379,14 @@
     },
     "forgotPassword": {
         "title": "パスワードを忘れました",
-        "message": "Eメールアドレスを入力して下さい。アカウントが見つかれば、パスワード再設定のリンクをEメールで送付します。",
+        "message": "メールアドレスを入力してください。パスワードを再設定するためのリンクをお送りします。",
         "submit": "リンクを送付",
-        "confirmation": "Eメールアドレスがデータベースに存在すれば、数分後にパスワード再設定のリンクのあるEメールが送付されます。",
+        "confirmation": "{email} に Baserow のパスワードを再設定するためのリンクを含むメールを送信しました。",
         "disabled": "パスワードを忘れました、は利用できません",
         "disabledMessage": "パスワードの再設定は利用できません。",
-        "loginText": "アカウントとパスワードをお持ちですか？"
+        "loginText": "アカウントとパスワードをお持ちですか？",
+        "goBack": "戻る",
+        "confirmationTitle": "メールを確認してください"
     },
     "settings": {
         "settingsTitle": "管理用設定",
@@ -359,13 +404,25 @@
         "settingAllowNonStaffCreateWorkspaceOperationDescription": "デフォルトでは、誰でも新しいグループを作成出来ます。この機能を使えなくすると、管理者だけが新しいグループを作成出来るようになります。",
         "settingAllowNonStaffCreateWorkspaceOperationWarning": "新しいユーザーには新しいグループが割り振られ、管理者権限になります。",
         "userDeletionGraceDelay": "ユーザー削除",
-        "settingUserDeletionGraceDelay": "猶予期間",
+        "settingUserDeletionGraceDelay": "削除の猶予期間",
         "settingUserDeletionGraceDelayDescription": "削除されたユーザーが、再度ログインされずに、完全に削除されるまでの猶予期間。",
         "invalidAccountDeletionGraceDelay": "必須項目で、正の整数で32000以下の値にして下さい",
         "enabled": "利用可能",
         "settingTrackWorkspaceUsage": "グループの利用を分析する",
         "maintenance": "メンテナンス",
-        "settingTrackWorkspaceUsageDescription": "夜間にグループごとの利用行数とファイルの利用量を計算して、プレミアム・グループ・管理者ページに表示出来るようにします。"
+        "settingTrackWorkspaceUsageDescription": "夜間にグループごとの利用行数とファイルの利用量を計算して、プレミアム・グループ・管理者ページに表示出来るようにします。",
+        "userSettings": "ユーザー",
+        "emailVerificationRecommended": "推奨",
+        "baserowVersion": "Baserow のバージョン",
+        "baserowVersionDescription": "このインスタンスのバージョン番号です。",
+        "emailVerification": "メールアドレスの確認",
+        "emailVerificationDescription": "メールアドレスの確認を必須にするかどうかを制御します。",
+        "emailVerificationNoVerification": "確認なし",
+        "emailVerificationEnforced": "必須",
+        "settingsVerifyImportSignature": "インポート署名を検証",
+        "settingsVerifyImportSignatureDescription": "有効にすると、インポートされたデータの署名を検証し、データが改ざんされていないことを確認します。",
+        "settingAllowReportingAbuseName": "不正使用の報告を許可",
+        "settingAllowReportingAbuseDescription": "有効にすると、公開共有されたビューやフォームの訪問者が不正使用を報告でき、その報告がすべてのインスタンス管理者に通知されます。"
     },
     "formSidebar": {
         "actions": {
@@ -381,11 +438,11 @@
             "descriptionPartTwo": "全てのフィールドには初期値を設定出来ます。",
             "howToHide": {
                 "title": "フィールドを非表示にする条件",
-                "description": "フィールドを動的に非表示にしたい場合は、URLにパラメタを設定することで、実現出来ます。URLパラメタに 'hide_' というプレフィックスを付けて、他のパラメタとの将来的な衝突を避けます。"
+                "description": "公開フォームの URL にクエリパラメーターを追加して、フィールドを動的に非表示にできます。将来追加される可能性があるクエリパラメーターとの競合を避けるため、これらのパラメーターには `hide_` という接頭辞を付けます。"
             },
             "howToPrefill": {
                 "title": "フォームに既定値を設定する方法",
-                "description": "フィールドに既定値を設定したい場合は、URLにパラメタを設定することで、実現出来ます。URLパラメタに 'prefill' というプレフィックスを付けて、他のパラメタとの将来的な衝突を避けます。"
+                "description": "公開フォームの URL にクエリパラメーターを追加して、フォームへデータを事前入力できます。将来追加される可能性があるクエリパラメーターとの競合を避けるため、これらのパラメーターには `prefill` という接頭辞を付けます。"
             },
             "format": {
                 "title": "書式",
@@ -431,7 +488,11 @@
                     "codeSnippet": "\n// Standards\nISO_8601\n\n// General formats\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
                 }
             }
-        }
+        },
+        "fields": "フィールド",
+        "rowEditableBy": "フィールドを通じて行を更新",
+        "notifyUserOnSubmit": "送信時に通知を受け取る",
+        "rowEditableByDescription": "このテーブルの行は、次の行編集フィールドを通じてこのフォームから更新できます。"
     },
     "job": {
         "statePending": "開始するのを待っています...",
@@ -439,7 +500,10 @@
         "stateFinished": "終了しました",
         "stateFailed": "失敗しました",
         "errorJobAlreadyRunningTitle": "既に実行しています",
-        "errorJobAlreadyRunningDescription": "他のインポート処理が既に実行中です。終了後に新しい処理を開始出来ます。"
+        "errorJobAlreadyRunningDescription": "他のインポート処理が既に実行中です。終了後に新しい処理を開始出来ます。",
+        "stateCanceled": "キャンセル済み",
+        "errorJobCannotBeCancelledTitle": "キャンセルできませんでした",
+        "errorJobCannotBeCancelledDescription": "ジョブはすでに完了しているため、キャンセルできません。\n削除するには、下の一覧にある最初のスナップショットを削除してください。"
     },
     "datetime": {
         "secondsAgo": "今 | 1 秒前 | {n} 秒前",
@@ -447,7 +511,9 @@
         "hoursAgo": "0 時間前 | 1 時間前 | {n} 時間前",
         "daysAgo": "0 日前 | 1 日前 | {n} 日前",
         "monthsAgo": "0 月前 | 1 月前 | {n} 月前",
-        "yearsAgo": "0 年前 | 1 年前 | {n} 年前"
+        "yearsAgo": "0 年前 | 1 年前 | {n} 年前",
+        "justNow": "たった今",
+        "lessThanMinuteAgo": "1 分未満前"
     },
     "crudTableSearch": {
         "search": "検索"
@@ -456,7 +522,7 @@
         "membersTabTitle": "メンバー",
         "invitesTabTitle": "招待",
         "membersTable": {
-            "title": "{userAmount} 人のメンバーが {groupName} にいます",
+            "title": "{workspaceName} のメンバー {userAmount} 人",
             "inviteMember": "メンバーを招待",
             "columns": {
                 "name": "名前",
@@ -464,15 +530,17 @@
                 "role": "既定のロール",
                 "teams": "チーム",
                 "highestRole": "最も高いロール",
-                "highestRoleHelpText": "このユーザに割り当てられた、最も高い役割"
+                "highestRoleHelpText": "このワークスペース内のあらゆる対象について、このユーザーに直接またはチーム経由で割り当てられている最上位のロール",
+                "highestRoleInstanceHelpText": "このユーザーがインスタンス内で持つ最上位のロール",
+                "2fa": "二要素認証"
             },
             "actions": {
                 "copyEmail": "Eメールをコピー",
-                "remove": "グループから削除"
+                "remove": "ワークスペースから削除"
             }
         },
         "invitesTable": {
-            "title": "{invitesAmount} 人の招待が {groupName} にあります",
+            "title": "{workspaceName} の保留中の招待 {invitesAmount} 件",
             "columns": {
                 "email": "Eメール",
                 "message": "メッセージ",
@@ -484,13 +552,17 @@
             }
         },
         "membersInviteModal": {
-            "title": "グループ・メンバーを招待",
+            "title": "ワークスペースのメンバーを招待",
             "submit": "招待を送信",
-            "helpIconText": "選択されたロールが、このグループのユーザーの既定のロールになります。",
+            "helpIconText": "選択したロールが、このワークスペースでのユーザーの既定ロールになります。",
             "errors": {
                 "userAlreadyInWorkspace": {
                     "title": "ユーザーはすでにグループに所属しています。",
                     "text": "ユーザーがすでにグループのメンバーなので招待を送信出来ません。"
+                },
+                "tooManyInvitations": {
+                    "text": "招待を送信しすぎました。しばらくしてからもう一度お試しください。",
+                    "title": "招待の送信回数が多すぎます。"
                 }
             }
         }
@@ -510,7 +582,8 @@
         "remove": "削除"
     },
     "editRoleContext": {
-        "billableRolesLink": "課金ロール・ドキュメント"
+        "billableRolesLink": "課金ロール・ドキュメント",
+        "additionalRoles": "追加ロール"
     },
     "highestPaidRoleField": {
         "billable": "課金可能"
@@ -524,7 +597,8 @@
     "adminType": {
         "dashboard": "ダッシュボード",
         "users": "ユーザー",
-        "workspaces": "グループ"
+        "workspaces": "グループ",
+        "aiProviders": "AI プロバイダー"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "全グループ",
@@ -532,7 +606,12 @@
         "name": "名前",
         "members": "メンバー",
         "applications": "アプリケーション",
-        "created": "作成されました"
+        "created": "作成されました",
+        "rowCount": "行数",
+        "freeUsers": "無料ユーザー",
+        "seatsTaken": "使用中のシート",
+        "storageUsage": "使用済みストレージ（MB）",
+        "usageHelpText": "ワークスペース使用量の追跡設定が有効な場合、毎晩計算されます"
     },
     "editWorkspaceContext": {
         "delete": "完全に削除"
@@ -554,7 +633,8 @@
         "workspaces": "グループ",
         "lastLogin": "最後のログイン",
         "dateJoined": "登録",
-        "active": "有効"
+        "active": "有効",
+        "twoFactorAuth": "二要素認証"
     },
     "editUserContext": {
         "changePassword": "パスワード変更",
@@ -581,7 +661,9 @@
         "error": {
             "invalidName": "正しい氏名を 2 文字以上、 150 文字以内で入力して下さい。",
             "invalidEmail": "正しいEメールアドレスを入力して下さい。"
-        }
+        },
+        "twoFactorAuth": "二要素認証",
+        "removeTwoFactorAuth": "二要素認証を削除"
     },
     "changeUserPasswordModal": {
         "changePassword": "{username} のパスワードを変更する"
@@ -612,5 +694,682 @@
         "activeUsers7days": "7日以内の有効なユーザー",
         "activeUsers30days": "30日以内の有効なユーザー",
         "viewAll": "すべて表示"
+    },
+    "workspaceSearch": {
+        "title": "検索",
+        "noResults": "結果が見つかりません",
+        "select": "選択",
+        "close": "閉じる",
+        "types": {
+            "applications": "アプリケーション",
+            "fields": "フィールド",
+            "tables": "テーブル",
+            "rows": "行"
+        },
+        "searchEverything": "検索...",
+        "searching": "検索中...",
+        "noResultsSubtitle": "「{searchTerm}」に一致するものが見つかりませんでした",
+        "welcome": "ワークスペース全体を検索",
+        "welcomeSubtitle": "上の検索ボックスを使って、アプリケーション、テーブル、フィールドなどを検索します",
+        "navigate": "移動",
+        "empty": "（空）"
+    },
+    "action": {
+        "submit": "送信",
+        "cancel": "キャンセル"
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "出力",
+        "errorLabel": "エラーが発生しました...",
+        "showPayloadLabel": "ペイロードを表示",
+        "showErrorLabel": "エラーを表示",
+        "downloadFullPayload": "完全なペイロードをダウンロード",
+        "truncatedLabel": "［出力は省略されました］",
+        "truncatedPayloadWarning": "先頭の {size} 文字のみ表示されています。完全なペイロードをダウンロードして、コンピューター上で確認してください。"
+    },
+    "twoFactorAuthSettings": {
+        "title": "二要素認証",
+        "loadingError": "二要素認証の設定を読み込めませんでした。"
+    },
+    "disableTwoFactorAuth": {
+        "title": "二要素認証を無効にしてもよろしいですか？",
+        "description": "アカウントのセキュリティが一段階低下します。パスワードが知られた場合、第三者がアカウントにログインできる可能性があります。",
+        "cancel": "有効のままにする",
+        "disable": "無効化",
+        "successTitle": "二要素認証を無効にしました",
+        "errorWrongPasswordTitle": "パスワードが違います",
+        "errorWrongPasswordMessage": "入力したパスワードが現在のパスワードと一致しません。"
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "キャンセル",
+        "continue": "続行"
+    },
+    "saveBackupCode": {
+        "description": "認証アプリや電話を利用できなくなり、認証コードを受信または生成できない場合は、このバックアップを使用できます。使用できるのは 1 回だけです。ログインせずに確認できるよう、書き留めるか安全な場所にコピーしてください。",
+        "backupCodes": "バックアップコード",
+        "continue": "続行",
+        "backupCodesCopiedMessage": "バックアップコードをクリップボードにコピーしました。",
+        "copy": "コピー",
+        "backupCodesCopiedTitle": "コピーしました！"
+    },
+    "twoFactorEnabled": {
+        "enabled": "有効",
+        "disable": "二要素認証を無効化"
+    },
+    "totpLogin": {
+        "totpTitle": "二要素認証",
+        "backupCodesTitle": "バックアップコードを入力",
+        "backupCodesDescription": "1 回限りのバックアップコードでログインします。",
+        "authenticate": "認証",
+        "goBack": "戻る",
+        "totpDescription": "認証アプリに表示されたコードを入力してください。",
+        "verify": "確認",
+        "useBackupCode": "バックアップコードを使用",
+        "verificationFailed": "確認に失敗しました",
+        "verificationFailedDescription": "入力したコードが正しくありません。",
+        "loginExpired": "ログインの有効期限が切れました",
+        "loginExpiredDescription": "パスワードをもう一度入力してください。",
+        "rateLimit": "試行回数が多すぎます。"
+    },
+    "notificationPanel": {
+        "title": "通知",
+        "markAllAsRead": "すべて既読にする",
+        "clearAll": "すべて消去",
+        "noNotificationTitle": "通知はありません",
+        "noNotification": "重要な更新や、Baserow であなたがメンションされたときに通知します。",
+        "newNotificationsAvailable": "新しい通知があります",
+        "refresh": "更新"
+    },
+    "exportWorkspaceModal": {
+        "title": "エクスポート",
+        "created": "作成済み",
+        "cancel": "キャンセル",
+        "description": "データは ZIP ファイルとしてエクスポートされ、別の Baserow インスタンスにインポートできます。",
+        "exportSettings": "エクスポート設定",
+        "export": "データをエクスポート",
+        "reset": "新しく開始",
+        "download": "ダウンロード",
+        "exportingState": "エクスポート中...",
+        "exportingTableState": "エクスポート中: {table}",
+        "exportingCreateArchiveState": "アーカイブを作成中",
+        "noExports": "このワークスペースにはまだエクスポートがありません。"
+    },
+    "exportWorkspaceForm": {
+        "selectAll": "すべて選択",
+        "deselectAll": "すべての選択を解除",
+        "selectDataToExport": "エクスポートするデータを選択",
+        "exportSettingsLabel": "エクスポート設定",
+        "onlyStructureLabel": "構造のみエクスポート",
+        "onlyStructureDescription": "有効にすると、アプリケーションの構造だけがエクスポートされ、データは含まれません。"
+    },
+    "importWorkspaceModal": {
+        "upload": "アップロード",
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "deselectAll": "すべての選択を解除",
+        "selectAll": "すべて選択",
+        "databases": "データベース",
+        "applications": "アプリケーション",
+        "description": "別の Baserow インスタンスから取得した .zip ファイルをアップロードして、既存の Baserow データをインポートできます。",
+        "title": "Baserow データをインポート",
+        "import": "データをインポート",
+        "uploadAndImport": "アップロードしてインポート",
+        "done": "完了",
+        "retry": "再試行",
+        "uploading": "アップロード中...",
+        "selectApplications": "インポートするデータを選択",
+        "chooseFile": "ファイルを選択",
+        "successTitle": "Baserow データを正常にインポートしました",
+        "successMessage": "{count} 個のアプリケーションをインポートしました",
+        "invalidResourceTitle": "無効なリソース",
+        "signatureVerificationNote": "信頼できないソースの ZIP ファイルはインポートできません。",
+        "invalidResourceMessage": "指定されたファイルは有効な Baserow エクスポートではありません。",
+        "untrustedPublicKeyTitle": "信頼されていない署名",
+        "untrustedPublicKeyMessage": "指定されたファイルは、信頼されていない公開鍵で署名されています。このファイルをインポートするには、管理者に公開鍵を信頼済みキーの一覧へ追加してもらうか、署名の検証を無効にしてください。",
+        "importingState": "インポート中...",
+        "importingTableStructure": "作成中: {table}",
+        "importingTableData": "データをインポート中: {table}"
+    },
+    "totpAuthType": {
+        "enabledDescription": "認証アプリを通じて確認コードを受け取ります。別のアプリや方法を設定するには、二要素認証を無効にしてから再設定してください。",
+        "description": "アプリを使って二要素認証コードを取得します。Google Authenticator、Authy、Microsoft Authenticator などのアプリをおすすめします。",
+        "name": "認証アプリ",
+        "sideLabel": "推奨"
+    },
+    "clearAllNotificationsConfirmModal": {
+        "title": "すべての通知を消去してもよろしいですか？",
+        "message": "すべての通知が完全に削除され、再び表示することはできません。"
+    },
+    "emailSettings": {
+        "title": "メールアドレスを変更",
+        "successTitle": "確認メールを送信しました",
+        "successDescription": "新しいアドレスに確認メールを送信しました。受信トレイを確認し、リンクをクリックしてメールアドレスの変更を完了してください。",
+        "currentEmailLabel": "現在のメールアドレス",
+        "newEmailLabel": "新しいメールアドレス",
+        "passwordLabel": "現在のパスワード",
+        "submitButton": "確認メールを送信",
+        "errorInvalidPasswordTitle": "パスワードが無効です",
+        "errorInvalidPasswordMessage": "パスワードが正しくないため、メールアドレスの変更をリクエストできませんでした。",
+        "errorEmailExistsTitle": "メールアドレスはすでに存在します",
+        "errorEmailExistsMessage": "このメールアドレスを使用するアカウントがすでに存在するため、変更をリクエストできませんでした。",
+        "errorNotAllowedTitle": "メールアドレスを変更できません",
+        "errorNotAllowedMessage": "アカウントがシングルサインオン（SSO）認証を使用しているため、メールアドレスを変更できません。"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "このワークスペース名は使用できません"
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "インポートするアプリケーションを選択"
+    },
+    "dashboardVerifyEmail": {
+        "title": "メールボックスを確認し、リンクをクリックしてメールアドレスを確認してください。",
+        "resendConfirmationEmail": "確認メールを再送信"
+    },
+    "resendEmailVerification": {
+        "confirmationEmailSentTitle": "確認メールを送信しました",
+        "confirmationEmailSentDescription": "確認メールを送信しました。"
+    },
+    "verifyEmailAddress": {
+        "confirmation": "メールアドレスが確認されました。",
+        "goToDashboard": "ダッシュボードへ移動",
+        "invalidToken": "有効な確認トークンではありません。",
+        "emailMismatchWarning": "確認されたメールアドレスは、現在使用しているアカウントのものではないことに注意してください。",
+        "disabledPasswordProvider": "パスワード認証プロバイダーは無効になっています。"
+    },
+    "emailNotVerified": {
+        "resend": "確認メールを再送信",
+        "description": "メールボックスを確認し、リンクをクリックして認証してください。認証が完了すると、アカウントが有効になります。",
+        "title": "メールアドレスの確認が必要です"
+    },
+    "generativeAIModelType": {
+        "openaiBaseUrl": "ベース URL",
+        "ollamaHostLabel": "ホスト",
+        "openai": "OpenAI",
+        "openaiOrganization": "組織（任意）",
+        "openaiApiKeyDescription": "OpenAI API キーを入力します。[API キーの取得方法](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)。",
+        "openaiApiKeyLabel": "API キー",
+        "openaiModelsDescription": "Baserow で使用できる [OpenAI モデル識別子](https://developers.openai.com/api/docs/models) をカンマ区切りで指定します。例: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`。",
+        "openaiModelsLabel": "有効なモデル",
+        "openaiModelIdentifierDescription": "[OpenAI モデル識別子](https://developers.openai.com/api/docs/models)を入力します。例: `gpt-5.6`、`gpt-5.6-terra`、`gpt-5.6-luna`。",
+        "openaiBaseUrlDescription": "空の場合は既定の OpenAI ベース URL を使用します。必要に応じて https://eu.api.openai.com/v1、https://&#60;your-resource-name&#62;.openai.azure.com、またはその他の OpenAI 互換 API に変更できます。",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyDescription": "Anthropic API キーを入力します。[API キーの取得方法](https://docs.anthropic.com/en/api/getting-started)。",
+        "anthropicApiKeyLabel": "API キー",
+        "anthropicModelsLabel": "有効なモデル",
+        "anthropicModelsDescription": "Baserow で使用できる [Anthropic モデル識別子](https://platform.claude.com/docs/en/about-claude/models/overview) をカンマ区切りで指定します。例: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`。",
+        "anthropicModelIdentifierDescription": "[Anthropic モデル識別子](https://platform.claude.com/docs/en/about-claude/models/overview)を入力します。例: `claude-sonnet-5`、`claude-opus-4-8`、`claude-haiku-4-5`。",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "API キー",
+        "mistralApiKeyDescription": "Mistral API キーを入力します。[API キーの取得方法](https://docs.mistral.ai/getting-started/quickstart/)。",
+        "mistralModelsLabel": "有効なモデル",
+        "mistralModelsDescription": "Baserow で使用できる [Mistral モデル識別子](https://docs.mistral.ai/models/) をカンマ区切りで指定します。例: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`。",
+        "mistralModelIdentifierDescription": "[Mistral モデル識別子](https://docs.mistral.ai/models/)を入力します。例: `mistral-large-latest`、`mistral-medium-latest`、`mistral-small-latest`。",
+        "ollama": "Ollama",
+        "ollamaHostDescription": "[Ollama](https://ollama.com/) サーバーのホスト名を指定します。通常はご自身のデバイス上でローカルに動作します。",
+        "ollamaModelsLabel": "有効なモデル",
+        "ollamaModelsDescription": "[Ollama にインストールされているモデル](https://ollama.com/library)をカンマ区切りで指定します。Baserow で使用する前に、モデルをダウンロードしてインストールする必要があります。例: `gemma3,qwen3,llama3.3`。",
+        "ollamaModelIdentifierDescription": "[Ollama にインストールされているモデル](https://ollama.com/library)の識別子を入力します。例: `gemma3`、`qwen3`、`llama3.3`。",
+        "openRouter": "OpenRouter",
+        "openRouterApiKeyLabel": "API キー",
+        "openRouterApiKeyDescription": "OpenRouter API キーを入力します。[API キーを取得](https://openrouter.ai/settings/keys)。",
+        "openRouterOrganization": "組織（任意）",
+        "openRouterModelsLabel": "有効なモデル",
+        "openRouterModelsDescription": "Baserow で使用できる [OpenRouter モデル識別子](https://openrouter.ai/models) をカンマ区切りで指定します。例: `openai/gpt-5.6,anthropic/claude-sonnet-5`。",
+        "openRouterModelIdentifierDescription": "[OpenRouter モデル識別子](https://openrouter.ai/models)を入力します。例: `openai/gpt-5.6` または `anthropic/claude-sonnet-5`。"
+    },
+    "failedConnectingToast": {
+        "title": "失敗",
+        "content": "リアルタイム更新への接続を復旧できませんでした。続行するにはページを更新してください。",
+        "action": "ページを更新"
+    },
+    "workspaceSettingsModal": {
+        "title": "ワークスペース設定"
+    },
+    "workspaceSettingType": {
+        "generativeAI": "生成 AI"
+    },
+    "generativeAIWorkspaceSettings": {
+        "title": "生成 AI 設定",
+        "description": "これらの設定では、ワークスペース単位で生成 AI の構成を任意に指定できます。対応モデルの API キーがない場合、AI フィールドなどの機能が無効になることがあります。ここで設定を指定すると、それらの機能を有効にできます。値を空にすると、グローバルなインスタンス設定が使用されます。ワークスペース内の全員がこの設定を共有することに注意してください。",
+        "changedTitle": "設定を更新しました",
+        "changedDescription": "設定を更新しました。今後このワークスペースで使用されます。",
+        "submitButton": "設定を更新",
+        "openSettings": "設定を開く",
+        "hideSettings": "設定を隠す"
+    },
+    "uploadFileDropzone": {
+        "clickOrDrop": "クリックするか、ここにファイルをドロップ",
+        "drop": "ここにドロップ",
+        "errorTooManyFilesMessage": "アップロードできるファイルは 1 つだけです",
+        "errorTooManyFilesTitle": "ファイルが多すぎます",
+        "errorWrongFileTypeMessage": "{type} 形式のファイルはアップロードできません",
+        "errorWrongFileTypeTitle": "ファイルの種類が正しくありません"
+    },
+    "workspaceOutdatedToast": {
+        "content": "離れている間に多くの変更が行われました。最新のデータを表示するには更新してください。",
+        "title": "変更が多すぎます",
+        "action": "データを更新",
+        "dismiss": "閉じる"
+    },
+    "authorizationErrorToast": {
+        "title": "認可エラー",
+        "action": "ページを更新",
+        "content": "このリソースを表示する権限がないようです。"
+    },
+    "connectingToast": {
+        "content": "リアルタイム更新への接続を復旧しています。",
+        "title": "再接続中"
+    },
+    "userSessionExpiredToast": {
+        "title": "セッションの有効期限が切れました",
+        "content": "認証トークンの有効期限が切れたためログアウトしました。もう一度ログインしてください。"
+    },
+    "userPasswordChangedToast": {
+        "title": "パスワードを変更しました",
+        "content": "パスワードが変更されました。もう一度ログインしてください。"
+    },
+    "restoreToast": {
+        "restore": "削除した {type} を復元"
+    },
+    "copyingToast": {
+        "title": "コピー中...",
+        "content": "データを準備中"
+    },
+    "PastingToast": {
+        "title": "貼り付け中...",
+        "content": "データを準備中"
+    },
+    "clearingToast": {
+        "title": "消去中...",
+        "content": "データを準備中"
+    },
+    "undoRedoToast": {
+        "undoingTitle": "元に戻しています...",
+        "undoingText": "操作を元に戻しています",
+        "undoneTitle": "元に戻しました",
+        "undoneText": "操作を元に戻しました",
+        "noMoreUndo": "元に戻せる操作はありません",
+        "skippingUndoDueToError": "不明なエラーにより元に戻せなかったため、この操作をスキップします。",
+        "redoingTitle": "やり直しています...",
+        "redoingText": "操作をやり直しています",
+        "redoneTitle": "やり直しました",
+        "redoneText": "操作をやり直しました",
+        "noMoreRedo": "やり直せる操作はありません",
+        "failed": "失敗",
+        "skippingRedoDueToError": "不明なエラーによりやり直せなかったため、この操作をスキップします。"
+    },
+    "dashboardApplication": {
+        "createdAt": "作成済み"
+    },
+    "changeEmail": {
+        "errorEmailExistsTitle": "メールアドレスはすでに存在します",
+        "title": "メールアドレスの変更を確認",
+        "submit": "メールアドレスの変更を確認",
+        "changed": "メールアドレスを変更しました",
+        "message": "メールアドレスを正常に変更しました。新しいメールアドレスで Baserow にログインできます。",
+        "errorInvalidLinkTitle": "無効なリンク",
+        "errorInvalidLinkMessage": "リンクが無効なため、メールアドレスを変更できませんでした。",
+        "errorLinkExpiredTitle": "リンクの有効期限が切れています",
+        "errorLinkExpiredMessage": "メールアドレス変更リンクの有効期限が切れています。アカウント設定から新しいリンクをリクエストしてください。",
+        "errorEmailExistsMessage": "このメールアドレスを使用するアカウントがすでに存在するため、メールアドレスを変更できませんでした。",
+        "errorEmailAlreadyChangedTitle": "メールアドレスは変更済みです",
+        "errorEmailAlreadyChangedMessage": "メールアドレスはすでにリクエストされたアドレスへ変更されています。"
+    },
+    "integrationCreateEditModal": {
+        "warningTitle": "警告",
+        "createTitle": "新しい連携",
+        "editTitle": "連携を編集"
+    },
+    "integrationEditForm": {
+        "name": "名前",
+        "namePlaceholder": "連携名を入力..."
+    },
+    "dropdown": {
+        "empty": "利用可能な項目がありません",
+        "clearSearch": "検索を消去"
+    },
+    "groupedMenu": {
+        "workflow": "ワークフロー",
+        "core": "コア",
+        "files": "ファイル",
+        "http": "HTTP"
+    },
+    "workspaceInvitationAcceptedNotification": {
+        "deletedUser": "削除済みユーザー",
+        "title": "{sender} が {workspaceName} への招待を承認しました"
+    },
+    "workspaceInvitationRejectedNotification": {
+        "deletedUser": "削除済みユーザー",
+        "title": "{sender} が {workspaceName} への招待を拒否しました"
+    },
+    "workspaceInvitationCreatedNotification": {
+        "deletedUser": "削除済みユーザー",
+        "title": "{sender} があなたを {workspaceName} に招待しました"
+    },
+    "abuseReportCreatedNotification": {
+        "showMore": "さらに表示",
+        "title": "{resourceName} が {reporterEmail} によって不正使用として報告されました",
+        "openResource": "報告されたページを開く",
+        "detailsTitle": "不正使用の報告",
+        "reportedBy": "{reporterName}（{reporterEmail}）による報告。"
+    },
+    "reportAbuseModal": {
+        "close": "閉じる",
+        "title": "不正使用を報告",
+        "description": "このページがフィッシング、なりすまし、詐欺、その他の不正な目的に使用されていると思われますか？下のフォームを送信して、この Baserow インスタンスの管理者にお知らせください。",
+        "submit": "報告を送信",
+        "successTitle": "ご報告ありがとうございます",
+        "reportingDisabledTitle": "報告は無効です",
+        "successDescription": "報告を送信し、対応できるようこの Baserow インスタンスの管理者に通知しました。",
+        "reportingDisabledDescription": "この Baserow インスタンスの管理者によって、不正使用の報告が無効にされています。"
+    },
+    "permissionsUpdatedToast": {
+        "action": "再読み込み",
+        "title": "権限が更新されました",
+        "content": "アクセスできる内容が変わる可能性があります。ページを再読み込みしてください。"
+    },
+    "templateCard": {
+        "viewMore": "さらに表示"
+    },
+    "integrationDropdown": {
+        "noIntegrations": "連携が見つかりませんでした。",
+        "selectTypeFirst": "最初に種類を選択してください",
+        "addIntegration": "新しい連携を追加",
+        "integrationPlaceholder": "連携を選択"
+    },
+    "richTextEditorMentionsList": {
+        "notFound": "ユーザーが見つかりません"
+    },
+    "versionUpgradeNotification": {
+        "title": "{version} がリリースされました！新機能をご確認ください。"
+    },
+    "emailNotifications": {
+        "title": "メール通知",
+        "daily": "毎日",
+        "weekly": "毎週",
+        "label": "メンション、コメント、その他の通知",
+        "description": "受信トレイへメールを送信する頻度を設定します。",
+        "instant": "即時",
+        "never": "送信しない",
+        "submitButton": "頻度を更新"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "変数",
+        "search": "検索",
+        "functions": "関数",
+        "operators": "演算子",
+        "useRegularInputModalTitle": "このフィールドで通常入力を使用しますか？",
+        "useSimpleInput": "基本モードに切り替え",
+        "useSimpleInputModalTitle": "基本モードに切り替えますか？",
+        "useAdvancedInput": "エキスパートモードに切り替え",
+        "useAdvancedInputModalTitle": "エキスパートモードに切り替えますか？",
+        "modalMessage": "別のモードに切り替えると現在の数式が消去されます。続行してもよろしいですか？"
+    },
+    "dataExplorerNode": {
+        "selectNode": "選択",
+        "showMore": "繰り返しをさらに表示"
+    },
+    "richTextEditorBubbleMenu": {
+        "bold": "ボールド",
+        "italic": "斜体",
+        "underline": "下線",
+        "link": "リンク",
+        "linkEditDone": "完了",
+        "strikethrough": "取り消し線",
+        "linkEditPlaceholder": "リンク URL..."
+    },
+    "richTextEditorFloatingMenu": {
+        "code": "コード",
+        "hierarchy": "階層",
+        "lists": "リスト",
+        "paragraph": "段落",
+        "heading1": "見出し 1",
+        "heading2": "見出し 2",
+        "heading3": "見出し 3",
+        "orderedList": "番号付きリスト",
+        "unorderedList": "箇条書きリスト",
+        "taskList": "タスクリスト"
+    },
+    "onboarding": {
+        "continue": "続行",
+        "back": "戻る",
+        "title": "オンボーディング",
+        "creating": "最初のワークスペースを作成中",
+        "skip": "今はスキップ",
+        "cancel": "設定のサポートは不要です",
+        "failedTitle": "問題が発生しました",
+        "failedDescription": "一部は完了している可能性がありますが、オンボーディング全体は完了しませんでした。",
+        "failedTryAgain": "もう一度試す",
+        "failedSkip": "オンボーディングをスキップ"
+    },
+    "moreStep": {
+        "howOther": "その他",
+        "title": "もう少し教えてください",
+        "how": "Baserow をどこで知りましたか？",
+        "howSearchEngine": "検索エンジン（Google/Bing）",
+        "howSocialMedia": "ソーシャルメディア",
+        "howOnlineAds": "オンライン広告",
+        "howContent": "コンテンツ（ブログ／ニュースレター／動画）",
+        "howReviewSite": "レビューサイト／マーケットプレイス",
+        "howFriend": "友人から",
+        "howColleague": "同僚から",
+        "howEvent": "イベントまたはウェビナー",
+        "howSales": "営業からの案内",
+        "country": "国",
+        "share": "この情報を Baserow チームと共有してもかまいません"
+    },
+    "teamStep": {
+        "description": "所属しているチームはどこですか？",
+        "marketingTeam": "マーケティング",
+        "productAndDesignTeam": "製品・デザイン",
+        "engineeringTeam": "エンジニアリング",
+        "operationsTeam": "業務運営",
+        "itAndSupportTeam": "IT・サポート",
+        "hrAndLegalTeam": "人事・法務",
+        "financeTeam": "財務",
+        "creativeProductionTeam": "クリエイティブ制作",
+        "salesAndAccountManagementTeam": "営業・アカウント管理",
+        "customerServiceTeam": "カスタマーサービス",
+        "manufacturingTeam": "製造",
+        "otherPersonalTeam": "その他／個人"
+    },
+    "colorInput": {
+        "default": "デフォルト"
+    },
+    "reportAbuseForm": {
+        "emailLabel": "メールアドレス",
+        "descriptionLabel": "このページを報告する理由",
+        "nameLabel": "お名前",
+        "descriptionHelper": "このページが不正だと思われる理由を詳しく説明してください。",
+        "descriptionPlaceholder": "例: このページは別の会社のログインページを装い、訪問者にパスワードの入力を求めています。"
+    },
+    "formulaInputField": {
+        "errorInvalidFormula": "数式が無効です。",
+        "advancedFormulaMode": "高度な数式モード",
+        "invalidFormulaTitle": "無効な数式",
+        "invalidSyntax": "有効な高度な数式ではありません。構文を確認してください。"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "エラー全体を表示"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "「{funcType}」関数には少なくとも {minArgs} 個の引数が必要です。",
+        "invalidArgCountExact": "「{funcType}」関数には {minArgs} 個の引数が必要です。",
+        "invalidArgCountRange": "「{funcType}」関数には {minArgs}～{maxArgs} 個の引数が必要です。",
+        "invalidArgumentType": "「{value}」は「{funcType}」関数の有効な引数ではありません。"
+    },
+    "dataExplorer": {
+        "noMatchingNodesText": "一致する結果が見つかりませんでした。",
+        "noProvidersText": "データプロバイダーが見つかりませんでした。まずはデータソースやページパラメーターなどを追加してください。"
+    },
+    "selectAIModelForm": {
+        "AIType": "AI の種類",
+        "AIModel": "AI モデル",
+        "modelUnavailable": "このモデルは無効になっているか、利用できなくなりました。",
+        "fileField": "ファイルフィールド",
+        "temperatureLabel": "温度",
+        "temperatureDescription": "LLM の温度は 0～{max} の範囲で設定するパラメーターで、応答のランダム性を調整します。値を低くすると焦点を絞った回答になり、高くすると創造性が増します。"
+    },
+    "imageInput": {
+        "labelButton": "アップロード",
+        "labelDescription": "アップロードする画像を選択..."
+    },
+    "aiProviderAdmin": {
+        "addProvider": "プロバイダーを追加",
+        "extraField_base_url": "ベース URL",
+        "extraField_host": "ホスト",
+        "disable": "無効化",
+        "modelDisabled": "無効",
+        "retry": "再試行",
+        "title": "AI プロバイダー",
+        "description": "ワークスペースとオートメーションで利用できる、インスタンス単位のプロバイダーとモデルを管理します。",
+        "editProvider": "プロバイダーを編集",
+        "providerType": "プロバイダーの種類",
+        "apiKey": "API キー",
+        "changeApiKey": "API キーを変更",
+        "apiKeyUpdateHint": "既存のキーを置き換える新しい API キーを入力します。",
+        "extraField_organization": "組織",
+        "models": "モデル",
+        "addModel": "モデルを追加",
+        "removeModel": "モデルを削除",
+        "editModel": "モデルを編集",
+        "modelIdentifier": "モデル識別子",
+        "modelDiscoveryHelp": "Pydantic AI が認識しているモデルを選択するか、任意のカスタム識別子を入力します。",
+        "modelDiscoveryUnavailable": "既知のモデル候補を利用できません。識別子を手動で入力してください。",
+        "modelDiscoveryEmpty": "Pydantic AI には、このプロバイダーの既知のモデルがありません。識別子を手動で入力してください。",
+        "modelDiscoveryNoMatch": "一致する既知のモデルがありません。入力した識別子を使用できます。",
+        "noProviders": "インスタンスの AI プロバイダーが設定されていません",
+        "noProvidersDescription": "プロバイダーを手動で追加するか、ユーザー向けに機能を有効にする前に環境インポートコマンドをプレビューして実行してください。",
+        "noModels": "このプロバイダーにはモデルが設定されていません。",
+        "active": "有効",
+        "inactive": "無効",
+        "enable": "有効化",
+        "test": "テスト",
+        "testAllModelsButtonTitle": "定義済みのすべてのモデルをテスト",
+        "testModelButtonTitle": "このモデルをテスト",
+        "testPassed": "テストに成功しました",
+        "testFailed": "テストに失敗しました",
+        "notTested": "未テスト",
+        "deleteProviderTitle": "{name} を削除しますか？",
+        "deleteProviderDescription": "プロバイダーとそのモデルが完全に削除されます。",
+        "deleteModelTitle": "{name} を削除しますか？",
+        "deleteModelDescription": "モデルが完全に削除されます。",
+        "loadError": "AI プロバイダー設定を読み込めませんでした。",
+        "loadErrorDescription": "接続を確認して、もう一度お試しください。",
+        "saveError": "AI プロバイダーを保存できませんでした。",
+        "saveModelError": "AI プロバイダーのモデルを保存できませんでした。",
+        "actionError": "AI プロバイダーの変更を完了できませんでした。"
+    },
+    "twoFactorAuthField": {
+        "enabled": "有効",
+        "disabled": "無効"
+    },
+    "guidedTourStep": {
+        "next": "次へ",
+        "back": "戻る",
+        "step": "{totalSteps} ステップ中 {step}",
+        "gotIt": "了解",
+        "watchVideo": "動画を見る",
+        "stopTour": "ツアーを終了"
+    },
+    "guidedTourVideoModal": {
+        "close": "閉じる",
+        "previous": "前の動画",
+        "next": "次の動画"
+    },
+    "mcpEndpointSettings": {
+        "title": "MCP サーバー",
+        "backToOverview": "戻る",
+        "createEndpoint": "エンドポイントを作成",
+        "createNewTitle": "MCP サーバーエンドポイントを作成",
+        "noEndpointsMessage": "MCP（Model Context Protocol）サーバーエンドポイントがまだ追加されていません。Claude などの LLM と直接連携し、LLM が Baserow 内でアクションを直接実行できるようにします。まずサーバーエンドポイントを作成してください。"
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "名前",
+        "workspaceLabel": "ワークスペース"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "または定義済みの色を選択"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "二要素認証を削除",
+        "confirmation": "{name} の二要素認証を削除してもよろしいですか？",
+        "comment": "このユーザーはパスワードだけでログインできるようになり、後から二要素認証を再設定できます。",
+        "remove": "二要素認証を削除"
+    },
+    "formGroup": {
+        "protectedField": "このフィールドは保護されています。クリックして変更します。",
+        "cancelProtectedField": "変更をキャンセル"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} 人のユーザー（{lastUpdated}）"
+    },
+    "academy": {
+        "learnMore": "Baserow Academy で詳しく学ぶ"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Baserow へようこそ",
+        "content": "基本操作を理解するための短いツアーを始めましょう。数回クリックするだけで、データを簡単に整理して可視化する方法がわかります",
+        "buttonText": "ツアーを開始"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Baserow コントロールセンター",
+        "content": "左側のサイドバーからワークスペースを管理できます。\n\n- ホーム – メインダッシュボードを開きます。\n- 通知 – 変更やメンションの最新情報を確認します。\n- メンバーを招待 – チームメンバーを追加して共同作業します。\n- ごみ箱 – 削除したすべての項目を一覧表示して復元します。"
+    },
+    "createNewGuidedTourStep": {
+        "title": "新しいデータベースまたはアプリケーションを作成",
+        "content": "「新規追加...」をクリックして、プロジェクト、部門、またはチーム用の新しいデータベース、アプリケーション、ダッシュボードを設定します。"
+    },
+    "mcpEndpoint": {
+        "detailLabel": "詳細",
+        "endpointURLIntro": "MCP（Model Context Protocol）サーバーの URL は、MCP サーバーに対応する任意のクライアントへ追加できます。これは、LLM がユーザーに代わってワークスペース内でアクションを直接実行するためのアクセスを与える固有のエンドポイントです。",
+        "reveal": "完全な URL を表示",
+        "warning": "MCP URL は Baserow 内のデータを変更できるため、パスワードと同じように扱ってください。",
+        "claudeInstructions": "Claude Desktop と Baserow MCP を使い始めるための 3 つの簡単な手順です。\n\n1. ナビゲーションバーから Claude Desktop の設定を開きます。（⌘+,）\n1. 「Develop」タブへ移動し、「Edit Config」をクリックします。\n1. `claude_desktop_config.json` に次の JSON 設定を含めます。",
+        "cursorInstructions": "Cursor と Baserow MCP を使い始めるための 3 つの簡単な手順です。\n\n1. Cursor の設定を開きます（⇧+⌘+J）。\n1. 「MCP」タブへ移動し、「Add MCP Server」をクリックします。\n1. 次の JSON 設定を追加します。",
+        "windsurfInstructions": "Windsurf の Cascade で MCP を設定するための 2 つの簡単な手順です。\n\n1. Windsurf - Settings -> Advanced Settings、または Command Palette -> Open Windsurf settings page へ移動します。\n1. Cascade セクションまでスクロールすると、新しいサーバーの追加、既存サーバーの表示、`mcp_config.json` の未加工 JSON 設定ファイルを表示するボタンがあります。次の内容を追加します。"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "Webhook URL",
+        "urlVersion": "バージョン",
+        "urlVersionPublished": "公開済み",
+        "urlVersionTest": "テスト",
+        "methodsOptionAll": "すべて",
+        "urlCopied": "Webhook URL をクリップボードにコピーしました",
+        "description": "この Webhook は HTTP リクエストを受信し、リクエストデータをペイロードとしてワークフローをトリガーします。",
+        "copyUrl": "Webhook URL をコピー",
+        "methodsOptionLabel": "許可する HTTP メソッド",
+        "methodsOptionDescription": "この Webhook で許可する HTTP メソッドを制御します。GET を除外すると、Webhook が誤ってトリガーされる可能性を減らせます。",
+        "methodsOptionExcludeGet": "GET を除外"
+    },
+    "enableWithQRCode": {
+        "verificationFailed": "確認に失敗しました",
+        "scanQRCode": "QR コードをスキャン",
+        "scanQRCodeDescription": "Google Authenticator、Authy、Microsoft Authenticator などのアプリでコードをスキャンします。",
+        "clickToCopy": "または、ここをクリックしてコードをコピーします。",
+        "secretCopiedTitle": "シークレットをコピーしました",
+        "secretCopiedMessage": "TOTP シークレットをクリップボードにコピーしました。",
+        "enterCode": "表示されたコードを入力",
+        "enterCodeDescription": "正しく設定できたことを確認するため、アプリに表示された 6 桁のコードを入力します。",
+        "verificationFailedDescription": "入力したコードは無効です。",
+        "provisioningFailed": "プロビジョニングに失敗しました",
+        "checkSuccess": "二要素認証を正常に有効化しました"
+    },
+    "adminUsers": {
+        "title": "ユーザー"
+    },
+    "adminWorkspaces": {
+        "title": "ワークスペース"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "二要素認証はまだ有効になっていません",
+        "description": "アカウントのセキュリティをさらに強化します。",
+        "enable": "二要素認証を有効化",
+        "notAllowedTitle": "二要素認証は有効になっていません",
+        "notAllowedDescription": "二要素認証を追加できるのは、パスワード認証を使用するアカウントだけです。"
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "例",
+        "result": "結果: {result}"
     }
 }

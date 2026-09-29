@@ -5,7 +5,11 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t keypath="collaboratorAddedToRowNotification.title" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="collaboratorAddedToRowNotification.title"
+        tag="span"
+      >
         <template #sender>
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else

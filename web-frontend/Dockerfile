@@ -177,7 +177,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     vim \
     lsof \
     procps \
-    sudo
+    sudo \
+    util-linux
 
 ENV DOCKER_USER=baserow_docker_user \
     BASEROW_IMAGE_TYPE="web-frontend" \

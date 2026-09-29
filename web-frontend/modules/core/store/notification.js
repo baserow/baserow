@@ -357,6 +357,11 @@ export const getters = {
   anyOtherWorkspaceWithUnread(state) {
     return state.anyOtherWorkspaceWithUnread
   },
+  anyWorkspaceWithUnread(state) {
+    return Object.values(state.perWorkspaceUnreadCount).some(
+      (count) => count > 0
+    )
+  },
 }
 
 export default {

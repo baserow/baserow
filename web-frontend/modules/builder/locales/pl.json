@@ -179,7 +179,7 @@
         "errorIframeUrlMissing": "Brak atrybutu adresu URL iFrame",
         "errorIframeContentMissing": "Brak zawartości iFrame",
         "errorNoMenuItem": "Nie skonfigurowano elementu menu",
-        "errorMenuItemInError": "Co najmniej jedno menu jest nieprawidłowo skonfigurowane",
+        "errorMenuItemInError": "Co najmniej jeden element menu jest nieprawidłowo skonfigurowany",
         "errorSubMenuItemInError": "Co najmniej jedno podmenu jest nieprawidłowo skonfigurowane"
     },
     "addElementButton": {
@@ -335,12 +335,14 @@
         "addIntegration": "Dodaj nową integrację",
         "noIntegrations": "Nie masz jeszcze żadnej integracji",
         "selectTypeFirst": "Najpierw wybierz usługę",
-        "servicePlaceholder": "Wybierz usługę",
-        "integrationPlaceholder": "Wybierz integrację",
+        "servicePlaceholder": "Wybierz działanie...",
+        "integrationPlaceholder": "Wybierz połączenie...",
         "errorUniqueName": "Nazwa źródła danych musi być unikalna.",
         "nameLabel": "Nazwa",
         "actionLabel": "Operacja",
-        "integrationLabel": "Integracja"
+        "integrationLabel": "Połączenie",
+        "searchActionPlaceholder": "Wyszukaj działania",
+        "noActionsFound": "Nie znaleziono działań"
     },
     "dataSourceContext": {
         "addDataSource": "Dodaj nowe źródło danych",
@@ -450,7 +452,11 @@
         "heightLabel": "Wysokość (px)",
         "heightPlaceholder": "Wysokość w pikselach",
         "missingValue": "Brak źródła iFrame...",
-        "emptyValue": "Puste źródło iFrame..."
+        "emptyValue": "Puste źródło iFrame...",
+        "allowSameOriginLabel": "Zezwalaj ramce iframe na dostęp do danych z własnej witryny",
+        "allowSameOriginHelp": "Włącz wyłącznie w przypadku zaufanych adresów URL. Opcja umożliwia ramce iframe korzystanie z plików cookie, pamięci oraz innych funkcji tego samego pochodzenia w podglądach i opublikowanych aplikacjach.",
+        "warningTitle": "Użyj wyłącznie zaufanych treści",
+        "warningMessage": "Zawartość ramki iframe jest odizolowana w edytorze, gdzie osadzony kod HTML ma możliwość uruchamiania skryptów. W podglądach i opublikowanych aplikacjach osadzony kod HTML nie podlega ograniczeniom, natomiast zewnętrzne adresy URL mogą wykonywać skrypty, wysyłać formularze i otwierać okienka typu pop-up."
     },
     "backgroundTypes": {
         "none": "Brak",
@@ -567,7 +573,7 @@
         "errorFetchingRolesTitle": "Nie udało się pobrać ról użytkowników",
         "errorFetchingRolesMessage": "Wystąpił problem podczas pobierania ról użytkowników.",
         "visibilityCondition": "Wyświetlanie warunkowe",
-        "visibilityConditionHelper": "Jeśli wynik tej formuły jest prawdziwy i powyższy wybór odwiedzającego też jest prawdziwy, to element będzie widoczny. Funkcja ta ma wyłącznie wpływ na widoczność elementu, a nie na zawartość odpowiedzi serwera. Aby wstrzymać wysyłanie danych w odpowiedzi serwera, użyj opcji filtrowania według roli użytkownika.",
+        "visibilityConditionHelper": "Jeśli wynik tego wyrażenia jest prawdziwy i powyższy wybór dot. odwiedzającego też jest prawdziwy, to element będzie widoczny. Warunek ten decyduje wyłącznie o widoczności elementu, a nie o zawartości odpowiedzi serwera. Aby zmienić zawartość odpowiedzi serwera, należy użyć opcji filtrowania wg. roli użytkownika.",
         "visibilityConditionPlaceholder": "Warunek..."
     },
     "formDataProviderType": {
@@ -619,7 +625,11 @@
         "errorNavigateToPageMissing": "Brak atrybutu “Przejdź do strony\"",
         "errorPageParameterInError": "Przynajmniej jeden z parametrów strony jest nieprawidłowo skonfigurowany",
         "errorNavigationUrlMissing": "Brak atrybutu adresu URL",
-        "errorDataSourceMissing": "Nie wybrano źródła danych"
+        "errorDataSourceMissing": "Nie wybrano źródła danych",
+        "notificationDescription": "Wyświetl użytkownikowi komunikat powiadomienia.",
+        "openPageDescription": "Przekieruj użytkownika na inną stronę lub adres URL.",
+        "logoutDescription": "Wyloguj aktualnego użytkownika.",
+        "refreshDataSourceDescription": "Odśwież źródło danych i zaktualizuj elementy, które z niego korzystają."
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Tytuł",
@@ -632,7 +642,9 @@
         "urlLabel": "Adres URL"
     },
     "event": {
-        "addAction": "dodaj operację"
+        "addAction": "dodaj operację",
+        "searchActions": "Wyszukaj działania",
+        "noActionsFound": "Nie znaleziono działań"
     },
     "formContainerElementForm": {
         "submitButtonPlaceholder": "Wprowadź wartość...",
@@ -702,7 +714,9 @@
     "pagePreview": {
         "emptyMessage": "Kliknij, aby utworzyć element",
         "header": "NAGŁÓWEK",
-        "footer": "STOPKA"
+        "footer": "STOPKA",
+        "fixedHeader": "STAŁY NAGŁÓWEK",
+        "fixedFooter": "STAŁA STOPKA"
     },
     "userSelector": {
         "viewAs": "Zobacz jako: {user}",
@@ -730,7 +744,8 @@
         "addOptionDescription": "Kliknij “dodaj opcję\", aby dodać opcje do listy rozwijanej",
         "optionType": "Typ opcji",
         "manual": "Ręcznie",
-        "formulas": "Formuły"
+        "formulas": "Formuły",
+        "expressions": "Wyrażenia"
     },
     "repeatElementForm": {
         "dataSource": "Źródło danych",
@@ -1196,5 +1211,12 @@
         "sampleDataModalTitle": "Payload operacji {actionLabel}",
         "sampleDataModalSubTitle": "Payload JSON",
         "testActionDescription": "Uruchom tę operację w trybie podglądu; umożliwi to zarejestrowanie jej wyniku i wykorzystanie go w kolejnych operacjach."
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Nieprawidłowe odwołanie"
+    },
+    "pageElementBehaviour": {
+        "normal": "Normalny",
+        "fixed": "Stały"
     }
 }

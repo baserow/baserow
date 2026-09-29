@@ -14,6 +14,26 @@ import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?u
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 
+/**
+ * After an SSO login fails, the backend redirects back to the app with an error
+ * code in a query parameter (e.g. `saml_error__42=errorApplicationUserLimitReached`).
+ * This reads that code for the given parameter name, removes it from the URL so it
+ * doesn't linger on refresh, and returns the translated message to display near the
+ * auth form. Returns `null` when the parameter isn't present.
+ */
+const consumeLoginErrorParam = (app, queryParamName, route) => {
+  const errorCode = route.query[queryParamName]
+  if (!errorCode) {
+    return null
+  }
+  if (typeof window !== 'undefined') {
+    const currentUrl = new URL(window.location.href)
+    currentUrl.searchParams.delete(queryParamName)
+    window.history.replaceState({}, document.title, currentUrl.toString())
+  }
+  return app.$i18n.t(`loginError.${errorCode}`)
+}
+
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
   static getType() {
     return 'local_baserow_password'
@@ -40,10 +60,11 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
   }
 
   getLoginOptions(authProvider) {
-    if (authProvider.password_field_id) {
-      return {}
-    }
-    return null
+    return this.isConfigured(authProvider) ? {} : null
+  }
+
+  isConfigured(authProvider) {
+    return authProvider.is_configured ?? Boolean(authProvider.password_field_id)
   }
 
   /**
@@ -121,12 +142,12 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     return found
   }
 
-  handleError(userSource, authProvider, route) {
-    const queryParamName = `saml_error__${userSource.id}`
-    const errorCode = route.query[queryParamName]
-    if (errorCode) {
-      return { message: this.app.$i18n.t(`loginError.${errorCode}`), code: 500 }
-    }
+  getLoginError(userSource, route) {
+    return consumeLoginErrorParam(
+      this.app,
+      `saml_error__${userSource.id}`,
+      route
+    )
   }
 
   getRelayStateUrls(userSource) {
@@ -203,6 +224,22 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
       window.history.replaceState({}, document.title, currentUrl.toString())
     }
     return found
+  }
+
+  handleError(userSource, authProvider, route) {
+    const queryParamName = `oidc_error__${userSource.id}`
+    const errorCode = route.query[queryParamName]
+    if (errorCode) {
+      return { message: this.app.$i18n.t(`loginError.${errorCode}`), code: 500 }
+    }
+  }
+
+  getLoginError(userSource, route) {
+    return consumeLoginErrorParam(
+      this.app,
+      `oidc_error__${userSource.id}`,
+      route
+    )
   }
 
   handleServerError(vueComponentInstance, error) {

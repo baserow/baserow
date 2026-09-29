@@ -7,12 +7,15 @@ from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
 import pytest
+import requests
 import responses
 from rest_framework import serializers
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
 from baserow.contrib.database.airtable.constants import (
     AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
+    AIRTABLE_SHARE_TYPE_BASE,
+    AIRTABLE_SHARE_TYPE_VIEW,
 )
 from baserow.contrib.database.airtable.exceptions import (
     AirtableBaseRequiresAuthentication,
@@ -24,9 +27,15 @@ from baserow.contrib.database.airtable.handler import (
     AirtableHandler,
     download_airtable_file,
 )
+from baserow.contrib.database.airtable.import_report import AirtableImportReport
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
 from baserow.contrib.database.airtable.models import AirtableImportJob, DownloadFile
-from baserow.contrib.database.fields.models import TextField
+from baserow.contrib.database.fields.models import (
+    LinkRowField,
+    LongTextField,
+    TextField,
+)
+from baserow.contrib.database.views.models import GridViewFieldOptions
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import JOB_PENDING
 from baserow.core.jobs.exceptions import JobDoesNotExist, MaxJobCountExceeded
@@ -103,6 +112,248 @@ def test_fetch_publicly_shared_base_with_authentication():
             "appZkaH3aWX3ZjT3b",
             AirtableImportConfig(),
         )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_publicly_shared_share_detects_base():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_base.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    (
+        share_type,
+        request_id,
+        init_data,
+        cookies,
+    ) = AirtableHandler.fetch_publicly_shared_share(
+        "appZkaH3aWX3ZjT3b",
+        AirtableImportConfig(),
+    )
+    assert share_type == AIRTABLE_SHARE_TYPE_BASE
+    assert request_id == "req8wbZoh7Be65osz"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_publicly_shared_share_detects_view():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appC1QggQ2236mAAA/shr1YAA2t24xr444",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    (
+        share_type,
+        request_id,
+        init_data,
+        cookies,
+    ) = AirtableHandler.fetch_publicly_shared_share(
+        "appC1QggQ2236mAAA/shr1YAA2t24xr444",
+        AirtableImportConfig(),
+    )
+    assert share_type == AIRTABLE_SHARE_TYPE_VIEW
+    assert request_id == "reqKfV1kJQcXBGFmM"
+    assert init_data["sharedViewId"] == "viwtwpf55H6mkh2s"
+    assert cookies["brw"] == "test"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_publicly_shared_base_raises_when_view():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    with pytest.raises(AirtableShareIsNotABase):
+        AirtableHandler.fetch_publicly_shared_base(
+            "appZkaH3aWX3ZjT3b",
+            AirtableImportConfig(),
+        )
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_fetch_shared_view_data():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/appC1QggQ2236mAAA/shr1YAA2t24xr444",
+            status=200,
+            body=file_handler.read(),
+            headers={"Set-Cookie": "brw=test;"},
+        )
+
+    (
+        share_type,
+        request_id,
+        init_data,
+        cookies,
+    ) = AirtableHandler.fetch_publicly_shared_share(
+        "appC1QggQ2236mAAA/shr1YAA2t24xr444",
+        AirtableImportConfig(),
+    )
+
+    with open(
+        os.path.join(base_path, "airtable_shared_view.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwtwpf55H6mkh2s/readSharedViewData",
+            status=200,
+            body=file_handler.read(),
+        )
+
+    response = AirtableHandler.fetch_shared_view_data(
+        init_data["sharedViewId"], init_data, request_id, cookies, stream=False
+    )
+    json_decoded_content = response.json()
+
+    request_url = responses.calls[-1].request.url
+    assert "readSharedViewData" in request_url
+    assert "shouldUseNestedResponseFormat" in request_url
+    assert f"requestId={request_id}" in request_url
+    assert "accessPolicy" in request_url
+    assert json_decoded_content["data"]["table"]["id"] == "tbl2R4lt3QnjdlAtt"
+
+
+def test_extract_shared_view_schema():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_shared_view.json"), "r") as file:
+        payload = json.load(file)
+
+    schema, tables = AirtableHandler.extract_shared_view_schema(payload["data"])
+
+    assert len(schema["tableSchemas"]) == 1
+    table = schema["tableSchemas"][0]
+    assert table["id"] == "tbl2R4lt3QnjdlAtt"
+    assert table["name"] == "Shared view table"
+    assert "rows" not in table
+    assert table["viewOrder"] == ["viwtwpf55H6mkh2s"]
+    assert table["viewSectionsById"] == {}
+    assert "typeOptions" not in table["columns"][0]
+    assert "default" not in table["columns"][0]
+    assert "symbol" not in table["columns"][2]["typeOptions"]
+
+    table_data = tables["tbl2R4lt3QnjdlAtt"]
+    assert [row["id"] for row in table_data["rows"]] == [
+        "recSecondRow0000002",
+        "recThirdRow00000003",
+        "recFirstRow00000001",
+    ]
+    assert table_data["viewDatas"] == table["views"]
+    assert (
+        "https://dl.airtable.com/.attachments/anonymized1/anon1/file-a.txt"
+        in table_data["signedUserContentUrls"]
+    )
+
+
+def test_extract_shared_view_schema_unsupported_view_type():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_shared_view.json"), "r") as file:
+        payload = json.load(file)
+
+    payload["data"]["table"]["views"][0]["type"] = "kanban"
+    schema, tables = AirtableHandler.extract_shared_view_schema(payload["data"])
+
+    view = schema["tableSchemas"][0]["views"][0]
+    assert view["type"] == "grid"
+    assert view["airtable_original_type"] == "kanban"
+
+
+@pytest.mark.django_db
+def test_parse_table_fields_reassigns_primary_when_fallback_primary_is_removed():
+    table = {
+        "id": "tblPrimaryTest00001",
+        "name": "Primary test",
+        "primaryColumnId": "fldFormula000000001",
+        "meaningfulColumnOrder": [
+            {"columnId": "fldFormula000000001", "visibility": True},
+            {"columnId": "fldCount00000000002", "visibility": True},
+        ],
+        "columns": [
+            {"id": "fldFormula000000001", "name": "Formula", "type": "formula"},
+            {
+                "id": "fldCount00000000002",
+                "name": "Count",
+                "type": "count",
+                "typeOptions": {"relationColumnId": "fldMissingLink00001"},
+            },
+        ],
+    }
+    import_report = AirtableImportReport()
+
+    field_mapping_per_table = AirtableHandler._parse_table_fields(
+        {"tableSchemas": [table]},
+        Progress(10),
+        AirtableImportConfig(),
+        import_report,
+    )
+
+    field_mapping = field_mapping_per_table["tblPrimaryTest00001"]
+    # The count field was first promoted to primary because the formula field is
+    # not supported, but it can't be imported because its link field is missing,
+    # so a new primary field must have been created afterwards.
+    assert "fldCount00000000002" not in field_mapping
+    primary_fields = [
+        field_object["baserow_field"]
+        for field_object in field_mapping.values()
+        if field_object["baserow_field"].primary
+    ]
+    assert len(primary_fields) == 1
+    assert primary_fields[0].name == "Primary field (auto created)"
+
+
+def test_extract_shared_view_schema_view_missing_in_view_order():
+    base_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/airtable_responses/basic"
+    )
+
+    with open(os.path.join(base_path, "airtable_shared_view.json"), "r") as file:
+        payload = json.load(file)
+
+    payload["data"]["table"]["viewOrder"] = ["viwSomeOtherView0001"]
+    schema, tables = AirtableHandler.extract_shared_view_schema(payload["data"])
+
+    assert schema["tableSchemas"][0]["viewOrder"] == [
+        "viwSomeOtherView0001",
+        "viwtwpf55H6mkh2s",
+    ]
 
 
 @pytest.mark.django_db
@@ -217,7 +468,7 @@ def test_to_baserow_database_export():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -229,7 +480,7 @@ def test_to_baserow_database_export():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -390,6 +641,7 @@ def test_to_baserow_database_export():
             "row_identifier_type": "count",
             "row_height_size": "small",
             "frozen_column_count": 1,
+            "group_by_layout": "section",
             "filter_type": "AND",
             "filters_disabled": False,
             "filters": [],
@@ -590,7 +842,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -602,7 +854,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -698,7 +950,7 @@ def test_to_baserow_database_export_without_primary_value():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -710,7 +962,7 @@ def test_to_baserow_database_export_without_primary_value():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -860,7 +1112,7 @@ def test_import_from_airtable_to_workspace(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -872,7 +1124,7 @@ def test_import_from_airtable_to_workspace(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1007,7 +1259,7 @@ def test_import_from_airtable_to_workspace_file_size_over_limit(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1019,7 +1271,7 @@ def test_import_from_airtable_to_workspace_file_size_over_limit(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1125,7 +1377,7 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1137,7 +1389,7 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1328,7 +1580,7 @@ def test_import_from_airtable_to_workspace_duplicated_multi_select(
 
 @pytest.mark.django_db
 @responses.activate
-def test_import_unsupported_publicly_shared_view(data_fixture, tmpdir):
+def test_import_publicly_shared_view_to_workspace(data_fixture, tmpdir):
     workspace = data_fixture.create_workspace()
     base_path = os.path.join(
         settings.BASE_DIR, "../../../tests/airtable_responses/basic"
@@ -1338,16 +1590,99 @@ def test_import_unsupported_publicly_shared_view(data_fixture, tmpdir):
     with open(os.path.join(base_path, "airtable_view.html"), "rb") as file_handler:
         responses.add(
             responses.GET,
-            "https://airtable.com/appZkaH3aWX3ZjT3b",
+            "https://airtable.com/appC1QggQ2236mAAA/shr1YAA2t24xr444",
             status=200,
             body=file_handler.read(),
             headers={"Set-Cookie": "brw=test;"},
         )
 
-    with pytest.raises(AirtableShareIsNotABase):
-        AirtableHandler.import_from_airtable_to_workspace(
-            workspace, "appZkaH3aWX3ZjT3b", storage=storage
+    with open(
+        os.path.join(base_path, "airtable_shared_view.json"), "rb"
+    ) as file_handler:
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/view/viwtwpf55H6mkh2s/readSharedViewData",
+            status=200,
+            body=file_handler.read(),
         )
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
+        responses.add(
+            responses.GET,
+            "https://dl.airtable.com/.signedUserContent/file-a.txt",
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
+        )
+
+    with open(os.path.join(base_path, "file-sample.txt"), "rb") as file_handler:
+        body = file_handler.read()
+        responses.add(
+            responses.GET,
+            "https://airtable.com/v0.3/row/recFirstRow00000001/downloadAttachment",
+            status=206,
+            body=body,
+            headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
+        )
+
+    progress = Progress(1000)
+
+    database = AirtableHandler.import_from_airtable_to_workspace(
+        workspace,
+        "appC1QggQ2236mAAA/shr1YAA2t24xr444",
+        storage=storage,
+        progress_builder=progress.create_child_builder(represents_progress=1000),
+    )
+
+    assert progress.progress == progress.total
+    assert UserFile.objects.all().count() == 2
+
+    assert database.name == "Shared view base"
+    all_tables = database.table_set.all()
+    assert len(all_tables) == 2
+    table = all_tables[0]
+    assert table.name == "Shared view table"
+    assert all_tables[1].name == "Airtable import report"
+
+    fields = {field.name: field.specific for field in table.field_set.all()}
+    assert sorted(fields.keys()) == [
+        "Attachments",
+        "Companies",
+        "Name",
+        "Notes",
+        "Number",
+        "Related rows",
+        "Status",
+    ]
+    assert fields["Name"].primary is True
+    assert isinstance(fields["Name"], TextField)
+    assert isinstance(fields["Companies"], LongTextField)
+    assert isinstance(fields["Related rows"], LinkRowField)
+    assert fields["Related rows"].link_row_table_id == table.id
+
+    views = table.view_set.all()
+    assert len(views) == 1
+    assert views[0].name == "Grid view"
+    hidden_field_options = GridViewFieldOptions.objects.get(
+        grid_view_id=views[0].id, field_id=fields["Notes"].id
+    )
+    assert hidden_field_options.hidden is True
+
+    model = table.get_model(attribute_names=True)
+    rows = list(model.objects.all())
+    # The view row order is leading, so "Row 1" is imported last.
+    assert [row.name for row in rows] == ["Row 2", "Row 3", "Row 1"]
+    assert rows[2].companies == "Company A, Company B"
+    assert rows[1].companies == "Company C"
+    assert [r.id for r in rows[2].related_rows.all()] == [rows[0].id]
+    assert len(rows[2].attachments) == 2
+
+    report_model = all_tables[1].get_model(attribute_names=True)
+    report_rows = [row.object_name for row in report_model.objects.all()]
+    assert "Companies" in report_rows
+    assert "Company count" in report_rows
+    assert "Company names" in report_rows
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1578,3 +1913,21 @@ def test_airtable_file_import_open_download_failure_raises_key_error():
     with pytest.raises(KeyError, match="could not be downloaded"):
         with file_import.open("broken.pdf"):
             pass
+
+
+@responses.activate
+def test_download_airtable_file_request_exception_wraps_to_file_download_failed():
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=requests.exceptions.ConnectionError("Connection refused"),
+    )
+
+    with pytest.raises(FileDownloadFailed, match="could not be downloaded"):
+        download_airtable_file(
+            name="unreachable.pdf",
+            download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+            init_data={},
+            request_id="req1",
+            cookies={},
+        )

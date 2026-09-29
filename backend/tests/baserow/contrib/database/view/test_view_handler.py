@@ -1271,7 +1271,7 @@ def test_delete_filter(send_mock, data_fixture):
 
 
 @pytest.mark.django_db
-def test_apply_sortings(data_fixture):
+def test_apply_orderings(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -1326,7 +1326,7 @@ def test_apply_sortings(data_fixture):
     )
 
     # Without any sortings.
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
@@ -1334,34 +1334,34 @@ def test_apply_sortings(data_fixture):
 
     # Should raise a value error if the modal doesn't have the _field_objects property.
     with pytest.raises(ValueError):
-        view_handler.apply_sorting(grid_view, GridView.objects.all())
+        view_handler.apply_ordering(grid_view, GridView.objects.all())
 
     # Should raise a value error if the field is not included in the model.
     with pytest.raises(ValueError):
-        view_handler.apply_sorting(
+        view_handler.apply_ordering(
             grid_view, table.get_model(field_ids=[]).objects.all()
         )
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
     sort.order = "DESC"
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_6.id, row_5.id, row_4.id, row_1.id, row_2.id, row_3.id]
 
     sort.order = "ASC"
     sort.field_id = number_field.id
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id, row_6.id, row_5.id, row_4.id]
 
     sort.field_id = boolean_field.id
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_4.id, row_5.id, row_1.id, row_2.id, row_6.id]
 
@@ -1370,7 +1370,7 @@ def test_apply_sortings(data_fixture):
     sort_2 = data_fixture.create_view_sort(
         view=grid_view, field=number_field, order="ASC"
     )
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id, row_4.id, row_5.id, row_6.id]
 
@@ -1379,7 +1379,7 @@ def test_apply_sortings(data_fixture):
     sort_2.field_id = boolean_field
     sort_2.order = "DESC"
     sort_2.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
@@ -1389,13 +1389,13 @@ def test_apply_sortings(data_fixture):
     sort_2.field_id = boolean_field
     sort_2.order = "ASC"
     sort_2.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_6.id, row_5.id, row_4.id, row_3.id, row_1.id, row_2.id]
 
     sort.field_id = number_field.id
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_4.id, row_5.id, row_6.id, row_1.id, row_2.id, row_3.id]
 
@@ -1410,7 +1410,7 @@ def test_apply_sortings(data_fixture):
 
     sort.delete()
     sort_2.delete()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [
         row_7.id,
@@ -2282,14 +2282,14 @@ def test_cant_get_view_filter_when_view_trashed(data_fixture):
 
 
 @pytest.mark.django_db
-def test_cant_apply_sorting_when_view_trashed(data_fixture):
+def test_cant_apply_ordering_when_view_trashed(data_fixture):
     user = data_fixture.create_user()
     grid_view = data_fixture.create_grid_view(user=user)
 
     ViewHandler().delete_view(user, grid_view)
 
     with pytest.raises(ViewSortDoesNotExist):
-        ViewHandler().apply_sorting(
+        ViewHandler().apply_ordering(
             grid_view,
             grid_view.table.get_model().objects.all(),
         )
@@ -3660,7 +3660,7 @@ def test_delete_group_by(send_mock, data_fixture):
 
 
 @pytest.mark.django_db
-def test_apply_sortings_sorts_by_group_bys(data_fixture):
+def test_apply_orderings_sorts_by_group_bys(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -3715,7 +3715,7 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
     )
 
     # Without any groupbys.
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
@@ -3725,34 +3725,34 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
 
     # Should raise a value error if the modal doesn't have the _field_objects property.
     with pytest.raises(ValueError):
-        view_handler.apply_sorting(grid_view, GridView.objects.all())
+        view_handler.apply_ordering(grid_view, GridView.objects.all())
 
     # Should raise a value error if the field is not included in the model.
     with pytest.raises(ValueError):
-        view_handler.apply_sorting(
+        view_handler.apply_ordering(
             grid_view, table.get_model(field_ids=[]).objects.all()
         )
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
     group_by.order = "DESC"
     group_by.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_6.id, row_5.id, row_4.id, row_1.id, row_2.id, row_3.id]
 
     group_by.order = "ASC"
     group_by.field_id = number_field.id
     group_by.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id, row_6.id, row_5.id, row_4.id]
 
     group_by.field_id = boolean_field.id
     group_by.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_4.id, row_5.id, row_1.id, row_2.id, row_6.id]
 
@@ -3761,7 +3761,7 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
     sort_2 = data_fixture.create_view_group_by(
         view=grid_view, field=number_field, order="ASC"
     )
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id, row_4.id, row_5.id, row_6.id]
 
@@ -3770,7 +3770,7 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
     sort_2.field_id = boolean_field
     sort_2.order = "DESC"
     sort_2.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id, row_5.id, row_6.id]
 
@@ -3780,13 +3780,13 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
     sort_2.field_id = boolean_field
     sort_2.order = "ASC"
     sort_2.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_6.id, row_5.id, row_4.id, row_3.id, row_1.id, row_2.id]
 
     group_by.field_id = number_field.id
     group_by.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_4.id, row_5.id, row_6.id, row_1.id, row_2.id, row_3.id]
 
@@ -3801,7 +3801,7 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
 
     group_by.delete()
     sort_2.delete()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [
         row_7.id,
@@ -3815,7 +3815,7 @@ def test_apply_sortings_sorts_by_group_bys(data_fixture):
 
 
 @pytest.mark.django_db
-def test_apply_sortings_applies_group_bys_first_then_view_sorts(data_fixture):
+def test_apply_orderings_applies_group_bys_first_then_view_sorts(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -3876,7 +3876,7 @@ def test_apply_sortings_applies_group_bys_first_then_view_sorts(data_fixture):
         view=grid_view, field=boolean_field, order="ASC"
     )
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_1.id, row_2.id, row_4.id, row_5.id, row_6.id]
 

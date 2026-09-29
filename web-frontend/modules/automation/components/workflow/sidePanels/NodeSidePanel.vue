@@ -26,11 +26,11 @@
       :service="node.service"
       :service-type="nodeType.serviceType"
       :application="automation"
-      enable-integration-picker
       :default-values="node.service"
       :edge-in-use-fn="nodeEdgeInUseFn"
+      :destinations="gotoDestinations"
       class="margin-top-2"
-      @values-changed="handleNodeChange({ service: $event })"
+      @values-changed="handleServiceChange"
     />
 
     <div class="separator"></div>
@@ -77,6 +77,24 @@ watch(
   },
   { immediate: true }
 )
+
+const formComponent = ref(null)
+
+// Reset the node form when the *same* node's realtime version advances (an undo/redo
+// or another user's change). Comparing the version — rather than just reading the
+// `viaRealtime` flag, which stays set until the next local edit — ensures we only
+// reset on a genuinely new realtime event. A changed node id means the selection
+// changed (the form remounts via `:key`, so there is nothing to reset). Runs
+// post-flush so the form's `defaultValues` (`node.service`) reflect the change first.
+watch(
+  () => [node.value?.id, node.value?._?.realtimeVersion],
+  ([id, version], [oldId, oldVersion]) => {
+    if (id === oldId && version !== oldVersion && node.value?._?.viaRealtime) {
+      formComponent.value?.reset?.(true)
+    }
+  },
+  { flush: 'post' }
+)
 const rules = {
   label: {
     maxLength: helpers.withMessage(
@@ -110,10 +128,33 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
-const formComponent = ref(null)
+/**
+ * Handles `values-changed` from the service form. Besides the changed values,
+ * a form may pass options: `immediate` skips the debounce for a one-shot
+ * command fired from a button, such as regenerating the inbound email address,
+ * and `onSettled` is called once that command has been saved, has failed or
+ * was found to change nothing, so the form can end its own loading state.
+ */
+const handleServiceChange = async (
+  values,
+  { immediate = false, onSettled = null } = {}
+) => {
+  try {
+    await handleNodeChange({ service: values, immediate })
+  } finally {
+    onSettled?.()
+  }
+}
+
+/**
+ * Applies label or service changes to the selected node. Changes are debounced
+ * so typing batches into one request; `immediate` skips that for one-shot
+ * commands, where the debounce would only delay the request.
+ */
 const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,
+  immediate = false,
 }) => {
   let updatedNode = {}
   let anyChanges = false
@@ -167,11 +208,16 @@ const handleNodeChange = async ({
   }
 
   try {
-    await store.dispatch('automationWorkflowNode/updateDebounced', {
-      workflow: workflow.value,
-      node: node.value,
-      values: updatedNode,
-    })
+    await store.dispatch(
+      immediate
+        ? 'automationWorkflowNode/update'
+        : 'automationWorkflowNode/updateDebounced',
+      {
+        workflow: workflow.value,
+        node: node.value,
+        values: updatedNode,
+      }
+    )
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
   }
@@ -193,4 +239,18 @@ const nodeEdgeInUseFn = (edge) => {
     edge.uid
   ).length
 }
+
+/**
+ * The selectable destinations for the selected node's form, resolved through
+ * the node type's `getDestinations` hook. Node types whose form doesn't pick
+ * a destination return undefined, so the prop isn't bound as a stray
+ * fallthrough attribute on their forms.
+ */
+const gotoDestinations = computed(() =>
+  nodeType.value.getDestinations({
+    workflow: workflow.value,
+    node: node.value,
+    automation: automation.value,
+  })
+)
 </script>

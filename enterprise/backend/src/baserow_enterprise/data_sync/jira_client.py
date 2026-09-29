@@ -18,7 +18,7 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-JIRA_MAX_RESULTS_PER_PAGE = 50
+JIRA_MAX_RESULTS_PER_PAGE = 100
 
 JIRA_NO_ISSUES_ERROR = (
     "No issues found. This is usually because the authentication details are wrong."
@@ -106,8 +106,11 @@ def _approximate_total(jira: Jira, jql: str) -> int:
         return 0
 
 
-def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
+def _iter_pages(jira: Jira, jql: str, fields: str) -> Iterator[dict]:
     """Yield issue pages from Jira, handling cloud/on-prem pagination differences.
+
+    `fields` is the comma separated list of issue fields to request; the Jira API
+    always returns `id` and `key` regardless of it.
 
     On-prem responses include 'total'. For Cloud, we look it up once via
     approximate_issue_count and stamp it onto every page so callers can
@@ -120,7 +123,7 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         while True:
             page = jira.enhanced_jql(
                 jql,
-                fields="*all",
+                fields=fields,
                 limit=JIRA_MAX_RESULTS_PER_PAGE,
                 nextPageToken=token,
             )
@@ -135,7 +138,10 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         start = 0
         while True:
             page = jira.jql(
-                jql, fields="*all", start=start, limit=JIRA_MAX_RESULTS_PER_PAGE
+                jql,
+                fields=fields,
+                start=start,
+                limit=JIRA_MAX_RESULTS_PER_PAGE,
             )
             if not isinstance(page, dict):
                 raise SyncError("The request to Jira did not return a valid response.")
@@ -143,20 +149,22 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
             page_issues = page.get("issues", [])
             start += len(page_issues)
             total = int(page.get("total") or 0)
-            if (
-                total <= start
-                or not page_issues
-                or len(page_issues) < JIRA_MAX_RESULTS_PER_PAGE
-            ):
+            # A short page is not the last page: Jira Server caps the page size at
+            # `jira.search.views.default.max`, which can be below what we ask for.
+            if total <= start or not page_issues:
                 return
 
 
 def fetch_issues(
     instance: JiraIssuesDataSync,
     jql: str,
+    fields: List[str],
     progress_builder: Optional[ChildProgressBuilder] = None,
 ) -> List[dict]:
-    """Fetch all issues matching a JQL query from a Jira instance."""
+    """
+    Fetch all issues matching a JQL query from a Jira instance, requesting only
+    the given issue fields.
+    """
 
     issues: List[dict] = []
     progress = None
@@ -165,12 +173,12 @@ def fetch_issues(
         # Creating the client already probes the server info, so it must be inside
         # the try block to convert a blocked private address into a sync error.
         jira = _create_jira(instance)
-        for i, page in enumerate(_iter_pages(jira, jql)):
+        for i, page in enumerate(_iter_pages(jira, jql, ",".join(fields))):
             if progress is None:
                 total = int(page.get("total") or 0)
-                child_total = (
-                    math.ceil(total / JIRA_MAX_RESULTS_PER_PAGE) if total else 1
-                )
+                # Jira Server reports the page size it applied, Cloud doesn't.
+                page_size = int(page.get("maxResults") or JIRA_MAX_RESULTS_PER_PAGE)
+                child_total = math.ceil(total / page_size) if total else 1
                 progress = ChildProgressBuilder.build(
                     progress_builder, child_total=child_total
                 )

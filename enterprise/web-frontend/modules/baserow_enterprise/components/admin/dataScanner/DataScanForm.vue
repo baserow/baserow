@@ -264,7 +264,10 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, requiredIf, maxLength, helpers } from '@vuelidate/validators'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { DataScannerScansService } from '@baserow_enterprise/services/dataScanner'
-import { ADMIN_WORKSPACE_OPTIONS_URL } from '@baserow_enterprise/services/adminWorkspaces'
+import {
+  ADMIN_WORKSPACE_OPTIONS_URL,
+  fetchWorkspaceOptions,
+} from '@baserow/modules/core/services/admin/workspaces'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import baseService from '@baserow/modules/core/crudTable/baseService'
 
@@ -418,17 +421,7 @@ export default {
   },
   methods: {
     fetchWorkspaces(page, search) {
-      const workspacePaginatedService = baseService(
-        this.$client,
-        ADMIN_WORKSPACE_OPTIONS_URL
-      )
-      return workspacePaginatedService.fetch(
-        ADMIN_WORKSPACE_OPTIONS_URL,
-        page,
-        search,
-        [],
-        {}
-      )
+      return fetchWorkspaceOptions(this.$client, page, search)
     },
     onWorkspaceSelected(value) {
       this.selectedWorkspaceId = value

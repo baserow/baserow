@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
@@ -26,6 +27,7 @@ from tqdm import tqdm
 
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -108,7 +110,11 @@ from .signals import (
     workspaces_reordered,
 )
 from .storage import get_default_storage
-from .telemetry.utils import baserow_trace_methods, disable_instrumentation
+from .telemetry.utils import (
+    baserow_trace,
+    baserow_trace_handler,
+    disable_instrumentation,
+)
 from .trash.handler import TrashHandler
 from .types import (
     Actor,
@@ -132,6 +138,8 @@ WorkspaceForUpdate = NewType("WorkspaceForUpdate", Workspace)
 
 tracer = trace.get_tracer(__name__)
 
+WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION = "workspace_invitation_created"
+
 
 @dataclass
 class ApplicationUpdatedResult:
@@ -140,7 +148,8 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
-class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context")):
+@baserow_trace_handler
+class CoreHandler:
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]
 
@@ -209,6 +218,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 "co_branding_logo",
                 "email_verification",
                 "verify_import_signature",
+                "allow_reporting_abuse",
             ],
             settings_instance,
         )
@@ -216,6 +226,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         settings_instance.save()
         return settings_instance
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
         self,
         checks: List[PermissionCheck],
@@ -308,6 +319,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permission_for_multiple_actors(
         self,
         actors: List[Actor],
@@ -338,6 +350,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return [actor for (actor, _, _), result in checked.items() if result is True]
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permissions(
         self,
         actor: Actor,
@@ -426,6 +439,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 f"{operation_name}."
             )
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_permissions(
         self, actor: Actor, workspace: Optional[Workspace] = None
     ) -> List[PermissionObjectResult]:
@@ -483,6 +497,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def filter_queryset(
         self,
         actor: Actor,
@@ -507,8 +522,28 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         :return: The queryset, potentially filtered.
         """
 
-        if actor is None:
-            actor = AnonymousUser
+        workspaces = [workspace] if workspace is not None else []
+        return self.filter_queryset_for_workspaces(
+            actor, operation_name, queryset, workspaces
+        )
+
+    def _filter_queryset_without_workspace(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+    ) -> QuerySet:
+        """
+        Filters a queryset that has no workspace context, for example the list of
+        workspaces itself. Every permission manager gets a single opportunity to filter
+        the queryset globally via its `filter_queryset` method with `workspace=None`.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The list operation name we want the queryset to be
+            filtered for.
+        :param queryset: The queryset to filter.
+        :return: The queryset, potentially filtered.
+        """
 
         for permission_manager_name in settings.PERMISSION_MANAGERS:
             permission_manager_type = permission_manager_type_registry.get(
@@ -518,7 +553,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 continue
 
             filtered_queryset = permission_manager_type.filter_queryset(
-                actor, operation_name, queryset, workspace=workspace
+                actor, operation_name, queryset, workspace=None
             )
 
             if filtered_queryset is None:
@@ -536,6 +571,134 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 queryset = filtered_queryset
 
         return queryset
+
+    def filter_queryset_for_workspaces(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+        workspaces: List[Workspace],
+    ) -> QuerySet:
+        """
+        Multi workspace version of `filter_queryset`. Filters a queryset containing rows
+        of the given workspaces in a single pass by asking every permission manager for
+        a per workspace `WorkspaceFilterDecision` instead of calling `filter_queryset`
+        once per workspace. This keeps the number of queries independent of the number
+        of workspaces.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The list operation name we want the queryset to be
+            filtered for.
+        :param queryset: The queryset to filter. It should contain objects that are in
+            the same `ObjectScopeType` as the one described in the `OperationType`
+            corresponding to the given `operation_name`, spanning the given workspaces.
+        :param workspaces: The workspaces the rows of the queryset belong to. If empty,
+            there is no workspace context and the permission managers filter the
+            queryset globally instead. To keep the number of queries independent of the
+            number of workspaces, the workspace instances should come from
+            `get_enhanced_workspace_queryset` so their memberships and templates are
+            prefetched.
+        :return: The queryset, potentially filtered.
+        """
+
+        if actor is None:
+            actor = AnonymousUser
+
+        workspaces = list(workspaces)
+        if not workspaces:
+            return self._filter_queryset_without_workspace(
+                actor, operation_name, queryset
+            )
+
+        # Workspaces for which no permission manager gave a final (`stop` or `deny`)
+        # decision yet.
+        pending = {workspace.id: workspace for workspace in workspaces}
+        filters_per_workspace: Dict[int, List[Q]] = defaultdict(list)
+        denied_workspace_ids = set()
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            if not pending:
+                break
+
+            permission_manager_type = permission_manager_type_registry.get(
+                permission_manager_name
+            )
+            if not permission_manager_type.actor_is_supported(actor):
+                continue
+
+            # The full workspace list is passed, and not only the pending ones,
+            # because the queryset always spans all the workspaces and the default
+            # `filter_queryset_for_workspaces` fallback relies on the list matching the
+            # queryset. Decisions for already resolved workspaces are ignored below.
+            decisions = permission_manager_type.filter_queryset_for_workspaces(
+                actor, operation_name, queryset, workspaces
+            )
+
+            if not decisions:
+                continue
+
+            for workspace_id, decision in decisions.items():
+                if workspace_id not in pending:
+                    continue
+
+                if decision.deny:
+                    # Later managers can only further restrict the rows, so a denied
+                    # workspace is final.
+                    denied_workspace_ids.add(workspace_id)
+                    filters_per_workspace.pop(workspace_id, None)
+                    del pending[workspace_id]
+                    continue
+
+                if decision.q is not None:
+                    filters_per_workspace[workspace_id].append(decision.q)
+
+                if decision.stop:
+                    del pending[workspace_id]
+
+        if not filters_per_workspace and not denied_workspace_ids:
+            return queryset
+
+        if len(workspaces) == 1:
+            # With a single workspace the queryset only contains its rows, so the
+            # decisions can be applied directly, exactly like the per workspace
+            # `filter_queryset` chain used to do.
+            if denied_workspace_ids:
+                return queryset.none()
+            for q_filter in filters_per_workspace[workspaces[0].id]:
+                queryset = queryset.filter(q_filter)
+            return queryset
+
+        if len(denied_workspace_ids) == len(workspaces):
+            return queryset.none()
+
+        # The queryset rows are partitioned per workspace via the object scope of the
+        # operation, so the per workspace conditions can be combined into a single WHERE
+        # clause.
+        object_scope = operation_type_registry.get(operation_name).object_scope
+
+        unrestricted_workspaces = [
+            workspace
+            for workspace in workspaces
+            if workspace.id not in denied_workspace_ids
+            and workspace.id not in filters_per_workspace
+        ]
+
+        combined_filter = Q(pk__in=[])
+        if unrestricted_workspaces:
+            combined_filter |= object_scope.get_filter_for_scopes(
+                unrestricted_workspaces
+            )
+
+        workspaces_by_id = {workspace.id: workspace for workspace in workspaces}
+        for workspace_id, q_filters in filters_per_workspace.items():
+            workspace_filter = object_scope.get_filter_for_scopes(
+                [workspaces_by_id[workspace_id]]
+            )
+            for q_filter in q_filters:
+                workspace_filter &= q_filter
+            combined_filter |= workspace_filter
+
+        return queryset.filter(combined_filter)
 
     def get_workspace_for_update(self, workspace_id: int) -> WorkspaceForUpdate:
         return cast(
@@ -665,7 +828,6 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         user: AbstractUser,
         workspace: WorkspaceForUpdate,
         name: Optional[str] = None,
-        generative_ai_models_settings: Optional[Dict[str, Any]] = None,
     ) -> Workspace:
         """
         Updates the values of a workspace if the user has admin
@@ -680,7 +842,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
-        elif name is None and generative_ai_models_settings is None:
+        elif name is None:
             raise ValueError("Nothing to update.")
 
         CoreHandler().check_permissions(
@@ -694,12 +856,14 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         if name is not None:
             workspace.name = name
             updated_fields.append("name")
-        if generative_ai_models_settings is not None:
-            workspace.generative_ai_models_settings = generative_ai_models_settings
-            updated_fields.append("generative_ai_models_settings")
 
         workspace.save(update_fields=updated_fields)
-        workspace_updated.send(self, workspace=workspace, user=user)
+        workspace_updated.send(
+            self,
+            workspace=workspace,
+            user=user,
+            updated_fields=updated_fields,
+        )
 
         return workspace
 
@@ -1180,6 +1344,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         self.send_workspace_invitation_email(invitation, base_url)
 
+        # Emit a sampling-independent metric observation without retaining another
+        # application span in the trace. The Collector turns this short-lived span
+        # into a cardinality-bounded per-user counter and then discards the span.
+        tracer.start_span(
+            "WorkspaceInvitation.created",
+            attributes={
+                "baserow.metric.observation": (
+                    WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION
+                ),
+                "user.id": user.id,
+            },
+        ).end()
+
         return invitation
 
     def update_workspace_invitation(
@@ -1405,13 +1582,31 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         :return: A list of applications in the workspace.
         """
 
+        return self.list_applications_in_workspaces([workspace], base_queryset)
+
+    def list_applications_in_workspaces(
+        self,
+        workspaces: List[Workspace],
+        base_queryset: Optional[QuerySet] = None,
+    ) -> QuerySet[Application]:
+        """
+        Return a list of applications of multiple workspaces in a single queryset. The
+        result is ordered by workspace id first, regardless of the order of the given
+        workspaces, so it equals concatenating the per workspace listings for workspaces
+        sorted by id.
+
+        :param workspaces: The workspaces to list the applications from.
+        :param base_queryset: The base queryset from where to select the applications.
+        :return: A queryset of applications in the workspaces.
+        """
+
         if base_queryset is None:
             base_queryset = Application.objects
 
         return (
-            base_queryset.filter(workspace=workspace, workspace__trashed=False)
+            base_queryset.filter(workspace__in=workspaces, workspace__trashed=False)
             .select_related("workspace")
-            .order_by("order", "id")
+            .order_by("workspace_id", "order", "id")
         )
 
     def filter_specific_applications(
@@ -1569,6 +1764,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
             reduce_disk_space_usage=False,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            copied_by=user,
         )
         # export the application
         specific_application = application.specific
@@ -1596,15 +1792,16 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         # import it back as a new application
         id_mapping: Dict[str, Any] = {}
-        new_application_clone = application_type.import_serialized(
-            workspace,
-            serialized,
-            duplicate_import_export_config,
-            id_mapping,
-            progress_builder=progress.create_child_builder(
-                represents_progress=import_progress
-            ),
-        )
+        with deferred_callback_context():
+            new_application_clone = application_type.import_serialized(
+                workspace,
+                serialized,
+                duplicate_import_export_config,
+                id_mapping,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=import_progress
+                ),
+            )
 
         # broadcast the application_created signal
         application_created.send(
@@ -1801,26 +1998,31 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         else:
             files_zip = files_buffer
         try:
-            id_mapping: Dict[str, Any] = {}
-            imported_applications = []
-            next_application_order_value = Application.get_last_order(workspace)
-            for application in prioritized_applications:
-                application_type = application_type_registry.get(application["type"])
-                imported_application = application_type.import_serialized(
-                    workspace,
-                    application,
-                    import_export_config,
-                    id_mapping,
-                    files_zip,
-                    storage,
-                    progress_builder=progress.create_child_builder(
-                        represents_progress=1000
-                    ),
-                )
-                imported_application.order = next_application_order_value
-                next_application_order_value += 1
-                imported_applications.append(imported_application)
-            Application.objects.bulk_update(imported_applications, ["order"])
+            # Callbacks registered during the loop run when this context exits,
+            # by which point every application exists.
+            with deferred_callback_context():
+                id_mapping: Dict[str, Any] = {}
+                imported_applications = []
+                next_application_order_value = Application.get_last_order(workspace)
+                for application in prioritized_applications:
+                    application_type = application_type_registry.get(
+                        application["type"]
+                    )
+                    imported_application = application_type.import_serialized(
+                        workspace,
+                        application,
+                        import_export_config,
+                        id_mapping,
+                        files_zip,
+                        storage,
+                        progress_builder=progress.create_child_builder(
+                            represents_progress=1000
+                        ),
+                    )
+                    imported_application.order = next_application_order_value
+                    next_application_order_value += 1
+                    imported_applications.append(imported_application)
+                Application.objects.bulk_update(imported_applications, ["order"])
         finally:
             files_zip.close()
 
@@ -2139,6 +2341,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 include_permission_data=False,
                 reduce_disk_space_usage=False,
                 is_duplicate=True,
+                is_template=True,
             ),
             storage=storage,
             progress_builder=progress_builder,

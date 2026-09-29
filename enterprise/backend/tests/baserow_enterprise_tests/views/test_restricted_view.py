@@ -15,6 +15,7 @@ from starlette.status import (
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import DateField
 from baserow.contrib.database.rows.actions import (
     CreateRowActionType,
@@ -3581,3 +3582,254 @@ def test_editor_on_restricted_view_can_redo_delete_rows(restricted_view_editor_s
     assert len(actions_redone) == 1
     assert actions_redone[0].error is None
     assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_update_response_includes_hidden_rows(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row_1, row_2 = (
+        RowHandler()
+        .create_rows(
+            admin,
+            table,
+            [{f"field_{name_field.id}": "keep"}, {f"field_{name_field.id}": "keep"}],
+        )
+        .created_rows
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        {
+            "items": [
+                {"id": row_1.id, f"field_{name_field.id}": "drop"},
+                {"id": row_2.id, f"field_{name_field.id}": "keep"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"]["hidden_row_ids"] == [row_1.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_create_response_includes_hidden_rows(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.post(
+        f"{url}?include_metadata=true&view={view.id}",
+        {
+            "items": [
+                {f"field_{name_field.id}": "keep"},
+                {f"field_{name_field.id}": "drop"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["metadata"]["hidden_row_ids"] == [
+        response_json["items"][1]["id"]
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_batch_update_response_excludes_hidden_rows_if_not_enforced(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "keep"}
+    )
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    items = {"items": [{"id": row.id, f"field_{name_field.id}": "drop"}]}
+
+    # The admin knows the filters, so it can determine visibility by itself.
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "hidden_row_ids" not in response.json()["metadata"]
+
+    response = api_client.patch(
+        f"{url}?include_metadata=true",
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "hidden_row_ids" not in response.json()["metadata"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_update_reports_row_hidden_by_dependant_formula_filter(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    formula_field = FieldHandler().create_field(
+        admin, table, "formula", name="mirror", formula=f"field('{name_field.name}')"
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=formula_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "keep"})
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        {"items": [{"id": row.id, name_field.db_column: "drop"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"]["hidden_row_ids"] == [row.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_batch_update_response_ignores_restricted_view_of_another_table(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    admin = enterprise_data_fixture.create_user()
+    editor = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="EDITOR"), scope=workspace
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    other_table = enterprise_data_fixture.create_database_table(database=database)
+    other_field = enterprise_data_fixture.create_text_field(
+        table=other_table, primary=True
+    )
+    other_view = enterprise_data_fixture.create_grid_view(
+        table=other_table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=other_view, field=other_field, type="equal", value="keep"
+    )
+    assert RestrictedViewOwnershipType().enforce_apply_filters(editor, other_view)
+    row = RowHandler().create_row(admin, table, values={field.db_column: "keep"})
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={other_view.id}",
+        {"items": [{"id": row.id, field.db_column: "drop"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "hidden_row_ids" not in response.json()["metadata"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_hidden_row_ids_returns_hidden_ids_in_input_order(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    keep_1, drop_1, drop_2, keep_2 = (
+        RowHandler()
+        .create_rows(
+            admin,
+            table,
+            [
+                {name_field.db_column: value}
+                for value in ["keep", "drop", "drop", "keep"]
+            ],
+        )
+        .created_rows
+    )
+
+    hidden_row_ids = ViewHandler().get_hidden_row_ids(
+        editor,
+        view,
+        table.get_model(),
+        [drop_2.id, keep_1.id, drop_1.id, keep_2.id],
+    )
+
+    assert hidden_row_ids == [drop_2.id, drop_1.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_hidden_row_ids_returns_none_if_filters_not_enforced(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
+
+    assert (
+        ViewHandler().get_hidden_row_ids(admin, view, table.get_model(), [row.id])
+        is None
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_hidden_row_ids_returns_none_for_another_table(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    other_table = enterprise_data_fixture.create_database_table(database=table.database)
+    other_row = RowHandler().create_row(admin, other_table)
+
+    assert (
+        ViewHandler().get_hidden_row_ids(
+            editor, view, other_table.get_model(), [other_row.id]
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_hidden_row_ids_returns_empty_if_filters_disabled(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    view.filters_disabled = True
+    view.save()
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
+
+    assert (
+        ViewHandler().get_hidden_row_ids(editor, view, table.get_model(), [row.id])
+        == []
+    )

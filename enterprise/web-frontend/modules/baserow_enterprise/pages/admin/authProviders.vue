@@ -5,7 +5,12 @@
         <h2 class="auth-provider-admin__title">
           {{ $t('authProviders.title') }}
         </h2>
-        <a ref="createContextLink" class="button" @click="showCreateContext()">
+        <a
+          ref="createContextLink"
+          v-skeleton="{ loading, height: '100%' }"
+          class="button"
+          @click="showCreateContext()"
+        >
           {{ $t('authProviders.addProvider') }}
           <CreateAuthProviderContext
             ref="createContext"
@@ -21,7 +26,29 @@
           />
         </a>
       </div>
-      <div v-if="authProviders.length > 0" class="auth-provider-admin__items">
+      <div
+        v-if="loading"
+        class="skeleton auth-provider-admin__items"
+        aria-hidden="true"
+      >
+        <div v-for="index in 3" :key="index" class="auth-provider-admin__item">
+          <SkeletonBlock
+            class="auth-provider-icon"
+            width="15px"
+            height="15px"
+          ></SkeletonBlock>
+          <div class="auth-provider-admin__item-name">
+            <SkeletonBlock width="160px"></SkeletonBlock>
+          </div>
+          <div class="auth-provider-admin__item-toggle">
+            <SkeletonBlock width="26px" height="16px"></SkeletonBlock>
+          </div>
+        </div>
+      </div>
+      <div
+        v-else-if="authProviders.length > 0"
+        class="auth-provider-admin__items"
+      >
         <component
           :is="getAdminListComponent(authProvider)"
           v-for="authProvider in authProviders"
@@ -42,6 +69,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, definePageMeta, useI18n, useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
@@ -66,9 +94,11 @@ const createModal = ref(null)
 // Reactive state
 const authProviderTypeToCreate = ref(null)
 
-// Fetch data on page load
-await store.dispatch('authProviderAdmin/fetchAll')
-await store.dispatch('authProviderAdmin/fetchNextProviderId')
+const { loading } = await usePageAsyncData('auth-provider-admin', async () => {
+  await store.dispatch('authProviderAdmin/fetchAll')
+  await store.dispatch('authProviderAdmin/fetchNextProviderId')
+  return true
+})
 
 // Computed
 const authProviderMap = computed(

@@ -3,7 +3,9 @@ Posthog telemetry integration for the Baserow Assistant.
 
 Hooks into pydantic-ai's OpenTelemetry instrumentation to capture LLM
 generation and tool call events, mapping them to PostHog's AI analytics
-event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``).
+event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``). Spans can
+additionally be exported via OpenInference + OTLP to a self-hosted Phoenix
+instance when ``BASEROW_ASSISTANT_PHOENIX_URL`` is set.
 
 Architecture:
 
@@ -22,8 +24,10 @@ Architecture:
                               their parent remapped to the grandparent
                               (typically the ``agent run`` span).
 
-    setup_instrumentation() -- one-time wiring of the span processor into a
-                              ``TracerProvider`` + ``Agent.instrument_all()``.
+    setup_instrumentation() -- one-time wiring of the span processor (and,
+                              when configured, the Phoenix OpenInference/OTLP
+                              exporter) into a ``TracerProvider`` +
+                              ``Agent.instrument_all()``.
 """
 
 from __future__ import annotations
@@ -33,8 +37,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import StrEnum
+from typing import Callable
 from uuid import uuid4
 
+from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
@@ -441,13 +448,21 @@ class PosthogSpanProcessor(SpanProcessor):
 # ---------------------------------------------------------------------------
 
 _instrumentation_ready = False
+_tracer_provider: TracerProvider | None = None
+_phoenix_import_error_warned = False
+
+
+def get_assistant_tracer_provider() -> TracerProvider | None:
+    """The provider set up by ``setup_instrumentation``, or None if never activated."""
+
+    return _tracer_provider
 
 
 def setup_instrumentation():
-    """Activate pydantic-ai's OTel instrumentation with PostHog export.
+    """Activate pydantic-ai's OTel instrumentation with PostHog and/or Phoenix export.
 
     Safe to call multiple times (subsequent calls are no-ops).
-    Does nothing when PostHog is disabled.
+    Does nothing when neither PostHog nor Phoenix ends up wiring a processor.
     """
 
     global _instrumentation_ready
@@ -457,14 +472,30 @@ def setup_instrumentation():
     from django.conf import settings as django_settings
 
     posthog_enabled = getattr(django_settings, "POSTHOG_ENABLED", False)
-    if not posthog_enabled:
+    phoenix_url = getattr(django_settings, "BASEROW_ASSISTANT_PHOENIX_URL", "")
+    if not posthog_enabled and not phoenix_url:
         return
 
     from pydantic_ai import Agent, InstrumentationSettings
 
     # Prevent environment OTEL_TRACES_SAMPLER config from dropping assistant traces.
     tracer_provider = TracerProvider(sampler=ALWAYS_ON)
-    tracer_provider.add_span_processor(PosthogSpanProcessor())
+    processor_added = False
+    if posthog_enabled:
+        # PostHog must map spans before OpenInference rewrites their attributes.
+        tracer_provider.add_span_processor(PosthogSpanProcessor())
+        processor_added = True
+    if phoenix_url:
+        phoenix_api_key = getattr(
+            django_settings, "BASEROW_ASSISTANT_PHOENIX_API_KEY", ""
+        )
+        processor_added = (
+            _add_phoenix_processors(tracer_provider, phoenix_url, phoenix_api_key)
+            or processor_added
+        )
+
+    if not processor_added:
+        return
 
     Agent.instrument_all(
         InstrumentationSettings(
@@ -473,12 +504,63 @@ def setup_instrumentation():
         )
     )
 
+    global _tracer_provider
+    _tracer_provider = tracer_provider
     _instrumentation_ready = True
+
+
+def _add_phoenix_processors(
+    tracer_provider: TracerProvider, phoenix_url: str, api_key: str = ""
+) -> bool:
+    """Export assistant spans to a self-hosted Phoenix instance (dev or team)."""
+
+    global _phoenix_import_error_warned
+    try:
+        from openinference.instrumentation.pydantic_ai import (
+            OpenInferenceSpanProcessor,
+        )
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter,
+        )
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError:
+        if not _phoenix_import_error_warned:
+            logger.warning(
+                "BASEROW_ASSISTANT_PHOENIX_URL is set but the OpenInference "
+                "instrumentation packages are not installed; skipping Phoenix export."
+            )
+            _phoenix_import_error_warned = True
+        return False
+
+    exporter_kwargs = {"endpoint": phoenix_url.rstrip("/") + "/v1/traces"}
+    if api_key:
+        # Auth-enabled (team) Phoenix instances require a bearer API key on ingest.
+        exporter_kwargs["headers"] = {"authorization": f"Bearer {api_key}"}
+    tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(**exporter_kwargs))
+    )
+    return True
 
 
 # ---------------------------------------------------------------------------
 # PosthogTracingCallback — per-request trace lifecycle
 # ---------------------------------------------------------------------------
+
+
+class AssistantTraceOutcome(StrEnum):
+    """How one assistant run ended, recorded on every ``$ai_trace`` event."""
+
+    ANSWERED = "answered"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+    INTERRUPTED = "interrupted"
+    NO_ANSWER = "no_answer"
+
+
+_FAILED_OUTCOMES = frozenset(
+    {AssistantTraceOutcome.ERROR, AssistantTraceOutcome.NO_ANSWER}
+)
 
 
 class PosthogTracingCallback:
@@ -496,11 +578,21 @@ class PosthogTracingCallback:
         self.trace_outputs = None
 
     @contextmanager
-    def trace(self, chat: AssistantChat, human_message: str):
+    def trace(
+        self,
+        chat: AssistantChat,
+        human_message: str,
+        cancelled_by_user: Callable[[], bool] | None = None,
+    ):
         """Context manager that scopes a single assistant execution.
 
         Publishes ``_trace_ctx`` so ``PosthogSpanExporter`` can attach trace
         metadata to child ``$ai_generation`` / ``$ai_span`` events.
+
+        :param chat: The chat whose message this execution answers.
+        :param human_message: The user message that started this execution.
+        :param cancelled_by_user: Predicate telling whether the user asked to
+            stop, used to tell a deliberate cancel apart from a dropped run.
         """
 
         self.chat = chat
@@ -524,23 +616,25 @@ class PosthogTracingCallback:
         )
         tools_token = _tool_calls.set([])
 
-        exception = None
+        exception: Exception | None = None
+        interruption: BaseException | None = None
         try:
             yield self
         except Exception as exc:
             exception = exc
+            raise
+        except BaseException as exc:
+            interruption = exc
             raise
         finally:
             tool_call_names = _tool_calls.get([])
             _trace_ctx.reset(token)
             _tool_calls.reset(tools_token)
 
-            output_state = self.trace_outputs if exception is None else str(exception)
-            if tool_call_names:
-                if output_state is None:
-                    output_state = {}
-                if isinstance(output_state, dict):
-                    output_state["tool_calls"] = tool_call_names
+            outcome = self._resolve_outcome(exception, interruption, cancelled_by_user)
+            output_state = self._build_output_state(outcome, exception)
+            if tool_call_names and isinstance(output_state, dict):
+                output_state["tool_calls"] = tool_call_names
 
             self._capture_event(
                 "$ai_trace",
@@ -550,9 +644,10 @@ class PosthogTracingCallback:
                     "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
                     "$ai_span_id": self.span_id,
                     "$ai_latency": (_utc_now() - start_time).total_seconds(),
-                    "$ai_is_error": exception is not None,
+                    "$ai_is_error": outcome in _FAILED_OUTCOMES,
                     "$ai_input_state": {"user_message": human_message},
                     "$ai_output_state": output_state,
+                    "assistant_outcome": outcome.value,
                 },
             )
 
@@ -560,6 +655,48 @@ class PosthogTracingCallback:
                 get_posthog_client().flush()
             except Exception:
                 pass
+
+    def _resolve_outcome(
+        self,
+        exception: Exception | None,
+        interruption: BaseException | None,
+        cancelled_by_user: Callable[[], bool] | None,
+    ) -> AssistantTraceOutcome:
+        """Classify how a single assistant execution ended.
+
+        :param exception: The error raised inside the traced block, if any.
+        :param interruption: The ``BaseException`` that unwound the traced
+            block, if any.
+        :param cancelled_by_user: Predicate telling whether the user asked to
+            stop.
+        :return: The outcome to record on the ``$ai_trace`` event.
+        """
+
+        if exception is not None:
+            return AssistantTraceOutcome.ERROR
+        if interruption is not None:
+            if cancelled_by_user is not None and cancelled_by_user():
+                return AssistantTraceOutcome.CANCELLED
+            return AssistantTraceOutcome.INTERRUPTED
+        if self.trace_outputs is None:
+            return AssistantTraceOutcome.NO_ANSWER
+        return AssistantTraceOutcome.ANSWERED
+
+    def _build_output_state(
+        self, outcome: AssistantTraceOutcome, exception: Exception | None
+    ) -> dict | str:
+        """Render the ``$ai_output_state`` payload for *outcome*.
+
+        :param outcome: The classified outcome of the execution.
+        :param exception: The error raised inside the traced block, if any.
+        :return: The answer, the error message, or the terminal status.
+        """
+
+        if outcome is AssistantTraceOutcome.ERROR:
+            return str(exception)
+        if outcome is AssistantTraceOutcome.ANSWERED:
+            return self.trace_outputs
+        return {"status": outcome.value}
 
     def set_trace_output(self, output: str):
         """Record the agent's final answer for the ``$ai_trace`` event."""

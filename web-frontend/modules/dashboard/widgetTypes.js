@@ -58,6 +58,14 @@ export class WidgetType extends Registerable {
     return false
   }
 
+  isMisconfigured(widget, data) {
+    return false
+  }
+
+  get showHeaderBorder() {
+    return true
+  }
+
   isAvailable() {
     return true
   }
@@ -67,7 +75,22 @@ export class WidgetType extends Registerable {
   }
 }
 
-export class SummaryWidgetType extends WidgetType {
+export class DataSourceWidgetType extends WidgetType {
+  getDataSourceData(widget, data) {
+    return data?.[widget.data_source_id]
+  }
+
+  isLoading(widget, data) {
+    const dataSourceData = this.getDataSourceData(widget, data)
+    return !dataSourceData || Object.keys(dataSourceData).length === 0
+  }
+
+  isMisconfigured(widget, data) {
+    return Boolean(this.getDataSourceData(widget, data)?._error)
+  }
+}
+
+export class SummaryWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'summary'
   }
@@ -89,11 +112,7 @@ export class SummaryWidgetType extends WidgetType {
     return SummaryWidgetSettings
   }
 
-  isLoading(widget, data) {
-    const dataSourceId = widget.data_source_id
-    if (data[dataSourceId] && Object.keys(data[dataSourceId]).length !== 0) {
-      return false
-    }
-    return true
+  get showHeaderBorder() {
+    return false
   }
 }

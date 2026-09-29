@@ -22,6 +22,7 @@
 ## @param global.baserow.domain Configure the domain for the frontend application.
 ## @param global.baserow.backendDomain Configure the domain for the backend application.
 ## @param global.baserow.objectsDomain Configure the domain for the external facing minio api.
+## @param global.baserow.assistantLLMModel Deprecated. Select the Kuma model under Admin tools > AI providers > AI features. Retained as an environment fallback; explicit disables prevent fallback.
 ## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
 ## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
 ## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
@@ -43,7 +44,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 2.3.3
+      tag: 2.4.0
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -200,6 +201,103 @@ migration:
       drop: []
     seccompProfile:
       type: ""
+
+## @section Baserow inbound email receiver configuration
+## The email receiver runs mox and forwards messages to the backend for the
+## "Start workflow by email" automation trigger. Configure
+## BASEROW_INBOUND_EMAIL_DOMAIN in backendConfigMap and
+## BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET in backendSecrets before enabling it.
+## Point the inbound domain's MX record at the external address assigned to the
+## SMTP LoadBalancer service.
+##
+## @param baserow-email-receiver.enabled Enable the inbound email receiver
+## @param baserow-email-receiver.image.repository Email receiver Docker image repository
+## @param baserow-email-receiver.persistence.size Persistent storage requested for mox data
+## @param baserow-email-receiver.persistence.storageClass Persistent storage class
+## @param baserow-email-receiver.persistence.existingClaim Existing PVC for mox data
+## @param baserow-email-receiver.additionalServices.smtp.type SMTP service type
+## @param baserow-email-receiver.additionalServices.smtp.port Externally exposed SMTP port
+## @param baserow-email-receiver.additionalServices.smtp.annotations SMTP service annotations
+## @param baserow-email-receiver.additionalServices.smtp.externalTrafficPolicy SMTP service external traffic policy
+## @param baserow-email-receiver.persistence.annotations Persistent volume claim annotations
+## @param baserow-email-receiver.terminationGracePeriodSeconds Seconds mox is given to finish in-flight deliveries on shutdown
+baserow-email-receiver:
+  enabled: false
+  image:
+    repository: backend
+  workingDir: /baserow/backend
+  args:
+    - email-receiver
+  replicaCount: 1
+  strategy:
+    type: Recreate
+  terminationGracePeriodSeconds: 60
+  service:
+    type: ClusterIP
+    name: webapi
+    port: 8880
+    targetPort: 8880
+  additionalServices:
+    smtp:
+      type: LoadBalancer
+      port: 25
+      targetPort: 25
+      protocol: TCP
+      annotations: {}
+      # Preserves the client source IP so mox evaluates SPF and DMARC against
+      # the real sending mail server instead of a cluster node.
+      externalTrafficPolicy: Local
+  persistence:
+    enabled: true
+    existingClaim: ""
+    mountPath: /baserow/data/mox
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    storageClass: ""
+    # Holds mox's webhook retry queue, keep it on uninstall so undelivered
+    # emails are not lost.
+    annotations:
+      helm.sh/resource-policy: keep
+  containerSecurityContext:
+    enabled: true
+    seLinuxOptions: {}
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      add:
+        - NET_BIND_SERVICE
+      drop: []
+    seccompProfile:
+      type: RuntimeDefault
+  livenessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - /baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 5
+  readinessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - /baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 5
 
 ## @section Baserow Backend ASGI Configuration
 ## Configuration for the ASGI server that serves the Baserow backend application.
@@ -548,7 +646,6 @@ baserow-celery-flower:
 
 ## Configuration for the Baserow Embeddings service
 ## @param baserow-embeddings.enabled Set to true to enable the Baserow Embeddings service.
-## @param baserow-embeddings.assistantLLMModel The LLM model to use for the AI assistant (e.g., "groq/openai/gpt-oss-120b").
 ## @param baserow-embeddings.image.repository Docker image repository for the Embeddings service.
 ## @param baserow-embeddings.resources Resource requests and limits for the Embeddings service.
 ## @param baserow-embeddings.autoscaling.enabled Enable autoscaling for the Embeddings service.

@@ -45,16 +45,22 @@ export default (client) => {
         user_id: userId,
       })
     },
-    authenticate(userSourceId, credentials) {
-      return client.post(`/user-source/${userSourceId}/token-auth`, credentials)
-    },
-    refreshAuth(refreshToken) {
+    authenticate(userSourceId, credentials, authenticationUrl = null) {
       return client.post(
-        `/user-source-auth-refresh/`,
+        authenticationUrl || `/user-source/${userSourceId}/token-auth`,
+        credentials
+      )
+    },
+    refreshAuth(refreshToken, refreshUrl = null) {
+      return client.post(
+        refreshUrl || `/user-source-auth-refresh/`,
         {
           refresh_token: refreshToken,
         },
-        { skipAuthRefresh: true }
+        {
+          skipAuthRefresh: true,
+          isUserSourceAuth: true,
+        }
       )
     },
     blacklistToken(refreshToken) {
@@ -64,7 +70,7 @@ export default (client) => {
         {
           refresh_token: refreshToken,
         },
-        { skipAuthRefresh: true }
+        { skipAuthRefresh: true, isUserSourceAuth: true }
       )
     },
   }

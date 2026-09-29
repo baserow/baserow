@@ -65,6 +65,7 @@ import {
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
@@ -83,11 +84,13 @@ import {
   ChoiceAIFieldOutputType,
   TextAIFieldOutputType,
 } from '@baserow_premium/aiFieldOutputTypes'
+import { AIFieldsAIProviderModelFeatureType } from '@baserow_premium/aiProviderModelFeatureTypes'
 import {
   AIPaidFeature,
   CalendarViewPaidFeature,
   ExportsPaidFeature,
   FormSurveyModePaidFeature,
+  GroupedAggregateRowsDataSourcePaidFeature,
   KanbanViewPaidFeature,
   PersonalViewsPaidFeature,
   PublicLogoRemovalPaidFeature,
@@ -159,6 +162,10 @@ export default defineNuxtPlugin({
     $registry.register('exporter', new ExcelTableExporterType(context))
     $registry.register('exporter', new FileTableExporter(context))
     $registry.register('field', new AIFieldType(context))
+    $registry.register(
+      'aiProviderModelFeature',
+      new AIFieldsAIProviderModelFeatureType(context)
+    )
     $registry.register('field', new PremiumFormulaFieldType(context))
     $registry.register('view', new KanbanViewType(context))
     $registry.register('view', new CalendarViewType(context))
@@ -339,6 +346,10 @@ export default defineNuxtPlugin({
       'chartFieldFormatting',
       new SingleSelectFormattingType(context)
     )
+    $registry.register(
+      'service',
+      new LocalBaserowGroupedAggregateRowsServiceType(context)
+    )
 
     $registry.register('paidFeature', new KanbanViewPaidFeature(context))
     $registry.register('paidFeature', new CalendarViewPaidFeature(context))
@@ -347,6 +358,10 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new RowCommentsPaidFeature(context))
     $registry.register('paidFeature', new RowNotificationsPaidFeature(context))
     $registry.register('paidFeature', new AIPaidFeature(context))
+    $registry.register(
+      'paidFeature',
+      new GroupedAggregateRowsDataSourcePaidFeature(context)
+    )
     $registry.register('paidFeature', new PersonalViewsPaidFeature(context))
     $registry.register('paidFeature', new ExportsPaidFeature(context))
     $registry.register('paidFeature', new FormSurveyModePaidFeature(context))

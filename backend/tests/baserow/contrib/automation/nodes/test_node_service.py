@@ -835,6 +835,39 @@ def test_update_node_updates_workflow_dirty_cache(data_fixture):
 
 
 @pytest.mark.django_db
+def test_move_node_updates_workflow_dirty_cache(data_fixture):
+    """
+    When a node is moved, the workflow's dirty cache flag should be set so that the
+    next test run creates a fresh clone instead of reusing a stale one. Otherwise a
+    test run would dispatch the pre-move graph (e.g. a "Go to node" whose destination
+    has since changed), surfacing errors that no longer reflect the workflow.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    node_a = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger, position="south"
+    )
+    node_b = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=node_a, position="south"
+    )
+
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().move_node(
+        user,
+        node_b.id,
+        reference_node_id=trigger.id,
+        position="south",
+        output="",
+    )
+
+    assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
 def test_update_node_rejects_integration_from_another_application(data_fixture):
     user = data_fixture.create_user()
     node = data_fixture.create_local_baserow_create_row_action_node(user=user)

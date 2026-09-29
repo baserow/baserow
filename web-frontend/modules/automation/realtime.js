@@ -86,11 +86,22 @@ export const registerRealtimeEvents = (realtime) => {
     )
     if (!existing) return
 
+    // The event was too large for a websocket frame, so the server left the
+    // sample data out and asks us to reload the node over HTTP instead.
+    if (data.requires_refresh === true) {
+      store.dispatch('automationWorkflowNode/refetch', {
+        workflow,
+        nodeId: node.id,
+      })
+      return
+    }
+
     store.dispatch('automationWorkflowNode/forceUpdate', {
       workflow,
       node: existing,
       values: node,
       override: true,
+      viaRealtime: true,
     })
   })
 
@@ -107,27 +118,23 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  realtime.registerEvent(
-    'automation_workflow_dispatch_started',
-    ({ store }, data) => {
-      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
-      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-        store.dispatch('automationHistory/fetchWorkflowHistory', {
-          workflowId: data.workflow_id,
-        })
-      }
+  // Run lifecycle events. The history panel only shows the selected
+  // workflow, so its entries are refetched when one of its runs starts,
+  // gets a cancellation request or resolves.
+  const refetchSelectedWorkflowHistory = ({ store }, data) => {
+    const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+    if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
+      store.dispatch('automationHistory/fetchWorkflowHistory', {
+        workflowId: data.workflow_id,
+      })
     }
-  )
+  }
 
-  realtime.registerEvent(
+  for (const event of [
+    'automation_workflow_dispatch_started',
+    'automation_workflow_dispatch_cancellation_requested',
     'automation_workflow_dispatch_done',
-    ({ store }, data) => {
-      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
-      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-        store.dispatch('automationHistory/fetchWorkflowHistory', {
-          workflowId: data.workflow_id,
-        })
-      }
-    }
-  )
+  ]) {
+    realtime.registerEvent(event, refetchSelectedWorkflowHistory)
+  }
 }

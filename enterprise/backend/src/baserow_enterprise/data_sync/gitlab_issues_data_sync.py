@@ -17,6 +17,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -205,6 +206,7 @@ class GitLabIssuesDataSyncType(DataSyncType):
         "gitlab_project_id",
         "gitlab_access_token",
     ]
+    sensitive_fields = ["gitlab_access_token"]
     request_serializer_field_names = [
         "gitlab_url",
         "gitlab_project_id",
@@ -216,6 +218,9 @@ class GitLabIssuesDataSyncType(DataSyncType):
         "gitlab_url",
         "gitlab_project_id",
     ]
+    secret_field_dependencies = {
+        "gitlab_access_token": ["gitlab_url"],
+    }
 
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with
@@ -352,7 +357,9 @@ class GitLabIssuesDataSyncType(DataSyncType):
                     "iid": get_value_at_path(issue, "iid", ""),
                     "project_id": get_value_at_path(issue, "project_id", ""),
                     "title": get_value_at_path(issue, "title", ""),
-                    "description": get_value_at_path(issue, "description", ""),
+                    "description": escape_user_file_references(
+                        get_value_at_path(issue, "description", "")
+                    ),
                     "state": get_value_at_path(issue, "state", ""),
                     "created_at": created_at,
                     "updated_at": updated_at,

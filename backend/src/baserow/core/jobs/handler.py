@@ -2,9 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q, QuerySet
+
+from celery.exceptions import SoftTimeLimitExceeded
 
 from baserow.core.utils import Progress
 
@@ -95,6 +99,10 @@ class JobHandler:
         :return: the job.
         """
 
+        # Numeric IDs are only meaningful within the same principal type.
+        if not isinstance(user, get_user_model()) or user.pk is None:
+            raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
+
         if not job_model:
             job_model = Job
 
@@ -103,7 +111,7 @@ class JobHandler:
 
         try:
             return base_queryset.select_related("user").get(id=job_id, user_id=user.id)
-        except Job.DoesNotExist:
+        except job_model.DoesNotExist:
             raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
 
     @classmethod
@@ -125,11 +133,14 @@ class JobHandler:
         :param base_model: An optional Job model.
         :param type_filters: Optional type-specific filters (e.g., field_id for
             GenerateAIValuesJob).
-        :return: A QuerySet with the filtered jobs for the user.
+        :return: A QuerySet with the filtered jobs visible to the user.
         """
 
         if base_model is None:
             base_model = Job
+
+        if not isinstance(user, get_user_model()) or user.pk is None:
+            return base_model.objects.none()
 
         def get_job_states_filter(states):
             states_q = Q()
@@ -140,7 +151,7 @@ class JobHandler:
                     states_q |= Q(state=state)
             return states_q
 
-        queryset = base_model.objects.filter(user=user).order_by("-id")
+        queryset = base_model.objects.all().order_by("-id")
 
         if filter_states:
             queryset = queryset.filter(get_job_states_filter(filter_states))
@@ -151,7 +162,62 @@ class JobHandler:
         if type_filters:
             queryset = queryset.filter(**type_filters)
 
+        queryset = cls._scope_queryset_to_user(user, queryset, base_model, filter_ids)
+
         return queryset.select_related("content_type")
+
+    @classmethod
+    def _scope_queryset_to_user(
+        cls,
+        user: AbstractUser,
+        queryset: QuerySet,
+        base_model: Type[AnyJob],
+        filter_ids: Optional[List[int]],
+    ) -> QuerySet:
+        """
+        Delegates the user-visibility scoping of a jobs listing queryset to the
+        job types. When a specific job model is requested its job type scopes
+        the whole queryset. On the generic model, jobs of other users are only
+        considered when explicitly requested by id, and each foreign job type
+        decides whether the user may see them.
+
+        :param user: The user requesting the jobs listing.
+        :param queryset: The already filtered queryset of jobs.
+        :param base_model: The job model the queryset is based on.
+        :param filter_ids: The specific job ids requested, if any.
+        :return: The queryset restricted to what the user may see.
+        """
+
+        if base_model is not Job:
+            job_type = job_type_registry.get_by_model(base_model)
+            return job_type.scope_queryset_to_user(user, queryset)
+
+        if not filter_ids:
+            return queryset.filter(user=user)
+
+        visible_q = Q(user=user)
+        foreign_content_type_ids = list(
+            Job.objects.filter(id__in=filter_ids)
+            .exclude(user=user)
+            .values_list("content_type_id", flat=True)
+            .distinct()
+        )
+        content_types_by_id = ContentType.objects.in_bulk(foreign_content_type_ids)
+        for content_type_id in foreign_content_type_ids:
+            content_type = content_types_by_id.get(content_type_id)
+            model_class = content_type.model_class() if content_type else None
+            if model_class is None:
+                continue
+            try:
+                job_type = job_type_registry.get_by_model(model_class)
+            except job_type_registry.does_not_exist_exception_class:
+                continue
+            scoped = job_type.scope_queryset_to_user(
+                user, job_type.model_class.objects.filter(id__in=filter_ids)
+            )
+            visible_q |= Q(id__in=scoped.values("id"))
+
+        return queryset.filter(visible_q)
 
     @classmethod
     def get_pending_or_running_jobs(
@@ -243,6 +309,7 @@ class JobHandler:
                 job.set_state_failed(
                     "Timeout error",
                     "Something went wrong during the job execution.",
+                    SoftTimeLimitExceeded.__name__,
                 )
                 # Set the updated_on manually because it won't be set by bulk_update
                 job.updated_on = now
@@ -250,7 +317,13 @@ class JobHandler:
         if jobs_to_update:
             Job.objects.bulk_update(
                 jobs_to_update,
-                fields=["updated_on", "state", "error", "human_readable_error"],
+                fields=[
+                    "updated_on",
+                    "state",
+                    "error",
+                    "human_readable_error",
+                    "error_code",
+                ],
             )
 
     @classmethod

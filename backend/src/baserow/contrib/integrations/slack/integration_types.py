@@ -16,9 +16,17 @@ class SlackBotIntegrationType(IntegrationType):
     serializer_field_names = ["token"]
     allowed_fields = ["token"]
     sensitive_fields = ["token"]
+    secret_fields = ["token"]
 
     request_serializer_field_names = ["token"]
     request_serializer_field_overrides = {}
+    serializer_field_extra_kwargs = {
+        "token": {
+            "help_text": "The Bot User OAuth Token. Write-only: it is never "
+            "returned, see `has_token`. Omit it on an update to keep the stored "
+            "token."
+        }
+    }
 
     def import_serialized(
         self,

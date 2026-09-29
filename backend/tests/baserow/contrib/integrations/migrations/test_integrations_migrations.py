@@ -164,3 +164,50 @@ def test_0026_backfill_coreperiodicservice_next_run_at_forwards(
         assert (
             service.next_run_at == expected_next_run
         ), f"Service {service_id} ({expected_data['interval']}): expected {expected_next_run}, got {service.next_run_at}"
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0032_coreperiodicservice_timezone_defaults_existing_rows_to_utc(
+    migrator, teardown_table_metadata
+):
+    """
+    The schedule fields of services created before the schedule became timezone
+    aware were already converted to UTC by the frontend. Defaulting them to UTC
+    means they keep resolving to exactly the same instants, so deploying this
+    doesn't quietly move anybody's live schedule.
+    """
+
+    migrate_from = [("integrations", "0031_corestartworkflowservice")]
+    migrate_to = [("integrations", "0032_coreperiodicservice_timezone")]
+
+    old_state = migrator.migrate(migrate_from)
+
+    CorePeriodicService = old_state.apps.get_model(
+        "integrations", "CorePeriodicService"
+    )
+    Service = old_state.apps.get_model("core", "Service")
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    service_content_type = ContentType.objects.get_for_model(Service)
+
+    # A weekly schedule which predates the timezone field entirely.
+    CorePeriodicService.objects.create(
+        id=1,
+        content_type=service_content_type,
+        interval="WEEK",
+        day_of_week=0,
+        hour=5,
+        minute=0,
+        next_run_at=datetime(2026, 2, 16, 5, 0, 0, tzinfo=timezone.utc),
+    )
+
+    new_state = migrator.migrate(migrate_to)
+    CorePeriodicService = new_state.apps.get_model(
+        "integrations", "CorePeriodicService"
+    )
+
+    service = CorePeriodicService.objects.get(id=1)
+    assert service.timezone == "UTC"
+    # The schedule itself is untouched by the migration.
+    assert service.interval == "WEEK"
+    assert (service.day_of_week, service.hour, service.minute) == (0, 5, 0)
+    assert service.next_run_at == datetime(2026, 2, 16, 5, 0, 0, tzinfo=timezone.utc)

@@ -1,10 +1,16 @@
+import asyncio
 import json
+import sys
 from unittest.mock import MagicMock, patch
+
+from django.test import override_settings
 
 import pytest
 
+from baserow_enterprise.assistant import telemetry
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.telemetry import (
+    AssistantTraceOutcome,
     PosthogSpanProcessor,
     PosthogTracingCallback,
     _pydantic_messages_to_posthog,
@@ -36,10 +42,11 @@ class TestPosthogTracingCallback:
 
         callback = PosthogTracingCallback()
 
-        with callback.trace(assistant_chat_fixture, "Hello"):
+        with callback.trace(assistant_chat_fixture, "Hello") as tracer:
             assert callback.trace_id is not None
             assert callback.span_id is not None
             assert callback.user_id == str(assistant_chat_fixture.user_id)
+            tracer.set_trace_output("Hi there")
 
         # Verify trace event captured
         mock_posthog.capture.assert_called_once()
@@ -60,7 +67,8 @@ class TestPosthogTracingCallback:
         assert props["$ai_latency"] >= 0
         assert props["$ai_is_error"] is False
         assert props["$ai_input_state"] == {"user_message": "Hello"}
-        assert props["$ai_output_state"] is None
+        assert props["$ai_output_state"] == {"answer": "Hi there"}
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ANSWERED
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_context_manager_exception(
@@ -81,7 +89,10 @@ class TestPosthogTracingCallback:
         call_args = mock_posthog.capture.call_args
         assert call_args is not None
         assert call_args.kwargs["event"] == "$ai_trace"
-        assert call_args.kwargs["properties"]["$ai_is_error"] is True
+        props = call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is True
+        assert props["$ai_output_state"] == "Test error"
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ERROR
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_with_output(self, mock_get_client, assistant_chat_fixture):
@@ -98,6 +109,118 @@ class TestPosthogTracingCallback:
         call_args = mock_posthog.capture.call_args
         props = call_args.kwargs["properties"]
         assert props["$ai_output_state"] == {"answer": "The answer is 42"}
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_merges_tool_calls_into_the_answer(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """Tool names recorded during the run are merged into the output."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with callback.trace(assistant_chat_fixture, "Hello") as tracer:
+            _tool_calls.get().append("list_tables")
+            _tool_calls.get().append("create_rows")
+            tracer.set_trace_output("Done")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_output_state"] == {
+            "answer": "Done",
+            "tool_calls": ["list_tables", "create_rows"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_exception_keeps_the_message_without_tool_calls(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """The error path stays a plain string, so no tool names are merged."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(ValueError):
+            with callback.trace(assistant_chat_fixture, "Hello"):
+                _tool_calls.get().append("list_tables")
+                raise ValueError("Boom")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_output_state"] == "Boom"
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ERROR
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_without_answer_is_an_error(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """A run that ends normally without an answer is a silent failure."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with callback.trace(assistant_chat_fixture, "Hello"):
+            _tool_calls.get().append("create_rows")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is True
+        assert props["assistant_outcome"] == AssistantTraceOutcome.NO_ANSWER
+        assert props["$ai_output_state"] == {
+            "status": "no_answer",
+            "tool_calls": ["create_rows"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_cancelled_by_user_is_not_an_error(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """Pressing stop is a legitimate no-answer run, not a failure."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(asyncio.CancelledError):
+            with callback.trace(
+                assistant_chat_fixture, "Hello", cancelled_by_user=lambda: True
+            ):
+                _tool_calls.get().append("list_tables")
+                raise asyncio.CancelledError()
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is False
+        assert props["assistant_outcome"] == AssistantTraceOutcome.CANCELLED
+        assert props["$ai_output_state"] == {
+            "status": "cancelled",
+            "tool_calls": ["list_tables"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_interrupted_without_user_cancel(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """A dropped run is reported apart from a deliberate cancel."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(asyncio.CancelledError):
+            with callback.trace(
+                assistant_chat_fixture, "Hello", cancelled_by_user=lambda: False
+            ):
+                raise asyncio.CancelledError()
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is False
+        assert props["assistant_outcome"] == AssistantTraceOutcome.INTERRUPTED
+        assert props["$ai_output_state"] == {"status": "interrupted"}
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_sets_and_clears_context_var(
@@ -564,23 +687,6 @@ class TestPosthogSpanProcessor:
         assert "$ai_span" in events
 
 
-class TestSetupInstrumentation:
-    """Test the one-time instrumentation setup."""
-
-    @patch("baserow_enterprise.assistant.telemetry._instrumentation_ready", False)
-    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_setup_skipped_when_posthog_disabled(self, mock_get_client):
-        """Test that setup is skipped when POSTHOG_ENABLED is False."""
-
-        from baserow_enterprise.assistant.telemetry import setup_instrumentation
-
-        # POSTHOG_ENABLED is False in test settings
-        setup_instrumentation()
-
-        # Should not have called get_posthog_client (nothing was set up)
-        mock_get_client.assert_not_called()
-
-
 class TestEndToEndOtelPipeline:
     """Integration: verify that a real pydantic-ai Agent run produces
     PostHog events via the OTel span exporter."""
@@ -644,3 +750,169 @@ class TestEndToEndOtelPipeline:
         finally:
             # Clean up global instrumentation so other tests aren't affected.
             Agent.instrument_all(None)
+
+
+@pytest.fixture
+def reset_instrumentation():
+    telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
+    yield
+    telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
+
+
+class TestSetupInstrumentation:
+    @override_settings(POSTHOG_ENABLED=False, BASEROW_ASSISTANT_PHOENIX_URL="")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_noop_when_nothing_is_configured(
+        self, mock_instrument, reset_instrumentation
+    ):
+        telemetry.setup_instrumentation()
+
+        mock_instrument.assert_not_called()
+        assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_get_assistant_tracer_provider_returns_provider_after_setup(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        assert telemetry.get_assistant_tracer_provider() is None
+
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ),
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        assert (
+            telemetry.get_assistant_tracer_provider() is mock_provider_cls.return_value
+        )
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_only_adds_openinference_and_otlp_processors(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        provider = mock_provider_cls.return_value
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ) as mock_oi,
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_batch,
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_exporter.assert_called_once_with(endpoint="http://phoenix:6006/v1/traces")
+        added = [c.args[0] for c in provider.add_span_processor.call_args_list]
+        assert added == [mock_oi.return_value, mock_batch.return_value]
+        mock_instrument.assert_called_once()
+        assert telemetry._instrumentation_ready is True
+
+    @override_settings(
+        POSTHOG_ENABLED=True,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.PosthogSpanProcessor")
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_posthog_processor_runs_before_openinference(
+        self, mock_instrument, mock_provider_cls, mock_posthog, reset_instrumentation
+    ):
+        provider = mock_provider_cls.return_value
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ),
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        added = [c.args[0] for c in provider.add_span_processor.call_args_list]
+        assert len(added) == 3
+        assert added[0] is mock_posthog.return_value
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_does_not_activate_instrumentation(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with patch.dict(
+            sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_instrument.assert_not_called()
+        assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_warns_once_per_process(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch.dict(
+                sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+            ),
+            patch("baserow_enterprise.assistant.telemetry.logger") as mock_logger,
+        ):
+            telemetry.setup_instrumentation()
+            telemetry._instrumentation_ready = False
+            telemetry.setup_instrumentation()
+
+        assert mock_logger.warning.call_count == 1
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+        BASEROW_ASSISTANT_PHOENIX_API_KEY="team-key",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_api_key_sent_as_bearer_header(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_exporter.assert_called_once_with(
+            endpoint="http://phoenix:6006/v1/traces",
+            headers={"authorization": "Bearer team-key"},
+        )

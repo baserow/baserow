@@ -16,7 +16,7 @@
   },
   "automationHistoryGuidedTourStep": {
     "title": "View workflow history",
-    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results, and you can cancel a run that's still in progress from here too."
   },
   "automationPublishGuidedTourStep": {
     "title": "Publish your workflow",
@@ -106,13 +106,20 @@
     "statusStarted": "In progress...",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
+    "statusCancelled": "Cancelled",
     "statusSuccessBadge": "Completed",
     "statusErrorBadge": "Failed",
+    "statusSkippedBadge": "Skipped",
     "statusDisabled": "Disabled by Baserow",
+    "startedBy": "Started by {name}",
     "successfulRuns": "Successful runs",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
     "running": "Running for {at}s",
+    "cancelRun": "Cancel this workflow run",
+    "cancelling": "Cancelling this run. It will stop once the current node finishes.",
+    "cancellationAlreadyRequestedTitle": "Cancellation already requested",
+    "cancellationAlreadyRequested": "Somebody else already requested the cancellation of this run. It will stop once the current node finishes.",
     "failedRuns": "Failed runs",
     "errorHideDetails": "Hide details",
     "errorShowDetails": "Show details",
@@ -142,6 +149,11 @@
     "startWorkflowLabel": "Start {workflowName}",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
+    "routerHistoryLabel": "{label} ({edge})",
+    "gotoNodeLabel": "Go to node",
+    "gotoNodeLabelWithDestination": "Go to node → {destination}",
+    "gotoHistoryLabel": "{label} → {destination}",
+    "responseLabel": "Response",
     "iterationLabel": "Iterate on items",
     "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
@@ -167,13 +179,15 @@
     "moreReplace": "Replace",
     "nodeOptions": "Node options",
     "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
-    "moreDuplicate": "Duplicate"
+    "moreDuplicate": "Duplicate",
+    "gotoMarkerSource": "Jumps to marker {marker}",
+    "gotoMarkerDestination": "Destination of marker {marker}"
   },
   "workflowAddNode": {
     "displayTitle": "Create automation node"
   },
   "workflowNodeContext": {
-    "searchPlaceholderTrigger": "Search for a trigger...",
+    "searchPlaceholderTrigger": "Search for an event...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
   },
@@ -185,7 +199,8 @@
     "coreHTTPTrigger": "HTTP trigger",
     "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows",
     "coreManualTrigger": "Manual trigger",
-    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow"
+    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow",
+    "responseLabel": "Response"
   },
   "workflowEditor": {
     "chooseEvent": "Choose an event..."
@@ -201,5 +216,8 @@
     "testNodeDescription": "Test this node to confirm the configuration is correct. Data from this test can be used in later steps.",
     "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload"
+  },
+  "lastViewedItemType": {
+    "automationWorkflow": "Workflow"
   }
 }

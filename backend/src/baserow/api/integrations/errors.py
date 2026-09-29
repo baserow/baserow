@@ -11,3 +11,9 @@ ERROR_INTEGRATION_NOT_IN_SAME_APPLICATION = (
     HTTP_400_BAD_REQUEST,
     "The given integrations do not belong to the same application.",
 )
+
+ERROR_INTEGRATION_CREDENTIAL_REQUIRED = (
+    "ERROR_INTEGRATION_CREDENTIAL_REQUIRED",
+    HTTP_400_BAD_REQUEST,
+    "The credential must be provided again when the connection target changes.",
+)

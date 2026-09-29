@@ -64,7 +64,8 @@ import {
   CollectionElementTypeMixin,
   MultiPageElementTypeMixin,
 } from '@baserow/modules/builder/elementTypeMixins'
-import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
+import { isValidEmail } from '@baserow/modules/core/utils/string'
+import { getBuilderBreakpoints } from '@baserow/modules/builder/utils/breakpoints'
 
 import {
   VISIBILITY_NOT_LOGGED,
@@ -128,6 +129,16 @@ export class ElementType extends Registerable {
 
   get component() {
     return null
+  }
+
+  /**
+   * Returns the responsive CSS required when this element is rendered publicly.
+   *
+   * @param {Object} builder The application builder being rendered.
+   * @returns {string}
+   */
+  getPublicResponsiveStyles(builder) {
+    return ''
   }
 
   get editComponent() {
@@ -1122,6 +1133,30 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return ColumnElementForm
   }
 
+  getPublicResponsiveStyles(builder) {
+    const { mobile, tablet } = getBuilderBreakpoints(builder)
+
+    return `
+      @media (min-width: ${tablet + 1}px) {
+        .column-element--public.column-element--stack-desktop {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (min-width: ${mobile + 1}px) and (max-width: ${tablet}px) {
+        .column-element--public.column-element--stack-tablet {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: ${mobile}px) {
+        .column-element--public.column-element--stack-smartphone {
+          grid-template-columns: 1fr;
+        }
+      }
+    `
+  }
+
   getElementPlaces(element) {
     return [...Array(element.column_amount)].map((_, index) => `${index}`)
   }
@@ -1286,6 +1321,16 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
    */
   getErrorMessage(element, applicationContext) {
     const { builder } = applicationContext
+    const elementPage = this.app.$store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+    const workflowActions = this.app.$store.getters[
+      'builderWorkflowAction/getElementWorkflowActions'
+    ](elementPage, element.id)
+    const workflowActionEvents = new Set(
+      workflowActions.map(({ event }) => event)
+    )
 
     const hasCollectionFieldInError = element.fields.some((collectionField) => {
       const collectionFieldType = this.app.$registry.get(
@@ -1294,7 +1339,9 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
       )
       return collectionFieldType.isInError({
         field: collectionField,
+        element,
         builder,
+        workflowActionEvents,
       })
     })
 
@@ -1431,12 +1478,13 @@ export class InputTextElementType extends FormElementType {
   }
 
   isValid(element, value) {
-    if (!value && value !== 0) {
+    if (value === null || value === undefined || value === '') {
       return !element.required
     }
     switch (element.validation_type) {
       case 'integer':
-        return isNumeric(value)
+        // Failed parsing leaves raw text in form data for display.
+        return Number.isFinite(value)
       case 'email':
         return isValidEmail(value)
       default:
@@ -1950,7 +1998,8 @@ export class ChoiceElementType extends FormElementType {
     ).map(({ value }) => value)
 
     const validOption = element.multiple
-      ? optionValues.some((option) => value.includes(option))
+      ? Array.isArray(value) &&
+        optionValues.some((option) => value.includes(option))
       : optionValues.includes(value)
 
     return !(element.required && !validOption)
@@ -1960,6 +2009,9 @@ export class ChoiceElementType extends FormElementType {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
         return this.app.$i18n.t('elementType.errorOptionsMissing')
+      }
+      if (element.options.some(({ name }) => !ensureString(name).trim())) {
+        return this.app.$i18n.t('elementType.errorOptionNameMissing')
       }
     } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
       if (element.formula_value === '') {
@@ -2125,8 +2177,41 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
     return RecordSelectorElementForm
   }
 
-  formDataType(element) {
-    return element.multiple ? 'array' : 'number'
+  getRecordIdServiceType(element, applicationContext) {
+    if (!applicationContext?.builder || !applicationContext?.page) {
+      return null
+    }
+    const dataSource = this.getDataSourceForElement({
+      builder: applicationContext.builder,
+      page: applicationContext.page,
+      element,
+    })
+    if (!dataSource) {
+      return null
+    }
+    return this.app.$registry.get('service', dataSource.type)
+  }
+
+  getRecordIdDataType(element, applicationContext) {
+    const serviceType = this.getRecordIdServiceType(element, applicationContext)
+    if (!serviceType) {
+      return 'number'
+    }
+    return serviceType.getRecordIdDataType?.() || 'number'
+  }
+
+  formDataType(element, applicationContext) {
+    return element.multiple
+      ? 'array'
+      : this.getRecordIdDataType(element, applicationContext)
+  }
+
+  getRecordIdParser(element, applicationContext) {
+    const serviceType = this.getRecordIdServiceType(element, applicationContext)
+    if (!serviceType) {
+      return ensureInteger
+    }
+    return serviceType.parseRecordId.bind(serviceType)
   }
 
   getInitialFormDataValue(element, applicationContext) {
@@ -2135,10 +2220,11 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
         ...applicationContext,
         element,
       })
+      const parseRecordId = this.getRecordIdParser(element, applicationContext)
       if (element.multiple) {
-        return ensureArray(resolvedFormula).map(ensureInteger)
+        return ensureArray(resolvedFormula).map(parseRecordId)
       } else {
-        return ensureInteger(resolvedFormula)
+        return parseRecordId(resolvedFormula)
       }
     } catch {
       return element.multiple ? [] : null
@@ -2183,17 +2269,18 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
     return super.getErrorMessage(element, applicationContext)
   }
 
-  getDataSchema(element) {
-    const type = this.formDataType(element)
-    if (type === 'number') {
+  getDataSchema(element, applicationContext) {
+    const type = this.formDataType(element, applicationContext)
+    const recordIdType = this.getRecordIdDataType(element, applicationContext)
+    if (type === 'number' || type === 'string') {
       return {
-        type: 'number',
+        type,
       }
     } else if (type === 'array') {
       return {
         type: 'array',
         items: {
-          type: 'number',
+          type: recordIdType,
         },
       }
     }

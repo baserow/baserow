@@ -1,3 +1,5 @@
+import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
+
 export default (client) => {
   return {
     create(pageId, workflowActionType, eventType, configuration = null) {
@@ -33,7 +35,7 @@ export default (client) => {
         payload
       )
     },
-    dispatch(workflowActionId, data, files) {
+    dispatch(workflowActionId, data, files, builderId = null) {
       const formData = new FormData()
 
       Object.entries(files).forEach(([key, file]) => {
@@ -42,7 +44,12 @@ export default (client) => {
       formData.append('metadata', JSON.stringify(data))
 
       return client.post(
-        `builder/workflow_action/${workflowActionId}/dispatch/`,
+        builderId
+          ? getBuilderPreviewApiPath(
+              builderId,
+              `workflow-actions/${workflowActionId}/dispatch/`
+            )
+          : `builder/workflow_action/${workflowActionId}/dispatch/`,
         formData,
         {
           headers: {

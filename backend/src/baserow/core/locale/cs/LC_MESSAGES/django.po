@@ -3,16 +3,16 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-12-16 15:08+0000\n"
-"Last-Translator: Marek Václavík <marcus@seznam.cz>\n"
-"Language-Team: Czech <https://hosted.weblate.org/projects/baserow/"
-"backend-core/cs/>\n"
+"PO-Revision-Date: 2026-08-16 00:51+0000\n"
+"Last-Translator: Michal Várady <miko.vaji@gmail.com>\n"
+"Language-Team: Czech <https://hosted.weblate.org/projects/baserow/backend-"
+"core/cs/>\n"
 "Language: cs\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=((n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2);\n"
-"X-Generator: Weblate 5.9\n"
+"X-Generator: Weblate 2026.9.dev0\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -26,7 +26,7 @@ msgstr "Smazat skupinu"
 #: src/baserow/core/actions.py:37
 #, python-format
 msgid "Group \"%(group_name)s\" (%(group_id)s) deleted."
-msgstr "Skupina\"%(group_name)s\" (%(group_id)s) smazána."
+msgstr "Skupina \"%(group_name)s\" (%(group_id)s) smazána."
 
 #: src/baserow/core/actions.py:97
 msgid "Create group"
@@ -168,8 +168,8 @@ msgid ""
 "Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s was accepted."
 msgstr ""
-"Pozvánka (%(invitation_id)s) k připojení do \"%(group_name)s\" (%(group_id)s)"
-" jako %(permissions)s , kterou odeslal \"%(sender)s\" , byla přijata."
+"Pozvánka (%(invitation_id)s) k připojení do \"%(group_name)s\" (%(group_id)"
+"s) jako %(permissions)s , kterou odeslal \"%(sender)s\", byla přijata."
 
 #: src/baserow/core/actions.py:901
 msgid "Reject group invitation"
@@ -211,26 +211,26 @@ msgstr "Opuštění skupiny \"%(group_name)s\" (%(group_id)s) provedeno."
 #: src/baserow/core/emails.py:103
 #, python-format
 msgid "%(by)s invited you to %(workspace_name)s - Baserow"
-msgstr "%(by)s Tě pozval do %(workspace_name)s - Baserow"
+msgstr "%(by)s Vás pozval do %(workspace_name)s - Baserow"
 
 #: src/baserow/core/emails.py:136
 msgid "You have 1 new notification - Baserow"
-msgstr "Máš 1 nové oznámení - Baserow"
+msgstr "Máte 1 nové oznámení - Baserow"
 
 #: src/baserow/core/emails.py:138
 #, python-format
 msgid "You have %(count)d new notifications - Baserow"
-msgstr "Máš tento počet nových oznámení: %(count)d - Baserow"
+msgstr "Máte tento počet nových oznámení: %(count)d - Baserow"
 
 #: src/baserow/core/notification_types.py:94
 #, python-format
 msgid "%(user)s accepted your invitation to collaborate to %(workspace_name)s."
-msgstr "%(user)s přijal Tvoji pozvánku ke spolupráci v %(workspace_name)s."
+msgstr "%(user)s přijal Vaši pozvánku ke spolupráci v %(workspace_name)s."
 
 #: src/baserow/core/notification_types.py:135
 #, python-format
 msgid "%(user)s rejected your invitation to collaborate to %(workspace_name)s."
-msgstr "%(user)s zamítnul Tvoji pozvánku ke spolupráci v %(workspace_name)s."
+msgstr "%(user)s zamítnul Vaši pozvánku ke spolupráci v %(workspace_name)s."
 
 #: src/baserow/core/snapshots/actions.py:21
 msgid "Create Snapshot"
@@ -284,8 +284,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(group_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> Tě pozval ke spolupráci v "
-"<strong>%(group_name)s</strong>."
+"<strong>%(first_name)s</strong> Vás pozval ke spolupráci v <strong>%"
+"(group_name)s</strong>."
 
 #: src/baserow/core/templates/baserow/core/group_invitation.html:163
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:167
@@ -312,9 +312,9 @@ msgstr ""
 #, python-format
 msgid "You have %(counter)s new notification"
 msgid_plural "You have %(counter)s new notifications"
-msgstr[0] "Máš %(counter)s nové oznámení"
-msgstr[1] "Máš %(counter)s nová oznámení"
-msgstr[2] "Máš %(counter)s nových oznámení"
+msgstr[0] "Máte %(counter)s nové oznámení"
+msgstr[1] "Máte %(counter)s nová oznámení"
+msgstr[2] "Máte %(counter)s nových oznámení"
 
 #: src/baserow/core/templates/baserow/core/notifications_summary.html:187
 #, python-format
@@ -338,7 +338,7 @@ msgid ""
 "Your account (%(username)s) on Baserow (%(public_web_frontend_hostname)s) "
 "has been permanently deleted."
 msgstr ""
-"Tvůj účet (%(username)s) v Baserow (%(public_web_frontend_hostname)s) byl "
+"Váš účet (%(username)s) v Baserow (%(public_web_frontend_hostname)s) byl "
 "nevratně odstraněn."
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:144
@@ -352,8 +352,8 @@ msgid ""
 "was pending deletion, but you've logged in so this operation has been "
 "cancelled."
 msgstr ""
-"Tvůj účet (%(username)s) v Baserow (%(public_web_frontend_hostname)s) byl v "
-"procesu odstranění, ale z důvodu přihlášení byl proces odstranění zrušen.."
+"Váš účet (%(username)s) v Baserow (%(public_web_frontend_hostname)s) byl v "
+"procesu odstranění, ale protože jste se přihlásili, byl tento proces zrušen."
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:144
 msgid "Account pending deletion"
@@ -365,16 +365,16 @@ msgid ""
 "Your account (%(username)s) on Baserow (%(public_web_frontend_hostname)s) "
 "will be permanently deleted in %(days_left)s days."
 msgstr ""
-"Do odstranění Tvého účtu (%(username)s) v Baserow "
-"(%(public_web_frontend_hostname)s) zbývá tento počet dnů: %(days_left)s."
+"Do odstranění Vašeho účtu (%(username)s) v Baserow (%"
+"(public_web_frontend_hostname)s) zbývá tento počet dnů: %(days_left)s."
 
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:154
 msgid ""
 "If you've changed your mind and want to cancel your account deletion, you "
 "just have to login again."
 msgstr ""
-"Pokud ses rozhodnul zrušit proces odstranění Tvého účtu, stačí jednoduše "
-"znovu se přihlásit."
+"Pokud jste změnili názor a chcete zrušit proces odstranění Vašeho účtu, "
+"stačí se znovu přihlásit."
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:144
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:163
@@ -388,9 +388,9 @@ msgid ""
 "(%(public_web_frontend_hostname)s). If you did not authorize this, you may "
 "simply ignore this email."
 msgstr ""
-"Byl zadán požadavek k resetu hesla u Tvého účtu (%(username)s) v Baserow "
-"(%(public_web_frontend_hostname)s). Pokud jsi to nebyl Ty, můžeš tento email "
-"ignorovat."
+"Byl zadán požadavek k resetu hesla u Vašeho účtu (%(username)s) v Baserow (%"
+"(public_web_frontend_hostname)s). Pokud jste tento požadavek neautorizovali, "
+"můžete tento e-mail ignorovat."
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:154
 #, python-format
@@ -399,8 +399,8 @@ msgid ""
 "will be able to change your password. This link will expire in %(hours)s "
 "hours."
 msgstr ""
-"Pro pokračování resetu Tvého hesla klikni na tlačítko níže, následně budeš "
-"moci heslo změnit. Platnost tohoto odkazu vyprší za %(hours)s hodin."
+"Pro pokračování resetu Vašeho hesla klikněte na tlačítko níže, následně "
+"budete moci heslo změnit. Platnost tohoto odkazu vyprší za %(hours)s hodin."
 
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:149
 #, python-format
@@ -408,8 +408,8 @@ msgid ""
 "<strong>%(first_name)s</strong> has invited you to collaborate on <strong>"
 "%(workspace_name)s</strong>."
 msgstr ""
-"<strong>%(first_name)s</strong> Tě pozval ke spolupráci na "
-"<strong>%(workspace_name)s</strong>."
+"<strong>%(first_name)s</strong> Vás pozval ke spolupráci na <strong>%"
+"(workspace_name)s</strong>."
 
 #: src/baserow/core/trash/actions.py:20
 msgid "Empty trash"
@@ -551,4 +551,4 @@ msgstr "Odstranění účtu bylo zrušeno - Baserow"
 #: src/baserow/core/user/handler.py:248
 #, python-format
 msgid "%(name)s's workspace"
-msgstr "%(name)s's pracovní prostor"
+msgstr "Pracovní prostor uživatele %(name)s"

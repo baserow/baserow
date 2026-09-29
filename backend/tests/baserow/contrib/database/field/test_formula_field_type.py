@@ -1631,7 +1631,7 @@ def test_formula_field_type_lookup_sorting_array_text(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1640,7 +1640,7 @@ def test_formula_field_type_lookup_sorting_array_text(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1691,7 +1691,7 @@ def test_formula_field_type_lookup_sorting_array_numbers(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1700,7 +1700,7 @@ def test_formula_field_type_lookup_sorting_array_numbers(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1761,7 +1761,7 @@ def test_formula_field_type_lookup_sorting_array_numbers_fractions(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1770,7 +1770,7 @@ def test_formula_field_type_lookup_sorting_array_numbers_fractions(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1818,7 +1818,7 @@ def test_formula_field_type_lookup_sorting_array_boolean(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1827,7 +1827,7 @@ def test_formula_field_type_lookup_sorting_array_boolean(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -1922,7 +1922,7 @@ def test_formula_field_type_lookup_sorting_single_select(
         view=grid_view, field=formula_field, order="DESC"
     )
     model = table.get_model()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
 
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
@@ -1932,7 +1932,7 @@ def test_formula_field_type_lookup_sorting_single_select(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2011,7 +2011,7 @@ def test_formula_field_type_lookup_sorting_array_datetimes(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2020,7 +2020,7 @@ def test_formula_field_type_lookup_sorting_array_datetimes(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2099,7 +2099,7 @@ def test_formula_field_type_lookup_sorting_array_dates(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=formula_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2108,7 +2108,7 @@ def test_formula_field_type_lookup_sorting_array_dates(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup = [
         getattr(r, f"field_{formula_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2158,21 +2158,21 @@ def test_formula_single_select_field_type_sorting(data_fixture):
         view=grid_view, field=formula_field, order="ASC"
     )
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_2.id, row_1.id, row_4.id, row_3.id]
 
     sort.order = "DESC"
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_1.id, row_4.id, row_2.id, row_5.id]
 
     sort.order = "ASC"
     sort.save()
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_2.id, row_1.id, row_4.id, row_3.id]
 

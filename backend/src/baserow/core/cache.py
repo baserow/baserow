@@ -19,7 +19,7 @@ T = TypeVar("T")
 
 # This var is to invalidate global cache when we can't bump the Baserow version for
 # some reason.
-GLOBAL_CACHE_VERSION = 2
+GLOBAL_CACHE_VERSION = 3
 
 
 class LocalCache:
@@ -72,6 +72,22 @@ class LocalCache:
             logger.debug(f"Local cache hit {key}")
 
         return cached[key]
+
+    def get_if_cached(self, key: str, default: T = None) -> T:
+        """
+        Returns the value cached for the key without computing or storing anything,
+        unlike `get`, which stores the default on a miss. The default is returned when
+        the key isn't cached or the cache is disabled.
+
+        :param key: The key to look up.
+        :param default: The value to return on a cache miss.
+        :return: The cached value or the default.
+        """
+
+        if not settings.BASEROW_USE_LOCAL_CACHE or not hasattr(self._local, "cache"):
+            return default
+
+        return self._local.cache.get(key, default)
 
     def delete(self, key: str):
         """
@@ -214,7 +230,8 @@ class GlobalCache:
         key: str,
         default: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
-        timeout: int = 60,
+        timeout: int | Callable[[T], int] = 60,
+        lock_timeout: int = 10,
     ) -> T:
         """
         Retrieves a value from the cache if it exists; otherwise, sets it using the
@@ -232,8 +249,13 @@ class GlobalCache:
         :param default: The default value to store in the cache if the key is absent.
                         Can be either a literal value or a callable. If it's a callable,
                         the function is called to retrieve the default value.
-        :param timeout: The cache timeout in seconds for newly set values.
-           Defaults to 60.
+        :param timeout: The cache timeout in seconds for newly set values, or a
+            callable which selects the timeout from the newly computed value.
+            Defaults to 60.
+        :param lock_timeout: The number of seconds after which the lock guarding the
+            computation of the default value expires. Set it above the slowest
+            expected computation: if the lock expires while the computation is
+            still running, the next waiter takes it over and repeats the work.
         :return: The cached value if it exists; otherwise, the newly set value.
         """
 
@@ -243,7 +265,9 @@ class GlobalCache:
         if cached is SENTINEL:
             use_lock = hasattr(cache, "lock")
             if use_lock:
-                cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+                cache_lock = cache.lock(
+                    f"{cache_key_to_use}__lock", timeout=lock_timeout
+                )
                 cache_lock.acquire()
             try:
                 cached = cache.get(cache_key_to_use, SENTINEL)
@@ -256,10 +280,11 @@ class GlobalCache:
                     else:
                         cached = default
 
+                    value_timeout = timeout(cached) if callable(timeout) else timeout
                     cache.set(
                         cache_key_to_use,
                         cached,
-                        timeout=timeout,
+                        timeout=value_timeout,
                     )
                 else:
                     logger.debug(f"Global cache hit for: {key}")
@@ -283,12 +308,13 @@ class GlobalCache:
         default_value: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
         timeout: int = 60,
+        lock_timeout: int = 10,
     ) -> T:
         cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
 
         use_lock = hasattr(cache, "lock")
         if use_lock:
-            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=lock_timeout)
             cache_lock.acquire()
 
         try:

@@ -17,12 +17,19 @@
 
 <script>
 import _ from 'lodash'
+import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
 import WidgetSettingsBaseForm from '@baserow/modules/dashboard/components/widget/WidgetSettingsBaseForm'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'WidgetSettings',
   components: { WidgetSettingsBaseForm },
+  provide() {
+    return {
+      formulaComponent: DashboardFormulaInput,
+      dataProvidersAllowed: [],
+    }
+  },
   props: {
     dashboard: {
       type: Object,

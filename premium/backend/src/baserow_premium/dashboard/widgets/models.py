@@ -1,14 +1,10 @@
 from django.db import models
 
 from baserow.contrib.dashboard.widgets.models import Widget
+from baserow_premium.charts import ChartSeriesChartType
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationSeries,
 )
-
-
-class ChartSeriesChartType(models.TextChoices):
-    BAR = "BAR", "Bar"
-    LINE = "LINE", "Line"
 
 
 class ChartWidget(Widget):

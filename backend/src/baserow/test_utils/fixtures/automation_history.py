@@ -35,17 +35,20 @@ class AutomationHistoryFixtures:
         if status is None:
             status = HistoryStatusChoices.SUCCESS
 
-        is_test_run = kwargs.pop("status", False)
+        is_test_run = kwargs.pop("is_test_run", False)
 
         self.create_local_baserow_create_row_action_node(
             user=user, workflow=original_workflow
         )
 
+        # Anything left is the handler's to accept or refuse, so a misspelt
+        # name fails here instead of quietly building a default row.
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
             workflow=original_workflow,
             started_on=started_on,
             is_test_run=is_test_run,
+            **kwargs,
         )
 
         history.completed_on = completed_on

@@ -6,7 +6,7 @@
           :application="application"
           :service-type="serviceType"
           :default-values="defaultValues"
-          :enable-integration-picker="enableIntegrationPicker"
+          :databases="databases"
           @values-changed="values = { ...values, ...$event }"
         ></LocalBaserowServiceForm>
       </div>
@@ -103,6 +103,7 @@ export default {
         'view_id',
         'search_query',
         'filters',
+        'filter_groups',
         'filter_type',
         'sortings',
         'default_result_count',
@@ -112,6 +113,7 @@ export default {
         view_id: null,
         search_query: {},
         filters: [],
+        filter_groups: [],
         sortings: [],
         filter_type: 'AND',
         default_result_count: null,

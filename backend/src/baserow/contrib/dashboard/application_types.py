@@ -12,6 +12,7 @@ from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
+from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Application, Workspace
@@ -27,6 +28,8 @@ class DashboardApplicationType(ApplicationType):
     serializer_field_names = ["name", "description"]
     allowed_fields = ["description"]
     supports_integrations = True
+    # Dashboard supports runtime functions, but no data provider references.
+    data_provider_type_registry = DataProviderTypeRegistry()
 
     def get_api_urls(self):
         from .api import urls as api_urls

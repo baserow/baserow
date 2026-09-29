@@ -3,10 +3,12 @@
     <Toasts></Toasts>
     <div v-if="creating && creatingFailed" class="onboarding__loading">
       <div class="onboarding__loading-text">
-        {{ $t('onboarding.failedTitle') }}
+        {{ failedJobErrorMessage?.title || $t('onboarding.failedTitle') }}
       </div>
-      <p>
-        {{ $t('onboarding.failedDescription') }}
+      <p class="onboarding__loading-description">
+        {{
+          failedJobErrorMessage?.message || $t('onboarding.failedDescription')
+        }}
       </p>
       <div>
         <Button
@@ -21,7 +23,7 @@
           type="danger"
           size="large"
           :loading="cancelling"
-          @click="cancel"
+          @click="forceCancel()"
           >{{ $t('onboarding.failedSkip') }}</Button
         >
       </div>
@@ -52,12 +54,28 @@
         <div ref="bodyWrapper" class="onboarding__body-wrapper">
           <div class="onboarding__body">
             <div>
-              <component
-                :is="step.getFormComponent()"
-                ref="form"
-                :data="data"
-                @update-data="updateData"
-              ></component>
+              <div class="onboarding__back">
+                <ButtonText
+                  :ph-autocapture="'onboarding-back-step-' + step.getType()"
+                  icon="iconoir-nav-arrow-left"
+                  :disabled="!canGoBack()"
+                  @click="previous()"
+                  >{{ $t('onboarding.back') }}</ButtonText
+                >
+              </div>
+              <!--
+              The steps are kept alive so that going back doesn't throw away what the
+              user already filled out.
+              -->
+              <KeepAlive>
+                <component
+                  :is="step.getFormComponent()"
+                  ref="form"
+                  :data="data"
+                  @update-data="updateData"
+                  @next-step="goToNextStep"
+                ></component>
+              </KeepAlive>
             </div>
             <div class="onboarding__actions">
               <Button
@@ -98,6 +116,14 @@
         ></component>
       </div>
     </template>
+    <component
+      :is="cancelModal.component"
+      v-if="cancelModal"
+      v-bind="cancelModal.props"
+      @selected="cancelSelected"
+      @cancel="forceCancel(false)"
+      @hidden="cancelModal = null"
+    ></component>
   </div>
 </template>
 
@@ -121,19 +147,7 @@ export default {
     })
 
     definePageMeta({
-      middleware: [
-        'settings',
-        'authenticated',
-        () => {
-          const { $store } = useNuxtApp()
-          // If the user has completed the onboarding, then redirect to the dashboard
-          // page so that the user can create their first one.
-          const user = $store.getters['auth/getUserObject']
-          if (user.completed_onboarding) {
-            return navigateTo({ name: 'dashboard' })
-          }
-        },
-      ],
+      middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
     })
   },
   data() {
@@ -142,10 +156,13 @@ export default {
       data: {},
       creating: false,
       creatingFailed: false,
+      failedJobErrorMessage: null,
+      jobPollingError: null,
       cancelling: false,
       reloading: false,
       message: null,
       component: null,
+      cancelModal: null,
     }
   },
   computed: {
@@ -166,21 +183,62 @@ export default {
     canSkip() {
       return this.step.canSkip()
     },
+    updateData() {
+      const type = this.step.getType()
+      return (data) => {
+        this.data = { ...this.data, [type]: data }
+      }
+    },
   },
   methods: {
     /**
-     * Called when the user wants to go to the user step. This means that the provided
-     * form values must be valid. If the onboarding reached the end, it should
-     * automatically complete it.
+     * Called when the user clicks on the continue button. A form component can
+     * handle that click itself by implementing `beforeNext` and returning `true`,
+     * which is needed when it asks several questions in a row.
      */
     async next() {
+      if (this.$refs.form?.beforeNext?.() === true) {
+        return
+      }
+      await this.goToNextStep()
+    },
+    /**
+     * Called when the user clicks on the back button. A form component that walks
+     * through several questions itself handles the click by implementing
+     * `canGoBack` and `goBack`.
+     */
+    previous() {
+      if (this.$refs.form?.canGoBack?.() === true) {
+        this.$refs.form.goBack()
+      } else {
+        this.stepIndex--
+        this.afterStepChange()
+      }
+    },
+    /**
+     * `isValid` and `canGoBack` read from the step's component, which is only
+     * available in `$refs` after it has rendered. Steps are kept alive, so there is
+     * no `mounted` that emits data and re-renders us, and we must do it ourselves.
+     */
+    afterStepChange() {
+      this.$nextTick(() => {
+        this.$refs.bodyWrapper.scrollTop = 0
+        this.$forceUpdate()
+      })
+    },
+    canGoBack() {
+      return this.stepIndex > 0 || this.$refs.form?.canGoBack?.() === true
+    },
+    /**
+     * Moves to the next step. If the onboarding reached the end, it should
+     * automatically complete it.
+     */
+    async goToNextStep() {
       if (this.stepIndex === this.steps.length - 1) {
         await this.complete()
       } else {
         this.stepIndex++
-        this.$nextTick(() => {
-          this.$refs.bodyWrapper.scrollTop = 0
-        })
+        this.afterStepChange()
       }
     },
     /**
@@ -191,7 +249,7 @@ export default {
       // If the step is skipped, we don't want to store any left over data of the form
       // because that can influence what happens when completing.
       delete this.data[this.step.getType()]
-      await this.next()
+      await this.goToNextStep()
     },
     /**
      * Called when all the steps have been filled out. It will start the process off
@@ -203,7 +261,7 @@ export default {
     async complete() {
       this.creating = true
       const responses = {}
-      let route = { name: 'dashboard' }
+      let route = { name: 'all-workspaces' }
 
       const completeCallback = (message = null, component = null) => {
         this.message = message
@@ -240,6 +298,15 @@ export default {
             this.job = null
           } catch (error) {
             this.creatingFailed = true
+            // The polled job holds the reason of the failure, so the step can
+            // provide a specific explanation that helps the user take action.
+            if (this.job) {
+              this.failedJobErrorMessage = step.getJobErrorMessage(
+                this.job,
+                this.data,
+                responses
+              )
+            }
             console.error(error)
             return
           }
@@ -255,7 +322,7 @@ export default {
       await this.markAsComplete()
 
       // Clear all workspaces and application so that they're fetched again when
-      // navigating to the dashboard. This will make sure that everything is correctly
+      // navigating to the next page. This will make sure that everything is correctly
       // loaded.
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
@@ -263,8 +330,8 @@ export default {
       this.$router.push(route)
     },
     /**
-     * Mark the onboarding as completed, and redirect the user to the dashboard so
-     * that they can start working with their database.
+     * Mark the onboarding as completed so that the user is redirected to the all
+     * workspaces homepage instead of the onboarding the next time.
      */
     async markAsComplete() {
       try {
@@ -277,11 +344,53 @@ export default {
       }
     },
     /**
-     * Called when the user clicks on the cancel button. This will stop the onboarding,
-     * create an initial workspace, and mark it as completed.
+     * Called when the user clicks on the cancel button. Before actually cancelling, the
+     * step gets the opportunity to offer the user an alternative, like choosing a
+     * template. If it doesn't, the onboarding is cancelled immediately.
      */
     async cancel() {
       this.cancelling = true
+
+      let modal = null
+      try {
+        modal = await this.step.getCancelModal()
+      } catch (error) {
+        // Failing to offer an alternative must never block the user from leaving the
+        // onboarding, so we're falling back on cancelling it.
+        console.error(error)
+      }
+
+      if (modal) {
+        this.cancelModal = {
+          stepType: this.step.getType(),
+          component: markRaw(modal.component),
+          props: modal.props || {},
+        }
+        this.cancelling = false
+        return
+      }
+
+      await this.forceCancel()
+    },
+    /**
+     * Called when the user chose an alternative to cancelling the onboarding. The data
+     * belongs to the step that offered the alternative, so that the onboarding can be
+     * completed as if the user filled out that step.
+     */
+    async cancelSelected(data) {
+      const { stepType } = this.cancelModal
+      this.cancelModal = null
+      this.data = { ...this.data, [stepType]: data }
+      await this.complete()
+    },
+    /**
+     * Stops the onboarding, creates an initial workspace, and marks it as completed. A
+     * modal offering an alternative can cancel with `showLoading = false` if it shows
+     * a loading state of its own, because it stays mounted until the user is
+     * redirected.
+     */
+    async forceCancel(showLoading = true) {
+      this.cancelling = showLoading
       try {
         const { data: workspace } = await WorkspaceService(
           this.$client
@@ -295,14 +404,11 @@ export default {
       }
       await this.markAsComplete()
       // Clear all workspaces and application so that they're fetched again when
-      // navigating to the dashboard. This will make sure that everything is correctly
+      // navigating to the next page. This will make sure that everything is correctly
       // loaded.
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
-      this.$router.push({ name: 'dashboard' })
-    },
-    updateData(data) {
-      this.data = { ...this.data, [this.step.getType()]: data }
+      this.$router.push({ name: 'all-workspaces' })
     },
     isValid() {
       const form = this.$refs?.form
@@ -327,6 +433,7 @@ export default {
       location.reload()
     },
     startAndWaitForJob(job) {
+      this.jobPollingError = null
       this.startJobPoller(job)
 
       return new Promise((resolve, reject) => {
@@ -337,9 +444,17 @@ export default {
           } else if (this.jobHasFailed) {
             clearInterval(intervalId)
             reject(new Error('job failed'))
+          } else if (this.jobPollingError !== null) {
+            clearInterval(intervalId)
+            reject(this.jobPollingError)
           }
         }, 100)
       })
+    },
+    onJobPollingError(error) {
+      // Without storing the error, the interval in `startAndWaitForJob` would keep
+      // spinning forever because the job is reset when polling fails.
+      this.jobPollingError = error
     },
   },
 }

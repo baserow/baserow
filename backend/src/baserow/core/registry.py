@@ -538,7 +538,9 @@ class EasyImportExportMixin(Generic[T], ABC):
     SerializedDict: Type[TypedDict]
 
     # List of fields that are potentially sensitive and shouldn't be included
-    # when exporting the application.
+    # when exporting the application. This does not hide them from API responses:
+    # integration credentials that must be write-only belong in
+    # `IntegrationType.secret_fields` as well.
     sensitive_fields: List[str] = []
 
     # The parent property name for the model
@@ -729,6 +731,25 @@ class EasyImportExportMixin(Generic[T], ABC):
             id_mapping[self.id_mapping_name][original_instance_id] = created_instance.id
 
         return created_instance
+
+    def after_import(
+        self,
+        instance: T,
+        id_mapping: Dict[str, Any],
+        **kwargs: Dict[str, Any],
+    ) -> Set[T]:
+        """
+        Second-pass hook to remap references to other instances that may not
+        have existed yet during the first import pass (e.g. a forward
+        reference). It is meant to run once every instance of the import has
+        been created, so both backward and forward references can be resolved.
+
+        This method does not save any updates made to the instance. Instead,
+        it returns a set of all updated model instances, and the caller should
+        call `.save()` on them to persist the changes.
+        """
+
+        return set()
 
 
 class Registry(Generic[InstanceSubClass]):

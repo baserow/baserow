@@ -1,5 +1,5 @@
 <template>
-  <ul v-if="!tableLoading" class="header__filter header__filter--full-width">
+  <ul class="header__filter header__filter--full-width">
     <li class="header__filter-item">
       <a
         ref="customizeContextLink"
@@ -45,7 +45,7 @@
 </template>
 
 <script>
-import { mapGetters, mapState } from 'vuex'
+import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
@@ -82,9 +82,6 @@ export default {
   },
   emits: ['refresh'],
   computed: {
-    ...mapState({
-      tableLoading: (state) => state.table.loading,
-    }),
     fieldOptions() {
       return this.$store.getters[
         this.storePrefix + 'view/gallery/getAllFieldOptions'

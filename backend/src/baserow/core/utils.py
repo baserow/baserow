@@ -168,6 +168,44 @@ def extract_allowed(values, allowed_fields):
     return allowed_values
 
 
+def extract_undo_redo_values(instance, values, exclude_fields=()):
+    """
+    Captures the original and new values of an update, so the update can be undone or
+    redone by re-applying them through the same update method.
+
+    For every key in ``values`` that maps to an attribute on ``instance`` (and is not
+    in ``exclude_fields``), the current value is read from the instance (the
+    "original") and the provided value is kept (the "new"). ``values`` is expected to
+    use the service-level vocabulary (e.g. ``integration_id`` rather than
+    ``integration``), so the captured values are JSON-serializable and can be passed
+    straight back into the update method.
+
+    :param instance: The instance being updated, read for its original values.
+    :param values: The incoming update values (service-level vocabulary).
+    :param exclude_fields: Field names to skip, e.g. sensitive fields that must not be
+        stored in the action log and are not user-revertible.
+    :return: A tuple ``(original_values, new_values)``.
+    """
+
+    from django.db.models import Manager, Model
+
+    exclude = set(exclude_fields)
+    original_values = {}
+    new_values = {}
+    for key, value in values.items():
+        if key in exclude or not hasattr(instance, key):
+            continue
+        original = getattr(instance, key)
+        # Skip relations (model instances / related managers): they are not
+        # JSON-serializable for the action log and are managed by their own undoable
+        # actions. FK fields are captured via their JSON-safe ``_id`` keys instead.
+        if isinstance(original, (Model, Manager)):
+            continue
+        original_values[key] = original
+        new_values[key] = value
+    return original_values, new_values
+
+
 def set_allowed_attrs(values, allowed_fields, instance):
     """
     Sets the attributes of the instance with the values of the key names that are in the
@@ -516,15 +554,20 @@ def split_comma_separated_string(comma_separated_string: str) -> List[str]:
 
     :param comma_separated_string: The string to split
     :return: A list of split items from the provided string.
+    :raises ValueError: If the string cannot be parsed as valid CSV (e.g. unquoted
+        newlines).
     """
 
     # Use python's csv handler as it knows how to handle quoted csv values etc.
     # csv.reader returns an iterator, we use next to get the first split row back.
-    return next(
-        csv.reader(
-            [comma_separated_string], delimiter=",", quotechar='"', escapechar="\\"
+    try:
+        return next(
+            csv.reader(
+                [comma_separated_string], delimiter=",", quotechar='"', escapechar="\\"
+            )
         )
-    )
+    except csv.Error as e:
+        raise ValueError(f"Could not split comma separated string: {e}") from e
 
 
 def list_to_comma_separated_string(value_list: List[str]) -> str:
@@ -586,8 +629,10 @@ def remove_invalid_surrogate_characters(
     """
     Removes illegal unicode characters from the provided content. If you for example
     run something like `b"\\ud83d".encode("utf-8")`, it will result in a
-    UnicodeEncodeError. This function removed the illegal characters, it keeps the
-    valid emoji's.
+    UnicodeEncodeError. This function removes lone surrogate escape sequences, but
+    keeps valid surrogate pairs like emoji's. NUL characters are removed as well,
+    both as raw byte and as JSON escape sequence, because PostgreSQL can't store
+    them in text columns.
 
     :param content: The content where the illegal unicode characters must be removed
         from.
@@ -600,7 +645,26 @@ def remove_invalid_surrogate_characters(
     if encoding is None:
         encoding = guess_json_utf(content)
 
-    return re.sub(r"\\u(d|D)([a-z|A-Z|0-9]{3})", "", content.decode(encoding, "ignore"))
+    decoded_content = content.decode(encoding, "ignore")
+    decoded_content = decoded_content.replace("\x00", "")
+
+    # Matching is comparatively expensive, and the escape sequences are rare, so
+    # it's worth skipping the substitution completely if they can't occur.
+    if "\\u" not in decoded_content:
+        return decoded_content
+
+    # Escaped backslashes and valid surrogate pairs are consumed and kept first, so
+    # that a literal backslash followed by for example "u0000" is not mistaken for
+    # an escape sequence, and multi character codepoints like emoji's are not
+    # corrupted. Lone surrogates (U+D800-U+DFFF) and NUL escape sequences are
+    # removed.
+    return re.sub(
+        r"(\\\\|\\u[dD][89abAB][0-9a-fA-F]{2}\\u[dD][c-fC-F][0-9a-fA-F]{2})"
+        r"|\\u[dD][89a-fA-F][0-9a-fA-F]{2}"
+        r"|\\u0000",
+        r"\1",
+        decoded_content,
+    )
 
 
 def split_ending_number(name: str) -> Tuple[str, str]:
@@ -1229,24 +1293,134 @@ def merge_dicts_no_duplicates(*dicts):
     return merged_dict
 
 
-def get_all_ips(hostname: str) -> Set:
+def get_all_ips(hostname: str) -> List[str]:
     """
-    Returns a set of all IP addresses of the provided hostname.
+    Returns a deduplicated list of all IP addresses of the provided hostname,
+    preserving the DNS resolution order (A/AAAA fallback order).
 
     :param hostname: The hostname where to get the IP addresses from.
-    :return: A set containing the IP addresses of the hostname.
+    :return: A list containing the IP addresses of the hostname in DNS order.
     """
 
     try:
         addr_info = socket.getaddrinfo(hostname, None)
-        # Extract unique IP addresses from addr_info (both IPv4 and IPv6)
-        ips = {info[4][0] for info in addr_info}
-        return ips
+        return list(dict.fromkeys(info[4][0] for info in addr_info))
     except socket.gaierror:
+        return []
+
+
+def _is_ip_unsafe(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Return True if the IP belongs to a category that is always blocked."""
+
+    if (
+        ip_obj.is_unspecified
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+    ):
+        return True
+
+    if isinstance(ip_obj, ipaddress.IPv6Address):
+        # Python incorrectly reports fec0::/10 as is_global=True.
+        if ip_obj.is_site_local:
+            return True
+        # Validate the embedded IPv4 inside mapped addresses (::ffff:x.x.x.x).
+        if ip_obj.ipv4_mapped and _is_ip_unsafe(ip_obj.ipv4_mapped):
+            return True
+        packed = ip_obj.packed
+        # 6to4 (2002::/16): embedded IPv4 sits at bytes 2-6.
+        if packed[:2] == b"\x20\x02":
+            embedded = ipaddress.IPv4Address(packed[2:6])
+            if _is_ip_unsafe(embedded):
+                return True
+        # Teredo (2001:0000::/32): check both server (bytes 4-8) and client
+        # (bitwise-inverted at bytes 12-16) embedded IPv4 addresses.
+        if packed[:4] == b"\x20\x01\x00\x00":
+            server = ipaddress.IPv4Address(packed[4:8])
+            client = ipaddress.IPv4Address(bytes(b ^ 0xFF for b in packed[12:16]))
+            if _is_ip_unsafe(server) or _is_ip_unsafe(client):
+                return True
+
+    return False
+
+
+def _get_local_addresses() -> Set[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Return IP addresses assigned to local network interfaces."""
+
+    try:
+        import netifaces
+    except ImportError:
         return set()
 
+    local = set()
+    for iface in netifaces.interfaces():
+        families = netifaces.ifaddresses(iface)
+        for family in (netifaces.AF_INET, netifaces.AF_INET6):
+            for addr_info in families.get(family, []):
+                raw = addr_info.get("addr", "")
+                if not raw:
+                    continue
+                # Strip IPv6 scope-id suffix (e.g. "%eth0").
+                raw = raw.split("%")[0]
+                try:
+                    local.add(ipaddress.ip_address(raw))
+                except ValueError:
+                    continue
+    return local
 
-def is_hostname_safe(hostname: str) -> bool:
+
+def resolve_and_validate_hostname(
+    hostname: str, allow_private: bool = False
+) -> List[str]:
+    """
+    Resolves the hostname and validates all IPs are safe. Returns a
+    deduplicated list of validated IP address strings in DNS resolution order.
+
+    Unsafe addresses include wildcard, loopback, link-local, multicast,
+    reserved, and site-local IPv6. When ``allow_private`` is False, non-global
+    addresses (RFC 1918, CGNAT 100.64.0.0/10, etc.) are also rejected.
+
+    :param hostname: The hostname to resolve and check.
+    :param allow_private: When True, private/non-global addresses are allowed.
+        Loopback, link-local, and other unsafe ranges are always blocked.
+    :return: List of validated IP address strings in DNS order.
+    :raises ValueError: If the hostname cannot be resolved or any IP is unsafe.
+    """
+
+    ips = get_all_ips(hostname)
+    if not ips:
+        raise ValueError(f"Could not resolve hostname: {hostname}")
+
+    local_addresses = _get_local_addresses()
+
+    for ip in ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+        except ValueError:
+            raise ValueError(f"Invalid IP address: {ip}")
+
+        if _is_ip_unsafe(ip_obj):
+            raise ValueError(f"Unsafe IP address: {ip}")
+
+        if ip_obj in local_addresses:
+            raise ValueError(f"IP address assigned to this host: {ip}")
+
+        if not allow_private and not ip_obj.is_global:
+            raise ValueError(f"Non-global IP address: {ip}")
+
+        if (
+            not allow_private
+            and isinstance(ip_obj, ipaddress.IPv6Address)
+            and ip_obj.ipv4_mapped
+            and not ip_obj.ipv4_mapped.is_global
+        ):
+            raise ValueError(f"Non-global mapped IPv4 in address: {ip}")
+
+    return ips
+
+
+def is_hostname_safe(hostname: str, allow_private: bool = False) -> bool:
     """
     Checks if the hostname resolves only to safe addresses.
 
@@ -1254,32 +1428,25 @@ def is_hostname_safe(hostname: str) -> bool:
     - Wildcard (0.0.0.0, ::)
     - Loopback (127.0.0.0/8, ::1)
     - Link-local (169.254.0.0/16, fe80::/10)
+    - Site-local IPv6 (fec0::/10)
     - Reserved, multicast, etc.
 
+    When ``allow_private`` is False (the default), non-global addresses are
+    also rejected. This covers RFC 1918 ranges, CGNAT (100.64.0.0/10), and
+    other non-globally-routable addresses.
+
     :param hostname: The hostname to check.
+    :param allow_private: When True, private/non-global addresses are allowed
+        through. Loopback, link-local, and other unsafe ranges are always
+        blocked regardless of this flag.
     :return: True if all resolved IPs are safe.
     """
 
-    ips = get_all_ips(hostname)
-    if not ips:
+    try:
+        resolve_and_validate_hostname(hostname, allow_private)
+        return True
+    except ValueError:
         return False
-
-    for ip in ips:
-        try:
-            ip_obj = ipaddress.ip_address(ip)
-        except ValueError:
-            return False
-
-        if (
-            ip_obj.is_unspecified  # wildcard
-            or ip_obj.is_loopback
-            or ip_obj.is_link_local
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-        ):
-            return False
-
-    return True
 
 
 def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
@@ -1293,9 +1460,9 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     :return: True if the hostnames point to the same IP.
     """
 
-    ips1 = get_all_ips(hostname1)
-    ips2 = get_all_ips(hostname2)
-    return not ips1.isdisjoint(ips2)
+    ips1 = set(get_all_ips(hostname1))
+    ips2 = set(get_all_ips(hostname2))
+    return bool(ips1) and not ips1.isdisjoint(ips2)
 
 
 def are_kwargs_default(func, **kwargs):

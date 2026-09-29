@@ -34,7 +34,20 @@
         "themeName": "Thème",
         "domainsName": "Domaines",
         "userSourcesName": "Utilisateurs",
-        "generalName": "Général"
+        "generalName": "Général",
+        "breakpointsName": "Points de rupture"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Points de rupture",
+        "description": "Choisissez quand votre application bascule entre les mises en page mobile, tablette et ordinateur. Les modifications s'appliquent immédiatement dans l'éditeur et à l'application publiée après sa publication.",
+        "mobileLabel": "Point de rupture mobile",
+        "tabletLabel": "Point de rupture tablette",
+        "desktopLabel": "Point de rupture ordinateur",
+        "desktopDescription": "Au-dessus de {breakpoint} px",
+        "updatedTitle": "Points de rupture enregistrés",
+        "updatedDescription": "Vos nouveaux points de rupture sont actifs dans l'éditeur. Publiez votre application pour les appliquer aux visiteurs.",
+        "mobileMustBeLessThanTablet": "Le point de rupture mobile doit être inférieur à celui de la tablette.",
+        "tabletMustBeGreaterThanMobile": "Le point de rupture tablette doit être supérieur à celui du mobile."
     },
     "builderForm": {
         "submit": "Ajouter une application"
@@ -85,6 +98,7 @@
         "choice": "Sélecteur",
         "choiceDescription": "Pour la sélection d'une ou plusieurs valeurs",
         "recordSelector": "Sélecteur d'enregistrement",
+        "errorOptionNameMissing": "Une option n'a pas de nom",
         "recordSelectorDescription": "Pour sélectionner les enregistrements d'une source",
         "dateTimePicker": "Sélecteur de date",
         "dateTimePickerDescription": "Un champ de saisie de la date et de l'heure",
@@ -222,7 +236,9 @@
     "elementForms": {
         "textInputPlaceholder": "Saisissez un texte...",
         "urlInputPlaceholder": "Saisissez une URL...",
-        "invalidFormula": "La formule est invalide"
+        "invalidFormula": "La formule est invalide",
+        "formValidationTitle": "Validation du formulaire",
+        "formValidationHint": "Placez cet élément à l'intérieur d'un formulaire pour afficher les erreurs de validation avant l'envoi des données."
     },
     "imageElement": {
         "emptyState": "Aucun texte alternatif défini...",
@@ -325,7 +341,10 @@
         "authorizedToastTitle": "Authentification requise",
         "loginToastTitle": "Authentification réussie",
         "loginToastMessage": "Vous avez été authentifié·e avec succès.",
-        "authorizedToastMessage": "Vous devez être authentifié·e pour accéder à cette page. Veuillez vous connecter pour continuer."
+        "authorizedToastMessage": "Vous devez être authentifié·e pour accéder à cette page. Veuillez vous connecter pour continuer.",
+        "previewSessionExpiredTitle": "Session d'aperçu expirée",
+        "previewSessionExpiredDescription": "Fermez cet onglet et rouvrez l'aperçu depuis le générateur d'applications.",
+        "loginErrorToastTitle": "Échec de l'authentification"
     },
     "integrationSettings": {
         "title": "Intégrations",
@@ -337,9 +356,11 @@
         "addIntegration": "Ajouter une intégration",
         "noIntegrations": "Aucune intégration trouvée.",
         "selectTypeFirst": "Sélectionnez d'abord le service",
-        "servicePlaceholder": "Sélectionnez un service",
+        "servicePlaceholder": "Sélectionnez une action...",
         "errorUniqueName": "Le nom de la source de données doit être unique.",
-        "integrationPlaceholder": "Sélectionnez une intégration",
+        "integrationPlaceholder": "Sélectionnez une intégration...",
+        "searchActionPlaceholder": "Rechercher des actions",
+        "noActionsFound": "Aucune action trouvée",
         "actionLabel": "Action",
         "integrationLabel": "Intégration",
         "nameLabel": "Nom"
@@ -469,7 +490,7 @@
     },
     "currentRecordDataProviderType": {
         "index": "Index",
-        "firstPartName": "Source de données : {nom}",
+        "firstPartName": "Source de données : {name}",
         "schemaProperty": "{prefixName} : {schemaProperty}"
     },
     "domainForm": {
@@ -491,7 +512,9 @@
         "urlPlaceholder": "Saisir le texte..."
     },
     "event": {
-        "addAction": "ajouter une action"
+        "addAction": "ajouter une action",
+        "searchActions": "Rechercher des actions",
+        "noActionsFound": "Aucune action trouvée"
     },
     "buttonElement": {
         "noValue": "Sans nom...",
@@ -499,7 +522,7 @@
         "emptyValue": "Texte du bouton vide..."
     },
     "tableElement": {
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "showMore": "Afficher plus"
     },
     "fontSidePanelForm": {
@@ -518,17 +541,22 @@
     },
     "workflowActionTypes": {
         "notificationLabel": "Afficher une notification",
+        "notificationDescription": "Afficher un message de notification à l'utilisateur.",
         "openPageLabel": "Ouvrir une page",
+        "openPageDescription": "Rediriger l'utilisateur vers une autre page ou URL.",
         "updateRowLabel": "Mise à jour de ligne",
         "createRowLabel": "Création de ligne",
         "logoutLabel": "Déconnexion",
+        "logoutDescription": "Déconnecter l'utilisateur actuel.",
         "refreshDataSourceLabel": "Actualiser une source de données",
+        "refreshDataSourceDescription": "Recharger une source de données et mettre à jour les éléments qui l'utilisent.",
         "deleteRowLabel": "Supprimer une ligne",
         "httpRequest": "Envoyer une requête HTTP",
         "errorNavigateToPageMissing": "Propriété Naviguer vers manquante",
         "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
         "errorNavigationUrlMissing": "Propriété URL de destination manquante",
-        "errorDataSourceMissing": "Aucune source de données sélectionnée"
+        "errorDataSourceMissing": "Aucune source de données sélectionnée",
+        "errorNotificationContentMissing": "Une notification doit comporter un titre ou une description"
     },
     "getFormulaComponent": {
         "errorTooltip": "Référence invalide"
@@ -537,6 +565,9 @@
         "clickLabel": "Au clic",
         "submitLabel": "Sur validation",
         "afterLoginLabel": "Après la connexion"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Référence invalide"
     },
     "linkFieldForm": {
         "fieldLinkNamePlaceholder": "Saisir la valeur...",
@@ -608,6 +639,8 @@
     },
     "pagePreview": {
         "emptyMessage": "Cliquez pour créer un élément",
+        "fixedHeader": "EN-TÊTE FIXE",
+        "fixedFooter": "PIED DE PAGE FIXE",
         "header": "EN-TÊTE",
         "footer": "PIED DE PAGE"
     },
@@ -639,12 +672,17 @@
         "sourceTypeLabel": "Type de la source",
         "urlLabel": "URL",
         "urlHelp": "Remarque : assurez-vous que vous contrôlez ou faites confiance à l'URL saisie.",
+        "allowSameOriginLabel": "Autoriser l'iframe à accéder aux données de son propre site",
+        "allowSameOriginHelp": "N'activez ceci que pour une URL externe de confiance. Cela permet à l'iframe d'utiliser les cookies, le stockage et d'autres fonctionnalités same-origin dans les aperçus et les applications publiées.",
         "embedLabel": "Embarquer",
         "embedPlaceholder": "Contenu HTML brut à intégrer",
+        "warningTitle": "N'utilisez que du contenu de confiance",
+        "warningMessage": "Le contenu de l'iframe est isolé dans une sandbox dans l'éditeur, où le HTML intégré peut exécuter des scripts de manière isolée. Dans les aperçus et les applications publiées, le HTML intégré peut s'exécuter sans restrictions, tandis que les URL externes peuvent exécuter des scripts, soumettre des formulaires et ouvrir des popups.",
         "heightLabel": "Hauteur (px)",
         "heightPlaceholder": "Hauteur en pixels",
         "emptyValue": "Source vide...",
-        "missingValue": "Source manquante..."
+        "missingValue": "Source manquante...",
+        "editorPreviewPlaceholder": "Cette iframe n'est pas affichée dans l'éditeur.\nUtilisez l'aperçu pour vérifier son apparence dans votre application."
     },
     "linkNavigationSelection": {
         "paramPlaceholder": "Saisir une valeur...",
@@ -739,7 +777,7 @@
     },
     "repeatElement": {
         "showMore": "Afficher plus",
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "missingDataSourceTooltip": "Choisissez une source de données pour commencer à ajouter des éléments.",
         "missingSchemaPropertyTooltip": "Choisissez une propriété pour commencer à ajouter des éléments.",
         "emptyState": "Aucun enregistrement n'a été trouvé."
@@ -889,6 +927,7 @@
         "optionType": "Type d'options",
         "manual": "Manuelle",
         "dataSource": "Source de données",
+        "expressions": "Expressions",
         "formulas": "Formules",
         "addOptionDescription": "Cliquez sur \"ajouter une option\" pour ajouter des options à votre liste de choix"
     },
@@ -956,7 +995,7 @@
         "empty": "Aucune option disponible"
     },
     "abTable": {
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "loading": "Chargement..."
     },
     "collectionElementForm": {
@@ -1211,6 +1250,10 @@
         "title": "Prévisualiser et publier votre application",
         "content": "Cliquez sur **Preview** pour tester votre application en privé. Lorsque vous êtes prêt, cliquez sur **Publier** pour la partager avec le public via un domaine."
     },
+    "pageElementBehaviour": {
+        "normal": "Normal",
+        "fixed": "Fixe"
+    },
     "builderToast": {
         "details": "Détails",
         "defaultTitle": "Erreur inattendue",
@@ -1221,12 +1264,20 @@
         "invalidContentMessage": "Un ou plusieurs champs contiennent des valeurs non valides.",
         "serviceMisconfiguredTitle": "Configuration incomplète",
         "serviceMisconfiguredMessage": "Veuillez vérifier la configuration.",
-        "errorWorkflowActionDispatch": "L'action « {nom} » a échoué : ",
+        "errorWorkflowActionDispatch": "L'action « {name} » a échoué : ",
         "errorDataSourceDispatch": "Échec du chargement de « {name} » : "
     },
     "workflowAction": {
         "sampleDataModalTitle": "Données pour {actionLabel}",
         "sampleDataModalSubTitle": "Données JSON",
         "testActionDescription": "Exécutez cette action en mode aperçu pour enregistrer son résultat et le mettre à la disposition des actions suivantes."
+    },
+    "trashType": {
+        "builder_page": "page",
+        "builder_data_source": "source de données",
+        "builder_workflow_action": "action de scénario"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Page"
     }
 }

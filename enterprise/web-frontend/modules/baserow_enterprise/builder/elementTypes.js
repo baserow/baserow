@@ -6,18 +6,24 @@ import AuthFormElement from '@baserow_enterprise/builder/components/elements/Aut
 import AuthFormElementForm from '@baserow_enterprise/builder/components/elements/AuthFormElementForm'
 import FileInputElement from '@baserow_enterprise/builder/components/elements/FileInputElement'
 import FileInputElementForm from '@baserow_enterprise/builder/components/elements/FileInputElementForm'
+import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
+import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
 import {
   ensureArray,
   ensureString,
 } from '@baserow/modules/core/utils/validator'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { BuilderFileInputElementPaidFeature } from '@baserow_enterprise/paidFeatures'
+import {
+  BuilderFileInputElementPaidFeature,
+  BuilderGraphElementPaidFeature,
+} from '@baserow_enterprise/paidFeatures'
 
 import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
 
 import elementImageAuthForm from '@baserow_enterprise/assets/images/builder/element-auth_form.svg?url'
 import elementImageFileInput from '@baserow_enterprise/assets/images/builder/element-file_input.svg?url'
+import ChartBarWidgetSvg from '@baserow_premium/assets/images/chart_bar.svg?url'
 
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
@@ -71,8 +77,18 @@ export class AuthFormElementType extends ElementType {
     const loginOptions = userSourceType.getLoginOptions(userSource)
 
     const hasLoginOptions = Object.keys(loginOptions).length !== 0
+    const hasConfiguredProvider = userSource.auth_providers.some(
+      (authProvider) => {
+        const authProviderType = this.app.$registry.get(
+          'appAuthProvider',
+          authProvider.type
+        )
 
-    if (!hasLoginOptions) {
+        return authProviderType.isConfigured(authProvider, applicationContext)
+      }
+    )
+
+    if (!hasLoginOptions || !hasConfiguredProvider) {
       return this.app.$i18n.t('elementType.errorUserSourceHasNoLoginOption')
     }
 
@@ -86,7 +102,13 @@ export class FileInputElementType extends FormElementType {
   }
 
   static getError(element, value, applicationContext) {
-    const arrayValue = element.multiple ? value : value ? [value] : []
+    const arrayValue = element.multiple
+      ? Array.isArray(value)
+        ? value
+        : []
+      : value
+        ? [value]
+        : []
 
     if (element.required && arrayValue.length === 0) {
       return 'required'
@@ -256,6 +278,90 @@ export class FileInputElementType extends FormElementType {
         PaidFeaturesModal,
         {
           'initial-selected-type': BuilderFileInputElementPaidFeature.getType(),
+        },
+      ]
+    }
+    return null
+  }
+}
+
+export class GraphElementType extends ElementType {
+  static getType() {
+    return 'graph'
+  }
+
+  category() {
+    return 'layoutElement'
+  }
+
+  get name() {
+    return this.app.$i18n.t('elementType.graph')
+  }
+
+  get description() {
+    return this.app.$i18n.t('elementType.graphDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-graph-up'
+  }
+
+  get image() {
+    return ChartBarWidgetSvg
+  }
+
+  get component() {
+    return GraphElement
+  }
+
+  get generalFormComponent() {
+    return GraphElementForm
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      labels: "'label 1,label 2,label 3'",
+      series: [
+        {
+          uid: uuid(),
+          label: "'Series 1'",
+          values: "'10,20,30'",
+          color: 'primary',
+          chart_type: 'BAR',
+        },
+      ],
+    }
+  }
+
+  isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
+    if (
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_GRAPH_ELEMENT,
+        workspace.id
+      )
+    ) {
+      return this.app.$i18n.t('enterprise.deactivated')
+    }
+    return super.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    if (
+      workspace &&
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.BUILDER_GRAPH_ELEMENT,
+        workspace.id
+      )
+    ) {
+      return [
+        PaidFeaturesModal,
+        {
+          'initial-selected-type': BuilderGraphElementPaidFeature.getType(),
         },
       ]
     }

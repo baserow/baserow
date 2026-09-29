@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-01-18 13:32+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/api/authentication.py:25
+#: src/baserow/api/authentication.py:28
 msgid "Token contained no recognizable user identification"
 msgstr "Token bevatte geen herkenbare gebruikersidentificatie"
 
-#: src/baserow/api/authentication.py:33
+#: src/baserow/api/authentication.py:43
 msgid "User not found"
 msgstr "Gebruiker niet gevonden"
 
@@ -58,47 +58,47 @@ msgstr "Workflow"
 msgid "Local Baserow"
 msgstr "Lokaal Baserow"
 
-#: src/baserow/contrib/automation/nodes/actions.py:25
+#: src/baserow/contrib/automation/nodes/actions.py:26
 msgid "Create automation node"
 msgstr "Automatiseringsknooppunt maken"
 
-#: src/baserow/contrib/automation/nodes/actions.py:26
+#: src/baserow/contrib/automation/nodes/actions.py:27
 #, python-format
 msgid "Node (%(node_id)s) created"
 msgstr "Knooppunt (%(node_id)s) aangemaakt"
 
-#: src/baserow/contrib/automation/nodes/actions.py:90
+#: src/baserow/contrib/automation/nodes/actions.py:91
 msgid "Update automation node"
 msgstr "Automatiseringsknooppunt bijwerken"
 
-#: src/baserow/contrib/automation/nodes/actions.py:91
+#: src/baserow/contrib/automation/nodes/actions.py:92
 #, python-format
 msgid "Node (%(node_id)s) updated"
 msgstr "Knooppunt (%(node_id)s) bijgewerkt"
 
-#: src/baserow/contrib/automation/nodes/actions.py:159
+#: src/baserow/contrib/automation/nodes/actions.py:160
 msgid "Delete automation node"
 msgstr "Automatiseringsknooppunt verwijderen"
 
-#: src/baserow/contrib/automation/nodes/actions.py:160
+#: src/baserow/contrib/automation/nodes/actions.py:161
 #, python-format
 msgid "Node (%(node_id)s) deleted"
 msgstr "Knooppunt (%(node_id)s) verwijderd"
 
-#: src/baserow/contrib/automation/nodes/actions.py:217
+#: src/baserow/contrib/automation/nodes/actions.py:218
 msgid "Duplicate automation node"
 msgstr "Automatiseringsknooppunt dupliceren"
 
-#: src/baserow/contrib/automation/nodes/actions.py:218
+#: src/baserow/contrib/automation/nodes/actions.py:219
 #, python-format
 msgid "Node (%(node_id)s) duplicated"
 msgstr "Knooppunt (%(node_id)s) gedupliceerd"
 
-#: src/baserow/contrib/automation/nodes/actions.py:289
+#: src/baserow/contrib/automation/nodes/actions.py:290
 msgid "Replace automation node"
 msgstr "Automatiseringsknooppunt vervangen"
 
-#: src/baserow/contrib/automation/nodes/actions.py:291
+#: src/baserow/contrib/automation/nodes/actions.py:292
 #, python-format
 msgid ""
 "Node (%(node_id)s) changed from a type of %(original_node_type)s to "
@@ -107,88 +107,96 @@ msgstr ""
 "Knooppunt (%(node_id)s) gewijzigd van type %(original_node_type)s naar "
 "%(node_type)s"
 
-#: src/baserow/contrib/automation/nodes/actions.py:377
+#: src/baserow/contrib/automation/nodes/actions.py:378
 msgid "Moved automation node"
 msgstr "Automatiseringsknooppunt verplaatst"
 
-#: src/baserow/contrib/automation/nodes/actions.py:378
+#: src/baserow/contrib/automation/nodes/actions.py:379
 #, python-format
 msgid "Node (%(node_id)s) moved"
 msgstr "Knooppunt (%(node_id)s) verplaatst"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:133
+#: src/baserow/contrib/automation/nodes/node_types.py:167
 msgid "Local Baserow create row"
 msgstr "Lokaal Baserow rij aanmaken"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:140
+#: src/baserow/contrib/automation/nodes/node_types.py:186
 msgid "Local Baserow update row"
 msgstr "Lokaal Baserow rij bijwerken"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:147
+#: src/baserow/contrib/automation/nodes/node_types.py:203
 msgid "Local Baserow delete row"
 msgstr "Lokaal Baserow rij verwijderen"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:155
+#: src/baserow/contrib/automation/nodes/node_types.py:211
 msgid "Local Baserow get row"
 msgstr "Lokaal Baserow rij ophalen"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:163
+#: src/baserow/contrib/automation/nodes/node_types.py:219
 msgid "Local Baserow list rows"
 msgstr "Lokaal Baserow rijen ophalen"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:171
+#: src/baserow/contrib/automation/nodes/node_types.py:227
 msgid "Local Baserow aggregate rows"
 msgstr "Lokaal Baserow rijen samenvatten"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:179
+#: src/baserow/contrib/automation/nodes/node_types.py:235
 msgid "HTTP request"
 msgstr "HTTP-verzoek"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:186
+#: src/baserow/contrib/automation/nodes/node_types.py:242
 msgid "Iterator"
 msgstr "Iterator"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:199
+#: src/baserow/contrib/automation/nodes/node_types.py:255
 msgid "Send email"
 msgstr "E-mail versturen"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:206
+#: src/baserow/contrib/automation/nodes/node_types.py:286
+msgid "Response"
+msgstr "Antwoord"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:314
 msgid "AI agent"
 msgstr "AI-agent"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:213
+#: src/baserow/contrib/automation/nodes/node_types.py:321
 msgid "Router"
 msgstr "Router"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:279
+#: src/baserow/contrib/automation/nodes/node_types.py:387
 msgid "Branch"
 msgstr "Vertakking"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:408
+#: src/baserow/contrib/automation/nodes/node_types.py:783
 msgid "Local Baserow rows created"
 msgstr "Lokaal Baserow rijen aangemaakt"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:416
+#: src/baserow/contrib/automation/nodes/node_types.py:791
 msgid "Local Baserow rows updated"
 msgstr "Lokaal Baserow rijen bijgewerkt"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:424
+#: src/baserow/contrib/automation/nodes/node_types.py:799
 msgid "Local Baserow rows deleted"
 msgstr "Lokaal Baserow rijen verwijderd"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:434
+#: src/baserow/contrib/automation/nodes/node_types.py:815
 msgid "Periodic trigger"
 msgstr "Periodieke activering"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:441
+#: src/baserow/contrib/automation/nodes/node_types.py:822
 msgid "HTTP trigger"
 msgstr "HTTP-activering"
 
-#: src/baserow/contrib/automation/nodes/node_types.py:448
+#: src/baserow/contrib/automation/nodes/node_types.py:829
+msgid "Email trigger"
+msgstr "E-mailtrigger"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:848
 msgid "Slack write message"
 msgstr "Slack-bericht schrijven"
 
-#: src/baserow/contrib/automation/nodes/registries.py:47
+#: src/baserow/contrib/automation/nodes/registries.py:50
 msgid "Unnamed node"
 msgstr "Naamloos knooppunt"
 
@@ -272,48 +280,182 @@ msgstr "Widget maken"
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) created"
 msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) aangemaakt"
 
-#: src/baserow/contrib/dashboard/widgets/actions.py:83
+#: src/baserow/contrib/dashboard/widgets/actions.py:121
 msgid "Update widget"
 msgstr "Widget bijwerken"
 
-#: src/baserow/contrib/dashboard/widgets/actions.py:84
+#: src/baserow/contrib/dashboard/widgets/actions.py:122
 #, python-format
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) updated"
 msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) bijgewerkt"
 
-#: src/baserow/contrib/dashboard/widgets/actions.py:154
+#: src/baserow/contrib/dashboard/widgets/actions.py:192
+msgid "Update widget layout"
+msgstr "Widgetindeling bijwerken"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:193
+msgid "Dashboard widget layout updated"
+msgstr "Widgetindeling van dashboard bijgewerkt"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:274
 msgid "Delete widget"
 msgstr "Widget verwijderen"
 
-#: src/baserow/contrib/dashboard/widgets/actions.py:155
+#: src/baserow/contrib/dashboard/widgets/actions.py:275
 #, python-format
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) verwijderd"
 
-#: src/baserow/contrib/integrations/core/service_types.py:1137
+#: src/baserow/contrib/integrations/core/service_types.py:1413
 msgid "Branch taken"
 msgstr "Genomen vertakking"
 
-#: src/baserow/contrib/integrations/core/service_types.py:1142
+#: src/baserow/contrib/integrations/core/service_types.py:1418
 msgid "Label"
 msgstr "Label"
 
-#: src/baserow/contrib/integrations/core/service_types.py:1144
+#: src/baserow/contrib/integrations/core/service_types.py:1420
 msgid "The label of the branch that matched the condition."
 msgstr "Het label van de vertakking die aan de voorwaarde voldeed."
 
-#: src/baserow/contrib/integrations/core/service_types.py:1555
+#: src/baserow/contrib/integrations/core/service_types.py:1613
+msgid "Condition"
+msgstr "Voorwaarde"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1615
+msgid "Whether the condition evaluated to true and the jump was followed."
+msgstr "Of de voorwaarde als waar werd geëvalueerd en de sprong werd gevolgd."
+
+#: src/baserow/contrib/integrations/core/service_types.py:2061
 msgid "Previous scheduled run"
 msgstr "Vorige geplande uitvoering"
 
-#: src/baserow/contrib/integrations/core/service_types.py:1559
+#: src/baserow/contrib/integrations/core/service_types.py:2065
 msgid "Next scheduled run"
 msgstr "Volgende geplande uitvoering"
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:1700
+#: src/baserow/contrib/integrations/core/service_types.py:2742
+msgid "Name"
+msgstr "Naam"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2743
+msgid "Address"
+msgstr "Adres"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2748
+msgid "From"
+msgstr "Van"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2751
+msgid "To"
+msgstr "Aan"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2756
+msgid "Cc"
+msgstr "Cc"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2761
+msgid "Reply to"
+msgstr "Antwoord aan"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2764
+msgid "Recipient"
+msgstr "Ontvanger"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2765
+msgid "Recipient tag"
+msgstr "Ontvangerstag"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2766
+msgid "Subject"
+msgstr "Onderwerp"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2767
+msgid "Body (text)"
+msgstr "Inhoud (tekst)"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2768
+msgid "Body (HTML)"
+msgstr "Inhoud (HTML)"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2771
+msgid "Body (text) truncated"
+msgstr "Inhoud (tekst) afgekapt"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2775
+msgid "Body (HTML) truncated"
+msgstr "Inhoud (HTML) afgekapt"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2777
+msgid "Message ID"
+msgstr "Bericht-ID"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2778
+msgid "In reply to"
+msgstr "Antwoord op"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2779
+msgid "Received at"
+msgstr "Ontvangen op"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2782
+msgid "Attachments"
+msgstr "Bijlagen"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2786
+msgid "Filename"
+msgstr "Bestandsnaam"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2789
+msgid "Content type"
+msgstr "Inhoudstype"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2791
+msgid "Size"
+msgstr "Grootte"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2797
+msgid "Sender validated"
+msgstr "Afzender gevalideerd"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2801
+msgid "DKIM verified domains"
+msgstr "DKIM-geverifieerde domeinen"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2804
+msgid "Remote IP"
+msgstr "Extern IP-adres"
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1841
 msgid "No rows found"
 msgstr "Geen rijen gevonden"
 
-#: src/baserow/contrib/integrations/slack/service_types.py:166
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2521
+#, python-format
+msgid "The %(operation)s action can process at most %(limit)s rows at once."
+msgstr ""
+"De actie %(operation)s kan maximaal %(limit)s rijen tegelijk verwerken."
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2887
+#, python-format
+msgid ""
+"The batch delete rows action can process at most %(limit)s rows at once."
+msgstr ""
+"De actie voor het in bulk verwijderen van rijen kan maximaal %(limit)s rijen "
+"tegelijk verwerken."
+
+#: src/baserow/contrib/integrations/slack/service_types.py:252
 msgid "OK"
 msgstr "OK"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:253
+msgid "Channel"
+msgstr "Kanaal"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:254
+msgid "Message timestamp"
+msgstr "Tijdstempel van bericht"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:264
+msgid "Data"
+msgstr "Data"

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug in Summarize field data source using aggregation that caused a crash in preview and published modes.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-20"
+}

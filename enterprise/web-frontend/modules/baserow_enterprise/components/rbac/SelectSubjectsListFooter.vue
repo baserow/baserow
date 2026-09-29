@@ -8,6 +8,7 @@
         v-model="roleSelected"
         :roles="roles"
         :workspace="workspace"
+        :show-commercial-info="showCommercialInfo"
       />
     </div>
     <div>
@@ -44,6 +45,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    showCommercialInfo: {
+      type: Boolean,
+      default: true,
+    },
     count: {
       type: Number,
       required: true,
@@ -65,14 +70,10 @@ export default {
   computed: {
     ...mapGetters({ workspace: 'workspace/getSelected' }),
     subjectTypeLabel() {
-      switch (this.subjectType) {
-        case 'auth.User':
-          return this.$t('selectSubjectsListFooter.types.members')
-        case 'baserow_enterprise.Team':
-          return this.$t('selectSubjectsListFooter.types.teams')
-        default:
-          return ''
-      }
+      return this.$registry
+        .get('subject', this.subjectType)
+        .getPluralTypeDisplayName()
+        .toLowerCase()
     },
     roles() {
       return this.workspace

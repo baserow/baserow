@@ -16,8 +16,14 @@ class UserSourceUserSubjectType(SubjectType):
     type = "user_source.user"
     model_class = UserSourceUser
 
+    def get_display_name(self, subject: UserSourceUser) -> str:
+        return subject.username
+
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: Workspace
+        self,
+        subjects: List[Subject],
+        workspace: Workspace,
+        include_trash: bool = False,
     ) -> List[bool]:
         """
         Check whether the given subjects are member of the given workspace.

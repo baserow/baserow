@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
     from baserow.core.models import Workspace
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
     from baserow_enterprise.assistant.tools.navigation.types import (
         AnyNavigationRequestType,
     )
@@ -66,13 +69,13 @@ class ToolHelpers:
     """
     Contextual helpers available to every tool via ``RunContext[AssistantDeps]``.
 
-    Provides status updates (shown in the UI), navigation actions,
-    cancellation support, and an event bus for emitting custom streaming
-    events (thinking messages, navigation messages, etc.).
+    Provides the request's resolved model profile, UI status and navigation
+    callbacks, cancellation support, and custom streaming events.
     """
 
     update_status: Callable[[str], None]
     navigate_to: Callable[["AnyNavigationRequestType"], str]
+    model_profile: "ResolvedAssistantModelProfile"
     request_context: dict = field(default_factory=dict)
     event_bus: EventBus = field(default_factory=EventBus)
     _cancel_event: threading.Event = field(default_factory=threading.Event)
@@ -102,6 +105,20 @@ class ToolHelpers:
 
 
 @dataclass
+class ResourceChanges:
+    """Track successful resource changes within one run, across tool rebuilds."""
+
+    created_row_counts: dict[int, int] = field(default_factory=dict)
+
+    def record_created_rows(self, table_id: int, count: int) -> int:
+        """Record a successful batch and return the table's running creation total."""
+
+        total = self.created_row_counts.get(table_id, 0) + count
+        self.created_row_counts[table_id] = total
+        return total
+
+
+@dataclass
 class AssistantDeps:
     """
     Typed dependency container for the pydantic-ai agent.
@@ -124,20 +141,10 @@ class AssistantDeps:
     license_tier: "LicenseType | None" = None
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
-    database_manifest: str = ""
-    application_manifest: str = ""
-    automation_manifest: str = ""
-    explain_manifest: str = ""
-    original_request: str = ""
-
-    @property
-    def active_manifest(self) -> str:
-        return {
-            AgentMode.DATABASE: self.database_manifest,
-            AgentMode.APPLICATION: self.application_manifest,
-            AgentMode.AUTOMATION: self.automation_manifest,
-            AgentMode.EXPLAIN: self.explain_manifest,
-        }[self.mode]
+    resource_changes: ResourceChanges = field(default_factory=ResourceChanges)
+    tool_catalog: str = ""
+    verified_tool_outcomes: list[dict[str, Any]] = field(default_factory=list)
+    pending_question: str | None = None
 
     def extend_sources(self, new_sources: list[str]):
         """

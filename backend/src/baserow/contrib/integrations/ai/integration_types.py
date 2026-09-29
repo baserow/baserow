@@ -15,9 +15,9 @@ from baserow.core.models import Application
 class AIIntegrationType(IntegrationType):
     """
     Integration type for connecting to generative AI providers. Allows users to either
-    inherit workspace-level AI settings (default) or override them per integration. If
-    a provider key is not present in ai_settings, it inherits from workspace settings.
-    If present, it overrides with the specified values.
+    inherit workspace-level AI settings (default) or override them per integration.
+    Explicit overrides are returned here. Otherwise, the database provider resolver
+    owns workspace inheritance, including legacy workspace JSON compatibility.
     """
 
     type = "ai"
@@ -35,8 +35,10 @@ class AIIntegrationType(IntegrationType):
             required=False,
             default=dict,
             help_text="Per-provider AI settings overrides. If a provider key is not "
-            "present, workspace settings are inherited. If present, these values "
-            "override workspace settings. Structure: "
+            "present, workspace settings are inherited. A complete connection uses "
+            "its own credentials and explicit model list; omitting models inherits "
+            "available models, while an empty list disables them. An incomplete "
+            "connection can only restrict inherited model availability. Structure: "
             '{"openai": {"api_key": "...", "models": [...], "organization": ""}, ...}',
         ),
     }
@@ -49,16 +51,18 @@ class AIIntegrationType(IntegrationType):
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
-        """
-        Prepare and validate the AI settings before saving. Uses the same validation as
-        workspace-level AI settings. Converts comma-separated models strings to arrays.
+        """Validate explicit per-integration provider settings before saving.
+
+        :param values: The integration values supplied by the caller.
+        :param user: The user creating or updating the integration.
+        :returns: The normalized values prepared by the base integration type.
+        :raises RequestBodyValidationException: If provider settings fail their
+            registered serializer's validation.
         """
 
         if "ai_settings" not in values:
             values["ai_settings"] = {}
 
-        # Validate ai_settings using the same serializer as workspace settings
-        # because it should allow to override the same settings.
         if values["ai_settings"]:
             validated_settings = validate_data(
                 get_generative_ai_settings_serializer(),
@@ -69,26 +73,46 @@ class AIIntegrationType(IntegrationType):
 
         return super().prepare_values(values, user)
 
+    def get_integration_provider_settings(
+        self, integration: AIIntegration, provider_type: str
+    ) -> dict[str, Any] | None:
+        """
+        Return the integration-level settings override for a provider.
+
+        :param integration: The AI integration to read the override from.
+        :param provider_type: The generative AI provider type key.
+        :returns: The stored override, including an explicit empty dictionary, or
+            None when no dictionary is stored for this provider. This does not
+            validate whether the override defines a complete connection.
+        """
+
+        provider_settings = integration.ai_settings.get(provider_type)
+        if isinstance(provider_settings, dict):
+            return provider_settings
+        return None
+
     def get_provider_settings(
         self, integration: AIIntegration, provider_type: str
     ) -> Dict[str, Any]:
         """
-        Get all settings for a specific provider, either from integration
-        settings or from workspace settings as fallback.
+        Get explicit settings for a provider, or defer to workspace resolution.
+
+        An empty result tells the generative AI model type to resolve the live
+        workspace provider and its compatibility fallbacks itself.
+
+        :param integration: The AI integration whose provider settings are requested.
+        :param provider_type: The generative AI provider type.
+        :returns: Explicit provider settings, or an empty dictionary when
+            workspace inheritance should be used.
         """
 
-        # Check if provider has overrides in integration settings
-        if provider_type in integration.ai_settings:
-            provider_settings = integration.ai_settings[provider_type]
-            if isinstance(provider_settings, dict):
-                return provider_settings
+        provider_settings = self.get_integration_provider_settings(
+            integration, provider_type
+        )
+        if provider_settings is not None:
+            return provider_settings
 
-        # Fall back to workspace settings
-        workspace = integration.application.workspace
-        if workspace is None:
-            return {}
-        workspace_settings = workspace.generative_ai_models_settings or {}
-        return workspace_settings.get(provider_type, {})
+        return {}
 
     def is_provider_overridden(
         self, integration: AIIntegration, provider_type: str
@@ -122,45 +146,3 @@ class AIIntegrationType(IntegrationType):
             storage=storage,
             cache=cache,
         )
-
-    def export_serialized(
-        self,
-        instance: AIIntegration,
-        import_export_config=None,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Export the AI integration with materialized settings. When publishing, copy
-        workspace-level AI settings into the integration so it doesn't depend on
-        workspace (which will be None in published workflows).
-        """
-
-        serialized = super().export_serialized(
-            instance,
-            import_export_config=import_export_config,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-        )
-
-        # When publishing (is_publishing=True), materialize workspace settings into the
-        # integration so published workflows don't lose access to settings. This is
-        # because the published workflow does not have access to the workspace.
-        if import_export_config and import_export_config.is_publishing:
-            workspace = instance.application.workspace
-            if workspace and workspace.generative_ai_models_settings:
-                materialized_settings = dict(serialized.get("ai_settings", {}))
-                for (
-                    provider_type,
-                    workspace_provider_settings,
-                ) in workspace.generative_ai_models_settings.items():
-                    if provider_type not in materialized_settings:
-                        materialized_settings[provider_type] = (
-                            workspace_provider_settings
-                        )
-
-                serialized["ai_settings"] = materialized_settings
-
-        return serialized

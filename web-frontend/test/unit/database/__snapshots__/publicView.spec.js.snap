@@ -34,10 +34,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
       <header
         class="layout__col-2-1 header header--dark-border"
       >
-        <div
-          class="header__loading"
-          style="display: none;"
-        />
+        <!--v-if-->
         <ul
           class="header__filter"
         >
@@ -92,8 +89,34 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
             <!--v-if-->
           </li>
           <!--v-if-->
+          <li
+            class="header__filter-item header__filter-item--no-margin-left"
+          >
+            <a
+              class="header__filter-link"
+              href="#"
+              title="publicViewMenu.moreOptions"
+            >
+              <i
+                class="header__filter-icon baserow-icon-more-vertical"
+              />
+            </a>
+            <teleport-stub
+              to="body"
+            >
+              <div
+                class="context visibility-hidden"
+              >
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+            <teleport-stub
+              to="body"
+            >
+              <!--v-if-->
+            </teleport-stub>
+          </li>
           
-          <!--v-if-->
           
           <li
             class="header__filter-item"
@@ -240,7 +263,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 >
                   <!--v-if-->
                   <ul
-                    class="select__items"
+                    class="select__items prevent-scroll"
                     tabindex="-1"
                   >
                     
@@ -425,13 +448,11 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     class="grid-view__placeholder"
                     style="width: 72px;"
                   >
-                    <div
-                      class="grid-view__placeholder-groups"
-                      style="width: 0px;"
-                    />
+                    <!--v-if-->
                     
                     
                   </div>
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
@@ -447,6 +468,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__foot"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__foot-info"
                 >
@@ -639,6 +661,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     />
                     
                   </div>
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
@@ -654,6 +677,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__foot"
               >
+                <!--v-if-->
                 <!--v-if-->
                 
                 <div
@@ -758,7 +782,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
             />
             <div
               class="grid-view__row-target"
-              style="width: 672px; top: 0px;"
+              style="width: 672px; top: 0px; display: none;"
             />
           </div>
           <teleport-stub
@@ -770,6 +794,8 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <!--v-if-->
             </div>
           </teleport-stub>
+          <!--v-if-->
+          <!--v-if-->
           <teleport-stub
             to="body"
           >

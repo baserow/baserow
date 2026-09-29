@@ -21,6 +21,9 @@
           type="secondary"
         />
       </div>
+      <div v-if="triggeredByName" class="workflow-history__started-by">
+        {{ $t('historySidePanel.startedBy', { name: triggeredByName }) }}
+      </div>
     </template>
 
     <template #default>
@@ -32,22 +35,19 @@
           <div class="loading"></div>
         </div>
         <template v-else>
-          <div
-            v-if="!rootNodeHistories.length && item.message"
-            class="workflow-history__message"
-          >
-            {{ item.message }}
-          </div>
           <NodeHistory
             v-for="nh in rootNodeHistories"
-            v-else
-            :key="nh.node"
+            :key="nh.id"
             :workflow-history-id="item.id"
             :node-history="nh"
             :child-node-histories-by-parent="childNodeHistoriesByParent"
             :error-descendant-node-ids="errorDescendantNodeIds"
+            :pass-info-by-history-id="passInfoByHistoryId"
             :depth="0"
           />
+          <div v-if="workflowLevelMessage" class="workflow-history__message">
+            {{ workflowLevelMessage }}
+          </div>
         </template>
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
@@ -56,6 +56,22 @@
       <template v-else>
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
+        </div>
+        <div
+          v-if="item.cancellation_requested_on"
+          class="workflow-history__cancel"
+        >
+          {{ $t('historySidePanel.cancelling') }}
+        </div>
+        <div v-else-if="canCancel" class="workflow-history__cancel">
+          <a
+            role="button"
+            class="workflow-history__cancel-link"
+            :class="{ 'workflow-history__cancel-link--disabled': cancelling }"
+            @click="cancelRun()"
+          >
+            {{ $t('historySidePanel.cancelRun') }}
+          </a>
         </div>
       </template>
       <div
@@ -77,14 +93,20 @@
 import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 import historySuccessIcon from '@baserow/modules/core/assets/images/history-success.svg?url'
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
 import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
+import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
 
 const app = useNuxtApp()
 const store = useStore()
+
+const workspace = inject('workspace')
+const workflow = inject('workflow')
 
 const props = defineProps({
   item: {
@@ -95,6 +117,60 @@ const props = defineProps({
 
 const now = ref(new Date())
 let timer = null
+
+const cancelling = ref(false)
+
+/**
+ * Whoever can update the workflow can cancel its runs.
+ */
+const canCancel = computed(() =>
+  app.$hasPermission(
+    'automation.workflow.update',
+    workflow.value,
+    workspace.value.id
+  )
+)
+
+/**
+ * Cancellation is cooperative: the backend records the request and the run
+ * stops before its next node is dispatched. Until then the entry shows
+ * "Cancelling..." and keeps its running timer. If the run finishes before the
+ * cancellation takes effect, the backend answers that it is not running
+ * anymore; the refetch then simply shows the terminal state. If somebody else
+ * requested the cancellation first, the backend refuses this request: the
+ * refetch shows the entry as cancelling and a toast makes clear that the
+ * request isn't this user's, so the attribution can't be misread.
+ */
+const cancelRun = async () => {
+  if (cancelling.value) return
+  cancelling.value = true
+  try {
+    await store.dispatch('automationHistory/cancelWorkflowRun', {
+      workflowId: workflow.value.id,
+      workflowHistoryId: props.item.id,
+    })
+  } catch (error) {
+    const code = error.handler?.code
+    if (code === 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING') {
+      // Photo-finish: the run resolved first, the refetch shows its outcome.
+    } else if (
+      code ===
+      'ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED'
+    ) {
+      error.handler.notifyIf(
+        'automationWorkflow',
+        new ResponseErrorMessage(
+          app.$i18n.t('historySidePanel.cancellationAlreadyRequestedTitle'),
+          app.$i18n.t('historySidePanel.cancellationAlreadyRequested')
+        )
+      )
+    } else {
+      notifyIf(error, 'automationWorkflow')
+    }
+  } finally {
+    cancelling.value = false
+  }
+}
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -131,6 +207,15 @@ const nodeHistoriesEntry = computed(() =>
   store.getters['automationHistory/getNodeHistories'](props.item.id)
 )
 
+// A user's name comes from the workspace store so a rename shows; any other
+// subject, or a user who left, falls back to the name stored on the run.
+const triggeredByName = computed(() => {
+  const triggeredBy = props.item.triggered_by
+  if (!triggeredBy) return ''
+  if (triggeredBy.type !== 'auth.User') return triggeredBy.name
+  return getCollaboratorName(triggeredBy, store)
+})
+
 const statusTitle = computed(() => {
   switch (props.item.status) {
     case 'success':
@@ -139,6 +224,8 @@ const statusTitle = computed(() => {
       return app.$i18n.t('historySidePanel.statusError')
     case 'started':
       return app.$i18n.t('historySidePanel.statusStarted')
+    case 'cancelled':
+      return app.$i18n.t('historySidePanel.statusCancelled')
     default:
       return app.$i18n.t('historySidePanel.statusDisabled')
   }
@@ -205,6 +292,32 @@ const childNodeHistoriesByParent = computed(() => {
 })
 
 /**
+ * Maps each node history id to its pass number and the total number of passes
+ * for that node within this run. A node runs more than once when a "Go to node"
+ * jump loops execution back to it. Passes are scoped by (node, iteration_path)
+ * so iterator iterations aren't conflated with goto loop passes, and counted in
+ * chronological order (the histories are returned ordered by started_on, id).
+ */
+const passInfoByHistoryId = computed(() => {
+  const items = nodeHistoriesEntry.value ?? []
+
+  const totals = {}
+  for (const nh of items) {
+    const key = `${nh.node}|${nh.iteration_path}`
+    totals[key] = (totals[key] || 0) + 1
+  }
+
+  const counters = {}
+  const result = {}
+  for (const nh of items) {
+    const key = `${nh.node}|${nh.iteration_path}`
+    counters[key] = (counters[key] || 0) + 1
+    result[nh.id] = { pass: counters[key], total: totals[key] }
+  }
+  return result
+})
+
+/**
  * Precomputed set of parent node IDs that have at least one errored
  * node history in their descendant subtree.
  */
@@ -234,6 +347,25 @@ const errorDescendantNodeIds = computed(() => {
     }
   }
   return parentsWithErroredChild
+})
+
+/**
+ * Surfaces a workflow-history message that isn't reflected on any node history.
+ *
+ * Today every workflow-level error raised after dispatch begins is also written
+ * to the corresponding node history (so NodeHistory renders it and this returns
+ * null to avoid duplication). The remaining messages are pre-dispatch failures
+ * (e.g. rate limited, disabled after too many errors, before-run errors) which
+ * have no node histories at all. This computed is therefore also a forward-safe
+ * guard: should we ever log a workflow-level error after dispatch that no node
+ * carries, its message still gets surfaced here instead of being swallowed.
+ */
+const workflowLevelMessage = computed(() => {
+  if (!props.item.message) return null
+  const hasErroredNode = (nodeHistoriesEntry.value ?? []).some(
+    (nh) => nh.status === 'error'
+  )
+  return hasErroredNode ? null : props.item.message
 })
 
 const historyIconPath = computed(() => {

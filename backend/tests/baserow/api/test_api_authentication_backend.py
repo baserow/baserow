@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.shortcuts import reverse
 
 import pytest
@@ -37,8 +39,10 @@ def test_authenticate_fails_with_user_source_token(data_fixture, api_request_fac
 
     auth = JSONWebTokenAuthentication()
 
-    with pytest.raises(AuthenticationFailed):
-        auth.authenticate(fake_request)
+    with patch.object(auth, "get_user") as get_user:
+        with pytest.raises(AuthenticationFailed):
+            auth.authenticate(fake_request)
+        get_user.assert_not_called()
 
     fake_request = api_request_factory.post(
         reverse("api:workspaces:list"),
@@ -48,5 +52,7 @@ def test_authenticate_fails_with_user_source_token(data_fixture, api_request_fac
 
     auth = JSONWebTokenAuthentication()
 
-    with pytest.raises(AuthenticationFailed):
-        auth.authenticate(fake_request)
+    with patch.object(auth, "get_user") as get_user:
+        with pytest.raises(AuthenticationFailed):
+            auth.authenticate(fake_request)
+        get_user.assert_not_called()

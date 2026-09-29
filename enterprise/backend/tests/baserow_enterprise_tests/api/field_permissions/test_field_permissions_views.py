@@ -11,6 +11,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.models import FieldPermissions
 from baserow_enterprise.field_permissions.permission_manager import (
@@ -154,7 +155,7 @@ def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
 
     assert rsp.status_code == HTTP_401_UNAUTHORIZED
 
-    # Custom role not working (it needs to be implemented)
+    # CUSTOM is valid and starts with an empty subject list when none is provided.
     builder_role = Role.objects.get(uid="BUILDER")
     RoleAssignmentHandler().assign_role(
         subject=user, workspace=database.workspace, role=builder_role, scope=database
@@ -170,7 +171,9 @@ def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
         data={"role": "CUSTOM"},
     )
 
-    assert rsp.status_code == HTTP_400_BAD_REQUEST
+    assert rsp.status_code == HTTP_200_OK
+    assert rsp.json()["role"] == "CUSTOM"
+    assert rsp.json()["subjects"] == []
 
     rsp = api_client.patch(
         reverse(
@@ -217,6 +220,7 @@ def test_builders_can_get_field_permissions(api_client, enterprise_data_fixture)
         "field_id": field.id,
         "role": "EDITOR",
         "allow_in_forms": True,
+        "subjects": [],
     }
 
     FieldPermissionsHandler.update_field_permissions(user, field, "NOBODY", False)
@@ -234,6 +238,7 @@ def test_builders_can_get_field_permissions(api_client, enterprise_data_fixture)
         "field_id": field.id,
         "role": "NOBODY",
         "allow_in_forms": False,
+        "subjects": [],
     }
 
 
@@ -292,6 +297,7 @@ def test_builders_can_update_field_permissions(api_client, enterprise_data_fixtu
         "role": "NOBODY",
         "allow_in_forms": False,
         "can_write_values": False,
+        "subjects": [],
     }
     _assert_field_permissions_exceptions(
         can_write_exc=[field.id], allow_in_forms_exc=[field.id]
@@ -313,6 +319,7 @@ def test_builders_can_update_field_permissions(api_client, enterprise_data_fixtu
         "role": "ADMIN",
         "allow_in_forms": True,
         "can_write_values": False,
+        "subjects": [],
     }
     _assert_field_permissions_exceptions(
         can_write_exc=[field.id], allow_in_forms_exc=[]
@@ -334,6 +341,7 @@ def test_builders_can_update_field_permissions(api_client, enterprise_data_fixtu
         "role": "BUILDER",
         "allow_in_forms": True,
         "can_write_values": True,
+        "subjects": [],
     }
     _assert_field_permissions_exceptions(can_write_exc=[], allow_in_forms_exc=[])
 
@@ -354,6 +362,263 @@ def test_builders_can_update_field_permissions(api_client, enterprise_data_fixtu
         "role": "EDITOR",
         "allow_in_forms": True,
         "can_write_values": True,
+        "subjects": [],
     }
     assert FieldPermissions.objects.count() == 0
     _assert_field_permissions_exceptions(can_write_exc=[], allow_in_forms_exc=[])
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_can_configure_specific_field_permission_users_and_teams(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    user, token = enterprise_data_fixture.create_user_and_token(first_name="Builder")
+    selected_user = enterprise_data_fixture.create_user(first_name="Ada")
+    database = enterprise_data_fixture.create_database_application(user=user)
+    workspace = database.workspace
+    enterprise_data_fixture.create_user_workspace(
+        user=selected_user, workspace=workspace, permissions="EDITOR"
+    )
+    team = enterprise_data_fixture.create_team(
+        name="Development", workspace=workspace, members=[selected_user]
+    )
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    enterprise_data_fixture.enable_enterprise()
+
+    url = reverse(
+        "api:enterprise:field_permissions:item", kwargs={"field_id": field.id}
+    )
+    agent = Agent.objects.create(workspace=workspace, name="Field agent")
+    subjects = [
+        {"subject_id": agent.id, "subject_type": "core.Agent"},
+        {"subject_id": user.id, "subject_type": "auth.User"},
+        {
+            "subject_id": team.id,
+            "subject_type": "baserow_enterprise.Team",
+        },
+    ]
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"role": "CUSTOM", "subjects": subjects},
+    )
+
+    assert rsp.status_code == HTTP_200_OK
+    assert rsp.json()["role"] == "CUSTOM"
+    assert rsp.json()["can_write_values"] is True
+    assert {
+        (subject["subject_type"], subject["subject_id"])
+        for subject in rsp.json()["subjects"]
+    } == {
+        ("core.Agent", agent.id),
+        ("auth.User", user.id),
+        ("baserow_enterprise.Team", team.id),
+    }
+    team_subject = next(
+        subject
+        for subject in rsp.json()["subjects"]
+        if subject["subject_type"] == "baserow_enterprise.Team"
+    )
+    assert team_subject["subject"]["name"] == "Development"
+
+    rsp = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert rsp.status_code == HTTP_200_OK
+    assert len(rsp.json()["subjects"]) == 3
+
+    # Updating another CUSTOM setting without sending subjects preserves the list.
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"role": "CUSTOM", "allow_in_forms": True},
+    )
+    assert rsp.status_code == HTTP_200_OK
+    assert rsp.json()["allow_in_forms"] is True
+    assert len(rsp.json()["subjects"]) == 3
+
+    # Removing the requester from the explicit list immediately removes their write
+    # permission, even though they remain an Admin in the workspace.
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"role": "CUSTOM", "subjects": [subjects[2]]},
+    )
+    assert rsp.status_code == HTTP_200_OK
+    assert rsp.json()["can_write_values"] is False
+    assert len(rsp.json()["subjects"]) == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_can_search_paginated_field_permission_subject_options(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    user, token = enterprise_data_fixture.create_user_and_token(
+        first_name="Builder", email="builder@else.test"
+    )
+    first_user = enterprise_data_fixture.create_user(
+        first_name="Person A", email="first@else.test"
+    )
+    second_user = enterprise_data_fixture.create_user(
+        first_name="Person B", email="second@else.test"
+    )
+    outsider = enterprise_data_fixture.create_user(first_name="Person Outside")
+    database = enterprise_data_fixture.create_database_application(user=user)
+    workspace = database.workspace
+    for member in [first_user, second_user]:
+        enterprise_data_fixture.create_user_workspace(
+            user=member, workspace=workspace, permissions="EDITOR"
+        )
+    team = enterprise_data_fixture.create_team(
+        name="Person team",
+        workspace=workspace,
+        members=[first_user, second_user],
+    )
+    enterprise_data_fixture.create_team(
+        name="Person trashed team", workspace=workspace, trashed=True
+    )
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    enterprise_data_fixture.enable_enterprise()
+    builder_role = Role.objects.get(uid="BUILDER")
+    RoleAssignmentHandler().assign_role(
+        subject=user,
+        workspace=workspace,
+        role=builder_role,
+        scope=database,
+    )
+    url = reverse(
+        "api:enterprise:field_permissions:subject_options",
+        kwargs={"field_id": field.id},
+    )
+
+    agent = Agent.objects.create(workspace=workspace, name="Person agent")
+    Agent.objects.create(workspace=workspace, name="Person deleted", trashed=True)
+    Agent.objects.create(
+        workspace=enterprise_data_fixture.create_workspace(), name="Person outsider"
+    )
+    first_page = api_client.get(
+        url,
+        {"search": "person", "page": 1, "size": 2},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    second_page = api_client.get(
+        url,
+        {"search": "person", "page": 2, "size": 2},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert first_page.status_code == HTTP_200_OK
+    assert second_page.status_code == HTTP_200_OK
+    assert first_page.json()["count"] == 4
+    assert len(first_page.json()["results"]) == 2
+    options = first_page.json()["results"] + second_page.json()["results"]
+    assert {(option["subject_type"], option["subject_id"]) for option in options} == {
+        ("core.Agent", agent.id),
+        ("auth.User", first_user.id),
+        ("auth.User", second_user.id),
+        ("baserow_enterprise.Team", team.id),
+    }
+    team_option = next(
+        option
+        for option in options
+        if option["subject_type"] == "baserow_enterprise.Team"
+    )
+    assert team_option["subject_count"] == 2
+    assert ("auth.User", outsider.id) not in {
+        (option["subject_type"], option["subject_id"]) for option in options
+    }
+
+    response = api_client.get(
+        url,
+        {
+            "search": "person",
+            "exclude_user_ids": str(first_user.id),
+            "exclude_team_ids": str(team.id),
+            "exclude_agent_ids": str(agent.id),
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["subject_id"] == second_user.id
+    assert response.json()["results"][0]["subject_type"] == "auth.User"
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        subject=user,
+        workspace=workspace,
+        role=editor_role,
+        scope=database,
+    )
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_add_invalid_specific_field_permission_subjects(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    outsider = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    enterprise_data_fixture.enable_enterprise()
+    url = reverse(
+        "api:enterprise:field_permissions:item", kwargs={"field_id": field.id}
+    )
+
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={
+            "role": "CUSTOM",
+            "subjects": [{"subject_id": outsider.id, "subject_type": "auth.User"}],
+        },
+    )
+    assert rsp.status_code == HTTP_404_NOT_FOUND
+    assert not FieldPermissions.objects.filter(field=field).exists()
+    assert FieldPermissionsHandler._get_field_permission_subjects(field) == []
+
+    for agent in [
+        Agent.objects.create(
+            workspace=enterprise_data_fixture.create_workspace(), name="Outside"
+        ),
+        Agent.objects.create(
+            workspace=database.workspace, name="Deleted", trashed=True
+        ),
+    ]:
+        rsp = api_client.patch(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            data={
+                "role": "CUSTOM",
+                "subjects": [{"subject_id": agent.id, "subject_type": "core.Agent"}],
+            },
+        )
+        assert rsp.status_code == HTTP_404_NOT_FOUND
+
+    duplicate = {"subject_id": user.id, "subject_type": "auth.User"}
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"role": "CUSTOM", "subjects": [duplicate, duplicate]},
+    )
+    assert rsp.status_code == HTTP_400_BAD_REQUEST
+
+    rsp = api_client.patch(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"role": "NOBODY", "subjects": [duplicate]},
+    )
+    assert rsp.status_code == HTTP_400_BAD_REQUEST

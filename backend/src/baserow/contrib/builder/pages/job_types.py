@@ -6,10 +6,11 @@ from django.db import transaction
 from rest_framework import serializers
 
 from baserow.contrib.builder.api.pages.serializers import PageSerializer
+from baserow.contrib.builder.pages.actions import DuplicatePageActionType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import DuplicatePageJob
 from baserow.contrib.builder.pages.operations import DuplicatePageOperationType
-from baserow.contrib.builder.pages.service import PageService
+from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
 
@@ -51,7 +52,7 @@ class DuplicatePageJobType(JobType):
         return {"original_page": page}
 
     def run(self, job, progress):
-        new_page_clone = PageService().duplicate_page(
+        new_page_clone = action_type_registry.get_by_type(DuplicatePageActionType).do(
             job.user,
             job.original_page,
             progress_builder=progress.create_child_builder(

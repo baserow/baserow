@@ -5,6 +5,10 @@ class SyncTableOperationType(DatabaseTableOperationType):
     type = "database.data_sync.sync_table"
 
 
+class ListDataSyncJobsOperationType(DatabaseTableOperationType):
+    type = "database.data_sync.list_jobs"
+
+
 class ListPropertiesOperationType(DatabaseTableOperationType):
     type = "database.data_sync.list_properties"
 

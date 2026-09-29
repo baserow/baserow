@@ -322,7 +322,8 @@
     },
     "gridViewFieldAI": {
         "generate": "생성",
-        "regenerate": "다시 생성"
+        "regenerate": "다시 생성",
+        "promptBroken": "프롬프트에 오류가 있으므로 값을 생성하기 전에 수정해야 합니다."
     },
     "fieldAISubForm": {
         "prompt": "프롬프트",
@@ -335,11 +336,13 @@
         "outputTypeChangedWarning": "생성된 셀 값을 지웁니다.",
         "autoUpdate": "자동 업데이트",
         "autoUpdateHelp": "이 기능을 활성화하면 프롬프트에서 참조된 필드가 업데이트될 때 AI 필드 값이 자동으로 다시 생성됩니다.",
-        "autoUpdateDescription": "참조된 필드가 변경될 때 재생성"
+        "autoUpdateDescription": "참조된 필드가 변경될 때 재생성",
+        "invalidPrompt": "프롬프트 수식이 잘못되었습니다."
     },
     "rowEditFieldAI": {
         "generate": "생성",
-        "createRowBefore": "행이 생성된 후에 AI 값을 생성할 수 있습니다."
+        "createRowBefore": "행이 생성된 후에 AI 값을 생성할 수 있습니다.",
+        "promptBroken": "프롬프트에 오류가 있으므로 값을 생성하기 전에 수정해야 합니다."
     },
     "aiFormulaModal": {
         "title": "AI를 사용하여 수식 생성",

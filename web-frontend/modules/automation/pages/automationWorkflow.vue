@@ -1,7 +1,7 @@
 <template>
   <AutomationWorkflowContent
     v-if="workspace && automation && workflow"
-    :loading="workflowLoading"
+    :loading="loading"
     :workspace="workspace"
     :automation="automation"
     :workflow="workflow"
@@ -10,7 +10,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useAsyncData } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 
 import AutomationWorkflowContent from '@baserow/modules/automation/components/AutomationWorkflowContent'
@@ -35,39 +35,36 @@ useHead(() => ({
   title: t('automationWorkflow.title'),
 }))
 
-const workflowLoading = ref(false)
-
 const route = useRoute()
 const { $store, $registry } = useNuxtApp()
 
-// Load page data
+// The automation, workspace and workflow are selected by the
+// `selectWorkspaceAutomationWorkflow` middleware, so they're there when the page
+// renders. Only the nodes have to be fetched. They're read once instead of being
+// computed, because the next route's middleware selects its own application
+// before this page unmounts, and a realtime deletion removes it from the store
+// before the redirect away has finished.
+const automation = ref($store.getters['application/getSelected'])
+const workspace = ref($store.getters['workspace/getSelected'])
+const workflow = ref($store.getters['automationWorkflow/getSelected'])
+
 const automationApplicationType = $registry.get(
   'application',
   AutomationApplicationType.getType()
 )
 
-const { data: pageData, error } = await useAsyncData(
+const { loading } = await usePageAsyncData(
   () =>
     `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
   async () => {
     try {
-      const automation = $store.getters['application/getSelected']
-      const workspace = $store.getters['workspace/getSelected']
-      const workflow = $store.getters['automationWorkflow/getSelected']
-
-      await automationApplicationType.loadExtraData(automation)
+      await automationApplicationType.loadExtraData(automation.value)
 
       await $store.dispatch('automationWorkflowNode/fetch', {
-        workflow,
+        workflow: workflow.value,
       })
 
-      workflowLoading.value = false
-
-      return {
-        automation,
-        workspace,
-        workflow,
-      }
+      return true
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
@@ -90,22 +87,12 @@ const { data: pageData, error } = await useAsyncData(
   }
 )
 
-if (error.value) {
-  throw error.value
-}
-
-// Computed properties from async data
-const automation = computed(() => pageData.value?.automation ?? null)
-const workspace = computed(() => pageData.value?.workspace ?? null)
-const workflow = computed(() => pageData.value?.workflow ?? null)
-
 function onRouteChange(from) {
   const currentAutomation = $store.getters['application/get'](
     parseInt(from.params.automationId)
   )
   if (currentAutomation) {
     try {
-      workflowLoading.value = true
       const currentWorkflow = $store.getters['automationWorkflow/getById'](
         currentAutomation,
         parseInt(from.params.workflowId)

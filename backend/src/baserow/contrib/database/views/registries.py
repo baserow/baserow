@@ -197,6 +197,49 @@ class ViewType(
     options
     """
 
+    copyable_view_attributes = []
+    """
+    The view attributes that the `view_settings` configuration copy category copies
+    from one view into another. Only attributes that both the source and the
+    destination view type declare are copied, so a view type can safely declare its
+    own specific attributes here.
+    """
+
+    def get_copyable_configuration_categories(self) -> Set[str]:
+        """
+        A configuration category can only be copied between two views when both view
+        types support it.
+
+        :return: The configuration copy category types that this view type supports.
+        """
+
+        # Imported here because `configuration_copy` imports this module at the top
+        # level, which would otherwise be a circular import.
+        from baserow.contrib.database.views.configuration_copy import (
+            view_configuration_copy_category_type_registry,
+        )
+
+        return {
+            category_type.type
+            for category_type in (
+                view_configuration_copy_category_type_registry.get_all()
+            )
+            if category_type.is_supported(self)
+        }
+
+    def get_public_url_path(self, view: "View") -> str:
+        """
+        Returns the web frontend path where the publicly shared view can be visited.
+        It's used to construct absolute public URLs on the backend, for example in
+        the abuse report admin notification. View types with a different public
+        route, like the form view, can override this method.
+
+        :param view: The publicly shared view.
+        :return: The path of the public page of the view.
+        """
+
+        return f"/public/{self.type}/{view.slug}"
+
     @property
     def model_reference_field_name(self):
         """
@@ -459,6 +502,10 @@ class ViewType(
 
         id_mapping["database_views"][view_id] = view.id
 
+        # Filters and decorations can only map their values if they know the
+        # field they apply to. Only then is the table model needed.
+        fields_by_id = self.get_fields_by_id(table) if filters or decorations else {}
+
         if self.can_filter:
             for filter_group in filter_groups:
                 filter_group_copy = filter_group.copy()
@@ -484,7 +531,9 @@ class ViewType(
                 ]
                 view_filter_copy["value"] = (
                     view_filter_type.set_import_serialized_value(
-                        view_filter_copy["value"], id_mapping
+                        view_filter_copy["value"],
+                        id_mapping,
+                        fields_by_id.get(view_filter_copy["field_id"]),
                     )
                 )
                 if view_filter.get("group", None):
@@ -539,7 +588,7 @@ class ViewType(
                     else:
                         view_decoration_copy = (
                             value_provider_type.set_import_serialized_value(
-                                view_decoration_copy, id_mapping
+                                view_decoration_copy, id_mapping, fields_by_id
                             )
                         )
 
@@ -561,14 +610,37 @@ class ViewType(
                 cache,
             )
 
+        workspace = table.database.workspace
+        if not workspace:
+            if "_import_workspace_obj" not in id_mapping:
+                id_mapping["_import_workspace_obj"] = Workspace.objects.get(
+                    pk=id_mapping["import_workspace_id"]
+                )
+            workspace = id_mapping["_import_workspace_obj"]
+
         for (
             serialized_structure_processor
         ) in serialization_processor_registry.get_all():
             serialized_structure_processor.import_serialized(
-                table.database.workspace, view, serialized_copy, import_export_config
+                workspace, view, serialized_copy, import_export_config
             )
 
         return view
+
+    def get_fields_by_id(self, table: "Table") -> Dict[int, "Field"]:
+        """
+        Returns the specific fields of the table keyed by id, taken from the table
+        model because that one is cached and shared with the rest of the import.
+        Generating the model is not free, so only call this when a field is needed.
+
+        :param table: The table to get the fields of.
+        :return: The specific fields keyed by id.
+        """
+
+        return {
+            field_id: field_object["field"]
+            for field_id, field_object in table.get_model()._field_objects.items()
+        }
 
     def _export_default_row_values(self, view, cache, files_zip, storage):
         """
@@ -770,6 +842,16 @@ class ViewType(
             have to be fetched again.
         :param update_field_option_instances: The instances of the field options that
             have been updated.
+        """
+
+    def after_field_options_loaded(self, view: "View", user: AbstractUser) -> None:
+        """
+        Called after the field options of the view have been served to the user.
+        For view types whose editor has no rows endpoint this request is the one
+        that means the user opened the view, so they can broadcast that here.
+
+        :param view: The view whose field options were loaded.
+        :param user: The user that requested them.
         """
 
     def after_fields_type_change(self, fields: List["Field"]) -> None:
@@ -1162,7 +1244,12 @@ class ViewFilterType(Instance):
             return ""
         return value
 
-    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+    def set_import_serialized_value(
+        self,
+        value: str | None,
+        id_mapping: dict,
+        field: Optional["Field"] = None,
+    ) -> str:
         """
         This method is called before a field is imported. It can optionally be
         modified. If the value for example points to a field or select option id, it
@@ -1171,6 +1258,9 @@ class ViewFilterType(Instance):
         :param value: The original exported value.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param field: The newly created specific field the filter applies to, if
+            known. Filter types that are compatible with multiple field types can use
+            it to decide how the value must be imported.
         :return: The new value that will be imported.
         """
 
@@ -1387,7 +1477,10 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         """
 
     def set_import_serialized_value(
-        self, value: Dict[str, Any], id_mapping: Dict[str, Dict[int, Any]]
+        self,
+        value: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, Any]],
+        fields_by_id: Optional[Dict[int, "Field"]] = None,
     ) -> Dict[str, Any]:
         """
         This method is called before a decorator is imported. It can optionally be
@@ -1398,6 +1491,8 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         :param value: The original exported value.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param fields_by_id: The newly created specific fields of the table keyed by
+            id, if known.
         :return: The new value that will be imported.
         """
 

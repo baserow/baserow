@@ -15,13 +15,10 @@
       >
         {{ $t('rowEditFieldAI.generate') }}
       </Button>
-      <span
-        v-else-if="rowIsCreated"
-        v-tooltip="promptBroken ? $t('rowEditFieldAI.promptBroken') : null"
-      >
+      <span v-else-if="rowIsCreated" v-tooltip="fieldError">
         <Button
           type="secondary"
-          :disabled="promptBroken"
+          :disabled="!modelAvailable || fieldHasError"
           :loading="generating"
           @click="generate()"
           >{{ $t('rowEditFieldAI.generate') }}</Button

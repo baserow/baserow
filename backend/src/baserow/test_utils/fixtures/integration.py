@@ -1,5 +1,6 @@
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.integrations.registries import integration_type_registry
 
 
@@ -23,6 +24,13 @@ class IntegrationFixtures:
             kwargs["use_tls"] = True
 
         integration = self.create_integration(SMTPIntegration, **kwargs)
+        return integration
+
+    def create_slack_bot_integration(self, **kwargs):
+        if "token" not in kwargs:
+            kwargs["token"] = "xoxb-test-token"  # nosec B105
+
+        integration = self.create_integration(SlackBotIntegration, **kwargs)
         return integration
 
     def create_integration_with_first_type(self, **kwargs):

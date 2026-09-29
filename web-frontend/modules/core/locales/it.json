@@ -3,8 +3,67 @@
         "page": "Pagina",
         "of": "di {pages}"
     },
+    "allWorkspaces": {
+        "title": "I tuoi progetti",
+        "searchResults": "Risultati della ricerca",
+        "searchPlaceholder": "Cerca",
+        "allItems": "Tutti gli elementi",
+        "itemsSelected": "{count} tipo di elemento | {count} tipi di elemento",
+        "createWorkspace": "Crea progetto",
+        "expandedView": "Vista estesa",
+        "compactView": "Vista compatta",
+        "collapseAll": "Comprimi tutto",
+        "expandAll": "Espandi tutto",
+        "workspacesSection": "Progetti",
+        "itemsSection": "Elementi",
+        "noResultsTitle": "Nessun risultato trovato",
+        "noResultsDescription": "Non abbiamo trovato nulla per \"{search}\". Controlla l'ortografia o usa parole chiave diverse.",
+        "clearSearch": "Cancella ricerca",
+        "membersCount": "0 membri | 1 membro | {count} membri",
+        "itemsCount": "0 elementi | 1 elemento | {count} elementi",
+        "moreElements": "{count} altro elemento | altri {count} elementi",
+        "noApplications": "Nessun builder ancora",
+        "noFilterMatches": "Nessun elemento corrisponde ai tipi selezionati.",
+        "create": "Crea",
+        "members": "Membri",
+        "settings": "Impostazioni"
+    },
+    "recentlyViewed": {
+        "title": "Visti di recente",
+        "yourItems": "I tuoi elementi",
+        "name": "Nome",
+        "lastViewed": "Ultima visualizzazione",
+        "workspace": "Progetto",
+        "allWorkspaces": "Tutti i progetti",
+        "workspacesSelected": "{count} progetto | {count} progetti",
+        "allItems": "Tutti gli elementi",
+        "itemTypesSelected": "{count} tipo di elemento | {count} tipi di elemento",
+        "tableView": "Tabella",
+        "cardsView": "Schede",
+        "loadMore": "Carica altri",
+        "emptyTitle": "Nessun elemento visto di recente",
+        "emptyDescription": "Le viste, le pagine, le dashboard e i flussi di lavoro che apri appaiono qui.",
+        "noFilterMatchesTitle": "Nessun elemento corrisponde ai filtri selezionati",
+        "noFilterMatchesDescription": "Prova a selezionare altri progetti o tipi di elemento.",
+        "clearFilters": "Rimuovi filtri",
+        "goToWorkspaces": "Vai ai tuoi progetti"
+    },
     "copied": {
         "label": "Copiato!"
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "Output",
+        "errorLabel": "Si è verificato un errore...",
+        "showPayloadLabel": "Mostra payload",
+        "showErrorLabel": "Mostra errore",
+        "downloadFullPayload": "Scarica il payload completo",
+        "truncatedLabel": "[Output troncato]",
+        "truncatedPayloadWarning": "Vengono mostrati solo i primi {size} caratteri. Scarica il payload completo per esaminarlo sul tuo computer.",
+        "noHtmlContent": "Questa e-mail non ha un corpo HTML."
+    },
+    "action": {
+        "cancel": "Annulla",
+        "submit": "Invia"
     },
     "sidebarApplication": {
         "renameApplication": "Rinomina {type}",
@@ -24,11 +83,17 @@
         "admin": "Admin",
         "dashboard": "Dashboard",
         "trash": "Cestino",
-        "settings": "Impostazioni",
+        "settings": "Le mie impostazioni",
+        "replayGuidedTour": "Ripeti il tour guidato",
         "members": "Membri",
         "notifications": "Notifiche",
         "addNewWorkspace": "Aggiungi un nuovo workspace",
         "adminTools": "Strumenti da amministratore",
+        "recents": "Recenti",
+        "allWorkspaces": "Tutti i progetti",
+        "recentlyViewed": "Visti di recente",
+        "backToHome": "Torna alla home",
+        "templates": "Modelli",
         "home": "Pagina principale",
         "adminSettings": "Impostazioni di amministrazione",
         "general": "Generale",
@@ -45,8 +110,25 @@
         "changedDescription": "Le informazioni del tuo account sono state cambiate.",
         "submitButton": "Aggiorna account"
     },
+    "twoFactorAuthSettings": {
+        "title": "Autenticazione a due fattori",
+        "loadingError": "Impossibile caricare la configurazione a due fattori."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Sei sicuro di voler disattivare la 2FA?",
+        "description": "Il tuo account perderà un ulteriore livello di sicurezza. Se qualcuno scopre la tua password, potrebbe riuscire ad accedere al tuo account.",
+        "cancel": "Lasciala attiva",
+        "disable": "Disabilita",
+        "successTitle": "L'autenticazione a due fattori è stata disattivata",
+        "errorWrongPasswordTitle": "Password errata",
+        "errorWrongPasswordMessage": "La password inserita non corrisponde alla tua password."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Annulla",
+        "continue": "Continua"
+    },
     "settingsModal": {
-        "title": "Impostazioni"
+        "title": "Le mie impostazioni"
     },
     "passwordSettings": {
         "title": "Modifica password",
@@ -61,6 +143,21 @@
         "errorInvalidOldPasswordTitle": "Password non valida",
         "errorInvalidOldPasswordMessage": "Impossibile cambiare la password perché la vecchia password non è valida."
     },
+    "emailSettings": {
+        "title": "Cambia indirizzo email",
+        "successTitle": "Email di conferma inviata",
+        "successDescription": "Abbiamo inviato un'email di conferma al tuo nuovo indirizzo. Controlla la tua casella di posta e clicca sul link per completare il cambio dell'email.",
+        "currentEmailLabel": "Indirizzo email attuale",
+        "newEmailLabel": "Nuovo indirizzo email",
+        "passwordLabel": "Password attuale",
+        "submitButton": "Invia email di conferma",
+        "errorInvalidPasswordTitle": "Password non valida",
+        "errorInvalidPasswordMessage": "Impossibile richiedere il cambio dell'email perché la password non è corretta.",
+        "errorEmailExistsTitle": "L'email esiste già",
+        "errorEmailExistsMessage": "Impossibile richiedere il cambio dell'email perché esiste già un account con questo indirizzo email.",
+        "errorNotAllowedTitle": "Cambio email non consentito",
+        "errorNotAllowedMessage": "Non puoi cambiare il tuo indirizzo email perché il tuo account usa l'autenticazione single sign-on (SSO)."
+    },
     "error": {
         "alreadyExistsTitle": "Utente già esistente",
         "alreadyExistsMessage": "Un utente con l'indirizzo e-mail fornito esiste già.",
@@ -68,6 +165,8 @@
         "invalidEmail": "Inserisci un indirizzo e-mail valido.",
         "disabledAccountTitle": "Account disabilitato",
         "disabledAccountMessage": "Questo account utente è stato disabilitato.",
+        "captchaVerificationFailedTitle": "Verifica captcha non riuscita",
+        "captchaVerificationFailedMessage": "La verifica captcha non è riuscita. Riprova.",
         "incorrectCredentialTitle": "Credenziali non corrette",
         "incorrectCredentialMessage": "L'indirizzo e-mail o la password forniti non sono corretti.",
         "inputRequired": "Inserimento obbligatorio.",
@@ -85,6 +184,9 @@
     "invitationMessage": "{invitedBy} ti ha invitato in {workspace}.",
     "workspaceForm": {
         "nameLabel": "Nome"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Nome del progetto non consentito"
     },
     "leaveWorkspaceModal": {
         "title": "Lascia {workspace}",
@@ -124,6 +226,8 @@
     },
     "workspaceContext": {
         "renameWorkspace": "Rinomina progetto",
+        "exportWorkspace": "Esporta dati",
+        "importWorkspace": "Importa dati",
         "members": "Membri",
         "viewTrash": "Visualizza cestino",
         "leaveWorkspace": "Lascia progetto",
@@ -143,11 +247,13 @@
         "title": "Modelli"
     },
     "templateHeader": {
-        "use": "Usa questo modello"
+        "use": "Usa questo modello",
+        "selectWorkspace": "Scegli progetto"
     },
     "trashSidebar": {
         "title": "Cestino",
-        "unnamedWorkspace": "Progetto senza nome {id}"
+        "unnamedWorkspace": "Progetto senza nome {id}",
+        "workspaces": "Progetti"
     },
     "trashContents": {
         "message": "Ripristina gli elementi eliminati negli ultimi {duration}",
@@ -172,6 +278,10 @@
         "unnamed": "{type} senza nome {id}",
         "andMore": "... e {count} altri"
     },
+    "trashType": {
+        "integration": "integrazione",
+        "user_source": "sorgente utenti"
+    },
     "trashModal": {
         "emptyTitle": "Nessun progetto",
         "emptyMessage": "Non sei membro di nessun progetto. Applicazioni come i database appartengono a un progetto, quindi per crearli devi creare un progetto.",
@@ -195,7 +305,9 @@
         "fromTemplate": "Da modello",
         "fromTemplateDesc": "Inizia rapidamente con uno dei nostri template",
         "table": "Tabella",
-        "tableDesc": "Crea un posto per organizzare i dati del tuo database."
+        "tableDesc": "Crea un posto per organizzare i dati del tuo database.",
+        "importWorkspace": "Importa dati",
+        "importWorkspaceDesc": "Aggiungi dati esistenti da un'istanza di Baserow."
     },
     "applicationForm": {
         "nameLabel": "Nome",
@@ -218,9 +330,10 @@
         "content": "Preparazione dei tuoi dati in corso"
     },
     "errorLayout": {
+        "pageNotFoundTitle": "Pagina non trovata",
         "notFound": "La pagina che stai cercando non è stata trovata. Potrebbe essere perché l'URL non è corretto o perché non hai l'autorizzazione per visualizzare la pagina.",
-        "error": "Qualcosa è andato storto durante il caricamento della pagina. I nostri sviluppatori sono stati informati del problema. Prova ad aggiornare o a tornare alla dashboard.",
-        "backDashboard": "Torna alla dashboard",
+        "error": "Qualcosa è andato storto durante il caricamento della pagina. I nostri sviluppatori sono stati informati del problema. Prova ad aggiornare o a tornare alla homepage.",
+        "backDashboard": "Torna alla home",
         "backLogin": "Torna all'accesso",
         "wrong": "Qualcosa è andato storto",
         "refresh": "Aggiorna la pagina"
@@ -235,11 +348,14 @@
         "noWorkspaceText": "Non sei membro di nessun progetto. Applicazioni come i database appartengono a un progetto, quindi per crearli devi creare un progetto.",
         "createWorkspace": "Crea progetto",
         "becomeGithubSponsor": "Diventa uno sponsor GitHub",
+        "starOnGitHub": "Metti una stella su GitHub",
         "starOnGitlab": "Valutaci su Gitlab",
         "shareOnTwitter": "Invia un tweet su Baserow",
         "shareOnReddit": "Condividi su Reddit",
         "shareOnFacebook": "Condividi su Facebook",
         "shareOnLinkedIn": "Condividi su LinkedIn",
+        "templates": "Modelli",
+        "templatesMessage": "Inizia con una soluzione pronta all'uso",
         "noWorkspaceTextWithoutCreatePermission": "Non sei membro di nessun progetto. Applicazioni come i database appartengono ad un progetto, quindi per crearli richiedi al tuo amministratore di essere invitato ad un progetto.",
         "suggestedTemplates": "Template suggeriti",
         "resources": "Risorse",
@@ -249,6 +365,8 @@
         "tutorialsMessage": "Scopri il potenziale di Baserow",
         "apiDocumentation": "Documentazione API",
         "apiDocumentationMessage": "Scopri di più sul nostro codice",
+        "academy": "Baserow Academy",
+        "academyMessage": "Segui i corsi e diventa un esperto",
         "emptyWorkspace": "Questo progetto è vuoto",
         "emptyWorkspaceMessage": "Inizia creando un nuovo database o una nuova applicazione.",
         "addNew": "Aggiungi nuovo...",
@@ -256,11 +374,11 @@
         "noWorkspaceDescription": "Inizia creando un nuovo progetto"
     },
     "login": {
-        "title": "Login",
+        "title": "Bentornato",
         "forgotPassword": "Hai dimenticato?",
         "emailPlaceholder": "Inserisci la tua email...",
         "passwordPlaceholder": "Inserisci la tua password...",
-        "signUpText": "Non hai un account?",
+        "signUpText": "Nuovo su Baserow?",
         "signUp": "Registrati",
         "redirecting": "Reindirizzando alla pagina di login del provider...",
         "displayPasswordLogin": "Effettua il login tramite email e password"
@@ -269,17 +387,35 @@
         "title": "Reimposta password",
         "newPassword": "Nuova password",
         "repeatNewPassword": "Ripeti la nuova password",
+        "repeatPasswordPlaceholder": "Ripeti la nuova password",
         "submit": "Modifica password",
         "changed": "Password modificata",
+        "message": "Ora puoi accedere a Baserow con la tua nuova password.",
         "errorInvalidLinkTitle": "Link non valido",
         "errorInvalidLinkMessage": "Impossibile reimpostare la password perché il link non è valido.",
         "errorLinkExpiredTitle": "Link scaduto",
         "errorLinkExpiredMessage": "Il link per la reimpostazione della password è scaduto, richiedine un altro.",
+        "errorLinkAlreadyUsedTitle": "Link già utilizzato",
+        "errorLinkAlreadyUsedMessage": "Questo link per reimpostare la password è già stato utilizzato. Richiedine uno nuovo.",
         "disabled": "Il reset della password è disabilitato",
         "disabledMessage": "Non è possibile reimpostare la password perché l'opzione è stata disabilitata."
     },
+    "changeEmail": {
+        "title": "Conferma il cambio email",
+        "submit": "Conferma il cambio email",
+        "changed": "Indirizzo email modificato",
+        "message": "Il tuo indirizzo email è stato modificato con successo. Ora puoi accedere a Baserow con il tuo nuovo indirizzo email.",
+        "errorInvalidLinkTitle": "Link non valido",
+        "errorInvalidLinkMessage": "Impossibile modificare l'indirizzo email perché il link non è valido.",
+        "errorLinkExpiredTitle": "Link scaduto",
+        "errorLinkExpiredMessage": "Il link per il cambio email è scaduto. Richiedine uno nuovo dalle impostazioni del tuo account.",
+        "errorEmailExistsTitle": "L'email esiste già",
+        "errorEmailExistsMessage": "Impossibile modificare l'indirizzo email perché esiste già un account con questo indirizzo email.",
+        "errorEmailAlreadyChangedTitle": "Email già modificata",
+        "errorEmailAlreadyChangedMessage": "L'indirizzo email è già stato modificato con l'indirizzo richiesto."
+    },
     "signup": {
-        "headTitle": "Crea nuovo account",
+        "headTitle": "Crea account",
         "title": "Registrati",
         "disabled": "Registrazione disabilitata",
         "disabledMessage": "Non è possibile creare un account perché è stato disabilitato.",
@@ -294,12 +430,14 @@
     },
     "forgotPassword": {
         "title": "Password dimenticata",
-        "message": "Inserisci nel modulo il tuo indirizzo e-mail. Se troviamo un account corrispondente, ti invieremo un'e-mail con un link per reimpostare la password.",
+        "message": "Inserisci il tuo indirizzo email e ti invieremo un link per reimpostare la password.",
         "submit": "Invia link",
-        "confirmation": "Se il tuo indirizzo e-mail è presente nel nostro database, riceverai in pochi minuti a tale indirizzo un link per la reimpostazione della password.",
+        "confirmationTitle": "Controlla la tua email",
+        "confirmation": "Abbiamo inviato un'email a {email} con un link per reimpostare la tua password di Baserow.",
         "disabled": "Password dimenticata",
         "disabledMessage": "Non è possibile reimpostare la password perché è stato disabilitato.",
-        "loginText": "Hai già account e password?"
+        "loginText": "Hai già account e password?",
+        "goBack": "Torna indietro"
     },
     "settings": {
         "settingsTitle": "Impostazioni admin",
@@ -326,6 +464,10 @@
         "settingTrackWorkspaceUsageDescription": "Abilita un task periodico che monitora il numero di righe e lo spazio disco utilizzato per ogni progetto, visibile nella pagina di riepilogo dei progetti.",
         "emailVerificationNoVerification": "Nessuna verifica",
         "emailVerificationEnforced": "Obbligatoria",
+        "settingsVerifyImportSignature": "Verifica la firma dell'importazione",
+        "settingsVerifyImportSignatureDescription": "Se abilitato, la firma dei dati importati viene verificata per garantire che i dati non siano stati manomessi.",
+        "settingAllowReportingAbuseName": "Consenti la segnalazione di abusi",
+        "settingAllowReportingAbuseDescription": "Se abilitato, i visitatori di viste e moduli condivisi pubblicamente possono segnalarli per abuso e tutti gli amministratori dell'istanza ricevono una notifica della segnalazione.",
         "userSettings": "Utente",
         "emailVerificationRecommended": "Raccomandata",
         "emailVerificationDescription": "Controlla se l'indirizzo email deve essere verificato.",
@@ -354,6 +496,9 @@
         "action": "Aggiorna pagina"
     },
     "formSidebar": {
+        "fields": "Campi",
+        "rowEditableBy": "Aggiorna righe tramite campi",
+        "rowEditableByDescription": "Le righe di questa tabella possono essere aggiornate con questo modulo tramite i seguenti campi di modifica riga:",
         "actions": {
             "addAll": "Aggiungi tutti",
             "removeAll": "Rimuovi tutto",
@@ -454,6 +599,7 @@
         "statePending": "In attesa...",
         "stateStarted": "Avviato...",
         "stateFinished": "Finito",
+        "stateCanceled": "Annullato",
         "errorJobAlreadyRunningTitle": "In corso",
         "stateFailed": "Fallito",
         "errorJobAlreadyRunningDescription": "Un altro processo è già in corso. Devi attendere il termine di quello in corso per iniziarne uno nuovo.",
@@ -471,6 +617,8 @@
     "datetime": {
         "daysAgo": "0 giorni fa | 1 giorno fa | {n} giorni fa",
         "yearsAgo": "0 anni fa | 1 anno fa | {n} anni fa",
+        "lessThanMinuteAgo": "meno di un minuto fa",
+        "justNow": "proprio ora",
         "monthsAgo": "0 mesi fa | 1 mese fa | {n} mesi fa",
         "minutesAgo": "0 minuti fa | 1 minuto fa | {n} minuti fa",
         "secondsAgo": "Ora | 1 secondo fa | {n} secondi fa",
@@ -498,7 +646,9 @@
                 "email": "Email",
                 "role": "Ruolo di default",
                 "teams": "Team",
+                "2fa": "2FA",
                 "highestRoleHelpText": "Il ruolo più alto che quest'utente ha assegnato direttamente o tramite un team nel progetto",
+                "highestRoleInstanceHelpText": "Il ruolo più alto che questo utente ha nell'istanza",
                 "highestRole": "Ruolo più alto"
             },
             "actions": {
@@ -524,6 +674,10 @@
                 "userAlreadyInWorkspace": {
                     "text": "Non è possibile inviare un invito se l'utente non fa parte del progetto.",
                     "title": "L'utente fa già parte del progetto."
+                },
+                "tooManyInvitations": {
+                    "title": "Troppi inviti inviati.",
+                    "text": "Hai inviato troppi inviti. Riprova più tardi."
                 }
             },
             "submit": "Manda invito",
@@ -562,7 +716,7 @@
     },
     "connectingToast": {
         "title": "Riconnettendo",
-        "content": "Riconnettendo con il server."
+        "content": "Tentativo di ripristinare gli aggiornamenti in tempo reale."
     },
     "integrationEditForm": {
         "name": "Nome",
@@ -615,8 +769,14 @@
     },
     "failedConnectingToast": {
         "title": "Fallito",
-        "content": "La connessione al server è fallita. Prova ad aggiornare la pagina.",
+        "content": "Impossibile ripristinare gli aggiornamenti in tempo reale. Aggiorna la pagina per continuare.",
         "action": "Aggiorna la pagina"
+    },
+    "workspaceOutdatedToast": {
+        "title": "Troppe modifiche",
+        "content": "Si sono verificate troppe modifiche mentre eri assente. Aggiorna per vedere i dati più recenti.",
+        "action": "Aggiorna dati",
+        "dismiss": "Ignora"
     },
     "permissionsUpdatedToast": {
         "title": "Permessi modfiicati",
@@ -639,7 +799,14 @@
         "content": "Preparando i tuoi dati"
     },
     "dropdown": {
-        "empty": "Nessun elemento disponibile"
+        "empty": "Nessun elemento disponibile",
+        "clearSearch": "Cancella ricerca"
+    },
+    "groupedMenu": {
+        "core": "Core",
+        "files": "File",
+        "http": "HTTP",
+        "workflow": "Flusso di lavoro"
     },
     "workspaceInvitationAcceptedNotification": {
         "title": "{sender} ha accettato il tuo invito per far parte di {workspaceName}",
@@ -652,10 +819,36 @@
     "versionUpgradeNotification": {
         "title": "{version} è qui! Clicca per vedere le novità."
     },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} è stato segnalato per abuso da {reporterEmail}",
+        "openResource": "Apri la pagina segnalata",
+        "showMore": "Mostra di più",
+        "detailsTitle": "Segnalazione di abuso",
+        "reportedBy": "Segnalato da {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Segnala abuso",
+        "description": "Ritieni che questa pagina venga utilizzata per phishing, furto d'identità, truffe o altri scopi illeciti? Informa gli amministratori di questa istanza di Baserow inviando il modulo qui sotto.",
+        "submit": "Invia segnalazione",
+        "close": "Chiudi",
+        "successTitle": "Grazie per la tua segnalazione",
+        "successDescription": "La segnalazione è stata inviata e gli amministratori di questa istanza di Baserow sono stati avvisati per poter intervenire.",
+        "reportingDisabledTitle": "Le segnalazioni sono disabilitate",
+        "reportingDisabledDescription": "La segnalazione di abusi è stata disabilitata dall'amministratore di questa istanza di Baserow."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Il tuo nome",
+        "emailLabel": "Il tuo indirizzo email",
+        "descriptionLabel": "Perché stai segnalando questa pagina?",
+        "descriptionHelper": "Descrivi in dettaglio perché ritieni che questa pagina sia abusiva.",
+        "descriptionPlaceholder": "Ad esempio: questa pagina finge di essere la pagina di accesso di un'altra azienda e chiede ai visitatori la loro password."
+    },
     "integrationCreateEditModal": {
         "createTitle": "Nuova integrazione",
         "editTitle": "Modifica integrazione",
-        "warningTitle": "Avviso"
+        "warningTitle": "Avviso",
+        "credentialRequiredTitle": "Credenziale richiesta",
+        "credentialRequiredMessage": "Inserisci di nuovo la credenziale per cambiare la destinazione di connessione di questa integrazione."
     },
     "styleSidePanel": {
         "paddingTop": "Spazio superiore",
@@ -683,17 +876,48 @@
     },
     "dataExplorer": {
         "emptyText": "Nessun dato trovato",
-        "noMatchingNodesText": "Non è stato trovato nessun provider di dati adatto.",
+        "noMatchingNodesText": "Nessun risultato corrispondente trovato.",
         "noProvidersText": "Nessun provider di dati trovato. Per iniziare, per esempio, aggiungi una fonte dati o un parametro di pagina."
     },
+    "dataExplorerNode": {
+        "showMore": "Mostra altre ripetizioni",
+        "selectNode": "Seleziona"
+    },
     "formulaInputField": {
-        "errorInvalidFormula": "La formula non è valida"
+        "errorInvalidFormula": "La formula non è valida",
+        "advancedFormulaMode": "Modalità formula avanzata",
+        "invalidFormulaTitle": "Formula non valida",
+        "invalidSyntax": "Non è una formula esperta valida, controlla la sintassi.",
+        "useFormulaMode": "Usa la modalità formula",
+        "useRawMode": "Usa la modalità grezza"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Visualizza l'errore completo"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "Variabili",
+        "functions": "Funzioni",
+        "operators": "Operatori",
+        "search": "Cerca",
+        "useRegularInputModalTitle": "Usare l'input normale per questo campo?",
+        "useSimpleInput": "Passa alla modalità base",
+        "useSimpleInputModalTitle": "Passare alla modalità base?",
+        "useAdvancedInput": "Passa alla modalità esperta",
+        "useAdvancedInputModalTitle": "Passare alla modalità esperta?",
+        "modalMessage": "Passando a una modalità diversa la formula corrente verrà cancellata. Sei sicuro di voler continuare?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "La funzione '{funcType}' richiede almeno {minArgs} argomenti.",
+        "invalidArgCountExact": "La funzione '{funcType}' richiede esattamente {minArgs} argomenti.",
+        "invalidArgCountRange": "La funzione '{funcType}' richiede tra {minArgs} e {maxArgs} argomenti.",
+        "invalidArgumentType": "'{value}' non è un argomento valido per la funzione '{funcType}'."
     },
     "integrationDropdown": {
         "addIntegration": "Aggiungi nuova integrazione",
         "noIntegrations": "Nessuna integrazione trovata.",
         "selectTypeFirst": "Scegli prima il tipo",
-        "integrationPlaceholder": "Scegli una integrazione"
+        "integrationPlaceholder": "Scegli una integrazione",
+        "editIntegration": "Modifica integrazione"
     },
     "userPasswordChangedToast": {
         "title": "Password modificata",
@@ -724,30 +948,74 @@
         "title": "Impostazioni progetto"
     },
     "workspaceSettingType": {
-        "generativeAI": "IA generativa"
+        "generativeAI": "IA generativa",
+        "aiProviders": "Provider IA"
     },
     "generativeAIModelType": {
         "openaiOrganization": "Organizzazione (opzionale)",
         "openaiModelsLabel": "Modelli abilitati",
-        "openaiModelsDescription": "Fornire un elenco di [modelli OpenAI](https://platform.openai.com/docs/models/continuous-model-upgrades) separati da virgole che possono essere utilizzati in Baserow. (ad esempio `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli OpenAI](https://developers.openai.com/api/docs/models) che possono essere utilizzati in Baserow. Ad esempio: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
+        "openaiModelIdentifierDescription": "Inserisci un [identificatore di modello OpenAI](https://developers.openai.com/api/docs/models). Ad esempio: `gpt-5.6`, `gpt-5.6-terra` o `gpt-5.6-luna`.",
+        "openaiBaseUrl": "URL di base",
+        "openaiBaseUrlDescription": "Se vuoto, usa l'URL di base predefinito di OpenAI. Può essere modificato facoltativamente in https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, oppure in qualsiasi altra API compatibile con OpenAI.",
         "ollama": "Ollama",
         "ollamaHostLabel": "Host",
         "ollamaModelsLabel": "Modelli abilitati",
         "openai": "OpenAI",
         "openaiApiKeyLabel": "Chiave API",
-        "openaiApiKeyDescription": "Fornisci una chiave API OpenAI se desideri abilitare l'integrazione. [Istruzioni su come ottenere una chiave API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiApiKeyDescription": "Inserisci una chiave API OpenAI. [Istruzioni su come ottenere una chiave API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "ollamaHostDescription": "Fornisci il nome host al tuo server [Ollama](https://ollama.com/). Questo in genere viene eseguito localmente sul tuo dispositivo.",
-        "ollamaModelsDescription": "Fornire un elenco di [modelli installati da Ollama] separati da virgole (https://ollama.com/library). Tieni presente che il modello deve essere scaricato e installato prima di poter essere utilizzato. (ad esempio `llama2, mistral`)",
+        "ollamaModelsDescription": "Fornisci un elenco separato da virgole di [modelli installati in Ollama](https://ollama.com/library). Un modello deve essere scaricato e installato prima che Baserow possa utilizzarlo. Ad esempio: `gemma3,qwen3,llama3.3`.",
+        "ollamaModelIdentifierDescription": "Inserisci l'identificatore di un [modello installato in Ollama](https://ollama.com/library). Ad esempio: `gemma3`, `qwen3` o `llama3.3`.",
         "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "Chiave API",
+        "anthropicApiKeyDescription": "Inserisci una chiave API Anthropic. [Istruzioni su come ottenere una chiave API](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsLabel": "Modelli abilitati",
+        "anthropicModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) che possono essere utilizzati in Baserow. Ad esempio: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
+        "anthropicModelIdentifierDescription": "Inserisci un [identificatore di modello Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Ad esempio: `claude-sonnet-5`, `claude-opus-4-8` o `claude-haiku-4-5`.",
         "mistral": "Mistral",
-        "openRouter": "OpenRouter"
+        "mistralApiKeyLabel": "Chiave API",
+        "mistralApiKeyDescription": "Inserisci una chiave API Mistral. [Istruzioni su come ottenere una chiave API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Modelli abilitati",
+        "mistralModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli Mistral](https://docs.mistral.ai/models/) che possono essere utilizzati in Baserow. Ad esempio: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`.",
+        "mistralModelIdentifierDescription": "Inserisci un [identificatore di modello Mistral](https://docs.mistral.ai/models/). Ad esempio: `mistral-large-latest`, `mistral-medium-latest` o `mistral-small-latest`.",
+        "openRouter": "OpenRouter",
+        "openRouterApiKeyLabel": "Chiave API",
+        "openRouterApiKeyDescription": "Inserisci una chiave API OpenRouter. [Ottieni una chiave API](https://openrouter.ai/settings/keys).",
+        "openRouterOrganization": "Organizzazione (opzionale)",
+        "openRouterModelsLabel": "Modelli abilitati",
+        "openRouterModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli OpenRouter](https://openrouter.ai/models) che possono essere utilizzati in Baserow. Ad esempio: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
+        "openRouterModelIdentifierDescription": "Inserisci un [identificatore di modello OpenRouter](https://openrouter.ai/models). Ad esempio: `openai/gpt-5.6` o `anthropic/claude-sonnet-5`.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Chiave API",
+        "googleApiKeyDescription": "Inserisci una chiave API di Google AI Studio. [Crea o visualizza una chiave API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Modelli abilitati",
+        "googleModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli Gemini](https://ai.google.dev/gemini-api/docs/models) che possono essere utilizzati in Baserow. Ad esempio: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Inserisci un [identificatore di modello Gemini](https://ai.google.dev/gemini-api/docs/models). Ad esempio: `gemini-3.6-flash` o `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Chiave API",
+        "groqApiKeyDescription": "Inserisci una chiave API Groq. [Crea o visualizza una chiave API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Modelli abilitati",
+        "groqModelsDescription": "Fornisci un elenco separato da virgole di [identificatori di modelli Groq](https://console.groq.com/docs/models) che possono essere utilizzati in Baserow. Ad esempio: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Inserisci un [identificatore di modello Groq](https://console.groq.com/docs/models). Ad esempio: `openai/gpt-oss-120b` o `openai/gpt-oss-20b`."
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Impostazioni aggiornate correttamente",
         "changedDescription": "Le impostazioni sono state aggiornate e saranno ora utilizzate nel progetto.",
         "submitButton": "Aggiorna impostazioni",
         "title": "Impostazioni IA generativa",
-        "description": "Queste impostazioni possono essere utilizzate per impostare facoltativamente la configurazione dell'intelligenza artificiale generativa a livello di progetto. Funzionalità come il campo IA possono essere disabilitate perché mancano di una chiave API per uno dei modelli supportati. Fornendo le impostazioni qui, puoi abilitare tali funzionalità. Lasciando un valore vuoto vengono ripristinate le impostazioni predefinite dell'istanza globale. Tieni presente che tutti nel progetto condivideranno queste impostazioni."
+        "description": "Queste impostazioni possono essere utilizzate per impostare facoltativamente la configurazione dell'intelligenza artificiale generativa a livello di progetto. Funzionalità come il campo IA possono essere disabilitate perché mancano di una chiave API per uno dei modelli supportati. Fornendo le impostazioni qui, puoi abilitare tali funzionalità. Lasciando un valore vuoto vengono ripristinate le impostazioni predefinite dell'istanza globale. Tieni presente che tutti nel progetto condivideranno queste impostazioni.",
+        "providerTitle": "Provider IA",
+        "providerDescription": "Gestisci i provider di proprietà di questo progetto oppure abilita e disabilita i provider ereditati dall'istanza.",
+        "sharedModelsTitle": "Condivisi tra i progetti",
+        "addWorkspaceConfiguration": "Aggiungi configurazione del progetto",
+        "overridden": "Sovrascritto",
+        "overriddenByWorkspace": "Sovrascritto dal progetto",
+        "disabledInWorkspace": "Disabilitato nel progetto",
+        "noProviders": "Nessun provider IA disponibile",
+        "noProvidersDescription": "Aggiungi un provider per questo progetto oppure chiedi a un amministratore dell'istanza di configurarne uno.",
+        "openSettings": "Apri impostazioni",
+        "hideSettings": "Nascondi impostazioni"
     },
     "dashboardVerifyEmail": {
         "resendConfirmationEmail": "Invia nuovamente",
@@ -772,6 +1040,7 @@
     "onboarding": {
         "creating": "Crea il tuo primo workplace",
         "continue": "Continua",
+        "back": "Indietro",
         "failedTitle": "Qualcosa è andato storto",
         "failedDescription": "L'onboarding non è del tutto riuscito, anche se alcune parti sono state completate.",
         "failedTryAgain": "Ritenta",
@@ -787,6 +1056,17 @@
     },
     "moreStep": {
         "title": "Raccontaci di più",
+        "how": "Come ci hai conosciuto?",
+        "howSearchEngine": "Motore di ricerca (Google/Bing)",
+        "howSocialMedia": "Social media",
+        "howOnlineAds": "Annunci online",
+        "howContent": "Contenuti (blog/newsletter/video)",
+        "howReviewSite": "Sito di recensioni / marketplace",
+        "howFriend": "Da un amico",
+        "howColleague": "Da un collega",
+        "howEvent": "Evento o webinar",
+        "howSales": "Contatto commerciale",
+        "howOther": "Altro",
         "roleOrJob": "Ruolo o titolo...",
         "people": "Quante persone siete in azienda?",
         "share": "Accetto di condividere queste informazioni con il team di Baserow per migliorare il prodotto",
@@ -815,11 +1095,16 @@
     "selectAIModelForm": {
         "AIType": "Tipo AI",
         "AIModel": "Modello AI",
+        "modelUnavailable": "Questo modello è disabilitato o non è più disponibile.",
         "fileField": "Campo file",
-        "temperatureLabel": "Temperatura"
+        "temperatureLabel": "Temperatura",
+        "temperatureDescription": "La temperatura di un LLM, un parametro impostato tra 0 e {max}, regola la casualità delle risposte: valori più bassi producono risposte più mirate, mentre valori più alti aumentano la creatività."
     },
     "colorInput": {
         "default": "Default"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "Oppure scegli un colore predefinito"
     },
     "imageInput": {
         "labelDescription": "Scegli un immagine da caricare...",
@@ -841,7 +1126,90 @@
         "dashboard": "Dashboard",
         "users": "Utenti",
         "workspaces": "Progetti",
+        "aiProviders": "Provider IA",
         "licenses": "Gestisci le licenze"
+    },
+    "aiProviderAdmin": {
+        "title": "Provider IA",
+        "description": "Gestisci i provider e i modelli a livello di istanza disponibili per i progetti e le automazioni.",
+        "addProvider": "Aggiungi provider",
+        "editProvider": "Modifica provider",
+        "providerType": "Tipo di provider",
+        "apiKey": "Chiave API",
+        "changeApiKey": "Cambia chiave API",
+        "apiKeyUpdateHint": "Inserisci una nuova chiave API per sostituire quella esistente.",
+        "extraField_organization": "Organizzazione",
+        "extraField_base_url": "URL di base",
+        "extraField_host": "Host",
+        "models": "Modelli",
+        "addModel": "Aggiungi modello",
+        "removeModel": "Rimuovi modello",
+        "editModel": "Modifica modello",
+        "modelIdentifier": "Identificatore del modello",
+        "availableFor": "Disponibile per",
+        "availableForDescription": "Scegli quali delle funzionalità IA elencate possono usare questo modello.",
+        "availableForList": "Disponibile per: {features}",
+        "availableForNone": "Non disponibile per nessuna delle funzionalità elencate",
+        "featureSettingsTitle": "Funzionalità IA",
+        "featureSettingsDescription": "Scegli un modello di un provider configurato per ciascuna funzionalità. I modelli definiti tramite variabili d'ambiente sono deprecati.",
+        "kumaDisabled": "Disabilitato",
+        "kumaInvalidFallback": "Modello selezionato non disponibile: viene usato il modello d'ambiente deprecato: {model}",
+        "kumaInvalidNoFallback": "Modello selezionato non disponibile: nessun modello d'ambiente configurato",
+        "kumaDisabledInWorkspace": "Disabilitato in questo progetto",
+        "kumaUseInstance": "Usa l'impostazione dell'istanza: {model}",
+        "kumaInheritedUnavailable": "modello dell'istanza selezionato non disponibile",
+        "kumaUseLegacy": "Usa il modello d'ambiente (deprecato): {model}",
+        "kumaLegacyFallback": "modello d'ambiente (deprecato): {model}",
+        "kumaLegacyEmpty": "vuoto",
+        "kumaNotConfigured": "non configurato",
+        "featureModelLabel": "Modello per {feature}",
+        "modelScopeInstance": "Istanza",
+        "modelScopeWorkspace": "Progetto",
+        "noFeatureModels": "Nessun modello idoneo disponibile. Modifica un modello e scegli quali funzionalità possono usarlo.",
+        "featureSettingError": "Impossibile salvare l'impostazione della funzionalità IA.",
+        "featureSettingErrorDescription": "Aggiorna la pagina e scegli un modello disponibile.",
+        "modelDiscoveryHelp": "Scegli un modello dall'elenco o inserisci un identificatore personalizzato.",
+        "modelDiscoveryUnavailable": "I suggerimenti di modelli noti non sono disponibili. Inserisci un identificatore manualmente.",
+        "modelDiscoveryEmpty": "Nessun modello noto per questo provider. Inserisci un identificatore manualmente.",
+        "modelDiscoveryNoMatch": "Nessun modello noto corrispondente. Puoi usare l'identificatore che hai inserito.",
+        "noProviders": "Nessun provider IA configurato per l'istanza",
+        "noProvidersDescription": "Aggiungi un provider per configurare i modelli disponibili per i tuoi progetti.",
+        "noModels": "Nessun modello configurato per questo provider.",
+        "active": "Attivo",
+        "inactive": "Inattivo",
+        "inherited": "Ereditato",
+        "enable": "Abilita",
+        "disable": "Disabilita",
+        "modelDisabled": "Disabilitato",
+        "moreActions": "Altre azioni",
+        "testAllModels": "Testa tutti i modelli",
+        "testModel": "Testa modello",
+        "testPassed": "Test superato",
+        "testFailed": "Test non riuscito",
+        "someTestsFailed": "Alcuni test non sono riusciti",
+        "featureTestPassed": "{feature}: superato",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Test in corso…",
+        "notTested": "Non testato",
+        "deleteProviderTitle": "Eliminare {name}?",
+        "deleteProviderDescription": "Il provider e i suoi modelli verranno rimossi definitivamente.",
+        "deleteModelTitle": "Eliminare {name}?",
+        "deleteModelDescription": "Il modello verrà rimosso definitivamente.",
+        "disableModelTitle": "Disabilitare {name}?",
+        "disableModelDescription": "Il modello resta selezionato dove è configurato, ma non può essere usato finché non viene abilitato di nuovo.",
+        "modelFeaturesRemovedTitle": "Cambiare per cosa è disponibile {name}?",
+        "modelFeaturesRemovedDescription": "Le funzionalità che hai deselezionato non potranno più usare questo modello.",
+        "modelInUse": "{features} usa questo modello. | {features} usano questo modello.",
+        "modelUsageUnknown": "Baserow non è riuscito a verificare cosa usa ancora questo modello.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Rinominare {name}?",
+        "modelIdentifierRenamedDescription": "Continueranno a puntare al vecchio identificatore e smetteranno di funzionare finché non verranno reindirizzati.",
+        "loadError": "Impossibile caricare le impostazioni dei provider IA.",
+        "loadErrorDescription": "Controlla la connessione e riprova.",
+        "retry": "Riprova",
+        "saveError": "Impossibile salvare il provider IA.",
+        "saveModelError": "Impossibile salvare il modello del provider IA.",
+        "actionError": "Impossibile completare la modifica del provider IA."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Tutti i progetti",
@@ -877,7 +1245,8 @@
         "workspaces": "Progetti",
         "lastLogin": "Ultimo accesso",
         "dateJoined": "Registrato",
-        "active": "Attivo"
+        "active": "Attivo",
+        "twoFactorAuth": "2FA"
     },
     "editUserContext": {
         "changePassword": "Modifica password",
@@ -896,6 +1265,8 @@
         "fullName": "Nome completo",
         "email": "E-mail",
         "isActive": "È attivo",
+        "twoFactorAuth": "Autenticazione a due fattori",
+        "removeTwoFactorAuth": "Rimuovi l'autenticazione a due fattori",
         "warning": {
             "changeEmail": "Questo è l'indirizzo che l'utente dovrà utilizzare per la registrazione. Se lo modifichi, assicurati di comunicarlo alla persone interessata.",
             "inactiveUser": "Quando un utente è contrassegnato come non attivo non potrà più effettuare l'accesso.",
@@ -916,9 +1287,19 @@
         "comment2": "L'utente eliminato potrà nuovamente iscriversi utilizzando la stessa email. Per assicurarti di impedire una nuova iscrizione, disattiva l'utente anziché eliminarlo.",
         "delete": "Elimina utente {username}"
     },
+    "disableTwoFactorAuthModal": {
+        "title": "Rimuovi l'autenticazione a due fattori",
+        "confirmation": "Sei sicuro di voler rimuovere l'autenticazione a due fattori per {name}?",
+        "comment": "Potrà accedere solo con la password e potrà configurare di nuovo l'autenticazione a due fattori in seguito.",
+        "remove": "Rimuovi l'autenticazione a due fattori"
+    },
     "editUserModal": {
         "delete": "Elimina utente",
         "edit": "Modifica {username}"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Abilitato",
+        "disabled": "Disabilitato"
     },
     "adminDashboard": {
         "title": "Dashboard",
@@ -936,43 +1317,289 @@
         "activeUsers30days": "Utenti attivi nelle ultimi 30 giorni",
         "viewAll": "Vedi tutti"
     },
+    "formGroup": {
+        "protectedField": "Questo campo è protetto. Clicca per modificarlo.",
+        "cancelProtectedField": "Annulla modifica"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} utenti ({lastUpdated})"
+    },
+    "academy": {
+        "learnMore": "Scopri di più nella Baserow Academy"
+    },
+    "guidedTourStep": {
+        "step": "{step} di {totalSteps}",
+        "gotIt": "Ho capito",
+        "next": "Avanti",
+        "back": "Indietro",
+        "watchVideo": "Guarda il video",
+        "stopTour": "Interrompi il tour"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Video precedente",
+        "next": "Video successivo",
+        "close": "Chiudi"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Benvenuto in Baserow",
+        "content": "Facciamo un breve tour per farti prendere confidenza con le basi. In pochi clic imparerai a organizzare e visualizzare i tuoi dati senza fatica",
+        "buttonText": "Inizia il tour"
+    },
     "exportWorkspaceModal": {
         "title": "Esporta",
+        "description": "I tuoi dati verranno esportati come file ZIP, che può essere importato in un'altra istanza di Baserow.",
+        "exportSettings": "Impostazioni di esportazione",
+        "export": "Esporta dati",
+        "reset": "Ricomincia",
         "cancel": "Annulla",
         "download": "Scarica",
         "created": "creato",
-        "exportingState": "Esportazione…"
+        "exportingState": "Esportazione…",
+        "exportingTableState": "Esportazione: {table}",
+        "exportingCreateArchiveState": "Creazione dell'archivio",
+        "noExports": "Nessuna esportazione per questo progetto."
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Impostazioni di esportazione",
+        "selectDataToExport": "Seleziona i dati da esportare",
+        "selectAll": "Seleziona tutto",
+        "deselectAll": "Deseleziona tutto",
+        "onlyStructureLabel": "Esporta solo la struttura",
+        "onlyStructureDescription": "Se abilitato, verrà esportata solo la struttura delle applicazioni. I dati non saranno inclusi."
     },
     "workspaceSearch": {
         "title": "Cerca",
         "searchEverything": "Ricerca...",
-        "searching": "Cerco..."
+        "searching": "Cerco...",
+        "noResults": "Nessun risultato trovato",
+        "noResultsSubtitle": "Non abbiamo trovato nulla che corrisponda a \"{searchTerm}\"",
+        "welcome": "Cerca qualsiasi cosa nel tuo progetto",
+        "welcomeSubtitle": "Usa la casella di ricerca qui sopra per trovare applicazioni, tabelle, campi e altro",
+        "navigate": "Naviga",
+        "select": "Seleziona",
+        "close": "Chiudi",
+        "empty": "(vuoto)",
+        "types": {
+            "applications": "Applicazioni",
+            "tables": "Tabelle",
+            "fields": "Campi",
+            "rows": "Righe"
+        }
     },
     "importWorkspaceModal": {
+        "title": "Importa dati Baserow",
+        "description": "Puoi importare dati Baserow esistenti caricando il file .zip proveniente da un'altra istanza di Baserow.",
+        "import": "Importa dati",
         "upload": "Carica",
+        "uploadAndImport": "Carica e importa",
         "cancel": "Annulla",
         "done": "Fatto",
         "close": "Chiudi",
         "retry": "Riprova",
         "uploading": "caricamento…",
+        "chooseFile": "Scegli file",
+        "selectApplications": "Seleziona i dati da importare",
+        "deselectAll": "Deseleziona tutto",
+        "selectAll": "Seleziona tutto",
         "databases": "Databases",
         "applications": "Applicazioni",
+        "successTitle": "Dati Baserow importati con successo",
+        "successMessage": "Importate {count} applicazioni",
+        "signatureVerificationNote": "Non è possibile importare un file zip da una fonte non affidabile.",
+        "invalidResourceTitle": "Risorsa non valida",
+        "invalidResourceMessage": "Il file fornito non è un'esportazione Baserow valida.",
+        "untrustedPublicKeyTitle": "Firma non affidabile",
         "importingState": "Importazione…",
+        "importingTableStructure": "Creazione: {table}",
+        "importingTableData": "Importazione dati: {table}",
         "untrustedPublicKeyMessage": "Il file fornito è firmato con una chiave pubblica non affidabile. Chiedi al tuo amministratore di aggiungere la chiave pubblica alla lista delle chiavi affidabili o disabilitare la verifica della firma per poter importare questo file."
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Seleziona le applicazioni da importare"
     },
     "mcpEndpoint": {
         "windsurfInstructions": "Due passaggi semplici per impostare MCP con Cascase in Windsurf.\n\n1. Vai a Windsurf - Impostazioni -> Impostazioni Avanzate o Command Palette -> Apri la pagina delle impostazioni di Windsurf.\n2. Scorri verso il basso fino alla sezione Cascade e troverai l'opzione per aggiungere un nuovo server, visualizzare i server esistenti e un pulsante per visualizzare il file di configurazione JSON grezzo a `mcp_config.json`. Aggiungi quanto segue ad esso:",
         "claudeInstructions": "Tre passaggi semplici per iniziare con Claude Desktop e il Baserow MCP.\n\n1. Apri le impostazioni di Claude Desktop dalla barra di navigazione. (⌘+,)\n2. Vai alla scheda \"Develop\" e clicca su \"Edit Config\".\n3. Includi la seguente configurazione JSON in `claude_desktop_config.json`.",
+        "detailLabel": "Più dettagli",
         "endpointURLIntro": "L'URL del server MCP (Model Context Protocol) può essere aggiunto a qualsiasi client che supporta i server MCP. È un endpoint unico che dà all'LLM accesso diretto per eseguire azioni nello spazio di lavoro per tuo conto.",
+        "reveal": "Mostra l'URL completo",
+        "warning": "Tratta il tuo URL MCP come una password, perché può modificare i dati in Baserow.",
         "cursorInstructions": "Tre passaggi semplici per iniziare con Cursor e il Baserow MCP.\n\n1. Apri le impostazioni di Cursor (⇧+⌘+J)\n2. Naviga alla scheda 'MCP' e clicca su 'Add MCP Server'\n3. Aggiungi la seguente configurazione JSON."
     },
+    "coreHTTPTriggerServiceForm": {
+        "title": "URL del webhook",
+        "urlVersion": "Versione",
+        "urlVersionPublished": "Pubblicata",
+        "urlVersionTest": "Test",
+        "copyUrl": "Copia l'URL del webhook",
+        "urlCopied": "URL del webhook copiato negli appunti",
+        "description": "Questo webhook riceverà richieste HTTP e avvierà il flusso di lavoro con i dati della richiesta come payload.",
+        "methodsOptionLabel": "Metodi HTTP consentiti",
+        "methodsOptionDescription": "Controlla quali metodi HTTP sono consentiti per questo webhook. Escludere GET riduce la probabilità che il webhook venga attivato accidentalmente.",
+        "methodsOptionAll": "Tutti",
+        "methodsOptionExcludeGet": "Escludi GET",
+        "responseOptionsLabel": "Risposta",
+        "waitForResponse": "Attendi la risposta del flusso di lavoro",
+        "waitForResponseDescription": "Attende finché non viene raggiunto un nodo Risposta. Se non ne viene raggiunto nessuno, attende il termine del flusso di lavoro e restituisce la risposta predefinita.",
+        "responseTimeout": "Timeout della risposta",
+        "seconds": "secondi"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Risposta",
+        "waitForResponse": "Attendi la risposta del flusso di lavoro",
+        "waitForResponseDescription": "Attende finché non viene raggiunto un nodo Risposta. Se non ne viene raggiunto nessuno, attende il termine del flusso di lavoro e restituisce la risposta predefinita.",
+        "responseTimeout": "Timeout della risposta",
+        "seconds": "secondi"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Codice di stato",
+        "statusCode200": "200 - OK",
+        "statusCode201": "201 - Created",
+        "statusCode202": "202 - Accepted",
+        "statusCode204": "204 - No Content",
+        "statusCode400": "400 - Bad Request",
+        "statusCode401": "401 - Unauthorized",
+        "statusCode403": "403 - Forbidden",
+        "statusCode404": "404 - Not Found",
+        "statusCode405": "405 - Method Not Allowed",
+        "statusCode409": "409 - Conflict",
+        "statusCode422": "422 - Unprocessable Content",
+        "statusCode429": "429 - Too Many Requests",
+        "bodyType": "Tipo di corpo",
+        "bodyTypeEmpty": "Vuoto",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Testo",
+        "body": "Corpo",
+        "bodyPlaceholder": "Corpo della risposta",
+        "headers": "Intestazioni",
+        "name": "Nome",
+        "value": "Valore",
+        "namePlaceholder": "Nome dell'intestazione",
+        "valuePlaceholder": "Valore dell'intestazione",
+        "addHeader": "Aggiungi intestazione",
+        "nameFieldRequired": "Il nome dell'intestazione è obbligatorio.",
+        "nameFieldInvalid": "I nomi delle intestazioni possono contenere solo lettere, numeri, trattini e trattini bassi e non possono iniziare con un trattino o un trattino basso."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "Indirizzo email",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Pubblicato",
+        "copyAddress": "Copia indirizzo email",
+        "description": "Qualsiasi email inviata a questo indirizzo avvierà il flusso di lavoro con mittente, oggetto, corpo e dettagli degli allegati dell'email come payload.",
+        "limits": "Sono accettate email fino a {size} MB e i corpi di testo e HTML vengono trasmessi fino a 1 MB ciascuno. Gli allegati non vengono memorizzati: nel payload sono inclusi solo il loro nome, tipo e dimensione.",
+        "autoForwardTip": "Suggerimento: puoi anche aggiungere questo indirizzo come regola di inoltro automatico nella tua casella di posta, così il flusso di lavoro viene eseguito ogni volta che ricevi un'email.",
+        "secretWarning": "Tratta questo indirizzo come un segreto: chiunque lo conosca può avviare questo flusso di lavoro.",
+        "regenerate": "Rigenera indirizzo",
+        "notConfigured": "Questa istanza di Baserow non è configurata per ricevere email in entrata. Imposta la variabile d'ambiente BASEROW_INBOUND_EMAIL_DOMAIN per abilitare questo trigger."
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Non hai ancora abilitato la 2FA",
+        "description": "Aggiungi un ulteriore livello di sicurezza al tuo account.",
+        "enable": "Abilita 2FA",
+        "notAllowedTitle": "2FA non abilitata",
+        "notAllowedDescription": "L'aggiunta della 2FA è possibile solo per gli account basati su password."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Esempio | Esempi",
+        "result": "Risultato: {result}",
+        "clickToInsert": "Clicca su un esempio per inserirlo"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "Scansiona il codice QR",
+        "scanQRCodeDescription": "Scansiona il codice con un'app come Google Authenticator, Authy o Microsoft Authenticator.",
+        "clickToCopy": "In alternativa, clicca qui per copiare il codice.",
+        "secretCopiedTitle": "Chiave segreta copiata",
+        "secretCopiedMessage": "Chiave segreta TOTP copiata negli appunti.",
+        "enterCode": "Inserisci il codice mostrato",
+        "enterCodeDescription": "Inserisci il codice a 6 cifre mostrato dall'app per confermare di averla configurata correttamente.",
+        "verificationFailed": "Verifica non riuscita",
+        "verificationFailedDescription": "Il codice inserito non è valido.",
+        "provisioningFailed": "Provisioning non riuscito",
+        "checkSuccess": "Autenticazione a due fattori abilitata con successo"
+    },
+    "adminUsers": {
+        "title": "Utenti"
+    },
+    "adminWorkspaces": {
+        "title": "Progetti"
+    },
+    "subjectType": {
+        "user": "Utente",
+        "users": "Utenti",
+        "agent": "Agente",
+        "agents": "Agenti"
+    },
+    "agents": {
+        "saved": "Modifiche salvate",
+        "tabTitle": "Agenti",
+        "title": "{count} agenti in {workspace}",
+        "create": "Crea agente",
+        "createTitle": "Crea agente",
+        "updateTitle": "Modifica agente",
+        "save": "Salva agente",
+        "edit": "Modifica agente",
+        "delete": "Elimina agente",
+        "general": "Generale",
+        "mcpServerPlaceholder": "Le impostazioni del server MCP saranno disponibili qui.",
+        "name": "Nome",
+        "invalidNameTitle": "Nome dell'agente non consentito",
+        "lastActive": "Ultima attività",
+        "workspaceRole": "Ruolo nel progetto"
+    },
     "saveBackupCode": {
-        "description": "Se perdi l'accesso alla tua app di autenticazione o al telefono e non puoi ricevere o generare codici di autenticazione, puoi usare questo backup. Puoi usarlo solo una volta. Assicurati di scriverlo o copiarlo in un luogo sicuro in modo da poterlo accedere senza effettuare l'accesso."
+        "description": "Se perdi l'accesso alla tua app di autenticazione o al telefono e non puoi ricevere o generare codici di autenticazione, puoi usare questo backup. Puoi usarlo solo una volta. Assicurati di scriverlo o copiarlo in un luogo sicuro in modo da poterlo accedere senza effettuare l'accesso.",
+        "backupCodes": "Codici di backup",
+        "copy": "Copia",
+        "continue": "Continua",
+        "backupCodesCopiedTitle": "Copiato!",
+        "backupCodesCopiedMessage": "Codici di backup copiati negli appunti."
+    },
+    "totpAuthType": {
+        "name": "App di autenticazione",
+        "description": "Usa un'app per ottenere i codici di autenticazione a due fattori. Ti consigliamo app come Google Authenticator, Authy e Microsoft Authenticator.",
+        "enabledDescription": "Riceverai i codici di verifica tramite un'app di autenticazione. Per configurare un'app o un metodo diverso, disattiva la 2FA e configurala di nuovo.",
+        "sideLabel": "Raccomandata"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Abilitato",
+        "disable": "Disattiva 2FA"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Inserisci il codice di backup",
+        "backupCodesDescription": "Accedi con il tuo codice di backup monouso.",
+        "authenticate": "Autentica",
+        "goBack": "Torna indietro",
+        "totpTitle": "Autenticazione a due fattori",
+        "totpDescription": "Inserisci il codice della tua app di autenticazione.",
+        "verify": "Verifica",
+        "useBackupCode": "Usa un codice di backup",
+        "verificationFailed": "Verifica non riuscita",
+        "verificationFailedDescription": "Il codice inserito non è corretto.",
+        "loginExpired": "Accesso scaduto",
+        "loginExpiredDescription": "Inserisci di nuovo la tua password.",
+        "rateLimit": "Troppi tentativi."
     },
     "controlCenterGuidedTourStep": {
+        "title": "Il tuo centro di controllo Baserow",
         "content": "La barra laterale sinistra ti aiuta a gestire il tuo spazio di lavoro:\n\n- Home – Accedi alla tua dashboard principale.\n- Notifiche – Rimani aggiornato su cambiamenti e menzioni.\n- Invita Membri – Collabora aggiungendo membri del team.\n- Cestino – Elenca e recupera tutti i tuoi elementi eliminati."
     },
+    "createNewGuidedTourStep": {
+        "title": "Crea un nuovo database o una nuova applicazione",
+        "content": "Clicca su “Aggiungi nuovo…” per configurare un nuovo database, applicazione o dashboard per il tuo progetto, reparto o team."
+    },
     "mcpEndpointSettings": {
+        "title": "Server MCP",
+        "createEndpoint": "Crea endpoint",
+        "createNewTitle": "Crea endpoint del server MCP",
+        "backToOverview": "Indietro",
         "noEndpointsMessage": "Nessun endpoint del server MCP (Model Context Protocol) è stato aggiunto. Questi possono essere usati per integrare direttamente con un LLM come Claude e permettere all'LLM di eseguire azioni direttamente in Baserow. Crea un endpoint del server per iniziare."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "Nome",
+        "workspaceLabel": "Progetto"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "L'immagine non può essere inserita",
+        "errorUnsupportedImageMessage": "{name} non è un'immagine supportata e non può essere aggiunta."
     }
 }

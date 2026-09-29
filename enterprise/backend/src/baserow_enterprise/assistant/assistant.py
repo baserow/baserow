@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import aclosing
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
 from django.contrib.auth.models import AbstractUser
@@ -6,12 +8,14 @@ from django.core.cache import cache
 from django.utils import translation
 
 from loguru import logger
+from pydantic_ai import UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    ModelResponse,
     PartDeltaEvent,
     PartStartEvent,
     TextPart,
@@ -19,11 +23,15 @@ from pydantic_ai.messages import (
     ThinkingPart,
     ThinkingPartDelta,
 )
+from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.tool_manager import ToolManager
+from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow.core.models import Workspace
+from baserow_enterprise.assistant.action_memory import get_verified_tool_outcomes
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
     AgentMode,
@@ -38,10 +46,9 @@ from baserow_enterprise.assistant.history import compact_message_history
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     TITLE,
-    get_model_settings,
-    get_model_string,
+    ResolvedAssistantModelProfile,
+    resolve_assistant_model,
 )
-from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
@@ -61,10 +68,21 @@ from .types import (
     AssistantMessageUnion,
     ChatTitleMessage,
     HumanMessage,
+    UIContext,
 )
 
 _CANCELLATION_KEY_TTL = 300  # seconds
 _THINKING_TAGS = ("<think>", "</think>")
+_UNFINISHED_ANSWER = (
+    "I couldn't finish my answer, but some changes may already have been made. "
+    "Please check them, then tell me how to continue."
+)
+
+
+@dataclass
+class _QueuedRunResult:
+    answer: str | None = None
+    messages_json: bytes = b""
 
 
 def _strip_think_tags(text: str) -> str:
@@ -136,6 +154,47 @@ def _get_workspace_license_type(
         return None
 
 
+@dataclass
+class AgentRunContext:
+    deps: AssistantDeps
+    toolset: AbstractToolset
+    model: Model
+
+
+def build_agent_run_context(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: ToolHelpers,
+    model: Model | None = None,
+) -> AgentRunContext:
+    """Build shared assistant and eval dependencies from one model profile.
+
+    :param user: The user running the assistant.
+    :param workspace: The workspace in which tools execute.
+    :param tool_helpers: Callbacks and the resolved model profile for this run.
+    :param model: An existing model, or None to create one from the profile.
+    :return: Dependencies, manifests, toolset, and the concrete model for the run.
+    """
+
+    model_profile = tool_helpers.model_profile
+    resolved_model = model if model is not None else model_profile.create_model()
+    deps = AssistantDeps(
+        user=user,
+        workspace=workspace,
+        tool_helpers=tool_helpers,
+        license_tier=_get_workspace_license_type(user, workspace),
+    )
+    toolset, deps.tool_catalog = assistant_tool_registry.build_toolset(
+        user=user,
+        workspace=workspace,
+        model=resolved_model,
+        model_profile=model_profile,
+        deps=deps,
+    )
+
+    return AgentRunContext(deps=deps, toolset=toolset, model=resolved_model)
+
+
 def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     """Extract the chain-of-thought ``thought`` argument from a tool call
     event, if present and non-empty."""
@@ -148,6 +207,18 @@ def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     return thought if isinstance(thought, str) and thought.strip() else None
 
 
+def _mode_for_ui_context(ui_context: UIContext | None) -> AgentMode | None:
+    """Return the mode implied by the current UI."""
+
+    if ui_context is None:
+        return None
+    if ui_context.application or ui_context.page:
+        return AgentMode.APPLICATION
+    if ui_context.automation or ui_context.workflow:
+        return AgentMode.AUTOMATION
+    return AgentMode.DATABASE
+
+
 class Assistant:
     """Orchestrates a single assistant chat session.
 
@@ -155,34 +226,34 @@ class Assistant:
     streaming, and message persistence for one ``AssistantChat``.
     """
 
-    def __init__(self, chat: AssistantChat):
+    def __init__(
+        self,
+        chat: AssistantChat,
+        model_profile: ResolvedAssistantModelProfile | None = None,
+    ):
+        """Initialize an assistant from one resolved model snapshot.
+
+        :param chat: The persisted chat this assistant will serve.
+        :param model_profile: The model profile already resolved for the request.
+        :return: None.
+        """
+
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model_string = get_model_string()
-        self._model = RetryingModel(self._model_string)
+        self._model_profile = model_profile or resolve_assistant_model(
+            workspace=self._workspace
+        )
+        self._model = self._model_profile.create_model()
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
 
-        self._deps = AssistantDeps(
-            user=self._user,
-            workspace=self._workspace,
-            tool_helpers=self._tool_helpers,
-            license_tier=_get_workspace_license_type(self._user, self._workspace),
+        ctx = build_agent_run_context(
+            self._user, self._workspace, self._tool_helpers, model=self._model
         )
-        self._toolset, db_m, app_m, auto_m, explain_m = (
-            assistant_tool_registry.build_toolset(
-                user=self._user,
-                workspace=self._workspace,
-                model=self._model_string,
-                deps=self._deps,
-            )
-        )
-        self._deps.database_manifest = db_m
-        self._deps.application_manifest = app_m
-        self._deps.automation_manifest = auto_m
-        self._deps.explain_manifest = explain_m
+        self._deps = ctx.deps
+        self._toolset = ctx.toolset
 
         setup_instrumentation()
 
@@ -191,16 +262,25 @@ class Assistant:
     # ------------------------------------------------------------------
 
     def _build_tool_helpers(self) -> ToolHelpers:
-        """Create the ``ToolHelpers`` that tools use for status updates,
-        navigation, and cancellation during the agent run."""
+        """Create the helpers shared by every tool in this assistant run.
 
-        def update_status(status: str):
+        :return: Helpers carrying the request's callbacks and resolved model profile.
+        """
+
+        def update_status(status: str) -> None:
+            """Emit a localized assistant status update.
+
+            :param status: The translated status template to emit.
+            :return: None.
+            """
+
             with translation.override(self._user.profile.language):
                 self._event_bus.emit(AiThinkingMessage(content=status))
 
         return ToolHelpers(
             update_status=update_status,
             navigate_to=lambda loc: unsafe_navigate_to(loc, self._event_bus),
+            model_profile=self._model_profile,
             event_bus=self._event_bus,
         )
 
@@ -228,17 +308,37 @@ class Assistant:
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
     ) -> list[AssistantMessageUnion]:
+        """Return this chat's recent persisted messages, oldest-first.
+
+        :param last_message_id: An exclusive message-ID pagination cursor.
+        :param limit: The maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
+        """
+
+        return self.list_chat_messages_for_chat(
+            self._chat, last_message_id=last_message_id, limit=limit
+        )
+
+    @staticmethod
+    def list_chat_messages_for_chat(
+        chat: AssistantChat,
+        last_message_id: int | None = None,
+        limit: int = 100,
+    ) -> list[AssistantMessageUnion]:
         """Return recent chat messages, oldest-first.
 
+        This projection deliberately does not construct an ``Assistant`` or an
+        AI model, so loading chat history never allocates a provider client.
+
+        :param chat: The chat whose persisted messages should be projected.
         :param last_message_id: If set, only return messages with ``id``
             below this value (cursor-based pagination).
         :param limit: Maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
         """
 
         queryset = (
-            self._chat.messages.all()
-            .select_related("prediction")
-            .order_by("-created_on")
+            chat.messages.all().select_related("prediction").order_by("-created_on")
         )
         if last_message_id is not None:
             queryset = queryset.filter(id__lt=last_message_id)
@@ -284,7 +384,10 @@ class Assistant:
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={"answer": answer},
+            prediction={
+                "answer": answer,
+                "posthog_trace_id": self._telemetry.trace_id,
+            },
         )
         return AiMessage(
             id=ai_msg.id,
@@ -304,15 +407,19 @@ class Assistant:
         await self._chat.asave(update_fields=["message_history", "updated_on"])
 
     async def _load_message_history(self) -> list[ModelMessage] | None:
-        """Deserialise and compact the stored message history, returning
-        ``None`` if absent or corrupt."""
+        """Deserialise and compact the stored message history.
+
+        :return: The compacted history, or ``None`` if absent or corrupt.
+        """
 
         raw = self._chat.message_history
         if not raw:
             return None
         try:
             messages = ModelMessagesTypeAdapter.validate_json(bytes(raw))
-            return compact_message_history(messages)
+            compacted = compact_message_history(messages)
+            self._deps.verified_tool_outcomes = get_verified_tool_outcomes(compacted)
+            return compacted
         except Exception:
             logger.opt(exception=True).warning(
                 "Failed to load message history for chat {}, starting fresh",
@@ -325,31 +432,23 @@ class Assistant:
     # ------------------------------------------------------------------
 
     async def _generate_chat_title(self, user_message: str) -> str:
-        """Ask the title agent to summarise a user message into a short
-        chat title."""
+        """Ask the title agent to summarize a user message into a short title.
+
+        :param user_message: The user message to summarize.
+        :return: The generated chat title.
+        """
 
         result = await title_agent.run(
             user_message,
             model=self._model,
-            model_settings=get_model_settings(self._model_string, TITLE),
+            model_settings=self._model_profile.get_settings(TITLE),
         )
         return result.output
-
-    _MAX_TOOL_CALL_AS_TEXT_RETRIES = 2
-
-    _TOOL_CALL_CORRECTION_PROMPT = (
-        "Your previous response contained a raw JSON tool call instead of "
-        "actually invoking the tool. The malformed output was:\n\n"
-        "{malformed_output}\n\n"
-        "Please call the tool directly using the proper tool-calling "
-        "mechanism instead of outputting JSON text. Make sure the "
-        "arguments conform to the tool's schema."
-    )
 
     async def _emit_answer(
         self,
         answer: str,
-        run_result: Any,
+        messages_json: bytes,
         queue: asyncio.Queue[QueueEvent],
     ) -> None:
         """Push the final answer and result events onto *queue*."""
@@ -364,7 +463,7 @@ class Assistant:
             QueueEvent(
                 kind=QueueEventKind.RESULT,
                 answer=answer,
-                messages_json=run_result.all_messages_json(),
+                messages_json=messages_json,
             )
         )
 
@@ -374,92 +473,54 @@ class Assistant:
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[QueueEvent],
     ) -> None:
-        """Execute the main agent, retrying if it outputs tool calls as text.
-
-        Delegates each streaming pass to ``_stream_agent_run``.  If the
-        final output looks like a raw JSON tool call, re-runs the agent
-        with the conversation history and a corrective prompt (up to
-        ``_MAX_TOOL_CALL_AS_TEXT_RETRIES`` times) so the model can
-        self-correct and invoke the tool properly.
+        """Execute the main agent via ``_stream_agent_run``.
 
         Pushes ``STREAM``, ``RESULT``, ``ERROR``, and ``DONE`` events
         onto *queue* for the consumer in ``astream_messages``.
+
+        :param user_prompt: The user message to answer.
+        :param message_history: Prior conversation to resume from, if any.
+        :param queue: The queue consumed by ``astream_messages``.
+        :raises RuntimeError: If the stream ends without a result event.
         """
 
         try:
-            with self._telemetry.trace(self._chat, user_prompt) as tracer:
-                answer, run_result = await self._run_agent_with_retries(
-                    user_prompt, message_history, queue
-                )
-                tracer.set_trace_output(answer)
-                await self._emit_answer(answer, run_result, queue)
+            with capture_run_messages() as run_messages:
+                try:
+                    with self._telemetry.trace(
+                        self._chat,
+                        user_prompt,
+                        cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
+                    ) as tracer:
+                        result = await self._stream_agent_run(
+                            user_prompt, message_history, queue
+                        )
+                        if result is None:
+                            raise RuntimeError(
+                                "Agent stream ended without a result event"
+                            )
+                        answer, run_result = result
+                        tracer.set_trace_output(answer)
+                        await self._emit_answer(
+                            answer, run_result.all_messages_json(), queue
+                        )
+                except UnexpectedModelBehavior:
+                    # Tools may have changed data, so keep the turn instead of failing it.
+                    logger.exception("Main agent ended without an accepted answer")
+                    history = [
+                        *run_messages,
+                        ModelResponse(parts=[TextPart(content=_UNFINISHED_ANSWER)]),
+                    ]
+                    await self._emit_answer(
+                        _UNFINISHED_ANSWER,
+                        ModelMessagesTypeAdapter.dump_json(history),
+                        queue,
+                    )
         except Exception as exc:
             logger.exception("Error running main agent")
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
-
-    async def _run_agent_with_retries(
-        self,
-        user_prompt: str,
-        message_history: list[ModelMessage] | None,
-        queue: asyncio.Queue[QueueEvent],
-    ) -> tuple[str, Any]:
-        """Stream the agent, retrying on tool-call-as-text outputs.
-
-        Returns ``(answer, run_result)`` — either the model's valid
-        answer or a fallback message after exhausting retries.
-
-        :raises RuntimeError: if the stream ends without a result event.
-        """
-
-        current_prompt = user_prompt
-        current_history = message_history
-
-        for attempt in range(1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES):
-            result = await self._stream_agent_run(
-                current_prompt, current_history, queue
-            )
-            if result is None:
-                raise RuntimeError("Agent stream ended without a result event")
-
-            answer, run_result = result
-
-            if not self._looks_like_json_tool_call(answer):
-                return answer, run_result
-
-            logger.warning(
-                "[assistant] Model output tool call as text (attempt {}/{}): {}",
-                attempt + 1,
-                1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
-                answer[:200],
-            )
-
-            if attempt < self._MAX_TOOL_CALL_AS_TEXT_RETRIES:
-                # Replace the malformed JSON visible in the UI with a
-                # reasoning indicator so the user doesn't see garbage.
-                await queue.put(
-                    QueueEvent(
-                        kind=QueueEventKind.STREAM,
-                        message=AiReasoningChunk(content=""),
-                    )
-                )
-                current_history = run_result.all_messages()
-                current_prompt = self._TOOL_CALL_CORRECTION_PROMPT.format(
-                    malformed_output=answer[:500]
-                )
-
-        # Exhausted retries — give up gracefully.
-        logger.error(
-            "[assistant] Model persisted outputting tool "
-            "calls as text after {} retries",
-            self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
-        )
-        fallback = (
-            "I ran into a temporary issue processing "
-            "your request. Could you please try again?"
-        )
-        return fallback, run_result
 
     async def _stream_agent_run(
         self,
@@ -472,48 +533,69 @@ class Assistant:
         Streams reasoning/text chunks to *queue* and returns
         ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
         received, or ``None`` if the stream ends without one.
+
+        :param user_prompt: The prompt for this agent pass.
+        :param message_history: The compacted prior model messages, if any.
+        :param queue: The queue that receives streamed assistant events.
+        :return: The final answer and run result, or ``None`` if no result arrives.
         """
 
-        reasoning_so_far = ""
+        with ToolManager.parallel_execution_mode("sequential"):
+            async with main_agent.run_stream_events(
+                user_prompt=user_prompt,
+                deps=self._deps,
+                model=self._model,
+                message_history=message_history,
+                usage_limits=UsageLimits(request_limit=200),
+                toolsets=[self._toolset],
+                model_settings=self._model_profile.get_settings(ORCHESTRATOR),
+            ) as events:
+                return await self._consume_agent_events(events, queue)
 
-        async for event in main_agent.run_stream_events(
-            user_prompt=user_prompt,
-            deps=self._deps,
-            model=self._model,
-            message_history=message_history,
-            usage_limits=UsageLimits(request_limit=200),
-            toolsets=[self._toolset],
-            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
-        ):
+    async def _consume_agent_events(
+        self, events: Any, queue: asyncio.Queue[QueueEvent]
+    ) -> tuple[str, Any] | None:
+        """Forward reasoning events and return the completed run."""
+
+        reasoning = ""
+        async for event in events:
             if isinstance(event, AgentRunResultEvent):
                 answer = event.result.output
                 if isinstance(answer, str):
                     answer = _strip_think_tags(answer)
-                return (answer, event.result)
+                return answer, event.result
 
             if isinstance(event, FunctionToolCallEvent):
-                thought = _extract_tool_thought(event)
-                if thought:
-                    reasoning_so_far += thought
-                    cleaned = _strip_think_tags(reasoning_so_far)
-                    await self._enqueue_reasoning(queue, cleaned)
+                if thought := _extract_tool_thought(event):
+                    reasoning = await self._append_reasoning(queue, reasoning, thought)
                 continue
 
             if isinstance(event, FunctionToolResultEvent):
-                reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
+                reasoning = ""
                 continue
 
-            # Accumulate text/thinking deltas and send full reasoning.
-            # The frontend replaces content on each chunk, so we must
-            # send the complete text every time.
-            content = self._get_content_delta(event)
-            if content:
-                reasoning_so_far += content
-                cleaned = _strip_think_tags(reasoning_so_far)
-                if cleaned:
-                    await self._enqueue_reasoning(queue, cleaned)
+            # A rejected text answer emits no event, so the next response resets it.
+            if isinstance(event, PartStartEvent) and event.index == 0 and reasoning:
+                reasoning = ""
+                await self._enqueue_reasoning(queue, "")
+
+            if content := self._get_content_delta(event):
+                reasoning = await self._append_reasoning(queue, reasoning, content)
 
         return None
+
+    async def _append_reasoning(
+        self,
+        queue: asyncio.Queue[QueueEvent],
+        reasoning: str,
+        content: str,
+    ) -> str:
+        """Append content and publish the visible accumulated reasoning."""
+
+        reasoning += content
+        if visible_reasoning := _strip_think_tags(reasoning):
+            await self._enqueue_reasoning(queue, visible_reasoning)
+        return reasoning
 
     @staticmethod
     def _get_content_delta(event: Any) -> str | None:
@@ -542,22 +624,6 @@ class Assistant:
             )
         )
 
-    @staticmethod
-    def _looks_like_json_tool_call(text: str) -> bool:
-        """Return True if *text* looks like a tool call dumped as JSON.
-
-        Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
-        200 chars. Does not require valid JSON (the output may be truncated).
-        """
-
-        stripped = text.strip()
-        return (
-            bool(stripped)
-            and stripped[0] == "{"
-            and '"name"' in stripped[:200]
-            and '"arguments"' in stripped[:200]
-        )
-
     # ------------------------------------------------------------------
     # Cancellation
     # ------------------------------------------------------------------
@@ -575,11 +641,89 @@ class Assistant:
                 task.cancel()
                 return
 
+    async def _stream_queue(
+        self,
+        queue: asyncio.Queue[QueueEvent],
+        result: _QueuedRunResult,
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
+        """Yield stream messages while collecting the completed run.
+
+        :param queue: The queue fed by the agent task.
+        :param result: The holder the completed answer is collected into.
+        :return: An async generator of streamed assistant messages.
+        :raises Exception: The error carried by an ERROR queue event.
+        """
+
+        while True:
+            event = await queue.get()
+            if event.kind == QueueEventKind.DONE:
+                return
+            if event.kind == QueueEventKind.RESULT:
+                result.answer = event.answer
+                result.messages_json = event.messages_json
+            elif event.kind == QueueEventKind.ERROR:
+                raise event.error
+            else:
+                yield event.message
+
+    async def _save_completed_run(
+        self,
+        human_message: AssistantChatMessage,
+        result: _QueuedRunResult,
+    ) -> AiMessage | None:
+        """Persist and return a completed answer."""
+
+        if result.answer is None:
+            return None
+        message = await self._save_ai_response(human_message, result.answer)
+        if result.messages_json:
+            await self._save_message_history(result.messages_json)
+        return message
+
+    async def _stop_agent_tasks(
+        self, agent_task: asyncio.Task, monitor_task: asyncio.Task
+    ) -> None:
+        monitor_task.cancel()
+        if not agent_task.done():
+            agent_task.cancel()
+        await asyncio.gather(monitor_task, agent_task, return_exceptions=True)
+        self._event_bus.set_queue(None)
+
+    async def _create_title_message(
+        self, human_message: AssistantChatMessage
+    ) -> ChatTitleMessage | None:
+        if self._chat.title:
+            return None
+        try:
+            title = await self._generate_chat_title(human_message.content)
+            self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
+            await self._chat.asave(update_fields=["title", "updated_on"])
+            return ChatTitleMessage(content=self._chat.title)
+        except Exception:
+            logger.exception("Failed to generate chat title")
+            return None
+
     # ------------------------------------------------------------------
     # Public streaming API
     # ------------------------------------------------------------------
 
     async def astream_messages(
+        self, message: HumanMessage
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
+        """Stream one assistant run and close its provider-owned client.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        """
+
+        async with self._model:
+            async with aclosing(
+                self._astream_messages_in_model_context(message)
+            ) as events:
+                async for event in events:
+                    yield event
+
+    async def _astream_messages_in_model_context(
         self, message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """Stream the full response lifecycle for a user message.
@@ -589,20 +733,16 @@ class Assistant:
         ``AiThinkingMessage``), and finally an ``AiMessage`` with the
         persisted answer. A ``ChatTitleMessage`` is appended on the first
         message in a chat.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        :return: An async generator of assistant events in response order.
+        :raises Exception: If the agent reports an execution error.
+        :raises AssistantMessageCancelled: If the assistant run is cancelled.
         """
 
-        # Sticky task: capture on first message of the session
-        if not self._deps.original_request:
-            self._deps.original_request = message.content
-
-            # Auto-detect starting mode from UI context (only on first message)
-            if message.ui_context:
-                if message.ui_context.application or message.ui_context.page:
-                    self._deps.mode = AgentMode.APPLICATION
-                elif message.ui_context.automation or message.ui_context.workflow:
-                    self._deps.mode = AgentMode.AUTOMATION
-                # else stays DATABASE (default)
-
+        if mode := _mode_for_ui_context(message.ui_context):
+            self._deps.mode = mode
         human_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.HUMAN, message.content
         )
@@ -620,41 +760,19 @@ class Assistant:
             self._run_agent(message.content, message_history, queue)
         )
         monitor_task = asyncio.create_task(self._monitor_cancellation(agent_task))
+        result = _QueuedRunResult()
 
         try:
-            answer = None
-            messages_json = None
-
-            while True:
-                event = await queue.get()
-                if event.kind == QueueEventKind.DONE:
-                    break
-                elif event.kind == QueueEventKind.RESULT:
-                    answer, messages_json = event.answer, event.messages_json
-                elif event.kind == QueueEventKind.ERROR:
-                    raise event.error
-                else:
-                    yield event.message
+            async for stream_message in self._stream_queue(queue, result):
+                yield stream_message
 
             if agent_task.cancelled():
                 raise AssistantMessageCancelled(message_id=message_id)
 
-            if answer is not None:
-                yield await self._save_ai_response(human_msg, answer)
-                if messages_json:
-                    await self._save_message_history(messages_json)
+            if ai_message := await self._save_completed_run(human_msg, result):
+                yield ai_message
         finally:
-            monitor_task.cancel()
-            if not agent_task.done():
-                agent_task.cancel()
-            await asyncio.gather(monitor_task, agent_task, return_exceptions=True)
-            self._event_bus.set_queue(None)
+            await self._stop_agent_tasks(agent_task, monitor_task)
 
-        if not self._chat.title:
-            try:
-                title = await self._generate_chat_title(human_msg.content)
-                self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
-                await self._chat.asave(update_fields=["title", "updated_on"])
-                yield ChatTitleMessage(content=self._chat.title)
-            except Exception:
-                logger.exception("Failed to generate chat title")
+        if title_message := await self._create_title_message(human_msg):
+            yield title_message

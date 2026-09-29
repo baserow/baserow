@@ -14,6 +14,7 @@
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
+        :allow-editing="editableFromHere"
       />
     </FormGroup>
     <FormGroup
@@ -53,6 +54,9 @@ import IntegrationDropdown from '@baserow/modules/core/components/integrations/I
 
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
+// `SlackWriteMessageService.channel` in the backend.
+const CHANNEL_MAX_LENGTH = 80
+
 export default {
   name: 'SlackWriteMessageServiceForm',
   components: { IntegrationDropdown, InjectedFormulaInput },
@@ -77,6 +81,18 @@ export default {
     }
   },
   computed: {
+    /**
+     * A database has no integration settings page, so a bot that arrived
+     * without its token can only be repaired from the picker. Everywhere else
+     * has one, and a second route there would only be harder to find.
+     *
+     * Compared against the literal rather than `DatabaseApplicationType`: this
+     * module must not import from `database`, and the sibling forms compare
+     * `application.type === 'automation'` the same way.
+     */
+    editableFromHere() {
+      return this.application?.type === 'database'
+    },
     integrationType() {
       return this.$registry.get(
         'integration',
@@ -96,7 +112,9 @@ export default {
     return {
       values: {
         channel: {
-          maxLength: maxLength(75),
+          // The column holds 80, which the serializer is pinned to. A
+          // stricter form would refuse a channel the API accepts.
+          maxLength: maxLength(CHANNEL_MAX_LENGTH),
           noPrefix: helpers.withMessage(
             this.$t('slackWriteMessageServiceForm.channelNoPrefix'),
             (value) => !value || !value.startsWith('#')

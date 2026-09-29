@@ -27,7 +27,12 @@ from .errors import (
     ERROR_JOB_NOT_CANCELLABLE,
     ERROR_MAX_JOB_COUNT_EXCEEDED,
 )
-from .serializers import CreateJobSerializer, JobSerializer, ListJobQuerySerializer
+from .serializers import (
+    CreateJobSerializer,
+    JobSerializer,
+    ListJobQuerySerializer,
+    ListJobsResponseSerializer,
+)
 
 
 class JobsView(APIView):
@@ -44,11 +49,7 @@ class JobsView(APIView):
             "selected via the `type` parameter. Each job type may support additional "
             "type-specific filter parameters."
         ),
-        responses={
-            200: DiscriminatorCustomFieldsMappingSerializer(
-                job_type_registry, JobSerializer, many=True
-            )
-        },
+        responses={200: ListJobsResponseSerializer},
     )
     @validate_query_parameters(ListJobQuerySerializer, return_validated=True)
     def get(self, request, query_params):
@@ -66,13 +67,20 @@ class JobsView(APIView):
             job_type = job_type_registry.get(job_type_name)
             base_model = job_type.model_class
 
-        jobs = JobHandler.get_jobs_for_user(
+        queryset = JobHandler.get_jobs_for_user(
             request.user,
             filter_states=states,
             filter_ids=job_ids,
             base_model=base_model,
             type_filters=type_filters if type_filters else None,
-        )[offset : offset + limit]
+        )
+        # No count on the job_ids polling path to keep the hot path cheap.
+        count = None if job_ids else queryset.count()
+        jobs = queryset[offset : offset + limit]
+
+        def enhance_specific_queryset(model, queryset):
+            job_type = job_type_registry.get_by_model(model)
+            return job_type.enhance_queryset(queryset)
 
         serialized_jobs = [
             job_type_registry.get_serializer(
@@ -80,9 +88,12 @@ class JobsView(APIView):
                 JobSerializer,
                 context={"request": request},
             ).data
-            for job in specific_iterator(jobs)
+            for job in specific_iterator(
+                jobs,
+                per_content_type_queryset_hook=enhance_specific_queryset,
+            )
         ]
-        return Response({"jobs": serialized_jobs})
+        return Response({"jobs": serialized_jobs, "count": count})
 
     @extend_schema(
         tags=["Jobs"],

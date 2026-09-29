@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
 
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
@@ -82,6 +82,22 @@ CONTAINER_ELEMENT_TYPES = {
 # Elements that live on the shared page (visible across all pages).
 _SHARED_PAGE_TYPES = {"header", "footer"}
 
+_NAVIGATION_FIELDS = {
+    "navigation_type",
+    "navigate_to_page_id",
+    "navigate_to_url",
+    "link_variant",
+    "link_page_parameters",
+    "link_target",
+}
+
+BUTTON_NAVIGATION_GUIDANCE = (
+    "Buttons do not store navigation properties. Create the button with its value, "
+    "then call create_actions with type='open_page', event='click', and the button "
+    "ID/ref plus the navigation target. Alternatively create a link element with "
+    "link_variant='button' and navigation properties."
+)
+
 
 # ---------------------------------------------------------------------------
 # Sub-models
@@ -119,14 +135,21 @@ class MenuItemCreate(BaseModel):
 
 class TableFieldConfig(BaseModel):
     """
-    Column configuration for table elements.
+    One column of a table element.
 
-    ``type`` is ``"text"`` (default) or ``"button"``.
+    - type="text" (default): ``value`` is the cell content — a literal or
+      "$formula: <intent>". Omit ``value`` to show the data source field
+      whose name matches ``name``.
+    - type="button": ``label`` is the button caption.
+
+    These are the only column types, and ``name``, ``type``, ``value``,
+    ``label`` are the only accepted keys; any other key is rejected. Column
+    keys are not interchangeable with element keys.
     """
 
     name: str = Field(..., description="Column header name.")
-    type: Literal["text", "button", "link", "tags"] = Field(
-        default="text", description="Column type."
+    type: Literal["text", "button"] = Field(
+        default="text", description="Column type: 'text' (default) or 'button'."
     )
 
     # text columns
@@ -146,7 +169,7 @@ class TableFieldConfig(BaseModel):
 
 def _heading_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
-        "value": BaserowFormulaObject.create(
+        "value": formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value or ""),
@@ -158,7 +181,7 @@ def _heading_orm(el: "ElementItemCreate", user, page) -> dict:
 
 def _text_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
-        "value": BaserowFormulaObject.create(
+        "value": formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value or ""),
@@ -169,9 +192,9 @@ def _text_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _button_orm(el: "ElementItemCreate", user, page) -> dict:
-    text = el.value or el.label or ""
+    text = el.value if el.value is not None else (el.label or "")
     return {
-        "value": BaserowFormulaObject.create(
+        "value": formula_object(
             literal_or_placeholder(text)
             if needs_formula(text)
             else wrap_static_string(text),
@@ -182,7 +205,7 @@ def _button_orm(el: "ElementItemCreate", user, page) -> dict:
 
 def _link_orm(el: "ElementItemCreate", user, page) -> dict:
     kwargs: dict[str, Any] = {
-        "value": BaserowFormulaObject.create(
+        "value": formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value or ""),
@@ -199,14 +222,12 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
         kwargs["page_parameters"] = [
             {
                 "name": p.name,
-                "value": BaserowFormulaObject.create(
-                    p.value, mode=BASEROW_FORMULA_MODE_ADVANCED
-                ),
+                "value": formula_object(p.value, mode=BASEROW_FORMULA_MODE_ADVANCED),
             }
             for p in (el.link_page_parameters or [])
         ]
     elif nav == "custom" and el.navigate_to_url:
-        kwargs["navigate_to_url"] = BaserowFormulaObject.create(
+        kwargs["navigate_to_url"] = formula_object(
             literal_or_placeholder(el.navigate_to_url)
             if needs_formula(el.navigate_to_url)
             else wrap_static_string(el.navigate_to_url),
@@ -221,7 +242,7 @@ def _image_orm(el: "ElementItemCreate", user, page) -> dict:
     alt_text = el.alt_text or ""
     return {
         "image_source_type": el.image_source_type or "url",
-        "image_url": BaserowFormulaObject.create(
+        "image_url": formula_object(
             literal_or_placeholder(image_url)
             if needs_formula(image_url)
             else wrap_static_string(image_url)
@@ -229,7 +250,7 @@ def _image_orm(el: "ElementItemCreate", user, page) -> dict:
             else "''",
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
-        "alt_text": BaserowFormulaObject.create(
+        "alt_text": formula_object(
             literal_or_placeholder(alt_text)
             if needs_formula(alt_text)
             else wrap_static_string(alt_text)
@@ -250,8 +271,8 @@ def _column_orm(el: "ElementItemCreate", user, page) -> dict:
 
 def _form_container_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
-        "submit_button_label": BaserowFormulaObject.create(
-            f"'{el.submit_button_label or 'Submit'}'",
+        "submit_button_label": formula_object(
+            wrap_static_string(el.submit_button_label or "Submit"),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
         "reset_initial_values_post_submission": el.reset_initial_values_post_submission
@@ -262,13 +283,14 @@ def _form_container_orm(el: "ElementItemCreate", user, page) -> dict:
 def _input_text_orm(el: "ElementItemCreate", user, page) -> dict:
     default_value = el.default_value or ""
     return {
-        "label": BaserowFormulaObject.create(
-            f"'{el.label or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "label": formula_object(
+            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
-        "placeholder": BaserowFormulaObject.create(
-            f"'{el.placeholder or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "placeholder": formula_object(
+            wrap_static_string(el.placeholder or ""),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
-        "default_value": BaserowFormulaObject.create(
+        "default_value": formula_object(
             literal_or_placeholder(default_value)
             if needs_formula(default_value)
             else (wrap_static_string(default_value) if default_value else "''"),
@@ -284,13 +306,14 @@ def _input_text_orm(el: "ElementItemCreate", user, page) -> dict:
 def _choice_orm(el: "ElementItemCreate", user, page) -> dict:
     default_value = el.default_value or ""
     return {
-        "label": BaserowFormulaObject.create(
-            f"'{el.label or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "label": formula_object(
+            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
-        "placeholder": BaserowFormulaObject.create(
-            f"'{el.placeholder or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "placeholder": formula_object(
+            wrap_static_string(el.placeholder or ""),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
-        "default_value": BaserowFormulaObject.create(
+        "default_value": formula_object(
             literal_or_placeholder(default_value)
             if needs_formula(default_value)
             else (wrap_static_string(default_value) if default_value else "''"),
@@ -307,10 +330,10 @@ def _choice_orm(el: "ElementItemCreate", user, page) -> dict:
 def _checkbox_orm(el: "ElementItemCreate", user, page) -> dict:
     default_value = el.default_value or "false"
     return {
-        "label": BaserowFormulaObject.create(
-            f"'{el.label or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "label": formula_object(
+            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
-        "default_value": BaserowFormulaObject.create(
+        "default_value": formula_object(
             literal_or_placeholder(default_value)
             if needs_formula(default_value)
             else default_value,
@@ -322,8 +345,8 @@ def _checkbox_orm(el: "ElementItemCreate", user, page) -> dict:
 
 def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
-        "label": BaserowFormulaObject.create(
-            f"'{el.label or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "label": formula_object(
+            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
         "required": el.required or False,
         "include_time": el.include_time or False,
@@ -333,14 +356,15 @@ def _datetime_picker_orm(el: "ElementItemCreate", user, page) -> dict:
 
 def _record_selector_orm(el: "ElementItemCreate", user, page) -> dict:
     return {
-        "label": BaserowFormulaObject.create(
-            f"'{el.label or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "label": formula_object(
+            wrap_static_string(el.label or ""), mode=BASEROW_FORMULA_MODE_ADVANCED
         ),
         "data_source_id": el.data_source,
         "required": el.required or False,
         "multiple": el.multiple or False,
-        "placeholder": BaserowFormulaObject.create(
-            f"'{el.placeholder or ''}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        "placeholder": formula_object(
+            wrap_static_string(el.placeholder or ""),
+            mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
 
@@ -349,8 +373,8 @@ def _table_orm(el: "ElementItemCreate", user, page) -> dict:
     kwargs: dict[str, Any] = {
         "data_source_id": el.data_source,
         "items_per_page": el.items_per_page or 20,
-        "button_load_more_label": BaserowFormulaObject.create(
-            f"'{el.button_load_more_label or 'Load more'}'",
+        "button_load_more_label": formula_object(
+            wrap_static_string(el.button_load_more_label or "Load more"),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
     }
@@ -566,8 +590,11 @@ _POST_CREATE: dict[str, Any] = {
 
 def _value_formula(el: "ElementItemCreate", orm_element, context) -> dict[str, str]:
     """Get formulas for elements with a ``value`` field."""
-    if el.value and needs_formula(el.value):
-        return {"value": formula_desc(el.value)}
+    value = el.value
+    if value is None and el.type == "button":
+        value = el.label
+    if value and needs_formula(value):
+        return {"value": formula_desc(value)}
     return {}
 
 
@@ -668,7 +695,7 @@ def _update_simple_formulas(
         if "." in field_name:
             continue
         if hasattr(orm_element, field_name):
-            kwargs[field_name] = BaserowFormulaObject.create(
+            kwargs[field_name] = formula_object(
                 formula, mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
@@ -695,7 +722,7 @@ def _update_table_formulas(
         config_key = parts[2]
         if 0 <= index < len(collection_fields):
             cf = collection_fields[index]
-            cf.config[config_key] = BaserowFormulaObject.create(
+            cf.config[config_key] = formula_object(
                 formula, mode=BASEROW_FORMULA_MODE_ADVANCED
             )
             cf.save(update_fields=["config"])
@@ -758,6 +785,7 @@ def _convert_table_fields(
     *,
     data_source_id: int | None = None,
     fields: list | None = None,
+    allow_formula_generation: bool = True,
 ) -> list[dict]:
     """Convert TableFieldConfig list to ORM collection field format.
 
@@ -772,9 +800,23 @@ def _convert_table_fields(
     table_fields = _resolve_table_fields(data_source_id)
     result = []
     for field_cfg in fields or []:
+        raw_value = field_cfg.label if field_cfg.type == "button" else field_cfg.value
+        explicit_formula = None
+        if not allow_formula_generation and needs_formula(raw_value):
+            explicit_formula = formula_desc(raw_value)
+            if not is_valid_formula(explicit_formula):
+                raise ToolInputError(
+                    f"Table field '{field_cfg.name}' requires an explicit formula "
+                    "when updating fields. Supply a literal value or a runtime "
+                    "expression such as get('current_record.field_<id>'); "
+                    "implicit formula generation is supported during creation only. "
+                    "No changes were applied."
+                )
         if field_cfg.type == "text":
             value = field_cfg.value or ""
-            if value and not needs_formula(value):
+            if explicit_formula is not None:
+                value_formula = explicit_formula
+            elif value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
             else:
                 match = table_fields.get(field_cfg.name.lower())
@@ -784,7 +826,7 @@ def _convert_table_fields(
                     "name": field_cfg.name,
                     "type": "text",
                     "config": {
-                        "value": BaserowFormulaObject.create(
+                        "value": formula_object(
                             value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
                         )
                     },
@@ -792,7 +834,9 @@ def _convert_table_fields(
             )
         elif field_cfg.type == "button":
             label = field_cfg.label or field_cfg.name
-            if needs_formula(label):
+            if explicit_formula is not None:
+                label_formula = explicit_formula
+            elif needs_formula(label):
                 label_formula = "''"
             else:
                 label_formula = wrap_static_string(label)
@@ -801,16 +845,12 @@ def _convert_table_fields(
                     "name": field_cfg.name,
                     "type": "button",
                     "config": {
-                        "label": BaserowFormulaObject.create(
+                        "label": formula_object(
                             label_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
                         )
                     },
                 }
             )
-        elif field_cfg.type == "link":
-            result.append({"name": field_cfg.name, "type": "link", "config": {}})
-        elif field_cfg.type == "tags":
-            result.append({"name": field_cfg.name, "type": "tags", "config": {}})
 
     return result
 
@@ -1027,6 +1067,19 @@ class ElementItemCreate(BaseModel):
 
     def to_orm_kwargs(self, user: "AbstractUser", page: "Page") -> dict:
         """Return kwargs for ``ElementService.create_element()``."""
+        navigation = sorted(
+            name for name in _NAVIGATION_FIELDS if getattr(self, name) is not None
+        )
+        if self.type != "link" and navigation:
+            guidance = (
+                BUTTON_NAVIGATION_GUIDANCE
+                if self.type == "button"
+                else "Navigation properties are supported by link elements."
+            )
+            raise ValueError(
+                f"Unsupported properties for {self.type}: {', '.join(navigation)}. "
+                f"{guidance}"
+            )
         fn = _TO_ORM.get(self.type)
         kwargs = fn(self, user, page) if fn else {}
 
@@ -1313,7 +1366,7 @@ class CollectionElementCreate(_ElementBase):
 def _heading_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
-        kwargs["value"] = BaserowFormulaObject.create(
+        kwargs["value"] = formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value),
@@ -1327,7 +1380,7 @@ def _heading_update(el: "ElementUpdate") -> dict:
 def _text_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
-        kwargs["value"] = BaserowFormulaObject.create(
+        kwargs["value"] = formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value),
@@ -1340,9 +1393,9 @@ def _text_update(el: "ElementUpdate") -> dict:
 
 def _button_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
-    text = el.value or el.label
+    text = el.value if el.value is not None else el.label
     if text is not None:
-        kwargs["value"] = BaserowFormulaObject.create(
+        kwargs["value"] = formula_object(
             literal_or_placeholder(text)
             if needs_formula(text)
             else wrap_static_string(text),
@@ -1354,7 +1407,7 @@ def _button_update(el: "ElementUpdate") -> dict:
 def _link_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.value is not None:
-        kwargs["value"] = BaserowFormulaObject.create(
+        kwargs["value"] = formula_object(
             literal_or_placeholder(el.value)
             if needs_formula(el.value)
             else wrap_static_string(el.value),
@@ -1369,7 +1422,7 @@ def _link_update(el: "ElementUpdate") -> dict:
     if el.navigate_to_page_id is not None:
         kwargs["navigate_to_page_id"] = el.navigate_to_page_id
     if el.navigate_to_url is not None:
-        kwargs["navigate_to_url"] = BaserowFormulaObject.create(
+        kwargs["navigate_to_url"] = formula_object(
             literal_or_placeholder(el.navigate_to_url)
             if needs_formula(el.navigate_to_url)
             else wrap_static_string(el.navigate_to_url),
@@ -1383,14 +1436,14 @@ def _image_update(el: "ElementUpdate") -> dict:
     if el.image_source_type is not None:
         kwargs["image_source_type"] = el.image_source_type
     if el.image_url is not None:
-        kwargs["image_url"] = BaserowFormulaObject.create(
+        kwargs["image_url"] = formula_object(
             literal_or_placeholder(el.image_url)
             if needs_formula(el.image_url)
             else wrap_static_string(el.image_url),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     if el.alt_text is not None:
-        kwargs["alt_text"] = BaserowFormulaObject.create(
+        kwargs["alt_text"] = formula_object(
             literal_or_placeholder(el.alt_text)
             if needs_formula(el.alt_text)
             else wrap_static_string(el.alt_text),
@@ -1413,8 +1466,8 @@ def _column_update(el: "ElementUpdate") -> dict:
 def _form_container_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.submit_button_label is not None:
-        kwargs["submit_button_label"] = BaserowFormulaObject.create(
-            f"'{el.submit_button_label}'",
+        kwargs["submit_button_label"] = formula_object(
+            wrap_static_string(el.submit_button_label),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     return kwargs
@@ -1423,15 +1476,15 @@ def _form_container_update(el: "ElementUpdate") -> dict:
 def _input_text_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.label is not None:
-        kwargs["label"] = BaserowFormulaObject.create(
-            f"'{el.label}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["label"] = formula_object(
+            wrap_static_string(el.label), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.placeholder is not None:
-        kwargs["placeholder"] = BaserowFormulaObject.create(
-            f"'{el.placeholder}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["placeholder"] = formula_object(
+            wrap_static_string(el.placeholder), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.default_value is not None:
-        kwargs["default_value"] = BaserowFormulaObject.create(
+        kwargs["default_value"] = formula_object(
             literal_or_placeholder(el.default_value)
             if needs_formula(el.default_value)
             else (wrap_static_string(el.default_value) if el.default_value else "''"),
@@ -1448,18 +1501,25 @@ def _input_text_update(el: "ElementUpdate") -> dict:
     return kwargs
 
 
+def _record_selector_update(el: "ElementUpdate") -> dict:
+    kwargs = _input_text_update(el)
+    if el.multiple is not None:
+        kwargs["multiple"] = el.multiple
+    return kwargs
+
+
 def _choice_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.label is not None:
-        kwargs["label"] = BaserowFormulaObject.create(
-            f"'{el.label}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["label"] = formula_object(
+            wrap_static_string(el.label), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.placeholder is not None:
-        kwargs["placeholder"] = BaserowFormulaObject.create(
-            f"'{el.placeholder}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["placeholder"] = formula_object(
+            wrap_static_string(el.placeholder), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.default_value is not None:
-        kwargs["default_value"] = BaserowFormulaObject.create(
+        kwargs["default_value"] = formula_object(
             literal_or_placeholder(el.default_value)
             if needs_formula(el.default_value)
             else (wrap_static_string(el.default_value) if el.default_value else "''"),
@@ -1477,11 +1537,11 @@ def _choice_update(el: "ElementUpdate") -> dict:
 def _checkbox_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.label is not None:
-        kwargs["label"] = BaserowFormulaObject.create(
-            f"'{el.label}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["label"] = formula_object(
+            wrap_static_string(el.label), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.default_value is not None:
-        kwargs["default_value"] = BaserowFormulaObject.create(
+        kwargs["default_value"] = formula_object(
             literal_or_placeholder(el.default_value)
             if needs_formula(el.default_value)
             else el.default_value,
@@ -1495,11 +1555,11 @@ def _checkbox_update(el: "ElementUpdate") -> dict:
 def _datetime_picker_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.label is not None:
-        kwargs["label"] = BaserowFormulaObject.create(
-            f"'{el.label}'", mode=BASEROW_FORMULA_MODE_ADVANCED
+        kwargs["label"] = formula_object(
+            wrap_static_string(el.label), mode=BASEROW_FORMULA_MODE_ADVANCED
         )
     if el.default_value is not None:
-        kwargs["default_value"] = BaserowFormulaObject.create(
+        kwargs["default_value"] = formula_object(
             literal_or_placeholder(el.default_value)
             if needs_formula(el.default_value)
             else (wrap_static_string(el.default_value) if el.default_value else "''"),
@@ -1528,8 +1588,8 @@ def _table_update(el: "ElementUpdate") -> dict:
     if el.items_per_page is not None:
         kwargs["items_per_page"] = el.items_per_page
     if el.button_load_more_label is not None:
-        kwargs["button_load_more_label"] = BaserowFormulaObject.create(
-            f"'{el.button_load_more_label}'",
+        kwargs["button_load_more_label"] = formula_object(
+            wrap_static_string(el.button_load_more_label),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
     has_field_change = (
@@ -1550,7 +1610,7 @@ def _table_update(el: "ElementUpdate") -> dict:
         if el.fields is not None:
             # Full replace
             kwargs["fields"] = _convert_table_fields(
-                data_source_id=ds_id, fields=el.fields
+                data_source_id=ds_id, fields=el.fields, allow_formula_generation=False
             )
         else:
             # Incremental: start from existing fields
@@ -1574,7 +1634,9 @@ def _table_update(el: "ElementUpdate") -> dict:
             # Append new columns
             if el.add_fields:
                 new_fields = _convert_table_fields(
-                    data_source_id=ds_id, fields=el.add_fields
+                    data_source_id=ds_id,
+                    fields=el.add_fields,
+                    allow_formula_generation=False,
                 )
                 existing.extend(new_fields)
 
@@ -1624,7 +1686,7 @@ _TO_ORM_UPDATE: dict[str, Any] = {
     "choice": _choice_update,
     "checkbox": _checkbox_update,
     "datetime_picker": _datetime_picker_update,
-    "record_selector": _input_text_update,
+    "record_selector": _record_selector_update,
     "table": _table_update,
     "repeat": _repeat_update,
     "header": _header_update,
@@ -1637,6 +1699,11 @@ def _update_value_formula(el: "ElementUpdate", orm_element, context) -> dict[str
     if el.value and needs_formula(el.value):
         return {"value": formula_desc(el.value)}
     return {}
+
+
+def _update_button_formula(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
+    value = el.value if el.value is not None else el.label
+    return {"value": formula_desc(value)} if needs_formula(value) else {}
 
 
 def _update_link_formulas(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
@@ -1668,10 +1735,11 @@ def _update_default_value_formula(
 _GET_UPDATE_FORMULAS: dict[str, Any] = {
     "heading": _update_value_formula,
     "text": _update_value_formula,
-    "button": _update_value_formula,
+    "button": _update_button_formula,
     "link": _update_link_formulas,
     "image": _update_image_formulas,
     "input_text": _update_default_value_formula,
+    "record_selector": _update_default_value_formula,
     "choice": _update_default_value_formula,
     "checkbox": _update_default_value_formula,
     "datetime_picker": _update_default_value_formula,
@@ -1857,6 +1925,23 @@ class ElementUpdate(BaseModel):
         fn = _GET_UPDATE_FORMULAS.get(element_type)
         return fn(self, orm_element, context) if fn else {}
 
+    def get_formula_dependent_fields(self, element_type: str) -> dict[str, str]:
+        """Map source switches to the generated formulas they must be saved with."""
+
+        if (
+            element_type == "link"
+            and self.navigation_type == "custom"
+            and needs_formula(self.navigate_to_url)
+        ):
+            return {"navigation_type": "navigate_to_url"}
+        if (
+            element_type == "image"
+            and self.image_source_type == "url"
+            and needs_formula(self.image_url)
+        ):
+            return {"image_source_type": "image_url"}
+        return {}
+
     def get_updated_field_names(self) -> list[str]:
         """Return names of fields that were explicitly set (non-None)."""
 
@@ -1867,13 +1952,40 @@ class ElementUpdate(BaseModel):
             if name not in skip and getattr(self, name) is not None
         ]
 
+    def unsupported_fields(self, element_type: str, kwargs: dict) -> list[str]:
+        """Identify requested properties that the type's converter did not apply."""
+
+        aliases = {
+            "button": {"label": "value"},
+            "link": {"link_variant": "variant", "link_target": "target"},
+            "column": {"column_alignment": "alignment"},
+            "menu": {"menu_orientation": "orientation", "menu_alignment": "alignment"},
+            "table": {"add_fields": "fields", "remove_fields": "fields"},
+        }.get(element_type, {})
+        handled = set(kwargs)
+        if element_type in ("header", "footer"):
+            # These are applied to a child menu by the helper's post-update step.
+            handled.add("menu_items")
+        unsupported = [
+            name
+            for name in self.get_updated_field_names()
+            if aliases.get(name, name) not in handled
+        ]
+        if (
+            element_type == "button"
+            and self.value is not None
+            and self.label is not None
+            and self.value != self.label
+        ):
+            unsupported.append("label (conflicts with value)")
+        return unsupported
+
 
 class ElementItem(BaseModel):
     """Existing element with ID."""
 
     id: int
     type: str
-    order: str
     parent_element_id: int | None = None
     place_in_container: str | None = None
     is_container: bool = Field(
@@ -1895,7 +2007,13 @@ class ElementItem(BaseModel):
 
     @classmethod
     def from_orm(cls, element) -> "ElementItem":
-        """Create ElementItem from ORM Element instance."""
+        """
+        Create ElementItem from ORM Element instance.
+
+        :param element: The ORM element to describe.
+        :return: The serialisable element description.
+        """
+
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
@@ -1913,7 +2031,6 @@ class ElementItem(BaseModel):
         return cls(
             id=element.id,
             type=element_type,
-            order=str(element.order),
             parent_element_id=element.parent_element_id,
             place_in_container=element.place_in_container,
             is_container=element_type in CONTAINER_ELEMENT_TYPES,

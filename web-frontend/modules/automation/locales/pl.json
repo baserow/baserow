@@ -119,7 +119,8 @@
         "runNumber": "Przebieg {n}",
         "runCount": "{n} przebiegów",
         "testRun": "Test",
-        "showResult": "Pokaż wynik"
+        "showResult": "Pokaż wynik",
+        "statusSkippedBadge": "Pominięto"
     },
     "nodeType": {
         "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, nie można ich usunąć.",
@@ -151,7 +152,11 @@
         "localBaserowCreateRowsLabel": "Zbiorcze tworzenie wierszy w tabeli {tableName}",
         "localBaserowUpdateRowsLabel": "Zbiorczo zaktualizuj wiersze w tabeli {tableName}",
         "csvFileReaderLabel": "Wczytaj plik CSV",
-        "startWorkflowLabel": "Uruchom proces {workflowName}"
+        "startWorkflowLabel": "Uruchom proces {workflowName}",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Przejdź do węzła",
+        "gotoNodeLabelWithDestination": "Przejdź do węzła → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}"
     },
     "workflowNode": {
         "actionDelete": "Usuń",
@@ -167,13 +172,15 @@
         "moreReplace": "Zastąp",
         "nodeOptions": "Opcje węzła",
         "displayLabelDebug": "ID: {id} | Poprz: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Zduplikuj"
+        "moreDuplicate": "Zduplikuj",
+        "gotoMarkerSource": "Przechodzi do znacznika {marker}",
+        "gotoMarkerDestination": "Położenie znacznika {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Utwórz węzeł automatyzacji"
     },
     "workflowNodeContext": {
-        "searchPlaceholderTrigger": "Szukaj triggera...",
+        "searchPlaceholderTrigger": "Szukaj zdarzenia...",
         "searchPlaceholderActions": "Szukaj operacji…",
         "noResults": "Brak rezultatów"
     },

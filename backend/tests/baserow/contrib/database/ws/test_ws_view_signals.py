@@ -261,7 +261,7 @@ def test_view_field_options_updated(mock_broadcast_to_channel_group, data_fixtur
     assert args[0][0] == f"table-{table.id}"
     assert args[0][1]["type"] == "view_field_options_updated"
     assert args[0][1]["view_id"] == grid_view.id
-    assert args[0][1]["field_options"][text_field.id]["width"] == 150
+    assert args[0][1]["field_options"][str(text_field.id)]["width"] == 150
 
 
 @pytest.mark.django_db(transaction=True)

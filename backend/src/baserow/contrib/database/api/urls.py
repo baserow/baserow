@@ -1,5 +1,6 @@
 from django.urls import include, path
 
+from .admin import urls as admin_urls
 from .data_sync import urls as data_sync_urls
 from .export import urls as export_urls
 from .field_rules import urls as field_rules_urls
@@ -10,6 +11,7 @@ from .tables import urls as table_urls
 from .tokens import urls as token_urls
 from .views import urls as view_urls
 from .webhooks import urls as webhook_urls
+from .workflow_actions import urls as workflow_action_urls
 
 app_name = "baserow.contrib.database.api"
 
@@ -24,4 +26,6 @@ urlpatterns = [
     path("formula/", include(formula_urls, namespace="formula")),
     path("data-sync/", include(data_sync_urls, namespace="data_sync")),
     path("field-rules/", include(field_rules_urls, namespace="field_rules")),
+    path("admin/", include(admin_urls, namespace="admin")),
+    path("", include(workflow_action_urls, namespace="workflow_actions")),
 ]

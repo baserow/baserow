@@ -15,6 +15,7 @@
       :loading="loading"
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
+      @example-click="$emit('example-click', $event)"
     />
     <div
       v-if="advancedModeEnabled"
@@ -33,46 +34,34 @@
       >
     </div>
 
-    <Modal
+    <FormulaInputModeChangeModal
       ref="advancedModeModal"
-      class="formula-input-explorer-context__advanced-mode-modal"
-    >
-      <h2 class="box__title">
-        {{
-          isAdvancedMode
-            ? $t('formulaInputExplorerContext.useSimpleInputModalTitle')
-            : $t('formulaInputExplorerContext.useAdvancedInputModalTitle')
-        }}
-      </h2>
-      <p>{{ $t('formulaInputExplorerContext.modalMessage') }}</p>
-
-      <div class="actions margin-bottom-0">
-        <div class="align-right">
-          <Button type="secondary" size="large" @click="cancelModeChange">
-            {{ $t('action.cancel') }}
-          </Button>
-          <Button type="danger" size="large" @click="confirmModeChange">
-            {{
-              isAdvancedMode
-                ? $t('formulaInputExplorerContext.useSimpleInput')
-                : $t('formulaInputExplorerContext.useAdvancedInput')
-            }}
-          </Button>
-        </div>
-      </div>
-    </Modal>
+      :title="
+        isAdvancedMode
+          ? $t('formulaInputExplorerContext.useSimpleInputModalTitle')
+          : $t('formulaInputExplorerContext.useAdvancedInputModalTitle')
+      "
+      :confirm-label="
+        isAdvancedMode
+          ? $t('formulaInputExplorerContext.useSimpleInput')
+          : $t('formulaInputExplorerContext.useAdvancedInput')
+      "
+      @confirm="confirmModeChange"
+    />
   </Context>
 </template>
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
+import FormulaInputModeChangeModal from '@baserow/modules/core/components/formula/FormulaInputModeChangeModal'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputExplorerContext',
   components: {
     NodeExplorer,
+    FormulaInputModeChangeModal,
   },
   mixins: [context],
   props: {
@@ -125,14 +114,10 @@ export default {
       required: true,
     },
   },
-  emits: ['mode-changed', 'node-selected', 'node-unselected'],
+  emits: ['mode-changed', 'node-selected', 'node-unselected', 'example-click'],
   data() {
     return {
       searchQuery: '',
-      tooltip: {
-        functionData: null,
-      },
-      tooltipTimer: null,
       tabs: [],
       isModalVisible: false,
     }
@@ -153,7 +138,6 @@ export default {
     },
     activeTabIndex() {
       this.searchQuery = ''
-      this.hideTooltip()
     },
   },
   created() {
@@ -177,7 +161,6 @@ export default {
     },
     hide() {
       this.$refs.context.hide()
-      this.hideTooltip()
     },
     getTabTitle(tabName) {
       const titleMap = {
@@ -215,60 +198,14 @@ export default {
         this.$emit('mode-changed', 'advanced')
       }
     },
-    onFunctionHover(item, tabName, event) {
-      if (tabName !== 'Functions') {
-        return
-      }
-
-      if (this.tooltipTimer) {
-        clearTimeout(this.tooltipTimer)
-      }
-
-      this.tooltip.functionData = {
-        name: item.name,
-        description: item.description,
-        example: item.example,
-        icon: item.icon,
-      }
-
-      this.tooltipTimer = setTimeout(() => {
-        if (this.$refs.functionHelpTooltip) {
-          this.$refs.functionHelpTooltip.show(
-            event.target,
-            'bottom',
-            'right',
-            5,
-            10
-          )
-        }
-      }, 300)
-    },
-    onFunctionLeave() {
-      if (this.tooltipTimer) {
-        clearTimeout(this.tooltipTimer)
-        this.tooltipTimer = null
-      }
-
-      this.hideTooltip()
-    },
-    hideTooltip() {
-      if (this.$refs.functionHelpTooltip) {
-        this.$refs.functionHelpTooltip.hide()
-      }
-      this.tooltip.functionData = null
-    },
     showAdvancedModeModal() {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
-      this.$refs.advancedModeModal.hide()
       this.$emit(
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
-    },
-    cancelModeChange() {
-      this.$refs.advancedModeModal.hide()
     },
   },
 }

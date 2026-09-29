@@ -11,10 +11,13 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowsActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
+    CoreGotoActionNodeType,
     CoreHTTPTriggerNodeType,
+    CoreInboundEmailTriggerNodeType,
     CoreIteratorNodeType,
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
+    CoreResponseNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
     LocalBaserowCreateRowsNodeType,
@@ -160,6 +163,13 @@ class AutomationNodeFixtures:
             **kwargs,
         )
 
+    def create_core_response_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreResponseNodeType.type,
+            **kwargs,
+        )
+
     def create_core_router_action_node_with_edges(self, user=None, **kwargs):
         service = self.create_core_router_service(default_edge_label="Default")
         router = self.create_core_router_action_node(
@@ -200,6 +210,13 @@ class AutomationNodeFixtures:
             fallback_output_node=fallback_output_node,
         )
 
+    def create_core_goto_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreGotoActionNodeType.type,
+            **kwargs,
+        )
+
     def create_periodic_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
@@ -211,6 +228,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=CoreHTTPTriggerNodeType.type,
+            **kwargs,
+        )
+
+    def create_inbound_email_trigger_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreInboundEmailTriggerNodeType.type,
             **kwargs,
         )
 

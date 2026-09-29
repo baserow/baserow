@@ -1,13 +1,27 @@
 import pytest
+from requests.models import Response
 
 from baserow.contrib.database.airtable.utils import (
     airtable_date_filter_value_to_baserow,
     extract_share_id_from_url,
     get_airtable_column_name,
     get_airtable_row_primary_value,
+    parse_json_and_remove_invalid_surrogate_characters,
     quill_to_markdown,
     unknown_value_to_human_readable,
 )
+
+
+def test_parse_json_and_remove_invalid_surrogate_characters_removes_nul():
+    response = Response()
+    response._content = (
+        b'{"rows": [{"cellValuesByColumnId": {"fld1": "a' + b"\\" + b'u0000b"}}]}'
+    )
+    response.encoding = "utf-8"
+
+    parsed = parse_json_and_remove_invalid_surrogate_characters(response)
+
+    assert parsed["rows"][0]["cellValuesByColumnId"]["fld1"] == "ab"
 
 
 def test_extract_share_id_from_url():

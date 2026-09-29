@@ -1,9 +1,10 @@
 from collections import defaultdict
 from functools import partial
-from typing import Dict, List, Literal, Optional, TypedDict
+from typing import Callable, Dict, List, Literal, Optional, TypedDict
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Exists, OuterRef, QuerySet
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Exists, OuterRef, Q, QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import (
@@ -11,6 +12,7 @@ from baserow.contrib.database.fields.operations import (
     WriteFieldValuesOperationType,
 )
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -22,9 +24,11 @@ from baserow_enterprise.role.constants import (
     ADMIN_ROLE_UID,
     BUILDER_ROLE_UID,
     EDITOR_ROLE_UID,
+    FIELD_PERMISSION_EDITOR_ROLE_UID,
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
+from baserow_enterprise.teams.models import Team, TeamSubject
 from baserow_premium.license.handler import LicenseHandler
 
 from .models import FieldPermissions, FieldPermissionsRoleEnum
@@ -49,6 +53,7 @@ class FieldPermissionManagerType(PermissionManagerType):
     type = "write_field_values"
     supported_actor_types = [
         UserSubjectType.type,
+        AgentSubjectType.type,
         AnonymousUserSubjectType.type,
     ]
 
@@ -79,6 +84,79 @@ class FieldPermissionManagerType(PermissionManagerType):
 
         return [c for c in checks if c.operation_name in ops_allowed]
 
+    def _get_custom_field_ids_by_actor(
+        self,
+        workspace: Workspace,
+        actors: List[Actor],
+        field_ids: set[int],
+    ) -> Dict[Actor, set[int]]:
+        """
+        Returns the custom fields selected for each actor, either directly or via a
+        team. The membership and assignments are fetched in batches to avoid queries
+        per permission check.
+
+        :param workspace: The workspace containing the field permission assignments.
+        :param actors: The actors whose selected custom fields should be returned.
+        :param field_ids: The custom field IDs relevant to the permission checks.
+        :return: The selected custom field IDs for each actor. Actors without a
+            matching assignment resolve to an empty set.
+        """
+
+        actors_by_model = defaultdict(dict)
+        for actor in actors:
+            subject_type = subject_type_registry.get_by_model(actor)
+            if subject_type.type in (UserSubjectType.type, AgentSubjectType.type):
+                actors_by_model[subject_type.model_class][actor.id] = actor
+        result = defaultdict(set)
+        if not actors_by_model or not field_ids:
+            return result
+
+        content_types = ContentType.objects.get_for_models(
+            *actors_by_model, Team, Field
+        )
+        actors_by_key = {
+            (content_types[model].id, actor_id): actor
+            for model, actors_by_id in actors_by_model.items()
+            for actor_id, actor in actors_by_id.items()
+        }
+        actor_filter = Q()
+        for model, actors_by_id in actors_by_model.items():
+            actor_filter |= Q(
+                subject_type=content_types[model], subject_id__in=actors_by_id
+            )
+
+        actor_keys_by_team_id = defaultdict(set)
+        for team_id, subject_type_id, actor_id in TeamSubject.objects.filter(
+            actor_filter,
+            team__workspace=workspace,
+            team__trashed=False,
+        ).values_list("team_id", "subject_type_id", "subject_id"):
+            actor_keys_by_team_id[team_id].add((subject_type_id, actor_id))
+
+        assignments = RoleAssignment.objects.filter(
+            workspace=workspace,
+            scope_type=content_types[Field],
+            scope_id__in=field_ids,
+            role__uid=FIELD_PERMISSION_EDITOR_ROLE_UID,
+        ).filter(
+            actor_filter
+            | Q(
+                subject_type=content_types[Team],
+                subject_id__in=actor_keys_by_team_id,
+            )
+        )
+
+        for subject_type_id, subject_id, field_id in assignments.values_list(
+            "subject_type_id", "subject_id", "scope_id"
+        ):
+            if subject_type_id == content_types[Team].id:
+                for actor_key in actor_keys_by_team_id[subject_id]:
+                    result[actors_by_key[actor_key]].add(field_id)
+            else:
+                result[actors_by_key[(subject_type_id, subject_id)]].add(field_id)
+
+        return result
+
     def check_field_permissions(
         self, checks: List[PermissionCheck], workspace=None, include_trash=False
     ):
@@ -91,7 +169,8 @@ class FieldPermissionManagerType(PermissionManagerType):
         }
         result = {}
 
-        # Some checks can be resolved immediately like NOBODY or CUSTOM roles.
+        # Some checks can be resolved immediately, while role-based and custom checks
+        # also need the actor's effective role on the table.
         # Otherwise, we need to check the actor's roles and permissions later.
         remaining_role_checks = []
         for check in checks:
@@ -114,11 +193,16 @@ class FieldPermissionManagerType(PermissionManagerType):
                 result[check] = PermissionDenied()
                 continue
             elif required_role == FieldPermissionsRoleEnum.CUSTOM.value:
-                continue  # TODO: implement the check here for CUSTOM_ROLE_UID
+                if subject_type_registry.get_by_model(check.actor).type not in (
+                    UserSubjectType.type,
+                    AgentSubjectType.type,
+                ):
+                    result[check] = PermissionDenied()
+                    continue
             else:
-                # check actor role and permissions later
-
-                remaining_role_checks.append(check)
+                # Check actor role and permissions later.
+                pass
+            remaining_role_checks.append(check)
         if not remaining_role_checks:  # All checks resolved
             return result
 
@@ -140,6 +224,18 @@ class FieldPermissionManagerType(PermissionManagerType):
                 )
             )
 
+        custom_field_ids = {
+            check.context.id
+            for check in remaining_role_checks
+            if field_permissions_map[check.context.id].role
+            == FieldPermissionsRoleEnum.CUSTOM.value
+        }
+        custom_field_ids_by_actor = self._get_custom_field_ids_by_actor(
+            workspace,
+            list(checks_by_actor_and_context),
+            custom_field_ids,
+        )
+
         scope_includes_cache = {}
         for actor, table_checks in checks_by_actor_and_context.items():
             for table, checks in table_checks.items():
@@ -147,27 +243,54 @@ class FieldPermissionManagerType(PermissionManagerType):
                     roles_per_scope_by_actor[actor], table, scope_includes_cache
                 )
                 checks_results = self._get_checks_results(
-                    checks, computed_roles, field_permissions_map
+                    checks,
+                    computed_roles,
+                    field_permissions_map,
+                    custom_field_ids_by_actor[actor],
                 )
                 result.update(checks_results)
 
         return result
+
+    def _is_custom_permission_allowed(
+        self,
+        field_id: int,
+        custom_field_ids: set[int],
+        get_computed_roles: Callable[[], List[Role]],
+    ) -> bool:
+        """Returns whether a CUSTOM permission allows writing to a field.
+
+        The actor must be selected directly or through a team and must also have an
+        effective Editor-or-higher role on the field's table. The role getter is only
+        evaluated for selected actors.
+
+        :param field_id: The ID of the field being checked.
+        :param custom_field_ids: The IDs of fields for which the actor is selected.
+        :param get_computed_roles: Returns the actor's effective roles on the table.
+        :return: Whether the actor can write to the custom-permission field.
+        """
+
+        return field_id in custom_field_ids and self._is_operation_allowed(
+            get_computed_roles(), FieldPermissionsRoleEnum.EDITOR.value
+        )
 
     def _get_checks_results(
         self,
         checks: List[PermissionCheck],
         computed_roles: List[Role],
         field_permissions_map: Dict[int, FieldPermissions],
+        custom_field_ids: set[int],
     ) -> Dict[PermissionCheck, bool | PermissionDenied]:
         """
-        Helper function to get the results of all the checks for a given actor defined
-        by the list of computed roles and a required role common to all the checks.
-        This function will return a dictionary with the check as the key and True or
-        PermissionDenied as the value.
+        Returns permission results for field checks sharing an actor and table.
+
+        Each field can require a different role. CUSTOM permissions additionally use
+        ``custom_field_ids`` to determine whether the actor was explicitly selected.
 
         :param checks: The list of checks to perform.
         :param computed_roles: The list of computed roles for the actor.
-        :param required_role: The required role for the checks.
+        :param field_permissions_map: The field permissions keyed by field ID.
+        :param custom_field_ids: The IDs of custom fields selected for the actor.
         :return: A dictionary with the check as the key and True or PermissionDenied
             as the value.
         """
@@ -176,7 +299,16 @@ class FieldPermissionManagerType(PermissionManagerType):
         for check in checks:
             field_id = check.context.id
             required_role = field_permissions_map[field_id].role
-            if self._is_operation_allowed(computed_roles, required_role):
+            if required_role == FieldPermissionsRoleEnum.CUSTOM.value:
+                is_allowed = self._is_custom_permission_allowed(
+                    field_id,
+                    custom_field_ids,
+                    lambda: computed_roles,
+                )
+            else:
+                is_allowed = self._is_operation_allowed(computed_roles, required_role)
+
+            if is_allowed:
                 result[check] = True
             else:
                 result[check] = PermissionDenied()
@@ -189,7 +321,7 @@ class FieldPermissionManagerType(PermissionManagerType):
     ) -> bool:
         """
         Given a required role for the operation and a list of computed roles for an
-        actor, verify the actor have the required permissions to perform the operation.
+        actor, verifies that the actor has permission to perform the operation.
 
         :param computed_roles: The list of computed RBAC roles for the actor.
         :param required_role: The required role for the operation.
@@ -265,10 +397,34 @@ class FieldPermissionManagerType(PermissionManagerType):
             field__table__in=table_qs,
         ).select_related("field__table__database__workspace")
 
-        roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(workspace, actor)
+        role_handler = RoleAssignmentHandler()
+        roles_by_scope = role_handler.get_roles_per_scope(workspace, actor)
+        custom_field_ids = {
+            field_perm.field_id
+            for field_perm in field_perms
+            if field_perm.role == FieldPermissionsRoleEnum.CUSTOM.value
+        }
+        selected_custom_field_ids = self._get_custom_field_ids_by_actor(
+            workspace, [actor], custom_field_ids
+        )[actor]
 
         can_write_values_exceptions = set()
         can_submit_values_exceptions = set()
+        computed_roles_by_table_id = {}
+        scope_includes_cache = {}
+
+        def get_computed_roles_for_table(table):
+            """Return and memoize the actor's effective roles for a table.
+
+            :param table: The table whose effective roles should be returned.
+            :return: The actor's effective roles for the table.
+            """
+
+            if table.id not in computed_roles_by_table_id:
+                computed_roles_by_table_id[table.id] = role_handler.get_computed_roles(
+                    roles_by_scope, table, scope_includes_cache
+                )
+            return computed_roles_by_table_id[table.id]
 
         # Verify if the actor has the required permissions for each field permission.
         # If not, add the field id to the exceptions list.
@@ -279,13 +435,21 @@ class FieldPermissionManagerType(PermissionManagerType):
             if field_perm.role == FieldPermissionsRoleEnum.NOBODY.value:
                 can_write_values_exceptions.add(field_perm.field_id)
             elif field_perm.role == FieldPermissionsRoleEnum.CUSTOM.value:
-                # TODO: implement the check here.
-                continue
-            else:
-                computed_roles = RoleAssignmentHandler().get_computed_roles(
-                    roles_by_scope, field_perm.field.table
+                can_edit = self._is_custom_permission_allowed(
+                    field_perm.field_id,
+                    selected_custom_field_ids,
+                    partial(
+                        get_computed_roles_for_table,
+                        field_perm.field.table,
+                    ),
                 )
-                can_edit = self._is_operation_allowed(computed_roles, field_perm.role)
+                if not can_edit:
+                    can_write_values_exceptions.add(field_perm.field_id)
+            else:
+                can_edit = self._is_operation_allowed(
+                    get_computed_roles_for_table(field_perm.field.table),
+                    field_perm.role,
+                )
                 if not can_edit:
                     can_write_values_exceptions.add(field_perm.field_id)
 

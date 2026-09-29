@@ -19,19 +19,25 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
+import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
+  CoreGotoServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
   CoreManualTriggerServiceType,
+  CoreResponseServiceType,
   CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
+import {
+  buildGotoDestinations,
+  isValidGotoDestination,
+} from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
@@ -67,10 +73,71 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * The label of a node in a workflow run history. Unlike `getLabel`, this is
+   * resolved from the history entry alone: the history references the
+   * published workflow copy that ran, whose node ids differ from the editor's,
+   * so the editor workflow can't be consulted. Node types that record extra
+   * run-time context (e.g. the branch taken, or the node jumped to) override
+   * this to surface it.
+   *
+   * @param {Object} nodeHistory The history entry of the node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    return nodeHistory.node_label || this.name
+  }
+
+  /**
    * Returns the text to be displayed on the graph just before the node.
    */
   getBeforeLabel({ workflow, node }) {
     return this.app.$i18n.t('workflowNode.beforeLabelAction')
+  }
+
+  /**
+   * The node-to-node links this node declares. By default a node links to
+   * nothing; types like the "Go to node" override this to point at another
+   * node, and any future node that references another node can do the same.
+   * Each link is surfaced as a paired marker on both the source and
+   * destination cards, so every entry returned must already be a valid link.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node the links originate from.
+   * @returns {Array<{ destinationNodeId: number }>} The outgoing links.
+   */
+  getConnections({ workflow, node }) {
+    return []
+  }
+
+  /**
+   * A hook called for every node after any node is moved within `workflow`,
+   * mirroring the backend's `after_move`. A node type can override this to
+   * reconcile state the move may have invalidated (for example a link to
+   * another node that now sits on a different branch or level), returning the
+   * values needed to repair `node`. Returns null (the default) when the type
+   * has nothing to reconcile.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node to reconcile.
+   * @returns {Object|null} The values to update the node with, or null.
+   */
+  afterMove({ workflow, node }) {
+    return null
+  }
+
+  /**
+   * The selectable destinations to pass into the node's form component via
+   * its `destinations` prop, for node types whose form lets the user pick
+   * another node as a jump target. Returns undefined by default so the prop
+   * isn't bound as a stray fallthrough attribute on forms that don't use it.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node whose form is being rendered.
+   * @param {Object} automation The automation the workflow belongs to.
+   * @returns {{ value: number, name: string }[]|undefined} The destinations.
+   */
+  getDestinations({ workflow, node, automation }) {
+    return undefined
   }
 
   /**
@@ -91,6 +158,10 @@ export class NodeType extends Registerable {
     throw new Error('This method must be implemented')
   }
 
+  get group() {
+    return this.serviceType.group
+  }
+
   /**
    * The icon which is shown inside the editor's node.
    * @returns {string} - The node's icon class.
@@ -100,12 +171,16 @@ export class NodeType extends Registerable {
     return this.serviceType.icon
   }
 
+  get iconColor() {
+    return this.group.iconColor
+  }
+
   /**
    * The node type's image, which will be displayed in dropdowns.
    * @returns - The node's image.
    */
   get image() {
-    return null
+    return this.serviceType.image
   }
 
   /**
@@ -152,31 +227,37 @@ export class NodeType extends Registerable {
    * Returns whether the node is in-error or not.
    * By default, this is derived from the service type's `isInError`
    * method, but can be overridden by the node type.
+   * @param {object} context The node's service and application context.
+   * @param {object} context.service The service of the node.
+   * @param {object|null} [context.workspace=null] The owning workspace.
+   * @param {object|null} [context.application=null] The owning automation.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ service, workspace = null }) {
+  isInError({ service, workspace = null, application = null }) {
     if (workspace && this.isDeactivated({ workspace })) {
       return true
     }
-    return this.serviceType.isInError({ service })
+    return this.serviceType.isInError({ service, workspace, application })
   }
 
   /**
    * Returns the error message we should show when the node is in-error.
    * By default, this is derived from the service type's `getErrorMessage`
    * method, but can be overridden by the node type.
-   * @param {object} service - The service of the node.
-   * @param {object} node - The node for which the
-   *  error message is being retrieved.
-   * @returns {string} - The error message.
+   * @param {object} context The node and its service and application context.
+   * @param {object} context.service The service of the node.
+   * @param {object} context.node The node whose error is being retrieved.
+   * @param {object|null} [context.workspace=null] The owning workspace.
+   * @param {object|null} [context.application=null] The owning automation.
+   * @returns {string|null} The error message, or null when valid.
    */
-  getErrorMessage({ service, node, workspace = null }) {
+  getErrorMessage({ service, node, workspace = null, application = null }) {
     const deactivatedReason =
       workspace && this.isDeactivatedReason({ workspace })
     if (deactivatedReason) {
       return deactivatedReason
     }
-    return this.serviceType.getErrorMessage({ service })
+    return this.serviceType.getErrorMessage({ service, workspace, application })
   }
 
   /**
@@ -275,8 +356,40 @@ export class NodeType extends Registerable {
     return this.serviceType.getSampleData(service)
   }
 
+  /**
+   * The content type of this node's sample data. Nodes returning 'html' get
+   * an extra HTML preview tab in the sample data modal.
+   */
+  getSampleDataContentType({ service }) {
+    if (!service) {
+      return 'json'
+    }
+    return this.serviceType.getSampleDataContentType(service)
+  }
+
+  /**
+   * The HTML document rendered in the sample data modal's HTML tab.
+   */
+  getSampleDataHtml({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleDataHtml(service)
+  }
+
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
+  }
+
+  /**
+   * Whether this node type is offered at all. Unlike `isDeactivated`, which
+   * keeps the entry in the add-node menu but disabled with a reason, a type
+   * that is not enabled is omitted from the menu entirely. Types that only make
+   * sense when the instance is configured for them override this.
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return true
   }
 
   isDeactivatedReason({ workspace }) {
@@ -297,6 +410,14 @@ export class NodeType extends Registerable {
 }
 
 export class LocalBaserowNodeType extends NodeType {
+  /**
+   * A wrapper around the service form, so the node can pick its integration
+   * first and hand the form the databases it reaches.
+   */
+  get formComponent() {
+    return LocalBaserowNodeServiceForm
+  }
+
   /**
    * Responsible for returning contextual data for a node label template.
    * At the moment we only refer to the table name.
@@ -330,10 +451,6 @@ export class LocalBaserowNodeType extends NodeType {
     return tableName
       ? this.app.$i18n.t(this.labelTemplateName, { tableName })
       : this.name
-  }
-
-  get image() {
-    return localBaserowIntegration
   }
 }
 
@@ -545,6 +662,52 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
 
   getDefaultLabel({ automation, node }) {
     return this.app.$i18n.t('serviceType.coreHTTPTrigger')
+  }
+}
+
+export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreInboundEmailTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4.5
+  }
+
+  /**
+   * Only offered when the instance is configured for inbound email. The
+   * backend derives that from its environment (domain, webhook secret and the
+   * receiver URL its message sweep needs) and publishes the result in the
+   * public settings, so this mirrors the exact gate that would otherwise
+   * refuse to create the node. Without it the trigger is left out of the menu
+   * rather than shown deactivated, so instances that never use inbound email
+   * do not carry a dead entry.
+   */
+  isEnabled() {
+    return (
+      this.app.$store.getters['settings/get']?.inbound_email_enabled === true
+    )
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
   }
 }
 
@@ -786,6 +949,24 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreResponseNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'response'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.responseLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreResponseServiceType.getType())
+  }
+}
+
 export class CoreIteratorNodeType extends containerNodeTypeMixin(
   ActionNodeTypeMixin(UtilityNodeMixin(NodeType))
 ) {
@@ -794,7 +975,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   }
 
   getOrder() {
-    return 8
+    return 9
   }
 
   get name() {
@@ -984,6 +1165,21 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
       : this.name
   }
 
+  /**
+   * Append the branch that was taken during the run, e.g. "Router (Default)",
+   * so the history shows which edge the workflow followed.
+   * @param nodeHistory - The history entry of the router node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    return this.app.$i18n.t('nodeType.routerHistoryLabel', {
+      label: super.getHistoryLabel({ nodeHistory }),
+      edge:
+        nodeHistory.edge_label ||
+        this.app.$i18n.t('nodeType.defaultEdgeLabelFallback'),
+    })
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', CoreRouterServiceType.getType())
   }
@@ -1083,6 +1279,206 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class CoreGotoNodeType extends ActionNodeTypeMixin(
+  UtilityNodeMixin(NodeType)
+) {
+  static getType() {
+    return 'goto'
+  }
+
+  getOrder() {
+    return 11
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.gotoNodeLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreGotoServiceType.getType())
+  }
+
+  /**
+   * Once a destination node is selected, append its label to the default
+   * label, e.g. "Go to node → List rows", so the jump target is visible at a
+   * glance without opening the node.
+   * @param automation - The automation the node belongs to.
+   * @param node - The Go to node for which the default label is generated.
+   * @returns {string} - The default label for the node.
+   */
+  getDefaultLabel({ automation, node }) {
+    const destinationServiceId = node.service?.destination_service_id
+    if (!destinationServiceId) {
+      return this.name
+    }
+
+    const workflow = this.app.$store.getters['automationWorkflow/getById'](
+      automation,
+      node.workflow
+    )
+    const destinationNode = this.app.$store.getters[
+      'automationWorkflowNode/findByServiceId'
+    ](workflow, destinationServiceId)
+    if (!destinationNode) {
+      return this.name
+    }
+
+    const destinationNodeType = this.app.$registry.get(
+      'node',
+      destinationNode.type
+    )
+    return this.app.$i18n.t('nodeType.gotoNodeLabelWithDestination', {
+      destination: destinationNodeType.getLabel({
+        automation,
+        node: destinationNode,
+      }),
+    })
+  }
+
+  /**
+   * Resolve the label of the node this "Go to node" entry jumped to, so the
+   * history reads "Go to node → <destination>".
+   *
+   * The destination's stored label is resolved by the backend. When the
+   * destination has no custom label, we fall back to the generic name of
+   * its node type.
+   * @param nodeHistory - The history entry of the Go to node's run.
+   * @returns {string|null} - The destination's label, or null if unresolvable.
+   */
+  getHistoryDestinationLabel({ nodeHistory }) {
+    if (nodeHistory.destination_label) {
+      return nodeHistory.destination_label
+    }
+
+    const destinationType = nodeHistory.destination_node_type
+    if (!destinationType) return null
+
+    if (!this.app.$registry.exists('node', destinationType)) return null
+    return this.app.$registry.get('node', destinationType).name
+  }
+
+  /**
+   * Append the node the workflow jumped to, e.g. "Go to node → List rows".
+   * A skipped run means the condition resolved to false and no jump was
+   * followed, so the destination is left out to avoid implying otherwise.
+   * @param nodeHistory - The history entry of the Go to node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    const label = super.getHistoryLabel({ nodeHistory })
+    if (nodeHistory.status === 'skipped') return label
+    const destination = this.getHistoryDestinationLabel({ nodeHistory })
+    if (!destination) return label
+    return this.app.$i18n.t('nodeType.gotoHistoryLabel', {
+      label,
+      destination,
+    })
+  }
+
+  /**
+   * The node this "Go to node" jumps to, as long as the jump is still valid.
+   * Validity mirrors the backend `validate_goto_destination` (same level,
+   * backward jump only, non-trigger).
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The Go to node to resolve the destination for.
+   * @returns {Object|null} The destination node, or null when the stored
+   *   destination is unset, missing from the workflow, or no longer valid.
+   */
+  getValidDestination({ workflow, node }) {
+    const destinationServiceId = node.service?.destination_service_id
+    if (destinationServiceId == null) {
+      return null
+    }
+    const destinationNode = this.app.$store.getters[
+      'automationWorkflowNode/findByServiceId'
+    ](workflow, destinationServiceId)
+    const isValid = isValidGotoDestination({
+      gotoNode: node,
+      destinationNode,
+      ancestorsOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getAncestors'](
+          workflow,
+          n
+        ),
+      previousNodesOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getPreviousNodes'](
+          workflow,
+          n
+        ),
+      isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
+    })
+    return isValid ? destinationNode : null
+  }
+
+  /**
+   * The valid jump targets for this "Go to" node, shaped for the generic
+   * CoreGotoServiceForm's `destinations` prop. As the service form can't
+   * refer to automation nodes, the node-graph lookups and label resolution
+   * happen here and are passed into the form as data.
+   *
+   * The nodes are taken in graph order so the dropdown reads in the same order
+   * as the editor. `buildGotoDestinations` preserves the order it's given.
+   */
+  getDestinations({ workflow, node, automation }) {
+    return buildGotoDestinations({
+      gotoNode: node,
+      nodes:
+        this.app.$store.getters['automationWorkflowNode/getNodesInOrder'](
+          workflow
+        ),
+      ancestorsOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getAncestors'](
+          workflow,
+          n
+        ),
+      previousNodesOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getPreviousNodes'](
+          workflow,
+          n
+        ),
+      isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
+      nameOf: (n) =>
+        this.app.$registry
+          .get('node', n.type)
+          .getLabel({ automation, node: n }),
+    })
+  }
+
+  /**
+   * Declares a link from this Go to node to its destination node, as long as
+   * the jump is still valid. The link is surfaced as a paired marker on both
+   * cards. The store is reconciled after a move, but re-checking here also
+   * avoids surfacing a stale link during the brief window before that
+   * reconciliation runs.
+   */
+  getConnections({ workflow, node }) {
+    const destinationNode = this.getValidDestination({ workflow, node })
+    if (!destinationNode) {
+      return []
+    }
+    return [{ destinationNodeId: destinationNode.id }]
+  }
+
+  /**
+   * Mirrors the backend `clear_invalidated_links`: a move can take this node's
+   * destination off its path or to a different level, invalidating the jump.
+   * The backend clears it, but the acting client is excluded from its own
+   * realtime broadcast, so the store reconciles through this hook.
+   */
+  afterMove({ workflow, node }) {
+    if (node.service?.destination_service_id == null) {
+      return null
+    }
+    if (this.getValidDestination({ workflow, node })) {
+      return null
+    }
+    return {
+      service: { ...node.service, destination_service_id: null },
+    }
+  }
+}
+
 export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'ai_agent'
@@ -1112,14 +1508,6 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 90
-  }
-
-  get iconClass() {
-    return ''
-  }
-
-  get image() {
-    return slackIntegration
   }
 
   get name() {

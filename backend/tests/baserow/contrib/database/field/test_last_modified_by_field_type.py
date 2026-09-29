@@ -486,14 +486,14 @@ def test_last_modified_by_field_type_sorting(data_fixture):
     row5 = model.objects.create(last_modified_by=None)
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row5.id, row3.id, row2.id, row1.id, row4.id]
 
     sort.order = "DESC"
     sort.save()
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row1.id, row4.id, row2.id, row3.id, row5.id]
 

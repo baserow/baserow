@@ -4,7 +4,7 @@
     <div v-if="groupNode.filters.length" class="filters__group-item-filters">
       <div
         v-for="(filter, filterIndex) in groupNode.filtersOrdered()"
-        :key="filterIndex"
+        :key="`filter-${filter.id}`"
         class="filters__item-wrapper"
       >
         <div class="filters__item filters__item--level-2">
@@ -42,7 +42,7 @@
     </div>
     <div
       v-for="(subGroupNode, subGroupIndex) in groupNode.children"
-      :key="groupNode.filters.length + subGroupIndex"
+      :key="`group-${subGroupNode.group.id}`"
       class="filters__group-item-wrapper filters__group-item-wrapper--inner"
     >
       <ViewFilterFormOperator
@@ -71,7 +71,14 @@
         @update-filter="$emit('updateFilter', $event)"
         @delete-filter="$emit('deleteFilter', $event)"
         @update-filter-type="$emit('updateFilterType', $event)"
-      />
+      >
+        <template #filterInputComponent="{ slotProps }">
+          <slot name="filterInputComponent" :slot-props="slotProps"></slot>
+        </template>
+        <template #afterValueInput="{ slotProps }">
+          <slot name="afterValueInput" :slot-props="slotProps"></slot>
+        </template>
+      </ViewFieldConditionGroup>
     </div>
     <div v-if="!disableFilter" class="filters__group-item-actions">
       <ButtonText
@@ -112,9 +119,12 @@ export default {
     ViewFieldConditionItem,
   },
   props: {
+    // A view is optional, but may be required by some specific
+    // field components, such as `ViewFilterTypeLinkRow`.
     view: {
       type: Object,
-      required: true,
+      required: false,
+      default: () => undefined,
     },
     groupNode: {
       type: Object,

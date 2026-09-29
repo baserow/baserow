@@ -1,4 +1,5 @@
 import { getClient } from "../../client";
+import { waitForJob } from "../job";
 import { User } from "../user";
 import { Table } from "./table";
 
@@ -71,6 +72,13 @@ export async function deleteField(user: User, field: Field): Promise<void> {
   await getClient(user).delete(`database/fields/${field.id}/`);
 }
 
+export async function restoreField(user: User, field: Field): Promise<void> {
+  await getClient(user).patch("trash/restore/", {
+    trash_item_type: "field",
+    trash_item_id: field.id,
+  });
+}
+
 export async function getFieldsForTable(
   user: User,
   table: Table,
@@ -91,4 +99,31 @@ export async function deleteAllNonPrimaryFieldsFromTable(
     (f) => !f.primary,
   );
   await Promise.all(fields.map((f) => deleteField(user, f)));
+}
+
+/**
+ * Duplicates a field and waits for the copy to exist. Duplicating runs as a
+ * job, so the field is not there the moment the request returns.
+ *
+ * The job is followed rather than the table's field list. The name the copy is
+ * expected to take can already belong to a field an earlier test left behind,
+ * and a failed job would only ever be reported as a copy that never appeared.
+ */
+export async function duplicateField(
+  user: User,
+  field: Field,
+  options: { copyData?: boolean } = {},
+): Promise<Field> {
+  const client = getClient(user);
+  const job: any = await client.post(
+    `database/fields/${field.id}/duplicate/async/`,
+    { duplicate_data: options.copyData ?? false },
+  );
+
+  const finished = await waitForJob(
+    client,
+    job.data.id,
+    `Duplicating "${field.name}"`,
+  );
+  return finished.duplicated_field as Field;
 }

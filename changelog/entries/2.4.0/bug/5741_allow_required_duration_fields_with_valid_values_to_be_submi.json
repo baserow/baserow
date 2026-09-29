@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Allow required duration fields with valid values to be submitted in public forms",
+    "issue_origin": "github",
+    "issue_number": 5741,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-31"
+}

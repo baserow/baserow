@@ -15,19 +15,60 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
   const { firstBy } = thenBy
   let sortFunction = firstBy()
+  const groupByCount = groupBys.length
   const combined = [...groupBys, ...sortings]
-  combined.forEach((sort) => {
-    // Find the field that is related to the sort.
+  combined.forEach((sort, index) => {
     const field = fields.find((f) => f.id === sort.field)
 
     if (field !== undefined) {
       const fieldName = `field_${field.id}`
       const fieldType = $registry.get('field', field.type)
-      const sortTypes = fieldType.getSortTypes(field)
-      const fieldSortFunction = sortTypes[sort.type].function(
+      let fieldSortFunction
+      if (index < groupByCount) {
+        fieldSortFunction = fieldType.getGroupBySort(
+          fieldName,
+          sort.order,
+          field,
+          sort.type
+        )
+      } else {
+        const sortTypes = fieldType.getSortTypes(field)
+        fieldSortFunction = sortTypes[sort.type].function(
+          fieldName,
+          sort.order,
+          field
+        )
+      }
+      sortFunction = sortFunction.thenBy(fieldSortFunction)
+    }
+  })
+
+  sortFunction = sortFunction.thenBy((a, b) =>
+    new BigNumber(a.order).minus(new BigNumber(b.order)).toNumber()
+  )
+  sortFunction = sortFunction.thenBy((a, b) => a.id - b.id)
+  return sortFunction
+}
+
+/**
+ * Like getRowSortFunction but uses getGroupBySort instead of getSort, so
+ * group-by node ordering can differ from row ordering (e.g. set-based
+ * ordering for multi-select fields).
+ */
+export function getGroupByRowSortFunction($registry, fields, groupBys) {
+  const { firstBy } = thenBy
+  let sortFunction = firstBy()
+  groupBys.forEach((sort) => {
+    const field = fields.find((f) => f.id === sort.field)
+
+    if (field !== undefined) {
+      const fieldName = `field_${field.id}`
+      const fieldType = $registry.get('field', field.type)
+      const fieldSortFunction = fieldType.getGroupBySort(
         fieldName,
         sort.order,
-        field
+        field,
+        sort.type
       )
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }
@@ -473,22 +514,31 @@ export function newFieldMatchesActiveSearchTerm(
   return false
 }
 
+// Safe to call unconditionally: only GridViewType has can_group_by=True,
+// so view.group_bys is always empty for gallery/kanban/calendar views.
+export function serializeGroupBys(view) {
+  if (!view || !view.group_bys || view.group_bys.length === 0) {
+    return ''
+  }
+  return view.group_bys
+    .map((groupBy) => {
+      let serialized = `${groupBy.order === 'DESC' ? '-' : ''}field_${
+        groupBy.field
+      }`
+      if (groupBy.type !== DEFAULT_SORT_TYPE_KEY) {
+        serialized += `[${groupBy.type}]`
+      }
+      return serialized
+    })
+    .join(',')
+}
+
 export function getGroupBy(rootGetters, viewId, adhocGroupBy = false) {
   if (rootGetters['page/view/public/getIsPublic'] || adhocGroupBy) {
     const view = rootGetters['view/get'](viewId)
-    return view.group_bys
-      .map((groupBy) => {
-        let serialized = `${groupBy.order === 'DESC' ? '-' : ''}field_${
-          groupBy.field
-        }`
-        if (groupBy.type !== DEFAULT_SORT_TYPE_KEY) {
-          serialized += `[${groupBy.type}]`
-        }
-        return serialized
-      })
-      .join(',')
+    return serializeGroupBys(view)
   } else {
-    return ''
+    return null
   }
 }
 
@@ -521,8 +571,8 @@ export function isAdhocGroupBy(app, workspace, view, publicView) {
 }
 
 /**
- * If filters, sorts or group bys are read only (i.e. formula fields) or there are
- * read-only fields and there's an activeSearchTerm, then the rows cannot be
+ * If filters, sorts or group bys are read only (i.e. formula fields) or there is
+ * an activeSearchTerm and a searchable read-only field, then the rows cannot be
  * optimistically because the backend calculates the read-only values based on other
  * fields and the UI cannot predict the outcome reliably.
  */
@@ -532,10 +582,16 @@ export function canRowsBeOptimisticallyUpdatedInView(
   fields,
   activeSearchTerm
 ) {
+  const readOnlyFields = fields.filter((f) =>
+    $registry.get('field', f.type).isReadOnlyField(f)
+  )
   const readOnlyFieldIds = new Set(
-    fields
-      .filter((f) => $registry.get('field', f.type).isReadOnlyField(f))
-      .map((field) => String(field.id))
+    readOnlyFields.map((field) => String(field.id))
+  )
+  // A read-only field the search can't match, like one holding no value at
+  // all, never makes the search result depend on the backend.
+  const searchableReadOnlyFields = readOnlyFields.filter((f) =>
+    $registry.get('field', f.type).isSearchable(f)
   )
   const hasReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
   const readOnlyGroupBys = view.group_bys
@@ -552,7 +608,7 @@ export function canRowsBeOptimisticallyUpdatedInView(
     readOnlyGroupBys ||
     readOnlySorts ||
     readOnlyFilters ||
-    (activeSearchTerm && readOnlyFieldIds.size > 0)
+    (activeSearchTerm && searchableReadOnlyFields.length > 0)
   return !needsServerSideCalculation
 }
 
@@ -577,11 +633,8 @@ export function getOrderBy(view, adhocSorting) {
       }
       return serialized
     }
-    // Group bys first, then sorts to ensure that the order is correct.
-    const groupBys = view.group_bys ? view.group_bys.map(serializeSort) : []
     const sorts = view.sortings.map(serializeSort)
-
-    return [...groupBys, ...sorts].join(',')
+    return sorts.length > 0 ? sorts.join(',') : ''
   } else {
     return null
   }
@@ -662,6 +715,27 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
     // Ensure that the view can display the row data if required.
     return showRowModal ? viewType.canShowRowModal() : true
   })
+}
+
+/** Toasts once about rows the backend hid from the view; returns their ids. */
+export function reportHiddenRows(data, { dispatch, i18n, created }) {
+  const rowIds = new Set(data.metadata?.hidden_row_ids || [])
+  const count = rowIds.size
+  if (count === 0) {
+    return rowIds
+  }
+  const messageKey = created
+    ? 'hiddenRows.createdMessage'
+    : 'hiddenRows.updatedMessage'
+  dispatch(
+    'toast/info',
+    {
+      title: i18n.t('hiddenRows.title', { count }),
+      message: i18n.t(messageKey, { count }),
+    },
+    { root: true }
+  )
+  return rowIds
 }
 
 /*

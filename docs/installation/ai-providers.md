@@ -1,0 +1,152 @@
+# AI providers
+
+An AI provider is one connection to an AI service, plus the list of models you want
+to use from it. Baserow uses those models for AI fields, AI formula suggestions, AI
+Agent actions in the Application Builder and Automations, and the Kuma assistant.
+
+## Where to configure them
+
+- **Instance admins**: click the workspace name at the top of the sidebar, then
+  **Admin tools → AI providers**. Models added here are available to every workspace
+  on the instance.
+- **Workspace admins**: go to **Home**, click the workspace name at the top of the
+  page, then **Settings → AI providers**. Models added here are available to that
+  workspace only.
+
+Each page allows one provider per type: one OpenAI, one Anthropic, and so on. Other
+users see changes made in **Admin tools → AI providers** after they reload the page.
+
+For every model you add, choose which features may use it under **Available for**,
+and use **Test model** before selecting it anywhere. A model that is not available
+for a feature does not appear in that feature's model list.
+
+Kuma also needs a model chosen under **AI features** in **Admin tools → AI providers**.
+Workspaces inherit that choice unless a workspace admin picks another model or
+disables Kuma. See [AI assistant configuration](ai-assistant.md).
+
+## Amazon Bedrock
+
+Bedrock needs a region, such as `eu-central-1`, and one of two credentials:
+
+- **IAM access key**: fill in **Access key ID** and put its secret access key in
+  **API key or secret access key**. The IAM user or role needs
+  `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`.
+- **Bedrock API key**: leave **Access key ID** empty and paste the key. The key's
+  identity also needs `bedrock:CallWithBearerToken`. AWS recommends long-term API
+  keys only for exploration, and short-term keys expire within 12 hours, so prefer an
+  IAM access key for production.
+
+Baserow only uses the credentials entered here. It never falls back to `AWS_*`
+environment variables or the server's IAM role, and it ignores AWS endpoint settings
+such as `AWS_ENDPOINT_URL`. When you add or remove the access key ID, enter the
+secret again.
+
+Use inference profile IDs such as `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`:
+newer models reject their base model ID. AI fields can send images (JPEG, PNG, GIF,
+WebP; up to 20, 3.75 MB each) and documents (PDF, Word, Excel, CSV, text,
+Markdown; up to 5, 4.5 MB each). Whether a model reads them depends on the model:
+Claude and Amazon Nova do, text-only models such as gpt-oss return an error.
+
+Bedrock ignores per-request timeouts. A request, including **Test model**, can take
+up to 5 minutes per attempt and is tried up to 3 times before it fails.
+
+## xAI
+
+Create an API key at [console.x.ai](https://console.x.ai), then add an **xAI**
+provider and paste the key. Add the model IDs you want, such as `grok-4.3`. xAI lists
+the current IDs in its [models documentation](https://docs.x.ai/developers/models).
+
+AI fields can send JPEG and PNG images, up to 20 MB in total per request, and small
+text files. Other files, such as PDFs, are not sent: xAI only receives their names.
+
+Baserow sends requests to xAI's global endpoint, `https://api.x.ai`, where xAI does
+not guarantee which region processes them. Regional endpoints are not supported.
+
+## Upgrading to Baserow 2.4
+
+**From Baserow 2.4, the environment variables below are no longer read.** The upgrade
+imports them once into **Admin tools → AI providers**, and each workspace's own AI
+settings into that workspace's **Settings → AI providers**. Rotate keys and change
+models there: changing or removing a variable has no effect.
+
+| Provider   | Variables                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| OpenAI     | `BASEROW_OPENAI_API_KEY`, `BASEROW_OPENAI_MODELS`, `BASEROW_OPENAI_ORGANIZATION`, `BASEROW_OPENAI_BASE_URL` |
+| OpenRouter | `BASEROW_OPENROUTER_API_KEY`, `BASEROW_OPENROUTER_MODELS`, `BASEROW_OPENROUTER_ORGANIZATION`                |
+| Anthropic  | `BASEROW_ANTHROPIC_API_KEY`, `BASEROW_ANTHROPIC_MODELS`                                                     |
+| Mistral    | `BASEROW_MISTRAL_API_KEY`, `BASEROW_MISTRAL_MODELS`                                                         |
+| Ollama     | `BASEROW_OLLAMA_HOST`, `BASEROW_OLLAMA_MODELS`                                                              |
+
+Keep the variables until you have checked the imported providers, since rolling back
+to 2.3 needs them. Then remove them. The imported API keys are stored in the
+database, so database backups now contain them.
+
+There are two exceptions:
+
+- **Kuma's model is not imported.** Kuma keeps using
+  `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` until you make a model available to Kuma and
+  select it under **AI features**. Imported models are only available to AI fields and
+  AI Agent actions. Vertex AI, and Bedrock through the server's IAM role, can't be added
+  in AI providers, so keep their environment configuration. See
+  [AI assistant configuration](ai-assistant.md).
+- **Variables still work for a provider that isn't in AI providers**: for example one
+  the upgrade skipped (the upgrade log says why), one whose variables you add after
+  upgrading, or an imported provider you deleted. This fallback is deprecated: add the provider
+  in **Admin tools → AI providers** instead.
+
+If complete workspace settings are skipped because an API key or model name exceeds
+the database limits, their existing connection and model list remain in use until
+you create a workspace provider.
+
+Three workspace setups behave differently after the upgrade. Fix them in the
+workspace's **Settings → AI providers**:
+
+- A workspace with a credential but **no models** now gets no models, instead of the
+  instance's list.
+- A workspace with models but **no credential** now gets the instance's full list,
+  instead of its own shorter one.
+- A workspace with a credential but **no endpoint or organization** now uses the
+  provider's defaults, instead of the instance's.
+
+## How instance and workspace providers combine
+
+A workspace sees its own models first, and inherits the instance models on top:
+
+- A workspace model replaces an instance model with the **same name**.
+- Instance models the workspace has not redefined stay available.
+- A workspace can switch off an inherited instance provider. Its own models then
+  stand alone, and turning the switch back on restores inheritance.
+- Disabling a model hides it from every feature in that scope.
+
+If a workspace configures its own provider because it wants to use its own account,
+switch off the inherited instance provider of the same type. Otherwise that workspace
+can still use models that bill to the instance account. The switch does not affect
+Kuma: it keeps using the instance's Kuma model until the workspace chooses another
+model or **Disabled** under **AI features**.
+
+The upgrade does this for you: any workspace whose settings were imported is switched
+off from the matching instance provider, because its own settings replaced the
+instance ones before the upgrade. An instance provider added after the upgrade is
+inherited by those workspaces, so switch it off there yourself.
+
+## AI integrations in the Builder and Automations
+
+An AI integration normally inherits its workspace's providers. It can also carry its
+own settings:
+
+- A **complete** connection with its own model list is independent. Central
+  credentials, disabled models and feature availability do not apply to it.
+- A connection **without** a model list inherits which models are allowed.
+- An **incomplete** connection cannot borrow a credential from anywhere else. It can
+  only narrow the inherited model list, and its connection fields are ignored.
+
+## Published applications
+
+An application published **before** the upgrade kept a copy of the workspace settings
+that were in force at publish time, so rotating a credential centrally does not reach
+it. Applications published since resolve their workspace's providers when they run, so
+they follow central changes.
+
+Either way, an integration that carries its own complete connection keeps using it.
+Republishing adopts current workspace resolution — and also publishes every other
+pending draft change, so confirm the draft with the application owner first.

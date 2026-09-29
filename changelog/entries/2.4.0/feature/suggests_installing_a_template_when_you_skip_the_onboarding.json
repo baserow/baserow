@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Suggests installing a template when you skip the onboarding",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-07"
+}

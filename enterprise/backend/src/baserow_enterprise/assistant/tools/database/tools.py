@@ -6,15 +6,15 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 from pydantic import Field, create_model
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
-from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.database.fields.actions import (
     CreateFieldActionType,
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.actions import (
@@ -29,19 +29,24 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.deps import AssistantDeps, ResourceChanges
+from baserow_enterprise.assistant.tools.shared import (
+    raise_if_permission_denied,
+    require_payload,
+    return_permission_error,
+)
 from baserow_enterprise.assistant.tools.toolset import inline_refs
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
 
-from . import helpers
+from . import helpers, reconciliation
 from .agents import (
-    formula_generation_agent,
     generate_sample_rows,
-    get_formula_type_tool,
     make_formula_fixer,
+    run_formula_generation,
 )
 from .prompts import format_formula_generation_prompt
 from .types import (
@@ -153,13 +158,13 @@ def list_tables(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> list[dict[str, Any]] | dict[str, Any]:
+) -> dict[str, Any]:
     """\
     List tables, optionally filtered by database or name.
 
     WHEN to use: Before creating tables (to avoid duplicates), when you need table IDs, or to discover what tables exist in the workspace.
     WHAT it does: Lists tables matching the filter criteria (database_id, name, starred), grouped by database.
-    RETURNS: Tables with id, name, database_id. Includes a hint with available tables if no match found.
+    RETURNS: Tables with id, name, database_id and next_steps for resolving missing data. Includes a hint with available tables if no match found.
     DO NOT USE when: You already have the table IDs you need.
     """
 
@@ -196,13 +201,26 @@ def list_tables(
         % {"database_names": ", ".join(database_names)}
     )
 
+    result = {
+        "next_steps": (
+            "For an app that shows records, use a matching table from these results. "
+            "If the requested records are absent (even if unrelated tables exist), "
+            "create nothing and call ask_user: say no table holds them and offer to "
+            "create one with sample data, to agree on its fields and data first, or to "
+            "use data the user points to. Exception: when the user asked for an "
+            "example, demo, or sample app, or for new data storage, create the table "
+            "with sample data and build without asking. "
+            "Setting up application login is a storage request: setup_user_source "
+            "can create its backing users table if none was specified."
+        ),
+    }
     if len(databases) == 0:
-        return {"tables": [], "_info": _no_tables_found_hint(user, workspace, filters)}
+        result.update(tables=[], _info=_no_tables_found_hint(user, workspace, filters))
     elif len(databases) == 1:
-        # Return just the tables array when there's only one database
-        return list(databases.values())[0]["tables"]
+        result["tables"] = list(databases.values())[0]["tables"]
     else:
-        return list(databases.values())
+        result["databases"] = list(databases.values())
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +236,7 @@ def get_tables_schema(
     full_schema: Annotated[
         bool,
         Field(
-            description="If True, include all fields. If False, only table names, IDs, primary keys, and relationships."
+            description="Use True to inspect fields, configure views/filters, or check whether a field exists. False is only a relationship overview and omits ordinary fields."
         ),
     ],
     thought: Annotated[
@@ -229,7 +247,7 @@ def get_tables_schema(
     Get field definitions for tables (full_schema=True for all fields).
 
     WHEN to use: Before creating/modifying fields to understand table structure and avoid duplicates. Also for understanding relationships when creating link_row fields.
-    WHAT it does: Returns the schema of specified tables. full_schema=True returns all fields with types and configs. full_schema=False returns only names, IDs, primary keys, and relationships.
+    WHAT it does: Returns the schema of specified tables. Use full_schema=True for field IDs, view/filter configuration, or deciding whether a field exists. full_schema=False is only a compact relationship overview: it omits ordinary fields, so an empty fields list does not establish that a field is missing.
     RETURNS: Table schemas with field names, types, IDs, primary keys, and relationships.
     DO NOT USE when: You need row data — use list_rows instead. For row operations, use load_row_tools, those tools already provide the necessary schema info in their instructions.
     """
@@ -239,7 +257,7 @@ def get_tables_schema(
     tool_helpers = ctx.deps.tool_helpers
 
     if not table_ids:
-        return {"tables_schema": []}
+        return {"tables_schema": [], "full_schema": full_schema}
 
     tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
 
@@ -248,11 +266,20 @@ def get_tables_schema(
         % {"table_names": ", ".join(t.name for t in tables)}
     )
 
-    return {
+    result = {
         "tables_schema": [
             ts.model_dump() for ts in helpers.get_tables_schema(tables, full_schema)
-        ]
+        ],
+        "full_schema": full_schema,
     }
+    if not full_schema:
+        result["next_steps"] = (
+            "This relationship overview omits ordinary fields. An empty fields list "
+            "does not mean the table has no other fields. Call get_tables_schema "
+            "with full_schema=True to get field IDs or configure views and filters. "
+            "Do that before reporting a field missing or asking the user for its ID."
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -377,20 +404,27 @@ def _create_empty_tables(
     tool_helpers: "ToolHelpers",
 ) -> list[Table]:
     """Create bare tables and rename each one's auto-created primary field."""
-    created: list[Table] = []
+    created_tables: list[Table] = []
     with transaction.atomic():
         for table in tables:
             tool_helpers.raise_if_cancelled()
             tool_helpers.update_status(
                 _("Creating table %(table_name)s...") % {"table_name": table.name}
             )
-            created_table, __ = CreateTableActionType.do(
+            created_table, _initial_rows = CreateTableActionType.do(
                 user, database, table.name, fill_example=False
             )
-            created.append(created_table)
+            created_tables.append(created_table)
             primary_field = created_table.get_primary_field().specific
             UpdateFieldActionType.do(user, primary_field, name=table.primary_field_name)
-    return created
+    return created_tables
+
+
+def _non_primary_fields(table: TableItemCreate) -> list[FieldItemCreate]:
+    """Exclude the field specification represented by the primary field."""
+
+    primary_name = table.primary_field_name.lower()
+    return [field for field in table.fields if field.name.lower() != primary_name]
 
 
 def _create_table_fields(
@@ -399,36 +433,103 @@ def _create_table_fields(
     created_tables: list[Table],
     tool_helpers: "ToolHelpers",
     formula_fixer,
-) -> list[str]:
-    """Create non-primary fields for each table; return collected notes/errors."""
+) -> tuple[list[str], bool]:
+    """Return field-creation notes and whether permission stopped setup."""
     notes: list[str] = []
     for table, created_table in zip(tables, created_tables):
         tool_helpers.raise_if_cancelled()
-        with transaction.atomic():
-            # Drop any field whose name matches the primary field name — it's
-            # already set via UpdateFieldActionType.do() above. Including it in
-            # fields too is a common model mistake that would otherwise produce
-            # a "field already exists" error note.
-            non_primary_fields = [
-                f
-                for f in table.fields
-                if f.name.lower() != table.primary_field_name.lower()
-            ]
-            _created, field_errors, formula_errors = helpers.create_fields(
-                user,
-                created_table,
-                non_primary_fields,
-                tool_helpers,
-                formula_fixer=formula_fixer,
-            )
-            notes.extend(field_errors)
-            for err in formula_errors:
-                notes.append(
-                    f"Invalid formula for field '{err['field_name']}' "
-                    f"in table_{created_table.id}: {err['error']}. "
-                    f"Use generate_formula to fix it."
+        try:
+            with transaction.atomic():
+                _, field_errors, formula_errors = helpers.create_fields(
+                    user,
+                    created_table,
+                    _non_primary_fields(table),
+                    tool_helpers,
+                    formula_fixer=formula_fixer,
                 )
-    return notes
+        except PermissionException:
+            notes.append(
+                f"Permission denied while creating fields in table_{created_table.id}. "
+                "The tables were created, but further field setup stopped. "
+                "Do not retry the denied operation."
+            )
+            return notes, True
+        notes.extend(field_errors)
+        for error in formula_errors:
+            notes.append(
+                f"Invalid formula for field '{error['field_name']}' "
+                f"in table_{created_table.id}: {error['error']}. "
+                f"Use generate_formula to fix it."
+            )
+    return notes, False
+
+
+def _create_new_tables(
+    user: AbstractUser,
+    workspace: Workspace,
+    database: Database,
+    tables: list[TableItemCreate],
+    tool_helpers: "ToolHelpers",
+) -> tuple[list[Table], list[str], bool]:
+    """Create tables, fields, and navigation for new requests."""
+
+    created_tables = _create_empty_tables(user, database, tables, tool_helpers)
+    if not created_tables:
+        return [], [], False
+
+    formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
+    notes, permission_denied = _create_table_fields(
+        user,
+        tables,
+        created_tables,
+        tool_helpers,
+        formula_fixer,
+    )
+    last_table = created_tables[-1]
+    tool_helpers.navigate_to(
+        TableNavigationType(
+            type="database-table",
+            database_id=database.id,
+            table_id=last_table.id,
+            table_name=last_table.name,
+        )
+    )
+    return created_tables, notes, permission_denied
+
+
+def _create_sample_rows(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: "ToolHelpers",
+    tables: list[Table],
+    sample_rows: bool | str,
+) -> tuple[dict[int, list[Any]], list[str]]:
+    """Create requested sample rows and return any failure note."""
+
+    if not sample_rows or not tables:
+        return {}, []
+
+    data_brief = sample_rows if isinstance(sample_rows, str) else None
+    try:
+        rows = generate_sample_rows(
+            user, workspace, tool_helpers, tables, data_brief=data_brief
+        )
+    except Exception as exc:
+        logger.exception(
+            "[assistant] generate_sample_rows raised unexpectedly: {}", exc
+        )
+        return {}, [f"Error creating sample rows: {exc}"]
+    missing = [
+        f"{table.name} (table_{table.id})" for table in tables if not rows.get(table.id)
+    ]
+    if missing:
+        return rows, [
+            f"Sample rows are still missing for {', '.join(missing)}. "
+            "The tables were created, but the sample-data request is incomplete. "
+            "Use load_row_tools for those table IDs, inspect existing rows, and "
+            "add the missing samples before finishing the request."
+        ]
+    return rows, []
 
 
 def create_tables(
@@ -468,21 +569,21 @@ def create_tables(
     Create tables with fields; generates sample rows by default.
 
     WHEN to use: User wants new tables created in a database. Always set add_sample_rows=true (or a descriptive string) unless explicitly asked for empty tables.
-    WHAT it does: Creates tables with fields, generates sample rows by default. Pass add_sample_rows=false ONLY when the user explicitly asks for empty tables.
+    DO NOT USE to invent backing data when an app request only asks to show records. If list_tables found no matching data, ask_user where it should come from unless the user already authorized new data storage or sample rows. An app's stated purpose alone does not authorize them.
+    WHAT it does: Reuses exact-name matches, creates missing tables with fields, and generates sample rows for newly created tables by default. A reused table returns its actual schema and next_steps when that schema is incomplete. Pass add_sample_rows=false ONLY when the user explicitly asks for empty tables.
         Pass a string to guide the kind of sample data generated (e.g. "Italian recipes with calorie counts"). Table names must be unique. Reversed link_row fields are auto-created.
         At the end, this tool automatically navigates the user to the last created table.
-    RETURNS: Created table schemas with all field IDs. Notes on any errors.
-    DO NOT USE when: Tables already exist — check with list_tables first.
+    RETURNS: Created and reused table schemas with all field IDs. Notes on any errors.
     HOW: Pass ALL related tables in a single call — link_row fields can reference other tables in the same call by name (they are created internally before fields are added). Choose appropriate field types for each column.
         Use single_select/multiple_select with select_options for categorical data. The primary field is always text — pick a meaningful name for it.
+    REQUIRED: `database_id` and `tables` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not tables:
-        return {"created_tables": []}
+    require_payload("create_tables", "tables", tables)
 
     database = CoreService().get_application(
         user,
@@ -491,44 +592,41 @@ def create_tables(
         base_queryset=Database.objects.filter(workspace=workspace),
     )
 
-    created_tables = _create_empty_tables(user, database, tables, tool_helpers)
-
-    formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
-    notes = _create_table_fields(
-        user, tables, created_tables, tool_helpers, formula_fixer
+    # Only user-visible tables may be reused; their full schema is returned.
+    existing_tables = list(
+        helpers.filter_tables(user, workspace).filter(database=database)
     )
-
-    last_table = created_tables[-1]
-    tool_helpers.navigate_to(
-        TableNavigationType(
-            type="database-table",
-            database_id=database.id,
-            table_id=last_table.id,
-            table_name=last_table.name,
+    plan = reconciliation.plan_table_creation(tables, existing_tables)
+    if plan.conflicting_names:
+        names = ", ".join(plan.conflicting_names)
+        raise ModelRetry(
+            f"Conflicting table definitions use the same name: {names}. "
+            "Submit one definition per table name."
         )
+    created_tables, notes, permission_denied = _create_new_tables(
+        user, workspace, database, plan.to_create, tool_helpers
     )
 
-    created_rows = {}
-    if add_sample_rows:
-        try:
-            data_brief = add_sample_rows if isinstance(add_sample_rows, str) else None
-            created_rows = generate_sample_rows(
-                user, workspace, tool_helpers, created_tables, data_brief=data_brief
-            )
-        except Exception as e:
-            logger.exception(
-                "[assistant] generate_sample_rows raised unexpectedly: {}", e
-            )
-            notes.append(f"Error creating sample rows: {e}")
+    # A link_row or lookup to an existing table adds a reverse field there.
+    _refresh_row_tools(ctx)
+    created_rows, row_notes = _create_sample_rows(
+        user,
+        workspace,
+        tool_helpers,
+        created_tables,
+        add_sample_rows if not permission_denied else False,
+    )
+    notes.extend(row_notes)
 
-    # Return the full schema so callers don't need a separate
-    # get_tables_schema call to learn field IDs.
-    tables_schema = [
-        ts.model_dump()
-        for ts in helpers.get_tables_schema(created_tables, full_schema=True)
-    ]
+    created_items = helpers.get_tables_schema(created_tables, full_schema=True)
+    reused_items = helpers.get_tables_schema(plan.to_reuse, full_schema=True)
+    table_ids = {table.name: table.id for table in [*existing_tables, *created_tables]}
 
-    response: dict[str, Any] = {"created_tables": tables_schema, "notes": notes}
+    response: dict[str, Any] = {
+        "created_tables": [table.model_dump() for table in created_items],
+        "reused_tables": [table.model_dump() for table in reused_items],
+        "notes": notes,
+    }
     if created_rows:
         response["created_rows"] = {
             f"Row IDs for newly created rows in table_{table_id}": [
@@ -536,7 +634,9 @@ def create_tables(
             ]
             for table_id, rows in created_rows.items()
         }
-
+    response.update(
+        reconciliation.reused_table_report(plan.requested, reused_items, table_ids)
+    )
     return response
 
 
@@ -568,14 +668,14 @@ def create_fields(
     RETURNS: Created fields with id, name, type. Formula errors with hints if any.
     DO NOT USE when: Creating a brand new table — use create_tables instead, which handles fields as part of table creation.
     HOW: Call get_tables_schema first to see existing fields and avoid duplicates. For link_row fields, ensure the target table already exists.
+    REQUIRED: `table_id` and `fields` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not fields:
-        return {"created_fields": []}
+    require_payload("create_fields", "fields", fields)
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -584,16 +684,19 @@ def create_fields(
         created_fields, field_errors, formula_errors = helpers.create_fields(
             user, table, fields, tool_helpers, formula_fixer=formula_fixer
         )
-        result = {"created_fields": [field.model_dump() for field in created_fields]}
-        if field_errors:
-            result["field_errors"] = field_errors
-        if formula_errors:
-            for err in formula_errors:
-                err["hint"] = (
-                    "Use generate_formula to create a valid formula for this field."
-                )
-            result["formula_errors"] = formula_errors
-        return result
+
+    _refresh_row_tools(ctx)
+
+    result = {"created_fields": [field.model_dump() for field in created_fields]}
+    if field_errors:
+        result["field_errors"] = field_errors
+    if formula_errors:
+        for err in formula_errors:
+            err["hint"] = (
+                "Use generate_formula to create a valid formula for this field."
+            )
+        result["formula_errors"] = formula_errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -628,10 +731,11 @@ def update_fields(
     tool_helpers = ctx.deps.tool_helpers
 
     if not fields:
-        return {"updated_fields": [], "errors": []}
+        return {"updated_fields": [], "errors": [], "changed": False}
 
     updated = []
     errors = []
+    changed = False
     formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
 
     with transaction.atomic():
@@ -642,14 +746,18 @@ def update_fields(
                 % {"field_id": field_update.field_id}
             )
             try:
-                field_item = helpers.update_field(
+                field_item, field_changed = helpers.update_field(
                     user, workspace, field_update, formula_fixer=formula_fixer
                 )
                 updated.append(field_item.model_dump())
-            except Exception as e:
-                errors.append(f"Error updating field {field_update.field_id}: {e}")
+                changed = changed or field_changed
+            except Exception as error:
+                raise_if_permission_denied(error)
+                errors.append(f"Error updating field {field_update.field_id}: {error}")
 
-    result: dict[str, Any] = {"updated_fields": updated}
+    _refresh_row_tools(ctx)
+
+    result: dict[str, Any] = {"updated_fields": updated, "changed": changed}
     if errors:
         result["errors"] = errors
     return result
@@ -699,8 +807,11 @@ def delete_fields(
             try:
                 helpers.delete_field(user, workspace, field_id)
                 deleted.append(field_id)
-            except Exception as e:
-                errors.append(f"Error deleting field {field_id}: {e}")
+            except Exception as error:
+                raise_if_permission_denied(error)
+                errors.append(f"Error deleting field {field_id}: {error}")
+
+    _refresh_row_tools(ctx)
 
     result: dict[str, Any] = {"deleted_field_ids": deleted}
     if errors:
@@ -711,6 +822,43 @@ def delete_fields(
 # ---------------------------------------------------------------------------
 # Tool 9: create_views
 # ---------------------------------------------------------------------------
+
+
+def _describe_fields(table: Table) -> str:
+    """List a table's fields as ``id (name, type)`` for retry prompts."""
+
+    fields = FieldHandler().get_base_fields_queryset().filter(table=table)
+    return (
+        ", ".join(f"{f.id} ({f.name}, {f.get_type().type})" for f in fields) or "none"
+    )
+
+
+def _drop_form_incompatible_fields(
+    table: Table, field_options: dict
+) -> tuple[dict, list[str]]:
+    """
+    Split form field_options into the ones the form view accepts and the names
+    it rejects.
+
+    A form view refuses read-only fields and field types that cannot be a form
+    input (e.g. formula); enabling one raises and would roll the whole
+    create_views call back, so they are skipped and reported instead.
+    """
+
+    fields = {f.id: f for f in table.field_set.all()}
+    kept: dict = {}
+    skipped: list[str] = []
+    for field_id, options in field_options.items():
+        field = fields.get(int(field_id))
+        if field is None:
+            kept[field_id] = options
+            continue
+        field_type = field_type_registry.get_by_model(field.specific_class)
+        if field.read_only or not field_type.can_be_in_form_view:
+            skipped.append(field.name)
+        else:
+            kept[field_id] = options
+    return kept, skipped
 
 
 def create_views(
@@ -736,14 +884,14 @@ def create_views(
     RETURNS: Created views with id, name, type configuration.
     DO NOT USE when: The default grid view already meets the user's needs. Check existing views with list_views to avoid duplicates.
     HOW: Each view type requires specific config. Form views: provide field_options listing every field to show (field_id, name, order, required). Kanban: set column_field_id to a single_select field. Calendar: set date_field_id to a date field. Timeline: set both start/end date fields. Gallery: optionally set cover_field_id to a file field. Call get_tables_schema first to get the field IDs you need.
+    REQUIRED: `table_id` and `views` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not views:
-        return {"created_views": []}
+    require_payload("create_views", "views", views)
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -756,18 +904,52 @@ def create_views(
                 % {"view_type": view.type, "view_name": view.name}
             )
 
+            # A wrong field id must become a retry prompt, not a turn-ending error.
+            try:
+                orm_kwargs = view.to_django_orm_kwargs(table)
+            except (ValueError, TypeError) as exc:
+                raise ModelRetry(
+                    f"Cannot create the '{view.name}' {view.type} view: {exc} "
+                    f"Fields in table '{table.name}': {_describe_fields(table)}"
+                ) from exc
+
             orm_view = CreateViewActionType.do(
                 user,
                 table,
                 view.type,
-                **view.to_django_orm_kwargs(table),
+                **orm_kwargs,
             )
 
             field_options = view.field_options_to_django_orm()
+            skipped_fields: list[str] = []
             if field_options:
-                UpdateViewFieldOptionsActionType.do(user, orm_view, field_options)
+                field_options, skipped_fields = _drop_form_incompatible_fields(
+                    table, field_options
+                )
+            if field_options:
+                try:
+                    UpdateViewFieldOptionsActionType.do(user, orm_view, field_options)
+                except Exception as exc:
+                    raise_if_permission_denied(exc)
+                    # ModelRetry rolls the transaction back, so say so explicitly.
+                    raise ModelRetry(
+                        f"The field_options of the '{view.name}' {view.type} view "
+                        f"were rejected and no views were created: {exc} Retry "
+                        f"without the rejected fields. Fields in table "
+                        f"'{table.name}': {_describe_fields(table)}"
+                    ) from exc
 
-            created_views.append({"id": orm_view.id, **view.model_dump()})
+            created = {"id": orm_view.id, **view.model_dump()}
+            if view.type == "form":
+                created["field_options"] = ViewItem.from_django_orm(
+                    orm_view
+                ).model_dump()["field_options"]
+            if skipped_fields:
+                created["skipped_fields"] = (
+                    "Not shown on the form, these field types cannot be a form "
+                    f"input: {', '.join(skipped_fields)}"
+                )
+            created_views.append(created)
 
     tool_helpers.navigate_to(
         ViewNavigationType(
@@ -808,6 +990,7 @@ def create_view_filters(
     RETURNS: Created filters with id and configuration per view.
     DO NOT USE when: The view doesn't exist yet — create it first with create_views.
     HOW: Get the table schema first to know field IDs and types. Match filter type to field type.
+    REQUIRED: `view_filters` must contain at least one entry, each carrying the ID of the view it applies to. The ID says where to act; the payload says what to create. A call carrying no entries creates nothing and is rejected.
 
     ## Value formats by type
 
@@ -823,8 +1006,7 @@ def create_view_filters(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not view_filters:
-        return {"created_view_filters": []}
+    require_payload("create_view_filters", "view_filters", view_filters)
 
     created_view_filters = []
     for vf in view_filters:
@@ -849,7 +1031,10 @@ def create_view_filters(
                 created_filters.append({"id": orm_filter.id, **filter.model_dump()})
         created_view_filters.append({"view_id": vf.view_id, "filters": created_filters})
 
-    return {"created_view_filters": created_view_filters}
+    return {
+        "created_view_filters": created_view_filters,
+        "changed": any(item["filters"] for item in created_view_filters),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -880,7 +1065,7 @@ def generate_formula(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, str]:
+) -> dict[str, str | int]:
     """\
     Generate a formula from a natural-language description and save it.
 
@@ -889,12 +1074,16 @@ def generate_formula(
     RETURNS: Generated formula string, formula type, and field details (name, table, operation).
     DO NOT USE when: The user wants a simple non-formula field — use create_fields instead.
     HOW: Describe what the formula should compute in plain language. The tool auto-discovers the table schema — no need to inspect it first.
+
+    :param ctx: The assistant context containing the user, workspace, and helpers.
+    :param database_id: The database whose tables may receive the formula.
+    :param description: A natural-language description of the desired formula.
+    :param save_to_field: Whether to save the formula to a field.
+    :param thought: Brief reasoning for invoking the tool.
+    :return: Formula metadata, including an integer table ID when a field is saved.
+    :raises ModelRetry: If generation fails, the formula is invalid, or its target
+        table is unavailable.
     """
-    from baserow_enterprise.assistant.model_profiles import (
-        UTILITY,
-        get_model_settings,
-        get_model_string,
-    )
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
@@ -909,35 +1098,45 @@ def generate_formula(
 
     tool_helpers.update_status(_("Generating formula..."))
 
-    formula_docs = get_formula_docs()
-    formula_type_tool = Tool(get_formula_type_tool(user, workspace))
-    formula_toolset = FunctionToolset([formula_type_tool])
-
     prompt = format_formula_generation_prompt(
-        description, database_tables_schema, formula_docs
+        description, database_tables_schema, get_formula_docs()
     )
 
-    model = get_model_string()
-    agent_result = formula_generation_agent.run_sync(
-        prompt,
-        model=model,
-        model_settings=get_model_settings(model, UTILITY),
-        toolsets=[formula_toolset],
-        usage_limits=UsageLimits(request_limit=20),
-    )
+    try:
+        agent_result = run_formula_generation(
+            user, workspace, prompt, tool_helpers.model_profile
+        )
+    except ModelRetry:
+        # A retry prompt for the model, not a failure to rewrite as one below.
+        raise
+    except Exception as exc:
+        raise_if_permission_denied(exc)
+        # A sub-agent failure must not end the turn; create_tables does the same.
+        logger.exception("[assistant] formula_generation_agent raised unexpectedly")
+        raise ModelRetry(
+            f"The formula generator failed: {exc}. Retry with a simpler "
+            "description, or create the field without a formula."
+        ) from exc
+
     result = agent_result.output
 
+    # Recoverable: the orchestrator can rephrase or retarget; raising ends the turn.
     if not result.is_formula_valid:
-        raise Exception(f"Error generating formula: {result.error_message}")
+        raise ModelRetry(
+            f"Could not generate a valid formula: {result.error_message} "
+            "Rephrase the description, or tell the user which part is not "
+            "expressible in the Baserow formula language."
+        )
 
     table = next((t for t in database_tables if t.id == result.table_id), None)
     if table is None:
-        raise Exception(
-            "The generated formula is intended for a different table "
-            f"than the current one. Table with ID {result.table_id} not found."
+        valid = ", ".join(f"{t.id} ({t.name})" for t in database_tables)
+        raise ModelRetry(
+            f"The generated formula targets table {result.table_id}, which is not "
+            f"in database {database_id}. Tables available: {valid}"
         )
 
-    data = {
+    data: dict[str, str | int] = {
         "formula": result.formula,
         "formula_type": result.formula_type,
     }
@@ -991,6 +1190,9 @@ def generate_formula(
                 }
             )
 
+        # Saving over a non-formula field trashes it, changing the row schema.
+        _refresh_row_tools(ctx)
+
     return data
 
 
@@ -1005,6 +1207,7 @@ def _build_row_tools(
     tool_helpers: "ToolHelpers",
     table: Table,
     field_ids: list[int] | None = None,
+    resource_changes: ResourceChanges | None = None,
 ) -> dict[str, Tool]:
     """
     Build pydantic-ai Tool objects for row CRUD on a single table.
@@ -1019,20 +1222,24 @@ def _build_row_tools(
     :param table: The table to build row tools for.
     :param field_ids: If given, only include these field IDs in the
         create model (useful for excluding reverse link_row fields).
+    :param resource_changes: Successful changes shared for the current run so
+        rebuilding tools after a schema change preserves the running count.
     """
 
     row_model_for_create = get_create_row_model(table, field_ids=field_ids)
     row_model_for_update = get_update_row_model(table)
     link_row_hints = get_link_row_hints(row_model_for_create)
+    if resource_changes is None:
+        resource_changes = ResourceChanges()
 
+    @return_permission_error(f"create_rows_in_table_{table.id}")
     def _create_rows(
         rows: list[row_model_for_create],
         thought: Annotated[str, "Brief reasoning for calling this tool."],
     ) -> dict[str, Any]:
         """Create new rows in the specified table."""
 
-        if not rows:
-            return {"created_row_ids": []}
+        require_payload(f"create_rows_in_table_{table.id}", "rows", rows)
 
         tool_helpers.update_status(
             _("Creating rows in %(table_name)s ") % {"table_name": table.name}
@@ -1043,18 +1250,34 @@ def _build_row_tools(
         with transaction.atomic():
             orm_rows = CreateRowsActionType.do(user, table, validated_rows)
 
-        return {"created_row_ids": [r.id for r in orm_rows]}
+        total_rows_created = resource_changes.record_created_rows(
+            table.id, len(orm_rows)
+        )
+        return {
+            "created_row_ids": [r.id for r in orm_rows],
+            "total_rows_created": total_rows_created,
+        }
 
     create_rows_tool = Tool(
         _create_rows,
         name=f"create_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
-            f"WHAT: Inserts up to 20 rows with field values matching the table schema. "
-            f"RETURNS: Created row IDs. "
+            f"WHAT: Inserts rows with field values matching the table schema. "
+            f"Use property names exactly as listed in the schema, including spaces; "
+            f"do not include extra quote characters in the property names. "
+            f"Keep batches to at most 20 rows to avoid oversized generated arguments; "
+            f"for more rows, call this tool again with the next batch. When the user "
+            f"asks for N rows, the batches must add up to exactly N. "
+            f"RETURNS: Created row IDs and total_rows_created, the rows created in "
+            f"this table during this run; use it to reach a requested count exactly. "
             f"DO NOT USE: For other tables — each table has its own create tool. "
             f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."
             f"{link_row_hints}"
+            f" REQUIRED: `rows` must contain at least one row. This tool already "
+            f"knows where to write, so the call must also carry what to create; a "
+            f"call with an empty `rows` creates nothing and is rejected."
         ),
         max_retries=2,
     )
@@ -1062,6 +1285,7 @@ def _build_row_tools(
         create_rows_tool.function_schema.json_schema
     )
 
+    @return_permission_error(f"update_rows_in_table_{table.id}")
     def _update_rows(
         rows: list[row_model_for_update],
         thought: Annotated[str, "Brief reasoning for calling this tool."],
@@ -1085,6 +1309,7 @@ def _build_row_tools(
     update_rows_tool = Tool(
         _update_rows,
         name=f"update_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Updating existing rows in '{table.name}' (ID: {table.id}) by row ID. "
             f"WHAT: Updates specified fields on up to 20 rows. Only include fields you want to change — omit fields to keep them unchanged. "
@@ -1098,6 +1323,7 @@ def _build_row_tools(
         update_rows_tool.function_schema.json_schema
     )
 
+    @return_permission_error(f"delete_rows_in_table_{table.id}")
     def _delete_rows(
         row_ids: list[int],
         thought: Annotated[str, "Brief reasoning for calling this tool."],
@@ -1119,6 +1345,7 @@ def _build_row_tools(
     delete_rows_tool = Tool(
         _delete_rows,
         name=f"delete_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Deleting rows from '{table.name}' (ID: {table.id}) by row ID. "
             f"WHAT: Permanently removes up to 20 specified rows. "
@@ -1132,6 +1359,55 @@ def _build_row_tools(
         "update": update_rows_tool,
         "delete": delete_rows_tool,
     }
+
+
+def _refresh_row_tools(ctx: RunContext[AssistantDeps]) -> None:
+    """
+    Rebuild the loaded row tools so their schema matches the table's fields.
+
+    Row tools bake the table schema into their signature when loaded, so a field
+    change leaves them rejecting new fields or writing to dropped columns. Every
+    loaded table is rebuilt, because a link_row field also adds a reverse field
+    to the table it points at.
+
+    :param ctx: The run context holding the dynamic tool registry.
+    """
+
+    dynamic_tools = ctx.deps.dynamic_tools
+    if not dynamic_tools:
+        return
+
+    table_ids = {
+        tool.metadata["table_id"]
+        for tool in dynamic_tools
+        if tool.metadata and "table_id" in tool.metadata
+    }
+    tables = helpers.filter_tables(ctx.deps.user, ctx.deps.workspace).filter(
+        id__in=table_ids
+    )
+
+    rebuilt: dict[str, Tool] = {}
+    for table in tables:
+        try:
+            row_tools = _build_row_tools(
+                ctx.deps.user,
+                ctx.deps.workspace,
+                ctx.deps.tool_helpers,
+                table,
+                resource_changes=ctx.deps.resource_changes,
+            )
+        except Exception:
+            # Raising would fail a field change that already succeeded.
+            logger.exception(
+                "[assistant] could not refresh row tools for table {}", table.id
+            )
+            continue
+        # delete_rows takes row IDs only, so its signature cannot go stale.
+        rebuilt.update(
+            {row_tools[op].name: row_tools[op] for op in ("create", "update")}
+        )
+
+    dynamic_tools[:] = [rebuilt.get(tool.name, tool) for tool in dynamic_tools]
 
 
 # ---------------------------------------------------------------------------
@@ -1160,7 +1436,8 @@ def load_row_tools(
     WHEN to use: You need to directly create, update, or delete rows in a database table. Must be called before any row manipulation.
     WHAT it does: Unlocks table-specific tools and their schema: create_rows_in_table_X, update_rows_in_table_X, delete_rows_in_table_X for each table ID provided. The loaded tools include the full field schema — no need to call get_tables_schema.
     RETURNS: Names of newly available tools.
-    DO NOT USE when: Row tools for these tables are already loaded from a previous call in this session.
+    DO NOT USE when: Row tools for these tables are already loaded and no field has changed since — one call per table is enough.
+    AFTER A SCHEMA CHANGE: create_fields, update_fields and delete_fields refresh the loaded row tools automatically, so no reload is needed. If a row tool still rejects a field you just created, call this again: reloading replaces the stale tools with ones matching the current schema.
     DO NOT USE for builder workflow actions — if you want a button/form in an Application Builder page to create/update/delete rows, use create_actions instead. load_row_tools is for direct database manipulation, NOT for configuring app behavior.
     HOW: Just call this with the table ID(s) and operations you need. The loaded row tools already contain the complete field schema in their parameters — do NOT call get_tables_schema or search_user_docs before or after this tool.
 
@@ -1184,7 +1461,13 @@ def load_row_tools(
 
     new_tools: list[Tool] = []
     for table in tables:
-        table_tools = _build_row_tools(user, workspace, tool_helpers, table)
+        table_tools = _build_row_tools(
+            user,
+            workspace,
+            tool_helpers,
+            table,
+            resource_changes=ctx.deps.resource_changes,
+        )
 
         if "create" in operations:
             new_tools.append(table_tools["create"])
@@ -1193,9 +1476,11 @@ def load_row_tools(
         if "delete" in operations:
             new_tools.append(table_tools["delete"])
 
-    # Store new tools in dynamic_tools for the dynamic toolset
-    # to pick up on the next agent step
-    ctx.deps.dynamic_tools.extend(new_tools)
+    # Replaced by name: reloads must see schema changes, and add_tool rejects dupes.
+    new_names = {t.name for t in new_tools}
+    ctx.deps.dynamic_tools[:] = [
+        t for t in ctx.deps.dynamic_tools if t.name not in new_names
+    ] + new_tools
 
     tool_names = [t.name for t in new_tools]
     return f"Tools loaded: {', '.join(tool_names)}"
@@ -1221,11 +1506,3 @@ TOOL_FUNCTIONS = [
     load_row_tools,
 ]
 database_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
-
-ROUTING_RULES = """\
-- switch_mode: switch domain if task needs tools not in the current mode.
-- Database row CRUD → call load_row_tools first (includes schema — skip get_tables_schema).
-- create_tables: include ALL related tables in one call so link_row fields connect properly. Add sample rows unless told otherwise.
-- create_rows: fill EVERY field including ALL link_row fields.
-- When creating views/filters for a builder data source, complete ALL view + filter creation before switching back to application mode. Workflow: create_views → create_view_filters → then switch_mode("application").
-- After creating tables or views for an application/data source/automation task, switch_mode back to continue building."""

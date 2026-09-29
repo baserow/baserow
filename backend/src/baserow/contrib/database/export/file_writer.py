@@ -275,9 +275,13 @@ class QuerysetSerializer(abc.ABC):
         filters.only_filter_by_field_ids = only_by_field_ids
         self.queryset = filters.apply_to_queryset(self.queryset.model, self.queryset)
 
-    def add_add_hoc_order_by_to_queryset(self, order_by, only_by_field_ids=None):
+    def add_ad_hoc_order_by_to_queryset(
+        self, order_by, only_by_field_ids=None, group_by_string=None
+    ):
         self.queryset = self.queryset.order_by_fields_string(
-            order_by, only_order_by_field_ids=only_by_field_ids
+            order_by,
+            only_order_by_field_ids=only_by_field_ids,
+            group_by_string=group_by_string,
         )
 
     def _get_field_serializer(self, field_object: FieldObject) -> Callable[[Any], Any]:

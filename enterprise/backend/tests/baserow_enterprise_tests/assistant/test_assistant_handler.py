@@ -2,12 +2,90 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.models import (
     AssistantChat,
     AssistantChatMessage,
     AssistantChatPrediction,
 )
+
+
+@pytest.mark.django_db
+def test_get_or_create_chat_rejects_uuid_from_another_workspace(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    chat_workspace = enterprise_data_fixture.create_workspace(user=user)
+    requested_workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=chat_workspace)
+
+    with pytest.raises(AssistantChatDoesNotExist):
+        AssistantHandler().get_or_create_chat(user, requested_workspace, chat.uuid)
+
+
+@pytest.mark.django_db
+def test_get_or_create_chat_rejects_uuid_from_another_user(
+    enterprise_data_fixture,
+):
+    owner = enterprise_data_fixture.create_user()
+    requester = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=owner, members=[requester]
+    )
+    chat = AssistantChat.objects.create(user=owner, workspace=workspace)
+
+    with pytest.raises(AssistantChatDoesNotExist):
+        AssistantHandler().get_or_create_chat(requester, workspace, chat.uuid)
+
+    assert AssistantChat.objects.filter(uuid=chat.uuid).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_astream_assistant_messages_closes_assistant_stream_on_early_close(
+    mocker,
+):
+    lifecycle_events = []
+    response_message = object()
+
+    async def assistant_stream(_message):
+        try:
+            yield response_message
+        finally:
+            lifecycle_events.append("assistant-stream-exit")
+
+    assistant = mocker.Mock()
+    assistant.astream_messages = assistant_stream
+    handler = AssistantHandler()
+    mocker.patch.object(handler, "get_assistant", return_value=assistant)
+    stream = handler.astream_assistant_messages(object(), "Hello")
+
+    assert await anext(stream) is response_message
+    await stream.aclose()
+
+    assert lifecycle_events == ["assistant-stream-exit"]
+
+
+@pytest.mark.django_db
+def test_list_chat_messages_does_not_construct_an_ai_model(
+    enterprise_data_fixture, mocker
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace)
+    AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Hello",
+    )
+    resolve_assistant_model = mocker.patch(
+        "baserow_enterprise.assistant.assistant.resolve_assistant_model"
+    )
+
+    messages = AssistantHandler().list_chat_messages(chat)
+
+    assert [message.content for message in messages] == ["Hello"]
+    resolve_assistant_model.assert_not_called()
 
 
 @pytest.mark.django_db

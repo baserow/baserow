@@ -1,11 +1,13 @@
 <template>
   <div
     ref="cell"
-    v-prevent-parent-scroll
     class="grid-view__cell grid-field-many-to-many__cell active"
     :class="{ invalid: removingRelationships }"
   >
-    <div class="grid-field-many-to-many__list">
+    <div
+      v-prevent-parent-scroll.whenScrollable
+      class="grid-field-many-to-many__list"
+    >
       <component
         :is="publicGrid || !canAccessLinkedTable ? 'span' : 'a'"
         v-for="item in visibleValues"

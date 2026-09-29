@@ -4,25 +4,6 @@
   display: flex;
   flex-direction: column;
   background-color: $white;
-
-  &--loading {
-    &::before {
-      content: '';
-      z-index: 5;
-      background-color: rgba(0, 0, 0, 0.2);
-
-      @include absolute(0, 0, 0, 0);
-    }
-
-    &::after {
-      content: '';
-      z-index: 6;
-      margin: -7px auto auto -7px;
-
-      @include loading(14px);
-      @include absolute(50%, auto, auto, 50%);
-    }
-  }
 }
 
 .data-table__header {
@@ -44,6 +25,22 @@
 
 .data-table__actions {
   display: flex;
+}
+
+.data-table__filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 40px;
+  margin-bottom: 20px;
+}
+
+.data-table__cell-link {
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .data-table__body {

@@ -1,0 +1,125 @@
+.guided-tour-video-modal__wrapper {
+  z-index: $z-index-guided-tour-video-modal;
+  background-color: rgba($palette-neutral-1300, 0.85);
+}
+
+.guided-tour-video-modal {
+  overflow: hidden;
+  user-select: none;
+
+  @include absolute(0, 0, 0, 0);
+}
+
+.guided-tour-video-modal__close {
+  color: $white;
+
+  @include center-text(32px, 20px);
+  @include absolute(17px, 17px, auto, auto);
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: rgba($white, 0.15);
+  }
+}
+
+.guided-tour-video-modal__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  @include absolute($guided-tour-video-head, 0, $guided-tour-video-foot, 0);
+}
+
+.guided-tour-video-modal__player {
+  width: min(
+    1100px,
+    70vw,
+    calc((100vh - #{$guided-tour-video-chrome}) * 16 / 9)
+  );
+  aspect-ratio: 16 / 9;
+
+  iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+}
+
+.guided-tour-video-modal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: $guided-tour-video-nav-width;
+  color: $palette-neutral-500;
+  font-size: 60px;
+
+  @include absolute(0, auto, 0, auto);
+
+  &:hover {
+    color: $white;
+    text-decoration: none;
+  }
+
+  &.guided-tour-video-modal__nav--previous {
+    left: 0;
+  }
+
+  &.guided-tour-video-modal__nav--next {
+    right: 0;
+  }
+
+  &.guided-tour-video-modal__nav--disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}
+
+.guided-tour-video-modal__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: $guided-tour-video-foot;
+
+  @include absolute(auto, 0, 0, 0);
+}
+
+.guided-tour-video-modal__thumbnails {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.guided-tour-video-modal__thumbnail {
+  display: block;
+  overflow: hidden;
+  border: solid 2px transparent;
+
+  @include rounded($rounded);
+
+  img {
+    display: block;
+    width: 160px;
+    height: 90px;
+    object-fit: cover;
+  }
+
+  &.guided-tour-video-modal__thumbnail--active {
+    border-color: $white;
+  }
+}
+
+.guided-tour-video-modal__academy {
+  color: $palette-neutral-400;
+  font-size: 11px;
+  line-height: 16px;
+
+  &:hover {
+    color: $white;
+  }
+}

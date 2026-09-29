@@ -1,6 +1,11 @@
+import { retryRealtimeRecovery } from '@baserow/modules/core/plugins/realtimeProtocol'
 import { clone } from '@baserow/modules/core/utils/object'
 import { anyFieldsNeedFetch } from '@baserow/modules/database/store/field'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import {
+  forceUpdateViewConfiguration,
+  getRefreshFlags,
+} from '@baserow/modules/database/utils/copyViewConfiguration'
 
 /**
  * Registers the real time events related to the database module. When a message comes
@@ -8,6 +13,27 @@ import { generateHash } from '@baserow/modules/core/utils/hashing'
  * cases some other events like refreshing all the data needs to be triggered.
  */
 export const registerRealtimeEvents = (realtime) => {
+  realtime.registerEvent('ai_provider_updated', async ({ store }, data) => {
+    if (data.model_availability_updated && store.getters['field/isLoaded']) {
+      if (
+        data.requires_refresh === true &&
+        data.refresh_workspace_availability === true
+      ) {
+        await retryRealtimeRecovery(() =>
+          store.dispatch('field/refreshLoadedFieldErrors', {
+            realtimeRecovery: true,
+          })
+        )
+      } else {
+        await Promise.allSettled([
+          store.dispatch('field/refreshLoadedFieldErrors', {
+            realtimeRecovery: true,
+          }),
+        ])
+      }
+    }
+  })
+
   realtime.registerEvent('table_created', ({ store }, data) => {
     const database = store.getters['application/get'](data.table.database_id)
     if (database !== undefined) {
@@ -151,6 +177,16 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
+  /**
+   * Only `has_workflow_actions`, `requires_reconfiguration` and
+   * `opens_new_tab` can have changed, and a cell renders the button from those
+   * alone, so the rows stay as they are. Deliberately not a `field_updated`: that one refetches the
+   * whole grid, and would throw away what someone is typing in a cell.
+   */
+  realtime.registerEvent('button_fields_updated', async ({ store }, data) => {
+    await store.dispatch('field/forceUpdateFields', { fields: data.fields })
+  })
+
   realtime.registerEvent('field_deleted', async ({ store, app }, data) => {
     const field = store.getters['field/get'](data.field_id)
     if (field !== undefined) {
@@ -190,14 +226,13 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('rows_updated', async (context, data) => {
     const { app, store } = context
+    const beforeById = Object.fromEntries(
+      (data.rows_before_update || []).map((r) => [r.id, r])
+    )
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
-
-        // A row may be updated by the backend, while it wasn't requested by the user,
-        // causing rows before update and rows updated sets asymmetry. In that case,
-        // we just want a skeleton of a row.
-        const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
+        const rowBeforeUpdate = beforeById[row.id] || { id: row.id }
 
         await viewType.rowUpdated(
           context,
@@ -348,6 +383,21 @@ export const registerRealtimeEvents = (realtime) => {
       }
     }
   })
+
+  realtime.registerEvent(
+    'view_configuration_changed',
+    async ({ store, app }, data) => {
+      const view = store.getters['view/get'](data.view_id)
+      if (view !== undefined) {
+        await forceUpdateViewConfiguration(
+          { $store: store, $bus: app.$bus },
+          view,
+          data.view,
+          getRefreshFlags(app.$registry, view, data.categories)
+        )
+      }
+    }
+  )
 
   realtime.registerEvent(
     'force_view_refresh_and_default_values',

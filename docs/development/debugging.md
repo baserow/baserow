@@ -52,8 +52,8 @@ Note that `import snoop` or `from snoop import pp` is not necessary as snoop is 
 
 You can use django-extensions commands inside backend docker containers:
 
-* `django-admin shell_plus` starts an interactive Python shell with loaded Django contexts and imported models.
-* `django-admin show_urls` lists all registered urls in the Baserow. 
+- `django-admin shell_plus` starts an interactive Python shell with loaded Django contexts and imported models.
+- `django-admin show_urls` lists all registered urls in the Baserow.
 
 ## django-silk
 
@@ -62,6 +62,13 @@ You can use django-extensions commands inside backend docker containers:
 The interface can be accessed at http://localhost:8000/silk/ after Baserow is started in the debug mode. Every request is logged and can be analyzed, including the list of performed database queries.
 
 django-silk can be also configured and used for profiling using the Python's built-in profiler, see the official documentation for details.
+
+Silk adds profiling overhead to every development request. To disable it when measuring
+request or OpenTelemetry performance, set `BASEROW_ENABLE_SILK=off` in
+`.env.docker-dev` and recreate the backend container with
+`just dc-dev up -d backend`. A plain container restart does not reload its environment.
+Direct Docker Compose usage reads the same value from its selected environment or
+`.env` file.
 
 ## flower
 

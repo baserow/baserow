@@ -1,8 +1,11 @@
 import contextlib
+import ipaddress
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
+
+from loguru import logger
 
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
@@ -16,7 +19,8 @@ from baserow.core.psycopg import psycopg, sql
 from baserow.core.utils import (
     ChildProgressBuilder,
     are_hostnames_same,
-    is_hostname_safe,
+    get_all_ips,
+    resolve_and_validate_hostname,
 )
 
 from .exceptions import SyncError
@@ -132,6 +136,7 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_table",
         "postgresql_sslmode",
     ]
+    sensitive_fields = ["postgresql_password"]
     request_serializer_field_names = [
         "postgresql_host",
         "postgresql_username",
@@ -153,41 +158,124 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_table",
         "postgresql_sslmode",
     ]
+    secret_field_dependencies = {
+        "postgresql_password": ["postgresql_host", "postgresql_port"],
+    }
+
+    @staticmethod
+    def _normalize_ip(ip_str):
+        """
+        Normalize an IP string so that IPv4-mapped IPv6 addresses
+        (e.g. ``::ffff:172.18.0.2``) are reduced to their IPv4 equivalent.
+        """
+
+        ip_obj = ipaddress.ip_address(ip_str)
+        if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+            return str(ip_obj.ipv4_mapped)
+        return ip_str
+
+    @staticmethod
+    def _check_host_not_blocked(postgresql_host, validated_ips):
+        """
+        Checks whether the target host overlaps with the application database
+        or any blacklisted hostname. When *validated_ips* is available (non-test
+        mode), IP sets are compared directly to avoid a second DNS lookup of
+        the user-supplied hostname. In test mode, falls back to hostname-based
+        comparison.
+
+        IPv4-mapped IPv6 addresses are normalized before comparison so that
+        ``::ffff:<ip>`` cannot bypass the check.
+        """
+
+        normalize = PostgreSQLDataSyncType._normalize_ip
+        validated_set = (
+            set(normalize(ip) for ip in validated_ips) if validated_ips else None
+        )
+
+        def _overlaps(other_hostname):
+            if validated_set is not None:
+                return bool(
+                    validated_set
+                    & set(normalize(ip) for ip in get_all_ips(other_hostname))
+                )
+            return are_hostnames_same(postgresql_host, other_hostname)
+
+        if settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
+            if _overlaps(settings.DATABASES[DEFAULT_DB_ALIAS]["HOST"]):
+                raise SyncError("It's not allowed to connect to this hostname.")
+
+        for blacklisted in settings.BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
+            if _overlaps(blacklisted):
+                raise SyncError("It's not allowed to connect to this hostname.")
 
     @contextlib.contextmanager
     def _connection(self, instance):
         cursor = None
         connection = None
+        validated_ips = []
 
-        if not settings.TESTS and not is_hostname_safe(instance.postgresql_host):
-            raise SyncError("It's not allowed to connect to this hostname.")
+        if not settings.TESTS:
+            try:
+                validated_ips = resolve_and_validate_hostname(
+                    instance.postgresql_host,
+                    allow_private=settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS,
+                )
+            except ValueError:
+                raise SyncError("It's not allowed to connect to this hostname.")
 
-        baserow_postgresql_connection = (
-            settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE
-            and are_hostnames_same(
-                instance.postgresql_host, settings.DATABASES[DEFAULT_DB_ALIAS]["HOST"]
-            )
-        )
-        data_sync_blacklist = any(
-            are_hostnames_same(instance.postgresql_host, hostname)
-            for hostname in settings.BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
-        )
+        self._check_host_not_blocked(instance.postgresql_host, validated_ips)
 
-        if baserow_postgresql_connection or data_sync_blacklist:
-            raise SyncError("It's not allowed to connect to this hostname.")
         try:
-            connection = psycopg.connect(
-                host=instance.postgresql_host,
+            connect_kwargs = dict(
                 dbname=instance.postgresql_database,
                 user=instance.postgresql_username,
                 password=instance.postgresql_password,
                 port=instance.postgresql_port,
                 sslmode=instance.postgresql_sslmode,
+                connect_timeout=10,
             )
+
+            if validated_ips:
+                # Use libpq's ordered multi-address support: repeat the
+                # hostname for each IP so TLS SNI works, and pin the actual
+                # addresses via hostaddr. libpq tries them in order and stops
+                # on the first successful connection (or auth error).
+                connect_kwargs["host"] = ",".join(
+                    [instance.postgresql_host] * len(validated_ips)
+                )
+                connect_kwargs["hostaddr"] = ",".join(validated_ips)
+            else:
+                connect_kwargs["host"] = instance.postgresql_host
+
+            connection = psycopg.connect(**connect_kwargs)
+
             cursor = connection.cursor()
+            statement_timeout_ms = (
+                settings.BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT * 1000
+            )
+            cursor.execute(
+                "SELECT set_config('statement_timeout', %s, true)",
+                [str(statement_timeout_ms)],
+            )
             yield cursor
-        except psycopg.Error as e:
-            raise SyncError(str(e))
+        except psycopg.errors.QueryCanceled:
+            logger.warning("PostgreSQL data sync statement timeout", exc_info=True)
+            raise SyncError(
+                "The query exceeded the statement timeout. The table may be "
+                "too large or the remote server too slow."
+            )
+        except psycopg.OperationalError:
+            logger.warning("PostgreSQL data sync connection error", exc_info=True)
+            raise SyncError(
+                "Could not connect to the PostgreSQL database. Please verify "
+                "the hostname, port, credentials, and SSL mode."
+            )
+        except psycopg.Error:
+            logger.warning("PostgreSQL data sync query error", exc_info=True)
+            raise SyncError(
+                "A database error occurred while synchronizing. Please verify "
+                "the table name and column configuration."
+            )
         finally:
             if cursor:
                 cursor.close()

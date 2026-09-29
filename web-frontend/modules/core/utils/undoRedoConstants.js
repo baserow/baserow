@@ -1,3 +1,5 @@
+import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
+
 export const UNDO_REDO_STATES = {
   // The undo has successfully completed
   UNDONE: 'UNDONE',
@@ -30,11 +32,46 @@ export const CORE_ACTION_SCOPES = {
       workspace: workspaceId,
     }
   },
+  allWorkspaces(enabled = true) {
+    return {
+      all_workspaces: enabled,
+    }
+  },
   application(applicationId) {
     return {
       application: applicationId,
     }
   },
+}
+
+/**
+ * The scopes that follow from which sidebar is shown and what is selected in the
+ * store. The sidebar is what lets the user change workspaces and applications on
+ * every page of the app layout, so deriving these scopes from it in one place
+ * means no page has to know about undo scopes to be able to undo what its
+ * sidebar can change.
+ *
+ * @param {object} options
+ * @param {string} options.sidebarType One of `SIDEBAR_TYPES`.
+ * @param {number|null} options.workspaceId The selected workspace.
+ * @param {number|null} options.applicationId The selected application.
+ * @returns {object} A partial scope set for `undoRedo/updateCurrentScopeSet`.
+ */
+export function getSidebarActionScopes({
+  sidebarType,
+  workspaceId,
+  applicationId,
+}) {
+  if (sidebarType === SIDEBAR_TYPES.ALL_WORKSPACES) {
+    return {
+      ...CORE_ACTION_SCOPES.workspace(null),
+      ...CORE_ACTION_SCOPES.application(null),
+    }
+  }
+  return {
+    ...CORE_ACTION_SCOPES.workspace(workspaceId),
+    ...CORE_ACTION_SCOPES.application(applicationId),
+  }
 }
 
 // Please keep in sync with baserow.api.user.serializers.UndoRedoResponseSerializer

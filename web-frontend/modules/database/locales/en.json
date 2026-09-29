@@ -60,7 +60,43 @@
   },
   "sidebar": {
     "viewAPI": "View API Docs",
-    "createTable": "New table"
+    "createTable": "New table",
+    "adminContentCategory": "Content"
+  },
+  "adminType": {
+    "databaseViews": "Views"
+  },
+  "viewsAdmin": {
+    "title": "Views"
+  },
+  "viewsAdminTable": {
+    "allViews": "All views",
+    "onlyPublic": "Only publicly shared views",
+    "name": "View",
+    "type": "Type",
+    "table": "Table",
+    "database": "Database",
+    "workspace": "Workspace",
+    "public": "Publicly shared",
+    "passwordProtected": "Password",
+    "ownedBy": "Owner",
+    "createdOn": "Created on",
+    "allWorkspaces": "All workspaces"
+  },
+  "viewsAdminRotateSlugModal": {
+    "title": "Refresh URL",
+    "refreshWarning": "Are you sure that you want to refresh the URL of {viewName}? After refreshing, a new URL will be generated and it will not be possible to access the view via the old URL. Everyone that has the old URL, won't be able to access the view anymore.",
+    "generateNewURL": "Generate new URL"
+  },
+  "viewsAdminContext": {
+    "copyPublicUrl": "Copy public URL",
+    "openPublicView": "Open public view in new tab",
+    "filterWorkspace": "Filter by workspace",
+    "rotateSlug": "Rotate slug",
+    "makePrivate": "Make private",
+    "makePublic": "Make public",
+    "publicUrlCopiedTitle": "Public URL copied",
+    "publicUrlCopiedMessage": "The public URL of the view has been copied to your clipboard."
   },
   "sidebarItem": {
     "exportTable": "Export table",
@@ -547,7 +583,30 @@
     "relatedFieldNotFound": "The related field is not found.",
     "filterTypeNotFound": "The filter type is not compatible.",
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
-    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types"
+    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
+    "copyFromView": "Copy from another view"
+  },
+  "copyViewConfigurationModal": {
+    "title": "Copy configuration to {name}",
+    "sourceView": "Copy from view",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "copy": "Copy configuration"
+  },
+  "copyViewConfigurationOption": {
+    "fieldVisibility": "Field visibility",
+    "fieldOrder": "Field order",
+    "fieldWidths": "Field widths",
+    "viewSettings": "Settings ({settings})",
+    "viewSettingsRowHeightSize": "row height",
+    "viewSettingsFrozenColumnCount": "frozen columns",
+    "viewSettingsRowIdentifierType": "row identifier",
+    "viewSettingsGroupByLayout": "group layout",
+    "filters": "Filters",
+    "sorts": "Sorts",
+    "groupBys": "Groups",
+    "decorations": "Decorations",
+    "defaultRowValues": "Default row values"
   },
   "viewFilterTypeFileTypeDropdown": {
     "image": "image",
@@ -585,6 +644,9 @@
     "maxGroupBysReached": "You can group by up to {count} fields.",
     "collapseAllGroups": "Collapse all",
     "expandAllGroups": "Expand all",
+    "layout": "Group layout",
+    "layoutSection": "Sections",
+    "layoutColumn": "Columns",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {
@@ -662,6 +724,7 @@
   "viewContext": {
     "exportView": "Export view",
     "duplicateView": "Duplicate view",
+    "copyConfiguration": "Copy configuration from view",
     "defaultRowValues": "Default row values",
     "renameView": "Rename view",
     "toPersonal": "To personal",
@@ -712,6 +775,11 @@
     "rowNotMatchingFilters": "Row does not match filters",
     "rowNotMatchingSearch": "Row does not match search",
     "rowHasMoved": "Row has moved"
+  },
+  "hiddenRows": {
+    "title": "Row hidden | Rows hidden",
+    "createdMessage": "The new row doesn't match the filters of this view, so it isn't shown. Ask the view's builder to set default values that match the filters. | {count} new rows don't match the filters of this view, so they aren't shown. Ask the view's builder to set default values that match the filters.",
+    "updatedMessage": "The row no longer matches the filters of this view, so it's hidden. | {count} rows no longer match the filters of this view, so they're hidden."
   },
   "gridView": {
     "selectRow": "Select row",
@@ -798,7 +866,7 @@
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",
-    "back": "Back to dashboard",
+    "back": "Back to overview",
     "openDatabase": "open database"
   },
   "apiDocsComponent": {
@@ -807,7 +875,7 @@
     "settings": "settings",
     "selectApplicationTitle": "For which database do you want to see the documentation?",
     "signIn": "Sign in to get started",
-    "back": "Back to dashboard"
+    "back": "Back to overview"
   },
   "viewAggregationType": {
     "count": "Count",
@@ -842,7 +910,7 @@
   },
   "importFromAirtable": {
     "airtableShareLinkTitle": "Share a link to your Base",
-    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enable shared base link”. Copy the public link and paste it in the input below.",
+    "airtableShareLinkDescription": "To import your Airtable base, you need to have a shared link to your entire base. In Airtable, click on the share button in the top right corner after opening your base. After that you must choose the \"Share via link\" option. In the share modal you can click on the \"Share publicly\" tab and then on “Enable shared base link”. Copy the public link and paste it in the input below. A link to a publicly shared view is also accepted, and will be imported as a database containing that single table.",
     "airtableShareLinkBeta": "This functionality will import most of the data, but there are incompatibilities. A table named \"Airtable import report\" will therefore be added containing a list of things that were not or partially imported.",
     "airtableShareLinkPaste": "Paste the link here",
     "importButtonLabel": "Import from Airtable",
@@ -858,12 +926,17 @@
     "stateImportingTable": "Importing table {table}",
     "errorJobAlreadyRunningTitle": "Already running",
     "errorJobAlreadyRunningDescription": "Another import job is already running. You need to wait for that one to finish before starting another.",
+    "errorRequiresAuthenticationTitle": "Authentication required",
+    "errorRequiresAuthenticationDescription": "This base can only be imported with additional authentication. The \"Session authentication\" option below has been enabled for you. Follow the instructions to copy the \"__Host-airtable-session\" and \"__Host-airtable-session.sig\" cookie values into the fields, and try again.",
+    "errorBaseNotPublicTitle": "Base could not be accessed",
+    "errorBaseNotPublicDescription": "Airtable didn't return a publicly shared base for this link. Open the link in your browser to check that it loads the base you want to import and that the full URL was copied correctly, then try again.",
+    "openSharedLink": "Open the shared link",
     "linkError": "The link should look like: https://airtable.com/shrxxxxxxxxxxxxxx",
     "skipFiles": "Skip importing files",
     "skipFilesHelper": "An Airtable base with many files can slow down the import. Enabling this skips the import of the files.",
     "useSession": "Session authentication",
     "useSessionHelper": "Use this if the publicly shared base requires authentication.",
-    "sessionDescription": "If the import responds with \"The Airtable base requires authentication.\" then it could be that the organizational settings in Airtable prevent accessing the Airtable base without authenticating first. To do this, the session and signature must be manually extracted. Visit the URL of the publicly shared base in your browser and sign in, if needed. Click on the application menu by clicking in the top right corner -> \"More tools\" -> \"Developer tools\". Open the \"Application\" (in Firefox \"Storage\") tab and click on \"https://airtable.com\". Now find the \"__Host-airtable-session\" and \"__Host-airtable-session.sig\" cookie values, and paste them in the inputs below.",
+    "sessionDescription": "If the import fails because the base requires authentication, then it could be that the organizational settings in Airtable prevent accessing the Airtable base without authenticating first. To do this, the session and signature must be manually extracted. Visit the URL of the publicly shared base in your browser and sign in, if needed. Click on the application menu by clicking in the top right corner -> \"More tools\" -> \"Developer tools\". Open the \"Application\" (in Firefox \"Storage\") tab and click on \"https://airtable.com\". Now find the \"__Host-airtable-session\" and \"__Host-airtable-session.sig\" cookie values, and paste them in the inputs below.",
     "sessionLabel": "Session cookie (__Host-airtable-session)",
     "sessionSignatureLabel": "Session signature cookie (__Host-airtable-session.sig)"
   },
@@ -947,6 +1020,13 @@
     "noFieldsTitle": "This form doesn't have any fields",
     "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
+  "formViewFooterLinks": {
+    "reportAbuse": "Report abuse"
+  },
+  "publicViewMenu": {
+    "reportAbuse": "Report abuse",
+    "moreOptions": "More options"
+  },
   "table": {
     "adjacentRow": {
       "toast": {
@@ -1010,7 +1090,11 @@
     "passwordDeleted": "The password was deleted"
   },
   "dataProviderTypes": {
-    "fieldsName": "Fields"
+    "fieldsName": "Fields",
+    "rowName": "Clicked row",
+    "rowId": "Row ID",
+    "previousActionName": "Previous action",
+    "previousActionRowId": "Id"
   },
   "userMentionInRichTextFieldNotification": {
     "title": "{sender} mentioned you in field {fieldName} of row {rowId} in {tableName}",
@@ -1102,6 +1186,11 @@
     "template": "Template",
     "workspaceName": "{name}'s workspace"
   },
+  "templateOnboardingCancelModal": {
+    "title": "Select a template to get started",
+    "description": "To skip the onboarding, select one of the templates below. Starting with a template is the best way to get to know Baserow because it sets up tables, fields and example data for you. You can always change or delete it later.",
+    "continue": "Use this template"
+  },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",
     "migrateButtonTooltip": "New filter available. Click to upgrade. It works the same."
@@ -1157,7 +1246,18 @@
   "configureDataSyncModal": {
     "title": "Data sync",
     "syncedFields": "Synced fields",
-    "syncSettings": "Sync settings"
+    "syncSettings": "Sync settings",
+    "syncHistory": "Sync history"
+  },
+  "dataSyncRuns": {
+    "title": "Sync history",
+    "description": "The most recent sync runs of this table, no matter who or what started them.",
+    "previousRuns": "Previous runs",
+    "noRuns": "This table hasn't been synced yet.",
+    "triggerManual": "Manual",
+    "triggerPeriodic": "Periodic",
+    "byUser": "by {name}",
+    "duration": "{seconds}s"
   },
   "configureDataSyncVisibleFields": {
     "title": "Change synced fields",
@@ -1211,11 +1311,80 @@
     "notPublic": "(not public)",
     "formDoesNotExist": "The selected form does not exist anymore."
   },
+  "fieldButtonSubForm": {
+    "label": "Label",
+    "labelPlaceholder": "Open",
+    "unresolvedReferenceTitle": "Action not saved",
+    "unresolvedReferenceMessage": "An action uses a result from an action that does not run before it. Move it back or remove the reference, then save again."
+  },
+  "databaseWorkflowActionWithService": {
+    "nothingCapturedYet": "Click this button on a row to capture what the endpoint answers, so the actions after it can use its fields. The button's other actions run as well.",
+    "payloadModalTitle": "Captured response for {actionLabel}",
+    "payloadModalSubTitle": "JSON payload"
+  },
+  "databaseWorkflowActionType": {
+    "openUrl": "Open URL",
+    "sendEmail": "Send email",
+    "deleteRow": "Delete a row",
+    "noUrl": "Enter a URL to open.",
+    "staleReference": "This action uses a result from an action that no longer runs before it.",
+    "unreadableReference": "This action uses a result from an action that no longer returns one.",
+    "writesToTrashedField": "This action writes to a field that is in the trash. Restore the field to run the action again.",
+    "tableTrashed": "This action uses a table that is in the trash or no longer exists. Restore the table or pick another one.",
+    "requiresReconfiguration": "This action points at a table, field or integration that is in the trash or gone.",
+    "noInstanceSmtp": "This Baserow instance has no SMTP server configured. Choose an SMTP integration to send this email.",
+    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off. Choose an SMTP integration to send this email.",
+    "slackOk": "OK",
+    "slackChannel": "Channel",
+    "slackTs": "Message timestamp",
+    "smtpIntegrationIncomplete": "This SMTP integration has no server. Fill in its host before the button can send.",
+    "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post.",
+    "slackData": "Data",
+    "startWorkflowMissing": "This action's workflow can't be found. It may have been deleted, or you may not have access to it. Pick another workflow, or ask someone who can see this one.",
+    "startWorkflowUnpublished": "This workflow hasn't been published yet. Publish it before the button can start it.",
+    "startWorkflowNotLive": "This workflow is paused or disabled. Resume it before the button can start it."
+  },
+  "openUrlWorkflowActionForm": {
+    "url": "URL",
+    "urlPlaceholder": "URL...",
+    "openIn": "Open in",
+    "sameTab": "Same tab",
+    "newTab": "New tab"
+  },
+  "openUrlWorkflowAction": {
+    "invalidUrlTitle": "Could not open the URL",
+    "invalidUrlMessage": "The URL could not be resolved for this row, or it uses a protocol that is not allowed."
+  },
+  "buttonFieldActionList": {
+    "actions": "Actions",
+    "addAction": "Add action",
+    "chooseAction": "Choose action...",
+    "searchActions": "Search actions",
+    "misconfigured": "At least one action is misconfigured",
+    "toggleAction": "Show or hide this action",
+    "moveAction": "Move action, use the arrow keys to reorder"
+  },
+  "buttonField": {
+    "dispatchErrorTitle": "Could not run the actions",
+    "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again.",
+    "rateLimitedTitle": "Too many clicks",
+    "rateLimitedMessage": "This button has been clicked too often. Wait a moment and try again.",
+    "requiresReconfiguration": "This button needs to be reconfigured before it can be clicked.",
+    "noPermission": "You don't have permission to click this button.",
+    "stillRunningTitle": "Still running",
+    "stillRunningMessage": "The button's actions may still be running in the background."
+  },
+  "rowEditFieldButtonField": {
+    "createRowBefore": "The actions can be run after the row has been created."
+  },
   "editRowLink": {
     "editRow": "Edit row"
   },
   "rowEditFieldFormViewEditRow": {
     "copyLink": "Copy link",
     "noFormView": "No form view configured"
+  },
+  "lastViewedItemType": {
+    "databaseView": "{name} view"
   }
 }

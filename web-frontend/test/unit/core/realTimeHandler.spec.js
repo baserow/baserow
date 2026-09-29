@@ -32,6 +32,10 @@ function makeStore() {
     getters: {
       'auth/token': 'token',
       'auth/webSocketId': webSocketId,
+      'workspace/isLoaded': true,
+      'aiProvider/hasLoaded': true,
+      'aiProvider/getWorkspaceId': null,
+      'aiProvider/isLoaded': true,
     },
     dispatch(name, value) {
       dispatched.push([name, value])
@@ -62,10 +66,34 @@ function makeHandler() {
 }
 
 function fire(handler, type, data) {
-  for (const cb of handler.events[type] || []) {
-    cb(handler.context, data)
-  }
+  return Promise.all(
+    (handler.events[type] || []).map((cb) => cb(handler.context, data))
+  )
 }
+
+describe('RealTimeHandler agent events', () => {
+  test('create and update events upsert the serialized agent', () => {
+    const { handler, store } = makeHandler()
+    const agent = { id: 1, workspace_id: 42, name: 'Writer' }
+
+    fire(handler, 'agent_created', { workspace_id: 42, agent })
+    fire(handler, 'agent_updated', { workspace_id: 42, agent })
+
+    expect(store._dispatched).toContainEqual(['agent/forceCreate', agent])
+    expect(store._dispatched).toContainEqual(['agent/forceUpdate', agent])
+  })
+
+  test('delete events remove the agent from its workspace', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'agent_deleted', { workspace_id: 42, agent_id: 1 })
+
+    expect(store._dispatched).toContainEqual([
+      'agent/forceDelete',
+      { workspaceId: 42, agentId: 1 },
+    ])
+  })
+})
 
 describe('RealTimeHandler replay_events flow', () => {
   let env
@@ -83,6 +111,7 @@ describe('RealTimeHandler replay_events flow', () => {
     )
     expect(replayRequest).toEqual({
       type: 'replay_events',
+      supports_retry: true,
       last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
@@ -110,6 +139,7 @@ describe('RealTimeHandler replay_events flow', () => {
     )
     expect(replayRequest).toEqual({
       type: 'replay_events',
+      supports_retry: true,
       last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
@@ -132,6 +162,7 @@ describe('RealTimeHandler replay_events flow', () => {
     )
     expect(replayRequest).toEqual({
       type: 'replay_events',
+      supports_retry: true,
       last_seen_id: 0,
     })
   })
@@ -179,6 +210,365 @@ describe('RealTimeHandler replay_events flow', () => {
   })
 })
 
+describe('RealTimeHandler transient replay recovery', () => {
+  let env
+
+  function receive(data, socket = env.handler.socket) {
+    socket.onmessage({ data: JSON.stringify(data) })
+  }
+
+  function authenticate(cursor = FIRST_CONNECT_CURSOR) {
+    env.handler.lastSeenEventId = cursor
+    receive({ type: 'authentication', success: true, replay_enabled: true })
+  }
+
+  async function openSocket() {
+    await env.handler.connect(false)
+    const socket = env.handler.socket
+    socket.readyState = WebSocket.OPEN
+    socket.send = (payload) => env.sentMessages.push(JSON.parse(payload))
+    socket.onopen()
+    return socket
+  }
+
+  beforeEach(async () => {
+    vi.useFakeTimers()
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    env = makeHandler()
+    env.handler.socket = null
+    await openSocket()
+  })
+
+  afterEach(() => {
+    env.handler.disconnect()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  test('retries once with the original cursor and leaves the existing warning alone', () => {
+    authenticate(10)
+    env.store.dispatch('toast/setWorkspaceOutdated', true)
+    env.store._dispatched.length = 0
+
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    // Duplicate responses and manual attempts must not create extra requests.
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    env.handler._sendReplayEventsRequest()
+    expect(env.sentMessages).toHaveLength(1)
+    expect(env.store._dispatched).toEqual([])
+
+    vi.advanceTimersByTime(999)
+    expect(env.sentMessages).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(env.sentMessages).toEqual([
+      { type: 'replay_events', last_seen_id: 10, supports_retry: true },
+      { type: 'replay_events', last_seen_id: 10, supports_retry: true },
+    ])
+    vi.advanceTimersByTime(60000)
+    expect(env.sentMessages).toHaveLength(2)
+  })
+
+  test.each([null, undefined, '5000', NaN, Infinity, -Infinity])(
+    'uses the base retry delay for invalid retry_after_ms %s',
+    (retryAfterMs) => {
+      authenticate(10)
+      // Call the registered callback directly: JSON would turn NaN/Infinity into
+      // null, concealing whether the retry scheduler handles non-finite values.
+      fire(env.handler, 'replay_events_retry', {
+        retry_after_ms: retryAfterMs,
+      })
+
+      vi.advanceTimersByTime(999)
+      expect(env.sentMessages).toHaveLength(1)
+      vi.advanceTimersByTime(1)
+      expect(env.sentMessages).toEqual([
+        { type: 'replay_events', last_seen_id: 10, supports_retry: true },
+        { type: 'replay_events', last_seen_id: 10, supports_retry: true },
+      ])
+      vi.advanceTimersByTime(60000)
+      expect(env.sentMessages).toHaveLength(2)
+    }
+  )
+
+  test('an abandoned replay does not schedule a retry for an in-flight request', () => {
+    authenticate(10)
+    // Keep the request in flight to exercise the abandoned-replay guard itself.
+    env.handler.replayAbandoned = true
+    env.store.dispatch('toast/setWorkspaceOutdated', true)
+    env.store._dispatched.length = 0
+    const pendingTimers = vi.getTimerCount()
+
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+
+    expect(vi.getTimerCount()).toBe(pendingTimers)
+    vi.advanceTimersByTime(60000)
+    expect(env.sentMessages).toEqual([
+      { type: 'replay_events', last_seen_id: 10, supports_retry: true },
+    ])
+    expect(env.store._dispatched).toEqual([])
+  })
+
+  test('merges live and replay events in order without applying duplicates', () => {
+    const received = []
+    env.handler.registerEvent('row_updated', (_context, data) => {
+      received.push(data._event_id)
+    })
+    authenticate(10)
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    receive({ type: 'row_updated', _event_id: 12 })
+    // Ephemeral events continue immediately while persistent updates await replay.
+    receive({ type: 'presence.space_discard', space: 'table-1' })
+    expect(env.store._dispatched).toContainEqual([
+      'presence/clearSpace',
+      { space: 'table-1' },
+    ])
+    expect(received).toEqual([])
+
+    vi.advanceTimersByTime(1000)
+    expect(env.sentMessages.at(-1).last_seen_id).toBe(10)
+    receive({ type: 'row_updated', _event_id: 10 })
+    receive({ type: 'row_updated', _event_id: 11 })
+    receive({ type: 'row_updated', _event_id: 12 })
+    receive({
+      type: 'replay_events_result',
+      force_refresh: false,
+      latest_event_id: 12,
+    })
+
+    expect(received).toEqual([11, 12])
+    expect(env.handler.lastSeenEventId).toBe(12)
+    expect(env.store._dispatched).not.toContainEqual([
+      'toast/setWorkspaceOutdated',
+      true,
+    ])
+    receive({ type: 'row_updated', _event_id: 13 })
+    // Channel-layer copies can remain queued until after replay completes.
+    receive({ type: 'row_updated', _event_id: 11 })
+    receive({ type: 'row_updated', _event_id: 12 })
+    expect(received).toEqual([11, 12, 13])
+  })
+
+  test('retries the first-connect baseline and applies live events below it', () => {
+    const callback = vi.fn()
+    env.handler.registerEvent('row_updated', callback)
+    authenticate()
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    receive({ type: 'row_updated', _event_id: 12 })
+    vi.advanceTimersByTime(1000)
+    expect(env.sentMessages.at(-1).last_seen_id).toBe(FIRST_CONNECT_CURSOR)
+
+    receive({
+      type: 'replay_events_result',
+      force_refresh: false,
+      latest_event_id: 15,
+    })
+    expect(callback).toHaveBeenCalledExactlyOnceWith(env.context, {
+      type: 'row_updated',
+      _event_id: 12,
+    })
+    expect(env.handler.lastSeenEventId).toBe(15)
+  })
+
+  test('backs off with jitter, caps the delay, and resets after a result', () => {
+    authenticate(10)
+    Math.random.mockReturnValue(0.5)
+    for (const delay of [1125, 2250, 4500, 8500, 16500, 29500, 29500]) {
+      const sentBefore = env.sentMessages.length
+      receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+      vi.advanceTimersByTime(delay - 1)
+      expect(env.sentMessages).toHaveLength(sentBefore)
+      vi.advanceTimersByTime(1)
+      expect(env.sentMessages).toHaveLength(sentBefore + 1)
+    }
+
+    receive({
+      type: 'replay_events_result',
+      force_refresh: false,
+      latest_event_id: 15,
+    })
+    env.handler._sendReplayEventsRequest()
+    const sentBefore = env.sentMessages.length
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    vi.advanceTimersByTime(1125)
+    expect(env.sentMessages).toHaveLength(sentBefore + 1)
+    expect(env.sentMessages.at(-1).last_seen_id).toBe(15)
+  })
+
+  test('a result cancels a scheduled retry', () => {
+    authenticate(10)
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    receive({
+      type: 'replay_events_result',
+      force_refresh: false,
+      latest_event_id: 10,
+    })
+    vi.advanceTimersByTime(60000)
+    expect(env.sentMessages).toHaveLength(1)
+  })
+
+  test.each([FIRST_CONNECT_CURSOR, 10])(
+    'socket replacement preserves buffered events and safely recovers cursor %s',
+    async (cursor) => {
+      const callback = vi.fn()
+      env.handler.registerEvent('row_updated', callback)
+      authenticate(cursor)
+      receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+      receive({ type: 'row_updated', _event_id: 12 })
+      const oldSocket = env.handler.socket
+      oldSocket.readyState = WebSocket.CLOSED
+      oldSocket.onclose()
+      vi.advanceTimersByTime(2000)
+      expect(env.sentMessages).toHaveLength(1)
+
+      await openSocket()
+      receive({ type: 'authentication', success: true, replay_enabled: true })
+      expect(env.sentMessages.at(-1).last_seen_id).toBe(
+        cursor === FIRST_CONNECT_CURSOR ? NO_REPLAY_AVAILABLE : cursor
+      )
+      // Delayed callbacks from the old socket must not affect the new attempt.
+      receive({ type: 'replay_events_retry', retry_after_ms: 1000 }, oldSocket)
+      receive(
+        {
+          type: 'replay_events_result',
+          force_refresh: true,
+          latest_event_id: 99,
+        },
+        oldSocket
+      )
+      vi.advanceTimersByTime(2000)
+      expect(env.sentMessages).toHaveLength(2)
+      expect(callback).not.toHaveBeenCalled()
+      expect(env.store._dispatched).not.toContainEqual([
+        'toast/setWorkspaceOutdated',
+        true,
+      ])
+
+      receive({
+        type: 'replay_events_result',
+        force_refresh: cursor === FIRST_CONNECT_CURSOR,
+        latest_event_id:
+          cursor === FIRST_CONNECT_CURSOR ? NO_REPLAY_AVAILABLE : 15,
+      })
+      expect(callback).toHaveBeenCalledTimes(1)
+      expect(env.store._dispatched).toContainEqual([
+        'toast/setWorkspaceOutdated',
+        cursor === FIRST_CONNECT_CURSOR,
+      ])
+    }
+  )
+
+  test('disconnect cancels retry and starts the next session with a new baseline', async () => {
+    authenticate(10)
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    const oldSocket = env.handler.socket
+    env.handler.disconnect()
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 }, oldSocket)
+    vi.advanceTimersByTime(60000)
+    expect(env.sentMessages).toHaveLength(1)
+
+    await openSocket()
+    receive({ type: 'authentication', success: true, replay_enabled: true })
+    expect(env.sentMessages.at(-1).last_seen_id).toBe(FIRST_CONNECT_CURSOR)
+  })
+
+  test('reconnecting to a server without replay preserves the unrecovered-gap warning', async () => {
+    const callback = vi.fn()
+    env.handler.registerEvent('row_updated', callback)
+    authenticate(10)
+    receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+    receive({ type: 'row_updated', _event_id: 12 })
+    env.handler.socket.readyState = WebSocket.CLOSED
+    env.handler.socket.onclose()
+    await openSocket()
+    receive({ type: 'authentication', success: true, replay_enabled: false })
+
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(env.store._dispatched).toContainEqual([
+      'toast/setWorkspaceOutdated',
+      true,
+    ])
+    vi.advanceTimersByTime(60000)
+    expect(env.sentMessages).toHaveLength(1)
+  })
+
+  test('an unreplayable gap stays outdated after live messages and another reconnect', async () => {
+    authenticate(10)
+    receive({ type: 'row_updated', _event_id: 12 })
+    receive({
+      type: 'replay_events_result',
+      force_refresh: true,
+      latest_event_id: NO_REPLAY_AVAILABLE,
+    })
+    expect(env.store._dispatched).toContainEqual([
+      'toast/setWorkspaceOutdated',
+      true,
+    ])
+    env.store._dispatched.length = 0
+
+    env.handler.socket.readyState = WebSocket.CLOSED
+    env.handler.socket.onclose()
+    await openSocket()
+    receive({ type: 'authentication', success: true, replay_enabled: true })
+    receive({
+      type: 'replay_events_result',
+      force_refresh: false,
+      latest_event_id: 12,
+    })
+    expect(env.sentMessages).toHaveLength(1)
+    expect(env.store._dispatched).not.toContainEqual([
+      'toast/setWorkspaceOutdated',
+      false,
+    ])
+  })
+
+  test.each(['count', 'bytes'])(
+    'buffer %s overflow requires refresh and a late result cannot clear it',
+    async (limit) => {
+      authenticate(10)
+      receive({ type: 'replay_events_retry', retry_after_ms: 1000 })
+      if (limit === 'count') {
+        for (let id = 11; id <= 1011; id++) {
+          receive({ type: 'row_updated', _event_id: id })
+        }
+      } else {
+        receive({
+          type: 'row_updated',
+          _event_id: 11,
+          text: 'x'.repeat(3 * 1024 * 1024),
+        })
+      }
+      expect(env.store._dispatched).toContainEqual([
+        'toast/setWorkspaceOutdated',
+        true,
+      ])
+      env.store._dispatched.length = 0
+      receive({
+        type: 'replay_events_result',
+        force_refresh: false,
+        latest_event_id: 1011,
+      })
+      vi.advanceTimersByTime(60000)
+      expect(env.sentMessages).toHaveLength(1)
+      expect(env.store._dispatched).toEqual([])
+
+      env.handler.socket.readyState = WebSocket.CLOSED
+      env.handler.socket.onclose()
+      await openSocket()
+      receive({ type: 'authentication', success: true, replay_enabled: true })
+      expect(env.sentMessages).toHaveLength(1)
+      expect(env.store._dispatched).not.toContainEqual([
+        'toast/setWorkspaceOutdated',
+        false,
+      ])
+
+      env.handler.disconnect()
+      await openSocket()
+      receive({ type: 'authentication', success: true, replay_enabled: true })
+      expect(env.sentMessages.at(-1).last_seen_id).toBe(FIRST_CONNECT_CURSOR)
+    }
+  )
+})
+
 describe('RealTimeHandler high-water mark', () => {
   test('updateLastSeenId takes the max of incoming ids', () => {
     const { handler } = makeHandler()
@@ -190,6 +580,298 @@ describe('RealTimeHandler high-water mark', () => {
     expect(handler.lastSeenEventId).toBe(7)
     handler.updateLastSeenId({ type: 'no_id' })
     expect(handler.lastSeenEventId).toBe(7)
+  })
+})
+
+describe('RealTimeHandler AI provider updates', () => {
+  test('recovers an oversized marker for the loaded workspace scope', async () => {
+    const { handler, store } = makeHandler()
+    store.getters['aiProvider/getWorkspaceId'] = 42
+
+    await fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: true,
+      requires_refresh: true,
+      workspace_id: 42,
+      refresh_workspace_availability: true,
+      refresh_provider_settings: true,
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      { realtimeRecovery: true },
+    ])
+    expect(store._dispatched).toContainEqual([
+      'aiProvider/fetchInitial',
+      { workspaceId: 42, realtimeRecovery: true },
+    ])
+  })
+
+  test('recovers only the providers from an oversized instance marker', async () => {
+    const { handler, store } = makeHandler()
+
+    await fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: true,
+      requires_refresh: true,
+      workspace_id: null,
+      refresh_workspace_availability: false,
+      refresh_provider_settings: true,
+    })
+
+    expect(store._dispatched).toEqual([
+      [
+        'aiProvider/fetchInitial',
+        { workspaceId: null, realtimeRecovery: true },
+      ],
+    ])
+  })
+
+  test('does not load provider settings for a different active scope', async () => {
+    const { handler, store } = makeHandler()
+    store.getters['aiProvider/getWorkspaceId'] = 43
+
+    await fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: true,
+      requires_refresh: true,
+      workspace_id: 42,
+      refresh_workspace_availability: true,
+      refresh_provider_settings: true,
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      { realtimeRecovery: true },
+    ])
+    expect(
+      store._dispatched.some(([name]) => name === 'aiProvider/fetchInitial')
+    ).toBe(false)
+  })
+
+  test('retries a failed instance provider recovery once and consumes the failure', async () => {
+    vi.useFakeTimers()
+    try {
+      const { handler, store } = makeHandler()
+      store.dispatch = vi.fn().mockRejectedValue(new Error('offline'))
+
+      const recovery = fire(handler, 'ai_provider_updated', {
+        type: 'ai_provider_updated',
+        model_availability_updated: true,
+        requires_refresh: true,
+        workspace_id: null,
+        refresh_workspace_availability: false,
+        refresh_provider_settings: true,
+      })
+      await vi.runAllTimersAsync()
+      await expect(recovery).resolves.toEqual([undefined])
+
+      expect(store.dispatch).toHaveBeenCalledTimes(2)
+      expect(store.dispatch).toHaveBeenNthCalledWith(
+        1,
+        'aiProvider/fetchInitial',
+        {
+          workspaceId: null,
+          realtimeRecovery: true,
+        }
+      )
+      expect(store.dispatch).toHaveBeenNthCalledWith(
+        2,
+        'aiProvider/fetchInitial',
+        {
+          workspaceId: null,
+          realtimeRecovery: true,
+        }
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('does not retry provider recovery after its scope is abandoned', async () => {
+    vi.useFakeTimers()
+    try {
+      const { handler, store } = makeHandler()
+      store.getters['aiProvider/getWorkspaceId'] = 42
+      store.dispatch = vi.fn((name) => {
+        if (name === 'aiProvider/fetchInitial') {
+          store.getters['aiProvider/getWorkspaceId'] = 43
+          return Promise.reject(new Error('offline'))
+        }
+        return Promise.resolve()
+      })
+
+      const recovery = fire(handler, 'ai_provider_updated', {
+        type: 'ai_provider_updated',
+        model_availability_updated: false,
+        requires_refresh: true,
+        workspace_id: 42,
+        refresh_workspace_availability: false,
+        refresh_provider_settings: true,
+      })
+      await vi.runAllTimersAsync()
+      await expect(recovery).resolves.toEqual([undefined])
+
+      expect(store.dispatch).toHaveBeenCalledTimes(1)
+      expect(store.dispatch).toHaveBeenCalledWith('aiProvider/fetchInitial', {
+        workspaceId: 42,
+        realtimeRecovery: true,
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('applies complete instance payloads without fetching', () => {
+    const { handler, store } = makeHandler()
+    const instanceProviders = [{ id: 1, provider_type: 'openai' }]
+    const instanceFeatureSettings = [{ feature_type: 'kuma', mode: 'disabled' }]
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: true,
+      generative_ai_models_enabled_by_workspace: {
+        42: { openai: ['gpt-5'] },
+        43: { anthropic: ['claude-4.5'] },
+      },
+      ai_features_by_workspace: {
+        42: { kuma: { is_enabled: true, state: 'configured' } },
+        43: { kuma: { is_enabled: false, state: 'disabled' } },
+      },
+      instance_ai_providers: instanceProviders,
+      instance_ai_provider_feature_settings: instanceFeatureSettings,
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/forceUpdateGenerativeAIModels',
+      {
+        workspaceId: 42,
+        generativeAIModelsEnabled: { openai: ['gpt-5'] },
+        aiFeatures: { kuma: { is_enabled: true, state: 'configured' } },
+      },
+    ])
+    expect(store._dispatched).toContainEqual([
+      'workspace/forceUpdateGenerativeAIModels',
+      {
+        workspaceId: 43,
+        generativeAIModelsEnabled: { anthropic: ['claude-4.5'] },
+        aiFeatures: { kuma: { is_enabled: false, state: 'disabled' } },
+      },
+    ])
+    expect(store._dispatched).toContainEqual([
+      'aiProvider/replaceFromRealtime',
+      {
+        workspaceId: null,
+        providers: instanceProviders,
+        featureSettings: instanceFeatureSettings,
+      },
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'aiProvider/refresh',
+      undefined,
+    ])
+  })
+
+  test('applies the loaded workspace provider snapshot without fetching', () => {
+    const { handler, store } = makeHandler()
+    const workspaceProviders = [{ id: 2, provider_type: 'anthropic' }]
+    const workspaceFeatureSettings = [{ feature_type: 'kuma', mode: 'inherit' }]
+    store.getters['aiProvider/getWorkspaceId'] = 42
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: true,
+      generative_ai_models_enabled_by_workspace: {
+        42: { openai: ['gpt-5'] },
+      },
+      ai_features_by_workspace: {
+        42: { kuma: { is_enabled: true, state: 'inherited' } },
+      },
+      ai_providers_by_workspace: { 42: workspaceProviders },
+      ai_provider_feature_settings_by_workspace: {
+        42: workspaceFeatureSettings,
+      },
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/forceUpdateGenerativeAIModels',
+      {
+        workspaceId: 42,
+        generativeAIModelsEnabled: { openai: ['gpt-5'] },
+        aiFeatures: { kuma: { is_enabled: true, state: 'inherited' } },
+      },
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+    expect(store._dispatched).toContainEqual([
+      'aiProvider/replaceFromRealtime',
+      {
+        workspaceId: 42,
+        providers: workspaceProviders,
+        featureSettings: workspaceFeatureSettings,
+      },
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'aiProvider/refresh',
+      undefined,
+    ])
+  })
+
+  test('provider metadata changes apply their snapshot without fetching', () => {
+    const { handler, store } = makeHandler()
+    const instanceProviders = [{ id: 1, provider_type: 'openai' }]
+    const instanceFeatureSettings = [{ feature_type: 'kuma', mode: 'disabled' }]
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: false,
+      instance_ai_providers: instanceProviders,
+      instance_ai_provider_feature_settings: instanceFeatureSettings,
+    })
+
+    expect(store._dispatched).not.toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+    expect(store._dispatched).toContainEqual([
+      'aiProvider/replaceFromRealtime',
+      {
+        workspaceId: null,
+        providers: instanceProviders,
+        featureSettings: instanceFeatureSettings,
+      },
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'aiProvider/refresh',
+      undefined,
+    ])
+  })
+
+  test('captures a provider snapshot while the initial load is in flight', () => {
+    const { handler, store } = makeHandler()
+    store.getters['aiProvider/hasLoaded'] = false
+    const providers = [{ id: 1, provider_type: 'openai' }]
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      model_availability_updated: false,
+      instance_ai_providers: providers,
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'aiProvider/replaceFromRealtime',
+      {
+        workspaceId: null,
+        providers,
+        featureSettings: undefined,
+      },
+    ])
   })
 })
 
@@ -413,6 +1095,7 @@ describe('RealTimeHandler replay request params', () => {
     const msg = sentMessages.find((m) => m.type === 'replay_events')
     expect(msg).toEqual({
       type: 'replay_events',
+      supports_retry: true,
       last_seen_id: 42,
     })
   })
@@ -426,6 +1109,7 @@ describe('RealTimeHandler replay request params', () => {
     const msg = sentMessages.find((m) => m.type === 'replay_events')
     expect(msg).toEqual({
       type: 'replay_events',
+      supports_retry: true,
       last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
@@ -1225,5 +1909,53 @@ describe('RealTimeHandler token refresh on reconnect', () => {
 
     clearTimeout(handler.reconnectTimeout)
     vi.useRealTimers()
+  })
+})
+
+describe('RealTimeHandler last_viewed_updated', () => {
+  const fireFor = (application, lastViewed) => {
+    const { handler, store } = makeHandler()
+    store.getters['application/get'] = (id) =>
+      application?.id === id ? application : undefined
+    fire(handler, 'last_viewed_updated', {
+      type: 'last_viewed_updated',
+      item_type: 'database_view',
+      item_id: 7,
+      application_id: 3,
+      workspace_id: 1,
+      last_viewed: lastViewed,
+    })
+    return store._dispatched
+  }
+
+  test('applies a newer timestamp to the application', () => {
+    const application = { id: 3, last_viewed: '2026-01-01T12:00:00Z' }
+    expect(fireFor(application, '2026-01-01T12:05:00Z')).toEqual([
+      [
+        'application/forceUpdate',
+        { application, data: { last_viewed: '2026-01-01T12:05:00Z' } },
+      ],
+    ])
+  })
+
+  test('applies the first timestamp of a never viewed application', () => {
+    const application = { id: 3, last_viewed: null }
+    expect(fireFor(application, '2026-01-01T12:00:00Z')).toHaveLength(1)
+  })
+
+  test('compares as moments, not as strings', () => {
+    // A fractional second sorts before a whole one as a string, yet is later.
+    const application = { id: 3, last_viewed: '2026-01-01T12:00:00Z' }
+    expect(fireFor(application, '2026-01-01T12:00:00.500000Z')).toHaveLength(1)
+  })
+
+  test('ignores an older or equal timestamp, so late events cannot go back', () => {
+    const application = { id: 3, last_viewed: '2026-01-01T12:05:00Z' }
+    expect(fireFor(application, '2026-01-01T12:00:00Z')).toEqual([])
+    expect(fireFor(application, '2026-01-01T12:05:00Z')).toEqual([])
+  })
+
+  test('ignores an application that is not in the store', () => {
+    expect(fireFor(undefined, '2026-01-01T12:05:00Z')).toEqual([])
   })
 })

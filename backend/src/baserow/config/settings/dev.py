@@ -14,6 +14,7 @@ SIMPLE_JWT["SIGNING_KEY"] = (  # noqa: F405
 
 
 DEBUG = True
+BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 5 * 60
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = 4
 BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 
@@ -88,3 +89,12 @@ try:
     from .local import *  # noqa: F403, F401
 except ImportError:
     pass
+
+# Containers in the dev stack reach a natively running backend (`just dev`)
+# through Docker's host alias, so their requests arrive with a Host header of
+# `host.docker.internal:8000`, which Django refuses with a 400 (DisallowedHost)
+# unless the name is allowed. The opt-in inbound email receiver started by
+# `just mox up` posts its webhooks that way. Dev only: production deployments
+# reach the backend through PRIVATE_BACKEND_URL, whose hostname is allowed in
+# the base settings.
+ALLOWED_HOSTS.append("host.docker.internal")  # noqa: F405

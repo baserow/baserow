@@ -29,6 +29,7 @@ from baserow.contrib.database.table.operations import (
     ReadDatabaseTableOperationType,
     UpdateDatabaseTableOperationType,
 )
+from baserow.core.ai_provider.operations import ManageAIProvidersOperationType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
@@ -1435,6 +1436,7 @@ def test_all_operations_are_in_at_least_one_default_role(data_fixture):
         CreateWorkspaceOperationType.type,
         ListWorkspacesOperationType.type,
         UpdateSettingsOperationType.type,
+        ManageAIProvidersOperationType.type,
         ClearNotificationsOperationType.type,
         ListNotificationsOperationType.type,
         MarkNotificationAsReadOperationType.type,
@@ -1854,3 +1856,204 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     assert len(captured_1.captured_queries) == len(captured_2.captured_queries)
+
+
+@pytest.mark.django_db
+def test_dispatching_a_button_field_needs_at_least_the_editor_role(
+    data_fixture, enterprise_data_fixture
+):
+    """Checking `default_roles` alone passes even when RBAC cannot resolve the
+    scope, and this operation's parent chain is a long one: workspace ->
+    database -> table -> field."""
+
+    from baserow.contrib.database.table.handler import TableHandler
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
+    from baserow.contrib.database.workflow_actions.service import (
+        DatabaseWorkflowActionService,
+    )
+
+    admin = data_fixture.create_user()
+    clicker = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[clicker])
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = TableHandler().create_table_and_fields(
+        user=admin, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+
+    role_handler = RoleAssignmentHandler()
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="VIEWER"))
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            clicker, button_field, row
+        )
+
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="EDITOR"))
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(
+        clicker, button_field, row
+    )
+
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_a_table_editor_is_told_which_buttons_they_may_click(
+    data_fixture, enterprise_data_fixture
+):
+    """The browser disables a button its user may not click, and all a cell has
+    to ask with is the field. So the permissions it is sent have to name the
+    fields, not the actions behind them."""
+
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
+    from baserow.contrib.database.workflow_actions.operations import (
+        DispatchDatabaseWorkflowActionOperationType,
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    admin = data_fixture.create_user()
+    clicker = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[clicker])
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    editable = data_fixture.create_database_table(user=admin, database=database)
+    read_only = data_fixture.create_database_table(user=admin, database=database)
+    data_fixture.create_text_field(table=editable)
+    clickable = data_fixture.create_button_field(table=editable, label="Go")
+    unclickable = data_fixture.create_button_field(table=read_only, label="Go")
+    for field in (clickable, unclickable):
+        data_fixture.create_database_workflow_action(
+            LocalBaserowCreateRowWorkflowAction, field=field
+        )
+
+    role_handler = RoleAssignmentHandler()
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="VIEWER"))
+    role_handler.assign_role(
+        clicker, workspace, role=Role.objects.get(uid="EDITOR"), scope=editable
+    )
+
+    policy = RolePermissionManagerType().get_permissions_object(
+        clicker, workspace=workspace
+    )[DispatchDatabaseWorkflowActionOperationType.type]
+
+    assert policy["default"] is False
+    # Compared whole: an action's id can happen to equal a field's.
+    assert set(policy["exceptions"]) == set(
+        editable.field_set.values_list("id", flat=True)
+    )
+    assert unclickable.id not in policy["exceptions"]
+
+
+@pytest.fixture
+def drop_role_cache_afterwards():
+    """Drops the process wide role cache once the test is done.
+
+    `RoleAssignmentHandler` caches roles and their operations on the class, so
+    a test that deletes an operation row leaves later tests in the same xdist
+    worker with a cache missing it if it errors before re-syncing. The rows
+    themselves roll back with the transaction, so dropping the cache is enough
+    for the next test to rebuild it from a clean database.
+    """
+
+    yield
+    RoleAssignmentHandler._init = False
+
+
+@pytest.mark.django_db
+def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
+    data_fixture, enterprise_data_fixture, synced_roles, drop_role_cache_afterwards
+):
+    """RBAC reads the operations a role grants from `core_operation` rows, not
+    from the registry, so an instance whose table predates a newly registered
+    operation denies it to every role including ADMIN. The rows are only
+    written by the `post_migrate` receivers, which is why a test database,
+    rebuilt and migrated for each run, never shows this while a long lived one
+    refuses the click until it is migrated again.
+
+    Both halves matter: the first pins the symptom to the missing row rather
+    than to the scope chain or the role definitions, and the second pins that
+    a migrate really does repair it.
+    """
+
+    from django.apps import apps as django_apps
+
+    from baserow.contrib.database.table.handler import TableHandler
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
+    from baserow.contrib.database.workflow_actions.operations import (
+        DispatchDatabaseWorkflowActionOperationType,
+    )
+    from baserow.contrib.database.workflow_actions.service import (
+        DatabaseWorkflowActionService,
+    )
+    from baserow.core.apps import sync_operations_after_migrate
+    from baserow.core.models import Operation
+    from baserow_enterprise.apps import sync_default_roles_after_migrate
+
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = TableHandler().create_table_and_fields(
+        user=admin, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+
+    RoleAssignmentHandler().assign_role(
+        admin, workspace, role=Role.objects.get(uid="ADMIN")
+    )
+
+    # Stands in for an instance that hasn't synced this operation yet. Deleting
+    # the row also drops every role's grant of it.
+    Operation.objects.filter(
+        name=DispatchDatabaseWorkflowActionOperationType.type
+    ).delete()
+    # The handler caches the roles and their operations for the lifetime of the
+    # process, so a worker started before the sync keeps the old answer too.
+    RoleAssignmentHandler._init = False
+
+    with pytest.raises(PermissionException):
+        with local_cache.context():
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                admin, button_field, row
+            )
+
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+    # What `manage.py migrate` fires, and so what an upgrade does.
+    sync_operations_after_migrate(None, apps=django_apps)
+    sync_default_roles_after_migrate(None, apps=django_apps)
+    RoleAssignmentHandler._init = False
+
+    with local_cache.context():
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            admin, button_field, row
+        )
+
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "Ada"

@@ -52,3 +52,13 @@
 .sample-data-modal__button-icon {
   color: $palette-neutral-600;
 }
+
+.sample-data-modal__html-preview {
+  display: block;
+  width: 100%;
+  height: 50vh;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-0;
+
+  @include rounded($rounded);
+}

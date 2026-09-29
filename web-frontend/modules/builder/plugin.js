@@ -8,6 +8,7 @@ import pl from '@baserow/modules/builder/locales/pl.json'
 import ko from '@baserow/modules/builder/locales/ko.json'
 import {
   GeneralBuilderSettingsType,
+  BreakpointsBuilderSettingsType,
   DomainsBuilderSettingsType,
   IntegrationsBuilderSettingsType,
   ThemeBuilderSettingsType,
@@ -60,6 +61,7 @@ import {
   PublishBuilderJobType,
 } from '@baserow/modules/builder/jobTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
+import { BuilderPageLastViewedItemType } from '@baserow/modules/builder/lastViewedItemTypes'
 import { PublicSiteErrorPageType } from '@baserow/modules/builder/errorPageTypes'
 import {
   DataSourcesPageHeaderItemType,
@@ -198,12 +200,20 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('collectionField')
 
     $registry.register('application', new BuilderApplicationType(context))
+    $registry.register(
+      'lastViewedItem',
+      new BuilderPageLastViewedItemType(context)
+    )
     $registry.register('job', new DuplicatePageJobType(context))
     $registry.register('job', new PublishBuilderJobType(context))
 
     $registry.register(
       'builderSettings',
       new GeneralBuilderSettingsType(context)
+    )
+    $registry.register(
+      'builderSettings',
+      new BreakpointsBuilderSettingsType(context)
     )
     $registry.register(
       'builderSettings',

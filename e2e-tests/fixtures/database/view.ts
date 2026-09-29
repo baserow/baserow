@@ -148,6 +148,21 @@ export async function createGridView(
   return view;
 }
 
+export async function createGalleryView(
+  user: User,
+  table: Table,
+  { name = "Gallery" }: { name?: string } = {},
+): Promise<View> {
+  const response: any = await getClient(user).post(
+    `database/views/table/${table.id}/`,
+    { name, type: "gallery" },
+  );
+  const data = response.data;
+  const view = new View(data.id, data.name, data.type, data.slug, table);
+  await ensureViewFieldOptions(user, view);
+  return view;
+}
+
 export async function ensureViewFieldOptions(
   user: User,
   view: View,

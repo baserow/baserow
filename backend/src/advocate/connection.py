@@ -1,5 +1,6 @@
 import ipaddress
 import socket
+import time
 from socket import timeout as SocketTimeout
 
 from urllib3.connection import HTTPConnection, HTTPSConnection
@@ -49,6 +50,21 @@ def fix_addrinfo(records):
     return tuple(fix_record(x, canonname) for x in records)
 
 
+def attempt_timeout(timeout, deadline):
+    """
+    The timeout for one connect attempt: `timeout`, cut down to what is left
+    until `deadline`, a `time.monotonic()` value. Every address a host resolves
+    to is tried in turn, so without this each would get the whole timeout.
+    """
+
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise SocketTimeout("The connection deadline has passed.")
+    if isinstance(timeout, (int, float)) and timeout < remaining:
+        return timeout
+    return remaining
+
+
 # Lifted from requests' urllib3, which in turn lifted it from `socket.py`. Oy!
 def validating_create_connection(
     address,
@@ -56,6 +72,7 @@ def validating_create_connection(
     source_address=None,
     socket_options=None,
     validator=None,
+    deadline=None,
 ):
     """Connect to *address* and return the socket object.
 
@@ -66,7 +83,8 @@ def validating_create_connection(
     global default timeout setting returned by :func:`getdefaulttimeout`
     is used.  If *source_address* is set it must be a tuple of (host, port)
     for the socket to bind as a source address before making the connection.
-    An host of '' or port 0 tells the OS to use the default.
+    An host of '' or port 0 tells the OS to use the default. If *deadline*
+    is set, no attempt waits past it.
     """
 
     host, port = address
@@ -107,7 +125,9 @@ def validating_create_connection(
                 # This is the only addition urllib3 makes to this function.
                 _set_socket_options(sock, socket_options)
 
-                if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                if deadline is not None:
+                    sock.settimeout(attempt_timeout(timeout, deadline))
+                elif timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
                     sock.settimeout(timeout)
                 if source_address:
                     sock.bind(source_address)
@@ -152,6 +172,7 @@ def _validating_new_conn(self):
             conn_func = old_create_connection
         else:
             extra_kw["validator"] = self._validator
+            extra_kw["deadline"] = getattr(self, "connect_deadline", None)
 
         conn = conn_func((self.host, self.port), self.timeout, **extra_kw)
 

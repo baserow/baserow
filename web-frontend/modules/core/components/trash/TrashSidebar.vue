@@ -98,7 +98,10 @@ export default {
       )
     },
     emitIfNotAlreadySelectedTrashWorkspace(workspace) {
-      if (this.selectedTrashApplication === null) {
+      if (
+        this.selectedTrashApplication !== null ||
+        workspace.id !== this.selectedTrashWorkspace?.id
+      ) {
         this.emitSelected({ workspace })
       }
     },

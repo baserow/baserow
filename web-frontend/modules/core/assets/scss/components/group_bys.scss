@@ -183,3 +183,23 @@
 
   @include flex-align-items(20px);
 }
+
+.group-bys__layout {
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid $palette-neutral-200;
+  flex-shrink: 0;
+
+  @include flex-align-items(12px);
+}
+
+.group-bys__layout-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-900;
+}
+
+.group-bys__layout .segment-control__button {
+  flex: none;
+  padding: 0 14px;
+}

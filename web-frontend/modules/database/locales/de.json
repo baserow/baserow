@@ -60,7 +60,43 @@
     },
     "sidebar": {
         "viewAPI": "API-Dokumente anzeigen",
-        "createTable": "Neue Tabelle"
+        "createTable": "Neue Tabelle",
+        "adminContentCategory": "Inhalt"
+    },
+    "adminType": {
+        "databaseViews": "Ansichten"
+    },
+    "viewsAdmin": {
+        "title": "Ansichten"
+    },
+    "viewsAdminTable": {
+        "allViews": "Alle Ansichten",
+        "onlyPublic": "Nur öffentlich geteilte Ansichten",
+        "name": "Ansicht",
+        "type": "Typ",
+        "table": "Tabelle",
+        "database": "Datenbank",
+        "workspace": "Arbeitsbereich",
+        "public": "Öffentlich geteilt",
+        "passwordProtected": "Passwort",
+        "ownedBy": "Eigentümer",
+        "createdOn": "Erstellt am",
+        "allWorkspaces": "Alle Arbeitsbereiche"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "URL aktualisieren",
+        "refreshWarning": "Sind Sie sicher, dass Sie die URL von {viewName} aktualisieren möchten? Nach der Aktualisierung wird eine neue URL generiert und die Ansicht kann nicht mehr über die alte URL aufgerufen werden. Alle, die die alte URL haben, können nicht mehr auf die Ansicht zugreifen.",
+        "generateNewURL": "Neue URL generieren"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Öffentliche URL kopieren",
+        "openPublicView": "Öffentliche Ansicht in neuem Tab öffnen",
+        "filterWorkspace": "Nach Arbeitsbereich filtern",
+        "rotateSlug": "Slug erneuern",
+        "makePrivate": "Privat machen",
+        "makePublic": "Öffentlich machen",
+        "publicUrlCopiedTitle": "Öffentliche URL kopiert",
+        "publicUrlCopiedMessage": "Die öffentliche URL der Ansicht wurde in Ihre Zwischenablage kopiert."
     },
     "sidebarItem": {
         "exportTable": "Tabelle exportieren",
@@ -532,7 +568,30 @@
         "relatedFieldNotFound": "Das zugehörige Feld wurde nicht gefunden.",
         "filterTypeNotFound": "Der Filtertyp ist nicht kompatibel.",
         "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filtertypen",
-        "noCompatibleFilterTypesErrorMessage": "Keines Ihrer Felder hat einen kompatiblen Filtertyp"
+        "noCompatibleFilterTypesErrorMessage": "Keines Ihrer Felder hat einen kompatiblen Filtertyp",
+        "copyFromView": "Aus einer anderen Ansicht kopieren"
+    },
+    "copyViewConfigurationModal": {
+        "title": "Konfiguration nach {name} kopieren",
+        "sourceView": "Aus Ansicht kopieren",
+        "selectAll": "Alle auswählen",
+        "clearAll": "Alle leeren",
+        "copy": "Konfiguration kopieren"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Feldsichtbarkeit",
+        "fieldOrder": "Feldreihenfolge",
+        "fieldWidths": "Feldbreiten",
+        "viewSettings": "Einstellungen ({settings})",
+        "viewSettingsRowHeightSize": "Zeilenhöhe",
+        "viewSettingsFrozenColumnCount": "fixierte Spalten",
+        "viewSettingsRowIdentifierType": "Zeilenkennung",
+        "viewSettingsGroupByLayout": "Gruppenlayout",
+        "filters": "Filter",
+        "sorts": "Sortierungen",
+        "groupBys": "Gruppierungen",
+        "decorations": "Verzierungen",
+        "defaultRowValues": "Standardwerte für Zeilen"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "Bild",
@@ -570,7 +629,10 @@
         "hiddenFieldWarning": "Eine oder mehrere Gruppierungen verweisen auf ausgeblendete Felder, die für Editoren und niedrigere Rollen nicht sichtbar sind.",
         "maxGroupBysReached": "Sie können nach bis zu {count} Feldern gruppieren.",
         "collapseAllGroups": "Alle einklappen",
-        "expandAllGroups": "Alle ausklappen"
+        "expandAllGroups": "Alle ausklappen",
+        "layout": "Gruppenlayout",
+        "layoutSection": "Abschnitte",
+        "layoutColumn": "Spalten"
     },
     "viewGroupBy": {
         "groupBy": "Gruppieren | Gruppieren nach 1 Feld | Gruppieren nach {count} Feldern"
@@ -642,6 +704,7 @@
     "viewContext": {
         "exportView": "Ansicht exportieren",
         "duplicateView": "Ansicht duplizieren",
+        "copyConfiguration": "Konfiguration aus Ansicht kopieren",
         "defaultRowValues": "Standardwerte für Zeilen",
         "renameView": "Ansicht umbenennen",
         "toPersonal": "Zu persönlich",
@@ -681,6 +744,8 @@
         "createFilter": "Filter erstellen",
         "duplicate": "Feld duplizieren",
         "sortField": "Sortieren",
+        "groupByField": "Gruppieren nach",
+        "ungroupByField": "Nicht gruppieren nach",
         "hideField": "Feld ausblenden",
         "dataSyncField": "Das Feld ist schreibgeschützt und Teil des Datenabgleichs der Tabelle.",
         "dataSyncFieldTwoWaySync": "Das Feld wird mit dem Datenabgleich der Tabelle synchronisiert.",
@@ -706,6 +771,7 @@
         "copyCellsWithHeader": "Zellen mit Kopfbereich kopieren",
         "generateCellsValues": "Werte mit KI generieren",
         "generateAllAiValues": "Alle KI-Werte generieren",
+        "promptBroken": "Die Eingabeaufforderung ist fehlerhaft und muss korrigiert werden, bevor Werte generiert werden können.",
         "rowCount": "Keine Zeilen | 1 Zeile | {count} Zeilen",
         "hiddenRowsInsertedTitle": "Zeilen hinzugefügt",
         "hiddenRowsInsertedMessage": "{number} neu hinzugefügte Zeilen wurden hinzugefügt, sind aber wegen der aktiven Filter nicht sichtbar.",
@@ -775,7 +841,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "{name} Datenbank-API-Dokumentation",
-        "back": "Zurück zum Dashboard",
+        "back": "Zurück zur Übersicht",
         "openDatabase": "Datenbank öffnen"
     },
     "apiDocsComponent": {
@@ -784,7 +850,7 @@
         "settings": "Einstellungen",
         "selectApplicationTitle": "Für welche Datenbank möchten Sie die Dokumentation sehen?",
         "signIn": "Anmelden, um zu starten",
-        "back": "Zurück zum Dashboard"
+        "back": "Zurück zur Übersicht"
     },
     "viewAggregationType": {
         "count": "Anzahl",
@@ -819,7 +885,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Teilen Sie einen Link zu Ihrer Base",
-        "airtableShareLinkDescription": "Um Ihre Airtable-Base zu importieren, müssen Sie einen geteilten Link zu Ihrer gesamten Base haben. Klicken Sie in Airtable auf die Schaltfläche „Share“ in der oberen rechten Ecke, nachdem Sie Ihre Base geöffnet haben. Danach müssen Sie die Option „Share via link“ wählen. Im Share-Modal können Sie auf den Tab „Share publicly“ klicken und dann auf „Enable shared base link“. Kopieren Sie den öffentlichen Link und fügen Sie ihn unten in das Eingabefeld ein.",
+        "airtableShareLinkDescription": "Um Ihre Airtable-Base zu importieren, müssen Sie einen geteilten Link zu Ihrer gesamten Base haben. Klicken Sie in Airtable auf die Schaltfläche „Share“ in der oberen rechten Ecke, nachdem Sie Ihre Base geöffnet haben. Danach müssen Sie die Option „Share via link“ wählen. Im Share-Modal können Sie auf den Tab „Share publicly“ klicken und dann auf „Enable shared base link“. Kopieren Sie den öffentlichen Link und fügen Sie ihn unten in das Eingabefeld ein. Ein Link zu einer öffentlich geteilten Ansicht wird ebenfalls akzeptiert und als Datenbank mit dieser einzelnen Tabelle importiert.",
         "airtableShareLinkBeta": "Diese Funktion importiert die meisten Daten, es gibt jedoch Inkompatibilitäten. Daher wird eine Tabelle namens „Airtable import report“ hinzugefügt, die eine Liste der Dinge enthält, die nicht oder nur teilweise importiert wurden.",
         "airtableShareLinkPaste": "Den Link hier einfügen",
         "importButtonLabel": "Importieren von Airtable",
@@ -835,12 +901,17 @@
         "stateImportingTable": "Tabelle {table} wird importiert",
         "errorJobAlreadyRunningTitle": "Bereits in Arbeit",
         "errorJobAlreadyRunningDescription": "Ein weiterer Importauftrag ist bereits in Arbeit. Sie müssen abwarten, bis dieser Vorgang abgeschlossen ist, bevor Sie einen weiteren beginnen.",
+        "errorRequiresAuthenticationTitle": "Authentifizierung erforderlich",
+        "errorRequiresAuthenticationDescription": "Diese Base kann nur mit zusätzlicher Authentifizierung importiert werden. Die Option „Sitzungs-Authentifizierung“ unten wurde für Sie aktiviert. Folgen Sie den Anweisungen, um die Cookie-Werte „__Host-airtable-session“ und „__Host-airtable-session.sig“ in die Felder zu kopieren, und versuchen Sie es erneut.",
+        "errorBaseNotPublicTitle": "Auf die Base konnte nicht zugegriffen werden",
+        "errorBaseNotPublicDescription": "Airtable hat für diesen Link keine öffentlich geteilte Base zurückgegeben. Öffnen Sie den Link in Ihrem Browser, um zu prüfen, ob die Base geladen wird, die Sie importieren möchten, und ob die vollständige URL korrekt kopiert wurde, und versuchen Sie es dann erneut.",
+        "openSharedLink": "Geteilten Link öffnen",
         "linkError": "Der Link sollte wie folgt aussehen: https://airtable.com/shrxxxxxxxxxxxxxx",
         "skipFiles": "Import von Dateien überspringen",
         "skipFilesHelper": "Eine Airtable-Base mit vielen Dateien kann den Import verlangsamen. Wenn Sie dies aktivieren, wird der Import der Dateien übersprungen.",
         "useSession": "Sitzungs-Authentifizierung",
         "useSessionHelper": "Verwenden Sie dies, wenn die öffentlich geteilte Base eine Authentifizierung erfordert.",
-        "sessionDescription": "Wenn der Import mit „The Airtable base requires authentication.“ antwortet, dann verhindern möglicherweise die Organisationseinstellungen in Airtable den Zugriff auf die Airtable-Base ohne vorherige Authentifizierung. Dazu müssen Sitzung und Signatur manuell extrahiert werden. Rufen Sie die URL der öffentlich geteilten Base in Ihrem Browser auf und melden Sie sich gegebenenfalls an. Klicken Sie auf das Anwendungsmenü, indem Sie in der oberen rechten Ecke klicken -> „More tools“ -> „Developer tools“. Öffnen Sie den Tab „Application“ (in Firefox „Storage“) und klicken Sie auf „https://airtable.com“. Suchen Sie nun die Cookie-Werte „__Host-airtable-session“ und „__Host-airtable-session.sig“ und fügen Sie diese in die unten stehenden Eingabefelder ein.",
+        "sessionDescription": "Wenn der Import fehlschlägt, weil die Base eine Authentifizierung erfordert, dann verhindern möglicherweise die Organisationseinstellungen in Airtable den Zugriff auf die Airtable-Base ohne vorherige Authentifizierung. Dazu müssen Sitzung und Signatur manuell extrahiert werden. Rufen Sie die URL der öffentlich geteilten Base in Ihrem Browser auf und melden Sie sich gegebenenfalls an. Klicken Sie auf das Anwendungsmenü, indem Sie in der oberen rechten Ecke klicken -> „More tools“ -> „Developer tools“. Öffnen Sie den Tab „Application“ (in Firefox „Storage“) und klicken Sie auf \"https://airtable.com\". Suchen Sie nun die Cookie-Werte „__Host-airtable-session“ und „__Host-airtable-session.sig“ und fügen Sie diese in die unten stehenden Eingabefelder ein.",
         "sessionLabel": "Sitzungs-Cookie (__Host-airtable-session)",
         "sessionSignatureLabel": "Sitzungs-Signatur-Cookie (__Host-airtable-session.sig)"
     },
@@ -924,6 +995,13 @@
         "noFieldsTitle": "Dieses Formular hat noch keine Felder",
         "noFieldsContent": "Klicken Sie auf ein Feld in der linken Seitenleiste, um eines hinzuzufügen."
     },
+    "formViewFooterLinks": {
+        "reportAbuse": "Missbrauch melden"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Missbrauch melden",
+        "moreOptions": "Weitere Optionen"
+    },
     "table": {
         "adjacentRow": {
             "toast": {
@@ -987,7 +1065,11 @@
         "passwordDeleted": "Das Passwort wurde entfernt"
     },
     "dataProviderTypes": {
-        "fieldsName": "Felder"
+        "fieldsName": "Felder",
+        "rowName": "Angeklickte Zeile",
+        "rowId": "Zeilen-ID",
+        "previousActionName": "Vorherige Aktion",
+        "previousActionRowId": "ID"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} hat Sie in Feld {fieldName} aus Zeile {rowId} in {tableName} erwähnt",
@@ -1079,6 +1161,11 @@
         "template": "Vorlage",
         "workspaceName": "Arbeitsbereich von {name}"
     },
+    "templateOnboardingCancelModal": {
+        "title": "Wählen Sie eine Vorlage, um loszulegen",
+        "description": "Um das Onboarding zu überspringen, wählen Sie eine der untenstehenden Vorlagen. Mit einer Vorlage zu beginnen ist der beste Weg, Baserow kennenzulernen, da sie Tabellen, Felder und Beispieldaten für Sie einrichtet. Sie können sie später jederzeit ändern oder löschen.",
+        "continue": "Diese Vorlage verwenden"
+    },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Umstellung auf mehrstufigen Datumsfilter",
         "migrateButtonTooltip": "Neuer Filter verfügbar. Zum Aktualisieren anklicken. Er funktioniert genauso."
@@ -1134,7 +1221,18 @@
     "configureDataSyncModal": {
         "title": "Datenabgleich",
         "syncedFields": "Synchronisierte Felder",
-        "syncSettings": "Sync-Einstellungen"
+        "syncSettings": "Sync-Einstellungen",
+        "syncHistory": "Synchronisierungsverlauf"
+    },
+    "dataSyncRuns": {
+        "title": "Synchronisierungsverlauf",
+        "description": "Die letzten Synchronisierungsläufe dieser Tabelle, unabhängig davon, wer oder was sie gestartet hat.",
+        "previousRuns": "Frühere Läufe",
+        "noRuns": "Diese Tabelle wurde noch nicht synchronisiert.",
+        "triggerManual": "Manuell",
+        "triggerPeriodic": "Periodisch",
+        "byUser": "von {name}",
+        "duration": "{seconds}s"
     },
     "configureDataSyncVisibleFields": {
         "title": "Synchronisierte Felder ändern",
@@ -1188,12 +1286,83 @@
         "notPublic": "(nicht öffentlich)",
         "formDoesNotExist": "Das ausgewählte Formular existiert nicht mehr."
     },
+    "fieldButtonSubForm": {
+        "label": "Beschriftung",
+        "labelPlaceholder": "Öffnen",
+        "unresolvedReferenceTitle": "Aktion nicht gespeichert",
+        "unresolvedReferenceMessage": "Eine Aktion verwendet ein Ergebnis einer Aktion, die nicht vor ihr ausgeführt wird. Verschieben Sie sie zurück oder entfernen Sie den Verweis und speichern Sie dann erneut.",
+        "url": "URL",
+        "urlPlaceholder": "z. B. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "Die URL-Formel ist ungültig."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Klicken Sie diesen Button in einer Zeile, um die Antwort des Endpunkts zu erfassen, damit die nachfolgenden Aktionen deren Felder verwenden können. Die anderen Aktionen des Buttons werden ebenfalls ausgeführt.",
+        "payloadModalTitle": "Erfasste Antwort für {actionLabel}",
+        "payloadModalSubTitle": "JSON-Payload"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "URL öffnen",
+        "sendEmail": "E-Mail versenden",
+        "deleteRow": "Eine Zeile löschen",
+        "noUrl": "Geben Sie eine URL zum Öffnen ein.",
+        "staleReference": "Diese Aktion verwendet ein Ergebnis einer Aktion, die nicht mehr vor ihr ausgeführt wird.",
+        "unreadableReference": "Diese Aktion verwendet ein Ergebnis einer Aktion, die keines mehr zurückgibt.",
+        "writesToTrashedField": "Diese Aktion schreibt in ein Feld, das sich im Papierkorb befindet. Stellen Sie das Feld wieder her, um die Aktion erneut auszuführen.",
+        "tableTrashed": "Diese Aktion verwendet eine Tabelle, die sich im Papierkorb befindet oder nicht mehr existiert. Stellen Sie die Tabelle wieder her oder wählen Sie eine andere aus.",
+        "requiresReconfiguration": "Diese Aktion verweist auf eine Tabelle, ein Feld oder eine Integration, die sich im Papierkorb befindet oder nicht mehr existiert.",
+        "noInstanceSmtp": "Für diese Baserow-Instanz ist kein SMTP-Server konfiguriert, daher kann ein Button keine E-Mails senden.",
+        "instanceSmtpTurnedOff": "Das Senden über den eigenen SMTP-Server dieser Baserow-Instanz ist deaktiviert, daher kann ein Button keine E-Mails senden.",
+        "slackOk": "OK",
+        "slackChannel": "Kanal",
+        "slackTs": "Nachrichten-Zeitstempel",
+        "slackTokenMissing": "Dieser Bot hat kein Token. Fügen Sie einen neuen Bot mit seinem Token hinzu oder fügen Sie in diesen Bot ein Token ein, bevor der Button posten kann.",
+        "slackData": "Daten",
+        "startWorkflowMissing": "Der Workflow dieser Aktion wurde nicht gefunden. Möglicherweise wurde er gelöscht oder Sie haben keinen Zugriff darauf. Wählen Sie einen anderen Workflow oder fragen Sie jemanden, der diesen sehen kann.",
+        "startWorkflowUnpublished": "Dieser Workflow wurde noch nicht veröffentlicht. Veröffentlichen Sie ihn, bevor der Button ihn starten kann.",
+        "startWorkflowNotLive": "Dieser Workflow ist pausiert oder deaktiviert. Setzen Sie ihn fort, bevor der Button ihn starten kann."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL",
+        "urlPlaceholder": "URL...",
+        "openIn": "Öffnen in",
+        "sameTab": "Gleicher Tab",
+        "newTab": "Neuer Tab"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Die URL konnte nicht geöffnet werden",
+        "invalidUrlMessage": "Die URL konnte für diese Zeile nicht aufgelöst werden oder verwendet ein nicht erlaubtes Protokoll."
+    },
+    "buttonFieldActionList": {
+        "actions": "Aktionen",
+        "addAction": "Aktion hinzufügen",
+        "chooseAction": "Aktion auswählen...",
+        "searchActions": "Aktionen suchen",
+        "misconfigured": "Mindestens eine Aktion ist falsch konfiguriert",
+        "toggleAction": "Diese Aktion ein- oder ausblenden",
+        "moveAction": "Aktion verschieben, mit den Pfeiltasten neu anordnen"
+    },
+    "buttonField": {
+        "dispatchErrorTitle": "Die Aktionen konnten nicht ausgeführt werden",
+        "dispatchErrorMessage": "Beim Ausführen der Aktionen des Buttons ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+        "rateLimitedTitle": "Zu viele Klicks",
+        "rateLimitedMessage": "Dieser Button wurde zu oft geklickt. Warten Sie einen Moment und versuchen Sie es erneut.",
+        "requiresReconfiguration": "Dieser Button muss neu konfiguriert werden, bevor er geklickt werden kann.",
+        "noPermission": "Sie haben keine Berechtigung, diesen Button zu klicken.",
+        "stillRunningTitle": "Wird noch ausgeführt",
+        "stillRunningMessage": "Die Aktionen des Buttons werden möglicherweise noch im Hintergrund ausgeführt."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Die Aktionen können ausgeführt werden, nachdem die Zeile erstellt wurde."
+    },
     "editRowLink": {
         "editRow": "Zeile bearbeiten"
     },
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Link kopieren",
         "noFormView": "Keine Formularansicht konfiguriert"
+    },
+    "lastViewedItemType": {
+        "databaseView": "Ansicht {name}"
     },
     "tableExcelImporter": {
         "chooseFileLabel": "Excel-Datei auswählen",

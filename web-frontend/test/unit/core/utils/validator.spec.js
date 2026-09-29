@@ -22,11 +22,13 @@ describe('ensureInteger', () => {
   it('should convert a string representation of an integer to an integer', () => {
     expect(ensureInteger('15')).toBe(15)
     expect(ensureInteger('-20')).toBe(-20)
+    expect(ensureInteger('+20')).toBe(20)
   })
 
   it('should throw an error if the value is not a valid integer', () => {
     expect(() => ensureInteger('abc')).toThrow(Error)
     expect(() => ensureInteger('12.34')).toThrow(Error)
+    expect(() => ensureInteger('Infinity')).toThrow(Error)
     expect(() => ensureInteger(true)).toThrow(Error)
     expect(() => ensureInteger(null)).toThrow(Error)
     expect(() => ensureInteger([])).toThrow(Error)
@@ -37,6 +39,25 @@ describe('ensureInteger', () => {
     expect(ensureInteger(new Timedelta(3600000))).toBe(3600)
     expect(ensureInteger(new Timedelta(0))).toBe(0)
     expect(ensureInteger(new Timedelta(1500))).toBe(1)
+    expect(ensureInteger(new Timedelta(-1500))).toBe(-1)
+  })
+
+  it('should throw an error if negative values are not allowed', () => {
+    expect(ensureInteger(5, { allowNegative: false })).toBe(5)
+    expect(ensureInteger('5', { allowNegative: false })).toBe(5)
+    expect(ensureInteger(new Timedelta(5000), { allowNegative: false })).toBe(5)
+    expect(() => ensureInteger(-1, { allowNegative: false })).toThrow(
+      'Value is not a positive integer.'
+    )
+    expect(() => ensureInteger('-1', { allowNegative: false })).toThrow(
+      "Value '-1' is not a valid integer or convertible to an integer."
+    )
+    expect(() => ensureInteger('+1', { allowNegative: false })).toThrow(
+      "Value '+1' is not a valid integer or convertible to an integer."
+    )
+    expect(() =>
+      ensureInteger(new Timedelta(-1000), { allowNegative: false })
+    ).toThrow('Value is not a positive integer.')
   })
 })
 
@@ -52,7 +73,6 @@ describe('ensurePositiveInteger', () => {
   test('converts string representations of positive integers', () => {
     expect(ensurePositiveInteger('42')).toBe(42)
     expect(ensurePositiveInteger('0')).toBe(0)
-    expect(ensurePositiveInteger('+123')).toBe(123)
   })
 
   // Null handling
@@ -70,7 +90,7 @@ describe('ensurePositiveInteger', () => {
       'Value is not a positive integer.'
     )
     expect(() => ensurePositiveInteger('-10')).toThrow(
-      'Value is not a positive integer.'
+      "Value '-10' is not a valid integer or convertible to an integer."
     )
   })
 
@@ -107,7 +127,7 @@ describe('ensurePositiveInteger', () => {
       'Value is not a positive integer.'
     )
     expect(() => ensurePositiveInteger('-5')).toThrow(
-      'Value is not a positive integer.'
+      "Value '-5' is not a valid integer or convertible to an integer."
     )
   })
 

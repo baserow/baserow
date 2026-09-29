@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from rest_framework import serializers
 
 
@@ -41,6 +43,52 @@ class AnthropicSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class BedrockSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.RegexField(
+        r"\A\S+\Z",
+        allow_blank=True,
+        required=False,
+        help_text="A Bedrock API key, or the secret access key of `access_key_id`.",
+    )
+    region = serializers.RegexField(
+        r"\A[a-z]{2,4}(-[a-z]+)+-\d{1,2}\Z",
+        max_length=32,
+        allow_blank=True,
+        required=False,
+        help_text="The AWS region of the Bedrock runtime, for example eu-central-1.",
+    )
+    access_key_id = serializers.RegexField(
+        r"\A\w{16,128}\Z",
+        allow_blank=True,
+        required=False,
+        help_text="The IAM access key ID. Leave empty to use a Bedrock API key.",
+    )
+
+
+class GoogleSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Google AI Studio API key used to authenticate with Gemini.",
+    )
+
+
+class GroqSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Groq API key used to authenticate with the Groq API.",
+    )
+
+
+class XaiSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The xAI API key used to authenticate with the xAI API.",
+    )
+
+
 class MistralSettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,
@@ -56,6 +104,20 @@ class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
         required=False,
         help_text="The host that is used to authenticate with the Ollama API.",
     )
+
+    def validate_host(self, value: str) -> str:
+        error_message = "Enter a valid URL starting with http:// or https://."
+        try:
+            parsed = urlsplit(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(error_message) from exc
+        if (
+            parsed.scheme.lower() not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.hostname is None
+        ):
+            raise serializers.ValidationError(error_message)
+        return value.rstrip("/")
 
 
 class OpenRouterSettingsSerializer(BaseOpenAISettingsSerializer):

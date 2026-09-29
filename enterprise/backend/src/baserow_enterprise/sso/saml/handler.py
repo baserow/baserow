@@ -70,6 +70,7 @@ class SamlAuthProviderHandler:
                     "logout_requests_signed": True,
                     "want_assertions_signed": False,
                     "want_response_signed": False,
+                    "want_assertions_or_response_signed": True,
                 },
             },
         }
@@ -183,6 +184,8 @@ class SamlAuthProviderHandler:
             name = email
 
         logger.debug("Extracted user info: {0} {1} {2}", email, name, saml_request_data)
+        # SAML signature authenticates the IdP, not email ownership.
+        # Admins must configure their IdP to require verified email addresses.
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod

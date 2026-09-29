@@ -25,11 +25,14 @@
     "manageTeamForm": {
         "submit": "Enregistrer",
         "roleTitle": "Rôle par défaut",
-        "inviteMembers": "Ajouter des membres",
+        "inviteMembers": "Gérer l'accès",
         "nameTitle": "Nom",
-        "membersTitle": "Membres",
-        "noSubjectsSelected": "Cliquez sur '{buttonLabel}' pour ajouter des utilisateurs optionnels à l'équipe.",
-        "roleHelpText": "Les rôles spécifiques à l’utilisateur remplaceront toujours les rôles d’équipe."
+        "membersTitle": "Membres de l'équipe",
+        "noSubjectsSelected": "Personne n'a encore accès via cette équipe.",
+        "roleHelpText": "Les rôles spécifiques à l’utilisateur remplaceront toujours les rôles d’équipe.",
+        "agentLabel": "Agent",
+        "accessModalTitle": "Gérer l'accès à l'équipe",
+        "accessModalDescription": "Choisissez les personnes et les agents qui appartiennent à cette équipe."
     },
     "editTeamContext": {
         "edit": "Modifier l’équipe",
@@ -128,7 +131,8 @@
         "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme nom d'utilisateur.",
         "samlResponseSettings": "Attributs de la réponse SAML",
         "emailAttrKey": "Courriel",
-        "lastNameAttrKey": "Nom"
+        "lastNameAttrKey": "Nom",
+        "emailVerificationNotice": "Assurez-vous que votre fournisseur d'identité exige des adresses e-mail vérifiées avant d'authentifier les utilisateurs. Les signatures SAML authentifient le fournisseur, pas la propriété de l'adresse e-mail."
     },
     "createSettingsAuthProviderModal": {
         "title": "Ajouter un nouveau {type}"
@@ -160,7 +164,9 @@
         "loginText": "Vous avez déjà un compte ?",
         "errorInvalidSamlResponse": "La réponse SAML est invalide.",
         "errorWorkspaceInvitationEmailMismatch": "votre adresse électronique ne correspond pas à l'invitation.",
-        "errorSignupDisabled": "La création de compte a été désactivée par l’administrateur."
+        "errorSignupDisabled": "La création de compte a été désactivée par l’administrateur.",
+        "errorUnverifiedEmail": "le fournisseur d'identité n'a pas vérifié votre adresse e-mail. Vérifiez-la auprès du fournisseur, puis réessayez.",
+        "errorApplicationUserLimitReached": "La connexion est temporairement indisponible. Contactez le propriétaire du site ou réessayez plus tard."
     },
     "roles": {
         "admin": {
@@ -189,7 +195,7 @@
         },
         "noRoleLowPriority": {
             "name": "Aucun rôle",
-            "description": "Obtient le rôle par défaut pour le Projet définit par les équipes auxquelles il appartient."
+            "description": "Obtient le rôle par défaut pour le projet défini par les équipes auxquelles il appartient."
         }
     },
     "memberRolesModal": {
@@ -223,11 +229,11 @@
         "view": {
             "title": "Vue {name}",
             "selectMembers": "Sélectionnez les membres",
-            "everyoneHasAccess": "Tout les membres du projet {name} peuvent accéder à cette vue.",
+            "everyoneHasAccess": "Tous les membres du projet {name} peuvent accéder à cette vue.",
             "onlyYouHaveAccess": "Seulement vous pouvez accéder à cette vue.",
             "warningTitle": "D'autres utilisateurs pourraient hériter de l'accès !",
             "warningMessage": "D'autres utilisateurs peuvent hériter de l'accès par leurs rôles respectifs sur la table parente, la base de données ou le projet.",
-            "headerTooltip": "Les rôles de Vue remplacent les rôles du projet, de la base de données et de la table."
+            "headerTooltip": "Les rôles de vue remplacent les rôles du projet, de la base de données et de la table."
         },
         "title": "{name} {type}",
         "selectMembers": "Sélectionner des membres",
@@ -255,7 +261,8 @@
         "subjectTypeNameTeams": "équipes",
         "membersTab": "Membres",
         "teamsTab": "Équipes",
-        "subjectTypeNameMembers": "membres"
+        "subjectTypeNameMembers": "membres",
+        "agentsTab": "Agents"
     },
     "selectMembersList": {
         "selectedAmountLabel": "{count} membres sélectionnés",
@@ -265,13 +272,22 @@
         "searchPlaceholder": "Chercher des équipes...",
         "selectedAmountLabel": "{count} équipes sélectionnées"
     },
+    "selectAgentsList": {
+        "searchPlaceholder": "Rechercher des agents...",
+        "selectedAmountLabel": "{count} agents sélectionnés"
+    },
+    "subjectType": {
+        "team": "Équipe",
+        "teams": "Équipes"
+    },
     "selectSubjectsListFooter": {
-        "helpTooltip": "Les attributions de rôles aux membres sont prioritaires sur les attributions de rôles aux équipes.",
+        "helpTooltip": "Les attributions de rôles aux membres et aux agents sont prioritaires sur les attributions de rôles aux équipes.",
         "invite": "Inviter {count} {type}",
         "roleSelectorBuilderDataWarningTooltip": "Ils pourront créer des formules et des champs rapportés exposant tous les champs de toutes les tables liées.",
         "types": {
             "teams": "équipes",
-            "members": "membres"
+            "members": "membres",
+            "agents": "agents"
         }
     },
     "membersRoleField": {
@@ -302,7 +318,8 @@
         "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via \"Prénom\".",
         "firstNameAttrKey": "Prénom",
         "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme identifiant d'utilisateur. ",
-        "lastNameAttrKey": "Nom"
+        "lastNameAttrKey": "Nom",
+        "emailVerificationNotice": "Assurez-vous que votre fournisseur d'identité exige des adresses e-mail vérifiées avant d'authentifier les utilisateurs. Baserow fait confiance à l'adresse e-mail transmise par le fournisseur."
     },
     "loginButton": {
         "continueWith": "Poursuivre avec"
@@ -340,7 +357,9 @@
         "codeRunner": "Exécution de code",
         "codeRunnerContent": "Exécuter du code JavaScript dans les nœuds d'automatisation et les actions de l'éditeur d'applications.",
         "xlsFileReader": "Lecture des fichiers XLS",
-        "xlsFileReaderContent": "Lire des lignes à partir de fichiers XLS et XLSX dans les nœuds d'automatisation et les actions de l'éditeur d'applications."
+        "xlsFileReaderContent": "Lire des lignes à partir de fichiers XLS et XLSX dans les nœuds d'automatisation et les actions de l'éditeur d'applications.",
+        "builderGraphElement": "Élément graphique",
+        "builderGraphElementContent": "Affichez des données calculées par formule sous forme de graphique dans les pages de l'application."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -454,7 +473,7 @@
         "url": "URL de base",
         "urlHelper": "L'URL de base de votre instance GitLab. (par exemple https://gitlab.com)",
         "accessTokenHelper": "Peut être généré ici https://gitlab.com/-/user_settings/personal_access_tokens en cliquant sur `Ajouter nouveau jeton`, sélectionnez `lire_api`.",
-        "projectIdHelper": "L'ID du projet à partir duquel vous souhaitez synchroniser les tickets. Vous pouvez le trouver en allant sur la page de votre projet (par exemple https://gitlab.com/baserow/baserow), en cliquant sur les trois points dans le coin supérieur droit, puis sur \"Copier l'ID du projet : 12345678'.",
+        "projectIdHelper": "L'ID du projet à partir duquel vous souhaitez synchroniser les tickets. Vous pouvez le trouver en allant sur la page de votre projet (par exemple https://gitlab.com/baserow/baserow), en cliquant sur les trois points dans le coin supérieur droit, puis sur \"Copier l'ID du projet : 12345678\".",
         "accessToken": "Jeton d'accès",
         "projectId": "ID du projet"
     },
@@ -518,18 +537,18 @@
         "viewFieldLabel": "Vue",
         "notSelected": "Non sélectionnée",
         "addSeries": "Ajouter une série",
-        "series": "Série"
+        "series": "Séries"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Champ",
         "aggregationTypeLabel": "Résumé",
         "deleteSeries": "Supprimer la série",
-        "lineChart": "Ligne",
-        "barChart": "Barre",
+        "lineChart": "Courbes",
+        "barChart": "Barres",
         "chartType": "Type de graphique",
-        "pieChart": "Diagramme circulaire",
+        "pieChart": "Secteurs",
         "doughnutChart": "Graphique en anneau",
-        "polarAreaChart": "Graphique polaire"
+        "polarAreaChart": "Aire polaire"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Grouper par",
@@ -538,7 +557,7 @@
     },
     "aggregationSortByForm": {
         "none": "Aucun",
-        "ascending": "Ascendant",
+        "ascending": "Croissant",
         "descending": "Descendant",
         "sortByFieldLabel": "Trier par"
     },
@@ -572,7 +591,9 @@
         "allowInForms": "Permettre à ce champ d'être défini pour les lignes créées à l'aide de formulaires",
         "adminTitle": "Administrateurs uniquement",
         "nobodyTitle": "Personne",
-        "builderTitle": "Architectes et plus"
+        "builderTitle": "Architectes et plus",
+        "customTitle": "Utilisateurs, agents ou équipes spécifiques",
+        "customDescription": "Uniquement les utilisateurs, agents et membres d'équipe sélectionnés qui disposent déjà d'un rôle Éditeur, Architecte ou Administrateur"
     },
     "fileInputElementForm": {
         "addFileType": "Ajouter un type de fichier",
@@ -634,7 +655,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "La source d'utilisateurs sélectionnée n'a pas d'option de connexion",
-        "errorUserSourceMissing": "Aucune source utilisateur sélectionnée"
+        "errorUserSourceMissing": "Aucune source utilisateur sélectionnée",
+        "graph": "Graphique",
+        "graphDescription": "Affiche des données calculées par formule sous forme de graphique."
     },
     "pieChartWidget": {
         "name": "Diagramme circulaire",
@@ -728,7 +751,7 @@
         "feedbackContextTitle": "Aidez-nous à nous améliorer",
         "feedbackContextPlaceholder": "Que pourrions-nous améliorer ? (facultatif)",
         "copiedToClipboard": "Copié dans le presse-papiers",
-        "copiedContentToast": "La réponse de l'assistant a été copié dans votre presse-papiers",
+        "copiedContentToast": "La réponse de l'assistant a été copiée dans votre presse-papiers",
         "copyFailed": "Échec de la copie dans le presse-papiers",
         "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
     },
@@ -754,6 +777,14 @@
         "ai": "Kuma IA"
     },
     "aiDatabaseOnboardingForm": {
+        "progress": "Question {current} sur {total}",
+        "explanation": "Kuma construit votre projet pour vous. En répondant à quelques questions, il peut suggérer quoi construire en premier, afin que vous commenciez avec quelque chose qui correspond au travail que vous faites réellement.",
+        "industryLabel": "Dans quel secteur travaillez-vous ?",
+        "industryDescription": "Quelques mots suffisent, comme « Industrie manufacturière », « Aérospatiale » ou « Marketing digital ».",
+        "industryPlaceholder": "ex. Marketing digital",
+        "teamLabel": "Dans quelle équipe êtes-vous ?",
+        "teamDescription": "Par exemple « Service client », « Finance » ou « Opérations ».",
+        "teamPlaceholder": "ex. Service client",
         "label": "Décrivez votre base de données",
         "placeholder": "ex. Créer une solution de gestion de projet",
         "description": "Décrivez ce que vous voulez suivre. Kuma va créer les tables et les colonnes.",
@@ -767,6 +798,27 @@
         "exampleTeamCheckInsPrompt": "Créer un Suivi hebdomadaire d’équipe avec les Membres de l'équipe, Date, Succés, Obstacles, Ambiance, Priorités et suivis.",
         "exampleBugTrackerName": "Suivi de défauts",
         "exampleBugTrackerPrompt": "Créez un suivi de défauts avec Défaut, Sévérité, Status, Étapes de reproduction, Environnement, Créateur, Affectation et Version de correction."
+    },
+    "aiPromptStep": {
+        "title": "Que doit construire Kuma pour vous ?",
+        "description": "Nous avons rédigé une première suggestion à partir de vos réponses. Modifiez-la ou choisissez-en une autre ci-dessous.",
+        "label": "Décrivez votre base de données",
+        "placeholder": "ex. Suivre les projets clients avec les échéances, les responsables et le statut.",
+        "generating": "Kuma rédige une suggestion pour vous…",
+        "suggestionsTitle": "Ou commencez avec l'une de celles-ci",
+        "editDetails": "Modifier les détails",
+        "modelNotSupportedTitle": "Kuma est indisponible",
+        "modelNotSupportedMessage": "Kuma est injoignable car aucun modèle d'IA fonctionnel n'est configuré, il ne peut donc pas construire de base de données pour vous pour le moment. Réessayer ne servira à rien tant que ce n'est pas corrigé.",
+        "errorOtherOptions": "Revenez en arrière pour démarrer une base de données autrement, par exemple à partir d'un modèle, d'un import ou de zéro."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Modifier vos informations",
+        "submit": "Mettre à jour les suggestions"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Crée une base de données comprenant des tables, des champs, des lignes d'exemple et des vues d'exemple correspondant à cette description : {prompt}",
+        "context": "La personne qui demande travaille dans {industry}, dans l'équipe {team}. Utilise cela pour choisir des tables, des champs et des lignes d'exemple réalistes.",
+        "language": "Écris tout ce que tu crées dans la langue portant le code ISO 639-1 « {language} »."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Créer une base de données comprenant des tables, des colonnes, des lignes et des vues d'exemple correspondant à cette description : {prompt}"
@@ -902,5 +954,58 @@
         "mismatchSubtitle": "Les éditeurs pourront créer des lignes, mais ne les verront pas.",
         "removeDefaultValue": "Supprimer la valeur par défaut",
         "removeDefaultValueHelper": "Ce champ possède une valeur par défaut, mais aucun filtre. Vous pouvez le supprimer ici, ou gérer toutes les valeurs par défaut en cliquant sur les trois points situés à côté de la vue, puis sur « Valeurs par défaut des lignes »."
+    },
+    "enterpriseAgents": {
+        "teams": "Équipes",
+        "noTeams": "Aucune équipe",
+        "teamsLoadError": "Impossible de charger les équipes.",
+        "teamsLoadErrorDescription": "Vérifiez la connexion et réessayez.",
+        "retry": "Réessayer"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} utilise {usage} des {limit} utilisateurs d'application disponibles.",
+        "titleReached": "{workspaceName} a atteint la limite de {limit} utilisateurs d'application. Veuillez mettre votre offre à niveau.",
+        "titleReachedEnforced": "{workspaceName} a atteint la limite de {limit} utilisateurs d'application. Si elle est dépassée, personne ne pourra se connecter aux applications publiées tant que vous n'aurez pas mis votre offre à niveau."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "La sélection n'accorde pas l'accès à la table. Un utilisateur ou agent sélectionné, ou un membre d'une équipe sélectionnée, doit également disposer d'un rôle Éditeur, Architecte ou Administrateur à l'emplacement de cette table.",
+        "canEdit": "Utilisateurs, agents et équipes sélectionnés",
+        "noSelectedSubjects": "Personne n'est encore sélectionnée. Utilisez la recherche ci-dessus pour ajouter un utilisateur, un agent ou une équipe.",
+        "addPeopleOrTeams": "Ajouter des utilisateurs, des agents ou des équipes",
+        "searchPlaceholder": "Rechercher des utilisateurs, des agents ou des équipes",
+        "searchHint": "Rechercher par nom",
+        "teamDescription": "Équipe",
+        "teamSearchDescription": "Équipe · {count} membre | Équipe · {count} membres",
+        "remove": "Supprimer {subject}"
+    },
+    "graphElementForm": {
+        "labels": "Libellés",
+        "labelsHelper": "La formule doit produire un tableau. Chaque élément devient un libellé du graphique.",
+        "labelsPlaceholder": "to_array('Jan,Fév,Mar')",
+        "seriesList": "Séries",
+        "series": "Série {number}",
+        "addSeries": "Ajouter une série",
+        "seriesLabel": "Libellé de la série",
+        "seriesLabelPlaceholder": "'Revenus'",
+        "seriesValues": "Valeurs",
+        "seriesValuesHelper": "La formule doit produire une valeur numérique par libellé.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Type de graphique",
+        "seriesColor": "Couleur",
+        "barChart": "Barres",
+        "lineChart": "Courbes"
+    },
+    "graphElement": {
+        "series": "Série {number}",
+        "noData": "Aucune donnée de graphique"
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Alimente l'assistant IA Kuma."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Dites-nous ce que vous souhaitez créer",
+        "placeholder": "Créer un outil de suivi du matériel de l'entreprise",
+        "build": "Créer"
     }
 }

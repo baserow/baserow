@@ -16,6 +16,7 @@
       :multiple="element.multiple"
       :clearable="!element.multiple && !element.required"
       @hide="onFormElementTouch"
+      @update:model-value="handleFormElementChange"
     >
       <ABDropdownItem
         v-for="option in optionsResolved"
@@ -115,6 +116,7 @@ export default {
       } else if (this.element.multiple) {
         this.inputValue = this.inputValue.filter((v) => v !== option.value)
       }
+      this.handleFormElementChange()
     },
   },
 }

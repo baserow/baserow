@@ -1,0 +1,60 @@
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, Dict, List
+
+from baserow.core.services.types import DispatchResult
+from baserow.core.workflow_actions.types import WorkflowActionDict
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+
+
+class DatabaseWorkflowActionDict(WorkflowActionDict):
+    field_id: int
+
+
+class DispatchOutcome(StrEnum):
+    """What became of a button click, as analytics and metrics report it."""
+
+    # Baserow ran the sequence. An HTTP action answered with an error
+    # status fails the click instead.
+    COMPLETED = "completed"
+    FAILED = "failed"
+    THROTTLED = "throttled"
+    IN_PROGRESS = "in_progress"
+    DEACTIVATED = "deactivated"
+    DENIED = "denied"
+    ROW_NOT_FOUND = "row_not_found"
+    ERROR = "error"
+
+
+@dataclass
+class UpdatedDatabaseWorkflowAction:
+    """An updated action, with the values an undo and a redo replay."""
+
+    workflow_action: "DatabaseWorkflowAction"
+    original_values: Dict[str, Any]
+    new_values: Dict[str, Any]
+
+
+@dataclass
+class DispatchedWorkflowAction:
+    """A server-side action and what its dispatch returned."""
+
+    workflow_action: "DatabaseWorkflowAction"
+    result: DispatchResult
+
+
+@dataclass
+class WorkflowActionsDispatchResult:
+    """
+    What one click produced: what already ran on the server, and the
+    frontend-only actions the browser still has to run itself, both in order.
+    """
+
+    dispatched: List[DispatchedWorkflowAction] = field(default_factory=list)
+    client_actions: List["DatabaseWorkflowAction"] = field(default_factory=list)
+    # Where each action ran in the sequence, by action id, counting from one.
+    # Two actions can share an `order`, which execution then breaks by id, so
+    # this is what says which action really came first.
+    positions: Dict[int, int] = field(default_factory=dict)

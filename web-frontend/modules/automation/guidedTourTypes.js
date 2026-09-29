@@ -19,6 +19,10 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'center'
   }
+
+  get videos() {
+    return ['lHfMax7BC5E']
+  }
 }
 
 class GraphGuidedTourStep extends GuidedTourStep {
@@ -40,6 +44,10 @@ class GraphGuidedTourStep extends GuidedTourStep {
 
   get highlightPadding() {
     return 0
+  }
+
+  get videos() {
+    return ['vaAXEfx-n5U', 'tqa6_5BrVvY', 'p5DwN1CSVPc', 'lbmFNGVIylY']
   }
 }
 
@@ -77,6 +85,10 @@ class TestRunGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'bottom-right'
   }
+
+  get videos() {
+    return ['A06Oeyxx12M']
+  }
 }
 
 class PublishGuidedTourStep extends GuidedTourStep {
@@ -94,6 +106,10 @@ class PublishGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'bottom-right'
+  }
+
+  get videos() {
+    return ['A06Oeyxx12M']
   }
 }
 

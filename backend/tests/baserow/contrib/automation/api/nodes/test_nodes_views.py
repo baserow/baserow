@@ -14,6 +14,7 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
+    CoreInboundEmailTriggerNodeType,
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
@@ -239,6 +240,32 @@ def test_get_nodes(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_nodes_with_failed_simulated_dispatch_sample_data(api_client, data_fixture):
+    """
+    A failed simulated dispatch stores an `{"_error": ...}` sentinel as the
+    service's sample data. Listing the workflow's nodes must still work, with a
+    `None` schema and the sentinel exposed so the frontend can display it.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    service = node.service.specific
+    service.sample_data = {"_error": "Value error for 'source' property"}
+    service.save()
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    iterator_node = next(n for n in response.json() if n["id"] == node.id)
+    assert iterator_node["service"]["schema"] is None
+    assert iterator_node["service"]["sample_data"] == {
+        "_error": "Value error for 'source' property"
+    }
+
+
+@pytest.mark.django_db
 def test_get_node_invalid_workflow(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
@@ -392,6 +419,68 @@ def test_update_node(api_client, data_fixture):
         "type": node.get_type().type,
         "workflow": workflow.id,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("service_type", ["", None])
+def test_update_node_service_without_type_uses_the_node_service_type(
+    api_client, data_fixture, service_type
+):
+    """
+    The node type pins the service type, so a payload that leaves it out, or
+    sends it empty, must validate against that type instead of failing on the
+    polymorphic serializer.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    service = {"row_id": "'42'"}
+    if service_type is not None:
+        service["type"] = service_type
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": service},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["service"]["type"] == "local_baserow_get_row"
+    assert response_json["service"]["row_id"]["formula"] == "'42'"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("service_type", ["http_request", "unknown_service_type"])
+def test_update_node_service_with_a_type_the_node_does_not_use_is_refused(
+    api_client, data_fixture, service_type
+):
+    """
+    A different type would only pick which serializer the values are checked
+    against, after which they are applied to the node's own service type and
+    silently dropped. It must be refused instead, whether or not it exists.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"type": service_type, "url": "'http://example.notexist/'"}},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    type_error = response_json["detail"]["service"]["type"][0]
+    assert type_error["code"] == "type_mismatch"
+    assert service_type in type_error["error"]
+    assert "local_baserow_get_row" in type_error["error"]
 
 
 @pytest.mark.django_db
@@ -891,6 +980,36 @@ def test_simulate_dispatch_trigger_node(
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
 )
+def test_simulate_dispatch_email_trigger_node_waits_for_an_email(
+    mock_async_start_workflow, api_client, data_fixture
+):
+    # The email trigger is not immediately dispatchable: testing it must arm
+    # the workflow to wait for a message sent to the `test-` address, and must
+    # not fabricate sample data in the meantime.
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_type=CoreInboundEmailTriggerNodeType.type
+    )
+    trigger_node = workflow.get_trigger()
+    assert workflow.simulate_until_node is None
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node_id == trigger_node.id
+    mock_async_start_workflow.assert_not_called()
+    trigger_node.service.refresh_from_db()
+    assert trigger_node.service.specific.sample_data is None
+
+
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
 def test_simulate_dispatch_trigger_node_immediate_dispatch(
     mock_async_start_workflow, api_client, data_fixture
 ):
@@ -917,7 +1036,7 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
 
     assert workflow.simulate_until_node_id == trigger_node.id
     # In case of an immediate dispatch we want to trigger immediately the workflow
-    mock_async_start_workflow.assert_called_with(workflow)
+    mock_async_start_workflow.assert_called_with(workflow, triggered_by=user)
 
     trigger_node.service.get_type().can_be_immediately_dispatched = old_imm
 
@@ -1078,7 +1197,41 @@ def test_simulate_dispatch_action_node_with_sample_data(
     assert response.status_code == HTTP_202_ACCEPTED
 
     # As the trigger node has sample data we can immediately trigger the workflow
-    mock_async_start_workflow.assert_called_with(workflow)
+    mock_async_start_workflow.assert_called_with(workflow, triggered_by=user)
 
     workflow.refresh_from_db()
     assert workflow.simulate_until_node_id == action_node.id
+
+
+@pytest.mark.django_db
+def test_update_periodic_trigger_before_an_interval_is_chosen(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, create_trigger=False)
+    node = data_fixture.create_periodic_trigger_node(
+        user=user, workflow=workflow, service_kwargs={"interval": None}
+    )
+
+    payload = {
+        "service": {
+            "type": "periodic",
+            "interval": None,
+            "timezone": "Europe/Amsterdam",
+            "minute": 0,
+            "hour": 0,
+            "day_of_week": 0,
+            "day_of_month": 1,
+        }
+    }
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        payload,
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+    service = node.service.specific
+    service.refresh_from_db()
+    assert service.timezone == "Europe/Amsterdam"
+    assert service.interval is None
+    # Still unconfigured, so still not scheduled.
+    assert service.next_run_at is None

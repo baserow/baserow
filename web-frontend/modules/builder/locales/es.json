@@ -150,9 +150,9 @@
         "dropdownDescription": "Elemento desplegable",
         "checkbox": "Casilla de verificación",
         "checkboxDescription": "Elemento casilla de verificación",
-        "iframe": "iframe",
+        "iframe": "iFrame",
         "iframeDescription": "Marco en línea",
-        "authForm": "Formulario de acceso",
+        "authForm": "Formulario de inicio de sesión",
         "authFormDescription": "Un formulario de acceso de usuario",
         "repeat": "Repetir",
         "repeatDescription": "Un conjunto repetible de elementos",
@@ -201,7 +201,7 @@
         "errorIframeUrlMissing": "Falta la propiedad «URL del iFrame»",
         "errorIframeContentMissing": "Falta el contenido de «iFrame»",
         "errorNoMenuItem": "No se ha configurado ningún elemento de menú",
-        "errorMenuItemInError": "Al menos un menú está mal configurado",
+        "errorMenuItemInError": "Al menos un elemento del menú está mal configurado",
         "errorSubMenuItemInError": "Al menos un submenú está mal configurado"
     },
     "verticalAlignmentSelector": {
@@ -211,7 +211,7 @@
         "alignment": "Alineación vertical"
     },
     "dnsStatus": {
-        "hostHeader": "Anfitrión",
+        "hostHeader": "Servidor anfitrión",
         "valueHeader": "Valor",
         "typeHeader": "Tipo",
         "description": "Visita la configuración DNS de tu dominio y realiza los siguientes cambios"
@@ -330,7 +330,11 @@
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
         "errorPageParameterInError": "Al menos un parámetro de página está mal configurado",
         "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»",
-        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos"
+        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos",
+        "refreshDataSourceDescription": "Recarga una fuente de datos y actualiza los elementos que la usan.",
+        "openPageDescription": "Redirige al usuario a otra página o URL.",
+        "errorNotificationContentMissing": "Una notificación requiere un título o una descripción",
+        "notificationDescription": "Mostrar un mensaje de notificación al usuario."
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -353,7 +357,8 @@
         "loginToastTitle": "Autenticación exitosa",
         "loginToastMessage": "Has iniciado sesión correctamente.",
         "authorizedToastTitle": "Autenticación requerida",
-        "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar."
+        "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar.",
+        "previewSessionExpiredDescription": "Cierra esta pestaña y vuelve a abrir la vista previa desde el Constructor de Aplicaciones."
     },
     "integrationSettings": {
         "integrationMessage": "Puedes crear nuevas integraciones añadiendo una fuente de datos, una acción o una autenticación de usuario.",
@@ -565,7 +570,9 @@
     "pagePreview": {
         "emptyMessage": "Haz clic para crear un elemento",
         "header": "ENCABEZAMIENTO",
-        "footer": "PIE DE PÁGINA"
+        "footer": "PIE DE PÁGINA",
+        "fixedHeader": "ENCABEZADO FIJO",
+        "fixedFooter": "PIE DE PÁGINA FIJO"
     },
     "eventTypes": {
         "submitLabel": "Al enviar",
@@ -634,8 +641,12 @@
         "embedPlaceholder": "Contenido HTML en bruto para incrustar",
         "heightLabel": "Altura (en px)",
         "heightPlaceholder": "Altura en píxeles",
-        "missingValue": "Falta la fuente IFrame...",
-        "emptyValue": "Fuente IFrame vacía..."
+        "missingValue": "Falta la fuente iFrame...",
+        "emptyValue": "Fuente iFrame vacía...",
+        "warningMessage": "El contenido del iFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
+        "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iFrame use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas.",
+        "editorPreviewPlaceholder": "Este iframe no se muestra en el editor. \nUsa Vista previa para comprobar cómo aparece en tu aplicación.",
+        "allowSameOriginLabel": "Permite que el iframe acceda a los datos de su propio sitio"
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -683,7 +694,7 @@
         "loggedInVisitors": "Visitantes registrados",
         "notLoggedInVisitors": "Visitantes no registrados",
         "warningTitle": "Esto es una característica de seguridad",
-        "warningMessage": "Revisa la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentación&lt;/a&gt; para aprender más sobre cómo aseguramos los datos.",
+        "warningMessage": "Consulta el {link} para saber más sobre cómo protegemos los datos.",
         "excludedRolesLabel": "todos los roles excepto",
         "switchAllowLabel": "Permitir",
         "switchDisallowLabel": "No permitir",
@@ -699,7 +710,7 @@
         "errorFetchingRolesTitle": "No se han podido recuperar los roles de usuario",
         "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario.",
         "visibilityCondition": "Condición de visibilidad",
-        "visibilityConditionHelper": "Si el resultado de esta fórmula es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
+        "visibilityConditionHelper": "Si el resultado de esta expresión es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
         "visibilityConditionPlaceholder": "Condición…",
         "documentationLink": "documentación"
     },
@@ -917,7 +928,7 @@
         "borderSize": "Tamaño del borde",
         "backgroundAlternateColor": "Color de las filas pares",
         "alignment": "Alineación",
-        "cells": "Células",
+        "cells": "Celdas",
         "verticalSeparatorSize": "Tamaño vertical",
         "horizontalSeparatorColor": "Color horizontal",
         "horizontalSeparatorSize": "Tamaño horizontal",
@@ -1016,7 +1027,7 @@
         "titleOverview": "Tema"
     },
     "pageVisibilitySettingsTypes": {
-        "pageName": "Divulgación",
+        "pageName": "Visibilidad",
         "logInPageWarningTitle": "La página de inicio de sesión no está configurada",
         "logInPagewarningMessage": "Cuando un usuario anónimo intente acceder a esta página, será redirigido a una página de inicio de sesión. Establezca la página de inicio de sesión en la configuración general de la aplicación.",
         "logInPageInfoMessage": "Los usuarios anónimos que intenten acceder a esta página serán redirigidos a la página {logInPageName}.",
@@ -1203,5 +1214,15 @@
         "testActionDescription": "Ejecuta esta acción en modo previsualización para capturar su salida y hacerla disponible a las acciones siguientes.",
         "sampleDataModalTitle": "Carga útil para {actionLabel}",
         "sampleDataModalSubTitle": "Carga útil JSON"
+    },
+    "pageElementBehaviour": {
+        "normal": "Normal",
+        "fixed": "Fijo"
+    },
+    "breakpointSettings": {
+        "description": "Elige cuándo tu aplicación cambia entre diseños móvil, tableta y escritorio. Los cambios se aplican ahora en el editor y en tu app publicada después de publicarla.",
+        "updatedDescription": "Tus nuevos puntos de interrupción están activos en el editor. Publica tu aplicación para aplicarlos a los visitantes.",
+        "mobileMustBeLessThanTablet": "El punto de interrupción (breakpoint) móvil debe ser menor que el punto de interrupción de tableta.",
+        "tabletMustBeGreaterThanMobile": "El punto de interrupción (breakpoint) de tableta debe ser mayor que el punto de interrupción móvil."
     }
 }

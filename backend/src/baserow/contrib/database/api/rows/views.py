@@ -21,10 +21,7 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.errors import ERROR_DATABASE_DEADLOCK, ERROR_USER_NOT_IN_GROUP
-from baserow.api.exceptions import (
-    QueryParameterValidationException,
-    RequestBodyValidationException,
-)
+from baserow.api.exceptions import QueryParameterValidationException
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -55,7 +52,10 @@ from baserow.contrib.database.api.rows.errors import (
     ERROR_ROW_DOES_NOT_EXIST,
     ERROR_ROW_IDS_NOT_UNIQUE,
 )
-from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
+from baserow.contrib.database.api.rows.exceptions import (
+    InvalidJoinParameterException,
+    row_values_validation_error,
+)
 from baserow.contrib.database.api.rows.serializers import (
     GetRowAdjacentSerializer,
     GetRowQueryParamsSerializer,
@@ -169,13 +169,15 @@ def build_response_with_metadata(
     serializer_class,
     updated_field_ids: list | None = None,
     cascade_update: CascadeUpdatedRows | None = None,
+    view: View | None = None,
 ) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
 
     If the request contains `include_metadata` flag, then the response should include
     `metadata` field with information about the operation performed. At the moment,
-    this includes a list of fields that have been changed.
+    this includes a list of fields that have been changed, and if the view filters
+    are enforced for the user, the ids of the rows hidden by the view filters.
     """
 
     data = {"items": rows}
@@ -190,6 +192,12 @@ def build_response_with_metadata(
                 "rows": cascade_update.updated_rows,
                 "field_ids": cascade_update.field_ids,
             }
+        if view is not None:
+            hidden_row_ids = ViewHandler().get_hidden_row_ids(
+                request.user, view, model, [row.id for row in rows]
+            )
+            if hidden_row_ids is not None:
+                data["metadata"]["hidden_row_ids"] = hidden_row_ids
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
 
@@ -442,7 +450,7 @@ class RowsView(APIView):
             model = table.get_model()
             queryset = model.objects.all().enhance_by_fields(**field_kwargs)
             queryset = view_handler.apply_filters(view, queryset)
-            queryset = view_handler.apply_sorting(view, queryset)
+            queryset = view_handler.apply_ordering(view, queryset)
         else:
             model = table.get_model(
                 fields=fields,
@@ -554,6 +562,8 @@ class RowsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -627,8 +637,8 @@ class RowsView(APIView):
                 user_field_names=False,
                 send_webhook_events=send_webhook_events,
             )
-        except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+        except ValidationError as exc:
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -961,7 +971,12 @@ class RowView(APIView):
                 example_type="get", user_field_names=True
             ),
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
+                ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
@@ -1041,7 +1056,7 @@ class RowView(APIView):
                 .updated_rows[0]
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message) from exc
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -1368,6 +1383,8 @@ class BatchRowsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1439,7 +1456,7 @@ class BatchRowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message)
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -1460,6 +1477,7 @@ class BatchRowsView(APIView):
             request=request,
             model=model,
             serializer_class=response_serializer_class,
+            view=view,
         )
 
     @extend_schema(
@@ -1537,6 +1555,8 @@ class BatchRowsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1603,8 +1623,8 @@ class BatchRowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
             rows = updated_data.updated_rows
-        except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+        except ValidationError as exc:
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -1626,6 +1646,7 @@ class BatchRowsView(APIView):
             serializer_class=response_serializer_class,
             updated_field_ids=updated_data.updated_field_ids,
             cascade_update=updated_data.cascade_update,
+            view=view,
         )
 
 

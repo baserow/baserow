@@ -10,6 +10,7 @@ import {
   getFilters,
   getRowSortFunction,
   matchSearchFilters,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
@@ -553,20 +554,30 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const { $client, $registry } = this
+    const { $registry, $client, $i18n } = this
     const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
-    const { data } = await RowService($client).create(
+    const { data } = await RowService($client).batchCreate(
       table.id,
-      preparedRow,
+      [preparedRow],
+      null,
       null,
       getters.getLastCalendarId
     )
     commit('SET_CREATING', false)
+    const [createdRow] = data.items
+    const hiddenRowIds = reportHiddenRows(data, {
+      dispatch,
+      i18n: $i18n,
+      created: true,
+    })
+    if (hiddenRowIds.has(createdRow.id)) {
+      return
+    }
     return await dispatch('createdNewRow', {
       view,
-      values: data,
+      values: createdRow,
       fields,
     })
   },
@@ -845,7 +856,7 @@ export const actions = {
     { commit, dispatch, getters, state },
     { view, table, row, field, fields, value, oldValue }
   ) {
-    const { $registry, $client } = this
+    const { $registry, $client, $i18n } = this
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -887,6 +898,15 @@ export const actions = {
           null,
           getters.getLastCalendarId
         )
+        const hiddenRowIds = reportHiddenRows(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (hiddenRowIds.has(row.id)) {
+          await dispatch('deletedExistingRow', { view, row, fields })
+          return
+        }
         const updatedFieldIds = data.metadata?.updated_field_ids || []
 
         const readOnlyData = extractChangedFields(

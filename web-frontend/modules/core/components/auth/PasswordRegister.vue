@@ -2,7 +2,7 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n-t keypath="invitationMessage" tag="p">
+      <i18n-t scope="global" keypath="invitationMessage" tag="p">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>
@@ -83,6 +83,14 @@
           >
             {{ $t('error.nameContainsUrl') }}
           </span>
+          <span
+            v-else-if="
+              v$.account.name.nameContainsNoSpam &&
+              v$.account.name.nameContainsNoSpam.$invalid
+            "
+          >
+            {{ $t('error.nameContainsSpam') }}
+          </span>
           <span v-else>
             {{ $t('error.minMaxLength', { min: 2, max: 60 }) }}
           </span>
@@ -143,6 +151,7 @@ import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
 import {
+  nameContainsNoSpam,
   nameContainsNoUrl,
   nameIsNotEmail,
   passwordValidation,
@@ -183,6 +192,7 @@ export default {
           maxLength: maxLength(60),
           nameIsNotEmail,
           nameContainsNoUrl,
+          nameContainsNoSpam,
         },
         password: passwordValidation,
       },

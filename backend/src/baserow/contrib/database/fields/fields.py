@@ -383,6 +383,60 @@ class SyncedUserForeignKeyField(IgnoreMissingForeignKey):
         return name, path, args, kwargs
 
 
+class NoDatabaseColumnField(models.Field):
+    """
+    A model field that exists on the generated table model but has no column in
+    the database, for field types that only store configuration on the `Field`
+    row and keep no cell data.
+
+    Returning `None` from `get_model_field` is not enough on its own: the field
+    handler looks the model field up by name when it creates, alters or deletes
+    the column, so the field still has to be contributed to the model. Setting
+    the column to `None` makes Django treat it as non concrete, which keeps it
+    out of `SELECT`, `INSERT` and the schema editor. Reading the attribute on a
+    row always gives `None`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs["null"] = True
+        kwargs["blank"] = True
+        kwargs["editable"] = False
+        super().__init__(*args, **kwargs)
+
+    def get_attname_column(self):
+        # No column name means Django marks the field as non concrete.
+        return self.get_attname(), None
+
+    def db_type(self, connection):
+        return None
+
+    def contribute_to_class(self, cls, name, **kwargs):
+        super().contribute_to_class(cls, name, **kwargs)
+        # Non concrete fields are not populated when a row is loaded from the
+        # database, so give the attribute an always null class level default.
+        setattr(cls, self.attname, None)
+
+
+class AlwaysNullSerializerField(serializers.Field):
+    """
+    Always serializes to `null`, for field types whose cells hold no data. It
+    stays writable so the row serializer's read-only validator still rejects a
+    write, and it declares no type, so the API documentation and the generated
+    schemas don't advertise the type of a placeholder column.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_null", True)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value) -> None:
+        return None
+
+    def to_internal_value(self, data) -> None:
+        return None
+
+
 class FormViewEditRowURLSerializerField(serializers.Field):
     """
     A custom serializer field that computes a unique, secure edit URL for a

@@ -1,7 +1,9 @@
 from baserow.contrib.automation.models import Automation
 from baserow.core.handler import CoreHandler
+from baserow.core.telemetry.utils import baserow_trace_handler
 
 
+@baserow_trace_handler
 class AutomationHandler:
     def get_automation(self, automation_id: int) -> Automation:
         """

@@ -60,7 +60,8 @@
     },
     "sidebar": {
         "viewAPI": "API 문서 보기",
-        "createTable": "새 테이블"
+        "createTable": "새 테이블",
+        "adminContentCategory": "콘텐츠"
     },
     "sidebarItem": {
         "exportTable": "테이블 내보내기",
@@ -658,7 +659,9 @@
         "hideField": "필드 숨기기",
         "dataSyncField": "필드는 읽기 전용이며 테이블의 데이터 동기화의 일부입니다.",
         "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다.",
-        "dataSyncFieldTwoWaySync": "필드는 테이블의 데이터 동기화와 동기화됩니다."
+        "dataSyncFieldTwoWaySync": "필드는 테이블의 데이터 동기화와 동기화됩니다.",
+        "groupByField": "그룹화 기준",
+        "ungroupByField": "그룹화하지 않음"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "행이 필터와 일치하지 않음",
@@ -686,7 +689,8 @@
         "tooManyItemsDescription": "한 번에 {limit}개 이상의 행을 업데이트할 수 없으므로 처음 몇 개만 업데이트했습니다.",
         "AIValuesGenerationErrorTitle": "AI 값 생성 실패",
         "AIValuesGenerationErrorMessage": "API_KEY를 확인하고 선택한 모델을 확인하세요.",
-        "generateAllAiValues": "모든 AI 값 생성"
+        "generateAllAiValues": "모든 AI 값 생성",
+        "promptBroken": "프롬프트에 문제가 있어 값을 생성하기 전에 수정해야 합니다."
     },
     "gridViewFieldFile": {
         "dropHere": "여기에 놓기",
@@ -794,7 +798,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "베이스에 대한 링크 공유",
-        "airtableShareLinkDescription": "Airtable 베이스를 가져오려면 전체 베이스에 대한 공유 링크가 필요합니다. Airtable에서 베이스를 연 후 오른쪽 상단의 공유 버튼을 클릭하세요. 그런 다음 \"링크로 공유\" 옵션을 선택해야 합니다. 공유 모달 창에서 \"공개적으로 공유\" 탭을 클릭한 후 “공유 베이스 링크 활성화”를 클릭합니다. 그런 다음 생성된 공개 링크를 복사하여 아래 입력란에 붙여넣으세요.",
+        "airtableShareLinkDescription": "Airtable 베이스를 가져오려면 전체 베이스의 공유 링크가 필요합니다. Airtable에서 베이스를 연 후 오른쪽 상단의 공유 버튼을 클릭하세요. 그런 다음 \"링크로 공유\" 옵션을 선택합니다. 공유 창에서 \"공개적으로 공유\" 탭을 클릭한 후 “공유 베이스 링크 활성화”를 클릭하세요. 생성된 공개 링크를 복사하여 아래 입력란에 붙여넣으세요. 공개적으로 공유된 뷰 링크도 사용할 수 있으며, 해당 단일 테이블을 포함하는 데이터베이스로 가져옵니다.",
         "airtableShareLinkBeta": "이 기능은 대부분의 데이터를 가져오지만, 일부 호환되지 않는 항목이 있을 수 있습니다. 따라서 \"에어테이블 가져오기 보고서\"라는 테이블이 추가되며, 가져오지 못했거나 부분적으로만 가져온 항목들의 목록이 포함됩니다.",
         "airtableShareLinkPaste": "여기에 링크를 붙여넣으세요",
         "importButtonLabel": "Airtable에서 가져오기",
@@ -817,7 +821,12 @@
         "useSessionHelper": "공개로 공유된 베이스에 인증이 필요한 경우 이 옵션을 사용하세요.",
         "sessionLabel": "세션 쿠키 (__Host-airtable-session)",
         "sessionSignatureLabel": "세션 서명 쿠키(__Host-airtable-session.sig)",
-        "sessionDescription": "가져오기 시 \"The Airtable base requires authentication.\"이라는 응답이 표시된다면, Airtable의 조직 설정으로 인해 인증 없이 해당 베이스에 접근할 수 없도록 설정되어 있을 수 있습니다. 이 경우 세션과 서명 값을 수동으로 추출해야 합니다. 브라우저에서 공개로 공유된 베이스의 URL에 접속하고, 필요한 경우 로그인합니다. 그런 다음 오른쪽 상단의 메뉴를 클릭하여 \"More tools(추가 도구)\" -> \"Developer tools(개발자 도구)\"를 선택합니다. \"Application\" 탭(Firefox의 경우 \"Storage\" 탭)을 열고, 왼쪽에서 \"https://airtable.com\"을 클릭합니다. 이제 \"__Host-airtable-session\"과 \"__Host-airtable-session.sig\" 쿠키 값을 찾아 아래 입력란에 복사하여 붙여넣습니다."
+        "sessionDescription": "가져오기가 실패하고 베이스에 인증이 필요하다면, Airtable의 조직 설정 때문에 먼저 인증하지 않고는 Airtable 베이스에 접근할 수 없는 것일 수 있습니다. 이 경우 세션과 서명을 수동으로 추출해야 합니다. 브라우저에서 공개적으로 공유된 베이스의 URL을 열고 필요하면 로그인하세요. 오른쪽 상단의 애플리케이션 메뉴를 클릭한 다음 \"도구 더보기\" -> \"개발자 도구\"를 선택하세요. \"애플리케이션\"(Firefox에서는 \"저장소\") 탭을 열고 \"https://airtable.com\"을 클릭하세요. 이제 \"__Host-airtable-session\" 및 \"__Host-airtable-session.sig\" 쿠키 값을 찾아 아래 입력란에 붙여넣으세요.",
+        "errorRequiresAuthenticationTitle": "인증 필요",
+        "errorRequiresAuthenticationDescription": "이 베이스는 추가 인증을 거쳐야만 가져올 수 있습니다. 아래의 \"세션 인증\" 옵션을 활성화했습니다. 안내에 따라 \"__Host-airtable-session\" 및 \"__Host-airtable-session.sig\" 쿠키 값을 필드에 복사한 후 다시 시도하세요.",
+        "errorBaseNotPublicTitle": "베이스에 접근할 수 없습니다",
+        "errorBaseNotPublicDescription": "Airtable이 이 링크에 대해 공개적으로 공유된 베이스를 반환하지 않았습니다. 브라우저에서 링크를 열어 가져오려는 베이스가 로드되는지, 전체 URL이 올바르게 복사되었는지 확인한 후 다시 시도하세요.",
+        "openSharedLink": "공유 링크 열기"
     },
     "chooseSingleSelectField": {
         "addSelectField": "단일 선택 필드 추가",
@@ -1107,7 +1116,8 @@
     "configureDataSyncModal": {
         "title": "데이터 동기화",
         "syncedFields": "동기화된 필드",
-        "syncSettings": "동기화 설정"
+        "syncSettings": "동기화 설정",
+        "syncHistory": "동기화 기록"
     },
     "configureDataSyncVisibleFields": {
         "title": "동기화된 필드 변경",
@@ -1218,5 +1228,69 @@
         "emptyValue": "(비어 있는)",
         "expandGroup": "그룹 확장",
         "collapseGroup": "그룹 접기"
+    },
+    "adminType": {
+        "databaseViews": "뷰"
+    },
+    "viewsAdmin": {
+        "title": "뷰"
+    },
+    "viewsAdminTable": {
+        "allViews": "모든 뷰",
+        "onlyPublic": "공개적으로 공유된 뷰만",
+        "name": "뷰",
+        "type": "유형",
+        "table": "테이블",
+        "database": "데이터베이스",
+        "workspace": "워크스페이스",
+        "public": "공개적으로 공유됨",
+        "passwordProtected": "비밀번호",
+        "ownedBy": "소유자",
+        "createdOn": "생성일",
+        "allWorkspaces": "모든 워크스페이스"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "URL 새로 고침",
+        "refreshWarning": "{viewName}의 URL을 새로 고치시겠습니까? 새로 고치면 새 URL이 생성되고 기존 URL로는 더 이상 뷰에 접근할 수 없습니다. 기존 URL을 가진 모든 사용자는 더 이상 뷰에 접근할 수 없습니다.",
+        "generateNewURL": "새 URL 생성"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "공개 URL 복사",
+        "openPublicView": "새 탭에서 공개 뷰 열기",
+        "filterWorkspace": "워크스페이스로 필터링",
+        "rotateSlug": "슬러그 변경",
+        "makePrivate": "비공개로 전환",
+        "makePublic": "공개로 전환",
+        "publicUrlCopiedTitle": "공개 URL을 복사했습니다",
+        "publicUrlCopiedMessage": "뷰의 공개 URL을 클립보드에 복사했습니다."
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "악용 신고"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "악용 신고",
+        "moreOptions": "추가 옵션"
+    },
+    "templateOnboardingCancelModal": {
+        "title": "시작할 템플릿 선택",
+        "description": "온보딩을 건너뛰려면 아래 템플릿 중 하나를 선택하세요. 템플릿으로 시작하면 테이블, 필드, 예시 데이터를 자동으로 구성해 주므로 Baserow를 익히는 가장 좋은 방법입니다. 나중에 언제든 변경하거나 삭제할 수 있습니다.",
+        "continue": "이 템플릿 사용"
+    },
+    "dataSyncRuns": {
+        "title": "동기화 기록",
+        "description": "누가 또는 무엇이 시작했는지와 관계없이 이 테이블의 최신 동기화 실행 기록입니다.",
+        "previousRuns": "이전 실행",
+        "noRuns": "이 테이블은 아직 동기화되지 않았습니다.",
+        "triggerManual": "수동",
+        "triggerPeriodic": "주기적",
+        "byUser": "실행자: {name}",
+        "duration": "{seconds}초"
+    },
+    "fieldButtonSubForm": {
+        "label": "레이블",
+        "labelPlaceholder": "열기",
+        "url": "URL",
+        "urlPlaceholder": "예: concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "URL 수식이 올바르지 않습니다."
     }
 }

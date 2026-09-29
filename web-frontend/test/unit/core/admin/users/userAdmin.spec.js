@@ -533,7 +533,9 @@ describe('User Admin Component Tests', () => {
     expect(ui.getSingleRowUsernameText()).toContain(firstPageUser.username)
 
     await ui.clickNextPage()
+    await flushPromises()
     await ui.clickUsernameHeader()
+    await flushPromises()
 
     expect(ui.getSingleRowUsernameText()).toContain(firstPageUser.username)
   })
@@ -656,7 +658,9 @@ describe('User Admin Component Tests', () => {
       sorts: '-username,+name',
     })
     await ui.clickUsernameHeader()
+    await flushPromises()
     await ui.clickUsernameHeader()
+    await flushPromises()
     await ui.clickFullnameHeader()
     await flushPromises()
     usernameCellsText = ui.findUsernameColumnCellsText()

@@ -110,6 +110,7 @@ def connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments():
     all related role_assignments.
     """
 
+    from baserow.contrib.database.fields.models import Field
     from baserow.core.models import WorkspaceUser
     from baserow.core.registries import (
         object_scope_type_registry,
@@ -128,3 +129,8 @@ def connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments():
     for role_assignable_object_type in ROLE_ASSIGNABLE_OBJECT_MAP.keys():
         scope_type = object_scope_type_registry.get(role_assignable_object_type)
         post_delete.connect(cascade_scope_delete, scope_type.model_class)
+
+    # Field permission subjects are stored as internal field-scoped role assignments.
+    # Fields are intentionally not general role-assignable objects, so register their
+    # cascade explicitly.
+    post_delete.connect(cascade_scope_delete, Field)

@@ -222,8 +222,23 @@ class View(
 
     class Meta:
         ordering = ("order",)
+        indexes = [
+            # The admin views page lists the publicly shared views newest first. The
+            # index leads with `id` so that page is a seek that stops at the page
+            # size, and includes `table_id` so the count that accompanies it can be
+            # answered without reading the table. Without it both fall back to
+            # walking the primary key and discarding whatever is not public, which
+            # only stays cheap while public views are common enough to run into
+            # quickly.
+            models.Index(
+                fields=["-id"],
+                include=["table_id"],
+                condition=Q(public=True, trashed=False),
+                name="database_view_public_id_idx",
+            ),
+        ]
 
-    def get_all_sorts(
+    def get_all_ordering(
         self, restrict_to_field_ids: Optional[Iterable[int]] = None
     ) -> Iterable["Union[ViewGroupBy, ViewSort]"]:
         """
@@ -595,6 +610,10 @@ class GridView(View):
         medium = "medium"
         large = "large"
 
+    class GroupByLayouts(models.TextChoices):
+        section = "section"
+        column = "column"
+
     # `field_options` is a very misleading name
     # it should probably be more like `fields_with_field_options`
     # since this field will return instances of `Field` not of
@@ -613,6 +632,14 @@ class GridView(View):
     # Number of frozen (pinned) columns including the primary field. Max defined in
     # the serializer.
     frozen_column_count = models.PositiveSmallIntegerField(default=1, db_default=1)
+    group_by_layout = models.CharField(
+        choices=GroupByLayouts.choices,
+        default=GroupByLayouts.section,
+        db_default=GroupByLayouts.section,
+        max_length=10,
+        help_text="How grouped rows are presented: sections with a header above each "
+        "group, or one column per group-by level beside the rows.",
+    )
 
 
 class GridViewFieldOptionsManager(models.Manager):

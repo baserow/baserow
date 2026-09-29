@@ -109,6 +109,42 @@ def test_send_smtp_email_basic(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST_USER="instance-user",
+    EMAIL_HOST_PASSWORD="instance-password",
+)
+def test_send_smtp_email_without_credentials_does_not_use_the_instance_account(
+    data_fixture,
+):
+    # Django's SMTP backend replaces a None username or password with the
+    # instance's own, so an integration with none stored would otherwise
+    # authenticate to its own host with the instance mail account.
+    smtp_integration = data_fixture.create_smtp_integration(
+        host="smtp.example.com",
+        username=None,
+        password=None,
+    )
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp_integration,
+        from_email="'sender@example.com'",
+        to_emails="'recipient@example.com'",
+        subject="'Subject'",
+        body="'Body'",
+    )
+
+    with patch(
+        "baserow.contrib.integrations.core.service_types.EmailMultiAlternatives",
+    ) as mock_email:
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    connection = mock_email.call_args.kwargs["connection"]
+    assert connection.host == "smtp.example.com"
+    assert connection.username == ""
+    assert connection.password == ""
+
+
+@pytest.mark.django_db
+@override_settings(
     CELERY_EMAIL_BACKEND="anymail.backends.mailgun.EmailBackend",
 )
 def test_send_smtp_email_with_integration_ignores_global_celery_email_backend(

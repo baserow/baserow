@@ -27,38 +27,33 @@
       >
         {{ $t('event.addAction') }}
       </ButtonText>
-      <Context ref="workflowActionAddContext" :hide-on-click-outside="true">
-        <div class="event__add-action-context">
-          <span
-            v-for="workflowActionType in availableWorkflowActionTypes"
-            :key="workflowActionType.getType()"
-            v-tooltip="workflowActionType.isDeactivatedReason({ workspace })"
-            tooltip-position="bottom-left"
-          >
-            <ButtonText
-              :value="workflowActionType.getType()"
-              :icon="workflowActionType.icon"
-              :image="workflowActionType.image"
-              type="primary"
-              size="small"
-              :disabled="
-                workflowActionType.isDeactivated({ workspace }) &&
-                getDeactivatedClickModal(workflowActionType) === null
-              "
-              @click="addWorkflowAction(workflowActionType)"
-            >
-              {{ workflowActionType.label }}
-            </ButtonText>
-            <component
-              :is="getDeactivatedClickModal(workflowActionType)[0]"
-              v-if="getDeactivatedClickModal(workflowActionType) !== null"
-              :ref="`deactivatedClickModal_${workflowActionType.getType()}`"
-              v-bind="getDeactivatedClickModal(workflowActionType)[1]"
-              :name="workflowActionType.label"
-              :workspace="workspace"
-            ></component>
-          </span>
-        </div>
+      <Context
+        ref="workflowActionAddContext"
+        class="event__add-action-context"
+        :hide-on-click-outside="true"
+        max-height-if-outside-viewport
+      >
+        <GroupedMenu
+          :items="workflowActionMenuGroups"
+          :search-placeholder="$t('event.searchActions')"
+          :empty-text="$t('event.noActionsFound')"
+          @select="onWorkflowActionMenuItemSelected"
+          @disabled-click="onWorkflowActionMenuItemSelected"
+          @close="$refs.workflowActionAddContext.hide()"
+        />
+        <template
+          v-for="workflowActionType in availableWorkflowActionTypes"
+          :key="workflowActionType.getType()"
+        >
+          <component
+            :is="getDeactivatedClickModal(workflowActionType)[0]"
+            v-if="getDeactivatedClickModal(workflowActionType) !== null"
+            :ref="`deactivatedClickModal_${workflowActionType.getType()}`"
+            v-bind="getDeactivatedClickModal(workflowActionType)[1]"
+            :name="workflowActionType.label"
+            :workspace="workspace"
+          />
+        </template>
       </Context>
     </div>
     <div>
@@ -102,12 +97,13 @@
 import { mapActions } from 'vuex'
 import { Event } from '@baserow/modules/builder/eventTypes'
 import WorkflowAction from '@baserow/modules/builder/components/event/WorkflowAction'
+import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'Event',
-  components: { WorkflowAction },
+  components: { GroupedMenu, WorkflowAction },
   mixins: [applicationContext],
   inject: ['workspace', 'builder', 'elementPage'],
   props: {
@@ -134,6 +130,38 @@ export default {
       addingAction: false,
       expanded: {},
     }
+  },
+  computed: {
+    workflowActionMenuGroups() {
+      const groups = new Map()
+
+      this.availableWorkflowActionTypes.forEach((workflowActionType) => {
+        const group = workflowActionType.group
+
+        if (!groups.has(group.id)) {
+          groups.set(group.id, { ...group, children: [] })
+        }
+
+        groups.get(group.id).children.push({
+          id: `workflow-action-${workflowActionType.getType()}`,
+          label: workflowActionType.label,
+          value: workflowActionType.getType(),
+          icon: workflowActionType.icon,
+          iconColor: workflowActionType.iconColor,
+          image: workflowActionType.image,
+          description: workflowActionType.description,
+          disabled: workflowActionType.isDeactivated({
+            workspace: this.workspace,
+          }),
+          disabledReason: workflowActionType.isDeactivatedReason({
+            workspace: this.workspace,
+          }),
+          meta: workflowActionType,
+        })
+      })
+
+      return Array.from(groups.values())
+    },
   },
   async mounted() {
     try {
@@ -162,6 +190,9 @@ export default {
         ...this.expanded,
         [workflow.id]: !this.expanded[workflow.id],
       }
+    },
+    onWorkflowActionMenuItemSelected(item) {
+      this.addWorkflowAction(item.meta)
     },
     async addWorkflowAction(workflowActionType) {
       if (workflowActionType.isDeactivated({ workspace: this.workspace })) {

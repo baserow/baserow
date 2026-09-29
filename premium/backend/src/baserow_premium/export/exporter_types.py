@@ -43,7 +43,7 @@ class PremiumTableExporter(TableExporter):
 class JSONQuerysetSerializer(QuerysetSerializer):
     can_handle_rich_value = True
 
-    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8"):
+    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8", **kwargs):
         """
         Writes the queryset to the provided file in json format. Will generate
         semi-structured json based on the fields in the queryset.
@@ -103,7 +103,7 @@ class JSONTableExporter(PremiumTableExporter):
 class XMLQuerysetSerializer(QuerysetSerializer):
     can_handle_rich_value = True
 
-    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8"):
+    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8", **kwargs):
         """
         Writes the queryset to the provided file in xml format. Will generate
         semi-structured xml based on the fields in the queryset. Each separate row in
@@ -183,6 +183,7 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
         file_writer: FileWriter,
         export_charset: Optional[str] = None,
         excel_include_header: bool = False,
+        **kwargs,
     ):
         """
         :param file_writer: The FileWriter instance to write to.
@@ -192,12 +193,14 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
         """
 
         from openpyxl import Workbook
-        from openpyxl.cell.cell import WriteOnlyCell
+        from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE, WriteOnlyCell
 
         workbook = Workbook(write_only=True)
         worksheet = workbook.create_sheet()
 
         def text_cell(value):
+            # Strip XML-illegal control chars that crash openpyxl's check_string.
+            value = ILLEGAL_CHARACTERS_RE.sub("", value)
             # openpyxl types a string that starts with "=" as a live formula
             # cell, so a user defined field name or cell value could carry a
             # formula injection (CWE-1236). Force those to an explicit string
@@ -255,6 +258,7 @@ class FileQuerysetSerializer(QuerysetSerializer):
         file_writer: FileWriter,
         export_charset: str = "utf-8",
         organize_files: bool = True,
+        **kwargs,
     ):
         """
         Writes files from the queryset to a zip archive. Will create a directory

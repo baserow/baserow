@@ -83,9 +83,13 @@ export default {
     },
   },
   methods: {
+    hasInputValue(value) {
+      return value !== null && value !== '' && value !== undefined
+    },
+
     toInternalValue(value) {
       if (this.isNumericField) {
-        if (value) {
+        if (this.hasInputValue(value)) {
           return new Intl.NumberFormat(this.localeLanguage, {
             useGrouping: false,
           }).format(value)
@@ -99,7 +103,7 @@ export default {
 
     fromInternalValue(value) {
       if (this.isNumericField) {
-        if (value) {
+        if (this.hasInputValue(value)) {
           try {
             return ensureNumeric(
               parseLocalizedNumber(value, this.localeLanguage),

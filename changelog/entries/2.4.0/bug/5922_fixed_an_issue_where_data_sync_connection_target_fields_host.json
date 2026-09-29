@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed an issue where data sync connection target fields (host, port, URL) could be changed without re-supplying the associated credential.",
+    "issue_origin": "github",
+    "issue_number": 5922,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-18"
+}

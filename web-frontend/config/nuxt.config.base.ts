@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { defineNuxtConfig } from 'nuxt/config'
 import svgLoader from 'vite-svg-loader'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { locales } from './locales.js'
+import { viteDevelopmentCompatibility } from './viteDevelopmentCompatibility.js'
 import pkg from '../package.json'
 
 function baserowModuleConfig(
@@ -70,6 +70,7 @@ export default defineNuxtConfig({
   modules: [...baserow.modules, '@nuxtjs/i18n', '@sentry/nuxt/module'],
   i18n: {
     strategy: 'no_prefix',
+    customRoutes: 'meta',
     defaultLocale: 'en',
     langDir: 'locales',
     locales,
@@ -79,7 +80,6 @@ export default defineNuxtConfig({
       cookieKey: `${frontendCookiePrefix}i18n-language`,
       redirectOn: 'root',
     },
-    vueI18n: './i18n.config.ts',
   },
   nitro: {
     externals: {
@@ -87,6 +87,12 @@ export default defineNuxtConfig({
     },
   },
   vite: {
+    resolve: {
+      // Vue keeps render state in module-level variables. Loading more than one
+      // physical runtime makes helpers such as renderSlot observe a different
+      // currentRenderingInstance and can crash during hydration or HMR.
+      dedupe: ['vue'],
+    },
     css: {
       preprocessorOptions: {
         scss: {
@@ -103,18 +109,7 @@ export default defineNuxtConfig({
         },
       },
     },
-    plugins: [
-      nodePolyfills({
-        include: ['util'],
-        // ✅ prevent "process already declared" in Nitro/Node
-        globals: {
-          process: false,
-          Buffer: false,
-          global: false,
-        },
-      }),
-      svgLoader(),
-    ],
+    plugins: [viteDevelopmentCompatibility, svgLoader()],
     ssr: {
       noExternal: ['vue-chartjs', 'chart.js'],
     },
@@ -167,7 +162,7 @@ export default defineNuxtConfig({
         'thenby', // CJS
         'js-sha256', // CJS
         'async-mutex',
-        'tiptap-markdown',
+        '@tiptap/markdown',
         '@tiptap/extension-placeholder',
         '@tiptap/extension-document',
         '@tiptap/extension-paragraph',
@@ -200,7 +195,6 @@ export default defineNuxtConfig({
         '@tiptap/extension-code-block-lowlight',
         'moment',
         '@tiptap/vue-3/menus',
-        'markdown-it-regexp', // CJS
         '@tiptap/extension-mention',
         '@tiptap/pm/state',
         '@tiptap/extension-image',
@@ -223,8 +217,6 @@ export default defineNuxtConfig({
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   build: {
     transpile: ['vue-chartjs', 'chart.js'],
-    cache: true,
-    cacheDirectory: process.env.NUXT_CACHE_DIR || 'node_modules/.cache',
   },
   experimental: {
     appManifest: process.env.NODE_ENV !== 'development',

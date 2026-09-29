@@ -14,6 +14,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -157,6 +158,7 @@ class GitHubIssuesDataSyncType(DataSyncType):
         "github_issues_repo",
         "github_issues_api_token",
     ]
+    sensitive_fields = ["github_issues_api_token"]
     request_serializer_field_names = [
         "github_issues_owner",
         "github_issues_repo",
@@ -307,7 +309,9 @@ class GitHubIssuesDataSyncType(DataSyncType):
                 {
                     "id": issue_id,
                     "title": get_value_at_path(issue, "title", ""),
-                    "body": get_value_at_path(issue, "body", ""),
+                    "body": escape_user_file_references(
+                        get_value_at_path(issue, "body", "")
+                    ),
                     "user": get_value_at_path(issue, "user.login", ""),
                     "assignee": get_value_at_path(issue, "assignee.login", ""),
                     "assignees": assignees,

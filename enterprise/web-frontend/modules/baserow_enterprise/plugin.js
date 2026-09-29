@@ -26,6 +26,9 @@ import {
   SamlAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
+import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -42,6 +45,7 @@ import {
 import {
   AuthFormElementType,
   FileInputElementType,
+  GraphElementType,
 } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -63,6 +67,7 @@ import {
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
+  ApplicationUserLimitNotificationType,
   DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
   TwoWayDataSyncUpdateFiledNotificationType,
@@ -75,6 +80,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  BuilderGraphElementPaidFeature,
   CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
@@ -95,6 +101,7 @@ import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSetting
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
@@ -107,6 +114,7 @@ import {
   CoreCodeNodeType,
   CoreXLSFileReaderNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
+import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -117,6 +125,10 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     $registry.register('plugin', new EnterprisePlugin(context))
+    $registry.register(
+      'aiProviderModelFeature',
+      new KumaAIProviderModelFeatureType(context)
+    )
 
     $registry.register(
       'permissionManager',
@@ -159,6 +171,15 @@ export default defineNuxtPlugin({
       'workspaceSettingsPage',
       new TeamsWorkspaceSettingsPageType(context)
     )
+    $registry.register(
+      'agentExtension',
+      new EnterpriseTeamsAgentExtensionType(context)
+    )
+    $registry.register(
+      'agentSettings',
+      new EnterpriseTeamsAgentSettingsType(context)
+    )
+    $registry.register('subject', new TeamSubjectType(context))
 
     $registry.register('job', new AuditLogExportJobType(context))
     $registry.register('job', new DataScanResultExportJobType(context))
@@ -208,6 +229,7 @@ export default defineNuxtPlugin({
 
     $registry.register('element', new AuthFormElementType(context))
     $registry.register('element', new FileInputElementType(context))
+    $registry.register('element', new GraphElementType(context))
 
     $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
@@ -232,6 +254,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'notification',
       new DataScanNewResultsNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new ApplicationUserLimitNotificationType(context)
     )
 
     $registry.register(
@@ -261,6 +287,10 @@ export default defineNuxtPlugin({
       'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
     )
+    $registry.register(
+      'paidFeature',
+      new BuilderGraphElementPaidFeature(context)
+    )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
 
@@ -285,6 +315,7 @@ export default defineNuxtPlugin({
       'databaseOnboardingStep',
       new AIDatabaseOnboardingStepType(context)
     )
+    $registry.register('onboarding', new AIPromptOnboardingType(context))
 
     $registry.register(
       'fieldContextItem',

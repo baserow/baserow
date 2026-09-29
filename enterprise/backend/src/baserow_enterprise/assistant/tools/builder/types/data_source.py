@@ -9,12 +9,10 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    formula_object,
     literal_or_placeholder,
     needs_formula,
 )
@@ -29,7 +27,18 @@ if TYPE_CHECKING:
 # Data source sort
 # ---------------------------------------------------------------------------
 
-DataSourceType = Literal["list_rows", "get_row"]
+DataSourceType = Literal[
+    "list_rows",
+    "get_row",
+    "local_baserow_list_rows",
+    "local_baserow_get_row",
+]
+
+# list_data_sources reports registered names; the tables below key on short forms.
+_CANONICAL_TO_SHORT_TYPE = {
+    "local_baserow_list_rows": "list_rows",
+    "local_baserow_get_row": "get_row",
+}
 
 
 class DataSourceSort(BaseModel):
@@ -78,6 +87,21 @@ class DataSourceCreate(BaseModel):
     the correct required fields per type.
     """
 
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_registered_type(cls, data):
+        """Normalize source aliases while leaving malformed types for validation.
+
+        :param data: The raw data source payload before model validation.
+        :return: The payload with any registered type replaced by its short alias.
+        """
+
+        if isinstance(data, dict):
+            source_type = data.get("type")
+            if isinstance(source_type, str) and source_type in _CANONICAL_TO_SHORT_TYPE:
+                data["type"] = _CANONICAL_TO_SHORT_TYPE[source_type]
+        return data
+
     ref: str = Field(..., description="Reference ID for this data source.")
     name: str = Field(..., description="Human-readable name.")
     type: DataSourceType = Field(..., description="'list_rows' or 'get_row'.")
@@ -123,21 +147,34 @@ class DataSourceCreate(BaseModel):
         return _SERVICE_TYPE[self.type]
 
     def matches_existing(self, existing: "DataSourceItem") -> bool:
-        """Check if this create request would produce a duplicate of *existing*.
+        """
+        Check if this create request would produce a duplicate of an
+        existing data source.
 
         Delegates to a per-type matcher in ``_STRUCTURAL_MATCH``.
+
+        :param existing: The existing data source to compare against.
+        :return: True when both share the type and structural configuration.
         """
 
-        if self.type != existing.type:
+        existing_type = _CANONICAL_TO_SHORT_TYPE.get(existing.type, existing.type)
+        if self.type != existing_type:
             return False
         matcher = _STRUCTURAL_MATCH.get(self.type)
         return matcher(self, existing) if matcher else False
 
     def to_service_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
-        """Build kwargs for ``DataSourceService.create_data_source()``."""
+        """
+        Build kwargs for ``DataSourceService.create_data_source()``.
 
-        from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+        :param user: The acting user.
+        :param workspace: The workspace the referenced table must belong to.
+        :return: The service kwargs for this data source type.
+        :raises ToolInputError: When the referenced table does not exist.
+        """
+
         from baserow_enterprise.assistant.tools.database.helpers import filter_tables
+        from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 
         table = filter_tables(user, workspace).filter(id=self.table_id).first()
         if table is None:
@@ -145,13 +182,13 @@ class DataSourceCreate(BaseModel):
         kwargs: dict[str, Any] = {"table": table}
 
         if self.type == "get_row" and self.row_id is not None:
-            kwargs["row_id"] = BaserowFormulaObject.create(
+            kwargs["row_id"] = formula_object(
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
         if self.type == "list_rows" and self.search_query:
-            kwargs["search_query"] = BaserowFormulaObject.create(
+            kwargs["search_query"] = formula_object(
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
@@ -212,12 +249,12 @@ class DataSourceCreate(BaseModel):
         service_kwargs: dict[str, Any] = {}
 
         if "row_id" in formulas:
-            service_kwargs["row_id"] = BaserowFormulaObject.create(
+            service_kwargs["row_id"] = formula_object(
                 formulas["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
         if "search_query" in formulas:
-            service_kwargs["search_query"] = BaserowFormulaObject.create(
+            service_kwargs["search_query"] = formula_object(
                 formulas["search_query"], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
@@ -266,7 +303,14 @@ class DataSourceUpdate(BaseModel):
     )
 
     def to_update_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
-        """Return kwargs for ``DataSourceService.update_data_source()``."""
+        """
+        Return kwargs for ``DataSourceService.update_data_source()``.
+
+        :param user: The acting user.
+        :param workspace: The workspace the referenced table must belong to.
+        :return: The service kwargs built from the fields that are set.
+        :raises ToolInputError: When the referenced table does not exist.
+        """
 
         kwargs: dict[str, Any] = {}
 
@@ -274,12 +318,10 @@ class DataSourceUpdate(BaseModel):
             kwargs["name"] = self.name
 
         if self.table_id is not None:
-            from baserow_enterprise.assistant.tools.builder.helpers import (
-                ToolInputError,
-            )
             from baserow_enterprise.assistant.tools.database.helpers import (
                 filter_tables,
             )
+            from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 
             table = filter_tables(user, workspace).filter(id=self.table_id).first()
             if table is None:
@@ -287,13 +329,13 @@ class DataSourceUpdate(BaseModel):
             kwargs["table"] = table
 
         if self.row_id is not None:
-            kwargs["row_id"] = BaserowFormulaObject.create(
+            kwargs["row_id"] = formula_object(
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
         if self.search_query is not None:
-            kwargs["search_query"] = BaserowFormulaObject.create(
+            kwargs["search_query"] = formula_object(
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )

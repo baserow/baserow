@@ -122,6 +122,7 @@ def test_list_workspace_applications(data_fixture, enterprise_data_fixture, api_
                 "generative_ai_models_enabled": {},
             },
             "created_on": AnyStr(),
+            "last_viewed": None,
             "tables": [
                 {
                     "id": table1.id,
@@ -143,6 +144,7 @@ def test_list_workspace_applications(data_fixture, enterprise_data_fixture, api_
                 "generative_ai_models_enabled": {},
             },
             "created_on": AnyStr(),
+            "last_viewed": None,
             "tables": [
                 {
                     "id": table2.id,

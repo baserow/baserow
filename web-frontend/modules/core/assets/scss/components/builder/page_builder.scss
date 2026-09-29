@@ -18,14 +18,6 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-
-  &.page-builder__preview--tablet {
-    max-width: 768px;
-  }
-
-  &.page-builder__preview--smartphone {
-    max-width: 500px;
-  }
 }
 
 .page-builder__preview-add {

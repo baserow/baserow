@@ -1,5 +1,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { nameContainsNoUrl } from '@baserow/modules/core/validators'
+import {
+  nameContainsNoSpam,
+  nameContainsNoUrl,
+} from '@baserow/modules/core/validators'
 
 /**
  * Some helper methods to modify workspaces used by the dashboard.
@@ -17,11 +20,16 @@ export default {
       // The name is edited inline without a form, so there is no place to show
       // a validation error. Show a toast notification instead and revert the
       // name.
-      if (!nameContainsNoUrl(event.value)) {
+      const invalidNameMessage = !nameContainsNoUrl(event.value)
+        ? this.$t('error.nameContainsUrl')
+        : !nameContainsNoSpam(event.value)
+          ? this.$t('error.nameContainsSpam')
+          : null
+      if (invalidNameMessage) {
         this.$refs.rename.set(event.oldValue)
         this.$store.dispatch('toast/error', {
           title: this.$t('editWorkspace.invalidNameTitle'),
-          message: this.$t('error.nameContainsUrl'),
+          message: invalidNameMessage,
         })
         return
       }

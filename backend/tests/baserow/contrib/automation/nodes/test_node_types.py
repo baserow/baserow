@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+from django.test import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 
@@ -25,7 +26,12 @@ from baserow.contrib.integrations.core.constants import (
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.handler import CoreHandler
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
@@ -70,6 +76,33 @@ def test_local_baserow_fields_updated_node_creates_field_updated_service(data_fi
     )
 
     assert isinstance(node.service.specific, LocalBaserowFieldsUpdated)
+
+
+@pytest.mark.django_db
+def test_core_response_node_defaults_status_code_to_raw_204(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("response")
+
+    values = node_type.prepare_values({"workflow": workflow}, user)
+
+    assert values["service"].specific.status_code == BaserowFormulaObject.create(
+        "204", mode=BASEROW_FORMULA_MODE_RAW
+    )
+
+
+@pytest.mark.django_db
+def test_core_response_node_preserves_provided_status_code(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("response")
+    status_code = BaserowFormulaObject.create("201", mode=BASEROW_FORMULA_MODE_RAW)
+
+    values = node_type.prepare_values(
+        {"workflow": workflow, "service": {"status_code": status_code}}, user
+    )
+
+    assert values["service"].specific.status_code == status_code
 
 
 @pytest.mark.django_db
@@ -210,7 +243,9 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(
-        user=user, type="local_baserow_update_row"
+        user=user,
+        type="local_baserow_update_row",
+        service_kwargs={"row_id": "'1'"},
     )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -218,6 +253,59 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
     assert result == mock_dispatch_result
     mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "row_id,exception,message",
+    [
+        (
+            "",
+            ServiceImproperlyConfiguredDispatchException,
+            "A row ID is required to update a row.",
+        ),
+        (
+            "  ",
+            ServiceImproperlyConfiguredDispatchException,
+            "A row ID is required to update a row.",
+        ),
+        (
+            "'0'",
+            ServiceImproperlyConfiguredDispatchException,
+            "The row with id 0 does not exist.",
+        ),
+        (
+            "''",
+            InvalidContextContentDispatchException,
+            'Value error for "row_id": The value is required',
+        ),
+    ],
+)
+def test_automation_node_type_update_row_dispatch_without_a_row_to_update(
+    data_fixture, row_id, exception, message
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=workflow.automation, user=user
+    )
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[["Horse"]]
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table, integration=integration, row_id=row_id
+    )
+    service.field_mappings.create(field=fields[0], value="'Cow'", enabled=True)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_update_row", service=service
+    )
+
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    with pytest.raises(exception) as exc:
+        node.get_type().dispatch(node, dispatch_context)
+    assert str(exc.value) == message
+
+    assert [r.id for r in table.get_model().objects.all()] == [rows[0].id]
 
 
 @pytest.mark.django_db
@@ -746,3 +834,61 @@ def test_automation_node_type_has_display_name(node_type):
     assert node_type.display_name != _("Unnamed element"), (
         f"{type(node_type).__name__}.display_name is still the default 'Unnamed element'"
     )
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "INBOUND_EMAIL_DOMAIN",
+        "INBOUND_EMAIL_WEBHOOK_SECRET",
+        "INBOUND_EMAIL_RECEIVER_URL",
+    ],
+)
+def test_inbound_email_trigger_deactivated_when_any_setting_is_missing(missing):
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+
+    values = {
+        "INBOUND_EMAIL_DOMAIN": "inbound.example.com",
+        "INBOUND_EMAIL_WEBHOOK_SECRET": "s",
+        # Without the receiver URL the sweep cannot delete handed-over messages
+        # and the mail server's disk would grow forever, so the trigger stays off.
+        "INBOUND_EMAIL_RECEIVER_URL": "http://email-receiver:8880",
+        missing: "",
+    }
+    node_type = automation_node_type_registry.get("email_trigger")
+    with override_settings(**values):
+        assert node_type.is_deactivated(None) is True
+
+
+@override_settings(
+    INBOUND_EMAIL_DOMAIN="inbound.example.com",
+    INBOUND_EMAIL_WEBHOOK_SECRET="s",
+    INBOUND_EMAIL_RECEIVER_URL="http://email-receiver:8880",
+)
+def test_inbound_email_trigger_active_when_configured():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+
+    node_type = automation_node_type_registry.get("email_trigger")
+    assert node_type.is_deactivated(None) is False
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN="", INBOUND_EMAIL_WEBHOOK_SECRET="")
+def test_create_inbound_email_trigger_blocked_when_unconfigured(data_fixture):
+    from rest_framework.exceptions import PermissionDenied
+
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.automation.nodes.service import AutomationNodeService
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    node_type = automation_node_type_registry.get("email_trigger")
+    with pytest.raises(PermissionDenied):
+        AutomationNodeService().create_node(user, node_type, workflow)

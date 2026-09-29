@@ -9,8 +9,6 @@ from django.db.models.functions import Coalesce, Now
 from django.utils import translation
 from django.utils.translation import gettext as _
 
-from opentelemetry import trace
-
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.constants import RESERVED_BASEROW_FIELD_NAMES
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
@@ -21,7 +19,7 @@ from baserow.contrib.database.fields.exceptions import (
     ReservedBaserowFieldNameException,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import (
@@ -37,9 +35,10 @@ from baserow.contrib.database.table.expressions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, application_type_registry
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.core.user_files.models import UserFile
@@ -69,8 +68,6 @@ from .signals import table_created, table_deleted, table_updated, tables_reorder
 BATCH_SIZE = 1024
 
 TableForUpdate = NewType("TableForUpdate", Table)
-
-tracer = trace.get_tracer(__name__)
 
 
 class TableUsageHandler:
@@ -243,7 +240,8 @@ class TableUsageHandler:
         return total_tables_counted
 
 
-class TableHandler(metaclass=baserow_trace_methods(tracer)):
+@baserow_trace_handler
+class TableHandler:
     @classmethod
     def get_tables(
         cls, base_queryset: Optional[QuerySet[Table]] = None
@@ -768,6 +766,8 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             include_permission_data=True,
             reduce_disk_space_usage=False,
             is_duplicate=True,
+            exclude_sensitive_data=False,
+            copied_by=user,
         )
 
         serialized_tables = database_type.export_tables_serialized([table], config)
@@ -787,6 +787,17 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         ).values_list("dependency_id", flat=True)
         all_table_dependency_field_ids = {
             field_id: field_id for field_id in all_table_dependency_field_ids
+        }
+        # Filters on lookup fields can reference select options of fields in other
+        # tables, possibly through several lookups, so all the select options
+        # outside of the duplicated table are added to the mapping as well.
+        all_other_table_select_option_ids = (
+            SelectOption.objects.filter(field__table__database_id=database.id)
+            .exclude(field__table_id=table.id)
+            .values_list("id", flat=True)
+        )
+        all_other_table_select_option_ids = {
+            option_id: option_id for option_id in all_other_table_select_option_ids
         }
 
         # It can happen that a field has a reference to another view. We would
@@ -812,7 +823,7 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             "database_view_decorations": {},
             # We have to create the `database_field_select_options` because that's
             # otherwise not created later on.
-            "database_field_select_options": {},
+            "database_field_select_options": all_other_table_select_option_ids,
         }
 
         link_fields_to_import_to_existing_tables = (
@@ -822,16 +833,17 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         )
         progress.increment(by=export_progress)
 
-        imported_tables = database_type.import_tables_serialized(
-            database,
-            [exported_table],
-            id_mapping,
-            config,
-            external_table_fields_to_import=link_fields_to_import_to_existing_tables,
-            progress_builder=progress.create_child_builder(
-                represents_progress=import_progress
-            ),
-        )
+        with deferred_callback_context():
+            imported_tables = database_type.import_tables_serialized(
+                database,
+                [exported_table],
+                id_mapping,
+                config,
+                external_table_fields_to_import=link_fields_to_import_to_existing_tables,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=import_progress
+                ),
+            )
 
         new_table_clone = imported_tables[0]
 

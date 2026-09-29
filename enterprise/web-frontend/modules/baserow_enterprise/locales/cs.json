@@ -3,10 +3,11 @@
         "sso": "SSO",
         "deactivated": "Dostupné ve verzi advanced/enterprise",
         "license": "Enterprise",
-        "sidebarTooltip": "Tvůj účet má celkový přístup k enterprise funkcím",
+        "sidebarTooltip": "Váš účet má celkový přístup k enterprise funkcím",
         "rbac": "RBAC",
-        "licenseDescription": "Uživatelé typu Viewer jsou u verze Baserow Enterprise zdarma. Pokud má uživatel jakoukoliv další roli, bude v pracovním prostoru automaticky použita placená instance.",
-        "overflowWarning": "Počet uživatelů s rolí jinou než Viewer dosáhl maxima a jsou využity všechny placené pozice. Pro jejich uvolnění změň roli uživatelů na Viewer va každém pracovním prostoru v sekci Členové."
+        "licenseDescription": "Uživatelé s rolemi Viewer a Commenter jsou v tomto tarifu zdarma. Pokud má uživatel v kterémkoli pracovním prostoru jakoukoli jinou roli, automaticky obsadí placené místo.",
+        "overflowWarning": "Máte příliš mnoho uživatelů s jinou rolí než Viewer nebo Commenter a vyčerpali jste všechna placená místa. Na stránce Členové v každém pracovním prostoru změňte jejich roli na Viewer.",
+        "enterpriseOnlyDeactivated": "Dostupné ve verzi Enterprise"
     },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Poslední povolený poskytovatel",
@@ -18,11 +19,11 @@
     "createTeamModal": {
         "title": "Vytvořit tým",
         "invalidNameMessage": "Tento název týmu je v daném pracovním prostoru již použit.",
-        "invalidNameTitle": "Prosím, použij jiný název"
+        "invalidNameTitle": "Použijte jiný název"
     },
     "updateTeamModal": {
         "title": "Aktualizovat {teamName}",
-        "invalidNameTitle": "Prosím, použij jiný název",
+        "invalidNameTitle": "Použijte jiný název",
         "invalidNameMessage": "Tento název týmu je v daném pracovním prostoru již použit."
     },
     "manageTeamModals": {
@@ -34,7 +35,7 @@
         "roleTitle": "Výchozí role",
         "inviteMembers": "Přidat členy",
         "membersTitle": "Členové",
-        "noSubjectsSelected": "Pro případné přidání členů do týmu klikni na '{buttonLabel}'.",
+        "noSubjectsSelected": "Pro případné přidání členů do týmu klikněte na '{buttonLabel}'.",
         "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým."
     },
     "editTeamContext": {
@@ -55,7 +56,8 @@
     },
     "adminType": {
         "AuditLog": "Protokol o auditu",
-        "Authentication": "Ověření"
+        "Authentication": "Ověření",
+        "DataScanner": "Skener dat"
     },
     "auditLog": {
         "filterUserTitle": "Uživatel",
@@ -81,14 +83,14 @@
         "filterFromTimestamp": "Od"
     },
     "subjectSampleField": {
-        "titleAttr": "Počet členů v tomto týmu je {subjectCount}"
+        "titleAttr": "Počet členů v tomto týmu je {subjectCount}."
     },
     "auditLogExportModal": {
         "title": "Export do CSV",
         "exportFilename": "Export správcovského protokolu auditu - {date}",
         "exportWorkspaceFilename": " Pracovní prostor ({workspaceId}) export protokolu auditu - {date}",
         "cancelledTitle": "Export se nezdařil",
-        "cancelledDescription": "Během exportu protokolu auditu nastala chyba. Prosím zkus to znovu."
+        "cancelledDescription": "Během exportu protokolu auditu nastala chyba. Prosím zkuste to znovu."
     },
     "authProviders": {
         "noProviders": "Dosud nebyly nakonfigurováni žádní poskytovatelé ověření.",
@@ -96,37 +98,50 @@
         "title": "Poskytovatelé ověření"
     },
     "authProviderTypes": {
-        "password": "Ověření pomocí e-mailu a hesla"
+        "password": "Ověření pomocí e-mailu a hesla",
+        "saml": "Poskytovatel SSO SAML",
+        "ssoSamlProviderNameUnconfigured": "Nenakonfigurované SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "Nenakonfigurované OpenID Connect",
+        "ssoSamlProviderName": "SSO SAML: {domain}"
     },
     "editAuthProviderMenuContext": {
         "edit": "Upravit",
         "delete": "Smazat"
     },
     "samlSettingsForm": {
-        "domain": "Doména",
+        "domain": "Doména SAML",
         "domainPlaceholder": "Vložte název domény společnosti...",
         "invalidDomain": "Neplatný název domény",
         "domainAlreadyExists": "Poskytovatel SAML pro tuto doménu již existuje",
         "metadata": "Metadata",
-        "metadataPlaceholder": "Vlož metadata poskytovatele identity...",
+        "metadataPlaceholder": "Vložte metadata poskytovatele identity...",
         "relayStateUrl": "Výchozí URL adresa Relay State",
         "acsUrl": "Adresa URL pro Single Sign On",
         "invalidMetadata": "Neplatná XML metadata pro poskytovatele identit",
-        "providerIsVerified": "Poskytovatel byl ověřen"
+        "providerIsVerified": "Poskytovatel byl ověřen",
+        "samlResponseSettings": "Atributy odpovědi SAML",
+        "defaultAttrs": "Výchozí",
+        "customAttrs": "Vlastní",
+        "emailAttrKey": "E-mail",
+        "emailAttrKeyHelper": "E-mailová adresa, která se použije jako uživatelské jméno.",
+        "firstNameAttrKey": "Jméno",
+        "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
+        "lastNameAttrKey": "Příjmení",
+        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“."
     },
     "loginError": {
         "errorInvalidSamlRequest": "Požadavek SAML je neplatný.",
         "errorInvalidSamlResponse": "Odpověď SAML je neplatná.",
         "errorProviderDoesNotExist": "tento zprostředkovatel ověřování neexistuje nebo není k dispozici.",
-        "errorWorkspaceInvitationEmailMismatch": "Tvoje e-mailová adresa neodpovídá pozvánce.",
-        "loginText": "Již máš účet?",
-        "help": "Pro pomoc, prosím, kontaktuj svého administrátora.",
+        "errorWorkspaceInvitationEmailMismatch": "Vaše e-mailová adresa neodpovídá pozvánce.",
+        "loginText": "Již máte účet?",
+        "help": "Pro pomoc, prosím, kontaktujte svého administrátora.",
         "errorAuthFlowError": "během ověřovacího procesu s vybraným zprostředkovatelem došlo k chybě.",
-        "errorDifferentProvider": "použijprosím poskytovatele, u kterého jsi se původně zaregistroval.",
+        "errorDifferentProvider": "použijte prosím poskytovatele, u kterého jste se původně zaregistrovali.",
         "errorSignupDisabled": "přihlášení bylo administrátorem zakázáno.",
         "title": "Něco se nepodařilo:",
         "defaultErrorMessage": "Průběh přihlášení pomocí SSO nebylo možné dokončit.",
-        "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktuj svého administrátora.",
+        "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktujte svého administrátora.",
         "errorUserDeactivated": "uživatel byl zakázán."
     },
     "roles": {
@@ -177,10 +192,17 @@
             "warningMessage": "Ostatní uživatelé mohou zdědit přístup prostřednictvím svých příslušných rolí v nadřazeném pracovním prostoru.",
             "headerTooltip": "Role databáze budou mít přednost před rolemi pracovního prostoru.",
             "selectMembers": "Vybrat členy"
-        }
+        },
+        "selectMembers": "Vybrat členy",
+        "title": "{name} {type}",
+        "warningTitle": "Ostatní uživatelé mohou přístup zdědit!",
+        "warningMessage": "Ostatní uživatelé mohou přístup zdědit prostřednictvím svých rolí v nadřazeném objektu {parent}.",
+        "headerTooltip": "Role u tohoto objektu typu {type} přepíšou role {overrides}.",
+        "everyoneHasAccess": "Přístup k objektu typu {type} mají všichni v pracovním prostoru {name}.",
+        "onlyYouHaveAccess": "K tomuto objektu typu {type} máte přístup pouze vy."
     },
     "loginWithSaml": {
-        "loginText": "Již máš heslo?",
+        "loginText": "Již máte heslo?",
         "signInWithSaml": "Přihlásit se pomocí SAML SSO",
         "redirecting": "Přesměrování na poskytovatele identity...",
         "continueWithSaml": "Pokračovat k poskytovateli SAML SSO",
@@ -203,9 +225,663 @@
             "title": "Nelze načíst data",
             "description": "Při načítání dat člena došlo k chybě."
         },
-        "memberRolesTableTabTitle": "Aktuální tabulka"
+        "memberRolesTableTabTitle": "Tabulka",
+        "memberRolesViewTabTitle": "Zobrazení"
     },
     "createSettingsAuthProviderModal": {
-        "title": "Vlož nový {type}"
+        "title": "Přidat nový {type}"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} zdroj | {count} zdroje"
+    },
+    "memberRolesDatabaseContexItem": {
+        "label": "Spravovat členy",
+        "additionalRoles": "Další role"
+    },
+    "memberRolesMembersList": {
+        "teamMembersCount": "Členové týmu: {count}",
+        "adminHelpText": "Administrátoři mohou omezit role ostatních administrátorů.",
+        "noMembers": "Nejsou vybráni žádní členové. Přidejte člena pomocí tlačítka výběru.",
+        "remove": "Odebrat"
+    },
+    "roleAssignmentModal": {
+        "membersTab": "Členové",
+        "teamsTab": "Týmy",
+        "subjectTypeNameMembers": "členové",
+        "subjectTypeNameTeams": "týmy"
+    },
+    "selectMembersList": {
+        "searchPlaceholder": "Hledat členy...",
+        "selectedAmountLabel": "Vybraní členové: {count}"
+    },
+    "selectTeamsList": {
+        "searchPlaceholder": "Hledat týmy...",
+        "selectedAmountLabel": "Vybrané týmy: {count}"
+    },
+    "selectSubjectsListFooter": {
+        "invite": "Pozvat {type} ({count})",
+        "types": {
+            "members": "členy",
+            "teams": "týmy"
+        },
+        "helpTooltip": "Přiřazení role člena má přednost před přiřazením role týmu."
+    },
+    "membersRoleField": {
+        "noAccessHelpText": "Tento uživatel potřebuje výslovný přístup ke zdrojům.",
+        "adminHelpText": "Administrátoři mohou omezit role ostatních administrátorů."
+    },
+    "membersPagePlugin": {
+        "roleHelpText": "Lze přepsat rolemi na úrovni databází a tabulek."
+    },
+    "oauthSettingsForm": {
+        "providerName": "Název",
+        "providerNamePlaceholder": "Vlastní název poskytovatele",
+        "clientId": "ID klienta",
+        "clientIdPlaceholder": "ID klienta poskytovatele",
+        "secret": "Tajný klíč",
+        "secretPlaceholder": "Tajný klíč poskytovatele",
+        "baseUrl": "URL",
+        "baseUrlPlaceholder": "Základní URL poskytovatele",
+        "duplicateBaseUrl": "Zadaná URL již existuje u jiného poskytovatele",
+        "invalidBaseUrl": "Zadaná URL není platnou URL poskytovatele",
+        "useIdToken": "Získávat informace o uživateli z ID tokenu",
+        "responseSettings": "Atributy odpovědi OIDC",
+        "defaultAttrs": "Výchozí",
+        "customAttrs": "Vlastní",
+        "emailAttrKey": "E-mail",
+        "emailAttrKeyHelper": "E-mailová adresa, která se použije jako uživatelské jméno. ",
+        "firstNameAttrKey": "Jméno",
+        "lastNameAttrKey": "Příjmení",
+        "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
+        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“.",
+        "callbackUrl": "URL zpětného volání"
+    },
+    "loginButton": {
+        "continueWith": "Pokračovat pomocí"
+    },
+    "enterpriseFeatures": {
+        "sso": "Jednotné přihlašování",
+        "ssoContent": "Povolte bezpečné a plynulé přihlašování pomocí SAML, Google, Facebook, GitHub, GitLab nebo OpenID Connect. Současně lze používat více poskytovatelů. SSO podporuje jak samotný nástroj Baserow, tak ověřovací systém tvůrce aplikací.",
+        "rbac": "Řízení přístupu podle rolí",
+        "rbacContent": "Spravujte oprávnění s přesností. Přiřazujte role, například Admin, Builder, Editor, Commenter nebo Viewer, na úrovni pracovního prostoru, databáze, tabulky a zobrazení. Přístup můžete spravovat také podle týmů.",
+        "coBranding": "Nahrazení loga pro společnou značku",
+        "coBrandingContent": "Přizpůsobte rozhraní Baserow vlastním logem. Upozorňujeme, že se přidá text „powered by Baserow“.",
+        "support": "Přímá podpora",
+        "supportContent": "Získejte pomoc, když ji potřebujete. Kontaktujte tým Baserow přímo z platformy.",
+        "fieldLevelPermissions": "Oprávnění na úrovni polí",
+        "fieldLevelPermissionsContent": "Určete, kdo může upravovat konkrétní pole v tabulce. Nastavte oprávnění pro role Editor, Builder a Admin, nebo změny hodnot pole úplně zakažte.",
+        "builderBranding": "Vizuální identita aplikace",
+        "builderBrandingContent": "Odstraňte z patičky aplikace označení „Made with Baserow“ a použijte vlastní značku.",
+        "builderFileInputElement": "Prvek pro nahrávání souborů",
+        "builderFileInputElementContent": "Prvek pro nahrávání souborů umožňuje přidat na stránky aplikace pole pro nahrávání souborů. Uživatelé tak mohou ukládat důležité dokumenty nebo obrázky.",
+        "builderCustomCode": "Vlastní kód pro aplikace",
+        "builderCustomCodeContent": "Vzhled a chování aplikace můžete dále přizpůsobit vlastním kódem CSS/JavaScript. Můžete například integrovat externí služby, jako jsou analytické nástroje nebo sociální sítě.",
+        "dataSync": "Synchronizace dat",
+        "dataSyncContent": "Udržujte tabulky automaticky aktuální synchronizací s jinými tabulkami Baserow nebo s externími zdroji, například Jira, GitHub, GitLab či HubSpot. Funkce podporuje také periodickou synchronizaci a u podporovaných typů obousměrnou synchronizaci dat.",
+        "advancedWebhooks": "Pokročilé webhooky",
+        "advancedWebhooksContent": "Spouštějte webhooky, když řádek vstoupí do určitého zobrazení. Hodí se pro automatizaci pracovních postupů podle podmínek filtrů.",
+        "dateDependencyContent": "Můžete definovat závislost mezi dvěma daty a dobou trvání jako datum začátku, datum konce a dobu trvání. Pokud se při datumové závislosti jedna hodnota změní, ostatní hodnoty se odpovídajícím způsobem upraví.",
+        "auditLogs": "Protokoly auditu",
+        "auditLogsContent": "Sledujte vše, co se děje. Zobrazte úplnou historii akcí v celé instanci nebo pracovním prostoru a filtrujte ji podle uživatele, akce a dalších údajů.",
+        "codeRunner": "Spouštění kódu",
+        "codeRunnerContent": "Spouštějte kód v jazyce JavaScript v uzlech automatizace a akcích pracovních postupů tvůrce aplikací.",
+        "xlsFileReader": "Čtečka souborů XLS",
+        "xlsFileReaderContent": "Načítejte řádky ze souborů XLS a XLSX v uzlech automatizace a akcích pracovních postupů tvůrce aplikací.",
+        "dataScanner": "Skener dat",
+        "dataScannerContent": "Prohledávejte všechna data v instanci Baserow a hledejte citlivé vzory, například čísla IBAN nebo zdravotnické identifikátory, případně porovnávejte data se seznamy známých hodnot. Nastavte automatické plány skenování a zobrazujte podrobné výsledky.",
+        "dateDependency": "Datumová závislost"
+    },
+    "userTeamsField": {
+        "no_records": "Žádné týmy"
+    },
+    "appAuthProviderType": {
+        "localBaserowPassword": "E-mail / heslo",
+        "commonSaml": "SAML SSO",
+        "openIdConnect": "OpenID Connect"
+    },
+    "commonSamlSettingForm": {
+        "relayStateTitle": "Výchozí URL Relay State (kliknutím zkopírujete)",
+        "acsTitle": "URL jednotného přihlašování (kliknutím zkopírujete)",
+        "addDomainNotice": "Dostupné po přidání alespoň jedné domény"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "URL zpětného volání (kliknutím zkopírujete)",
+        "callbackHelperText": "Přidejte tyto URL do nastavení URI pro přesměrování u poskytovatele OpenID Connect.",
+        "preview": "Náhled"
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} pomocí SAML",
+        "provideEmail": "Zadejte e-mail svého účtu SAML",
+        "emailPlaceholder": "Zadejte svůj e-mail..."
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} pomocí {provider}"
+    },
+    "viewOwnershipType": {
+        "restricted": "Omezené",
+        "restrictedDescription": "Uživatelé s rolí Editor a nižší vidí pouze filtrovaná data a viditelná pole. Členy lze spravovat."
+    },
+    "chatwootSupportSidebarWorkspace": {
+        "directSupport": "Přímá podpora"
+    },
+    "snapshotModalWarning": {
+        "message": "Upozorňujeme, že snímek bude obsahovat všechna oprávnění nastavená u aplikace a jejích tabulek."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Upozorňujeme, že export nebude obsahovat žádná oprávnění nastavená u aplikace a jejích tabulek."
+    },
+    "auditLogSidebarWorkspace": {
+        "title": "Protokol auditu"
+    },
+    "localBaserowUserSourceType": {
+        "notConfigured": "Nenakonfigurováno"
+    },
+    "localBaserowUserSourceForm": {
+        "description": "Každý řádek v tabulce představuje uživatelský účet. Vyberte odpovídající pole v tabulce. Pole e-mailu se použije k identifikaci.",
+        "emailFieldLabel": "Vybrat pole e-mailu",
+        "emailFieldLabelPlaceholder": "Vyberte pole...",
+        "noFields": "Žádná pole",
+        "nameFieldLabel": "Vybrat pole jména",
+        "nameFieldPlaceholder": "Vyberte pole...",
+        "roleFieldLabel": "Vybrat pole role",
+        "roleFieldPlaceholder": "Vyberte pole..."
+    },
+    "localBaserowPasswordAppAuthProviderForm": {
+        "passwordFieldLabel": "Vybrat pole hesla",
+        "noFields": "Žádná kompatibilní pole"
+    },
+    "enterpriseSettings": {
+        "branding": "Vizuální identita",
+        "showBaserowHelpMessage": "Zobrazovat zprávu s žádostí o pomoc",
+        "showBaserowHelpMessageDescription": "Určuje, zda se má na nástěnce zobrazovat zpráva s žádostí o pomoc.",
+        "deactivated": "Dostupné ve verzi Enterprise",
+        "coBrandingLogo": "Logo",
+        "coBrandingLogoDescription": "Nahradí logo Baserow vlastním logem pro společnou značku (176x29). Pokud je nastaveno, odstraní také popis Baserow v zápatí všech e-mailů.",
+        "uploadFileButton": "Nahrát obrázek"
+    },
+    "authFormElementForm": {
+        "userSource": "Zdroj uživatelů",
+        "loginButtonLabel": "Popisek přihlašovacího tlačítka",
+        "loginButtonLabelPlaceholder": "Zadejte popisek..."
+    },
+    "authFormElement": {
+        "email": "E-mail",
+        "password": "Heslo",
+        "emailPlaceholder": "Zadejte svůj e-mail...",
+        "passwordPlaceholder": "Zadejte své heslo...",
+        "selectOrConfigureUserSourceFirst": "Než začnete tento přihlašovací prvek používat, zvolte zdroj uživatelů."
+    },
+    "fileInputElementForm": {
+        "defaultNameTitle": "Počáteční název souboru|Počáteční názvy souborů",
+        "defaultNamePlaceholder": "Zadejte název souboru...|Zadejte názvy souborů...",
+        "defaultNameHelp": "Počet názvů musí odpovídat počtu URL.",
+        "defaultUrlTitle": "Počáteční URL souboru|Počáteční URL souborů",
+        "defaultUrlPlaceholder": "Zadejte výchozí URL...|Zadejte výchozí URL...",
+        "helpTextTitle": "Text nápovědy",
+        "helpTextPlaceholder": "Ponechte prázdné pro výchozí hodnotu...",
+        "multiple": "Více souborů?",
+        "required": "Povinné",
+        "fileTypes": "Typy souborů",
+        "fileTypesHelper": "Zvolte přípony souborů, které má vstup souborů povolit (jednu na řádek), například jpg, png, svg nebo pdf. Chcete-li povolit všechny soubory daného typu, můžete zadat image/*, video/* nebo audio/*. Ponecháte-li pole prázdné, budou povoleny všechny typy souborů.",
+        "preview": "Zobrazovat náhledy obrázků?",
+        "maxFileSize": "Maximální velikost souboru",
+        "maxFileSizePlaceholder": "Zadejte číslo...",
+        "addFileType": "Přidat typ souboru"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Přetáhněte soubory sem nebo je vyberte kliknutím",
+        "fileSizeExceeded": "Soubor je příliš velký. Maximum je {max} MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Upravit oprávnění pole",
+        "description": "Zvolte, kdo může upravovat hodnoty v poli {fieldName}.",
+        "question": "Kdo může toto pole upravovat?",
+        "editorTitle": "Role Editor a vyšší (výchozí)",
+        "editorDescription": "Uživatelé s rolemi Editor, Builder a Admin",
+        "builderTitle": "Role Builder a vyšší",
+        "builderDescription": "Uživatelé s rolemi Builder a Admin",
+        "adminTitle": "Pouze role Admin",
+        "adminDescription": "Uživatelé s rolí Admin",
+        "nobodyTitle": "Nikdo",
+        "nobodyDescription": "Žádní uživatelé",
+        "allowInForms": "Povolit nastavení tohoto pole v řádcích vytvořených prostřednictvím formulářů",
+        "linkRowWarning": "Toto je pole „Odkaz na tabulku“. Chcete-li zajistit, aby hodnoty nebylo možné měnit z propojené tabulky, nastavte správná oprávnění také u propojené tabulky."
+    },
+    "builderSettingTypes": {
+        "customCode": "Vlastní CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Vlastní CSS",
+        "customJS": "Vlastní JavaScript",
+        "customCSSPlaceholder": "Zadejte vlastní kód CSS...",
+        "customJSPlaceholder": "Zadejte vlastní kód JS...",
+        "externalScripts": "Externí skripty / styly",
+        "noScript": "Rozšiřte aplikaci pomocí externích skriptů nebo stylů",
+        "customCodeTitle": "Vlastní kód",
+        "customCodeHelp": "Vlastní kód je viditelný pouze v náhledu nebo publikovaných aplikacích. Výsledky nejsou v editoru viditelné.",
+        "addExternalScript": "Přidat externí skript"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Typ",
+        "loadType": "Způsob načtení",
+        "url": "URL",
+        "urlPlaceholder": "Zadejte URL skriptu...",
+        "crossorigin": "Cross-origin",
+        "typeCSS": "CSS",
+        "typeJS": "JavaScript",
+        "loadTypeNone": "Běžné",
+        "loadTypeDefer": "Defer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Běžné",
+        "crossoriginTypeAnonymous": "Anonymous",
+        "crossoriginTypeCredentials": "Použít přihlašovací údaje",
+        "includeCredentials": "Zahrnout přihlašovací údaje"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "Vybraný zdroj uživatelů nemá žádnou možnost přihlášení",
+        "errorUserSourceMissing": "Není vybrán žádný zdroj uživatelů"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Upravit oprávnění pole"
+    },
+    "enterpriseDataSyncType": {
+        "localBaserowTable": "Synchronizovat tabulku Baserow",
+        "jiraIssues": "Synchronizovat problémy Jira",
+        "githubIssues": "Synchronizovat problémy GitHub",
+        "gitlabIssues": "Synchronizovat problémy GitLab",
+        "hubspotContacts": "Synchronizovat kontakty HubSpot"
+    },
+    "localBaserowTableDataSync": {
+        "authorizing": "Autorizujete svůj účet k výběru dat ze zdrojové tabulky.",
+        "workspace": "Pracovní prostor",
+        "database": "Databáze",
+        "table": "Tabulka",
+        "view": "Zobrazení",
+        "viewHelper": "Synchronizují se pouze viditelná pole a řádky odpovídající filtrům.",
+        "name": "ID zdrojové tabulky"
+    },
+    "jiraIssuesDataSync": {
+        "jiraUrl": "URL instance Jira",
+        "urlHelper": "Základní URL vaší instance Jira (např. https://your-domain.atlassian.net).",
+        "authenticationLabel": "Ověření",
+        "authenticationHelper": "Zvolte způsob ověření pro službu Jira.",
+        "projectKey": "Klíč projektu Jira (volitelné)",
+        "projectKeyHelper": "Klíč projektu Jira (např. PROJ). Najdete jej kliknutím na `Project settings` v Jira. Pokud jej nezadáte, vrátí se všechny problémy.",
+        "jiraUsername": "Uživatelské jméno Jira",
+        "usernameHelper": "Uživatelské jméno účtu Jira použitého k ověření. Jde o e-mail, kterým se přihlašujete.",
+        "apiToken": "Token API Jira",
+        "apiTokenHelper": "Token API účtu Jira použitý k ověření. Lze jej vytvořit na adrese https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "personalAccessToken": "Osobní přístupový token Jira",
+        "personalAccessTokenHelper": "Token API účtu Jira použitý k ověření. Lze jej vytvořit na adrese https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
+    },
+    "githubIssuesDataSync": {
+        "owner": "Vlastník",
+        "ownerHelper": "Uživatelské jméno nebo vlastník repozitáře. Obvykle je uveden vlevo nahoře jako `owner / repo`",
+        "repo": "Repozitář",
+        "repoHelper": "Název repozitáře. Obvykle je uveden vlevo nahoře jako `owner / repo`",
+        "apiToken": "Token API",
+        "apiTokenHelper": "Lze jej vygenerovat na adrese https://github.com/settings/tokens kliknutím na `Generate new token`, výběrem `All repositories` a následným nastavením `Issues` na `read-only` v části `Repository permissions`."
+    },
+    "gitlabIssuesDataSync": {
+        "url": "Základní URL",
+        "urlHelper": "Základní URL vaší instance GitLab (např. https://gitlab.com)",
+        "projectId": "ID projektu",
+        "projectIdHelper": "ID projektu, ze kterého chcete synchronizovat problémy. Najdete jej na stránce projektu (např. https://gitlab.com/baserow/baserow), kde kliknete na tři tečky vpravo nahoře a poté na 'Copy project ID: 12345678'.",
+        "accessToken": "Přístupový token",
+        "accessTokenHelper": "Lze jej vygenerovat na adrese https://gitlab.com/-/user_settings/personal_access_tokens kliknutím na `Add new token` a výběrem `read_api`."
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Přístupový token soukromé aplikace",
+        "accessTokenHelper": "Chcete-li v HubSpot vygenerovat přístupový token soukromé aplikace, klikněte v horním panelu na Settings, přejděte do Integrations > Private Apps a vytvořte novou soukromou aplikaci. Přidělte jí rozsahy crm.objects.contacts.read, crm.schemas.contacts.read a crm.objects.custom.read. Nakonec kliknutím na Create app vygenerujte token."
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Periodické nastavení"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Periodické nastavení",
+        "saved": "Uloženo",
+        "deactivatedTitle": "Periodická synchronizace dat deaktivována",
+        "deactivatedText": "Periodická synchronizace dat byla deaktivována, protože příliš mnohokrát po sobě selhala. Zkuste synchronizaci spustit ručně, a pokud proběhne správně, klikněte na tlačítko aktivace.",
+        "activate": "Aktivovat periodickou synchronizaci",
+        "enterprise": "Periodická synchronizace dat je funkce verze Advanced/Enterprise.",
+        "more": "Další informace"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "Interval",
+        "intervalHelper": "Jak často se mají data automaticky synchronizovat.",
+        "manual": "Ručně",
+        "daily": "Denně",
+        "hourly": "Každou hodinu",
+        "whenHelper": "Zadejte přesnou hodinu, minutu a sekundu, kdy se má synchronizace dat spustit.",
+        "whenHourlyHelper": "Zadejte přesnou minutu a sekundu, kdy se má synchronizace dat spustit.",
+        "hour": "Hodina",
+        "minute": "Minuta",
+        "second": "Sekunda"
+    },
+    "chartWidget": {
+        "name": "Graf",
+        "bar": "Sloupcový graf",
+        "line": "Spojnicový graf"
+    },
+    "pieChartWidget": {
+        "name": "Výsečový graf",
+        "pie": "Výsečový graf",
+        "doughnut": "Prstencový graf",
+        "polarArea": "Polární plošný graf"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Datové řady",
+        "addSeries": "Přidat datovou řadu",
+        "data": "Data",
+        "sourceFieldLabel": "Zdroj",
+        "viewFieldLabel": "Zobrazení",
+        "notSelected": "Nevybráno"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Souhrn",
+        "deleteSeries": "Odstranit datovou řadu",
+        "chartType": "Typ grafu",
+        "barChart": "Sloupcový",
+        "lineChart": "Spojnicový",
+        "pieChart": "Výsečový",
+        "doughnutChart": "Prstencový",
+        "polarAreaChart": "Polární plošný"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Seskupit podle",
+        "groupByNone": "Žádné",
+        "groupByRowId": "ID řádku"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Seřadit podle",
+        "none": "Žádné",
+        "ascending": "Vzestupně",
+        "descending": "Sestupně"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "Periodická synchronizace dat {name} byla deaktivována, protože příliš mnohokrát po sobě selhala.",
+        "licenseUnavailable": "Periodická synchronizace dat {name} byla deaktivována, protože pracovní prostor již nemá platnou licenci. Aktualizujte licenci, aby se automatická synchronizace obnovila."
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Aktualizace obousměrné synchronizace {name} selhala: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Obousměrná synchronizace {name} byla deaktivována, protože aktualizace příliš mnohokrát po sobě selhala. Spusťte synchronizaci ručně a po vyřešení problému ji znovu aktivujte."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Řádky vstoupí do zobrazení"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Spustí se, když řádky vstoupí do zobrazení.",
+        "helpTriggerWhenRowsEnterView": "Spustí se pouze tehdy, když je vybráno `Rows enter view` a do zobrazení vstoupí řádky, které nově odpovídají filtrům."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Umožňuje upravovat hodnoty buněk přímo v Baserow a v reálném čase je odesílá do zdroje synchronizace dat. Změny se však v reálném čase nenačítají, protože závisí na dokončení (periodické) synchronizační akce. Důrazně doporučujeme vytvářet zálohy databáze PostgreSQL, abyste předešli nechtěným změnám."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Datumová závislost",
+        "dependencyFieldTooltip": "Nastavit datumové závislosti",
+        "dependencyFieldTooltipError": "Pravidlo pole obsahuje chybu",
+        "contextMenuItemLabel": "Nastavit datumové závislosti",
+        "title": "Datumová závislost pro tabulku {tableName}",
+        "description": "Určete, které řádky závisejí na jiných. Když se řádek přeplánuje, jeho závislé řádky se automaticky upraví.",
+        "enableDateDependency": "Povolit datumové závislosti pro projekty",
+        "startDateFieldLabel": "Datum začátku",
+        "endDateFieldLabel": "Datum konce",
+        "durationFieldLabel": "Doba trvání",
+        "durationFieldHint": "Toto pole musí používat formát „d h“.",
+        "dependencyLinkrowFieldLabel": "Předchůdci",
+        "dependencyLinkrowFieldHint": "K propojení řádku s jeho předchůdci použijte pole Odkaz na tabulku.",
+        "dependencyFieldForReaderTooltip": "Toto pole je zahrnuto v pravidle datumové závislosti",
+        "addNewField": "Přidat nové pole",
+        "linkRowFieldTitle": "Nadřazené řádky",
+        "dependencyBufferTypeLabel": "Logika změny harmonogramu",
+        "durationBufferLabel": "Časová rezerva",
+        "dependencyConnectionTypeLabel": "Typ",
+        "advancedSettingsLabel": "Pokročilá nastavení",
+        "includeWeekendsLabel": "Zahrnout víkendy do výpočtu doby trvání",
+        "fieldInvalidTitle": "Chyba pole datumové závislosti"
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma AI"
+    },
+    "assistantPanel": {
+        "title": "Asistent AI",
+        "close": "Zavřít asistenta AI",
+        "history": "Historie chatu",
+        "back": "Zpět"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Ahoj, {name}",
+        "question": "jmenuji se Kuma!",
+        "subtitle": "Pomohu vám nést všechnu práci, aby nikdy nepůsobila příliš těžce. Vyberte některý z promptů níže nebo mi jednoduše řekněte, co potřebujete!",
+        "subtitleWithoutSuggestions": "Pomohu vám nést všechnu práci, aby nikdy nepůsobila příliš těžce. Jednoduše mi řekněte, co potřebujete!",
+        "promptCreateDatabaseTitle": "Vytvořit databázi",
+        "promptCreateDatabasePrompt": "Vytvoř databázi pro správu projektů.",
+        "promptCreateAutomationTitle": "Vytvořit automatizaci",
+        "promptCreateAutomationPrompt": "Vytvoř automatizaci, která se každé úterý ráno zeptá ve vývojářském kanálu na Slacku, zda je co předvést.",
+        "promptInviteUsersTitle": "Pozvat uživatele",
+        "promptInviteUsersPrompt": "Jak pozvu uživatele do svého pracovního prostoru?",
+        "promptCreateTableTitle": "Vytvořit tabulku",
+        "promptCreateTablePrompt": "Vytvoř novou tabulku s názvem Úkoly.",
+        "promptWhichTablesTitle": "Které tabulky",
+        "promptWhichTablesPrompt": "Které tabulky mám v této databázi?",
+        "promptCreateFormTitle": "Vytvořit formulář",
+        "promptCreateFormPrompt": "Vytvoř formulář pro tuto tabulku.",
+        "promptCreateFilterTitle": "Vytvořit filtr",
+        "promptCreateFilterPrompt": "Zobraz pouze řádky, jejichž primární pole je prázdné."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "Asistent je připraven pomoci",
+        "placeholder": "Zeptejte se mě na cokoli...",
+        "send": "Odeslat zprávu",
+        "stop": "Zastavit generování",
+        "statusRunning": "Probíhá..."
+    },
+    "assistant": {
+        "statusThinking": "Přemýšlím...",
+        "statusAnswering": "Odpovídám...",
+        "statusCancelling": "Ruším...",
+        "messageCancelled": "Zpráva zrušena"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Historie chatu není k dispozici",
+        "loading": "Načítání historie chatu..."
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma se může mýlit. Odpovědi si prosím ověřte"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Pomozte nám se zlepšit",
+        "feedbackContextPlaceholder": "Co bychom mohli zlepšit? (volitelné)",
+        "copiedToClipboard": "Zkopírováno do schránky",
+        "copiedContentToast": "Obsah odpovědi asistenta byl zkopírován do schránky",
+        "copyFailed": "Kopírování do schránky selhalo"
+    },
+    "dateDependency": {
+        "invalidChildRow": "Řádek následníka je neplatný",
+        "invalidParentRow": "Řádek předchůdce je neplatný",
+        "invalidParentEndDateAfterChildStartDate": "Datum konce řádku předchůdce je pozdější než datum začátku řádku následníka",
+        "invalidStartDateEmpty": "Datum začátku je prázdné",
+        "invalidEndDateEmpty": "Datum konce je prázdné",
+        "invalidEndDateBeforeStartDate": "Datum konce je před datem začátku",
+        "invalidDurationEmpty": "Doba trvání je prázdná",
+        "invalidDurationValue": "Hodnota doby trvání není platná",
+        "invalidDurationMismatch": "Neshoda hodnoty doby trvání"
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "Výchozí hodnoty zobrazení odpovídají filtrům",
+        "matchSubtitle": "Uživatelé s rolí Editor uvidí řádky, které vytvoří.",
+        "mismatchTitle": "Výchozí hodnoty neodpovídají filtrům",
+        "mismatchSubtitle": "Uživatelé s rolí Editor budou moci vytvářet řádky, ale neuvidí je.",
+        "removeDefaultValue": "Odebrat výchozí hodnotu",
+        "removeDefaultValueHelper": "Toto pole má výchozí hodnotu, ale nemá filtr. Výchozí hodnotu můžete odebrat zde nebo spravovat všechny výchozí hodnoty kliknutím na tři tečky vedle zobrazení a poté na \"Default row values\"."
+    },
+    "databaseStep": {
+        "ai": "Kuma AI"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Kuma dostává pokyny k vytvoření vaší databáze."
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Vytvoř databázi včetně tabulek, polí, ukázkových řádků a ukázkových zobrazení odpovídajících tomuto popisu: {prompt}",
+        "context": "Osoba zadávající požadavek pracuje v odvětví {industry} a v týmu {team}. Použijte tyto informace k výběru realistických tabulek, polí a ukázkových řádků.",
+        "language": "Vše, co vytvoříš, napiš v jazyce s kódem ISO 639-1 \"{language}\"."
+    },
+    "advanced": {
+        "license": "Advanced",
+        "openSubscriptions": "Otevřít předplatné a získat další místa"
+    },
+    "serviceType": {
+        "coreCode": "Spustit kód",
+        "coreCodeDescription": "Spustí libovolný kód v jazyce JavaScript.",
+        "coreXLSFileReader": "Načíst soubor XLS",
+        "coreXLSFileReaderDescription": "Načte řádky ze souboru XLS nebo XLSX.",
+        "errorCodeMissing": "Chybí vlastnost code",
+        "errorXLSFileMissing": "Chybí vlastnost souboru XLS"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Kód",
+        "codeHelperText": "Baserow při spuštění akce zavolá funkci main(context). Pomocí context načtěte vložené hodnoty a vraťte objekt, jehož vlastnosti mohou používat následné akce.",
+        "codePlaceholder": "Zadejte kód ke spuštění",
+        "injectionsLabel": "Vkládaná data",
+        "injectionsHelperText": "Vkládaná data jsou výrazy vyhodnocené před spuštěním kódu. Každý název vložené hodnoty se stane vlastností objektu context. Například vložená hodnota s názvem customerName je dostupná jako context.customerName.",
+        "nameLabel": "Název",
+        "namePlaceholder": "Název proměnné",
+        "valueLabel": "Hodnota",
+        "valuePlaceholder": "Výraz hodnoty",
+        "addInjection": "Přidat vloženou hodnotu",
+        "nameFieldRequired": "Pole názvu je povinné.",
+        "nameFieldInvalid": "Název musí být platným názvem proměnné.",
+        "editCode": "Upravit kód"
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "Soubor XLS",
+        "filePlaceholder": "Vyberte soubor XLS nebo XLSX...",
+        "sheetName": "Název listu",
+        "sheetNamePlaceholder": "První list",
+        "firstLineIsHeader": "První řádek je záhlaví"
+    },
+    "nodeType": {
+        "codeLabel": "Spustit kód",
+        "xlsFileReaderLabel": "Načíst soubor XLS"
+    },
+    "dataScanner": {
+        "title": "Skener dat",
+        "scansTab": "Skeny",
+        "resultsTab": "Výsledky",
+        "createScan": "Vytvořit sken dat",
+        "editScan": "Upravit sken",
+        "nameColumn": "Název",
+        "typeColumn": "Typ",
+        "frequencyColumn": "Frekvence",
+        "statusColumn": "Stav",
+        "runningSince": "Probíhá od {time}",
+        "idle": "Nečinný",
+        "neverRun": "Nikdy nespuštěn",
+        "runNow": "Spustit nyní",
+        "edit": "Upravit",
+        "delete": "Odstranit",
+        "nameLabel": "Název",
+        "namePlaceholder": "Zadejte název skenu",
+        "scanTypeLabel": "Typ skenu",
+        "patternPlaceholder": "např. \\N\\LDDAAAADDDDDDDDDD",
+        "patternLabel": "Vzor",
+        "patternHelp": "A = libovolné písmeno, D = číslice, X = libovolný znak. Zpětným lomítkem \\ označte doslovný znak (např. \\N pro písmeno N). Příklad: \\N\\LDDAAAADDDDDDDDDD pro nizozemský IBAN (NL00BANK0000000000).",
+        "listItemsLabel": "Hodnoty seznamu",
+        "listItemsPlaceholder": "Zadejte jednu hodnotu na řádek",
+        "listItemsHelp": "Zadejte jednu hodnotu na řádek. Každá hodnota se vyhledá ve všech prohledávaných pracovních prostorech.",
+        "sourceTableLabel": "Zdrojová tabulka",
+        "selectWorkspace": "Vybrat pracovní prostor",
+        "selectDatabase": "Vybrat databázi",
+        "selectTable": "Vybrat tabulku",
+        "selectField": "Vybrat pole",
+        "noCompatibleFieldsTitle": "Žádná kompatibilní pole",
+        "noCompatibleFieldsDescription": "Tato tabulka nemá žádné kompatibilní typy polí. Jako zdroj lze použít pouze pole typu text, URL, e-mail, číslo, automatické číslování, telefonní číslo a UUID.",
+        "frequencyLabel": "Frekvence",
+        "frequencyManual": "Ručně",
+        "frequencyHourly": "Každou hodinu",
+        "frequencyDaily": "Denně",
+        "frequencyWeekly": "Týdně",
+        "hourlyWarning": "Skeny spouštěné každou hodinu mohou vaši instanci Baserow výrazně zatížit.",
+        "wholeWordsLabel": "Shoda",
+        "wholeWordsCheckbox": "Porovnávat pouze celá slova",
+        "wholeWordsHelp": "Je-li tato volba zapnutá, skener porovnává pouze celá slova nebo tokeny. Například 'DDDD' odpovídá hodnotě '1234', ale ne hodnotě '12345'.",
+        "workspaceScopeLabel": "Pracovní prostory ke skenování",
+        "scanAllWorkspaces": "Skenovat všechny pracovní prostory",
+        "filterByScan": "Filtrovat podle skenu",
+        "allScans": "Všechny skeny",
+        "scanNameColumn": "Sken",
+        "workspaceColumn": "Pracovní prostor",
+        "databaseColumn": "Databáze",
+        "tableColumn": "Tabulka",
+        "fieldColumn": "Pole",
+        "rowIdColumn": "ID řádku",
+        "matchedValueColumn": "Nalezená hodnota",
+        "firstIdentifiedColumn": "Poprvé nalezeno",
+        "clearFilters": "Vymazat filtry",
+        "addWorkspace": "Přidat pracovní prostor",
+        "scanTypePattern": "Vzor",
+        "scanTypeListOfValues": "Seznam hodnot",
+        "scanTypeListTable": "Tabulka Baserow",
+        "lastRunColumn": "Poslední spuštění",
+        "resultsCountColumn": "Výsledky",
+        "viewResults": "Zobrazit výsledky",
+        "results": "Zobrazit výsledek ({count})|Zobrazit výsledky ({count})",
+        "noResults": "Nebyly nalezeny žádné výsledky",
+        "resolveResult": "Vyřešit",
+        "resultResolved": "Vyřešeno",
+        "exportToCsv": "Exportovat do CSV",
+        "exportModalTitle": "Exportovat výsledky do CSV",
+        "exportFilename": "data_scan_results_{date}.csv",
+        "exportFailedTitle": "Export se nezdařil",
+        "exportFailedDescription": "Úloha exportu se nezdařila. Zkuste to znovu.",
+        "exportCancelledTitle": "Export zrušen",
+        "exportCancelledDescription": "Úloha exportu byla zrušena.",
+        "emptyTitle": "Zatím žádné skeny dat",
+        "emptyDescription": "Skener dat umožňuje automaticky prohledávat celou instanci nebo konkrétní pracovní prostory a zjišťovat, zda se kdekoli používají vzory (například IBAN) nebo předem definované texty (například zdravotnické identifikátory).",
+        "emptyResultsTitle": "Nebyly nalezeny žádné výsledky",
+        "emptyResultsDescription": "Zatím nejsou k dispozici žádné výsledky skenování. Zobrazí se zde po spuštění skenu dat, pokud budou nalezeny shody."
+    },
+    "deleteDataScanModal": {
+        "title": "Odstranit sken dat",
+        "confirmation": "Opravdu chcete tento sken dat odstranit? Všechny výsledky skenu budou trvale odstraněny.",
+        "delete": "Odstranit sken"
+    },
+    "dataScanNewResultsNotification": {
+        "titleSingular": "Pro sken {scanName} byl nalezen {count} nový výsledek",
+        "titlePlural": "Pro sken {scanName} byly nalezeny nové výsledky ({count})",
+        "description": "Zkontrolujte výsledky ve skeneru dat pro správce."
+    },
+    "memberRolesTableContexItem": {
+        "label": "Spravovat členy",
+        "additionalRoles": "Další role"
+    },
+    "aiDatabaseOnboardingForm": {
+        "explanation": "Kuma vám vytvoří pracovní prostor. Odpovězte na několik otázek a navrhne, co vytvořit jako první, abyste začali s něčím, co odpovídá tomu, jak skutečně pracujete.",
+        "industryDescription": "Stačí pár slov, například „Výroba“, „Letecký a kosmický průmysl“ nebo „Digitální marketing“.",
+        "industryPlaceholder": "např. Digitální marketing",
+        "progress": "Otázka {current} z {total}",
+        "teamDescription": "Například „Klientské služby“, „Finance“ nebo „Provoz“.",
+        "teamLabel": "V jakém týmu pracujete?",
+        "teamPlaceholder": "např. Klientské služby",
+        "industryLabel": "V jakém odvětví působíte?"
+    },
+    "aiOnboardingDetailsModal": {
+        "submit": "Aktualizovat návrhy",
+        "title": "Upravit údaje"
+    },
+    "aiPromptStep": {
+        "description": "Na základě vašich odpovědí jsme připravili první návrh. Upravte jej nebo níže vyberte jiný.",
+        "editDetails": "Upravit údaje",
+        "errorOtherOptions": "Vraťte se zpět a začněte vytvářet databázi jiným způsobem, například ze šablony, importem nebo od začátku.",
+        "generating": "Kuma pro vás připravuje návrh…",
+        "label": "Popište svou databázi",
+        "modelNotSupportedMessage": "Kuma není k dispozici, protože není nakonfigurován žádný funkční model AI, takže vám teď nemůže vytvořit databázi. Dokud nebude problém vyřešen, opakovaný pokus nepomůže.",
+        "modelNotSupportedTitle": "Kuma není k dispozici",
+        "placeholder": "např. Sleduj klientské projekty s termíny, vlastníky a stavem.",
+        "title": "Co má pro vás Kuma vytvořit?",
+        "suggestionsTitle": "Nebo začněte jedním z těchto návrhů"
     }
 }

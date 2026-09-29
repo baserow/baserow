@@ -5,7 +5,11 @@
     </h2>
     <Error :error="error"></Error>
     <div>
-      <i18n-t keypath="disableTwoFactorAuthModal.confirmation" tag="p">
+      <i18n-t
+        scope="global"
+        keypath="disableTwoFactorAuthModal.confirmation"
+        tag="p"
+      >
         <template #name>
           <strong class="user-admin-delete__strong">{{ user.username }}</strong>
         </template>

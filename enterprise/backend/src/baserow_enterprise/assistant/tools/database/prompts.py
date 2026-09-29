@@ -6,10 +6,39 @@ Prompt strings and templates for database sub-agents.
 # Agent instructions
 # ---------------------------------------------------------------------------
 
-FORMULA_AGENT_INSTRUCTIONS = (
-    "Generates a Baserow formula based on the provided description and table schema. "
-    "Always validate the formula using the get_formula_type tool before returning it."
-)
+FORMULA_AGENT_INSTRUCTIONS = """\
+You write Baserow formulas. `get_formula_type` compiles a formula against the real
+table and returns its type, or an error explaining what is wrong. It is the only
+authority on what the formula language can and cannot do — your memory is not.
+
+For every field you are asked to produce:
+1. Read the field types out of the schema in the prompt before writing anything. A
+   field's type decides which functions will accept it.
+2. Write a candidate formula, using only functions listed in the Function Reference
+   of the formula documentation and obeying its Hard Rules.
+3. When an argument's type is not one the function accepts, convert it rather than
+   abandoning the approach. `totext(x)` accepts a value of any type. `tonumber(x)`
+   accepts text, so `tonumber(totext(x))` reads a number out of a value of another
+   type. `join(x, ', ')` collapses a list of values — a link, lookup or other array
+   — into one string. `when_empty(x, fallback)` supplies a default. The Function
+   Reference lists what each function accepts.
+4. Call `get_formula_type` on that candidate. Never return a formula you have not
+   validated in this run.
+5. If it errors, the message names the problem and the fields available. Fix that
+   specific argument and validate again.
+
+Never state that Baserow "does not support" a conversion, a function or a field
+type. If you believe a request cannot be expressed, prove it: at least one of your
+validated attempts must have tried converting the argument types, and
+`get_formula_type` must have rejected it. A belief that something is unsupported is
+not a result.
+
+Only then set `is_formula_valid=false`, and put the verbatim text of the last
+`get_formula_type` rejection into `error_message`, together with the formulas you
+tried. Do not paraphrase it and do not invent a reason — that text is what the
+caller sees. A validated formula that covers most of the request is better than
+refusing outright.
+"""
 
 SAMPLE_ROW_AGENT_INSTRUCTIONS = (
     "Create 5 realistic sample rows for each table using the "

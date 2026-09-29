@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from celery.app.task import Context
+from loguru import logger
 
 from baserow.contrib.database.data_sync.constants import (
     BASE_DATA_SYNC_ALLOWED_FIELDS,
@@ -113,6 +114,24 @@ class DataSyncType(
     This property indicates which two-way sync strategy could be used. There can be a
     difference between strategy depending on the data source. If none, then only a
     one-way data sync is possible.
+    """
+
+    secret_field_dependencies: dict[str, list[str]] = {}
+    """
+    Maps secret fields to the connection target fields they protect. If any
+    target field changes value, the secret must be re-supplied in the same
+    request.
+
+    Example: {"postgresql_password": ["postgresql_host", "postgresql_port"]}
+
+    `IntegrationType.secret_field_dependencies` is the same concept for
+    integrations.
+    """
+
+    sensitive_fields: List[str] = []
+    """
+    Fields that contain secrets (passwords, tokens, API keys) and must be excluded
+    from workspace exports.
     """
 
     def prepare_values(self, user: AbstractUser, values: Dict) -> Dict:
@@ -232,15 +251,27 @@ class DataSyncType(
             "A two-way data sync must implement the `delete_rows` method."
         )
 
-    def export_serialized(self, instance: "DataSync"):
+    def export_serialized(
+        self,
+        instance: "DataSync",
+        import_export_config: Optional[ImportExportConfig] = None,
+    ):
         """
         Exports the data sync properties and the `allowed_fields` to the serialized
         format.
         """
 
-        properties = instance.synced_properties.all()
+        exclude_sensitive = getattr(
+            import_export_config, "exclude_sensitive_data", True
+        )
+
+        properties = instance.synced_properties.filter(field__trashed=False)
         type_specific = {
-            field: getattr(instance, field)
+            field: (
+                None
+                if exclude_sensitive and field in self.sensitive_fields
+                else getattr(instance, field)
+            )
             for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
         }
         last_sync_iso = instance.last_sync.isoformat() if instance.last_sync else None
@@ -276,11 +307,14 @@ class DataSyncType(
         original_id = serialized_copy.pop("id")
         properties = serialized_copy.pop("properties", [])
         serialized_copy.pop("type")
-        type_properties = {
-            field: serialized_copy.get(field)
-            for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
-            if field in serialized_copy
-        }
+        type_properties = {}
+        for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields:
+            if field not in serialized_copy:
+                continue
+            value = serialized_copy.get(field)
+            if value is None and field in self.sensitive_fields:
+                value = ""
+            type_properties[field] = value
         data_sync = self.model_class.objects.create(
             table=table,
             last_sync=serialized_copy["last_sync"],
@@ -290,10 +324,19 @@ class DataSyncType(
 
         properties_to_be_created = []
         for property in properties:
+            mapped_field_id = id_mapping["database_fields"].get(property["field_id"])
+            if mapped_field_id is None:
+                logger.warning(
+                    "Skipping data sync property with key {key} for unmapped "
+                    "field {field_id} during import.",
+                    key=property["key"],
+                    field_id=property["field_id"],
+                )
+                continue
             properties_to_be_created.append(
                 DataSyncSyncedProperty(
                     data_sync=data_sync,
-                    field_id=id_mapping["database_fields"][property["field_id"]],
+                    field_id=mapped_field_id,
                     key=property["key"],
                 )
             )

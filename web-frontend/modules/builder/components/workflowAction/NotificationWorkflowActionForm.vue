@@ -4,7 +4,6 @@
       small-label
       :label="$t('notificationWorkflowActionForm.titleLabel')"
       class="margin-bottom-2"
-      required
     >
       <InjectedFormulaInput
         v-model="values.title"
@@ -15,7 +14,6 @@
       small-label
       :label="$t('notificationWorkflowActionForm.descriptionLabel')"
       class="margin-bottom-2"
-      required
     >
       <InjectedFormulaInput
         v-model="values.description"

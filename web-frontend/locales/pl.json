@@ -174,7 +174,8 @@
         "multipleCollaboratorsCheckboxes": "Pola wyboru wielokrotnego",
         "formViewEditRow": "Link do edycji wierszy",
         "formViewEditRowShareWarning": "Każdy, kto posiada ten link, może edytować wiersze za pośrednictwem formularza {formNames} i korzystajać z publicznie udostępnionych pól z linkami do edycji.|Każdy, kto posiada ten link, może edytować wiersze za pośrednictwem formularzy {formNames} korzystając z publicznie udostępnionego pola z linkiem do edycji.",
-        "defaultValueFunctionNow": "Bieżąca data"
+        "defaultValueFunctionNow": "Bieżąca data",
+        "button": "Przycisk"
     },
     "fieldErrors": {
         "invalidNumber": "Nieprawidłowa liczba",
@@ -187,7 +188,8 @@
         "minChars": "Minimalna liczba znaków: {min}",
         "overflowDuration": "Wartość wykracza poza zakres.",
         "invalidDuration": "Nieprawidłowy format ({durationFormat}).",
-        "higherThan": "Wartość przekracza {max}."
+        "higherThan": "Wartość przekracza {max}.",
+        "maxCharsExceeded": "Max {max} znaków (-{over})."
     },
     "fieldDocs": {
         "readOnly": "To jest pole tylko do odczytu.",
@@ -223,7 +225,8 @@
         "autonumber": "Pole tylko do odczytu, które automatycznie zwiększa wartość po utworzeniu każdego nowego wiersza.",
         "password": "Pole tylko do zapisu, w którym przechowywane jest zaszyfrowane hasło. Pole będzie miało wartość `null`, jeśli hasło nie zostało podane lub, `true` (prawda), jeśli hasło zostało wprowadzone. W tym polu można wprowadzić ciąg znaków.",
         "lastModifiedBy": "Pole “Ostatnio zmodyfikowane przez” jest polem tylko do odczytu.",
-        "formViewEditRow": "Pole tylko do odczytu, które generuje unikalny, podpisany adres URL umożliwiający edycję wiersza przy użyciu powiązanego formularza."
+        "formViewEditRow": "Pole tylko do odczytu, które generuje unikalny, podpisany adres URL umożliwiający edycję wiersza przy użyciu powiązanego formularza.",
+        "button": "Pole przycisku. Po kliknięciu zostanie otwarta strona pod adresem URL utworzonym na podstawie wartości zawartych w wierszu. Komórka nie przechowuje żadnych danych. Próby zapisu zostaną odrzucone."
     },
     "viewFilter": {
         "contains": "zawiera",
@@ -439,8 +442,8 @@
         "cannotCreateFieldTypeTitle": "Nie można utworzyć pola",
         "generativeAIDoesNotExistTitle": "Generatywna AI nie istnieje",
         "generativeAIDoesNotExistDescription": "Generatywny model AI nie istnieje.",
-        "modelDoesNotBelongToTypeTitle": "Wybrany model nie należy do typu AI",
-        "modelDoesNotBelongToTypeDescription": "Wybrany model nie należy do wybranego typu AI.",
+        "modelDoesNotBelongToTypeTitle": "Model AI nie jest dostępny",
+        "modelDoesNotBelongToTypeDescription": "Wybrany model AI jest wyłączony lub nie jest już dostępny.",
         "adminAlreadyExistsTitle": "Nie można użyć tej nazwy użytkownika",
         "adminAlreadyExistsDescription": "Ta nazwa użytkownika nie może zostać użyta, ponieważ już istnieje.",
         "outputParserTitle": "Nieprawidłowe wyjście",
@@ -726,7 +729,9 @@
         "durationFormatDescription": "Formatuje czas trwania jako tekst, używając ciągu zawierającego symbole 'd' (dni), 'h' (godziny), 'm' (minuty) i 's' (sekundy), np. 'h:mm', 'd h:mm:ss'.",
         "categoryUtility": "Narzędzie",
         "toJsonDescription": "Serializuje wartość jako ciąg znaków w formacie JSON, gdzie cudzysłowy, znaki odwrotnego ukośnika i znaki sterujące poprzedzone są znakiem \"escape\", dzięki czemu można ją umieścić w dokumencie JSON.",
-        "fromJsonDescription": "Przetwarza ciąg znaków zakodowany w formacie JSON na wartość, taką jak obiekt, tablica lub liczba. Zwraca null, jeśli ciąg nie jest poprawnie sformatowany jako JSON."
+        "fromJsonDescription": "Przetwarza ciąg znaków zakodowany w formacie JSON na wartość, taką jak obiekt, tablica lub liczba. Zwraca null, jeśli ciąg nie jest poprawnie sformatowany jako JSON.",
+        "encodeUriDescription": "Symbol procentu umożliwia zakodowanie znaków, które nie są dozwolone w adresie URL, zachowując przy tym strukturę adresu URL",
+        "encodeUriComponentDescription": "Symbol procentu umożliwia zakodowanie argumentu w taki sposób, aby można go było użyć jako pojedynczy element adresu URL, np. jako segment ścieżki lub parametr zapytania"
     },
     "runtimeGetErrors": {
         "invalidPath": "Argument 'get' '{path}' musi być zapisany jako ścieżka rozdzielona kropkami (np. 'dostawca.atrybut').",

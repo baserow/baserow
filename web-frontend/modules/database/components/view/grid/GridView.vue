@@ -30,7 +30,8 @@
       :view="view"
       :include-row-details="true"
       :include-grid-view-identifier-dropdown="true"
-      :include-group-by="!viewHasGroupBys"
+      :include-group-by="isColumnLayout"
+      :group-by-widths="groupByWidths"
       :can-order-fields="frozenColumnCount > 1"
       :read-only="
         readOnly ||
@@ -95,7 +96,7 @@
           database.workspace.id
         )
       "
-      :row-details-width="gridViewRowDetailsWidth"
+      :row-details-width="gridViewRowDetailsWidth + groupColumnsWidth"
       :left-width="leftWidth"
       :get-field-width="getFieldWidth"
       @frozen-count-change="onFrozenCountDragChange"
@@ -182,7 +183,7 @@
       :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
-      :offset="0"
+      :offset="groupColumnsWidth"
       :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
@@ -258,6 +259,32 @@
         @delete-row="deleteRow($event)"
       />
     </Context>
+    <ButtonFloating
+      v-if="canCreateRow"
+      class="grid-view__add-row-button"
+      icon="iconoir-plus"
+      position="fixed"
+      @click="$refs.rowCreateModal.show()"
+    ></ButtonFloating>
+    <RowCreateModal
+      v-if="canCreateRow"
+      ref="rowCreateModal"
+      :database="database"
+      :table="table"
+      :view="view"
+      :visible-fields="allVisibleFields"
+      :hidden-fields="hiddenFields"
+      :show-hidden-fields="showHiddenFieldsInRowModal"
+      :all-fields-in-table="fields"
+      @toggle-hidden-fields-visibility="
+        showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
+      "
+      @created="createRow"
+      @order-fields="orderFields"
+      @toggle-field-visibility="toggleFieldVisibility"
+      @field-updated="$emit('refresh', $event)"
+      @field-deleted="$emit('refresh')"
+    ></RowCreateModal>
     <RowEditModal
       ref="rowEditModal"
       :database="database"
@@ -323,6 +350,7 @@ import GridViewFieldDragging from '@baserow/modules/database/components/view/gri
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
+import RowCreateModal from '@baserow/modules/database/components/row/RowCreateModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
   canRowsBeOptimisticallyUpdatedInView,
@@ -344,6 +372,7 @@ import GridViewRowsAddContext from '@baserow/modules/database/components/view/gr
 import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import {
+  GRID_VIEW_MIN_FIELD_WIDTH,
   GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   GRID_VIEW_MULTI_SELECT_AREA,
@@ -353,6 +382,9 @@ import {
   groupPathFromRow,
 } from '@baserow/modules/database/utils/gridGroupBy'
 import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
+import { fitGroupByWidths } from '@baserow/modules/database/utils/gridGroupByWidths'
+
+const GRID_VIEW_MIN_DATA_SECTION_WIDTH = 300
 
 export default {
   name: 'GridView',
@@ -364,6 +396,7 @@ export default {
     GridViewRowDragging,
     GridRowContextItems,
     RowEditModal,
+    RowCreateModal,
   },
   mixins: [viewHelpers, gridViewHelpers, viewDecoration, copyPasteHelper],
   props: {
@@ -398,6 +431,9 @@ export default {
       // Whether the frozen columns fit in the viewport with enough remaining
       // space for the scrollable section. When false, frozen columns are disabled.
       canFitFrozenColumns: true,
+      // The group columns can be fitted to the available width without changing
+      // their persisted widths. This is populated once the grid has been measured.
+      gridViewWidth: null,
       // When a cell is selected, the component will be propagated and stored into this
       // array until it's unselected. Having these components here can be useful if a
       // global keyboard shortcut must be blocked if a single line text field cell is
@@ -464,6 +500,32 @@ export default {
     },
     viewHasGroupBys() {
       return this.activeGroupBys.length > 0
+    },
+    isColumnLayout() {
+      return this.viewHasGroupBys && this.view.group_by_layout === 'column'
+    },
+    groupByWidths() {
+      if (!this.isColumnLayout) {
+        return []
+      }
+
+      const availableWidth =
+        this.gridViewWidth > 0
+          ? Math.max(
+              0,
+              this.gridViewWidth -
+                this.gridViewRowDetailsWidth -
+                GRID_VIEW_MIN_DATA_SECTION_WIDTH
+            )
+          : null
+      return fitGroupByWidths(
+        this.activeGroupBys,
+        availableWidth,
+        GRID_VIEW_MIN_FIELD_WIDTH
+      )
+    },
+    groupColumnsWidth() {
+      return this.groupByWidths.reduce((total, width) => total + width, 0)
     },
     canCreateRow() {
       if (this.readOnly) {
@@ -554,7 +616,11 @@ export default {
       )
     },
     leftWidth() {
-      return this.leftFieldsWidth + this.gridViewRowDetailsWidth
+      return (
+        this.leftFieldsWidth +
+        this.gridViewRowDetailsWidth +
+        this.groupColumnsWidth
+      )
     },
     /**
      * All non-primary visible fields in order, used by the cross-section
@@ -567,6 +633,7 @@ export default {
       const primary = this.fields.find((f) => f.primary)
       return (
         this.gridViewRowDetailsWidth +
+        this.groupColumnsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
     },
@@ -596,6 +663,16 @@ export default {
     fields() {
       // When a field is added or removed, we want to update the scrollbars.
       this.fieldsUpdated()
+    },
+    groupColumnsWidth(newWidth, oldWidth) {
+      if (newWidth === oldWidth) {
+        return
+      }
+      // A live group-width resize mutates the active group object in place, so the
+      // shallow activeGroupBys watcher does not run. Watch the effective Columns width
+      // instead; it stays zero in Sections and while responsive fitting keeps the same
+      // total, avoiding work when the grid geometry did not actually change.
+      this.$nextTick(() => this.fieldsUpdated())
     },
     activeGroupBys(newVal, oldVal) {
       // The store restarts the scroll offset at the top when group-by fields change, but
@@ -668,6 +745,17 @@ export default {
       this.$store.dispatch(
         this.storePrefix + 'view/grid/setRowHeight',
         GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING[value]
+      )
+      this.onWindowResize()
+      this.$emit('refresh')
+    },
+    'view.group_by_layout'(value, oldValue) {
+      if (value === oldValue) {
+        return
+      }
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/setGroupByLayout',
+        value
       )
       this.onWindowResize()
       this.$emit('refresh')
@@ -1117,6 +1205,22 @@ export default {
       }
 
       return null
+    },
+    async createRow({ row, callback }) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/createNewRowConfirmed',
+          {
+            view: this.view,
+            table: this.table,
+            fields: this.fields,
+            values: row,
+          }
+        )
+        callback()
+      } catch (error) {
+        callback(error)
+      }
     },
     async addRow(before = null, values = {}) {
       try {
@@ -1939,7 +2043,7 @@ export default {
       }
     },
     /**
-     * Checks whether the frozen columns fit in the viewport with at least 300px
+     * Checks whether the frozen columns fit in the viewport with enough space
      * remaining for the scrollable section. Updates `canFitFrozenColumns`.
      */
     checkCanFitFrozenColumns() {
@@ -1955,13 +2059,18 @@ export default {
       const frozenWidth = sorted
         .slice(0, this.frozenColumnCount)
         .reduce((sum, field) => sum + this.getFieldWidth(field), 0)
-      const maxWidth = this.gridViewRowDetailsWidth + frozenWidth + 300
+      const maxWidth =
+        this.gridViewRowDetailsWidth +
+        this.groupColumnsWidth +
+        frozenWidth +
+        GRID_VIEW_MIN_DATA_SECTION_WIDTH
       this.canFitFrozenColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
      * Event called when the grid view element window resizes.
      */
     onWindowResize() {
+      this.gridViewWidth = this.$refs.gridView?.clientWidth || null
       this.checkCanFitFrozenColumns()
 
       // Update the window height to dynamically show the right amount of rows.

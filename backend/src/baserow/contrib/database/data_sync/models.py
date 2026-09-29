@@ -102,6 +102,10 @@ class DataSyncSyncedProperty(models.Model):
     )
 
 
+DATA_SYNC_JOB_TRIGGERED_BY_MANUAL = "manual"
+DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC = "periodic"
+
+
 class SyncDataSyncTableJob(Job):
     data_sync = models.ForeignKey(
         DataSync,
@@ -109,6 +113,17 @@ class SyncDataSyncTableJob(Job):
         related_name="sync_data_sync_table_job",
         on_delete=models.SET_NULL,
         help_text="The data sync of which the table must be synced.",
+    )
+    triggered_by = models.CharField(
+        max_length=10,
+        choices=(
+            (DATA_SYNC_JOB_TRIGGERED_BY_MANUAL, DATA_SYNC_JOB_TRIGGERED_BY_MANUAL),
+            (DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC, DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC),
+        ),
+        default=DATA_SYNC_JOB_TRIGGERED_BY_MANUAL,
+        db_default=DATA_SYNC_JOB_TRIGGERED_BY_MANUAL,
+        help_text="Whether this sync run was started manually by a user or by the "
+        "periodic schedule.",
     )
 
 

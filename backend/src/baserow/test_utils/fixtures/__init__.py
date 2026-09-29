@@ -12,6 +12,7 @@ from .automation_workflow_history import AutomationWorkflowHistoryFixtures
 from .dashboard_data_source import DashboardDataSourceFixtures
 from .data_source import DataSourceFixtures
 from .data_sync import DataSyncFixtures
+from .database_workflow_action import DatabaseWorkflowActionFixtures
 from .domain import DomainFixtures
 from .element import ElementFixtures
 from .field import FieldFixtures
@@ -72,6 +73,7 @@ class Fixtures(
     DataSourceFixtures,
     NotificationsFixture,
     WorkflowActionFixture,
+    DatabaseWorkflowActionFixtures,
     UserSourceFixtures,
     AppAuthProviderFixtures,
     UserSourceUserFixtures,

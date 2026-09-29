@@ -22,9 +22,11 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const chooseTriggerTitle = page.getByText("Choose an event...");
+    const triggerChooser = page
+      .locator(".workflow-editor__trigger-selector")
+      .getByRole("searchbox");
     await expect(
-      chooseTriggerTitle,
+      triggerChooser,
       "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
@@ -49,9 +51,11 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const chooseTriggerTitle = page.getByText("Choose an event...");
+    const triggerChooser = page
+      .locator(".workflow-editor__trigger-selector")
+      .getByRole("searchbox");
     await expect(
-      chooseTriggerTitle,
+      triggerChooser,
       "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });

@@ -67,9 +67,19 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/root.vue'),
     children: [
       {
+        name: 'all-workspaces',
+        path: '/all-workspaces',
+        file: path.resolve(__dirname, 'pages/allWorkspaces.vue'),
+      },
+      {
         name: 'dashboard',
         path: '/dashboard',
-        file: path.resolve(__dirname, 'pages/dashboard.vue'),
+        redirect: { name: 'all-workspaces' },
+      },
+      {
+        name: 'recently-viewed',
+        path: '/recently-viewed',
+        file: path.resolve(__dirname, 'pages/recentlyViewed.vue'),
       },
       {
         name: 'workspace',
@@ -80,6 +90,11 @@ export const routes = [
         name: 'admin-settings',
         path: '/admin/settings',
         file: path.resolve(__dirname, 'pages/admin/settings.vue'),
+      },
+      {
+        name: 'admin-ai-providers',
+        path: '/admin/ai-providers',
+        file: path.resolve(__dirname, 'pages/admin/aiProviders.vue'),
       },
       {
         name: 'admin-health',
@@ -115,6 +130,11 @@ export const routes = [
             name: 'settings-invites',
             path: 'invites',
             file: path.resolve(__dirname, 'pages/settings/invites.vue'),
+          },
+          {
+            name: 'settings-agents',
+            path: 'agents',
+            file: path.resolve(__dirname, 'pages/settings/agents.vue'),
           },
         ],
       },

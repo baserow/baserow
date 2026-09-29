@@ -76,7 +76,9 @@ def test_page_parameter_data_provider_get_data_chunk():
     fake_request = MagicMock()
     fake_request.data = {"metadata": json.dumps({"page_parameter": {"id": 42}})}
 
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     assert page_parameter_provider.get_data_chunk(dispatch_context, ["id"]) == 42
     assert page_parameter_provider.get_data_chunk(dispatch_context, []) is None
@@ -97,7 +99,9 @@ def test_form_data_provider_get_data_chunk(mock_validate):
         "metadata": json.dumps({"form_data": {"1": "hello", "2": ["a", "b"]}})
     }
 
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
     mock_validate.side_effect = lambda x, y, z: y
 
     # A single valued form data
@@ -1058,7 +1062,9 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
             {"previous_action": {str(workflow_action.id): {"path": {"to": 100}}}}
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     with pytest.raises(InvalidFormulaContext):
         previous_action_data_provider.get_data_chunk(
@@ -1075,7 +1081,9 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
             }
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     assert (
         previous_action_data_provider.get_data_chunk(
@@ -1118,7 +1126,9 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
             }
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value="bar"
@@ -1160,7 +1170,9 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_list_result
             }
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
         return_value="bar"
@@ -1201,7 +1213,9 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
             }
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     workflow_action = MagicMock()
     workflow_action.id = 100
@@ -1247,7 +1261,9 @@ def test_previous_action_data_provider_post_dispatch_with_empty_response_cache_r
             }
         )
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
 
     workflow_action = MagicMock()
     workflow_action.id = 100
@@ -1482,7 +1498,9 @@ def test_current_record_provider_get_data_chunk_for_idx():
     fake_request.data = {
         "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
     }
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
+    )
     assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) == 123
 
 

@@ -49,4 +49,19 @@ describe('Tabs', () => {
 
     expect(wrapper.emitted('update:selectedIndex')).toBeTruthy()
   })
+
+  it('does not render guided tour highlights as tab content', async () => {
+    const wrapper = await mountSuspended(Tabs, {
+      components: {
+        Tab,
+      },
+      slots: {
+        default: '<Tab title="Agents" highlight="tour-target">Content</Tab>',
+      },
+    })
+
+    const tabItem = wrapper.get('.tabs__item')
+    expect(tabItem.attributes('data-highlight')).toBe('tour-target')
+    expect(tabItem.get('.tabs__link').text()).toBe('Agents')
+  })
 })

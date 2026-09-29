@@ -1,3 +1,5 @@
+import { registerTrustedImageUrlsFromMarkdown } from '@baserow/modules/core/editor/trustedImageUrls'
+
 /**
  * Copies the given text to the clipboard by temporarily creating a textarea and
  * using the documents `copy` command.
@@ -8,6 +10,62 @@ export const copyToClipboard = (text) => {
 }
 
 export const LOCAL_STORAGE_CLIPBOARD_KEY = 'baserow.clipboardData'
+
+/**
+ * Returns the rich clipboard data stored for the exact plain-text clipboard value.
+ * The browser clipboard cannot contain Baserow's field metadata, so grid copies keep
+ * that metadata in local storage and use the plain text as an integrity check.
+ *
+ * @param {string} textRawData The current plain-text clipboard value.
+ * @returns {Array|null} The matching two-dimensional rich clipboard data.
+ */
+export const getStoredRichClipboardData = (textRawData) => {
+  try {
+    const clipboardData = JSON.parse(
+      localStorage.getItem(LOCAL_STORAGE_CLIPBOARD_KEY)
+    )
+    const clipboardDataTextToCompare = clipboardData.text.replaceAll(
+      '\r\n',
+      '\n'
+    )
+    const textRawDataToCompare = textRawData.replaceAll('\r\n', '\n')
+    if (clipboardDataTextToCompare === textRawDataToCompare) {
+      return clipboardData.json
+    }
+  } catch (e) {
+    // Invalid or inaccessible local storage is equivalent to no rich clipboard data.
+  }
+
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_CLIPBOARD_KEY)
+  } catch (e) {
+    // There is nothing else to clear when local storage itself is inaccessible.
+  }
+  return null
+}
+
+/**
+ * Returns Markdown when the clipboard contains one rich-text grid cell. This is used
+ * by database-hosted rich-text editors, which otherwise only see the quoted TSV text.
+ *
+ * @param {string} textRawData The current plain-text clipboard value.
+ * @returns {string|null} The original Markdown or null for any other clipboard shape.
+ */
+export const getRichTextClipboardContent = (textRawData) => {
+  const richClipboardData = getStoredRichClipboardData(textRawData)
+  if (richClipboardData?.length !== 1 || richClipboardData[0]?.length !== 1) {
+    return null
+  }
+
+  const richValue = richClipboardData[0][0]
+  if (!richValue?.richText || typeof richValue.value !== 'string') {
+    return null
+  }
+  // The value is a grid cell the backend resolved, so its image URLs may be
+  // loaded by the editor it is pasted into.
+  registerTrustedImageUrlsFromMarkdown(richValue.value)
+  return richValue.value
+}
 
 /**
  * This method gets the text and json data from the clipboard and from the local
@@ -22,7 +80,6 @@ export const LOCAL_STORAGE_CLIPBOARD_KEY = 'baserow.clipboardData'
  */
 export const getRichClipboard = async (event) => {
   let textRawData
-  let jsonRawData
 
   if (typeof navigator.clipboard?.readtText !== 'undefined') {
     textRawData = await navigator.clipboard.readText()
@@ -30,24 +87,7 @@ export const getRichClipboard = async (event) => {
     textRawData = event.clipboardData.getData('text/plain')
   }
 
-  let clipboardData = localStorage.getItem(LOCAL_STORAGE_CLIPBOARD_KEY)
-  try {
-    clipboardData = JSON.parse(clipboardData)
-    const clipboardDataTextToCompare = clipboardData.text.replaceAll(
-      '\r\n',
-      '\n'
-    )
-    const textRawDataToCompare = textRawData.replaceAll('\r\n', '\n')
-    if (clipboardDataTextToCompare === textRawDataToCompare) {
-      jsonRawData = clipboardData.json
-    } else {
-      throw new Error(
-        'Clipboard data is not the same as the local storage data'
-      )
-    }
-  } catch (e) {
-    localStorage.removeItem(LOCAL_STORAGE_CLIPBOARD_KEY)
-  }
+  const jsonRawData = getStoredRichClipboardData(textRawData)
   return { textRawData: textRawData.trim(), jsonRawData }
 }
 

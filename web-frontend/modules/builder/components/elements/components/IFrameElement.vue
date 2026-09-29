@@ -16,6 +16,13 @@
           : $t('iframeElementForm.missingValue')
       }}
     </p>
+    <p
+      v-else-if="shouldShowEditorURLPlaceholder"
+      class="iframe-element__empty iframe-element__editor-placeholder"
+      :style="{ height: `${element.height}px` }"
+    >
+      {{ $t('iframeElementForm.editorPreviewPlaceholder') }}
+    </p>
     <template v-else>
       <client-only
         ><iframe
@@ -29,6 +36,7 @@
               ? resolvedEmbed
               : null
           "
+          :sandbox="sandboxPermissions"
           :style="isEditMode ? 'pointer-events: none' : ''"
         >
         </iframe>
@@ -70,6 +78,53 @@ export default {
     },
     resolvedEmbed() {
       return ensureString(this.resolveFormula(this.element.embed))
+    },
+    shouldShowEditorURLPlaceholder() {
+      return (
+        this.element.source_type === IFRAME_SOURCE_TYPES.URL &&
+        Boolean(this.resolvedURL) &&
+        (this.isEditMode || this.applicationContext.mode === 'editing')
+      )
+    },
+    sandboxPermissions() {
+      if (this.isEditMode) {
+        return this.element.source_type === IFRAME_SOURCE_TYPES.EMBED
+          ? 'allow-scripts'
+          : ''
+      }
+      if (this.element.source_type !== IFRAME_SOURCE_TYPES.URL) {
+        return null
+      }
+
+      const permissions = ['allow-scripts', 'allow-forms', 'allow-popups']
+
+      if (
+        this.element.allow_same_origin &&
+        this.isPreviewOrPublicMode &&
+        this.isExternalURL
+      ) {
+        permissions.push('allow-same-origin')
+      }
+
+      return permissions.join(' ')
+    },
+    isExternalURL() {
+      if (typeof window === 'undefined') {
+        return false
+      }
+
+      try {
+        const url = new URL(this.resolvedURL)
+        return (
+          ['http:', 'https:'].includes(url.protocol) &&
+          url.origin !== window.location.origin
+        )
+      } catch {
+        return false
+      }
+    },
+    isPreviewOrPublicMode() {
+      return ['preview', 'public'].includes(this.applicationContext.mode)
     },
     IFRAME_SOURCE_TYPES() {
       return IFRAME_SOURCE_TYPES

@@ -38,11 +38,15 @@ class AirtableImportJobType(JobType):
     }
 
     job_exceptions_map = {
-        RequestException: "The Airtable server could not be reached.",
-        AirtableBaseNotPublic: "The Airtable base is not publicly shared.",
-        AirtableShareIsNotABase: "The shared link is not a base. It's probably a "
-        "view and the Airtable import tool only supports shared bases.",
-        AirtableBaseRequiresAuthentication: "The Airtable base requires authentication.",
+        RequestException: "The Airtable server could not be reached. Please check "
+        "the URL and try again later.",
+        AirtableBaseNotPublic: "The Airtable base could not be accessed. It's either "
+        "not publicly shared, or the URL is incorrect. Open the shared URL in your "
+        "browser to check that it shows the base you want to import.",
+        AirtableShareIsNotABase: "The shared link is not a base or a view.",
+        AirtableBaseRequiresAuthentication: "The Airtable base can only be imported "
+        "with additional authentication. Enable the session authentication option, "
+        "and provide the session cookies to import it.",
     }
 
     request_serializer_field_names = [
@@ -61,7 +65,7 @@ class AirtableImportJobType(JobType):
         ),
         "airtable_share_url": serializers.URLField(
             validators=[is_publicly_shared_airtable_url],
-            help_text="The publicly shared URL of the Airtable base (e.g. "
+            help_text="The publicly shared URL of the Airtable base or view (e.g. "
             "https://airtable.com/shrxxxxxxxxxxxxxx)",
         ),
         "skip_files": serializers.BooleanField(
@@ -93,7 +97,8 @@ class AirtableImportJobType(JobType):
         ),
         "airtable_share_id": serializers.URLField(
             max_length=200,
-            help_text="Public ID of the shared Airtable base that must be imported.",
+            help_text="Public ID of the shared Airtable base or view that must be "
+            "imported.",
         ),
         "database": PolymorphicApplicationResponseSerializer(),
         "skip_files": serializers.BooleanField(

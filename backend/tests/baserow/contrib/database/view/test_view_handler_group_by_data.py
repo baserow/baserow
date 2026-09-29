@@ -461,3 +461,123 @@ def test_get_group_by_data_for_parents_matches_per_parent_queries(data_fixture):
             group["_parent_group_count"] == reference["group_count"]
             for group in batched_for_parent
         )
+
+
+def _ghost_row_slots(view_handler, user, grid, model, db_column):
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    data = view_handler.get_group_by_data(
+        base_queryset, list(grid.viewgroupby_set.all()), limit=200
+    )
+    rows = list(view_handler.get_queryset(user, grid, model=model))
+
+    ghosts = []
+    for group in data["groups"]:
+        group_path = sorted(group["path"][db_column])
+        start = group["row_offset"]
+        for offset in range(start, start + group["row_count"]):
+            row = rows[offset]
+            row_path = sorted(related.id for related in getattr(row, db_column).all())
+            if row_path != group_path:
+                ghosts.append(
+                    f"slot {offset} of group {group_path} got row {row.id} "
+                    f"belonging to {row_path}"
+                )
+    return ghosts
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_row_offsets_match_row_order_for_multiple_select(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    option_a = data_fixture.create_select_option(field=field, value="A", order=0)
+    option_b = data_fixture.create_select_option(field=field, value="B", order=1)
+    option_c = data_fixture.create_select_option(field=field, value="C", order=2)
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    for values in [
+        [option_a.id, option_c.id],
+        [option_c.id, option_a.id],
+        [option_b.id],
+    ]:
+        data_fixture.create_row_for_many_to_many_field(
+            table=table, field=field, values=values, user=user
+        )
+
+    ghosts = _ghost_row_slots(
+        ViewHandler(), user, grid, table.get_model(), field.db_column
+    )
+    assert ghosts == [], "\n".join(ghosts)
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_row_offsets_match_with_sort_on_same_multiple_select_field(
+    data_fixture,
+):
+    """
+    When the same multiple select field is both grouped-by and sorted-by, the
+    group-by uses set-based ordering and the sort uses insertion-order. The two
+    annotations must not collide.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    option_a = data_fixture.create_select_option(field=field, value="A", order=0)
+    option_b = data_fixture.create_select_option(field=field, value="B", order=1)
+    option_c = data_fixture.create_select_option(field=field, value="C", order=2)
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+    data_fixture.create_view_sort(view=grid, field=field, order="DESC")
+
+    for values in [
+        [option_a.id, option_c.id],
+        [option_c.id, option_a.id],
+        [option_b.id],
+    ]:
+        data_fixture.create_row_for_many_to_many_field(
+            table=table, field=field, values=values, user=user
+        )
+
+    ghosts = _ghost_row_slots(
+        ViewHandler(), user, grid, table.get_model(), field.db_column
+    )
+    assert ghosts == [], "\n".join(ghosts)
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_row_offsets_match_row_order_for_collaborators(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    collaborator_a = data_fixture.create_user(
+        workspace=database.workspace, first_name="Aaa"
+    )
+    collaborator_b = data_fixture.create_user(
+        workspace=database.workspace, first_name="Mmm"
+    )
+    collaborator_c = data_fixture.create_user(
+        workspace=database.workspace, first_name="Zzz"
+    )
+    field = data_fixture.create_multiple_collaborators_field(table=table, name="People")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    for values in [
+        [{"id": collaborator_a.id}, {"id": collaborator_c.id}],
+        [{"id": collaborator_c.id}, {"id": collaborator_a.id}],
+        [{"id": collaborator_b.id}],
+    ]:
+        data_fixture.create_row_for_many_to_many_field(
+            table=table, field=field, values=values, user=user
+        )
+
+    ghosts = _ghost_row_slots(
+        ViewHandler(), user, grid, table.get_model(), field.db_column
+    )
+    assert ghosts == [], "\n".join(ghosts)

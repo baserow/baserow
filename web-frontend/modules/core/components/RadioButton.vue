@@ -1,6 +1,7 @@
 <template>
   <Button
     type="secondary"
+    button-type="button"
     v-bind="restProps"
     :loading="loading"
     :disabled="disabled"
@@ -47,6 +48,16 @@ export default {
       required: false,
       default: '',
     },
+    allowDeselect: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    deselectedValue: {
+      type: [String, Number, Boolean, Object],
+      required: false,
+      default: undefined,
+    },
   },
   emits: ['input', 'update:modelValue'],
   computed: {
@@ -63,11 +74,12 @@ export default {
   },
   methods: {
     select(value) {
-      if (this.disabled || this.selected) {
+      if (this.disabled || (this.selected && !this.allowDeselect)) {
         return
       }
-      this.$emit('update:modelValue', value)
-      this.$emit('input', value)
+      const newValue = this.selected ? this.deselectedValue : value
+      this.$emit('update:modelValue', newValue)
+      this.$emit('input', newValue)
     },
   },
 }

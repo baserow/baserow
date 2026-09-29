@@ -842,7 +842,15 @@
         "exampleTeamCheckInsName": "Spotkania zespołu",
         "exampleTeamCheckInsPrompt": "Utwórz tracker co-tygodniowych spotkań zespołu zawierający Członków zespołu, Daty spotkań, Osiągnięcia, Przeszkody, Nastroje, Priorytety i Zadania.",
         "exampleBugTrackerName": "Tracker błędów w oprogramowaniu",
-        "exampleBugTrackerPrompt": "Utwórz tracker błędów w oprogramowaniu zawierający Opisy błędów, Priorytety, Status, Kroki do odtworzenia, Środowisko, Zgłaszających, Osoby przypisane do rozwiązania i Wersje poprawek."
+        "exampleBugTrackerPrompt": "Utwórz tracker błędów w oprogramowaniu zawierający Opisy błędów, Priorytety, Status, Kroki do odtworzenia, Środowisko, Zgłaszających, Osoby przypisane do rozwiązania i Wersje poprawek.",
+        "progress": "Pytanie {current} z {total}",
+        "explanation": "Kuma skonfiguruje Twój obszar roboczy. Odpowiedzenie na parę pytań pomoże podpowiedzieć, od czego zacząć i tym samym przygotować coś przydatnego.",
+        "industryLabel": "W jakim sektorze pracujesz?",
+        "industryDescription": "Wystarczy kilka słów, np. \"produkcja\", \"przemysł lotniczy\" lub \"marketing cyfrowy\".",
+        "industryPlaceholder": "np. marketing cyfrowy",
+        "teamLabel": "W jakim zespole pracujesz?",
+        "teamDescription": "Np. \"obsługa klienta\", \"finanse\" lub \"dział operacyjny\".",
+        "teamPlaceholder": "np. obsługa klienta"
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Utwórz bazę danych z tabelami, polami, przykładowymi wierszami i przykładowymi widokami zgodnie z następującym opisem: {prompt}"
@@ -872,11 +880,11 @@
         "codePlaceholder": "Wprowadź kod, który ma być uruchomiony",
         "editCode": "Edytuj kod",
         "injectionsLabel": "Wstawianie danych",
-        "injectionsHelperText": "Wstawienia (injections) to wyrażenia analizowane przed uruchomieniem kodu. Wszystkie nazwy wstawień są ustawiane jako atrybuty obiektu context. Na przykład wstawienie o nazwie customerName jest dostępne jako context.customerName.",
+        "injectionsHelperText": "Wstawienia (injections) to wyrażenia analizowane przed uruchomieniem kodu. Wszystkie nazwy wstawień są ustawiane jako atrybuty obiektu context. Na przykład, wstawienie o nazwie customerName jest dostępne jako context.customerName.",
         "nameLabel": "Nazwa",
         "namePlaceholder": "Nazwa zmiennej",
         "valueLabel": "Wartość",
-        "valuePlaceholder": "Formuła wartości",
+        "valuePlaceholder": "Wyrażenie wartości",
         "addInjection": "Dodaj wstawienie (injection)",
         "nameFieldRequired": "Pole nazwy jest wymagane.",
         "nameFieldInvalid": "Nazwa musi być poprawną nazwą zmiennej."
@@ -891,5 +899,26 @@
     "nodeType": {
         "codeLabel": "Uruchom kod",
         "xlsFileReaderLabel": "Wczytaj plik XLS"
+    },
+    "aiPromptStep": {
+        "title": "Co Kuma ma skonfigurować?",
+        "description": "Pierwsza sugestia oparta jest na Twoich odpowiedziach. Możesz ją zmienić lub wybrać inną poniżej.",
+        "label": "Opisz swoją bazę danych",
+        "placeholder": "np. śledzenie projektów pod kątem terminów, osób odpowiedzialnych i statusu.",
+        "generating": "Kuma przygotowuje dla Ciebie sugestię…",
+        "suggestionsTitle": "Lub zacznij od jednej z poniższych opcji",
+        "editDetails": "Edytuj szczegóły",
+        "modelNotSupportedTitle": "Asystent nie jest obecnie dostępny",
+        "modelNotSupportedMessage": "Nie ma dostępu do pomocy w budowie bazy danych, ponieważ nie został skonfigurowany żaden model AI. Dopóki nie zostanie to poprawione, ponawianie prób nie przyniesie skutku.",
+        "errorOtherOptions": "Zacznij jeszcze raz, np. użyj szablonu, importu lub pustej bazy danych."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Edytuj szczegóły",
+        "submit": "Popraw lub zmień sugestie"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Utwórz bazę danych zawierającą tabele, pola, przykładowe wiersze i widoki zgodnie z następującym opisem: {prompt}",
+        "context": "Osoba zadająca pytanie pracuje w sektorze: {industry} i w zespole: {team}. Skonfiguruj tabele, pola i przykładowe wiersze, które będą odpowiadać temu profilowi.",
+        "language": "Zapisz wszystko w języku określonym kodem ISO 639-1 jako \"{language}\"."
     }
 }

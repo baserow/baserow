@@ -3,6 +3,51 @@
         "page": "pagina",
         "of": "van {pages}"
     },
+    "allWorkspaces": {
+        "title": "Je werkruimtes",
+        "searchResults": "Zoekresultaten",
+        "searchPlaceholder": "Zoeken",
+        "allItems": "Alle items",
+        "itemsSelected": "{count} itemtype | {count} itemtypes",
+        "createWorkspace": "Werkruimte aanmaken",
+        "expandedView": "Uitgebreide weergave",
+        "compactView": "Compacte weergave",
+        "collapseAll": "Alles inklappen",
+        "expandAll": "Alles uitklappen",
+        "workspacesSection": "Werkruimtes",
+        "itemsSection": "Items",
+        "noResultsTitle": "Geen resultaten gevonden",
+        "noResultsDescription": "We konden niets vinden voor \"{search}\". Controleer je spelling of gebruik andere zoekwoorden.",
+        "clearSearch": "Zoekopdracht wissen",
+        "membersCount": "0 leden | 1 lid | {count} leden",
+        "itemsCount": "0 items | 1 item | {count} items",
+        "moreElements": "nog {count} element | nog {count} elementen",
+        "noApplications": "Nog geen builders",
+        "noFilterMatches": "Er zijn geen items die overeenkomen met de geselecteerde types.",
+        "create": "Aanmaken",
+        "members": "Leden",
+        "settings": "Instellingen"
+    },
+    "recentlyViewed": {
+        "title": "Recent bekeken",
+        "yourItems": "Je items",
+        "name": "Naam",
+        "lastViewed": "Laatst bekeken",
+        "workspace": "Werkruimte",
+        "allWorkspaces": "Alle werkruimtes",
+        "workspacesSelected": "{count} werkruimte | {count} werkruimtes",
+        "allItems": "Alle items",
+        "itemTypesSelected": "{count} itemtype | {count} itemtypes",
+        "tableView": "Tabel",
+        "cardsView": "Kaarten",
+        "loadMore": "Meer laden",
+        "emptyTitle": "Niets recent bekeken",
+        "emptyDescription": "De weergaven, pagina's, dashboards en workflows die je opent, verschijnen hier.",
+        "noFilterMatchesTitle": "Er zijn geen items die overeenkomen met de geselecteerde filters",
+        "noFilterMatchesDescription": "Probeer andere werkruimtes of itemtypes te selecteren.",
+        "clearFilters": "Filters wissen",
+        "goToWorkspaces": "Ga naar je werkruimtes"
+    },
     "copied": {
         "label": "Gekopieerd!"
     },
@@ -25,6 +70,7 @@
         "dashboard": "Dashboard",
         "trash": "Prullenbak",
         "settings": "Instellingen",
+        "replayGuidedTour": "Rondleiding opnieuw afspelen",
         "members": "Leden",
         "notifications": "Meldingen",
         "general": "Algemeen",
@@ -32,6 +78,11 @@
         "people": "Gebruikers",
         "addNewWorkspace": "Nieuwe werkruimte toevoegen",
         "adminTools": "Beheerprogramma's",
+        "recents": "Recent",
+        "allWorkspaces": "Alle werkruimtes",
+        "recentlyViewed": "Recent bekeken",
+        "backToHome": "Terug naar home",
+        "templates": "Sjablonen",
         "adminSettings": "Beheerdersinstellingen",
         "licenses": "Licenties"
     },
@@ -147,7 +198,8 @@
         "title": "Sjablonen"
     },
     "templateHeader": {
-        "use": "Gebruik deze sjabloon"
+        "use": "Gebruik deze sjabloon",
+        "selectWorkspace": "Kies werkruimte"
     },
     "trashSidebar": {
         "title": "Prullenbak",
@@ -176,6 +228,10 @@
         "restore": "Herstel",
         "unnamed": "Naamloos {type} {id}",
         "andMore": "... en {count} meer"
+    },
+    "trashType": {
+        "integration": "integratie",
+        "user_source": "gebruikersbron"
     },
     "trashModal": {
         "emptyTitle": "Geen werkruimtes gevonden",
@@ -221,9 +277,10 @@
         "restore": "Herstel verwijderd {type}"
     },
     "errorLayout": {
+        "pageNotFoundTitle": "Pagina niet gevonden",
         "notFound": "We kunnen de pagina die je zoekt niet vinden. Misschien is de URL niet correct, of misschien heb je geen autorisatie om deze pagina te bekijken.",
-        "error": "Er is iets misgegaan tijdens het laden van de pagina. Onze ontwikkelaars zijn op de hoogte gebracht van het probleem. Probeer Vernieuwen of ga terug naar het dashboard.",
-        "backDashboard": "Terug naar dashboard",
+        "error": "Er is iets misgegaan tijdens het laden van de pagina. Onze ontwikkelaars zijn op de hoogte gebracht van het probleem. Probeer te vernieuwen of ga terug naar de startpagina.",
+        "backDashboard": "Terug naar home",
         "backLogin": "Terug naar inloggen",
         "wrong": "Er is iets misgegaan",
         "refresh": "Pagina vernieuwen"
@@ -243,9 +300,13 @@
         "shareOnReddit": "Deel op Reddit",
         "shareOnFacebook": "Deel op Facebook",
         "shareOnLinkedIn": "Deel op LinkedIn",
+        "templates": "Sjablonen",
+        "templatesMessage": "Begin met een kant-en-klare oplossing",
         "noWorkspaceTextWithoutCreatePermission": "Je bent geen lid van een werkruimte. Toepassingen zoals databases horen bij een werkruimte, dus om ze aan te maken moet je eerst door een beheerder bij een werkruimte worden uitgenodigd.",
         "apiDocumentation": "API-documentatie",
         "apiDocumentationMessage": "Meer informatie over onze code",
+        "academy": "Baserow Academy",
+        "academyMessage": "Volg cursussen en word een expert",
         "emptyWorkspace": "Deze werkruimte is leeg",
         "noWorkspaceDescription": "Begin met het maken van een nieuwe werkruimte",
         "suggestedTemplates": "Voorgestelde templates",
@@ -346,6 +407,8 @@
         "baserowVersionDescription": "Het versienummer van deze instantie.",
         "baserowVersion": "Baserow versie",
         "settingsVerifyImportSignatureDescription": "Indien ingeschakeld, wordt de handtekening van de geïmporteerde gegevens geverifieerd om er zeker van te zijn dat er niet met de gegevens geknoeid is.",
+        "settingAllowReportingAbuseName": "Misbruik melden toestaan",
+        "settingAllowReportingAbuseDescription": "Wanneer ingeschakeld kunnen bezoekers van openbaar gedeelde weergaven en formulieren deze melden wegens misbruik, en worden alle beheerders van de instantie op de hoogte gebracht van de melding.",
         "settingsVerifyImportSignature": "Verifieer import handtekening"
     },
     "copyingNotification": {
@@ -546,6 +609,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "Gebruiker zit al in de werkruimtes.",
                     "text": "Het is niet mogelijk een uitnodiging te sturen wanneer de gebruiker al lid is van de werkruimtes."
+                },
+                "tooManyInvitations": {
+                    "title": "Te veel uitnodigingen verzonden.",
+                    "text": "Je hebt te veel uitnodigingen verzonden. Probeer het later opnieuw."
                 }
             },
             "submit": "Stuur uitnodiging",
@@ -657,6 +724,8 @@
     "integrationCreateEditModal": {
         "editTitle": "Integratie bewerken",
         "warningTitle": "Waarschuwing",
+        "credentialRequiredTitle": "Inloggegevens vereist",
+        "credentialRequiredMessage": "Voer de inloggegevens opnieuw in om te wijzigen waarmee deze integratie verbinding maakt.",
         "createTitle": "Nieuwe integratie"
     },
     "integrationEditForm": {
@@ -683,7 +752,14 @@
         "deletedUser": "Een verwijderde gebruiker"
     },
     "dropdown": {
-        "empty": "Geen items beschikbaar"
+        "empty": "Geen items beschikbaar",
+        "clearSearch": "Zoekopdracht wissen"
+    },
+    "groupedMenu": {
+        "core": "Core",
+        "files": "Bestanden",
+        "http": "HTTP",
+        "workflow": "Workflow"
     },
     "styleBoxForm": {
         "paddingError": "De waarde moet een geheel getal zijn tussen 0 en 200."
@@ -697,6 +773,30 @@
     },
     "versionUpgradeNotification": {
         "title": "{version} is hier! Bekijk wat er nieuw is."
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} is wegens misbruik gemeld door {reporterEmail}",
+        "openResource": "Open de gemelde pagina",
+        "showMore": "Toon meer",
+        "detailsTitle": "Misbruikmelding",
+        "reportedBy": "Gemeld door {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Misbruik melden",
+        "description": "Denk je dat deze pagina wordt gebruikt voor phishing, imitatie, oplichting of andere kwaadaardige doeleinden? Laat het de beheerders van deze Baserow-instantie weten door onderstaand formulier in te dienen.",
+        "submit": "Melding indienen",
+        "close": "Sluiten",
+        "successTitle": "Bedankt voor je melding",
+        "successDescription": "De melding is ingediend en de beheerders van deze Baserow-instantie zijn op de hoogte gebracht zodat ze actie kunnen ondernemen.",
+        "reportingDisabledTitle": "Melden is uitgeschakeld",
+        "reportingDisabledDescription": "Misbruik melden is uitgeschakeld door de beheerder van deze Baserow-instantie."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Je naam",
+        "emailLabel": "Je e-mailadres",
+        "descriptionLabel": "Waarom meld je deze pagina?",
+        "descriptionHelper": "Beschrijf in detail waarom je denkt dat deze pagina misbruik maakt.",
+        "descriptionPlaceholder": "Bijvoorbeeld: deze pagina doet zich voor als een inlogpagina van een ander bedrijf en vraagt bezoekers om hun wachtwoord."
     },
     "emailNotifications": {
         "submitButton": "Frequentie bijwerken",
@@ -717,7 +817,9 @@
         "errorInvalidFormula": "De formule is ongeldig.",
         "advancedFormulaMode": "Geavanceerde formule-modus",
         "invalidFormulaTitle": "Ongeldige formule",
-        "invalidSyntax": "Dit is geen geldige formule, controleer de syntax."
+        "invalidSyntax": "Dit is geen geldige formule, controleer de syntax.",
+        "useFormulaMode": "Formulemodus gebruiken",
+        "useRawMode": "Ruwe modus gebruiken"
     },
     "userPasswordChangedToast": {
         "title": "Wachtwoord veranderd",
@@ -727,6 +829,7 @@
         "noIntegrations": "Geen integraties gevonden.",
         "addIntegration": "Nieuwe integratie toevoegen",
         "integrationPlaceholder": "Selecteer een integratie",
+        "editIntegration": "Integratie bewerken",
         "selectTypeFirst": "Kies het type eerst"
     },
     "richTextEditorBubbleMenu": {
@@ -751,36 +854,54 @@
         "paragraph": "Paragraaf"
     },
     "workspaceSettingType": {
-        "generativeAI": "Generatieve AI"
+        "generativeAI": "Generatieve AI",
+        "aiProviders": "AI-providers"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
         "openaiOrganization": "Organisatie (optioneel)",
         "openaiModelsLabel": "Ingeschakelde modellen",
-        "openaiModelsDescription": "Geef een lijst met door komma's gescheiden [OpenAI-modellen] (https://platform.openai.com/docs/models/continuous-model-upgrades) die kunnen worden gebruikt in Baserow. (bijv. `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Geef een door komma's gescheiden lijst van [OpenAI-model-identifiers](https://developers.openai.com/api/docs/models) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
+        "openaiModelIdentifierDescription": "Voer een [OpenAI-model-identifier](https://developers.openai.com/api/docs/models) in. Bijvoorbeeld: `gpt-5.6`, `gpt-5.6-terra` of `gpt-5.6-luna`.",
         "ollamaHostLabel": "Host",
         "ollamaModelsLabel": "Ingeschakelde modellen",
         "openaiApiKeyLabel": "API-sleutel",
-        "openaiApiKeyDescription": "Geef een OpenAI API-sleutel op als je de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiApiKeyDescription": "Voer een OpenAI API-sleutel in. [Instructies voor het verkrijgen van een API-sleutel](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "ollamaHostDescription": "Geef de hostnaam van je [Ollama](https://ollama.com/) server. Deze draait meestal lokaal op je eigen apparaat.",
         "ollama": "Ollama",
-        "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)",
+        "ollamaModelsDescription": "Geef een door komma's gescheiden lijst van [modellen die in Ollama zijn geïnstalleerd](https://ollama.com/library). Een model moet worden gedownload en geïnstalleerd voordat Baserow het kan gebruiken. Bijvoorbeeld: `gemma3,qwen3,llama3.3`.",
+        "ollamaModelIdentifierDescription": "Voer de identifier in van een [model dat in Ollama is geïnstalleerd](https://ollama.com/library). Bijvoorbeeld: `gemma3`, `qwen3` of `llama3.3`.",
         "mistral": "Mistral",
         "mistralModelsLabel": "Ingeschakelde modellen",
         "anthropic": "Anthropic",
         "anthropicApiKeyLabel": "API-sleutel",
-        "anthropicApiKeyDescription": "Geef een Anthropic API-sleutel op als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicApiKeyDescription": "Voer een Anthropic API-sleutel in. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
         "anthropicModelsLabel": "Ingeschakelde modellen",
-        "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelsDescription": "Geef een door komma's gescheiden lijst van [Anthropic-model-identifiers](https://platform.claude.com/docs/en/about-claude/models/overview) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
+        "anthropicModelIdentifierDescription": "Voer een [Anthropic-model-identifier](https://platform.claude.com/docs/en/about-claude/models/overview) in. Bijvoorbeeld: `claude-sonnet-5`, `claude-opus-4-8` of `claude-haiku-4-5`.",
         "mistralApiKeyLabel": "API-sleutel",
-        "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
-        "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsDescription": "Geef een door komma's gescheiden lijst van [Mistral-model-identifiers](https://docs.mistral.ai/models/) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`.",
+        "mistralModelIdentifierDescription": "Voer een [Mistral-model-identifier](https://docs.mistral.ai/models/) in. Bijvoorbeeld: `mistral-large-latest`, `mistral-medium-latest` of `mistral-small-latest`.",
+        "mistralApiKeyDescription": "Voer een Mistral API-sleutel in. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
         "openRouterApiKeyLabel": "API-sleutel",
         "openRouterOrganization": "Organisatie (optioneel)",
         "openRouter": "OpenRouter",
         "openRouterModelsLabel": "Ingeschakelde modellen",
-        "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
-        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
+        "openRouterModelsDescription": "Geef een door komma's gescheiden lijst van [OpenRouter-model-identifiers](https://openrouter.ai/models) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
+        "openRouterModelIdentifierDescription": "Voer een [OpenRouter-model-identifier](https://openrouter.ai/models) in. Bijvoorbeeld: `openai/gpt-5.6` of `anthropic/claude-sonnet-5`.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "API-sleutel",
+        "googleApiKeyDescription": "Voer een Google AI Studio API-sleutel in. [Een API-sleutel aanmaken of bekijken](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Ingeschakelde modellen",
+        "googleModelsDescription": "Geef een door komma's gescheiden lijst van [Gemini-model-identifiers](https://ai.google.dev/gemini-api/docs/models) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Voer een [Gemini-model-identifier](https://ai.google.dev/gemini-api/docs/models) in. Bijvoorbeeld: `gemini-3.6-flash` of `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "API-sleutel",
+        "groqApiKeyDescription": "Voer een Groq API-sleutel in. [Een API-sleutel aanmaken of bekijken](https://console.groq.com/keys).",
+        "groqModelsLabel": "Ingeschakelde modellen",
+        "groqModelsDescription": "Geef een door komma's gescheiden lijst van [Groq-model-identifiers](https://console.groq.com/docs/models) die in Baserow kunnen worden gebruikt. Bijvoorbeeld: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Voer een [Groq-model-identifier](https://console.groq.com/docs/models) in. Bijvoorbeeld: `openai/gpt-oss-120b` of `openai/gpt-oss-20b`.",
+        "openRouterApiKeyDescription": "Voer een OpenRouter API-sleutel in. [Een API-sleutel verkrijgen](https://openrouter.ai/settings/keys).",
         "openaiBaseUrl": "Basis URL",
         "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://&lt;uw-bronnaam&gt;.openai.azure.com, of een andere OpenAI-compatibele API."
     },
@@ -790,6 +911,15 @@
         "description": "Deze instellingen kunnen worden gebruikt om optioneel generatieve AI-configuratie in te stellen op werkruimte-niveau. Functies zoals het AI-veld kunnen worden uitgeschakeld omdat ze geen API-sleutel hebben voor een van de ondersteunde modellen. Door de instellingen hier op te geven, kun je die functies inschakelen. Als je een waarde leeg laat, wordt deze standaard teruggezet naar de globale instance-instellingen. Let op dat iedereen in de werkruimte deze instellingen deelt.",
         "changedTitle": "Instellingen correct bijgewerkt",
         "changedDescription": "De instellingen zijn bijgewerkt en worden nu gebruikt in deze werkruimte.",
+        "providerTitle": "AI-providers",
+        "providerDescription": "Beheer providers van deze werkruimte, of schakel providers die van de installatie zijn overgenomen in of uit.",
+        "sharedModelsTitle": "Gedeeld tussen werkruimtes",
+        "addWorkspaceConfiguration": "Werkruimteconfiguratie toevoegen",
+        "overridden": "Overschreven",
+        "overriddenByWorkspace": "Overschreven door werkruimte",
+        "disabledInWorkspace": "Uitgeschakeld in werkruimte",
+        "noProviders": "Er zijn geen AI-providers beschikbaar",
+        "noProvidersDescription": "Voeg een provider toe voor deze werkruimte, of vraag een beheerder van de installatie om er een te configureren.",
         "openSettings": "Instellingen openen",
         "hideSettings": "Instellingen verbergen"
     },
@@ -798,6 +928,7 @@
     },
     "selectAIModelForm": {
         "AIModel": "AI-model",
+        "modelUnavailable": "Dit model is uitgeschakeld of niet meer beschikbaar.",
         "AIType": "AI-type",
         "fileField": "Bestandsveld",
         "temperatureLabel": "Temperatuur",
@@ -809,6 +940,7 @@
         "skip": "Voorlopig overslaan",
         "failedSkip": "Onboarding overslaan",
         "continue": "Ga verder",
+        "back": "Terug",
         "cancel": "Ik wil geen hulp bij het opzetten",
         "failedTitle": "Er is iets misgegaan",
         "failedDescription": "De onboarding is niet volledig voltooid, hoewel sommige onderdelen misschien wel zijn voltooid.",
@@ -955,7 +1087,93 @@
         "dashboard": "Dashboard",
         "users": "Gebruikers",
         "workspaces": "Werkruimtes",
+        "aiProviders": "AI-providers",
         "licenses": "Licenties"
+    },
+    "aiProviderAdmin": {
+        "title": "AI-providers",
+        "description": "Beheer de providers en modellen op instantieniveau die beschikbaar zijn voor werkruimtes en automatiseringen.",
+        "addProvider": "Provider toevoegen",
+        "editProvider": "Provider bewerken",
+        "providerType": "Providertype",
+        "apiKey": "API-sleutel",
+        "changeApiKey": "API-sleutel wijzigen",
+        "apiKeyUpdateHint": "Voer een nieuwe API-sleutel in om de bestaande sleutel te vervangen.",
+        "extraField_organization": "Organisatie",
+        "extraField_base_url": "Basis-URL",
+        "extraField_host": "Host",
+        "models": "Modellen",
+        "addModel": "Model toevoegen",
+        "removeModel": "Model verwijderen",
+        "editModel": "Model bewerken",
+        "modelIdentifier": "Model-identifier",
+        "availableFor": "Beschikbaar voor",
+        "availableForDescription": "Kies welke van de vermelde AI-functies dit model mogen gebruiken.",
+        "availableForList": "Beschikbaar voor: {features}",
+        "availableForNone": "Niet beschikbaar voor een van de vermelde functies",
+        "featureSettingsTitle": "AI-functies",
+        "featureSettingsDescription": "Kies voor elke functie een geconfigureerd providermodel. Omgevingsmodellen zijn verouderd.",
+        "kumaDisabled": "Uitgeschakeld",
+        "kumaInvalidFallback": "Geselecteerd model niet beschikbaar — verouderd omgevingsmodel wordt gebruikt: {model}",
+        "kumaInvalidNoFallback": "Geselecteerd model niet beschikbaar — geen omgevingsmodel geconfigureerd",
+        "kumaDisabledInWorkspace": "Uitgeschakeld in deze werkruimte",
+        "kumaUseInstance": "Installatie-instelling gebruiken — {model}",
+        "kumaInheritedUnavailable": "geselecteerd installatiemodel niet beschikbaar",
+        "kumaUseLegacy": "Omgevingsmodel gebruiken (verouderd): {model}",
+        "kumaLegacyFallback": "omgevingsmodel (verouderd): {model}",
+        "kumaLegacyEmpty": "leeg",
+        "kumaNotConfigured": "niet geconfigureerd",
+        "featureModelLabel": "Model voor {feature}",
+        "modelScopeInstance": "Installatie",
+        "modelScopeWorkspace": "Werkruimte",
+        "noFeatureModels": "Er zijn geen geschikte modellen beschikbaar. Bewerk een model en kies welke functies het mogen gebruiken.",
+        "featureSettingError": "De instelling voor de AI-functie kon niet worden opgeslagen.",
+        "featureSettingErrorDescription": "Vernieuw de pagina en kies een beschikbaar model.",
+        "modelDiscoveryHelp": "Kies een model uit de lijst of voer een eigen identifier in.",
+        "modelDiscoveryUnavailable": "Suggesties voor bekende modellen zijn niet beschikbaar. Voer handmatig een identifier in.",
+        "modelDiscoveryEmpty": "Geen bekende modellen voor deze provider. Voer handmatig een identifier in.",
+        "modelDiscoveryNoMatch": "Geen bekend model komt overeen. Je kunt de ingevoerde identifier gebruiken.",
+        "noProviders": "Geen AI-providers voor de instantie geconfigureerd",
+        "noProvidersDescription": "Voeg een provider toe om de modellen te configureren die beschikbaar zijn voor je werkruimtes.",
+        "noModels": "Er zijn geen modellen geconfigureerd voor deze provider.",
+        "active": "Actief",
+        "inactive": "Inactief",
+        "inherited": "Geërfd",
+        "enable": "Inschakelen",
+        "disable": "Uitschakelen",
+        "modelDisabled": "Uitgeschakeld",
+        "moreActions": "Meer acties",
+        "testAllModels": "Alle modellen testen",
+        "testModel": "Model testen",
+        "test": "Test",
+        "testAllModelsButtonTitle": "Test alle gedefinieerde modellen",
+        "testModelButtonTitle": "Test dit model",
+        "testPassed": "Test geslaagd",
+        "testFailed": "Test mislukt",
+        "someTestsFailed": "Sommige tests zijn mislukt",
+        "featureTestPassed": "{feature}: geslaagd",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Testen…",
+        "notTested": "Niet getest",
+        "deleteProviderTitle": "{name} verwijderen?",
+        "deleteProviderDescription": "Hiermee worden de provider en de bijbehorende modellen permanent verwijderd.",
+        "deleteModelTitle": "{name} verwijderen?",
+        "deleteModelDescription": "Hiermee wordt het model permanent verwijderd.",
+        "disableModelTitle": "{name} uitschakelen?",
+        "disableModelDescription": "Het model blijft geselecteerd waar het is geconfigureerd, maar kan niet worden gebruikt totdat het weer wordt ingeschakeld.",
+        "modelFeaturesRemovedTitle": "Wijzigen waarvoor {name} beschikbaar is?",
+        "modelFeaturesRemovedDescription": "De functies die je hebt uitgevinkt kunnen dit model niet meer gebruiken.",
+        "modelInUse": "{features} gebruikt dit model. | {features} gebruiken dit model.",
+        "modelUsageUnknown": "Baserow kon niet controleren wat dit model nog gebruikt.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "{name} hernoemen?",
+        "modelIdentifierRenamedDescription": "Deze blijven naar de oude identifier verwijzen en werken niet meer totdat ze opnieuw worden gekoppeld.",
+        "loadError": "De AI-providerinstellingen konden niet worden geladen.",
+        "loadErrorDescription": "Controleer de verbinding en probeer het opnieuw.",
+        "retry": "Opnieuw proberen",
+        "saveError": "De AI-provider kon niet worden opgeslagen.",
+        "saveModelError": "Het AI-providermodel kon niet worden opgeslagen.",
+        "actionError": "De wijziging van de AI-provider kon niet worden voltooid."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Alle werkruimtes",
@@ -1060,6 +1278,9 @@
     "userSourceType": {
         "userCountSummary": "{count} gebruikers ({lastUpdated})"
     },
+    "academy": {
+        "learnMore": "Leer meer in de Baserow academy"
+    },
     "colorPickerContext": {
         "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
     },
@@ -1067,7 +1288,14 @@
         "step": "{step} van {totalSteps}",
         "gotIt": "Ik snap het",
         "next": "Volgende",
-        "back": "Terug"
+        "back": "Terug",
+        "watchVideo": "Video bekijken",
+        "stopTour": "Rondleiding stoppen"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Vorige video",
+        "next": "Volgende video",
+        "close": "Sluiten"
     },
     "welcomeGuidedTourStep": {
         "title": "Welkom bij Baserow",
@@ -1202,7 +1430,60 @@
         "methodsOptionLabel": "Toegestane HTTP-methoden",
         "methodsOptionDescription": "Bepaalt welke HTTP-methodes zijn toegestaan voor deze webhook. Het uitsluiten van GET vermindert de kans dat de webhook per ongeluk wordt geactiveerd.",
         "methodsOptionAll": "Alle",
-        "methodsOptionExcludeGet": "GET uitsluiten"
+        "methodsOptionExcludeGet": "GET uitsluiten",
+        "responseOptionsLabel": "Antwoord",
+        "waitForResponse": "Wachten op workflow-antwoord",
+        "waitForResponseDescription": "Wacht tot een Antwoord-node wordt bereikt. Als er geen wordt bereikt, wacht dan tot de workflow klaar is en retourneer het standaardantwoord.",
+        "responseTimeout": "Time-out voor antwoord",
+        "seconds": "seconden"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Antwoord",
+        "waitForResponse": "Wachten op workflow-antwoord",
+        "waitForResponseDescription": "Wacht tot een Antwoord-node wordt bereikt. Als er geen wordt bereikt, wacht dan tot de workflow klaar is en retourneer het standaardantwoord.",
+        "responseTimeout": "Time-out voor antwoord",
+        "seconds": "seconden"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Statuscode",
+        "statusCode200": "200 - OK",
+        "statusCode201": "201 - Created",
+        "statusCode202": "202 - Accepted",
+        "statusCode204": "204 - No Content",
+        "statusCode400": "400 - Bad Request",
+        "statusCode401": "401 - Unauthorized",
+        "statusCode403": "403 - Forbidden",
+        "statusCode404": "404 - Not Found",
+        "statusCode405": "405 - Method Not Allowed",
+        "statusCode409": "409 - Conflict",
+        "statusCode422": "422 - Unprocessable Content",
+        "statusCode429": "429 - Too Many Requests",
+        "bodyType": "Body type",
+        "bodyTypeEmpty": "Leeg",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Tekst",
+        "body": "Body",
+        "bodyPlaceholder": "Response body",
+        "headers": "Headers",
+        "name": "Naam",
+        "value": "Waarde",
+        "namePlaceholder": "Headernaam",
+        "valuePlaceholder": "Headerwaarde",
+        "addHeader": "Header toevoegen",
+        "nameFieldRequired": "Een headernaam is verplicht.",
+        "nameFieldInvalid": "Headernamen mogen alleen letters, cijfers, streepjes en underscores bevatten en mogen niet beginnen met een streepje of underscore."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "E-mailadres",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Gepubliceerd",
+        "copyAddress": "E-mailadres kopiëren",
+        "description": "Elke e-mail die naar dit adres wordt gestuurd, start de workflow met de afzender, het onderwerp, de inhoud en de bijlagegegevens van de e-mail als payload.",
+        "limits": "E-mails tot {size} MB worden geaccepteerd, en de tekst- en HTML-inhoud wordt elk tot 1 MB doorgegeven. Bijlagen worden niet opgeslagen: alleen hun naam, type en grootte worden in de payload opgenomen.",
+        "autoForwardTip": "Tip: je kunt dit adres ook als automatische doorstuurregel in je eigen inbox toevoegen, zodat de workflow wordt uitgevoerd wanneer je een e-mail ontvangt.",
+        "secretWarning": "Behandel dit adres als een geheim: iedereen die het kent, kan deze workflow starten.",
+        "regenerate": "Adres opnieuw genereren",
+        "notConfigured": "Deze Baserow instantie is niet geconfigureerd om inkomende e-mail te ontvangen. Stel de omgevingsvariabele BASEROW_INBOUND_EMAIL_DOMAIN in om deze trigger in te schakelen."
     },
     "twoFactorAuthEmpty": {
         "title": "Je hebt 2FA nog niet ingeschakeld",
@@ -1212,8 +1493,9 @@
         "notAllowedDescription": "Het toevoegen van 2FA is alleen mogelijk voor accounts met een wachtwoord."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Voorbeeld",
-        "result": "Resultaat: {result}"
+        "exampleLabel": "Voorbeeld | Voorbeelden",
+        "result": "Resultaat: {result}",
+        "clickToInsert": "Klik op een voorbeeld om het in te voegen"
     },
     "enableWithQRCode": {
         "scanQRCode": "QR-code scannen",
@@ -1267,6 +1549,29 @@
     "adminWorkspaces": {
         "title": "Werkruimtes"
     },
+    "subjectType": {
+        "user": "Gebruiker",
+        "users": "Gebruikers",
+        "agent": "Agent",
+        "agents": "Agents"
+    },
+    "agents": {
+        "saved": "Wijzigingen opgeslagen",
+        "tabTitle": "Agents",
+        "title": "{count} agents in {workspace}",
+        "create": "Agent aanmaken",
+        "createTitle": "Agent aanmaken",
+        "updateTitle": "Agent bewerken",
+        "save": "Agent opslaan",
+        "edit": "Agent bewerken",
+        "delete": "Agent verwijderen",
+        "general": "Algemeen",
+        "mcpServerPlaceholder": "Instellingen voor de MCP-server zijn hier binnenkort beschikbaar.",
+        "name": "Naam",
+        "invalidNameTitle": "Agentnaam niet toegestaan",
+        "lastActive": "Laatst actief",
+        "workspaceRole": "Werkruimterol"
+    },
     "formulaInputErrorContext": {
         "viewFullError": "Bekijk de volledige foutmelding"
     },
@@ -1295,7 +1600,8 @@
         "showErrorLabel": "Toon fout",
         "downloadFullPayload": "Volledige payload downloaden",
         "truncatedLabel": "[Uitvoer afgekapt]",
-        "truncatedPayloadWarning": "Alleen de eerste {size} tekens worden getoond. Download de volledige payload om deze op je computer te bekijken."
+        "truncatedPayloadWarning": "Alleen de eerste {size} tekens worden getoond. Download de volledige payload om deze op je computer te bekijken.",
+        "noHtmlContent": "Deze e-mail heeft geen HTML-inhoud."
     },
     "workspaceOutdatedToast": {
         "title": "Te veel wijzigingen",
@@ -1311,5 +1617,9 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Werkruimtenaam niet toegestaan"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Afbeelding kan niet worden ingesloten",
+        "errorUnsupportedImageMessage": "{name} is geen ondersteund afbeeldingsformaat en is niet toegevoegd."
     }
 }

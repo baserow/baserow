@@ -176,6 +176,435 @@ describe('Grid view store', () => {
     ).toBeNull()
   })
 
+  test('moveRow reorders inside and across grouped leaf groups', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Group',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 1, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: true,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const fetchAllFieldAggregationData = vi.fn()
+    store = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData,
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 3,
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_raw_type: 'count',
+        },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          { path: { field_1: 'A' }, depth: 0, row_count: 1 },
+          { path: { field_1: 'B' }, depth: 0, row_count: 2 },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(1, 'A'),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'A',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(1, 'B'),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'B',
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+        {
+          id: 12,
+          order: '3.00',
+          field_1: 'B',
+          _: { ...rowMetadata, persistentId: 'r12' },
+        },
+      ],
+    })
+
+    mockServer.mock
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(200, { items: [{ id: 10, order: '1.00', field_1: 'B' }] })
+    mockServer.mock
+      .onPatch('/database/rows/table/1/10/move/')
+      .reply(200, { id: 10, order: '2.50', field_1: 'B' })
+
+    await store.dispatch('grid/moveRow', {
+      table: { id: 1 },
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      getScrollTop: () => 0,
+      row: store.getters['grid/getRow'](10),
+      before: store.getters['grid/getRow'](12),
+      sourceGroupPath: { field_1: 'A' },
+      targetGroupPath: { field_1: 'B' },
+    })
+
+    const updateRequest = mockServer.mock.history.patch[0]
+    const moveRequest = mockServer.mock.history.patch[1]
+    expect(JSON.parse(updateRequest.data)).toEqual({
+      items: [{ id: 10, field_1: 'B' }],
+    })
+    expect(updateRequest.params).toMatchObject({ view: 1 })
+    expect(JSON.parse(moveRequest.data)).toBeNull()
+    expect(moveRequest.params).toMatchObject({ before_id: 12, view: 1 })
+    expect(updateRequest.headers.ClientUndoRedoActionGroupId).toBeTruthy()
+    expect(moveRequest.headers.ClientUndoRedoActionGroupId).toBe(
+      updateRequest.headers.ClientUndoRedoActionGroupId
+    )
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'B')
+      ).map((row) => row.id)
+    ).toEqual([11, 10, 12])
+    expect(store.getters['grid/getRow'](10)).toMatchObject({
+      field_1: 'B',
+      order: '2.50',
+    })
+    expect(store.state.grid.groupBy.treeNodes[0].row_count).toBe(0)
+    expect(store.state.grid.groupBy.treeNodes[1].row_count).toBe(3)
+    expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
+    )
+
+    mockServer.mock
+      .onPatch('/database/rows/table/1/12/move/')
+      .reply(200, { id: 12, order: '1.50', field_1: 'B' })
+
+    await store.dispatch('grid/moveRow', {
+      table: { id: 1 },
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      getScrollTop: () => 0,
+      row: store.getters['grid/getRow'](12),
+      before: store.getters['grid/getRow'](11),
+      sourceGroupPath: { field_1: 'B' },
+      targetGroupPath: { field_1: 'B' },
+    })
+
+    const sameGroupRequest = mockServer.mock.history.patch[2]
+    expect(JSON.parse(sameGroupRequest.data)).toBeNull()
+    expect(sameGroupRequest.params).toMatchObject({ before_id: 11, view: 1 })
+    expect(sameGroupRequest.headers.ClientUndoRedoActionGroupId).toBeUndefined()
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'B')
+      ).map((row) => row.id)
+    ).toEqual([12, 11, 10])
+    expect(store.state.grid.groupBy.treeNodes[1].row_count).toBe(3)
+    expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ clearGroupByAggregationLoadingPaths: false })
+    )
+
+    mockServer.mock
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(200, { items: [{ id: 11, order: '2.00', field_1: 'A' }] })
+    mockServer.mock.onPatch('/database/rows/table/1/11/move/').reply(500)
+    testApp.dontFailOnErrorResponses()
+
+    await expect(
+      store.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid: {
+          id: 1,
+          filters: [],
+          filter_groups: [],
+          filter_type: 'AND',
+          sortings: [],
+          group_bys: groupBys,
+        },
+        fields,
+        getScrollTop: () => 0,
+        row: store.getters['grid/getRow'](11),
+        sourceGroupPath: { field_1: 'B' },
+        targetGroupPath: { field_1: 'A' },
+      })
+    ).rejects.toThrow()
+
+    const partialUpdateRequest = mockServer.mock.history.patch[3]
+    const failedMoveRequest = mockServer.mock.history.patch[4]
+    expect(failedMoveRequest.headers.ClientUndoRedoActionGroupId).toBe(
+      partialUpdateRequest.headers.ClientUndoRedoActionGroupId
+    )
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'A')
+      ).map((row) => row.id)
+    ).toEqual([11])
+    expect(store.getters['grid/getRow'](11)).toMatchObject({
+      field_1: 'A',
+      order: '2.00',
+    })
+    expect(store.state.grid.groupBy.treeNodes[0].row_count).toBe(1)
+    expect(store.state.grid.groupBy.treeNodes[1].row_count).toBe(2)
+    expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
+    )
+
+    // When the first request fails, the optimistic group move is rolled back and
+    // no aggregation refresh follows. The rollback must finish before its loading
+    // paths are cleared, otherwise it can leave the group banners spinning forever.
+    store.commit('grid/SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(500)
+
+    await expect(
+      store.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid: {
+          id: 1,
+          filters: [],
+          filter_groups: [],
+          filter_type: 'AND',
+          sortings: [],
+          group_bys: groupBys,
+        },
+        fields,
+        getScrollTop: () => 0,
+        row: store.getters['grid/getRow'](12),
+        before: store.getters['grid/getRow'](11),
+        sourceGroupPath: { field_1: 'B' },
+        targetGroupPath: { field_1: 'A' },
+      })
+    ).rejects.toThrow()
+    await flushPromises()
+
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'A')
+      ).map((row) => row.id)
+    ).toEqual([11])
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'B')
+      ).map((row) => row.id)
+    ).toEqual([12, 10])
+    expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+  })
+
+  test('moveRow immediately applies the destination group display value', async () => {
+    const optionA = { id: 101, value: 'A', color: 'blue' }
+    const optionB = { id: 102, value: 'B', color: 'green' }
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Group',
+        type: 'single_select',
+        primary: false,
+        select_options: [optionA, optionB],
+        _: { type: { type: 'single_select' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    store = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: optionA.id },
+            display: { field_2: optionA },
+            depth: 0,
+            row_count: 1,
+          },
+          {
+            path: { field_2: optionB.id },
+            display: { field_2: optionB },
+            depth: 0,
+            row_count: 1,
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionA.id),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: optionA,
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionB.id),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: optionB,
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+    })
+
+    let finishUpdate
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () =>
+            resolve([
+              200,
+              {
+                items: [
+                  {
+                    id: 10,
+                    order: '1.00',
+                    field_1: 'Alice',
+                    field_2: optionB,
+                  },
+                ],
+              },
+            ])
+        })
+    )
+    mockServer.mock.onPatch('/database/rows/table/1/10/move/').reply(200, {
+      id: 10,
+      order: '1.50',
+      field_1: 'Alice',
+      field_2: optionB,
+    })
+
+    const movePromise = store.dispatch('grid/moveRow', {
+      table: { id: 1 },
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      getScrollTop: () => 0,
+      row: store.getters['grid/getRow'](10),
+      before: store.getters['grid/getRow'](11),
+      sourceGroupPath: { field_2: optionA.id },
+      targetGroupPath: { field_2: optionB.id },
+      targetGroupDisplay: { field_2: optionB },
+    })
+
+    await vi.waitFor(() => expect(finishUpdate).toBeTypeOf('function'))
+    const optimisticValue = store.getters['grid/getRow'](10).field_2
+    finishUpdate()
+    await movePromise
+
+    expect(optimisticValue).toEqual(optionB)
+    expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
+      items: [{ id: 10, field_2: optionB.id }],
+    })
+  })
+
   // Regression safety net for the grouped-store refactor: flat mode and grouped
   // mode must expose an identical row read + index API for the same logical data.
   // Batch A (rowLocations as the authoritative index, sectionRows derived, the
@@ -505,6 +934,674 @@ describe('Grid view store', () => {
     // so the typed value is actually saved (grid-view-test-plan 1.4.1).
     expect(patchedId).toBe(99)
     expect(flatStore.getters['grid/getAllRows'][0].field_1).toBe('99')
+  })
+
+  test('updateRowValue shows optimistic value immediately even when queue has pending tasks and view has filters', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Date',
+        type: 'date',
+        _: { type: { type: 'date' } },
+      },
+    ]
+    const flatStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r1',
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      count: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 10,
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'old text',
+          field_2: null,
+          _: { ...rowMetadata },
+        },
+      ],
+    })
+    flatStore.replaceState({ ...flatStore.state, grid: state })
+
+    // View with active filter — triggers hasViewRulesThatCanMoveOrHideRows
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: '' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+
+    // Hold the first PATCH so the second update queues behind it
+    let finishFirstPatch
+    let patchCount = 0
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          patchCount++
+          if (patchCount === 1) {
+            finishFirstPatch = () =>
+              resolve([
+                200,
+                {
+                  items: [
+                    {
+                      id: 1,
+                      order: '1.00',
+                      field_1: 'new text',
+                      field_2: null,
+                    },
+                  ],
+                  metadata: { updated_field_ids: [1] },
+                },
+              ])
+          } else {
+            resolve([
+              200,
+              {
+                items: [
+                  {
+                    id: 1,
+                    order: '1.00',
+                    field_1: 'new text',
+                    field_2: '2025-06-15',
+                  },
+                ],
+                metadata: { updated_field_ids: [2] },
+              },
+            ])
+          }
+        })
+    )
+
+    // First update: text field — starts PATCH, holds
+    const firstUpdate = flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[0],
+      value: 'new text',
+      oldValue: 'old text',
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // First PATCH is in flight. Now update date field — queued behind first.
+    const secondUpdate = flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[1],
+      value: '2025-06-15',
+      oldValue: null,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // The date value should be visible in the store immediately, even though
+    // the queue task hasn't run yet.
+    const rowAfterQueue = flatStore.getters['grid/getAllRows'][0]
+    expect(rowAfterQueue.field_2).toBe('2025-06-15')
+
+    // Finish first PATCH and let everything settle
+    finishFirstPatch()
+    await Promise.all([firstUpdate, secondUpdate])
+
+    // After both complete, value should still be correct
+    const finalRow = flatStore.getters['grid/getAllRows'][0]
+    expect(finalRow.field_2).toBe('2025-06-15')
+    expect(finalRow.field_1).toBe('new text')
+  })
+
+  test('updateRowValue with optimistic commit still hides row that violates filter', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const flatStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r1',
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      count: 2,
+      bufferStartIndex: 0,
+      bufferLimit: 10,
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'hello',
+          _: { ...rowMetadata },
+        },
+        {
+          id: 2,
+          order: '2.00',
+          field_1: 'world',
+          _: { ...rowMetadata, persistentId: 'r2' },
+        },
+      ],
+    })
+    flatStore.replaceState({ ...flatStore.state, grid: state })
+
+    // Filter: field_1 must contain "hello" — changing to "bye" should hide row
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: 'hello' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(() => [
+      200,
+      {
+        items: [{ id: 1, order: '1.00', field_1: 'bye' }],
+        metadata: { updated_field_ids: [1] },
+      },
+    ])
+
+    await flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[0],
+      value: 'bye',
+      oldValue: 'hello',
+    })
+
+    // Row 1 should be removed from buffer — it no longer matches the filter
+    const remainingRows = flatStore.getters['grid/getAllRows']
+    const row1 = remainingRows.find((r) => r.id === 1)
+    expect(row1).toBeUndefined()
+  })
+
+  describe('rows hidden by the backend', () => {
+    // A restricted view hides its filters, so the backend reports the hidden rows.
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+    }
+
+    const createRestrictedStore = (extraState = {}) => {
+      const restrictedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed: vi.fn(),
+              fetchAllFieldAggregationData: vi.fn(),
+            },
+          },
+        },
+      })
+      const state = Object.assign(gridStore.state(), {
+        lastGridId: 1,
+        count: 2,
+        bufferStartIndex: 0,
+        bufferLimit: 10,
+        rows: [
+          {
+            id: 1,
+            order: '1.00',
+            field_1: 'keep',
+            _: { ...rowMetadata, persistentId: 'r1' },
+          },
+          {
+            id: 2,
+            order: '2.00',
+            field_1: 'keep',
+            _: { ...rowMetadata, persistentId: 'r2' },
+          },
+        ],
+        ...extraState,
+      })
+      restrictedStore.replaceState({ ...restrictedStore.state, grid: state })
+      return restrictedStore
+    }
+    const updatedToast = {
+      title: 'hiddenRows.title - 1',
+      message: 'hiddenRows.updatedMessage - 1',
+    }
+    const createdToast = {
+      title: 'hiddenRows.title - 1',
+      message: 'hiddenRows.createdMessage - 1',
+    }
+
+    test('updateRowValue removes the row', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 1, order: '1.00', field_1: 'drop' }],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view,
+        fields,
+        row: restrictedStore.getters['grid/getAllRows'][0],
+        field: fields[0],
+        value: 'drop',
+        oldValue: 'keep',
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2])
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
+      expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('updateDataIntoCells removes only the hidden rows', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [
+          { id: 1, order: '1.00', field_1: 'drop' },
+          { id: 2, order: '2.00', field_1: 'keep' },
+        ],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/updateDataIntoCells', {
+        table: { id: 1 },
+        view,
+        allVisibleFields: fields,
+        allFieldsInTable: fields,
+        getScrollTop: () => 0,
+        textData: [['drop'], ['keep']],
+        rowIndex: 0,
+        fieldIndex: 0,
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2])
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
+      expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('createNewRows removes the created row', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 3, order: '3.00', field_1: '' }],
+        metadata: { updated_field_ids: [], hidden_row_ids: [3] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/createNewRows', {
+        view,
+        table: { id: 1 },
+        fields,
+        rows: [{}],
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1, 2])
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', createdToast)
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+
+    test('createNewRows removes the created row while a search is active', async () => {
+      const restrictedStore = createRestrictedStore({
+        activeSearchTerm: 'keep',
+      })
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 3, order: '3.00', field_1: '' }],
+        metadata: { updated_field_ids: [], hidden_row_ids: [3] },
+      })
+
+      await restrictedStore.dispatch('grid/createNewRows', {
+        view,
+        table: { id: 1 },
+        fields,
+        rows: [{}],
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1, 2])
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+  })
+
+  describe('moveRow across groups when the backend hides the row', () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Group',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 1, order: 'ASC', type: 'default' }]
+    const grid = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: groupBys,
+    }
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+    }
+    let fetchByScrollTopDelayed = null
+    let fetchAllFieldAggregationData = null
+
+    const createGroupedStore = () => {
+      fetchByScrollTopDelayed = vi.fn()
+      fetchAllFieldAggregationData = vi.fn()
+      const groupedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed,
+              fetchAllFieldAggregationData,
+            },
+          },
+          field: {
+            namespaced: true,
+            getters: { getAll: () => fields },
+          },
+        },
+      })
+      const state = Object.assign(gridStore.state(), {
+        lastGridId: 1,
+        activeGroupBys: groupBys,
+        count: 3,
+        fieldOptions: { 1: { hidden: false, order: 0 } },
+        groupBy: {
+          ...gridStore.state().groupBy,
+          treeNodes: [
+            { path: { field_1: 'A' }, depth: 0, row_count: 1 },
+            { path: { field_1: 'B' }, depth: 0, row_count: 2 },
+          ],
+          collapse: { mode: 'expand', paths: [] },
+        },
+      })
+      groupedStore.replaceState({ ...groupedStore.state, grid: state })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'A'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r10' },
+          },
+        ],
+      })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'B'),
+        rows: [
+          {
+            id: 11,
+            order: '2.00',
+            field_1: 'B',
+            _: { ...rowMetadata, persistentId: 'r11' },
+          },
+          {
+            id: 12,
+            order: '3.00',
+            field_1: 'B',
+            _: { ...rowMetadata, persistentId: 'r12' },
+          },
+        ],
+      })
+      return groupedStore
+    }
+
+    const moveRow10ToGroupB = (groupedStore) =>
+      groupedStore.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid,
+        fields,
+        getScrollTop: () => 0,
+        row: groupedStore.getters['grid/getRow'](10),
+        before: groupedStore.getters['grid/getRow'](12),
+        sourceGroupPath: { field_1: 'A' },
+        targetGroupPath: { field_1: 'B' },
+      })
+
+    test('removes the row and skips the move', async () => {
+      const groupedStore = createGroupedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [10] },
+      })
+      const dispatchSpy = vi.spyOn(groupedStore, 'dispatch')
+
+      await moveRow10ToGroupB(groupedStore)
+
+      const [updateRequest] = mockServer.mock.history.patch
+      expect(mockServer.mock.history.patch).toHaveLength(1)
+      expect(JSON.parse(updateRequest.data)).toEqual({
+        items: [{ id: 10, field_1: 'B' }],
+      })
+      expect(updateRequest.params).toMatchObject({ view: 1 })
+      expect(groupedStore.getters['grid/getRow'](10)).toBeUndefined()
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'B')
+        ).map((row) => row.id)
+      ).toEqual([11, 12])
+      expect(groupedStore.getters['grid/getCount']).toBe(2)
+      expect(groupedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(0)
+      expect(groupedStore.state.grid.groupBy.treeNodes[1].row_count).toBe(2)
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.updatedMessage - 1',
+      })
+      expect(fetchByScrollTopDelayed).toHaveBeenCalled()
+      expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
+      )
+    })
+
+    test('removes the row once when the search already hid it', async () => {
+      const groupedStore = createGroupedStore()
+      groupedStore.commit('grid/SET_SEARCH', {
+        activeSearchTerm: 'a',
+        hideRowsNotMatchingSearch: true,
+      })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'A'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r10' },
+          },
+          {
+            id: 13,
+            order: '4.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r13' },
+          },
+        ],
+      })
+      groupedStore.state.grid.count = 4
+      groupedStore.state.grid.groupBy.treeNodes[0].row_count = 2
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [10] },
+      })
+
+      await moveRow10ToGroupB(groupedStore)
+
+      expect(mockServer.mock.history.patch).toHaveLength(1)
+      expect(groupedStore.getters['grid/getCount']).toBe(3)
+      expect(groupedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(1)
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'A')
+        ).map((row) => row.id)
+      ).toEqual([13])
+      expect(
+        groupedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toContain(13)
+    })
+
+    test('still moves the row when it stays visible', async () => {
+      const groupedStore = createGroupedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1] },
+      })
+      mockServer.mock
+        .onPatch('/database/rows/table/1/10/move/')
+        .reply(200, { id: 10, order: '2.50', field_1: 'B' })
+      const dispatchSpy = vi.spyOn(groupedStore, 'dispatch')
+
+      await moveRow10ToGroupB(groupedStore)
+
+      expect(mockServer.mock.history.patch).toHaveLength(2)
+      expect(mockServer.mock.history.patch[1].params).toMatchObject({
+        before_id: 12,
+        view: 1,
+      })
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'B')
+        ).map((row) => row.id)
+      ).toEqual([11, 10, 12])
+      expect(groupedStore.getters['grid/getRow'](10)).toMatchObject({
+        field_1: 'B',
+        order: '2.50',
+      })
+      expect(groupedStore.getters['grid/getCount']).toBe(3)
+      expect(dispatchSpy).not.toHaveBeenCalledWith(
+        'toast/info',
+        expect.anything()
+      )
+    })
+  })
+
+  test('updateRowValue discards a save for a row without an id (row modal closed mid-edit)', async () => {
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const view = { id: 1, filters: [], sortings: [], group_bys: [] }
+
+    let patched = false
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(() => {
+      patched = true
+      return [200, { items: [], metadata: {} }]
+    })
+
+    await expect(
+      store.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view,
+        fields,
+        row: {},
+        field: fields[0],
+        value: 'x',
+        oldValue: '',
+      })
+    ).resolves.toBeUndefined()
+
+    expect(patched).toBe(false)
   })
 
   test('createNewRows keeps a sorted-mismatched row appended below the buffer in place with a move warning', async () => {
@@ -1005,6 +2102,109 @@ describe('Grid view store', () => {
     expect(store.state.grid.groupBy.treeNodes).toEqual([
       { path: { field_2: 'A' }, depth: 0, row_count: 2 },
       { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+    ])
+  })
+
+  test('updatedExistingRow moves a selected formula-group row without a placeholder', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      {
+        id: 2,
+        name: 'Computed team',
+        type: 'formula',
+        formula_type: 'text',
+        read_only: true,
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+          { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+      },
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          _: {
+            ...rowMetadata,
+            persistentId: 'r10',
+            selected: true,
+            selectedFieldId: 1,
+            selectedBy: [1],
+          },
+        },
+      ],
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'B'),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: 'B',
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+    })
+
+    await store.dispatch('grid/updatedExistingRow', {
+      view: {
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      row: store.getters['grid/getRow'](10),
+      values: { field_2: 'B' },
+      updatedFieldIds: [2],
+    })
+
+    expect(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')].map(
+        (row) => row.id
+      )
+    ).toEqual([])
+    expect(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')].map(
+        (row) => row.id
+      )
+    ).toEqual([10, 11])
+    expect(store.getters['grid/getRow'](10)._.matchSortings).toBe(true)
+    expect(store.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 0 },
+      { path: { field_2: 'B' }, depth: 0, row_count: 2 },
     ])
   })
 
@@ -7999,6 +9199,243 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getCount']).toBe(3)
   })
 
+  describe('createNewRowConfirmed', () => {
+    const nameField = {
+      id: 1,
+      name: 'Name',
+      type: 'text',
+      primary: true,
+      _: { type: { type: 'text' } },
+    }
+    const baseView = {
+      id: 5,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+      ownership_type: 'collaborative',
+    }
+    const row = (id, name) => ({
+      id,
+      order: `${id}.00000000000000000000`,
+      field_1: name,
+    })
+
+    const createConfirmedStore = (stateOverrides) => {
+      const fetchByScrollTopDelayed = vi.fn()
+      const fetchAllFieldAggregationDataDebounced = vi.fn()
+      const confirmedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed,
+              fetchAllFieldAggregationDataDebounced,
+            },
+          },
+        },
+      })
+      confirmedStore.replaceState({
+        ...confirmedStore.state,
+        grid: Object.assign(gridStore.state(), stateOverrides),
+      })
+      return {
+        confirmedStore,
+        fetchByScrollTopDelayed,
+        fetchAllFieldAggregationDataDebounced,
+      }
+    }
+
+    test('posts with the view id and appends the confirmed row when the buffer reaches the end', async () => {
+      const {
+        confirmedStore,
+        fetchByScrollTopDelayed,
+        fetchAllFieldAggregationDataDebounced,
+      } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: baseView,
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      const request = mockServer.mock.history.post[0]
+      expect(request.params).toEqual({ view: 5 })
+      expect(JSON.parse(request.data)).toEqual({ field_1: 'c' })
+      const rows = confirmedStore.getters['grid/getAllRows']
+      expect(rows.map((r) => r.id)).toEqual([1, 2, 3])
+      expect(rows[2]._.selected).toBe(false)
+      expect(confirmedStore.getters['grid/getCount']).toBe(3)
+      expect(fetchByScrollTopDelayed).toHaveBeenCalledOnce()
+      expect(fetchAllFieldAggregationDataDebounced).toHaveBeenCalledWith(
+        expect.anything(),
+        { view: baseView }
+      )
+    })
+
+    test('inserts the confirmed row at its sorted position inside the buffer', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'c')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'b'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: {
+          ...baseView,
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'b' },
+      })
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 3, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(3)
+    })
+
+    test('only increments the count when the row lands outside the buffer', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 10,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(11, 'k'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: baseView,
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'k' },
+      })
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(11)
+    })
+
+    test('does not show a confirmed row that fails the active filters', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: {
+          ...baseView,
+          filters: [
+            {
+              id: 1,
+              view: 5,
+              field: 1,
+              type: EqualViewFilterType.getType(),
+              value: 'nomatch',
+              preload_values: {},
+              group: null,
+            },
+          ],
+        },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      expect(mockServer.mock.history.post).toHaveLength(1)
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+    })
+
+    test('puts the confirmed row into its value-derived group', async () => {
+      const teamField = {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      }
+      const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+      const { confirmedStore } = createConfirmedStore({
+        activeGroupBys: groupBys,
+        count: 0,
+        fieldOptions: {
+          1: { hidden: false, order: 0 },
+          2: { hidden: false, order: 1 },
+        },
+        groupBy: {
+          treeNodes: [],
+          truncated: false,
+          collapse: { mode: 'expand', paths: [] },
+          sectionRows: {},
+          rowLocations: {},
+        },
+      })
+      mockServer.mock
+        .onPost('/database/rows/table/1/')
+        .reply(200, { ...row(11, 'Dan'), field_2: 'B' })
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: { ...baseView, group_bys: groupBys },
+        table: { id: 1 },
+        fields: [nameField, teamField],
+        values: { field_1: 'Dan', field_2: 'B' },
+      })
+
+      const section =
+        confirmedStore.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')]
+      expect(section.map((r) => r.id)).toEqual([11])
+      const node = confirmedStore.state.grid.groupBy.treeNodes.find(
+        (n) => n.path.field_2 === 'B'
+      )
+      expect(node.row_count).toBe(1)
+      expect(confirmedStore.state.grid.count).toBe(1)
+    })
+
+    test('rejects and leaves the store untouched when the backend fails', async () => {
+      const { confirmedStore, fetchByScrollTopDelayed } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(500)
+
+      await expect(
+        confirmedStore.dispatch('grid/createNewRowConfirmed', {
+          view: baseView,
+          table: { id: 1 },
+          fields: [nameField],
+          values: { field_1: 'c' },
+        })
+      ).rejects.toBeTruthy()
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+      expect(fetchByScrollTopDelayed).not.toHaveBeenCalled()
+    })
+  })
+
   test('updatedExistingRow', async () => {
     const state = Object.assign(gridStore.state(), {
       bufferStartIndex: 0,
@@ -9094,5 +10531,940 @@ describe('Grid view store', () => {
       (node) => pathKey(node.path, [fields[1]]) === aKey
     )
     expect(sourceNode.row_count).toBe(0)
+  })
+
+  test('refresh fetchRows uses same search term as fetchCount even when state mutates mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsSearchParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsSearchParam = config.params.get('search')
+        return [
+          200,
+          {
+            count: 1,
+            results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    // Let fetchCount fire
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate search state mid-flight (simulates debounced second search)
+    testStore.commit('grid/SET_SEARCH', {
+      activeSearchTerm: 'lotus',
+      hideRowsNotMatchingSearch: true,
+    })
+
+    // Resolve fetchCount — the .then() chain now calls fetchRows
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL "test", not the mutated "lotus"
+    expect(rowsSearchParam).toBe('test')
+  })
+
+  test('refresh skips updateSearch when search state changed mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const updateSearch = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+            updateSearch,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply(200, {
+        count: 1,
+        results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate search mid-flight — simulates next debounce arriving
+    testStore.commit('grid/SET_SEARCH', {
+      activeSearchTerm: 'lotus',
+      hideRowsNotMatchingSearch: true,
+    })
+
+    resolveCountRequest()
+    await refreshPromise
+
+    // updateSearch should NOT run — search changed, rows are stale
+    expect(updateSearch).not.toHaveBeenCalled()
+  })
+
+  test('refresh runs updateSearch when search state is stable', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const updateSearch = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+            updateSearch,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(200, { count: 1 })
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply(200, {
+        count: 1,
+        results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+      })
+
+    await testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    // Search unchanged → updateSearch SHOULD run
+    expect(updateSearch).toHaveBeenCalledOnce()
+  })
+
+  test('refresh fetchRows uses same filters as fetchCount even when view filters mutate mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: 'gray' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsFilterParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 5 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsFilterParam = config.params.get('filters')
+        return [
+          200,
+          {
+            count: 5,
+            results: [{ id: 1, order: '1.00', field_1: 'data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: true,
+      adhocSorting: false,
+    })
+
+    // Let fetchCount fire
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate filter mid-flight (simulates user changing filter value)
+    view.filters[0].value = 'es'
+
+    // Resolve fetchCount — the .then() chain now calls fetchRows
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL filter "gray", not the mutated "es"
+    const parsedFilter = JSON.parse(rowsFilterParam)
+    expect(parsedFilter.filters[0].value).toBe('gray')
+  })
+
+  test('refresh fetchRows uses same sort order as fetchCount even when sortings mutate mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsOrderByParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsOrderByParam = config.params.get('order_by')
+        return [
+          200,
+          {
+            count: 1,
+            results: [{ id: 1, order: '1.00', field_1: 'data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: true,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate sort direction mid-flight
+    view.sortings[0].order = 'DESC'
+
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL sort "field_1" (ASC), not "-field_1" (DESC)
+    expect(rowsOrderByParam).toBe('field_1')
+  })
+})
+
+describe('Grid view store group-by layout mode', () => {
+  let testApp = null
+  let store = null
+
+  const fields = [
+    { id: 1, name: 'Name', type: 'text', primary: true },
+    { id: 2, name: 'Team', type: 'text' },
+  ]
+  const groupBys = [
+    { id: 10, field: 2, order: 'ASC', type: 'default', width: 200 },
+  ]
+  const view = {
+    id: 1,
+    filters: [],
+    filter_groups: [],
+    filter_type: 'AND',
+    sortings: [],
+    group_bys: groupBys,
+  }
+  const seed = (targetStore, extra = {}) => {
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      rowHeight: 33,
+      windowHeight: 100,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+        collapse: { mode: 'expand', paths: [] },
+      },
+      ...extra,
+    })
+    targetStore.replaceState({ ...targetStore.state, grid: state })
+  }
+
+  beforeEach(() => {
+    testApp = new TestApp()
+    store = testApp.createStore({ modules: { grid: gridStore } })
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  test('setGroupByLayout switches the layout builder and forces expand-all', async () => {
+    seed(store)
+    store.commit('grid/SET_GROUP_BY_COLLAPSE', { mode: 'collapse', paths: [] })
+    expect(
+      store.getters['grid/getGroupByLayout'].items.map((item) => item.type)
+    ).toEqual(['header'])
+
+    await store.dispatch('grid/setGroupByLayout', 'column')
+
+    expect(store.getters['grid/isGroupByColumnLayout']).toBe(true)
+    expect(
+      store.getters['grid/getGroupByLayout'].items.map((item) => item.type)
+    ).toEqual(['groupSpan', 'rowSection', 'addRow'])
+  })
+
+  test('collapse actions are no-ops in column layout', async () => {
+    const fetchGroupByRowsByScrollTop = vi.fn().mockResolvedValue([])
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: { ...gridStore.actions, fetchGroupByRowsByScrollTop },
+        },
+      },
+    })
+    seed(groupByStore, { groupByLayout: 'column' })
+
+    await groupByStore.dispatch('grid/toggleGroupCollapse', {
+      path: { field_2: 'A' },
+      view,
+      fields,
+    })
+    await groupByStore.dispatch('grid/setGroupByCollapseAll', {
+      view,
+      fields,
+      collapse: true,
+    })
+
+    expect(groupByStore.getters['grid/getGroupByCollapse']).toEqual({
+      mode: 'expand',
+      paths: [],
+    })
+    expect(fetchGroupByRowsByScrollTop).not.toHaveBeenCalled()
+  })
+
+  test.each(['column', 'section'])(
+    '%s layout selects loaded rows beyond an unloaded group page',
+    async (layout) => {
+      const nodes = Object.fromEntries(
+        [0, 80].flatMap((offset) =>
+          Array.from({ length: 40 }, (_, index) => {
+            const position = offset + index
+            return [
+              position,
+              {
+                path: { field_2: `Group ${position}` },
+                depth: 0,
+                row_count: 1,
+                sibling_index: position,
+                row_offset: position,
+              },
+            ]
+          })
+        )
+      )
+      seed(store, {
+        groupByLayout: layout,
+        count: 120,
+        groupBy: {
+          ...gridStore.state().groupBy,
+          pages: { '': { parentPath: {}, totalSiblingCount: 120, nodes } },
+        },
+      })
+      for (const rowId of [100, 101]) {
+        store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+          sectionKey: groupPathKey(2, `Group ${rowId}`),
+          startPosition: 0,
+          rows: [
+            {
+              id: rowId,
+              field_2: `Group ${rowId}`,
+              _: { selected: false, selectedFieldId: -1 },
+            },
+          ],
+        })
+      }
+
+      await store.dispatch('grid/multiSelectStart', {
+        rowId: 100,
+        fieldIndex: 0,
+      })
+      await store.dispatch('grid/multiSelectHold', {
+        rowId: 101,
+        fieldIndex: 1,
+      })
+
+      const firstRowIndex = layout === 'column' ? 100 : 60
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+      expect(
+        store.getters['grid/getSelectedRows'].map((row) => row.id)
+      ).toEqual([100, 101])
+
+      await store.dispatch('grid/correctMultiSelect')
+
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+      expect(
+        store.getters['grid/getSelectedRows'].map((row) => row.id)
+      ).toEqual([100, 101])
+
+      await store.dispatch('grid/updateMultipleSelectIndexes', {
+        position: 'tail',
+        rowIndex: layout === 'column' ? 120 : 80,
+        fieldIndex: 1,
+      })
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+    }
+  )
+
+  test('column layout initially fetches descendants despite a saved collapse-all state', async () => {
+    const nestedFields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const nestedGroupBys = [
+      { field: 2, order: 'ASC', type: 'default', width: 200 },
+      { field: 3, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const nestedView = { ...view, group_bys: nestedGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: nestedGroupBys,
+      groupByLayout: 'column',
+      count: 2,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 330,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+        3: { hidden: false, order: 2 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        pages: {},
+        treeNodes: [],
+        collapse: { mode: 'collapse', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupByRequests = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByRequests.push(config.params)
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: [
+                  {
+                    path: { field_2: 'A' },
+                    depth: 0,
+                    row_count: 2,
+                    children_count: 1,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+              {
+                parent: { field_2: 'A' },
+                groups: [
+                  {
+                    path: { field_2: 'A', field_3: 'Dev' },
+                    depth: 1,
+                    row_count: 2,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+            ],
+          },
+        ]
+      })
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 2,
+      results: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          field_3: 'Dev',
+        },
+        { id: 11, order: '2.00', field_1: 'Ada', field_2: 'A', field_3: 'Dev' },
+      ],
+    })
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: nestedView,
+      fields: nestedFields,
+      scrollTop: 0,
+    })
+
+    expect(groupByRequests).toHaveLength(1)
+    expect(groupByRequests[0].get('include_descendants')).toBe('true')
+    expect(groupByRequests[0].get('depth')).toBe(null)
+    expect(store.state.grid.groupBy.collapse).toEqual({
+      mode: 'collapse',
+      paths: [],
+    })
+  })
+
+  test('column viewport refines sparse group pages until rows are visible', async () => {
+    const sparseGroupBys = [
+      { id: 10, field: 2, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const sparseView = { ...view, group_bys: sparseGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: sparseGroupBys,
+      groupByLayout: 'column',
+      count: 12000,
+      bufferRequestSize: 40,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 33,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 120,
+            nodes: {},
+          },
+        },
+        collapse: { mode: 'expand', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupPageOffsets = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        const [{ offset }] = JSON.parse(config.params.get('parents'))
+        groupPageOffsets.push(offset)
+        const isLastPage = offset === 80
+        const rowCount = isLastPage ? 1 : 100
+        const rowOffset = isLastPage ? 11960 : 7960
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: Array.from({ length: 40 }, (_, index) => ({
+                  path: { field_2: `Group ${offset + index}` },
+                  depth: 0,
+                  row_count: rowCount,
+                  sibling_index: offset + index,
+                  row_offset: rowOffset + index * rowCount,
+                })),
+                offset,
+                limit: 40,
+                group_count: 120,
+              },
+            ],
+          },
+        ]
+      })
+
+    const rowRequests = []
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply((config) => {
+      rowRequests.push(config.params)
+      return [
+        200,
+        {
+          count: 12000,
+          results: [
+            {
+              id: 8001,
+              order: '8001.00',
+              field_1: 'Visible row',
+              field_2: 'Group 40',
+            },
+          ],
+        },
+      ]
+    })
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: sparseView,
+      fields,
+      scrollTop: 8000 * 33,
+    })
+
+    // Loading the initially visible final page changes the estimated heights of the
+    // earlier sparse pages. The same viewport then falls in page 40 and must be refined
+    // again before row ranges can be resolved.
+    expect(groupPageOffsets).toEqual([80, 40])
+    expect(rowRequests).toHaveLength(1)
+    expect(rowRequests[0].get('offset')).toBe('7960')
+  })
+
+  test('column layout refresh uses expanded paging but preserves section collapse state', async () => {
+    const nestedFields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const nestedGroupBys = [
+      { field: 2, order: 'ASC', type: 'default', width: 200 },
+      { field: 3, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const nestedView = { ...view, group_bys: nestedGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: nestedGroupBys,
+      groupByLayout: 'column',
+      count: 2,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 330,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+        3: { hidden: false, order: 2 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        collapse: { mode: 'collapse', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const rootPage = {
+      parent: {},
+      groups: [
+        {
+          path: { field_2: 'A' },
+          depth: 0,
+          row_count: 2,
+          children_count: 1,
+          sibling_index: 0,
+          row_offset: 0,
+        },
+      ],
+      offset: 0,
+      limit: 40,
+      group_count: 1,
+    }
+    const childPage = {
+      parent: { field_2: 'A' },
+      groups: [
+        {
+          path: { field_2: 'A', field_3: 'Dev' },
+          depth: 1,
+          row_count: 2,
+          sibling_index: 0,
+          row_offset: 0,
+        },
+      ],
+      offset: 0,
+      limit: 40,
+      group_count: 1,
+    }
+    const groupByRequests = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByRequests.push(config.params)
+        const pages =
+          config.params.get('include_descendants') === 'true'
+            ? [rootPage, childPage]
+            : config.params.get('depth') !== null
+              ? [childPage]
+              : [rootPage]
+        return [200, { pages }]
+      })
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 2,
+      results: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          field_3: 'Dev',
+        },
+        { id: 11, order: '2.00', field_1: 'Ada', field_2: 'A', field_3: 'Dev' },
+      ],
+    })
+
+    await store.dispatch('grid/refreshActiveGroupBys', {
+      view: nestedView,
+      fields: nestedFields,
+      scrollTop: 0,
+      preserveScroll: true,
+    })
+
+    expect(groupByRequests).toHaveLength(1)
+    expect(groupByRequests[0].get('include_descendants')).toBe('true')
+    expect(groupByRequests[0].get('depth')).toBe(null)
+    expect(store.state.grid.groupBy.collapse).toEqual({
+      mode: 'collapse',
+      paths: [],
+    })
   })
 })

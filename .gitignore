@@ -106,6 +106,7 @@ backend/media/
 .env.local
 **/.env.local
 .env.docker-dev
+mise.local.toml
 
 web-frontend/plugins/
 backend/plugins/

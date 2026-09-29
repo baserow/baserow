@@ -10,7 +10,7 @@
   >
     <div
       v-for="(filter, index) in filtersTree.filtersOrdered()"
-      :key="index"
+      :key="`filter-${filter.id}`"
       class="filters__item-wrapper"
     >
       <div class="filters__item filters__item--level-1">
@@ -44,7 +44,7 @@
     </div>
     <div
       v-for="(groupNode, groupIndex) in filtersTree.groupsOrdered()"
-      :key="filtersTree.filters.length + groupIndex"
+      :key="`group-${groupNode.group.id}`"
       class="filters__group-item-wrapper"
     >
       <ViewFilterFormOperator
@@ -69,6 +69,12 @@
         @delete-filter="deleteFilter($event)"
         @update-filter-type="$emit('updateFilterType', $event)"
       >
+        <template #filterInputComponent="{ slotProps }">
+          <slot name="filterInputComponent" :slot-props="slotProps"></slot>
+        </template>
+        <template #afterValueInput="{ slotProps }">
+          <slot name="afterValueInput" :slot-props="slotProps"></slot>
+        </template>
       </ViewFieldConditionGroup>
     </div>
     <slot></slot>

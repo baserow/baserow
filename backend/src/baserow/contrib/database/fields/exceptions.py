@@ -5,6 +5,7 @@ from baserow.core.exceptions import (
     InstanceTypeDoesNotExist,
     LockConflict,
 )
+from baserow.core.user_files.exceptions import UserFileDoesNotExist
 
 
 class FieldTypeAlreadyRegistered(InstanceTypeAlreadyRegistered):
@@ -47,6 +48,13 @@ class LinkRowTableNotProvided(Exception):
     """
     Raised when a link row field is trying to be created without the provided link
     row table.
+    """
+
+
+class ButtonFieldLabelNotProvided(Exception):
+    """
+    Raised when a button field is created or updated without a label. The label is
+    the only text the button shows, so it can't be empty.
     """
 
 
@@ -260,6 +268,25 @@ class FailedToLockFieldDueToConflict(LockConflict):
     Raised when a user tried to update a field which was locked by another
     concurrent operation
     """
+
+
+class RichTextImageDoesNotExist(UserFileDoesNotExist):
+    """
+    Raised when a rich text value references an image no user file backs. A
+    subclass, so the file field keeps answering a missing file with a request
+    body validation error.
+    """
+
+
+class RichTextImageLimitExceeded(Exception):
+    """
+    Raised when rich text is enabled on a field whose existing values reference
+    more images than a rich text value may.
+    """
+
+    def __init__(self, limit, *args, **kwargs):
+        self.limit = limit
+        super().__init__(*args, **kwargs)
 
 
 class DateForceTimezoneOffsetValueError(ValueError):

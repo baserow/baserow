@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug that caused the time to be truncated in the Datetime picker.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-09"
+}

@@ -1,8 +1,9 @@
 <template>
   <nuxt-link
     v-if="hasPermission"
-    v-slot="{ href, navigate, isExactActive }"
+    v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
     custom
+    prefetch-on="interaction"
     :to="{
       name: 'workspace-audit-log',
       params: {
@@ -30,7 +31,14 @@
             $t('auditLogSidebarWorkspace.title')
           }}</span>
         </a>
-        <a v-else :href="href" class="tree__link" @click="navigate">
+        <a
+          v-else
+          :href="href"
+          class="tree__link"
+          @click="navigate"
+          @pointerenter="shouldPrefetch('interaction') && prefetch()"
+          @focus="shouldPrefetch('interaction') && prefetch()"
+        >
           <i class="tree__icon baserow-icon-history"></i>
           <span class="tree__link-text">{{
             $t('auditLogSidebarWorkspace.title')

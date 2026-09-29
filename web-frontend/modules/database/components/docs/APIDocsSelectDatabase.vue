@@ -1,6 +1,15 @@
 <template>
   <div class="select-application">
-    <template v-if="hasDatabases">
+    <div v-if="loading" class="skeleton" aria-hidden="true">
+      <SkeletonBlock
+        v-for="index in 3"
+        :key="`database-${index}`"
+        width="220px"
+        height="16px"
+        class="margin-bottom-2"
+      ></SkeletonBlock>
+    </div>
+    <template v-else-if="hasDatabases">
       <APIDocsSelectDatabaseWorkspace
         v-for="workspace in workspaces"
         :key="workspace.id"
@@ -28,6 +37,11 @@ export default {
       type: Number,
       required: false,
       default: -1,
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   computed: {

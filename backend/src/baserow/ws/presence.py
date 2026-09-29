@@ -2,7 +2,6 @@ import json
 import uuid
 from typing import TYPE_CHECKING, Any, Optional, Protocol, runtime_checkable
 
-from channels.db import database_sync_to_async
 from loguru import logger
 
 from baserow.core.async_redis import get_async_redis
@@ -11,6 +10,7 @@ from baserow.ws.registries import (
     page_registry,
     presence_focus_type_registry,
 )
+from baserow.ws.telemetry import run_database_sync
 from baserow.ws.types import (
     ActivePresenceEntry,
     PresenceMembershipMessage,
@@ -667,6 +667,6 @@ class PresenceHandler:
             page_type = page_registry.get(page_type_name)
         except page_registry.does_not_exist_exception_class:
             return None
-        return await database_sync_to_async(page_type.get_presence_space_name)(
-            **parameters
+        return await run_database_sync(
+            "presence_space", page_type.get_presence_space_name, **parameters
         )

@@ -30,6 +30,7 @@ from baserow.api.two_factor_auth.errors import ERROR_TWO_FACTOR_AUTH_NOT_CONFIGU
 from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
 from baserow.api.user.serializers import get_all_user_data_serialized
+from baserow.core.action.registries import action_type_registry
 from baserow.core.admin.users.actions import AdminDisableTwoFactorAuthActionType
 from baserow.core.admin.users.exceptions import (
     CannotDeactivateYourselfException,
@@ -274,7 +275,9 @@ class UserAdminTwoFactorAuthView(APIView):
         Removes the two-factor authentication of the specified user.
         """
 
-        AdminDisableTwoFactorAuthActionType.do(request.user, int(user_id))
+        action_type_registry.get_by_type(AdminDisableTwoFactorAuthActionType).do(
+            request.user, int(user_id)
+        )
 
         return Response(status=204)
 
@@ -325,7 +328,11 @@ class UserAdminImpersonateView(GenericAPIView):
         )
 
         serialized_data = {
-            **generate_session_tokens_for_user(user, include_refresh_token=True),
+            **generate_session_tokens_for_user(
+                user,
+                include_refresh_token=True,
+                impersonated_by_user_id=request.user.id,
+            ),
             **get_all_user_data_serialized(user, request),
         }
 

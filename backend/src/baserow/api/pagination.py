@@ -1,8 +1,11 @@
+import re
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
-from typing import Protocol
+from typing import Optional, Protocol
 
 from django.core.paginator import Paginator as DjangoPaginator
 
+from rest_framework import serializers
 from rest_framework.exceptions import APIException
 from rest_framework.pagination import (
     LimitOffsetPagination as RestFrameworkLimitOffsetPagination,
@@ -14,6 +17,42 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
 from baserow.core.db import get_approximate_row_count
+from baserow.core.pagination import KeysetCursor
+
+_KEYSET_CURSOR_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_KEYSET_CURSOR_RE = re.compile(r"(\d+)_(\d+)")
+
+
+def encode_keyset_cursor(cursor: Optional[KeysetCursor]) -> Optional[str]:
+    """
+    The moment is counted in whole microseconds, the precision it is stored with,
+    so the next page continues from exactly the same position.
+
+    :param cursor: The cursor of the next page.
+    :return: The opaque string for the API, `None` when there is no next page.
+    """
+
+    if cursor is None:
+        return None
+    microseconds = (cursor.value - _KEYSET_CURSOR_EPOCH) // timedelta(microseconds=1)
+    return f"{microseconds}_{cursor.id}"
+
+
+class KeysetCursorField(serializers.CharField):
+    """
+    Accepts what `encode_keyset_cursor` produced and returns the `KeysetCursor`.
+    """
+
+    def to_internal_value(self, data) -> KeysetCursor:
+        match = _KEYSET_CURSOR_RE.fullmatch(super().to_internal_value(data))
+        if match is None:
+            raise serializers.ValidationError("Invalid cursor.")
+        microseconds, id = match.groups()
+        try:
+            value = _KEYSET_CURSOR_EPOCH + timedelta(microseconds=int(microseconds))
+        except OverflowError:
+            raise serializers.ValidationError("Invalid cursor.")
+        return KeysetCursor(value=value, id=int(id))
 
 
 class Pageable(Protocol):

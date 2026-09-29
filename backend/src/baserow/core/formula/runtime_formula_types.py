@@ -3,6 +3,7 @@ import random
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -711,6 +712,36 @@ class RuntimeStrip(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0].strip()
+
+
+# The characters JavaScript's `encodeURI` and `encodeURIComponent` leave alone,
+# minus the ones `urllib.parse.quote` already treats as safe. Both sides have to
+# encode identically, because a formula is resolved in the browser for a button
+# field cell and on the backend everywhere else.
+ENCODE_URI_SAFE_CHARACTERS = "!#$&'()*+,/:;=?@~"
+ENCODE_URI_COMPONENT_SAFE_CHARACTERS = "!'()*~"
+
+
+class RuntimeEncodeUri(RuntimeFormulaFunction):
+    type = "encode_uri"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return quote(args[0], safe=ENCODE_URI_SAFE_CHARACTERS)
+
+
+class RuntimeEncodeUriComponent(RuntimeFormulaFunction):
+    type = "encode_uri_component"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return quote(args[0], safe=ENCODE_URI_COMPONENT_SAFE_CHARACTERS)
 
 
 class RuntimeSum(RuntimeFormulaFunction):

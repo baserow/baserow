@@ -127,7 +127,7 @@ export default {
                 this.$t('unknown error'),
             })
           }
-          if (this.onJobCancelFailed === 'function') {
+          if (typeof this.onJobCancelFailed === 'function') {
             this.onJobCancelFailed()
           }
         }

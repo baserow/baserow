@@ -53,8 +53,8 @@ export default defineNuxtModule({
     addPlugin(resolve('./plugins/realtime.js'))
 
     addRouteMiddleware({
-      name: 'dashboardLoading',
-      path: resolve('./middleware/dashboardLoading.js'),
+      name: 'selectDashboard',
+      path: resolve('./middleware/selectDashboard.js'),
       global: false,
     })
 

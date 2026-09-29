@@ -4,8 +4,10 @@ from django.db import connection
 from django.db.models import QuerySet
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
@@ -15,15 +17,17 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.database.models import Database
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Template
+from baserow.core.last_viewed.handler import LastViewedHandler
+from baserow.core.models import Application, Template
 from baserow.core.operations import ListApplicationsWorkspaceOperationType
 from baserow.core.registries import application_type_registry
 
 
-def stub_filter_queryset(u, o, q, **kwargs):
+def stub_filter_queryset(u, o, q, *args, **kwargs):
     return q
 
 
@@ -74,7 +78,7 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
         workspace=workspace_3, order=1
     )
     with patch(
-        "baserow.core.handler.CoreHandler.filter_queryset",
+        "baserow.core.handler.CoreHandler.filter_queryset_for_workspaces",
         side_effect=stub_filter_queryset,
     ) as mock_filter_queryset:
         response = api_client.get(
@@ -97,7 +101,7 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
     assert args[0] == user
     assert args[1] == ListApplicationsWorkspaceOperationType.type
     assert isinstance(args[2], QuerySet)
-    assert kwargs["workspace"] == workspace_1
+    assert args[3] == [workspace_1]
 
     assert response_json[0]["id"] == application_1.id
     assert response_json[0]["type"] == "database"
@@ -109,15 +113,16 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
     assert response_json[2]["type"] == "database"
 
     with patch(
-        "baserow.core.handler.CoreHandler.filter_queryset",
+        "baserow.core.handler.CoreHandler.filter_queryset_for_workspaces",
         side_effect=stub_filter_queryset,
     ) as mock_filter_queryset:
         response = api_client.get(
             reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
         )
 
-        assert len(mock_filter_queryset.mock_calls) <= 2 + 4, (
-            "Should trigger max 1 call by workspace + 1 by applications"
+        assert len(mock_filter_queryset.mock_calls) <= 1 + 3, (
+            "Should trigger 1 call for all the applications then max one call "
+            "per application type, regardless of the number of workspaces"
         )
 
     assert response.status_code == HTTP_200_OK
@@ -229,6 +234,125 @@ def test_list_applications_without_workspace(api_client, data_fixture):
     )
     response_json = response.json()
     assert response_json == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("application_type", ["", None])
+def test_create_application_without_a_type(api_client, data_fixture, application_type):
+    """
+    An empty type must not fall through to whichever application type is
+    registered first, which is what the registry's compat lookup would return.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        {"name": "Test 1", "type": application_type},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["type"][0]["code"] == "missing_type"
+    assert Application.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_list_all_applications_queries_do_not_increase_with_workspaces(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+
+    def _create_workspace_with_all_application_types():
+        """
+        Creates a workspace containing every application type with the sub
+        entities that are serialized or prefetched by the endpoint, so the
+        query count assertion covers all of those paths.
+        """
+
+        workspace = data_fixture.create_workspace(user=user)
+
+        database = data_fixture.create_database_application(workspace=workspace)
+        # Explicit orders because the serialized tables are only ordered by
+        # `order` and ties would make the query comparison flaky.
+        table_1 = data_fixture.create_database_table(
+            user=user, database=database, order=1
+        )
+        table_2 = data_fixture.create_database_table(
+            user=user, database=database, order=2
+        )
+        field = data_fixture.create_text_field(table=table_1)
+        view = data_fixture.create_grid_view(user=user, table=table_1)
+        data_fixture.create_grid_view(user=user, table=table_2)
+        data_fixture.create_view_filter(view=view, field=field)
+        data_fixture.create_view_sort(view=view, field=field)
+        data_fixture.create_view_group_by(view=view, field=field)
+        data_fixture.create_ical_data_sync(
+            table=table_2, ical_url="https://baserow.io/ical.ics"
+        )
+
+        builder = data_fixture.create_builder_application(workspace=workspace)
+        # Explicit names because the page fixture's unique name pool is small.
+        data_fixture.create_builder_page(
+            builder=builder, name=f"Page 1 of builder {builder.id}"
+        )
+        data_fixture.create_builder_page(
+            builder=builder, name=f"Page 2 of builder {builder.id}"
+        )
+        data_fixture.create_local_baserow_integration(application=builder)
+        data_fixture.create_user_source_with_first_type(application=builder)
+
+        data_fixture.create_dashboard_application(workspace=workspace)
+        data_fixture.create_dashboard_application(workspace=workspace)
+
+        automation = data_fixture.create_automation_application(workspace=workspace)
+        workflow_1 = data_fixture.create_automation_workflow(automation=automation)
+        data_fixture.create_automation_node(
+            workflow=workflow_1, type="local_baserow_create_row"
+        )
+        data_fixture.create_automation_node(
+            workflow=workflow_1, type="local_baserow_update_row"
+        )
+        workflow_1.notification_recipients.add(user)
+        workflow_2 = data_fixture.create_automation_workflow(automation=automation)
+        AutomationWorkflowHandler().publish(workflow_2)
+
+        return workspace
+
+    _create_workspace_with_all_application_types()
+    _create_workspace_with_all_application_types()
+
+    url = reverse("api:applications:list")
+
+    def _get_apps():
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        return response.json()
+
+    # The first call also inserts theme config blocks and warms process caches.
+    _get_apps()
+
+    with CaptureQueriesContext(connection) as captured_1:
+        _get_apps()
+
+    _create_workspace_with_all_application_types()
+    _create_workspace_with_all_application_types()
+
+    _get_apps()
+
+    with CaptureQueriesContext(connection) as captured_2:
+        response_json = _get_apps()
+
+    assert len(captured_2.captured_queries) == len(captured_1.captured_queries)
+
+    # The applications must be ordered by workspace id first, then by order and
+    # id, like listing the workspaces sorted by id one by one.
+    workspace_ids = [app["workspace"]["id"] for app in response_json]
+    assert workspace_ids == sorted(workspace_ids)
 
 
 @pytest.mark.django_db
@@ -636,3 +760,55 @@ def test_anon_user_can_list_apps_of_app_in_template_workspace(
     tables = response_json[0]["tables"]
     assert len(tables) == 1
     assert tables[0]["id"] == table.id
+
+
+@pytest.mark.django_db
+def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view_1 = data_fixture.create_grid_view(table=table)
+    view_2 = data_fixture.create_grid_view(table=table)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+
+    with freeze_time("2026-01-01T12:00:00Z"):
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_1.id, timezone.now()
+        )
+    with freeze_time("2026-01-02T12:00:00Z"):
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_2.id, timezone.now()
+        )
+        LastViewedHandler.mark_viewed(
+            other_user.id, "dashboard", dashboard.id, timezone.now()
+        )
+
+    def last_viewed_by_id(response):
+        return {app["id"]: app["last_viewed"] for app in response.json()}
+
+    for url in (
+        reverse("api:applications:list"),
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+    ):
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        assert last_viewed_by_id(response) == {
+            database.id: "2026-01-02T12:00:00Z",
+            dashboard.id: None,
+        }
+
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+        assert response.status_code == HTTP_200_OK
+        assert last_viewed_by_id(response) == {
+            database.id: None,
+            dashboard.id: "2026-01-02T12:00:00Z",
+        }
+
+    response = api_client.get(
+        reverse("api:applications:item", kwargs={"application_id": database.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["last_viewed"] == "2026-01-02T12:00:00Z"

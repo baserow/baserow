@@ -990,6 +990,66 @@ class FormViewEditRowField(Field):
     )
 
 
+class ButtonField(Field):
+    """
+    Read-only field rendering a per-row button that runs its ordered list of
+    workflow actions when clicked. Stores configuration only, no cell data.
+    """
+
+    label = models.CharField(max_length=255, blank=True, default="", db_default="")
+
+    # Set by `ButtonFieldType.enhance_field_queryset_for_serialization` when fields
+    # are fetched in bulk, so `has_workflow_actions` costs no query there. A
+    # field from a table model never has it, so the flags are never stale.
+    HAS_WORKFLOW_ACTIONS_ANNOTATION = "has_workflow_actions_annotated"
+
+    @property
+    def has_workflow_actions(self) -> bool:
+        # Falls back to its own query when the field wasn't fetched through
+        # `enhance_field_queryset_for_serialization` and so carries no annotation.
+        annotated = getattr(self, self.HAS_WORKFLOW_ACTIONS_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        return self.workflow_actions.exists()
+
+    # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
+    OPENS_NEW_TAB_ANNOTATION = "opens_new_tab_annotated"
+
+    @property
+    def opens_new_tab(self) -> bool:
+        annotated = getattr(self, self.OPENS_NEW_TAB_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the workflow action models import this module.
+        from baserow.contrib.database.workflow_actions.models import (
+            OpenUrlWorkflowAction,
+        )
+
+        return OpenUrlWorkflowAction.objects.filter(
+            field_id=self.id, target="blank"
+        ).exists()
+
+    # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
+    REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
+
+    @property
+    def requires_reconfiguration(self) -> bool:
+        annotated = getattr(self, self.REQUIRES_RECONFIGURATION_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the workflow action models import this module.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            requires_reconfiguration,
+        )
+
+        return ButtonField.objects_and_trash.filter(
+            requires_reconfiguration(self.id), id=self.id
+        ).exists()
+
+
 class DuplicateFieldJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
 ):

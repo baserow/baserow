@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
@@ -30,6 +31,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.rich_text_utils import MAX_RICH_TEXT_IMAGES
 from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
@@ -2784,6 +2786,112 @@ def test_move_row(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_then_failed_move_row_keeps_field_update(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    group_field = data_fixture.create_text_field(table=table, name="Group")
+    row = RowHandler().create_row(user, table, {f"field_{group_field.id}": "Group A"})
+    original_order = row.order
+    action_group = str(uuid.uuid4())
+
+    update_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    response = api_client.patch(
+        update_url,
+        {f"field_{group_field.id}": "Group B"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTUNDOREDOACTIONGROUPID=action_group,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    move_url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    response = api_client.patch(
+        f"{move_url}?before_id=-1",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTUNDOREDOACTIONGROUPID=action_group,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{group_field.id}") == "Group B"
+    assert row.order == original_order
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_then_move_row_undoes_and_redoes_as_one_action_group(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    group_field = data_fixture.create_text_field(table=table, name="Group")
+    handler = RowHandler()
+    row_1 = handler.create_row(user, table, {f"field_{group_field.id}": "Group A"})
+    row_2 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+    row_3 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+    original_order = row_1.order
+    session_id = "grouped-row-move"
+    action_group = str(uuid.uuid4())
+
+    update_url = reverse(
+        "api:database:rows:item",
+        kwargs={"table_id": table.id, "row_id": row_1.id},
+    )
+    response = api_client.patch(
+        update_url,
+        {f"field_{group_field.id}": "Group B"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+        HTTP_CLIENTUNDOREDOACTIONGROUPID=action_group,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    move_url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    response = api_client.patch(
+        f"{move_url}?before_id={row_3.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+        HTTP_CLIENTUNDOREDOACTIONGROUPID=action_group,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"table": table.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+    row_1.refresh_from_db()
+    assert getattr(row_1, f"field_{group_field.id}") == "Group A"
+    assert row_1.order == original_order
+
+    response = api_client.patch(
+        reverse("api:user:redo"),
+        {"scopes": {"table": table.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    assert getattr(row_1, f"field_{group_field.id}") == "Group B"
+    assert row_2.order < row_1.order < row_3.order
+
+
+@pytest.mark.django_db
 @override_settings(BASEROW_DEADLOCK_INITIAL_BACKOFF=0.01)
 @override_settings(BASEROW_DEADLOCK_MAX_RETRIES=1)
 def test_move_row_deadlock(api_client, data_fixture):
@@ -5205,3 +5313,131 @@ def test_update_row_succeeds_when_legacy_view_index_exceeds_max_size(
 
     grid_view_2.refresh_from_db()
     assert grid_view_2.db_index_name is None
+
+
+@pytest.mark.django_db
+def test_rich_text_image_limit_has_its_own_error_code(api_client, data_fixture):
+    """The frontend shows a string body validation detail as an unknown error."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    row = RowHandler().create_row(user=user, table=table)
+
+    def images(count):
+        return {f"field_{field.id}": " ".join([f"![x][{user_file.name}]"] * count)}
+
+    over_limit = images(MAX_RICH_TEXT_IMAGES + 1)
+    list_url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    item_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    batch_url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    for send, url, body in [
+        (api_client.post, list_url, over_limit),
+        (api_client.patch, item_url, over_limit),
+        (api_client.post, batch_url, {"items": [over_limit]}),
+        (api_client.patch, batch_url, {"items": [{"id": row.id, **over_limit}]}),
+    ]:
+        response = send(url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_400_BAD_REQUEST, url
+        assert response.json() == {
+            "error": "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+            "detail": (
+                f"A rich text value can reference at most {MAX_RICH_TEXT_IMAGES} "
+                "images."
+            ),
+        }
+
+    response = api_client.patch(
+        item_url,
+        images(MAX_RICH_TEXT_IMAGES),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_rich_text_external_images_are_stored_as_written(api_client, data_fixture):
+    """Whether an external image is shown is the frontend's call, so the API keeps
+    every markdown form of it untouched instead of rejecting or rewriting it."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+
+    for value in [
+        "![x](https://example.com/p.gif)",
+        "![logo][remote]\n\n[remote]: https://example.com/p.gif",
+    ]:
+        response = api_client.post(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            {f"field_{field.id}": value},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert response.json()[f"field_{field.id}"] == value
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("char", ["\x1c", "\u2028", "\ufeff"])
+def test_rich_text_reference_cannot_smuggle_a_foreign_url(
+    api_client, data_fixture, char
+):
+    """The frontend loads the URL of anything it reads as ``![alt][name](url)``, so
+    the backend must read the same text as a reference and strip the URL, even when
+    the name ends in a character only one of Python or JavaScript calls whitespace."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        {f"field_{field.id}": f"![a][{user_file.name}{char}](https://e.com/p.gif)"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_FILE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_rich_text_missing_image_has_its_own_error_code(api_client, data_fixture):
+    """The frontend shows a string body validation detail as an unknown error."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    row = RowHandler().create_row(user=user, table=table)
+
+    missing = {f"field_{field.id}": "see ![x][zzzzzzzz_yyyyyyyy.png]"}
+    list_url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    item_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    batch_url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    for send, url, body in [
+        (api_client.post, list_url, missing),
+        (api_client.patch, item_url, missing),
+        (api_client.post, batch_url, {"items": [missing]}),
+        (api_client.patch, batch_url, {"items": [{"id": row.id, **missing}]}),
+    ]:
+        response = send(url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_400_BAD_REQUEST, url
+        assert response.json() == {
+            "error": "ERROR_USER_FILE_DOES_NOT_EXIST",
+            "detail": "The user files ['zzzzzzzz_yyyyyyyy.png'] do not exist.",
+        }, url

@@ -5,7 +5,11 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t keypath="workflowDisabledNotification.body" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="workflowDisabledNotification.body"
+        tag="span"
+      >
         <template #name>
           <strong>{{ notification.data.workflow_name }}</strong>
         </template>

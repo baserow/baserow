@@ -6,7 +6,8 @@ Contains:
 - ``get_formula_generator()``: Factory to create a formula generator with a custom prompt.
 """
 
-from typing import Callable
+from collections import Counter
+from typing import TYPE_CHECKING, Any, Callable
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
@@ -18,8 +19,39 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_ADVANCED,
     BaserowFormulaObject,
 )
+from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
+from baserow_enterprise.assistant.model_profiles import UTILITY
 
 from .formula_utils import BaseFormulaContext
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
+
+
+def _answer_keys(fields_to_resolve: dict) -> dict[str, Any]:
+    """
+    Map every key the formula model may answer with to its requested key.
+
+    JSON object keys are always text, and a model given ``{892: {"name":
+    "Entry"}}`` may answer with the described field name instead of the id.
+
+    :param fields_to_resolve: The requested keys and their descriptions.
+    :return: The accepted answer keys mapped to the requested keys.
+    """
+
+    answer_keys = {str(key): key for key in fields_to_resolve}
+    names = {
+        key: description.get("name")
+        for key, description in fields_to_resolve.items()
+        if isinstance(description, dict) and description.get("name")
+    }
+    name_counts = Counter(names.values())
+    for key, name in names.items():
+        if name_counts[name] == 1:
+            answer_keys.setdefault(str(name), key)
+    return answer_keys
 
 
 class FormulaGeneratorOutput(PydanticBaseModel):
@@ -36,11 +68,13 @@ class FormulaGeneratorOutput(PydanticBaseModel):
 
 def get_formula_generator(
     prompt: str,
+    model_profile: "ResolvedAssistantModelProfile",
 ) -> Callable[[dict, BaseFormulaContext, int], dict[str, str]]:
     """
     Factory to create a formula generator with a custom prompt.
 
     :param prompt: The system prompt for the LLM describing available functions.
+    :param model_profile: The model profile resolved for the assistant request.
     :return: A function that generates formulas from field descriptions.
     """
 
@@ -51,7 +85,14 @@ def get_formula_generator(
     )
 
     def check_formula(generated_formula: str, context: BaseFormulaContext) -> str:
-        """Validate a generated formula against the context."""
+        """Validate a generated formula against the context.
+
+        :param generated_formula: The formula to validate.
+        :param context: The formula context used to resolve references.
+        :return: A confirmation string when the formula is valid.
+        :raises ValueError: If the formula cannot be resolved in the context.
+        """
+
         try:
             resolve_formula(
                 BaserowFormulaObject.create(
@@ -81,7 +122,6 @@ def get_formula_generator(
         feedback = ""
         valid_formulas = {}
         remaining = dict(fields_to_resolve)
-
         for __ in range(max_retries):
             if not remaining:
                 break
@@ -95,26 +135,27 @@ def get_formula_generator(
                 f"to assist in formula generation.)\n\n"
                 f"Feedback: {feedback or 'None (first attempt)'}"
             )
-            from baserow_enterprise.assistant.model_profiles import (
-                UTILITY,
-                get_model_settings,
-                get_model_string,
-            )
-
-            model = get_model_string()
+            model = model_profile.create_model()
             try:
-                result = formula_agent.run_sync(
+                result = run_agent_sync_with_model(
+                    formula_agent,
                     user_prompt,
                     model=model,
-                    model_settings=get_model_settings(model, UTILITY),
+                    model_settings=model_profile.get_settings(UTILITY),
                 )
             except Exception as exc:
                 feedback += f"Formula agent error: {str(exc)}\n"
                 continue
 
             generated_formulas = result.output.generated_formulas
-            for field_id, formula in generated_formulas.items():
-                if field_id not in remaining:
+            keys_by_text = _answer_keys(remaining)
+            for raw_id, formula in generated_formulas.items():
+                field_id = keys_by_text.get(str(raw_id))
+                if field_id is None:
+                    feedback += (
+                        f"Unknown field id {raw_id}, expected one of "
+                        f"{sorted(keys_by_text)}\n"
+                    )
                     continue
                 try:
                     check_formula(formula, context)

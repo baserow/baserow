@@ -29,6 +29,7 @@ from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -121,6 +122,38 @@ def test_get_builder_used_property_names_returns_all_property_names(data_fixture
         [f"field_{field.id}" for field in fields] + ["id"]
     )
     assert results["internal"] == {}
+
+
+@pytest.mark.django_db
+def test_get_builder_used_property_names_with_trashed_data_source(data_fixture):
+    """
+    Regression: an element can keep a `data_source_id` pointing at a data source that
+    has since been trashed (soft-deleted) — e.g. deleting the data source in the editor
+    then reloading a preview. Property extraction must skip the dangling reference
+    instead of raising DataSourceDoesNotExist and crashing the whole computation.
+    """
+
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Food", "text")], rows=[["Paneer Tikka"]]
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+    data_fixture.create_builder_repeat_element(page=page, data_source=data_source)
+
+    # Trash the data source; the element keeps its dangling data_source_id.
+    TrashHandler.trash(user, builder.workspace, builder, data_source)
+
+    results = get_builder_used_property_names(user, builder)
+
+    # No crash, and the trashed data source contributes no properties.
+    assert data_source.service_id not in results["all"]
 
 
 @pytest.mark.django_db

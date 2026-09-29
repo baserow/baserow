@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotReplaceable,
@@ -32,12 +33,14 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.mixins import ServiceBackedTypeMixin
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.registries import TrashOperationType
 
 
 class AutomationNodeType(
+    ServiceBackedTypeMixin,
     PublicCustomFieldsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin,
@@ -47,6 +50,7 @@ class AutomationNodeType(
     display_name = _("Unnamed node")
 
     service_type = None
+    service_field_help_text = "The service associated with this automation node."
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
@@ -132,10 +136,71 @@ class AutomationNodeType(
         :param node: The node instance that was just created.
         """
 
+    def after_move(
+        self, user: AbstractUser, workflow: AutomationWorkflow
+    ) -> Any | None:
+        """
+        A hook called after any node is moved within `workflow`. A node type
+        can override this to reconcile state that the move may have invalidated
+        (for example cross-level references between nodes), returning an opaque,
+        JSON-serializable payload describing the modifications it made so
+        `revert_move` can undo them. Returns None (the default)
+        when the type made no changes.
+
+        :param user: The user that performed the move.
+        :param workflow: The workflow the moved node belongs to.
+        :return: A JSON-serializable payload describing the modifications made,
+            or None if nothing changed.
+        """
+
+        return None
+
+    def revert_move(self, user: AbstractUser, modifications: Any) -> None:
+        """
+        Reverses the modifications previously returned by `after_move`,
+        used when a node move is undone.
+
+        :param user: The user undoing the move.
+        :param modifications: The payload returned by `after_move`.
+        """
+
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
             service_type_registry.get(self.service_type) if self.service_type else None
         )
+
+    def get_history_destination_node(
+        self, node: AutomationNode
+    ) -> Optional[AutomationNode]:
+        """
+        Returns the node that execution jumped to from the given node during a
+        run, or None when this node type does not redirect execution.
+
+        Most nodes simply hand off to their natural next node and so have no
+        explicit destination. Node types that jump elsewhere in the graph (e.g.
+        the "Go to" node) override this so run histories can show where
+        execution went.
+
+        :param node: The node instance to resolve the destination for.
+        :return: The destination node, or None.
+        """
+
+        return None
+
+    def get_history_status(self, dispatch_result: DispatchResult) -> str:
+        """
+        Returns the status the node history should be marked with after a
+        successful dispatch. Most node types always did something, so they
+        report a success. Node types whose dispatch can legitimately be a
+        no-op (e.g. a "Go to" node whose condition resolved to false) override
+        this to report a skip instead, so run histories don't suggest that
+        something happened.
+
+        :param dispatch_result: The result of the node's dispatch.
+        :return: The history status to store on the node history.
+        """
+
+        return HistoryStatusChoices.SUCCESS
 
     def is_replaceable_with(self, other_node_type: "AutomationNodeType") -> bool:
         """
@@ -217,13 +282,28 @@ class AutomationNodeType(
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
-                workflow = kwargs.get("workflow")
-                if (
-                    workflow is not None
-                    and integration.application_id != workflow.automation_id
-                ):
+                # Use the trash-inclusive manager: duplicating an automation
+                # preserves the `integration_id` of a service pointing at a
+                # trashed integration (so the copy reconnects when it is
+                # restored), and the default manager would raise `DoesNotExist`
+                # on that trashed row.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
                     integration = None
+                else:
+                    # Never reference an integration outside the target
+                    # application. On a cross-application import a trashed
+                    # integration is not part of the export (so it is absent
+                    # from `id_mapping`), and the unmapped id would otherwise
+                    # resolve to an unrelated integration in another
+                    # application.
+                    workflow = kwargs.get("workflow")
+                    if (
+                        workflow is not None
+                        and integration.application_id != workflow.automation_id
+                    ):
+                        integration = None
 
             return ServiceHandler().import_service(
                 integration,
@@ -341,6 +421,15 @@ class AutomationNodeType(
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]: ...
 
+    def raise_if_misconfigured(self, automation_node: AutomationNode) -> None:
+        """
+        Refuses a node whose saved configuration cannot run. Nothing to refuse by
+        default.
+
+        :param automation_node: The node to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
+        """
+
     def dispatch(
         self,
         automation_node: AutomationNode,
@@ -356,6 +445,30 @@ class AutomationNodeType(
         return ServiceHandler().dispatch_service(
             automation_node.service.specific, dispatch_context
         )
+
+    def validate_jump_destination(
+        self,
+        automation_node: AutomationNode,
+        destination_service_id: int,
+    ) -> None:
+        """
+        Hook for node types whose dispatch can request a jump to another node
+        (by returning a destination_service_id on the DispatchResult).
+
+        The runner calls this only when the jump is about to be followed, i.e.
+        never while simulating, where jumps are suppressed so a backward jump
+        doesn't loop the path leading to the simulated node. The node type can
+        then re-validate the destination against the live graph and raise
+        ServiceImproperlyConfiguredDispatchException if the link is no longer a
+        valid jump.
+
+        The default is a no-op, as most node types never request a jump.
+
+        :param automation_node: The node that requested the jump.
+        :param destination_service_id: The service the jump targets.
+        :raises ServiceImproperlyConfiguredDispatchException: If the jump is no
+            longer valid against the current graph.
+        """
 
 
 class AutomationNodeTypeRegistry(

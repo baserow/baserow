@@ -30,6 +30,7 @@ from baserow.contrib.database.formula.ast.function_defs import (
     BaserowManyToManyCount,
     BaserowMultipleSelectCount,
     BaserowMultipleSelectOptionsAgg,
+    BaserowStringAggCollaboratorValues,
     BaserowStringAggManyToManyValues,
     BaserowStringAggMultipleSelectValues,
 )
@@ -254,6 +255,8 @@ VALID_FORMULA_TESTS = [
     ("right('abcde', 2)", "de"),
     ("right('abc', 2/0)", None),
     ("when_empty(1, 2)", "1"),
+    ("when_empty('', 'fallback')", "fallback"),
+    ("when_empty('hello', 'fallback')", "hello"),
     ("round(1.12345, 0)", "1"),
     ("round(1.12345, 4)", "1.1235"),
     ("round(1.12345, 100)", "1.1234500000"),
@@ -1154,6 +1157,7 @@ def test_aggregate_functions_never_allow_non_many_inputs(data_fixture, api_clien
         BaserowManyToManyAgg.type,
         BaserowManyToManyCount.type,
         BaserowStringAggManyToManyValues.type,
+        BaserowStringAggCollaboratorValues.type,
     }
     custom_cases = {
         BaserowAggJoin.type: [
@@ -1260,6 +1264,7 @@ def test_aggregate_functions_can_be_referenced_by_other_formulas(
         BaserowStringAggMultipleSelectValues.type,
         # Multiple collaborators formulas
         BaserowStringAggManyToManyValues.type,
+        BaserowStringAggCollaboratorValues.type,
     }
 
     for formula_func in formula_function_registry.get_all():

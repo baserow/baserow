@@ -29,6 +29,9 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import (
     ApplicationType,
@@ -37,10 +40,12 @@ from baserow.core.registries import (
 )
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder, Progress, grouper
 
 from .constants import (
     EXPORT_SERIALIZED_EXPORTING_TABLE,
+    IMPORT_SERIALIZED_IMPORTING,
     IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
     IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
 )
@@ -67,8 +72,12 @@ class DatabaseApplicationType(ApplicationType):
     type = "database"
     model_class = Database
     serializer_mixins = [DatabaseSerializer]
+    # A button field's external action can carry one (ADR 006 section 5).
+    supports_integrations = True
+
     instance_serializer_class = DatabaseSerializer
     serializer_field_names = ["tables"]
+
     # Mark the request serializer field names as empty, otherwise
     # the polymorphic request serializer will try and serialize tables.
     request_serializer_field_names = []
@@ -76,6 +85,28 @@ class DatabaseApplicationType(ApplicationType):
 
     # Database applications are imported first.
     import_application_priority = 2
+
+    def supports_integration_type(self, integration_type) -> bool:
+        """
+        Only what a button's actions can actually carry. Read from the action
+        types themselves, so the two cannot drift, and so an integration
+        holding an `authorized_user` cannot be created on a database at all
+        (ADR 006 section 5) rather than merely being refused by the action.
+
+        :param integration_type: The type in question.
+        :return: True when some database action type accepts it.
+        """
+
+        from .workflow_actions.registries import (
+            database_workflow_action_type_registry,
+        )
+
+        # Not read once and kept: a test can register an action type, and a
+        # stale answer would refuse an integration the registry accepts.
+        return self.supports_integrations and any(
+            integration_type.type in action_type.allowed_integration_types
+            for action_type in database_workflow_action_type_registry.get_all()
+        )
 
     def pre_delete(self, database):
         """
@@ -128,7 +159,11 @@ class DatabaseApplicationType(ApplicationType):
                 field = f.specific
                 specific_fields.append(field)
                 field_type = field_type_registry.get_by_model(field)
-                serialized_fields.append(field_type.export_serialized(field))
+                serialized_fields.append(
+                    field_type.export_serialized(
+                        field, import_export_config=import_export_config
+                    )
+                )
 
             table_cache: Dict[str, Any] = {
                 f"fields_by_id_{table.id}": {f.id: f for f in specific_fields},
@@ -187,7 +222,9 @@ class DatabaseApplicationType(ApplicationType):
             if hasattr(table, "data_sync"):
                 data_sync = table.data_sync.specific
                 data_sync_type = data_sync_type_registry.get_by_model(data_sync)
-                serialized_data_sync = data_sync_type.export_serialized(data_sync)
+                serialized_data_sync = data_sync_type.export_serialized(
+                    data_sync, import_export_config
+                )
 
             if hasattr(table, "field_rules"):
                 field_rules_handler = FieldRuleHandler(table)
@@ -197,7 +234,8 @@ class DatabaseApplicationType(ApplicationType):
                     rule_type,
                 ) in field_rules_handler.applicable_rules_with_types:
                     exported_field_rule = field_rules_handler.export_rule(rule)
-                    serialized_field_rules.append(exported_field_rule)
+                    if exported_field_rule is not None:
+                        serialized_field_rules.append(exported_field_rule)
 
             structure = DatabaseExportSerializedStructure.table(
                 id=table.id,
@@ -219,6 +257,44 @@ class DatabaseApplicationType(ApplicationType):
             serialized_tables.append(structure)
 
         return serialized_tables
+
+    def _integrations_to_export(
+        self, database: Database, import_export_config: ImportExportConfig
+    ) -> List[Integration]:
+        """
+        The integrations a copy carries. A duplicate keeps sensitive data, so
+        one copied here arrives with its token in an application the copier
+        owns. The action's own check cannot catch that: by then the
+        integration it sees is the copy, which the copier can read. So the
+        credential is left out of the export, and the copied action drops it
+        for want of one it may carry.
+
+        :param database: The database being exported.
+        :param import_export_config: How this copy is being made.
+        :return: The integrations to serialize.
+        """
+
+        integrations = list(IntegrationHandler().get_integrations(database))
+        copied_by = import_export_config.copied_by
+        # Nobody asked for this copy, or nothing sensitive travels in it.
+        if copied_by is None or import_export_config.exclude_sensitive_data:
+            return integrations
+
+        checks = [
+            PermissionCheck(copied_by, ReadIntegrationOperationType.type, integration)
+            for integration in integrations
+        ]
+        # One call for all of them: a per-integration check walks every
+        # permission manager again for each one.
+        allowed = CoreHandler().check_multiple_permissions(
+            checks, workspace=database.workspace
+        )
+
+        return [
+            integration
+            for check, integration in zip(checks, integrations)
+            if allowed.get(check, False) is True
+        ]
 
     def export_serialized(
         self,
@@ -262,11 +338,29 @@ class DatabaseApplicationType(ApplicationType):
             tables, import_export_config, files_zip, storage, progress_builder
         )
 
+        # One cache for the whole export, the way every other application type
+        # does it, so a type that serializes a file writes it once.
+        integration_cache = {}
+        serialized_integrations = [
+            IntegrationHandler().export_integration(
+                integration,
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=integration_cache,
+            )
+            for integration in self._integrations_to_export(
+                database, import_export_config
+            )
+        ]
+
         serialized = super().export_serialized(
             database, import_export_config, files_zip, storage
         )
         serialized.update(
-            **DatabaseExportSerializedStructure.database(tables=serialized_tables)
+            **DatabaseExportSerializedStructure.database(
+                tables=serialized_tables, integrations=serialized_integrations
+            )
         )
 
         return serialized
@@ -393,17 +487,45 @@ class DatabaseApplicationType(ApplicationType):
             )
             return field_instance
 
+        def _expand_implied_import_dependencies(field_deps, fields_by_name):
+            """
+            A dependency of `(name, None)` is a reference by name to a field in the
+            same table. Some field types, like `link_row`, render a value borrowed
+            from another table, so referencing them implies a dependency on that
+            other field instead. Let each referenced field type say so.
+            """
+
+            if not field_deps:
+                return field_deps
+
+            expanded = set()
+            for name, via in field_deps:
+                referenced = fields_by_name.get(name) if via is None else None
+                implied = referenced and field_type_registry.get(
+                    referenced["type"]
+                ).get_import_dependency_when_referenced(
+                    referenced, name, database_fields_map, primary_table_fields_map
+                )
+                expanded.add(implied or (name, via))
+            return expanded
+
         fields_without_dependencies: List[Field] = []
         for serialized_table in serialized_tables:
             table_instance = serialized_table["_object"]
+            serialized_fields_by_name = {
+                f["name"]: f for f in serialized_table["fields"]
+            }
             for serialized_field in serialized_table["fields"]:
                 field_type = field_type_registry.get(serialized_field["type"])
                 field_deps = (
                     field_type.get_field_depdendencies_before_import_serialized(
                         serialized_field,
-                        id_mapping["database_fields_map"],
-                        id_mapping["primary_table_fields_map"],
+                        database_fields_map,
+                        primary_table_fields_map,
                     )
+                )
+                field_deps = _expand_implied_import_dependencies(
+                    field_deps, serialized_fields_by_name
                 )
 
                 # If the field has dependencies, we want to defer the import of the
@@ -614,7 +736,11 @@ class DatabaseApplicationType(ApplicationType):
     def _import_extra_metadata(
         self, serialized_tables, id_mapping, import_export_config
     ):
-        source_workspace = Workspace.objects.get(pk=id_mapping["import_workspace_id"])
+        if "_import_workspace_obj" not in id_mapping:
+            id_mapping["_import_workspace_obj"] = Workspace.objects.get(
+                pk=id_mapping["import_workspace_id"]
+            )
+        source_workspace = id_mapping["_import_workspace_obj"]
         for serialized_table in serialized_tables:
             table = serialized_table["_object"]
             if not import_export_config.reduce_disk_space_usage:
@@ -645,6 +771,10 @@ class DatabaseApplicationType(ApplicationType):
             field_rules_handler = FieldRuleHandler(table)
             serialized_rules = serialized_table["field_rules"]
             for serialized_rule in serialized_rules:
+                # exports made before #6095 may contain null entries for rules
+                # that were active but invalid at export time.
+                if not serialized_rule:
+                    continue
                 field_rules_handler.import_rule(
                     serialized_rule, id_mapping["database_fields"]
                 )
@@ -1010,9 +1140,14 @@ class DatabaseApplicationType(ApplicationType):
         Imports a database application exported by the `export_serialized` method.
         """
 
+        # `or []`, not a default: a hand-edited export can name the key with
+        # an explicit null, and `.get` hands that back.
+        serialized_integrations = serialized_values.get("integrations") or []
         database_progress, table_progress = 1, len(serialized_values["tables"])
+        integration_progress = len(serialized_integrations)
         progress = ChildProgressBuilder.build(
-            progress_builder, child_total=database_progress + table_progress
+            progress_builder,
+            child_total=database_progress + table_progress + integration_progress,
         )
 
         application = super().import_serialized(
@@ -1026,6 +1161,21 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         database = application.specific
+
+        # Before the tables, so an action's integration can remap through
+        # `id_mapping`. Absent from every export made before 4c.
+        integration_cache = {}
+        for serialized_integration in serialized_integrations:
+            IntegrationHandler().import_integration(
+                database,
+                serialized_integration,
+                id_mapping,
+                cache=integration_cache,
+                files_zip=files_zip,
+                storage=storage,
+            )
+            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+
         if serialized_values["tables"]:
             self.import_tables_serialized(
                 database,
@@ -1046,11 +1196,11 @@ class DatabaseApplicationType(ApplicationType):
             "table_set__data_sync__synced_properties",
         )
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Database],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Database]:
         tables_qs = Table.objects.select_related(
             "database__workspace", "data_sync"
@@ -1058,11 +1208,11 @@ class DatabaseApplicationType(ApplicationType):
         return queryset.prefetch_related(
             Prefetch(
                 "table_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListTablesDatabaseTableOperationType.type,
                     tables_qs,
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="tables",
             ),
@@ -1085,8 +1235,8 @@ class DatabaseApplicationType(ApplicationType):
         base_queryset = Database.objects.filter(id=database.id)
 
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, database.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [database.workspace]
             ).first()
             return instance and instance.tables or []
         else:

@@ -56,4 +56,15 @@ describe('RowEditFieldAI component', () => {
 
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
+
+  test('Generate button is disabled when the selected model is ineligible for AI Fields', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      ai_features: { ai_fields: { models: {} } },
+    })
+
+    const wrapper = await mountComponent(aiField)
+
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+  })
 })

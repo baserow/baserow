@@ -8,6 +8,8 @@ from baserow.core.formula import BaserowFormulaException
 NO_FORMULAS = Q(pk__in=[])
 ALL_FORMULAS = ~NO_FORMULAS
 
+FORMULAS_USING_INDEX = Q(internal_formula__contains="index(")
+
 
 FormulaMigrationSelector = Union[Q, Callable[[QuerySet], Q]]
 
@@ -130,6 +132,16 @@ FORMULA_MIGRATIONS = FormulaMigrations(
             recalculate_field_dependencies_for=NO_FORMULAS,
             recalculate_cell_values_for=NO_FORMULAS,
             force_recreate_formula_columns_for=all_aggregate_formulas,
+        ),
+        FormulaMigration(
+            version=6,
+            # v6 drops index()'s 4th argument, so any internal formula still
+            # carrying one has to be regenerated, and its cells recomputed since
+            # the values they hold were produced by the older expression.
+            recalculate_formula_attributes_for=FORMULAS_USING_INDEX,
+            recalculate_field_dependencies_for=NO_FORMULAS,
+            recalculate_cell_values_for=FORMULAS_USING_INDEX,
+            force_recreate_formula_columns_for=NO_FORMULAS,
         ),
     ]
 )

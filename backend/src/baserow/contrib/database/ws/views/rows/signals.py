@@ -18,7 +18,7 @@ from baserow.core.telemetry.utils import baserow_trace
 tracer = trace.get_tracer(__name__)
 
 
-@baserow_trace(tracer)
+@baserow_trace(tracer, allow_nested=True)
 def _send_rows_created_event_to_views(
     serialized_rows: List[Dict[Any, Any]],
     before: Optional[GeneratedTableModel],
@@ -45,7 +45,7 @@ def _send_rows_created_event_to_views(
         view_realtime_rows_handler.broadcast_to_types(view, payload, user=user)
 
 
-@baserow_trace(tracer)
+@baserow_trace(tracer, allow_nested=True)
 def _send_rows_deleted_event_to_views(
     serialized_deleted_rows: List[Dict[Any, Any]],
     views: List[FilteredViewRows],
@@ -70,7 +70,6 @@ def _send_rows_deleted_event_to_views(
 
 
 @receiver(row_signals.rows_created)
-@baserow_trace(tracer)
 def views_rows_created(
     sender,
     rows,
@@ -99,7 +98,6 @@ def views_rows_created(
 
 
 @receiver(row_signals.before_rows_delete)
-@baserow_trace(tracer)
 def views_before_rows_delete(sender, rows, user, table, model, **kwargs):
     row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
@@ -113,7 +111,6 @@ def views_before_rows_delete(sender, rows, user, table, model, **kwargs):
 
 
 @receiver(row_signals.rows_deleted)
-@baserow_trace(tracer)
 def views_rows_deleted(
     sender, rows, user, table, model, before_return, send_realtime_update=True, **kwargs
 ):
@@ -132,7 +129,6 @@ def views_rows_deleted(
 
 
 @receiver(row_signals.before_rows_update)
-@baserow_trace(tracer)
 def views_before_rows_update(
     sender, rows, user, table, model, updated_field_ids, **kwargs
 ):
@@ -149,7 +145,6 @@ def views_before_rows_update(
 
 
 @receiver(row_signals.rows_updated)
-@baserow_trace(tracer)
 def views_rows_updated(
     sender,
     rows,
@@ -235,7 +230,7 @@ def views_rows_updated(
         view_slug_to_updated_view_rows.values()
     )
 
-    @baserow_trace(tracer)
+    @baserow_trace(tracer, allow_nested=True)
     def _send_created_updated_deleted_row_signals_to_views():
         _send_rows_deleted_event_to_views(
             serialized_old_rows, views_where_rows_were_deleted, user=user

@@ -3,11 +3,14 @@ from uuid import uuid4
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
+    CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreInboundEmailTriggerService,
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
+    CoreResponseService,
     CoreRouterService,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
@@ -23,6 +26,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsDeleted,
     LocalBaserowRowsUpdated,
     LocalBaserowTableServiceFilter,
+    LocalBaserowTableServiceFilterGroup,
     LocalBaserowTableServiceSort,
     LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
@@ -103,7 +107,22 @@ class ServiceFixtures:
             kwargs["type"] = "equal"
         if "order" not in kwargs:
             kwargs["order"] = 0
+        if kwargs.get("value_is_formula") is False and "value" in kwargs:
+            value = kwargs["value"]
+            if isinstance(value, dict):
+                value["mode"] = "raw"
+            else:
+                kwargs["value"] = {
+                    "formula": "" if value is None else str(value),
+                    "mode": "raw",
+                    "version": "0.1",
+                }
         return LocalBaserowTableServiceFilter.objects.create(**kwargs)
+
+    def create_local_baserow_table_service_filter_group(
+        self, **kwargs
+    ) -> LocalBaserowTableServiceFilterGroup:
+        return LocalBaserowTableServiceFilterGroup.objects.create(**kwargs)
 
     def create_local_baserow_table_service_sort(
         self, **kwargs
@@ -133,6 +152,9 @@ class ServiceFixtures:
         return self.create_service(AIAgentService, **kwargs)
 
     def create_slack_write_message_service(self, **kwargs):
+        # A bot with no token is refused before the dispatch sends anything.
+        if "integration" not in kwargs:
+            kwargs.setdefault("integration_args", {}).setdefault("token", "xoxb-test")
         return self.create_service(SlackWriteMessageService, **kwargs)
 
     def create_core_iterator_service(self, **kwargs):
@@ -143,6 +165,9 @@ class ServiceFixtures:
 
     def create_core_start_workflow_service(self, **kwargs):
         return self.create_service(CoreStartWorkflowService, **kwargs)
+
+    def create_core_response_service(self, **kwargs):
+        return self.create_service(CoreResponseService, **kwargs)
 
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
@@ -167,11 +192,19 @@ class ServiceFixtures:
 
         return edge
 
+    def create_core_goto_service(self, **kwargs) -> CoreGotoService:
+        return self.create_service(CoreGotoService, **kwargs)
+
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:
         if "uid" not in kwargs:
             kwargs["uid"] = uuid4()
 
         return self.create_service(CoreHTTPTriggerService, **kwargs)
+
+    def create_core_inbound_email_trigger_service(
+        self, **kwargs
+    ) -> CoreInboundEmailTriggerService:
+        return self.create_service(CoreInboundEmailTriggerService, **kwargs)
 
     def create_core_manual_trigger_service(self, **kwargs):
         return self.create_service(CoreManualTriggerService, **kwargs)

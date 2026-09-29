@@ -17,3 +17,9 @@ ERROR_WIDGET_IMPROPERLY_CONFIGURED = (
     HTTP_400_BAD_REQUEST,
     "The requested configuration is not allowed.",
 )
+
+ERROR_WIDGET_LAYOUT_INVALID = (
+    "ERROR_WIDGET_LAYOUT_INVALID",
+    HTTP_400_BAD_REQUEST,
+    "The requested widget layout is not valid for this dashboard.",
+)

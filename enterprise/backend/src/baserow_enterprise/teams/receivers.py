@@ -11,7 +11,10 @@ def cascade_subject_delete(sender, instance, **kwargs):
     from .models import TeamSubject
 
     subject_ct = ContentType.objects.get_for_model(instance)
-    TeamSubject.objects.filter(subject_id=instance.id, subject_type=subject_ct).delete()
+    # Permanent subject deletion must also clean memberships in trashed teams.
+    TeamSubject.objects_and_trash.filter(
+        subject_id=instance.id, subject_type=subject_ct
+    ).delete()
 
 
 def cascade_workspace_user_delete(sender, instance, **kwargs):

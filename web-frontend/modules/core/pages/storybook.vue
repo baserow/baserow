@@ -38,11 +38,15 @@
 </template>
 
 <script>
+import { useHead } from '#app'
 import SimpleGrid from '@baserow/modules/database/components/view/grid/SimpleGrid'
 
 export default {
   components: {
     SimpleGrid,
+  },
+  setup() {
+    useHead({ title: 'Style guide' })
   },
   data() {
     return {
@@ -390,11 +394,6 @@ export default {
           id: '4',
         },
       ],
-    }
-  },
-  head() {
-    return {
-      title: 'Style guide',
     }
   },
   methods: {

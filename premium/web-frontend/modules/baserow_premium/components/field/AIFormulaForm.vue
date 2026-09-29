@@ -3,6 +3,7 @@
     <SelectAIModelForm
       :database="database"
       :default-values="defaultValues"
+      feature-type="ai_fields"
     ></SelectAIModelForm>
 
     <FormGroup

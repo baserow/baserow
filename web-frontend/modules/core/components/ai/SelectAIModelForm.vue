@@ -9,17 +9,18 @@
       <Dropdown
         v-model="v$.values.ai_generative_ai_type.$model"
         class="dropdown--floating"
+        :disabled="modelsLoading"
         :error="fieldHasErrors('ai_generative_ai_type')"
         :fixed-items="true"
         :show-search="false"
         @hide="v$.values.ai_generative_ai_type.$touch"
-        @change="$refs.aiModel.select(aIModelsPerType[0])"
+        @change="$refs.aiModel.select(baseAvailableModels[0])"
       >
         <DropdownItem
-          v-for="aiType in aITypes"
-          :key="aiType.getType()"
-          :name="aiType.getName()"
-          :value="aiType.getType()"
+          v-for="provider in availableProviders"
+          :key="provider.type"
+          :name="provider.name"
+          :value="provider.type"
         />
       </Dropdown>
       <template #error>
@@ -32,28 +33,40 @@
     <FormGroup
       small-label
       :label="$t('selectAIModelForm.AIModel')"
-      :error="fieldHasErrors('ai_generative_ai_model')"
+      :error="modelFieldInvalid"
       required
     >
       <Dropdown
         ref="aiModel"
         v-model="v$.values.ai_generative_ai_model.$model"
         class="dropdown--floating"
-        :error="fieldHasErrors('ai_generative_ai_model')"
+        :disabled="modelsLoading"
+        :error="modelFieldInvalid"
         :fixed-items="true"
         :show-search="false"
         @hide="v$.values.ai_generative_ai_model.$touch"
       >
         <DropdownItem
-          v-for="aIType in aIModelsPerType"
-          :key="aIType"
-          :name="aIType"
-          :value="aIType"
+          v-for="model in availableModels"
+          :key="model"
+          :name="model"
+          :value="model"
+          :disabled="
+            selectedModelUnavailable && model === values.ai_generative_ai_model
+          "
         />
       </Dropdown>
       <template #error>
         <div v-if="v$.values.ai_generative_ai_model.required.$invalid">
           {{ $t('error.requiredField') }}
+        </div>
+        <div
+          v-else-if="
+            selectedModelUnavailable ||
+            v$.values.ai_generative_ai_model.available.$invalid
+          "
+        >
+          {{ $t('selectAIModelForm.modelUnavailable') }}
         </div>
       </template>
     </FormGroup>
@@ -96,6 +109,8 @@ import { mapGetters } from 'vuex'
 import { required, decimal, minValue, maxValue } from '@vuelidate/validators'
 import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 
 export default {
   name: 'SelectAIModelForm',
@@ -104,6 +119,11 @@ export default {
     database: {
       type: Object,
       required: true,
+    },
+    featureType: {
+      type: String,
+      required: false,
+      default: null,
     },
   },
   emits: ['ai-type-changed'],
@@ -123,6 +143,7 @@ export default {
         ai_temperature: 0.1,
       },
       temperature: null,
+      modelsLoading: true,
     }
   },
   computed: {
@@ -133,23 +154,78 @@ export default {
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
-    aITypes() {
-      const types = this.workspace.generative_ai_models_enabled || {}
-      return Object.keys(types).map((aiType) => {
-        return this.$registry.get('generativeAIModel', aiType)
-      })
+    enabledModelsByType() {
+      return this.featureType
+        ? getEnabledModelsForAIProviderFeature(this.workspace, this.featureType)
+        : this.workspace.generative_ai_models_enabled || {}
     },
-    aIModelsPerType() {
+    /**
+     * @returns {Array<{type: string, name: string}>} Installed providers with
+     *   enabled models, excluding any unavailable saved selection.
+     */
+    baseAvailableProviders() {
+      const allProviders = this.$registry.getAll('generativeAIModel')
+      return Object.keys(this.enabledModelsByType)
+        .filter((type) => allProviders[type])
+        .map((type) => ({ type, name: allProviders[type].getName() }))
+    },
+    /**
+     * @returns {Array<{type: string, name: string}>} Provider options, retaining
+     *   an unavailable saved provider for diagnosis.
+     */
+    availableProviders() {
+      const providers = this.baseAvailableProviders
+      const current = this.values.ai_generative_ai_type
+      if (current && !providers.some((provider) => provider.type === current)) {
+        const modelType = this.$registry.getAll('generativeAIModel')[current]
+        return [
+          ...providers,
+          { type: current, name: modelType ? modelType.getName() : current },
+        ]
+      }
+      return providers
+    },
+    /**
+     * @returns {string[]} Models enabled for the selected provider, excluding an
+     *   unavailable saved model.
+     */
+    baseAvailableModels() {
       return this.getAIModelsPerType(this.values.ai_generative_ai_type)
     },
-    maxTemperature() {
-      if (!this.values.ai_generative_ai_type) {
-        return 2
+    /**
+     * @returns {string[]} Model options, retaining an unavailable saved model for
+     *   diagnosis.
+     */
+    availableModels() {
+      const models = this.baseAvailableModels
+      const current = this.values.ai_generative_ai_model
+      if (current && !models.includes(current)) {
+        return [...models, current]
       }
-
-      return this.$registry
-        .get('generativeAIModel', this.values.ai_generative_ai_type)
-        .getMaxTemperature()
+      return models
+    },
+    /**
+     * @returns {boolean} Whether eligibility prevents using the saved model.
+     */
+    selectedModelUnavailable() {
+      const current = this.values.ai_generative_ai_model
+      return Boolean(current && !this.baseAvailableModels.includes(current))
+    },
+    /**
+     * @returns {boolean} Whether the model field renders in its error state.
+     */
+    modelFieldInvalid() {
+      return (
+        this.fieldHasErrors('ai_generative_ai_model') ||
+        this.selectedModelUnavailable
+      )
+    },
+    maxTemperature() {
+      const modelType =
+        this.$registry.getAll('generativeAIModel')[
+          this.values.ai_generative_ai_type
+        ]
+      return modelType ? modelType.getMaxTemperature() : 2
     },
   },
   watch: {
@@ -174,9 +250,23 @@ export default {
       }
     },
   },
-  mounted() {
-    if (!this.values.ai_generative_ai_type && this.aITypes.length > 0) {
-      const aiType = this.aITypes[0].getType()
+  async mounted() {
+    try {
+      await this.$store.dispatch(
+        'workspace/refreshGenerativeAIModels',
+        this.database.workspace.id
+      )
+    } catch (error) {
+      notifyIf(error)
+    } finally {
+      this.modelsLoading = false
+    }
+
+    if (
+      !this.values.ai_generative_ai_type &&
+      this.baseAvailableProviders.length > 0
+    ) {
+      const aiType = this.baseAvailableProviders[0].type
       this.values.ai_generative_ai_type = aiType
       const aiModels = this.getAIModelsPerType(aiType)
       this.values.ai_generative_ai_model = aiModels[0] || null
@@ -184,14 +274,18 @@ export default {
   },
   methods: {
     getAIModelsPerType(aiType) {
-      return this.workspace.generative_ai_models_enabled[aiType] || []
+      return this.enabledModelsByType[aiType] || []
     },
   },
   validations() {
     return {
       values: {
         ai_generative_ai_type: { required },
-        ai_generative_ai_model: { required },
+        ai_generative_ai_model: {
+          required,
+          available: (value) =>
+            !value || this.baseAvailableModels.includes(value),
+        },
         ai_temperature: {
           decimal,
           minValue: minValue(0),

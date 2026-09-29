@@ -1,26 +1,28 @@
-import { isSecureURL } from '@baserow/modules/core/utils/string'
-import { getCookieName } from '@baserow/modules/core/utils/cookie'
-import { useCookie } from '#app'
+/**
+ * Fetches the workspaces and applications of the authenticated user if that hasn't
+ * happened yet, and selects the provided workspace if it exists. Shared by the
+ * `workspacesAndApplications` middleware and the pages that fetch them without
+ * blocking the navigation, so that the workspace of the route is selected
+ * regardless of which page loaded them first.
+ */
+export const fetchWorkspacesAndApplications = async (nuxtApp, workspaceId) => {
+  const store = nuxtApp.$store
 
-// NOTE: this has been deliberately left as `group`. A future task will rename it.
-const cookieWorkspaceName = 'baserow_group_id'
+  if (!store.getters['workspace/isLoaded']) {
+    await store.dispatch('workspace/fetchAll')
 
-export const setWorkspaceCookie = (workspaceId, { $config }) => {
-  const secure = isSecureURL($config.public.publicWebFrontendUrl)
-  const cookie = useCookie(getCookieName($config, cookieWorkspaceName), {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-    sameSite: $config.public.baserowFrontendSameSiteCookie,
-    secure,
-  })
-  cookie.value = workspaceId
-}
+    const workspaces = store.getters['workspace/getAll']
+    const workspaceExists =
+      workspaces.find((w) => w.id === workspaceId) !== undefined
 
-export const unsetWorkspaceCookie = ({ $config }) => {
-  const cookie = useCookie(getCookieName($config, cookieWorkspaceName))
-  cookie.value = null
-}
+    if (workspaceExists) {
+      try {
+        await store.dispatch('workspace/selectById', workspaceId)
+      } catch {}
+    }
+  }
 
-export const getWorkspaceCookie = ({ $config }) => {
-  return useCookie(getCookieName($config, cookieWorkspaceName)).value
+  if (!store.getters['application/isLoaded']) {
+    await store.dispatch('application/fetchAll')
+  }
 }

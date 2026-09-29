@@ -46,6 +46,7 @@ import { useI18n } from 'vue-i18n'
 
 import form from '@baserow/modules/core/mixins/form'
 import {
+  nameContainsNoSpam,
   nameContainsNoUrl,
   nameIsNotEmail,
 } from '@baserow/modules/core/validators'
@@ -100,6 +101,10 @@ export default {
           nameContainsNoUrl: helpers.withMessage(
             this.$t('error.nameContainsUrl'),
             nameContainsNoUrl
+          ),
+          nameContainsNoSpam: helpers.withMessage(
+            this.$t('error.nameContainsSpam'),
+            nameContainsNoSpam
           ),
         },
       },

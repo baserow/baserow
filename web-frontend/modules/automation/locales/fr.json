@@ -16,7 +16,7 @@
     },
     "automationHistoryGuidedTourStep": {
         "title": "Voir l'historique du scénario",
-        "content": "Utilisez le volet d'historique pour examiner les tests passés et les exécutions publiées. C'est une bonne façon de déboguer ou de confirmer le bon fonctionnement."
+        "content": "Utilisez le volet d'historique pour examiner les tests passés et les exécutions publiées. C'est un excellent moyen de déboguer ou de confirmer les résultats. Vous pouvez également y annuler une exécution encore en cours."
     },
     "automationPublishGuidedTourStep": {
         "title": "Publiez votre scénario",
@@ -104,13 +104,20 @@
         "running": "S'exécute depuis {at}s",
         "statusSuccessBadge": "Complété",
         "statusErrorBadge": "Échoué",
+        "statusSkippedBadge": "Ignoré",
         "successfulRuns": "Succès",
         "failedRuns": "Échecs",
         "errorHideDetails": "Masquer les détails",
         "errorShowDetails": "Afficher les détails",
         "runNumber": "Exécution {n}",
         "runCount": "{n} exécutions",
-        "showResult": "Afficher le résultat"
+        "showResult": "Afficher le résultat",
+        "statusCancelled": "Annulé",
+        "startedBy": "Démarré par {name}",
+        "cancelRun": "Annuler cette exécution du scénario",
+        "cancelling": "Annulation de cette exécution. Elle s'arrêtera une fois le nœud actuel terminé.",
+        "cancellationAlreadyRequestedTitle": "Annulation déjà demandée",
+        "cancellationAlreadyRequested": "Une autre personne a déjà demandé l'annulation de cette exécution. Elle s'arrêtera une fois le nœud actuel terminé."
     },
     "nodeType": {
         "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
@@ -126,6 +133,10 @@
         "httpRequestLabel": "Envoyer une requête HTTP",
         "smtpEmailLabel": "Envoyer un courriel",
         "routerLabel": "Suivre 1 des {edgeCount} branches",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Aller au nœud",
+        "gotoNodeLabelWithDestination": "Aller au nœud → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
         "iterationLabel": "Itérer sur les lignes",
         "routerDefaultEdgeLabelFallback": "Par défaut",
         "routerWithOutputNodesDeleteError": "Ne peut être supprimé que si ses {outputCount} nœuds de sortie sont supprimés.",
@@ -143,7 +154,8 @@
         "localBaserowUpdateRowsLabel": "Mise à jour par lots des lignes dans {tableName}",
         "csvFileReaderLabel": "Lire un fichier CSV",
         "startWorkflowLabel": "Lancer {workflowName}",
-        "defaultEdgeLabelFallback": "Défaut"
+        "defaultEdgeLabelFallback": "Défaut",
+        "responseLabel": "Réponse"
     },
     "workflowNode": {
         "actionDelete": "Supprimer",
@@ -159,7 +171,9 @@
         "moreReplace": "Remplacer",
         "nodeOptions": "Options du nœud",
         "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Dupliquer"
+        "moreDuplicate": "Dupliquer",
+        "gotoMarkerSource": "Saute au marqueur {marker}",
+        "gotoMarkerDestination": "Destination du marqueur {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Créer un nœud de scénario"
@@ -177,7 +191,8 @@
         "coreHTTPTrigger": "Déclencheur HTTP",
         "coreHTTPTriggerDescription": "Déclenche un scénario quand une requête HTTP est reçue",
         "coreManualTrigger": "Déclencheur manuel",
-        "coreManualTriggerDescription": "Ne démarre que lorsqu'une autre action déclenche ce scénario"
+        "coreManualTriggerDescription": "Ne démarre que lorsqu'une autre action déclenche ce scénario",
+        "responseLabel": "Réponse"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "Intervale",
@@ -235,5 +250,8 @@
     },
     "workflowDisabledNotification": {
         "body": "Le scénario {name} a été désactivé."
+    },
+    "lastViewedItemType": {
+        "automationWorkflow": "Scénario"
     }
 }

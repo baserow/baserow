@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Added a reminder in Application Builder field settings to use a Form element for validation before submitting data.",
+  "issue_origin": "github",
+  "issue_number": 6166,
+  "domain": "builder",
+  "bullet_points": [],
+  "created_at": "2026-09-28"
+}

@@ -58,6 +58,39 @@ backendSecrets:
   REDIS_PASSWORD: "password"
 ```
 
+## Inbound email receiver
+
+Enable the email receiver to use the "Start workflow by email" automation
+trigger. The chart creates a persistent volume for mox, an internal web API
+service used by the backend, and a `LoadBalancer` service which exposes SMTP on
+port 25.
+
+```yaml
+baserow-email-receiver:
+  enabled: true
+
+backendConfigMap:
+  BASEROW_INBOUND_EMAIL_DOMAIN: inbound.example.com
+
+backendSecrets:
+  BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET: replace-with-a-long-random-secret
+```
+
+Point the MX record for `inbound.example.com` to the external address of the
+`<release>-baserow-email-receiver-smtp` service. If the MX record points to a
+different hostname, like `mx.inbound.example.com`, set
+`BASEROW_INBOUND_EMAIL_SMTP_HOSTNAME` to that hostname in `backendConfigMap`.
+The SMTP service type, annotations, port, and persistent storage settings can
+all be overridden under `baserow-email-receiver`.
+
+The SMTP service uses `externalTrafficPolicy: Local` so mox sees the real
+sender IP, which it needs to evaluate SPF and DMARC correctly. The mox data
+volume is kept when the release is uninstalled because it holds the webhook
+retry queue; delete the `<release>-baserow-email-receiver` PVC manually if you
+no longer need it. Mox must be started as root, so the email receiver pod is
+not compatible with namespaces enforcing the `restricted` Pod Security
+Standard.
+
 ## Caddy Ingress Configuration
 
 Caddy is a web server that can be used as an ingress controller. When using Caddy, set the ingress configuration to use Caddy as the ingress controller. Make note of the `onDemandAsk` configuration, which is used to trigger on-demand TLS certificates. Pointed here to the health check endpoint of caddy itself to always create new certificates. On production workloads set it to the backend api endpoint to check if the domain exists in the database.
@@ -96,26 +129,31 @@ baserow-backend-wsgi:
 
 Baserow supports multiple AI providers for generative AI features and the AI assistant. The embeddings service powers semantic search for the AI assistant's documentation lookup feature. For more documentation check the [Baserow AI documentation](/docs/installation/ai-assistant.md).
 
-### Enable AI Assistant
+### Configure providers and models
 
-To enable the AI assistant, you need to configure the LLM model and provide the necessary API keys for the chosen provider.
+After deployment, configure shared connections under **Admin tools > AI providers**,
+or workspace connections under the workspace's **Settings > AI providers**. Add
+models, select their available features, and run **Test model**. Choose Kuma's
+default under **AI features**; AI Fields and AI Agent actions keep their own model
+selections.
 
-```yaml
-global:
-  baserow:
-    assistantLLMModel: "groq/openai/gpt-oss-120b"
-
-backendSecrets:
-  GROQ_API_KEY: "your-groq-api-key"
-```
-
-More information about the available providers can be found here: https://baserow.io/docs/installation%2Fai-assistant
+The provider connection/model environment variables are **deprecated**. Upgrading to
+Baserow 2.4 imports them once into **Admin tools > AI providers**, and after that
+Baserow no longer reads them. See
+[Upgrading to Baserow 2.4](/docs/installation/ai-providers.md#upgrading-to-baserow-24).
+The migrate job must carry the same AI variables as the backend, which it does by
+default through the shared backend config map and secret.
+`global.baserow.assistantLLMModel` is also deprecated but is not imported: Kuma keeps
+using it until you make a model available to Kuma and select it under
+**AI features**. Keep existing settings until the imported configuration is verified,
+including the rollback window. Vertex AI, and Bedrock through the pod's IAM role,
+have no equivalent in AI providers; keep their environment configuration for Kuma, as
+described in the [AI assistant guide](/docs/installation/ai-assistant.md).
 
 ### Enable Embeddings Service
 
-The AI assistant uses the embeddings service and requires the LLM model to be configured. You need to enable this next to the global ai configuration.
-
-#### Basic Configuration
+Enable the embeddings service for the assistant's documentation lookup feature.
+This setting remains supported and is separate from provider/model configuration.
 
 ```yaml
 baserow-embeddings:
@@ -232,7 +270,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.3.3`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.4.0`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
@@ -246,6 +284,7 @@ caddy:
 | `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
 | `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
 | `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
+| `global.baserow.assistantLLMModel`                                 | Deprecated. Select the Kuma model under Admin tools > AI providers > AI features. Retained as an environment fallback; explicit disables prevent fallback. | `""`                    |
 | `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
 | `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
 | `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |
@@ -326,6 +365,22 @@ caddy:
 | `migration.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                        | `[]`      |
 | `migration.containerSecurityContext.capabilities.add`         | List of capabilities to be added                          | `[]`      |
 | `migration.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile          | `""`      |
+
+### Baserow Inbound Email Receiver Configuration
+
+| Name                                                                   | Description                                                      | Value                                 |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------- |
+| `baserow-email-receiver.enabled`                                       | Enable the inbound email receiver.                               | `false`                               |
+| `baserow-email-receiver.image.repository`                              | Email receiver Docker image repository.                          | `backend`                             |
+| `baserow-email-receiver.terminationGracePeriodSeconds`                 | Seconds mox is given to finish in-flight deliveries on shutdown. | `60`                                  |
+| `baserow-email-receiver.persistence.size`                              | Persistent storage requested for mox data.                       | `1Gi`                                 |
+| `baserow-email-receiver.persistence.storageClass`                      | Persistent storage class.                                        | `""`                                  |
+| `baserow-email-receiver.persistence.existingClaim`                     | Existing PVC for mox data.                                       | `""`                                  |
+| `baserow-email-receiver.persistence.annotations`                       | Persistent volume claim annotations.                             | `{"helm.sh/resource-policy": "keep"}` |
+| `baserow-email-receiver.additionalServices.smtp.type`                  | SMTP service type.                                               | `LoadBalancer`                        |
+| `baserow-email-receiver.additionalServices.smtp.port`                  | Externally exposed SMTP port.                                    | `25`                                  |
+| `baserow-email-receiver.additionalServices.smtp.annotations`           | SMTP service annotations.                                        | `{}`                                  |
+| `baserow-email-receiver.additionalServices.smtp.externalTrafficPolicy` | SMTP service external traffic policy.                            | `Local`                               |
 
 ### Baserow Backend ASGI Configuration
 
@@ -460,7 +515,6 @@ caddy:
 | Name                                                            | Description                                                     | Value                      |
 | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
 | `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
-| `baserow-embeddings.assistantLLMModel`                          | The LLM model to use for the Embeddings service.                | `groq/openai/gpt-oss-120b` |
 | `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
 | `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
 | `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |

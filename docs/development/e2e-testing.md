@@ -174,9 +174,28 @@ Consider adding E2E tests for:
 | `E2E_FRONTEND_COOKIE_PREFIX` | Cookie prefix used by the e2e frontend to avoid same-host auth cookie collisions | `baserow_e2e_` |
 | `PUBLIC_WEB_FRONTEND_URL` | Frontend URL for tests | `http://localhost:3070` |
 | `PUBLIC_BACKEND_URL` | Backend API URL for tests | `http://localhost:8070` |
+| `BASEROW_BUILDER_PREVIEW_URL` | Builder preview URL for tests | `PUBLIC_WEB_FRONTEND_URL` |
 | `BASEROW_FRONTEND_COOKIE_PREFIX` | Cookie prefix expected by Playwright helpers when tests write frontend cookies directly | `baserow_e2e_` |
 
 You can set these in `e2e-tests/.env` (see `.env-example`).
+Do not set `CI` for local runs: CI uses a system Google Chrome installation,
+whereas local runs use the Chromium binary managed by Playwright.
+
+To test Builder preview across sibling development domains, map the domains to
+`127.0.0.1` in `/etc/hosts`:
+
+```text
+127.0.0.1 app.baserow.test api.baserow.test preview.baserow.test
+```
+
+Then use the following `e2e-tests/.env` values. The `E2E_*_PORT` variables still
+control which host ports Docker publishes:
+
+```dotenv
+PUBLIC_WEB_FRONTEND_URL=http://app.baserow.test:3070
+PUBLIC_BACKEND_URL=http://api.baserow.test:8070
+BASEROW_BUILDER_PREVIEW_URL=http://preview.baserow.test:3070
+```
 
 When running the deprecated `run-e2e-tests-locally.sh` script against a normal
 local dev environment, it keeps using `3000`/`8000` and an empty cookie prefix

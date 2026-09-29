@@ -20,6 +20,13 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * The color family applied to this integration's service icons.
+   */
+  get iconColor() {
+    return null
+  }
+
+  /**
    * Return a summary describing the integration in one sentence.
    *
    * @param {object} integration The integration we want the summary for.

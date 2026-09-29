@@ -2,7 +2,7 @@ import abc
 import dataclasses
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Dict, NewType, Optional
+from typing import Any, Dict, List, NewType, Optional
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -17,7 +17,11 @@ from baserow.api.sessions import (
 )
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
-from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace_methods
+from baserow.core.telemetry.utils import (
+    BaserowTraceMeta,
+    add_baserow_trace_attrs,
+    baserow_trace,
+)
 
 from .models import Action
 from .signals import ActionCommandType, action_done
@@ -93,9 +97,42 @@ class ActionScopeType(abc.ABC, Instance):
 
         pass
 
+    def resolve(self, user: AbstractUser, scope_str: ActionScopeStr) -> List[str]:
+        """
+        The scope strings that a requested scope of this type stands for when undoing
+        or redoing. A scope normally stands for itself, but a scope describing a
+        surface that spans several others, like the all workspaces homepage, expands
+        into the scopes it can see for this user.
+
+        :param user: The user undoing or redoing.
+        :param scope_str: The requested scope string of this type.
+        :return: The scope strings to match actions against.
+        """
+
+        return [scope_str]
+
 
 class ActionScopeRegistry(Registry[ActionScopeType]):
     name = "action_scope"
+
+    def resolve(
+        self, user: AbstractUser, scopes: List[ActionScopeStr]
+    ) -> List[ActionScopeStr]:
+        """
+        Expands the requested scopes into the ones to match actions against, see
+        `ActionScopeType.resolve`. Only scopes whose string equals a registered type,
+        like `root` or `all_workspaces`, can expand; the others stand for themselves.
+        """
+
+        scope_types = {scope_type.type: scope_type for scope_type in self.get_all()}
+        resolved = []
+        for scope_str in scopes:
+            scope_type = scope_types.get(scope_str)
+            if scope_type is None:
+                resolved.append(scope_str)
+            else:
+                resolved.extend(scope_type.resolve(user, scope_str))
+        return resolved
 
 
 @dataclasses.dataclass
@@ -150,11 +187,25 @@ def render_action_type_description(
 
 class ActionType(
     Instance,
-    metaclass=baserow_trace_methods(tracer, only=["do", "undo", "redo"], abc=True),
+    metaclass=BaserowTraceMeta,
 ):
     type: str = NotImplemented
     description: ActionTypeDescription = ActionTypeDescription()
     analytics_params = []
+    # False for action types whose PostHog event is sent from somewhere that
+    # knows more than the action does.
+    capture_analytics_event: bool = True
+
+    @classmethod
+    def get_analytics_properties(cls, action_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        The properties of this action's PostHog event, read from its params.
+
+        :param action_params: The action's params, as a dict.
+        :return: The event's properties.
+        """
+
+        return {key: action_params.get(key, None) for key in cls.analytics_params}
 
     @dataclasses.dataclass
     class Params:
@@ -169,6 +220,7 @@ class ActionType(
         pass
 
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def do(cls, *args, **kwargs) -> Any:
         """
@@ -294,6 +346,7 @@ class ActionType(
 
 class UndoableActionTypeMixin:
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def undo(cls, user: AbstractUser, params: Any, action_being_undone: Action):
         """
@@ -309,6 +362,7 @@ class UndoableActionTypeMixin:
         pass
 
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def redo(cls, user: AbstractUser, params: Any, action_being_redone: Action):
         """

@@ -10,16 +10,20 @@
             "dashboard": "",
             "users": "",
             "workspaces": "",
-            "licenses": ""
+            "licenses": "Správa licencí"
         },
         "viewType": {
-            "kanban": ""
+            "kanban": "Kanban",
+            "timeline": "Časová osa",
+            "calendar": "Kalendář"
         },
         "exporterType": {
-            "json": "",
-            "xml": ""
+            "json": "Exportovat do JSON",
+            "xml": "Exportovat do XML",
+            "excel": "Exportovat do Excelu",
+            "file": "Exportovat soubory"
         },
-        "deactivated": ""
+        "deactivated": "Dostupné ve verzi Premium"
     },
     "premiumModal": {
         "title": "",
@@ -27,41 +31,51 @@
         "viewPricing": ""
     },
     "rowCommentSidebar": {
-        "onlyPremium": "",
-        "readOnlyNoComment": "",
-        "noComment": "",
-        "comment": "",
-        "more": "",
-        "name": ""
+        "onlyPremium": "Komentáře k řádkům jsou dostupné ve verzi Premium.",
+        "readOnlyNoComment": "K tomuto řádku nejsou žádné komentáře.",
+        "noComment": "K tomuto řádku zatím nejsou žádné komentáře. Přidejte komentář pomocí formuláře níže.",
+        "comment": "Komentář",
+        "more": "Další informace",
+        "name": "Komentáře"
     },
     "rowComment": {
-        "you": "",
-        "anonymous": ""
+        "you": "Vy",
+        "anonymous": "Anonymní uživatel",
+        "creating": "vytváří se",
+        "updating": "aktualizuje se",
+        "deleting": "odstraňuje se",
+        "created": "vytvořeno",
+        "edited": "upraveno",
+        "commentTrashed": "Tento komentář byl odstraněn.",
+        "errorUserNotCommentAuthorTitle": "Nelze aktualizovat ani odstranit.",
+        "errorUserNotCommentAuthor": "Komentář může aktualizovat nebo odstranit pouze jeho autor.",
+        "errorInvalidCommentMentionTitle": "Neplatná zmínka",
+        "errorInvalidCommentMention": "Zmíněný uživatel neexistuje."
     },
     "registerLicenseModal": {
-        "titleRegisterLicense": "",
-        "registerLicense": "",
-        "viewPricing": "",
-        "licenseDescription": "",
+        "titleRegisterLicense": "Registrovat licenci",
+        "registerLicense": "Registrovat licenci",
+        "viewPricing": "Zobrazit ceny",
+        "licenseDescription": "Licenci lze získat pouze na baserow.io. Pokud jste licenci již zakoupili, obdržíte ji e-mailem a najdete ji také v přehledu svého účtu. Zkopírujte licenční klíč, vložte jej do pole níže a kliknutím na tlačítko jej zaregistrujte pro tuto instanci. Stejný klíč nelze použít ve dvou různých instalacích. {pricingLink}, pokud klíč ještě nemáte.",
         "licenseError": {
-            "invalidTitle": "",
-            "invalid": "",
-            "unsupportedTitle": "",
-            "unsupported": "",
-            "expiredTitle": "",
-            "expired": "",
-            "duplicateTitle": "",
-            "duplicate": "",
-            "instanceMismatchTitle": "",
-            "instanceMismatch": ""
+            "invalidTitle": "Neplatná",
+            "invalid": "Zadaná licence je neplatná.",
+            "unsupportedTitle": "Nepodporovaná",
+            "unsupported": "Zadaná licence není kompatibilní s vaší verzí Baserow. Aktualizujte na nejnovější verzi a zkuste to znovu.",
+            "expiredTitle": "Platnost vypršela",
+            "expired": "Platnost zadané licence vypršela.",
+            "duplicateTitle": "Duplicitní",
+            "duplicate": "Zadaná licence je již v této instanci zaregistrována.",
+            "instanceMismatchTitle": "Neshoda instance",
+            "instanceMismatch": "Zadaná licence nepatří k této instanci."
         }
     },
     "disconnectLicenseModal": {
-        "disconnectLicense": "",
+        "disconnectLicense": "Odpojit licenci",
         "disconnectDescription": ""
     },
     "registerLicenseForm": {
-        "licenseKey": ""
+        "licenseKey": "Licenční klíč"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "",
@@ -135,33 +149,33 @@
         "edit": ""
     },
     "tableJSONExporter": {
-        "encoding": ""
+        "encoding": "Kódování"
     },
     "tableXMLExporter": {
-        "encoding": ""
+        "encoding": "Kódování"
     },
     "kanbanViewStackContext": {
-        "createCard": "",
-        "editStack": "",
-        "deleteStack": "",
-        "delete": "",
-        "deleteDescription": ""
+        "createCard": "Vytvořit kartu",
+        "editStack": "Upravit sloupec",
+        "deleteStack": "Odstranit sloupec",
+        "delete": "Odstranit {name}",
+        "deleteDescription": "Opravdu chcete odstranit sloupec {name}? Odstraněním sloupce se odstraní možnost výběru z pole s jedním výběrem, což může vést ke ztrátě dat, protože hodnoty řádků budou vyprázdněny."
     },
     "kanbanViewHeader": {
-        "stackBy": "",
-        "stackedBy": "",
-        "customizeCards": ""
+        "stackBy": "Seskupit podle",
+        "stackedBy": "Seskupeno podle pole {fieldName}",
+        "customizeCards": "Přizpůsobit karty"
     },
     "kanbanViewOptionForm": {
-        "selectOption": ""
+        "selectOption": "Vybrat možnost"
     },
     "kanbanViewStakedBy": {
-        "title": "",
-        "chooseField": ""
+        "title": "Pole pro seskupení",
+        "chooseField": "Podle kterého pole s jedním výběrem se mají karty seskupit?"
     },
     "kanbanViewStack": {
-        "uncategorized": "",
-        "tryAgain": "",
+        "uncategorized": "Nezařazené",
+        "tryAgain": "Zkusit znovu",
         "new": ""
     },
     "dashboard": {
@@ -181,110 +195,321 @@
         "viewAll": ""
     },
     "premiumFeatures": {
-        "rowComments": "",
-        "kanbanView": "",
-        "exports": "",
+        "rowComments": "Komentáře k řádkům",
+        "kanbanView": "Zobrazení Kanban",
+        "exports": "Export tabulky",
         "admin": "",
-        "rowColoring": "",
-        "surveyForm": "",
-        "publicLogoRemoval": "",
-        "personalViews": ""
+        "rowColoring": "Barevné zvýraznění řádků",
+        "surveyForm": "Dotazníkový formulář",
+        "publicLogoRemoval": "Odebrání loga z veřejného zobrazení",
+        "personalViews": "Osobní zobrazení",
+        "rowCommentsContent": "Spolupracujte přímo v tabulce. Přidávejte komentáře k jednotlivým řádkům, zmiňujte členy týmu a udržujte konverzaci v kontextu.",
+        "kanbanViewContent": "Uspořádejte data vizuálně na nástěnce Kanban. Karty jsou seskupeny do sloupců podle pole s jedním výběrem a mezi sloupci je můžete snadno přesouvat přetažením.",
+        "calendarView": "Zobrazení kalendáře",
+        "calendarViewContent": "Zobrazte své řádky přehledně v kalendáři podle zvoleného datumového pole. Hodí se pro rychlé sledování termínů, událostí a harmonogramů.",
+        "timelineView": "Zobrazení časové osy",
+        "timelineViewContent": "Zobrazte řádky na vodorovné časové ose pomocí data začátku a konce. Ideální pro plánování projektů a produktové plány.",
+        "exportsContent": "Snadno exportujte data v dalších formátech, jako jsou Excel, JSON a XML, nebo hromadně stáhněte všechny soubory z tabulky. Hodí se pro zálohy, sestavy a sdílení s ostatními.",
+        "rowColoringContent": "Zvýrazněte řádky barvami podle pole s jedním výběrem nebo vlastních podmínek. Snáze tak rozpoznáte vzory a priority.",
+        "rowNotifications": "Oznámení o řádcích",
+        "rowNotificationsContent": "Mějte přehled díky přizpůsobitelným oznámením o komentářích k řádkům. Zvolte, zda chcete dostávat upozornění na všechny komentáře, nebo pouze tehdy, když vás někdo zmíní.",
+        "surveyFormContent": "Shromažďujte odpovědi v režimu dotazníku po jedné otázce. Jde o zjednodušenou verzi formulářového zobrazení optimalizovanou pro soustředění a snadné použití.",
+        "publicLogoRemovalContent": "Odeberte logo Baserow z veřejných zobrazení, aby sdílený obsah působil čistěji a více odpovídal vaší značce.",
+        "personalViewsContent": "Vytvářejte zobrazení, která vidí pouze jejich autor. Získáte tak prostor pro zkoušení, filtrování a řazení dat, aniž byste ovlivnili ostatní uživatele v pracovním prostoru.",
+        "aiFeatures": "Funkce AI",
+        "aiFeaturesContent": "Pomocí AI automatizujte a vylepšujte pracovní postupy. Pole promptu AI umožňuje generovat text, souhrny nebo poznatky přímo v buňkách podle dynamických promptů, které mohou odkazovat na jiná pole. Samostatně můžete AI požádat také o vytvoření vzorců.",
+        "chartWidget": "Widget grafu",
+        "chartWidgetContent": "Vizualizujte data pomocí grafů na nástěnkách. Jako zdroj dat použijte libovolnou tabulku, přidejte více datových řad a seskupujte nebo řaďte podle polí s bohatými možnostmi souhrnů."
     },
     "licenses": {
-        "titleNoLicenses": "",
-        "titleLicenses": "",
-        "noLicensesDescription": "",
-        "getLicense": "",
-        "baserowInstanceId": "",
-        "registerLicense": "",
-        "licenceId": "",
-        "premium": "",
-        "expired": "",
-        "validity": "",
-        "seats": ""
+        "titleNoLicenses": "Nebyly nalezeny žádné licence",
+        "titleLicenses": "Licence",
+        "noLicensesDescription": "V této instanci Baserow nejsou zaregistrovány žádné licence. Licence Premium vám okamžitě zpřístupní všechny doplňkové funkce. Pokud již licenci máte, můžete ji zaregistrovat zde. Případně ji můžete získat kliknutím na tlačítko níže.",
+        "getLicense": "Získat licenci",
+        "baserowInstanceId": "ID vaší instance Baserow:",
+        "registerLicense": "Registrovat licenci",
+        "licenceId": "ID licence",
+        "premium": "Premium",
+        "expired": "Platnost vypršela",
+        "validity": "Platná od {start} do {end}",
+        "seats": "míst",
+        "applicationUsers": "Uživatelé aplikací"
     },
     "license": {
-        "title": "",
-        "users": "",
-        "description": "",
-        "seatLeft": "",
-        "fillSeats": "",
-        "removeAll": "",
-        "licenseId": "",
-        "addUser": "",
-        "plan": "",
-        "premium": "",
-        "expired": "",
-        "validFrom": "",
-        "validThrough": "",
-        "validThroughDescription": "",
-        "lastCheck": "",
-        "lastCheckDescription": "",
-        "checkNow": "",
-        "seats": "",
-        "licensedTo": "",
-        "applications": "",
-        "unlimited": "",
-        "rowUsage": "",
-        "storeUsage": "",
-        "disconnectLicense": "",
-        "disconnectDescription": "",
-        "moreSeatsNeededTitle": "",
-        "contactSalesMoreSeats": "",
-        "automaticSeatsProgressBarStatus": "",
-        "premiumFeatureName": "",
-        "enterpriseFeatureName": "",
-        "supportFeatureName": ""
+        "title": "Tarif {name}",
+        "users": "Uživatelé",
+        "description": "Vyberte uživatele, kteří mohou používat tarif {product_code}. Tato licence umožňuje přidělit tarif {product_code} nejvýše {seats} uživatelům.",
+        "seatLeft": "Nemáte žádná volná místa|Zbývá vám jedno volné místo|Počet zbývajících volných míst: {count}",
+        "fillSeats": "Obsadit volná místa uživateli, kteří tarif nepoužívají",
+        "removeAll": "Odebrat všechny uživatele",
+        "licenseId": "ID licence",
+        "addUser": "Přidat uživatele",
+        "plan": "Tarif",
+        "premium": "Premium",
+        "expired": "Platnost vypršela",
+        "validFrom": "Platná od",
+        "validThrough": "Platná do",
+        "validThroughDescription": "Po vypršení platnosti licence nebudete vy ani přiřazení uživatelé moci používat doplňkové funkce, které licence zpřístupňuje.",
+        "lastCheck": "Poslední kontrola",
+        "lastCheckDescription": "Licence se pravidelně kontroluje kvůli změnám. Pokud jste například licenci obnovili nebo upgradovali, změny se aktivují po této kontrole.",
+        "checkNow": "zkontrolovat nyní",
+        "seats": "Licenční místa (počet uživatelů)",
+        "licensedTo": "Vystaveno pro",
+        "applications": "Aplikace / databáze",
+        "unlimited": "Bez omezení",
+        "rowUsage": "Využití řádků",
+        "storeUsage": "Využití úložiště",
+        "disconnectLicense": "Odpojit licenci",
+        "disconnectDescription": "Opravdu chcete tuto licenci odpojit? Pokud aktivní licenci odpojíte, související uživatelé již nebudou mít přístup k tarifu. Licence bude z této instance fakticky odebrána. ID instance svého předplatného můžete změnit na stránce předplatných {subscriptions}; používáte-li Enterprise, můžete také kontaktovat náš tým podpory na adrese {contact}.",
+        "moreSeatsNeededTitle": "Je potřeba více míst",
+        "contactSalesMoreSeats": "Kontaktovat obchodní oddělení kvůli dalším místům",
+        "automaticSeatsProgressBarStatus": "Využitá placená místa: {seats_taken} / {seats}; využitá bezplatná místa: {free_users_count}",
+        "premiumFeatureName": "Premium",
+        "enterpriseFeatureName": "Enterprise",
+        "supportFeatureName": "Podpora",
+        "applicationUsers": "Uživatelé aplikací",
+        "applicationUsersDescription": "Celkový počet uživatelů aplikací ve zdrojích uživatelů publikovaných aplikací vytvořených v tvůrci aplikací.",
+        "advancedFeatureName": "Advanced"
     },
     "viewDecoratorType": {
-        "leftBorderColor": "",
-        "leftBorderColorDescription": "",
-        "backgroundColor": "",
-        "backgroundColorDescription": "",
-        "onlyForPremium": "",
-        "onlyOneDecoratorPerView": ""
+        "leftBorderColor": "Levý okraj",
+        "leftBorderColorDescription": "Obarvit levý okraj řádku",
+        "backgroundColor": "Barva pozadí",
+        "backgroundColorDescription": "Obarvit pozadí řádku",
+        "onlyForPremium": "Dostupné ve verzi Premium",
+        "onlyOneDecoratorPerView": "V jednom zobrazení můžete mít pouze jedno zvýraznění tohoto typu"
     },
     "decoratorValueProviderType": {
-        "singleSelectColor": "",
-        "singleSelectColorDescription": "",
-        "conditionalColor": "",
-        "conditionalColorDescription": ""
+        "singleSelectColor": "Jeden výběr",
+        "singleSelectColorDescription": "Obarvit řádky podle hodnoty pole s jedním výběrem",
+        "conditionalColor": "Podmínky",
+        "conditionalColorDescription": "Obarvit řádky, pokud splňují podmínky"
     },
     "singleSelectColorValueProviderForm": {
-        "chooseAColor": ""
+        "chooseAColor": "Podle kterého pole s jedním výběrem se má řádek obarvit?"
     },
     "conditionalColorValueProviderForm": {
-        "addCondition": "",
-        "colorAlwaysApply": "",
-        "addColor": ""
+        "addCondition": "Přidat podmínku",
+        "colorAlwaysApply": "Podmínky můžete přidat kliknutím na tlačítko „Přidat podmínku“.",
+        "addColor": "Přidat barvu",
+        "addConditionGroup": "Přidat skupinu podmínek",
+        "colorAlwaysApplyTitle": "Tato barva se použije ve výchozím nastavení.",
+        "deleteColor": "Odstranit barvu",
+        "title": "Barvy"
     },
     "redirectToBaserowModal": {
-        "title": "",
-        "content": ""
+        "title": "Přesměrování na https://baserow.io",
+        "content": "Opouštíte svou samostatně hostovanou instanci a budete přesměrováni na https://baserow.io."
     },
     "premiumTopSidebar": {
-        "impersonateDescription": "",
-        "impersonateStop": "",
-        "premium": "",
-        "premiumDescription": ""
+        "impersonateDescription": "Tento účet je používán v režimu zosobnění. Obnovením stránky se tento režim ukončí.",
+        "impersonateStop": "Ukončit",
+        "premium": "Premium",
+        "premiumDescription": "Váš účet má globální přístup k funkcím Premium"
     },
     "formViewModeType": {
-        "survey": "",
-        "surveyDescription": "",
-        "onlyForPremium": ""
+        "survey": "Dotazník",
+        "surveyDescription": "Současně je viditelné jedno pole.",
+        "onlyForPremium": "Dostupné ve verzi Premium"
     },
     "formViewModePreviewSurvey": {
-        "orderFields": "",
-        "deactivated": "",
-        "more": ""
+        "orderFields": "Seřadit pole",
+        "deactivated": "Dotazníkový formulář je dostupný ve verzi Premium.",
+        "more": "Další informace"
     },
     "shareLinkOptions": {
         "baserowLogo": {
-            "label": "",
-            "premiumModalName": ""
-        }
+            "label": "Skrýt logo Baserow ve sdíleném zobrazení",
+            "premiumModalName": "Odebrání veřejného loga"
+        },
+        "allowPublicExportLabel": "Povolit export ve sdíleném zobrazení"
     },
     "viewsContext": {
-        "personal": ""
+        "personal": "Osobní"
+    },
+    "paidFeaturesModal": {
+        "description": "Tato funkce je dostupná s tarifem {plan}. Chcete-li ji používat, upgradujte svůj účet zakoupením předplatného. Kliknutím na tlačítko níže zobrazíte naše cenové možnosti.",
+        "viewPricing": "Zobrazit ceny"
+    },
+    "jobType": {
+        "generateAIValues": "Vygenerovat znovu hodnoty pole AI"
+    },
+    "rowCommentContext": {
+        "edit": "Upravit komentář",
+        "delete": "Odstranit komentář"
+    },
+    "rowCommentMentionNotification": {
+        "title": "{sender} vás zmínil v řádku {row} v tabulce {table}",
+        "deletedUser": "Odstraněný uživatel"
+    },
+    "rowCommentNotification": {
+        "title": "{sender} přidal komentář k řádku {row} v tabulce {table}",
+        "deletedUser": "Odstraněný uživatel"
+    },
+    "kanbanView": {
+        "addStack": "Přidat sloupec"
+    },
+    "calendarViewType": {
+        "sharedViewText": "Umožnit komukoli zobrazit data v tomto zobrazení nebo synchronizovat události s externím kalendářem.",
+        "sharedViewEnableSyncToExternalCalendar": "Synchronizovat s externím kalendářem",
+        "sharedViewDisableSyncToExternalCalendar": "Zakázat externí synchronizaci",
+        "sharedViewDescription": "Vložte tento odkaz do své kalendářové aplikace",
+        "sharedViewTitle": "Synchronizovat s externím kalendářem"
+    },
+    "calendarViewHeader": {
+        "displayBy": "Zobrazit podle",
+        "displayedBy": "Zobrazeno podle pole „{fieldName}“",
+        "labels": "Popisky"
+    },
+    "timelineViewHeader": {
+        "dateSettings": "Nastavení data",
+        "labels": "Popisky"
+    },
+    "selectDateFieldContext": {
+        "save": "Uložit"
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "Datum začátku",
+        "endDateField": "Datum konce",
+        "noCompatibleDateFields": "V tabulce chybějí datumová pole. Nejprve v tabulce vytvořte pole s datem začátku a konce.",
+        "incompatibleFieldsErrorTitle": "Nekompatibilní pole",
+        "incompatibleFieldsErrorMessage": "Pole nejsou kompatibilní. Vyberte v tabulce dvě platná datumová pole, která mají stejné nastavení „zahrnout čas“ a používají stejné časové pásmo pro všechny spolupracovníky.",
+        "forceTimezone": "{timezone}",
+        "includeTime": "datum a čas",
+        "dateOnly": "pouze datum"
+    },
+    "timelineTimescaleContext": {
+        "day": "Den",
+        "week": "Týden",
+        "month": "Měsíc",
+        "year": "Rok",
+        "disabledTooltip": "Tato možnost je dostupná pouze pro datumová pole se zapnutou volbou `include time`.",
+        "hour": "Hodina",
+        "quarter": "Čtvrtletí"
+    },
+    "initTimelineViewSettings": {
+        "settings": "Nastavení data"
+    },
+    "viewDateSelector": {
+        "today": "Dnes"
+    },
+    "calendarMonthDay": {
+        "hiddenRowsCount": "0 | Ještě 1... | Ještě {hiddenRowsCount}..."
+    },
+    "calendarMonthDayExpanded": {
+        "tryAgain": "zkusit znovu"
+    },
+    "timelineGridRow": {
+        "days": "0 | 1 den | {count} d."
+    },
+    "dateFieldSelectForm": {
+        "dateField": "Které pole chcete pro toto zobrazení použít?",
+        "noCompatibleDateFields": "V této tabulce nejsou žádná datumová pole. Nejprve jedno vytvořte."
+    },
+    "selectDateFieldModal": {
+        "chooseDateField": "Vybrat datumové pole",
+        "save": "Uložit"
+    },
+    "RowEditModalCommentNotificationMode": {
+        "modeMentionsTitle": "Pouze zmínky",
+        "modeMentionsDesc": "Oznámení dostanete pouze tehdy, když vás někdo zmíní.",
+        "modeAllTitle": "Všechny komentáře",
+        "modeAllDesc": "Budete dostávat oznámení o všech komentářích v tomto řádku."
+    },
+    "viewOwnershipType": {
+        "personal": "Osobní",
+        "personalDescription": "Toto zobrazení vidíte pouze vy."
+    },
+    "tableExcelExporter": {
+        "includeHeader": "Zahrnout názvy polí jako záhlaví"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Seskupit soubory podle ID řádku"
+    },
+    "premiumFieldType": {
+        "ai": "Prompt AI",
+        "aiDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole."
+    },
+    "functionalGridViewFieldAI": {
+        "generate": "Generovat"
+    },
+    "gridViewFieldAI": {
+        "generate": "Generovat",
+        "regenerate": "Generovat znovu",
+        "promptBroken": "Prompt je chybný a před generováním hodnot je nutné jej opravit."
+    },
+    "fieldAISubForm": {
+        "prompt": "Prompt",
+        "promptPlaceholder": "Co je Baserow?",
+        "premiumFeature": "Pole AI je funkce verze Premium",
+        "emptyFileField": "Žádné",
+        "fileFieldHelp": "Jako znalostní základ promptu se použije první kompatibilní soubor v poli. Musí jít o textový soubor s podporovanou příponou, například .txt, .md, .pdf nebo .docx.",
+        "outputType": "Typ výstupu",
+        "outputTypeTooltip": "Vyberte požadovaný formát výstupu, který model LLM navede k vytváření odpovědí odpovídajících požadovaným možnostem.",
+        "outputTypeChangedWarning": "Vymaže vygenerované hodnoty buněk.",
+        "autoUpdate": "Automatická aktualizace",
+        "autoUpdateHelp": "Je-li tato volba zapnutá, hodnota pole AI se automaticky vygeneruje znovu po aktualizaci kteréhokoli pole, na které prompt odkazuje.",
+        "autoUpdateDescription": "Vygenerovat znovu při změně odkazovaných polí",
+        "invalidPrompt": "Vzorec promptu je neplatný."
+    },
+    "rowEditFieldAI": {
+        "generate": "Generovat",
+        "createRowBefore": "Hodnotu AI lze vygenerovat až po vytvoření řádku.",
+        "promptBroken": "Prompt je chybný a před generováním hodnot je nutné jej opravit."
+    },
+    "aiFormulaModal": {
+        "title": "Vygenerovat vzorec pomocí AI",
+        "description": "Vygenerované vzorce nemusí vždy fungovat podle očekávání. Pro model sestavujeme prompt a jeho výstup načítáme do vstupu vzorce. Nejlépe to funguje s modelem s velkým počtem parametrů, například gpt-4-turbo-preview.",
+        "label": "Prompt",
+        "labelDescription": "Popište vzorec, který chcete vygenerovat",
+        "generate": "Generovat",
+        "noModels": "V této instanci Baserow ani v tomto pracovním prostoru nejsou nakonfigurovány žádné modely AI. Přejděte na domovskou stránku, klikněte na název pracovního prostoru a potom na Nastavení, kde je můžete nakonfigurovat."
+    },
+    "formulaFieldAI": {
+        "generateWithAI": "Vygenerovat pomocí AI",
+        "featureName": "Vygenerovat vzorec pomocí AI"
+    },
+    "aiOutputType": {
+        "text": "Text",
+        "textDescription": "Vygeneruje volný text podle promptu.",
+        "choice": "Volba",
+        "choiceDescription": "Vybere právě jednu z možností pole."
+    },
+    "publicViewExport": {
+        "export": "Exportovat"
+    },
+    "chart": {
+        "true": "pravda",
+        "false": "nepravda",
+        "other": "Ostatní"
+    },
+    "generateAIValuesModal": {
+        "title": "Vygenerovat všechny hodnoty AI",
+        "noPreviousJobs": "Žádné předchozí úlohy",
+        "started": "Spuštěno",
+        "finished": "Dokončeno",
+        "running": "Probíhá",
+        "failed": "Selhalo",
+        "cancelled": "Zrušeno",
+        "pending": "Čeká",
+        "view": "Zobrazení: {name}",
+        "table": "Tabulka: všechny řádky",
+        "deletedView": "Zobrazení: ID {viewId} (odstraněno)",
+        "rows": "Počet řádků: {count}",
+        "autoUpdate": "Automatická aktualizace: odkazovaná pole se změnila"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Rozsah",
+        "entireTable": "Celá tabulka",
+        "skipPopulated": "Generovat pouze hodnoty pro prázdné buňky",
+        "warningTitle": "Upozornění na spotřebu tokenů",
+        "warningMessage": "Vygenerování všech hodnot AI spotřebuje tokeny API a v závislosti na počtu řádků může trvat značnou dobu."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Generovat pomocí AI",
+        "close": "Zavřít"
+    },
+    "trashType": {
+        "row_comment": "komentář k řádku"
     }
 }

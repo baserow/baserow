@@ -19,9 +19,15 @@
           </div>
           <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
         </h1>
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspacePlanBadge.length > 0"
+          width="80px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspacePlanBadge"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
@@ -33,29 +39,58 @@
         @rename="enableRename()"
       ></WorkspaceContext>
       <div class="dashboard__header-right">
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
+          width="140px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspaceRowUsageComponent"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
           @workspace-updated="workspaceUpdated($event)"
         ></component>
-        <span
-          v-if="canCreateCreateApplication"
-          ref="createApplicationContextLink"
-        >
-          <Button
-            icon="iconoir-plus"
-            tag="a"
+        <div class="dashboard__header-actions">
+          <SkeletonBlock
+            v-if="!permissionsLoaded"
+            width="100px"
+            height="32px"
+          ></SkeletonBlock>
+          <span
+            v-else-if="canCreateCreateApplication"
+            ref="createApplicationContextLink"
+          >
+            <Button
+              icon="iconoir-plus"
+              tag="a"
+              @click="
+                $refs.createApplicationContext.toggle(
+                  $refs.createApplicationContextLink
+                )
+              "
+              >{{ $t('dashboard.addNew') }}</Button
+            >
+          </span>
+          <span
+            ref="workspaceContextLink"
             @click="
-              $refs.createApplicationContext.toggle(
-                $refs.createApplicationContextLink
+              $refs.context.toggle(
+                $refs.workspaceContextLink,
+                'bottom',
+                'right',
+                4
               )
             "
-            >{{ $t('dashboard.addNew') }}</Button
           >
-        </span>
+            <ButtonIcon
+              type="secondary"
+              icon="baserow-icon-more-vertical"
+            ></ButtonIcon>
+          </span>
+        </div>
       </div>
     </div>
     <div
@@ -63,46 +98,43 @@
       ph-autocapture="dashboard-container"
     >
       <div class="dashboard__main">
-        <DashboardVerifyEmail
-          class="margin-top-0 margin-bottom-0"
-        ></DashboardVerifyEmail>
-        <WorkspaceInvitation
-          v-for="invitation in workspaceInvitations"
-          :key="'invitation-' + invitation.id"
-          :invitation="invitation"
-          class="margin-top-0 margin-bottom-0"
-        ></WorkspaceInvitation>
+        <component
+          :is="component"
+          v-for="(component, index) in dashboardTopComponents"
+          :key="index"
+          :workspace="selectedWorkspace"
+        ></component>
         <div class="dashboard__extras">
-          <div
-            v-if="canCreateCreateApplication"
-            class="dashboard__suggested-templates"
-          >
-            <h4>{{ $t('dashboard.suggestedTemplates') }}</h4>
-
-            <div class="dashboard__suggested-templates-wrapper">
-              <TemplateCard
-                v-for="(template, index) in templates"
-                :key="index"
-                :template="template"
-                class="dashboard__suggested-template"
-                @click="$refs.templateModal.show(template.slug)"
-              ></TemplateCard>
-
-              <TemplateCard
-                class="dashboard__suggested-template"
-                view-more
-                @click="$refs.templateModal.show()"
-              >
-              </TemplateCard>
-            </div>
-          </div>
           <div class="dashboard__resources">
-            <h4>{{ $t('dashboard.resources') }}</h4>
             <div class="dashboard__resources-wrapper">
+              <a
+                v-if="canCreateCreateApplication"
+                class="dashboard__resource"
+                role="button"
+                tabindex="0"
+                @click="$refs.templateModal.show()"
+                @keydown.enter.prevent="$refs.templateModal.show()"
+                @keydown.space.prevent="$refs.templateModal.show()"
+              >
+                <div class="dashboard__resource-inner">
+                  <span class="dashboard__resource-icon">
+                    <i class="iconoir-page"></i
+                  ></span>
+
+                  <div class="dashboard__resource-content">
+                    <h4 class="dashboard__resource-title">
+                      {{ $t('dashboard.templates') }}
+                    </h4>
+                    <p class="dashboard__resource-text">
+                      {{ $t('dashboard.templatesMessage') }}
+                    </p>
+                  </div>
+                </div>
+              </a>
               <a
                 href="https://baserow.io/user-docs"
                 target="_new"
-                class="dashboard__resource dashboard__resource--large"
+                class="dashboard__resource"
               >
                 <div class="dashboard__resource-inner">
                   <span class="dashboard__resource-icon">
@@ -124,6 +156,27 @@
                 v-for="(component, index) in resourceLinksComponents"
                 :key="index"
               ></component>
+              <a
+                href="https://academy.baserow.io/"
+                target="_new"
+                rel="noopener noreferrer"
+                class="dashboard__resource"
+              >
+                <div class="dashboard__resource-inner">
+                  <span class="dashboard__resource-icon">
+                    <i class="iconoir-graduation-cap"></i
+                  ></span>
+
+                  <div class="dashboard__resource-content">
+                    <h4 class="dashboard__resource-title">
+                      {{ $t('dashboard.academy') }}
+                    </h4>
+                    <p class="dashboard__resource-text">
+                      {{ $t('dashboard.academyMessage') }}
+                    </p>
+                  </div>
+                </div>
+              </a>
               <a
                 href="https://baserow.io/blog/category/tutorials"
                 target="_new"
@@ -148,26 +201,30 @@
           </div>
         </div>
         <div class="dashboard__wrapper">
-          <ul
+          <RecentlyViewed
             v-if="orderedApplicationsInSelectedWorkspace.length"
-            class="dashboard__applications"
+            :workspace="selectedWorkspace"
+            :title="$t('recentlyViewed.yourItems')"
+            view-mode-preference-key="workspace_recently_viewed_view_mode"
           >
-            <template
-              v-for="application in orderedApplicationsInSelectedWorkspace"
-            >
-              <li
-                v-if="getApplicationType(application).isVisible(application)"
-                :key="application.id"
+            <template #empty-action>
+              <span
+                v-if="canCreateCreateApplication"
+                ref="createApplicationContextLink2"
               >
-                <DashboardApplication
-                  :application="application"
-                  :workspace="selectedWorkspace"
-                  @click="selectApplication(application)"
-                />
-                <div class="dashboard__application-separator"></div>
-              </li>
+                <Button
+                  icon="iconoir-plus"
+                  tag="a"
+                  @click="
+                    $refs.createApplicationContext.toggle(
+                      $refs.createApplicationContextLink2
+                    )
+                  "
+                  >{{ $t('dashboard.addNew') }}</Button
+                >
+              </span>
             </template>
-          </ul>
+          </RecentlyViewed>
           <div v-else class="dashboard__no-application">
             <img
               src="@baserow/modules/core/assets/images/empty_workspace_illustration.png"
@@ -179,8 +236,13 @@
             <p v-if="canCreateCreateApplication">
               {{ $t('dashboard.emptyWorkspaceMessage') }}
             </p>
+            <SkeletonBlock
+              v-if="!permissionsLoaded"
+              width="100px"
+              height="32px"
+            ></SkeletonBlock>
             <span
-              v-if="canCreateCreateApplication"
+              v-else-if="canCreateCreateApplication"
               ref="createApplicationContextLink2"
             >
               <Button
@@ -220,16 +282,16 @@
 
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
-import { useRoute, useRouter, useNuxtApp, createError } from '#app'
-import { useHead, useAsyncData } from '#imports'
+import { useRoute, useNuxtApp, createError } from '#app'
+import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
-import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
-import WorkspaceInvitation from '@baserow/modules/core/components/workspace/WorkspaceInvitation'
-import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
+import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
-import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
@@ -250,35 +312,26 @@ defineOptions({
 })
 
 const route = useRoute()
-const router = useRouter()
 const nuxtApp = useNuxtApp()
 const { $store, $registry, $i18n, $hasPermission } = nuxtApp
 
 // ----------------------------------------------------------------------------
 // STATE
 // ----------------------------------------------------------------------------
-const selectedWorkspace = ref(null)
+// The workspaces are already in the store, so the page can render its header and
+// applications right away, while the rest is being fetched.
+const selectedWorkspace = ref(
+  $store.getters['workspace/getAll'].find(
+    (workspace) => workspace.id === parseInt(route.params.workspaceId, 10)
+  ) || null
+)
 const workspaceComponentArguments = ref({})
-const templates = ref([
-  {
-    name: 'Project Management',
-    slug: 'project-management',
-    type: 'calendar',
-    color: 'yellow',
-  },
-  {
-    name: 'Performance Reviews',
-    slug: 'performance-reviews',
-    type: 'table',
-    color: 'purple',
-  },
-])
 
 // refs used in template
 const context = ref(null)
 const contextLink = ref(null)
 const createApplicationContext = ref(null)
-const createApplicationContextLink = ref(null)
+const workspaceContextLink = ref(null)
 const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
@@ -302,14 +355,11 @@ async function fetchWorkspaceExtraData(workspace) {
 }
 
 /**
- * Fetch all dashboard-related data for the current workspace.
- * `useAsyncData` now returns the data and we hydrate our refs from it.
+ * Fetches the workspace data the plugins contribute (usage, plan) and the
+ * invitations. The refs below are hydrated from it, because `workspaceUpdated`
+ * has to be able to replace them later.
  */
-const {
-  data: dashboardData,
-  pending,
-  error,
-} = await useAsyncData(
+const { data: dashboardData, loading } = await usePageAsyncData(
   `current-workspace-${route.params.workspaceId}`,
   async () => {
     const workspaceId = parseInt(route.params.workspaceId, 10)
@@ -318,9 +368,21 @@ const {
     try {
       workspace = await $store.dispatch('workspace/selectById', workspaceId)
     } catch (e) {
+      // Only an unknown workspace is a not found error. Any other failure, like a
+      // transient permissions fetch error, is a loading error.
+      if (e instanceof StoreItemLookupError) {
+        throw createError({
+          statusCode: 404,
+          message: 'Workspace not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
+      }
       throw createError({
-        statusCode: 404,
-        message: 'Workspace not found.',
+        statusCode: 400,
+        message: 'Error loading dashboard.',
         data: {
           report: false,
         },
@@ -329,7 +391,6 @@ const {
     }
 
     try {
-      await $store.dispatch('auth/fetchWorkspaceInvitations')
       return await fetchWorkspaceExtraData(workspace)
     } catch {
       throw createError({
@@ -343,10 +404,6 @@ const {
     }
   }
 )
-
-if (error.value) {
-  throw error.value
-}
 
 /**
  * Hydrate local refs from the async data.
@@ -363,10 +420,6 @@ watchEffect(() => {
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
 }))
-
-const workspaceInvitations = computed(
-  () => $store.getters['auth/getWorkspaceInvitations']
-)
 
 const getAllOfWorkspace = (ws) =>
   $store.getters['application/getAllOfWorkspace'](ws)
@@ -393,6 +446,18 @@ const dashboardWorkspacePlanBadge = computed(() =>
     .filter((c) => c !== null)
 )
 
+const dashboardTopComponents = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .reduce(
+      (components, plugin) =>
+        components.concat(
+          plugin.getDashboardTopComponents(selectedWorkspace.value)
+        ),
+      []
+    )
+    .filter((c) => c !== null)
+)
+
 const resourceLinksComponents = computed(() =>
   Object.values($registry.getAll('plugin'))
     .map((p) => p.getDashboardResourceLinksComponent())
@@ -405,6 +470,14 @@ const orderedApplicationsInSelectedWorkspace = computed(() =>
     : getAllOfWorkspace(selectedWorkspace.value).sort(
         (a, b) => a.order - b.order
       )
+)
+
+const permissionsLoaded = computed(
+  () =>
+    !!selectedWorkspace.value &&
+    $store.getters['workspace/haveWorkspacePermissionsBeenLoaded'](
+      selectedWorkspace.value.id
+    )
 )
 
 const canCreateCreateApplication = computed(() => {
@@ -431,16 +504,6 @@ const workspaceExists = computed(() => {
 // ----------------------------------------------------------------------------
 // METHODS
 // ----------------------------------------------------------------------------
-function getApplicationType(application) {
-  return $registry.get('application', application.type)
-}
-
-function selectApplication(application) {
-  const type = getApplicationType(application)
-  const { $store, $i18n } = nuxtApp
-  type.select(application, { $router: router, $store, $i18n })
-}
-
 async function workspaceUpdated(workspace) {
   const extraData = await fetchWorkspaceExtraData(workspace)
   workspaceComponentArguments.value = extraData.workspaceComponentArguments

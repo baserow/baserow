@@ -19,6 +19,7 @@ from baserow.core.mixins import (
     OrderableMixin,
     TrashableModelMixin,
 )
+from baserow.core.subjects import UserSubjectType
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
@@ -80,6 +81,19 @@ class AutomationWorkflow(
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
 
+    # Who asked for the pending test run or simulation, so a run that waits for
+    # its trigger's event still records them. Cleared with the temporary states.
+    test_run_triggered_by_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The id of the subject who asked for the pending test run.",
+    )
+    test_run_triggered_by_type = models.CharField(
+        max_length=255,
+        db_default=UserSubjectType.type,
+        help_text="The subject type of who asked for the pending test run.",
+    )
+
     notification_recipients = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
@@ -122,11 +136,13 @@ class AutomationWorkflow(
 
         return local_cache.get(
             f"automation_workflow_original_{self.id}",
-            lambda: AutomationWorkflowHandler().get_workflow(
-                self.automation.published_from_id
-            )
-            if self.automation.published_from_id
-            else self,
+            lambda: (
+                AutomationWorkflowHandler().get_workflow(
+                    self.automation.published_from_id
+                )
+                if self.automation.published_from_id
+                else self
+            ),
         )
 
     def get_graph_handler(self):
@@ -146,14 +162,31 @@ class AutomationWorkflow(
     def can_be_immediately_dispatched(self):
         """
         True if the workflow trigger can dispatch without waiting for an event.
+
+        Only the trigger's service type is needed for this, so instead of loading the
+        full specific node graph, the trigger is read from the
+        `automation_workflow_nodes` relation, which can be prefetched with the base
+        services when many workflows are checked at once.
+
+        :return: True if the workflow can be immediately dispatched.
         """
 
-        trigger = self.get_trigger()
+        trigger_node_id = self.graph.get(self.get_graph_handler().GRAPH_ROOT_KEY)
+        if trigger_node_id is None:
+            return False
+
+        trigger = next(
+            (
+                node
+                for node in self.automation_workflow_nodes.all()
+                if node.id == int(trigger_node_id)
+            ),
+            None,
+        )
         if trigger is None:
             return False
 
-        service = trigger.service.specific
-        return service.get_type().can_be_immediately_dispatched(service)
+        return trigger.service.get_type().can_be_immediately_dispatched(trigger.service)
 
     @property
     def is_published(self) -> bool:

@@ -264,20 +264,24 @@ def test_get_user_sources(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
-@patch("baserow.core.user_sources.service.user_source_deleted")
+@patch("baserow.core.user_sources.trash_types.user_source_deleted")
 def test_delete_user_source(user_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
+    application = user_source.application
 
-    service = UserSourceService()
-    service.delete_user_source(user, user_source)
+    UserSourceService().delete_user_source(user, user_source)
 
-    user_source_deleted_mock.send.assert_called_once_with(
-        service,
-        user_source_id=user_source.id,
-        application=user_source.application,
-        user=user,
-    )
+    # The user source is trashed (soft-deleted) so it can be restored via undo.
+    assert not UserSource.objects.filter(id=user_source.id).exists()
+    assert UserSource.trash.filter(id=user_source.id).exists()
+
+    # The realtime `user_source_deleted` signal is emitted by the trashable item type.
+    user_source_deleted_mock.send.assert_called_once()
+    call_kwargs = user_source_deleted_mock.send.call_args.kwargs
+    assert call_kwargs["user_source_id"] == user_source.id
+    assert call_kwargs["application"] == application
+    assert call_kwargs["user"] == user
 
 
 @pytest.mark.django_db(transaction=True)
@@ -304,7 +308,7 @@ def test_update_user_source(user_source_updated_mock, data_fixture):
     )
 
     user_source_updated_mock.send.assert_called_once_with(
-        service, user_source=user_source_updated, user=user
+        service, user_source=user_source_updated.user_source, user=user
     )
 
 

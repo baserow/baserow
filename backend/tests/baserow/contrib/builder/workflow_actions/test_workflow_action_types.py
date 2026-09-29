@@ -1,10 +1,14 @@
+import uuid
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from baserow.contrib.builder.pages.service import PageService
-from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.builder.workflow_actions.models import (
+    EventTypes,
+    RefreshDataSourceWorkflowAction,
+)
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
@@ -19,6 +23,7 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 
 
@@ -50,7 +55,9 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
         ],
         rows=[],
     )
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=page.builder
+    )
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         table=table, page=page
     )
@@ -131,6 +138,41 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
         imported_field_mapping.value["formula"]
         == f"get('data_source.{data_source2.id}.{field.db_column}')"
     )
+
+
+@pytest.mark.django_db
+def test_import_workflow_action_drops_integration_from_another_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder_a = data_fixture.create_builder_application(user=user)
+    page_a = data_fixture.create_builder_page(builder=builder_a)
+    element_a = data_fixture.create_builder_button_element(page=page_a)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        user=user, page=page_a, element=element_a, event=EventTypes.CLICK
+    )
+    integration = workflow_action.service.integration
+    TrashHandler.trash(user, builder_a.workspace, builder_a, integration)
+
+    # The export preserves the (trashed) integration id.
+    exported = workflow_action.get_type().export_serialized(workflow_action)
+    assert exported["service"]["integration_id"] == integration.id
+
+    # Import into a *different* application. The trashed integration is absent from
+    # `id_mapping`, so its id must not resolve to builder_a's integration — the
+    # imported action is left misconfigured rather than referencing another app.
+    builder_b = data_fixture.create_builder_application(user=user)
+    page_b = data_fixture.create_builder_page(builder=builder_b)
+    element_b = data_fixture.create_builder_button_element(page=page_b)
+    id_mapping = defaultdict(lambda: MirrorDict())
+    id_mapping["integrations"] = {}
+    id_mapping["builder_pages"] = {page_a.id: page_b.id}
+    id_mapping["builder_page_elements"] = {element_a.id: element_b.id}
+
+    imported = workflow_action.get_type().import_serialized(
+        page_b, exported, id_mapping
+    )
+    assert imported.service.integration_id is None
 
 
 @pytest.mark.django_db
@@ -246,6 +288,57 @@ def test_refresh_data_source_returns_value_from_super_method(
     mock_deserialize.assert_called_once_with(
         *args, files_zip=None, cache=None, storage=None
     )
+
+
+@pytest.mark.django_db
+def test_refresh_data_source_serializes_trashed_data_source_as_null(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    workflow_action = data_fixture.create_workflow_action(
+        RefreshDataSourceWorkflowAction,
+        page=page,
+        data_source=data_source,
+    )
+    workflow_action_type = RefreshDataSourceWorkflowActionType()
+
+    serialized = workflow_action_type.get_serializer(workflow_action).data
+    assert serialized["data_source_id"] == data_source.id
+
+    TrashHandler.trash(user, page.builder.workspace, page.builder, data_source)
+    workflow_action.refresh_from_db()
+
+    serialized = workflow_action_type.get_serializer(workflow_action).data
+    assert serialized["data_source_id"] is None
+
+
+@pytest.mark.django_db
+def test_refresh_data_source_serialization_does_not_query_data_sources(
+    data_fixture, django_assert_num_queries
+):
+    page = data_fixture.create_builder_page()
+    workflow_action_type = RefreshDataSourceWorkflowActionType()
+    for _ in range(2):
+        data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+            page=page
+        )
+        data_fixture.create_workflow_action(
+            RefreshDataSourceWorkflowAction,
+            page=page,
+            data_source=data_source,
+        )
+
+    workflow_actions = list(
+        workflow_action_type.enhance_queryset(
+            RefreshDataSourceWorkflowAction.objects.filter(page=page)
+        )
+    )
+
+    with django_assert_num_queries(0):
+        for workflow_action in workflow_actions:
+            workflow_action_type.get_serializer(workflow_action).data
 
 
 @pytest.mark.django_db
@@ -371,3 +464,67 @@ def test_workflow_action_type_deserialize_property_with_stale_page_id():
 
     result = action_type.deserialize_property("navigate_to_page_id", 100, id_mapping)
     assert result is None
+
+
+@pytest.mark.django_db
+def test_import_workflow_action_remaps_dynamic_event_uid(data_fixture):
+    page = data_fixture.create_builder_page()
+    button_1 = data_fixture.create_builder_button_element(page=page)
+    button_2 = data_fixture.create_builder_button_element(page=page)
+    exported_uid, imported_uid = str(uuid.uuid4()), str(uuid.uuid4())
+    workflow_action_type = NotificationWorkflowActionType()
+
+    exported_workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=button_1, event=f"{exported_uid}_click"
+    )
+    serialized = workflow_action_type.export_serialized(exported_workflow_action)
+
+    id_mapping = {
+        "builder_page_elements": {button_1.id: button_2.id},
+        "builder_element_event_uids": {exported_uid: imported_uid},
+    }
+    imported_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_workflow_action.event == f"{imported_uid}_click"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "event",
+    [
+        # No `<uid>_<event>` shape at all.
+        "hover",
+        # Has an underscore, but the prefix is not a known uid.
+        "button_click",
+        # Looks like a dynamic event, but the uid is unknown (e.g. stale).
+        "f1594a0a-3ff0-4c8c-a175-992039b11411_click",
+    ],
+)
+def test_import_workflow_action_keeps_unknown_dynamic_event(data_fixture, event):
+    """
+    A workflow action whose event can't be mapped must not break the import of
+    the whole application (publish, duplicate, export/import). The value is kept
+    as-is; such an action simply never fires.
+    """
+
+    page = data_fixture.create_builder_page()
+    button_1 = data_fixture.create_builder_button_element(page=page)
+    button_2 = data_fixture.create_builder_button_element(page=page)
+    workflow_action_type = NotificationWorkflowActionType()
+
+    exported_workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=button_1, event=event
+    )
+    serialized = workflow_action_type.export_serialized(exported_workflow_action)
+
+    id_mapping = {
+        "builder_page_elements": {button_1.id: button_2.id},
+        "builder_element_event_uids": {},
+    }
+    imported_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_workflow_action.event == event

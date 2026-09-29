@@ -6,8 +6,6 @@ from django.db import connection
 from django.db.models import QuerySet
 from django.dispatch import receiver
 
-from opentelemetry import trace
-
 from baserow.contrib.database.rows.models import RowHistory
 from baserow.contrib.database.rows.registries import (
     RowHistoryProviderType,
@@ -19,15 +17,11 @@ from baserow.contrib.database.rows.types import ActionData
 from baserow.core.action.signals import action_done
 from baserow.core.models import Workspace
 from baserow.core.psycopg import sql
-from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.types import AnyUser
-
-tracer = trace.get_tracer(__name__)
 
 
 class RowHistoryHandler:
     @classmethod
-    @baserow_trace(tracer)
     def record_history_from_rows_action(
         cls,
         user: AnyUser,
@@ -50,7 +44,6 @@ class RowHistoryHandler:
                 )
 
     @classmethod
-    @baserow_trace(tracer)
     def list_row_history(
         cls, workspace: Workspace, table_id: int, row_id: int
     ) -> QuerySet[RowHistory]:

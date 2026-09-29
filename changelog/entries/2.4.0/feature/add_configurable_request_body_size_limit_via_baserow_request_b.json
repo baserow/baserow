@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add optional request body size limit via BASEROW_REQUEST_BODY_SIZE_LIMIT_MB",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-11"
+}

@@ -1,0 +1,216 @@
+{
+  "msg": "SUCCESS",
+  "data": {
+    "table": {
+      "applicationId": "appC1QggQ2236mAAA",
+      "id": "tbl2R4lt3QnjdlAtt",
+      "name": "Shared view table",
+      "columns": [
+        {
+          "id": "fldPrimaryName00001",
+          "name": "Name",
+          "type": "text",
+          "typeOptions": null,
+          "default": null
+        },
+        {
+          "id": "fldNotesMulti000002",
+          "name": "Notes",
+          "type": "multilineText"
+        },
+        {
+          "id": "fldNumberInt0000003",
+          "name": "Number",
+          "type": "number",
+          "typeOptions": {
+            "format": "integer",
+            "negative": false,
+            "symbol": null
+          }
+        },
+        {
+          "id": "fldSingleSel0000004",
+          "name": "Status",
+          "type": "select",
+          "typeOptions": {
+            "choiceOrder": ["selChoiceA000000001", "selChoiceB000000002"],
+            "choices": {
+              "selChoiceA000000001": {
+                "id": "selChoiceA000000001",
+                "color": "blue",
+                "name": "Option A"
+              },
+              "selChoiceB000000002": {
+                "id": "selChoiceB000000002",
+                "color": "cyan",
+                "name": "Option B"
+              }
+            },
+            "disableColors": false
+          }
+        },
+        {
+          "id": "fldAttachment000005",
+          "name": "Attachments",
+          "type": "multipleAttachment",
+          "typeOptions": {
+            "unreversed": true
+          }
+        },
+        {
+          "id": "fldSelfLink00000006",
+          "name": "Related rows",
+          "type": "foreignKey",
+          "typeOptions": {
+            "foreignTableId": "tbl2R4lt3QnjdlAtt",
+            "symmetricColumnId": "fldSelfLink00000006",
+            "relationship": "many",
+            "unreversed": true
+          }
+        },
+        {
+          "id": "fldExternalLink0007",
+          "name": "Companies",
+          "type": "foreignKey",
+          "typeOptions": {
+            "foreignTableId": "tblOutside123456789",
+            "symmetricColumnId": "fldOutsideSymmet001",
+            "relationship": "many",
+            "unreversed": true
+          }
+        },
+        {
+          "id": "fldCountExternal008",
+          "name": "Company count",
+          "type": "count",
+          "typeOptions": {
+            "relationColumnId": "fldExternalLink0007",
+            "resultType": "number",
+            "resultIsArray": false
+          }
+        },
+        {
+          "id": "fldLookupExtern0009",
+          "name": "Company names",
+          "type": "lookup",
+          "typeOptions": {
+            "relationColumnId": "fldExternalLink0007",
+            "foreignTableRollupColumnId": "fldOutsideName00001",
+            "resultType": "text",
+            "resultIsArray": true
+          }
+        }
+      ],
+      "primaryColumnId": "fldPrimaryName00001",
+      "meaningfulColumnOrder": [
+        { "columnId": "fldPrimaryName00001", "visibility": true },
+        { "columnId": "fldNotesMulti000002", "visibility": true },
+        { "columnId": "fldNumberInt0000003", "visibility": true },
+        { "columnId": "fldSingleSel0000004", "visibility": true },
+        { "columnId": "fldAttachment000005", "visibility": true },
+        { "columnId": "fldSelfLink00000006", "visibility": true },
+        { "columnId": "fldExternalLink0007", "visibility": true },
+        { "columnId": "fldCountExternal008", "visibility": true },
+        { "columnId": "fldLookupExtern0009", "visibility": true }
+      ],
+      "views": [
+        {
+          "id": "viwtwpf55H6mkh2s",
+          "name": "Grid view",
+          "type": "grid",
+          "frozenColumnCount": 1,
+          "columnOrder": [
+            { "columnId": "fldPrimaryName00001", "visibility": true, "width": 172 },
+            { "columnId": "fldNotesMulti000002", "visibility": false },
+            { "columnId": "fldNumberInt0000003", "visibility": true },
+            { "columnId": "fldSingleSel0000004", "visibility": true },
+            { "columnId": "fldAttachment000005", "visibility": true },
+            { "columnId": "fldSelfLink00000006", "visibility": true },
+            { "columnId": "fldExternalLink0007", "visibility": true },
+            { "columnId": "fldCountExternal008", "visibility": true },
+            { "columnId": "fldLookupExtern0009", "visibility": true }
+          ],
+          "rowOrder": [
+            { "rowId": "recSecondRow0000002", "visibility": true },
+            { "rowId": "recThirdRow00000003", "visibility": true },
+            { "rowId": "recFirstRow00000001", "visibility": true }
+          ]
+        }
+      ],
+      "viewOrder": ["viwtwpf55H6mkh2s"],
+      "rowUnit": "record",
+      "appBlanket": {
+        "userInfoById": {}
+      },
+      "sortTiebreakerKey": "appC1QggQ2236mAAA",
+      "rows": [
+        {
+          "id": "recFirstRow00000001",
+          "createdTime": "2024-01-01T10:00:00.000Z",
+          "cellValuesByColumnId": {
+            "fldPrimaryName00001": "Row 1",
+            "fldNotesMulti000002": "Note 1",
+            "fldNumberInt0000003": 1,
+            "fldSingleSel0000004": "selChoiceA000000001",
+            "fldAttachment000005": [
+              {
+                "id": "attSignedFile000001",
+                "url": "https://dl.airtable.com/.attachments/anonymized1/anon1/file-a.txt",
+                "filename": "file-a.txt",
+                "type": "text/plain",
+                "size": 10
+              },
+              {
+                "id": "attEndpointFile0002",
+                "url": "https://dl.airtable.com/.attachments/anonymized2/anon2/file-b.txt",
+                "filename": "file-b.txt",
+                "type": "text/plain",
+                "size": 10
+              }
+            ],
+            "fldSelfLink00000006": [
+              {
+                "foreignRowId": "recSecondRow0000002",
+                "foreignRowDisplayName": "Row 2"
+              }
+            ],
+            "fldExternalLink0007": [
+              {
+                "foreignRowId": "recOutsideRow000001",
+                "foreignRowDisplayName": "Company A"
+              },
+              {
+                "foreignRowId": "recOutsideRow000002",
+                "foreignRowDisplayName": "Company B"
+              }
+            ],
+            "fldCountExternal008": 2
+          }
+        },
+        {
+          "id": "recSecondRow0000002",
+          "createdTime": "2024-01-01T11:00:00.000Z",
+          "cellValuesByColumnId": {
+            "fldPrimaryName00001": "Row 2"
+          }
+        },
+        {
+          "id": "recThirdRow00000003",
+          "createdTime": "2024-01-01T12:00:00.000Z",
+          "cellValuesByColumnId": {
+            "fldPrimaryName00001": "Row 3",
+            "fldExternalLink0007": [
+              {
+                "foreignRowId": "recOutsideRow000003",
+                "foreignRowDisplayName": "Company C"
+              }
+            ]
+          }
+        }
+      ],
+      "signedUserContentUrls": {
+        "https://dl.airtable.com/.attachments/anonymized1/anon1/file-a.txt": "https://dl.airtable.com/.signedUserContent/file-a.txt"
+      }
+    }
+  }
+}

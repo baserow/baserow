@@ -10,6 +10,7 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
@@ -702,21 +703,31 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, commit, getters },
       { view, table, fields, values }
     ) {
-      const { $client, $registry } = this
+      const { $client, $registry, $i18n } = this
       const preparedRow = prepareRowForRequest(values, fields, $registry)
 
       commit('SET_CREATING', true)
-      const { data } = await RowService($client).create(
+      const { data } = await RowService($client).batchCreate(
         table.id,
-        preparedRow,
+        [preparedRow],
+        null,
         null,
         getters.getViewId
       )
       commit('SET_CREATING', false)
+      const [createdRow] = data.items
+      const hiddenRowIds = reportHiddenRows(data, {
+        dispatch,
+        i18n: $i18n,
+        created: true,
+      })
+      if (hiddenRowIds.has(createdRow.id)) {
+        return
+      }
       return await dispatch('afterNewRowCreated', {
         view,
         fields,
-        values: data,
+        values: createdRow,
       })
     },
     /**
@@ -781,7 +792,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { commit, dispatch, getters },
       { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
-      const { $client, $registry } = this
+      const { $client, $registry, $i18n } = this
       await dispatch('afterExistingRowUpdated', {
         view,
         fields,
@@ -823,12 +834,26 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
               .concat(data.metadata?.cascade_update?.field_ids || [])
           )
 
+          const hiddenRowIds = reportHiddenRows(data, {
+            dispatch,
+            i18n: $i18n,
+            created: false,
+          })
+
           for (const updatedRowData of updatedRows) {
             const rowToUpdate = getters.getRow(updatedRowData.id)
             // The backend may update rows that are not in the current buffer.
             // In that case, the row will be `undefined`, and we don't need to
             // update it.
             if (rowToUpdate === undefined) {
+              continue
+            }
+            if (hiddenRowIds.has(rowToUpdate.id)) {
+              await dispatch('afterExistingRowDeleted', {
+                view,
+                fields,
+                row: rowToUpdate,
+              })
               continue
             }
 

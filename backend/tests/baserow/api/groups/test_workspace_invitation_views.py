@@ -570,6 +570,7 @@ def test_get_workspace_invitation_by_token(api_client, data_fixture):
     assert response_json["id"] == invitation.id
     assert response_json["invited_by"] == invitation.invited_by.first_name
     assert response_json["workspace"] == invitation.workspace.name
+    assert response_json["workspace_id"] == invitation.workspace_id
     assert response_json["email"] == invitation.email
     assert "message" not in response_json
     assert response_json["email_exists"] is False

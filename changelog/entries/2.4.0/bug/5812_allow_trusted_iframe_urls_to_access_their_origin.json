@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Allow trusted external IFrame URLs to access their own origin in previews and published applications.",
+    "issue_origin": "github",
+    "issue_number": 5812,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-04"
+}

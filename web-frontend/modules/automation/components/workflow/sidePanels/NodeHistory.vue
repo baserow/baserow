@@ -22,6 +22,10 @@
               </div>
             </div>
 
+            <span v-if="passLabel" class="node-history__header-info-pass">{{
+              passLabel
+            }}</span>
+
             <div>
               <Icon
                 :icon="
@@ -36,11 +40,7 @@
 
           <div class="node-history__spacer"></div>
 
-          <Badge
-            rounded
-            :color="status === 'error' ? 'red' : 'green'"
-            size="small"
-          >
+          <Badge rounded :color="statusBadgeColor" size="small">
             {{ statusLabel }}
           </Badge>
         </div>
@@ -91,6 +91,7 @@
                   :node-history="nh"
                   :child-node-histories-by-parent="childNodeHistoriesByParent"
                   :error-descendant-node-ids="errorDescendantNodeIds"
+                  :pass-info-by-history-id="passInfoByHistoryId"
                   :depth="depth + 1"
                 />
               </div>
@@ -115,6 +116,10 @@
           {{ nodeTypeLabel }}
         </div>
 
+        <span v-if="passLabel" class="node-history__header-info-pass">{{
+          passLabel
+        }}</span>
+
         <div class="node-history__header-show-result">
           <a
             ref="nodeResultButtonContextToggle"
@@ -129,7 +134,7 @@
 
       <div class="node-history__spacer"></div>
 
-      <Badge rounded :color="status === 'error' ? 'red' : 'green'" size="small">
+      <Badge rounded :color="statusBadgeColor" size="small">
         {{ statusLabel }}
       </Badge>
     </div>
@@ -220,6 +225,10 @@ const props = defineProps({
     type: Set,
     default: () => new Set(),
   },
+  passInfoByHistoryId: {
+    type: Object,
+    default: () => ({}),
+  },
   depth: {
     type: Number,
     default: 0,
@@ -241,15 +250,17 @@ const nodeIconClass = computed(() => {
 })
 
 const nodeTypeLabel = computed(() => {
-  const baseLabel = props.nodeHistory.node_label || nodeType.value.name
-  if (props.nodeHistory.node_type === 'router') {
-    // Show which branch was taken.
-    const edgeLabel =
-      props.nodeHistory.edge_label ||
-      app.$i18n.t('nodeType.defaultEdgeLabelFallback')
-    return `${baseLabel} (${edgeLabel})`
-  }
-  return baseLabel
+  return nodeType.value.getHistoryLabel({ nodeHistory: props.nodeHistory })
+})
+
+/**
+ * When a node runs more than once within a single run (e.g. a "Go to node" jump
+ * loops back to it), show which pass this entry corresponds to, e.g. "Run 2".
+ */
+const passLabel = computed(() => {
+  const info = props.passInfoByHistoryId?.[props.nodeHistory.id]
+  if (!info || info.total <= 1) return null
+  return app.$i18n.t('historySidePanel.runNumber', { n: info.pass })
 })
 
 const iterationHasError = (group) => {
@@ -260,15 +271,37 @@ const iterationHasError = (group) => {
 
 const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
+/**
+ * A node that ran without doing anything, e.g. a "Go to node" whose condition
+ * resolved to false, so no jump was followed.
+ */
 const status = computed(() => {
   const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
-  return hasOwnError.value || childError ? 'error' : 'success'
+  if (hasOwnError.value || childError) return 'error'
+  if (props.nodeHistory.status === 'skipped') return 'skipped'
+  return 'success'
 })
 
 const statusLabel = computed(() => {
-  return status.value === 'success'
-    ? app.$i18n.t('historySidePanel.statusSuccessBadge')
-    : app.$i18n.t('historySidePanel.statusErrorBadge')
+  switch (status.value) {
+    case 'error':
+      return app.$i18n.t('historySidePanel.statusErrorBadge')
+    case 'skipped':
+      return app.$i18n.t('historySidePanel.statusSkippedBadge')
+    default:
+      return app.$i18n.t('historySidePanel.statusSuccessBadge')
+  }
+})
+
+const statusBadgeColor = computed(() => {
+  switch (status.value) {
+    case 'error':
+      return 'red'
+    case 'skipped':
+      return 'neutral'
+    default:
+      return 'green'
+  }
 })
 
 const errorMessage = computed(() => props.nodeHistory.message)

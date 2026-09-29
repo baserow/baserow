@@ -4,6 +4,7 @@ from .views import (
     AssistantChatMessageFeedbackView,
     AssistantChatsView,
     AssistantChatView,
+    AssistantOnboardingPromptSuggestionsView,
 )
 
 app_name = "baserow_enterprise.api.assistant"
@@ -28,5 +29,10 @@ urlpatterns = [
         "messages/<int:message_id>/feedback/",
         AssistantChatMessageFeedbackView.as_view(),
         name="message_feedback",
+    ),
+    path(
+        "onboarding/prompt-suggestions/",
+        AssistantOnboardingPromptSuggestionsView.as_view(),
+        name="onboarding_prompt_suggestions",
     ),
 ]

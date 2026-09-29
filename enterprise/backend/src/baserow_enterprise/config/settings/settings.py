@@ -34,6 +34,41 @@ def setup(settings):
         os.getenv("BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS", "") or 365
     )
 
+    # Comma-separated list of percentages (e.g. "50,80,95") at which the members of a
+    # workspace are notified that it is approaching its application user limit. The
+    # limit itself (100%) always notifies and is enforced separately.
+    settings.BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS = sorted(
+        {
+            percent
+            for value in os.getenv(
+                "BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS", "80"
+            ).split(",")
+            if value.strip()
+            for percent in [int(value.strip())]
+            if 0 < percent < 100
+        }
+    )
+
+    # The number of hours a workspace can be over its application user limit before
+    # logins to its published applications are refused. This gives the workspace
+    # time to upgrade or reduce its usage instead of being blocked the moment it
+    # goes over. Set it to 0 to refuse logins as soon as the periodic count detects
+    # the workspace is over its limit. It's capped at the default, so that a
+    # misconfiguration can't stretch the grace period far enough to effectively
+    # disable the limit.
+    #
+    # Every install has an application user limit, including unlicensed ones and
+    # those licensed before v1.32, which fall back to
+    # `DEFAULT_APPLICATION_USERS_LIMIT`. The limit is always enforced.
+    max_application_user_limit_grace_period_hours = 24 * 7  # 7 days
+    settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS = min(
+        int(
+            os.getenv("BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS", "")
+            or max_application_user_limit_grace_period_hours
+        ),
+        max_application_user_limit_grace_period_hours,
+    )
+
     # Set this to True to enable users to login with auth providers different than
     # the one they were originally created with.
     settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT = bool(
@@ -101,15 +136,23 @@ def setup(settings):
     )
 
     # AI Assistant settings
+    # Deprecated: select the Kuma model under AI providers > AI features. Keep this
+    # fallback for compatibility, including providers without a database equivalent.
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""
+    )
+    settings.BASEROW_ASSISTANT_PHOENIX_URL = os.getenv(
+        "BASEROW_ASSISTANT_PHOENIX_URL", ""
+    )
+    settings.BASEROW_ASSISTANT_PHOENIX_API_KEY = os.getenv(
+        "BASEROW_ASSISTANT_PHOENIX_API_KEY", ""
     )
     _temp_raw = os.getenv("BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", "")
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = (
         float(_temp_raw) if _temp_raw else None
     )
 
-    # Backward compatibility: bridge old UDSPY_LM_MODEL to the new setting.
+    # Both model selectors are deprecated; retain their existing fallback precedence.
     # Credential fallback (UDSPY_LM_API_KEY, UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL)
     # is handled at model-creation time in retrying_model._resolve_model().
     _udspy_model = os.getenv("UDSPY_LM_MODEL", "")

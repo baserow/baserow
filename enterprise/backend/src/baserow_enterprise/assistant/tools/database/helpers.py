@@ -21,6 +21,10 @@ from baserow.contrib.database.views.models import View, ViewFilter
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.database.types.table import TableItem
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    raise_if_permission_denied,
+)
 
 from .types import (
     AnyViewFilterItemCreate,
@@ -35,9 +39,15 @@ if TYPE_CHECKING:
 
 
 def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
-    """Get a single table by ID, raising ToolInputError if not found."""
+    """
+    Get a single table by ID.
 
-    from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+    :param user: The acting user.
+    :param workspace: The workspace the table must belong to.
+    :param table_id: The ID of the table to fetch.
+    :returns: The matching table.
+    :raises ToolInputError: When the table is not visible in the workspace.
+    """
 
     try:
         return filter_tables(user, workspace).get(id=table_id)
@@ -170,9 +180,11 @@ def create_fields(
             _fix_formula_field(
                 user, table, formula_fixer, created_fields, formula_errors, exc
             )
-        except Exception as e:
+        except Exception as error:
+            raise_if_permission_denied(error)
             field_errors.append(
-                f"Error creating field {field_item.name} in table_{table.id}: {e}.\n"
+                f"Error creating field {field_item.name} in table_{table.id}: "
+                f"{error}.\n"
                 f"Please retry recreating this field later, if important."
             )
     return created_fields, field_errors, formula_errors
@@ -212,8 +224,9 @@ def _fix_formula_field(
                 )
                 created_fields.append(FieldItem.from_django_orm(new_field))
                 fixed = True
-        except Exception:
-            pass
+        # Reusing the name `exc` would delete the outer binding at handler exit.
+        except Exception as error:
+            raise_if_permission_denied(error)
     if not fixed:
         formula_errors.append(
             {
@@ -289,7 +302,7 @@ def update_field(
     workspace: Workspace,
     field_update: "FieldItemUpdate",
     formula_fixer: Callable[[Table, str, str], str | None] | None = None,
-) -> FieldItem:
+) -> tuple[FieldItem, bool]:
     """
     Update an existing field.
 
@@ -297,7 +310,7 @@ def update_field(
     :param workspace: Workspace the field must belong to.
     :param field_update: The update definition.
     :param formula_fixer: Optional callback for fixing invalid formulas.
-    :returns: Updated field as FieldItem.
+    :returns: The current field and whether it changed.
     """
 
     base_field = FieldHandler().get_field(field_update.field_id)
@@ -307,9 +320,10 @@ def update_field(
     filter_tables(user, workspace).filter(id=base_field.table_id).get()
     field_type = field_type_registry.get_by_model(field).type
     kwargs = field_update.to_update_kwargs(field_type)
+    previous = FieldItem.from_django_orm(field)
 
     if not kwargs:
-        return FieldItem.from_django_orm(field)
+        return previous, False
 
     # Validate formula before updating
     if "formula" in kwargs and kwargs["formula"]:
@@ -351,7 +365,8 @@ def update_field(
     UpdateFieldActionType.do(user, field, **kwargs)
     # Re-fetch the specific field to get the updated state
     updated_field = FieldHandler().get_field(field_update.field_id).specific
-    return FieldItem.from_django_orm(updated_field)
+    current = FieldItem.from_django_orm(updated_field)
+    return current, current != previous
 
 
 def delete_field(

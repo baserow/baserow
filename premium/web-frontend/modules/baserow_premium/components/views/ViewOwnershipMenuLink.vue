@@ -50,11 +50,42 @@ export default {
     },
   },
   computed: {
+    targetOwnershipType() {
+      return this.view.ownership_type === PersonalViewOwnershipType.getType()
+        ? CollaborativeViewOwnershipType.getType()
+        : PersonalViewOwnershipType.getType()
+    },
     isVisible() {
-      return [
-        CollaborativeViewOwnershipType.getType(),
-        PersonalViewOwnershipType.getType(),
-      ].includes(this.view.ownership_type)
+      if (
+        ![
+          CollaborativeViewOwnershipType.getType(),
+          PersonalViewOwnershipType.getType(),
+        ].includes(this.view.ownership_type)
+      ) {
+        return false
+      }
+
+      const workspaceId = this.database.workspace.id
+      const isPersonal =
+        this.view.ownership_type === PersonalViewOwnershipType.getType()
+
+      // For personal→collaborative: check against collaborative target so the
+      // view_ownership manager passes through and basic/role decides correctly.
+      // For collaborative→personal: check against current view — view_ownership
+      // already passes through for collaborative views.
+      const permissionContext = isPersonal
+        ? {
+            ...this.view,
+            ownership_type: this.targetOwnershipType,
+            owned_by_id: null,
+          }
+        : this.view
+
+      return this.$hasPermission(
+        'database.table.view.update',
+        permissionContext,
+        workspaceId
+      )
     },
     changeOwnershipTypeOptions() {
       const collaborativeOwnershipType = this.$registry.get(

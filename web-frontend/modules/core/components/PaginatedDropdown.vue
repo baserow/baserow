@@ -53,16 +53,24 @@
           :name="emptyItemDisplayName"
           :value="null"
         ></DropdownItem>
-        <DropdownItem
-          v-for="result in results"
-          :key="result[idName]"
-          :name="
-            typeof valueName === 'function'
-              ? valueName(result)
-              : result[valueName]
-          "
-          :value="result[idName]"
-        ></DropdownItem>
+        <template v-if="resultItemComponent">
+          <component
+            :is="resultItemComponent"
+            v-for="result in results"
+            :key="result[idName]"
+            :name="getResultName(result)"
+            :value="result[idName]"
+            :result="result"
+          ></component>
+        </template>
+        <template v-else>
+          <DropdownItem
+            v-for="result in results"
+            :key="result[idName]"
+            :name="getResultName(result)"
+            :value="result[idName]"
+          ></DropdownItem>
+        </template>
         <div v-if="loading" class="select__items-loading"></div>
       </ul>
     </div>
@@ -84,6 +92,18 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    resultItemComponent: {
+      type: [Object, Function],
+      required: false,
+      default: null,
+    },
+  },
+  methods: {
+    getResultName(result) {
+      return typeof this.valueName === 'function'
+        ? this.valueName(result)
+        : result[this.valueName]
     },
   },
 }

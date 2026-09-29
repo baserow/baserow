@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
-from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -35,6 +35,17 @@ class WidgetType(
     parent_property_name = "dashboard"
     id_mapping_name = DASHBOARD_WIDGETS
     allowed_fields = ["title", "description"]
+    grid_layout = WidgetGridLayout(
+        default_width=3,
+        default_height=9,
+        min_width=1,
+        min_height=4,
+        max_width=6,
+        max_height=16,
+    )
+
+    def get_grid_layout(self) -> WidgetGridLayout:
+        return self.grid_layout
 
     def enhance_queryset(self, queryset: QuerySet[Widget]) -> QuerySet[Widget]:
         """

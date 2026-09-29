@@ -7,6 +7,7 @@ import pytest
 from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.contrib.database.export.models import ExportJob
 from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.models import Job
 from baserow.core.jobs.registries import JobType
@@ -106,6 +107,7 @@ def test_create_job(mock_run_async, data_fixture, api_client):
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         }
         mock_run_async.delay.assert_called()
 
@@ -142,6 +144,7 @@ def test_list_jobs(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -153,11 +156,12 @@ def test_list_jobs(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "failed",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json, job_1_json]}
+    assert response.json() == {"jobs": [job_2_json, job_1_json], "count": 2}
 
     valid_job_states = ",".join(["pending", "finished"])
     response = api_client.get(
@@ -166,7 +170,7 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_1_json]}
+    assert response.json() == {"jobs": [job_1_json], "count": 1}
 
     response = api_client.get(
         f"{url}?states=!finished",
@@ -174,7 +178,7 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json, job_1_json]}
+    assert response.json() == {"jobs": [job_2_json, job_1_json], "count": 2}
 
     response = api_client.get(
         f"{url}?states=importing",
@@ -203,7 +207,8 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json]}
+    # No count on the job_ids polling path to keep it cheap.
+    assert response.json() == {"jobs": [job_2_json], "count": None}
 
     response = api_client.get(
         f"{url}?job_ids=invalid_job_id",
@@ -298,6 +303,7 @@ def test_get_job(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -326,6 +332,7 @@ def test_get_job(data_fixture, api_client):
         "progress_percentage": 50,
         "state": "failed",
         "human_readable_error": "Wrong",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -386,6 +393,7 @@ def test_cancel_job_running(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )
@@ -471,6 +479,7 @@ def test_cancel_job_pending(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )
@@ -544,6 +553,7 @@ def test_cancel_job_finished(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )
@@ -563,3 +573,75 @@ def test_cancel_job_finished(
     assert response.status_code == HTTP_400_BAD_REQUEST
     resp = response.json()
     assert resp.get("error") == "ERROR_JOB_NOT_CANCELLABLE"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("token_type", ["access", "refresh"])
+def test_user_source_token_cannot_access_core_jobs(
+    data_fixture, api_client, stub_user_source_registry, token_type
+):
+    """A signed external token cannot access an owner with the same numeric ID."""
+    owner, owner_token = data_fixture.create_user_and_token()
+    _, other_token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=owner)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=published_builder
+    )
+    external_user = data_fixture.create_user_source_user(
+        user_source=user_source, user_id=owner.id
+    )
+    refresh = external_user.get_refresh_token()
+    token = refresh.access_token if token_type == "access" else refresh
+    job = data_fixture.create_fake_job(user=owner)
+    export = ExportJob.objects.create(
+        user=owner,
+        table=data_fixture.create_database_table(user=owner),
+        exporter_type="csv",
+        state="finished",
+        exported_file_name="private.csv",
+        export_options={},
+    )
+    endpoints = [
+        ("get", reverse("api:database:export:get", args=[export.id])),
+        ("get", reverse("api:jobs:list")),
+        ("get", reverse("api:jobs:item", args=[job.id])),
+        ("post", reverse("api:jobs:cancel", args=[job.id])),
+    ]
+    with stub_user_source_registry():
+        for method, url in endpoints:
+            response = getattr(api_client, method)(
+                url, HTTP_AUTHORIZATION=f"JWT {token}"
+            )
+            assert response.status_code == 401
+            assert "url" not in response.json()
+            assert "private.csv" not in response.content.decode()
+    job.refresh_from_db()
+    assert job.state == "pending"
+
+    for method, url in endpoints:
+        response = getattr(api_client, method)(
+            url, HTTP_AUTHORIZATION=f"JWT {other_token}"
+        )
+        if url == reverse("api:jobs:list"):
+            assert response.status_code == 200
+            assert response.json()["jobs"] == []
+        else:
+            assert response.status_code == 404
+    job.refresh_from_db()
+    assert job.state == "pending"
+
+    for method, url in endpoints:
+        response = getattr(api_client, method)(
+            url, HTTP_AUTHORIZATION=f"JWT {owner_token}"
+        )
+        assert response.status_code == 200
+        if url == endpoints[0][1]:
+            assert "private.csv" in response.json()["url"]
+        elif url == reverse("api:jobs:list"):
+            assert [item["id"] for item in response.json()["jobs"]] == [job.id]
+    job.refresh_from_db()
+    assert job.state == "cancelled"

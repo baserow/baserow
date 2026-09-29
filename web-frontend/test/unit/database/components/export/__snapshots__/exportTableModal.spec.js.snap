@@ -95,7 +95,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                           />
                         </div>
                         <ul
-                          class="select__items"
+                          class="select__items prevent-scroll"
                           tabindex="-1"
                         >
                           
@@ -412,7 +412,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                             />
                           </div>
                           <ul
-                            class="select__items"
+                            class="select__items prevent-scroll"
                             tabindex="-1"
                           >
                             
@@ -672,7 +672,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                             />
                           </div>
                           <ul
-                            class="select__items"
+                            class="select__items prevent-scroll"
                             tabindex="-1"
                           >
                             
@@ -2098,7 +2098,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                           />
                         </div>
                         <ul
-                          class="select__items"
+                          class="select__items prevent-scroll"
                           tabindex="-1"
                         >
                           
@@ -2415,7 +2415,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                             />
                           </div>
                           <ul
-                            class="select__items"
+                            class="select__items prevent-scroll"
                             tabindex="-1"
                           >
                             
@@ -2675,7 +2675,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                             />
                           </div>
                           <ul
-                            class="select__items"
+                            class="select__items prevent-scroll"
                             tabindex="-1"
                           >
                             

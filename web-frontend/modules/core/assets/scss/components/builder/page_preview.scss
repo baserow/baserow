@@ -108,3 +108,12 @@
   font-weight: 700;
   line-height: 10px;
 }
+
+.page-preview__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 40px;
+  background-color: $white;
+  height: 100%;
+}

@@ -22,9 +22,9 @@ const { data: invitation, error } = await useAsyncData(
 
 // Handle error - invitation not found or already accepted
 if (error.value) {
-  // If user is authenticated, redirect to dashboard
+  // If user is authenticated, redirect to the all workspaces homepage
   if (store.getters['auth/isAuthenticated']) {
-    await navigateTo({ name: 'dashboard' }, { replace: true })
+    await navigateTo({ name: 'all-workspaces' }, { replace: true })
   } else {
     // Otherwise redirect to login
     await navigateTo({ name: 'login' }, { replace: true })
@@ -57,8 +57,9 @@ if (invitation.value) {
         { replace: true }
       )
     } catch {
-      // If accepting fails (e.g., already accepted), redirect to dashboard
-      await navigateTo({ name: 'dashboard' }, { replace: true })
+      // If accepting fails (e.g., already accepted), redirect to the all
+      // workspaces homepage
+      await navigateTo({ name: 'all-workspaces' }, { replace: true })
     }
   } else {
     // Depending on if the email address already exists we redirect the user to either

@@ -14,6 +14,11 @@
       </RadioGroup>
     </FormGroup>
 
+    <Alert type="warning" class="margin-bottom-2">
+      <template #title>{{ $t('iframeElementForm.warningTitle') }}</template>
+      {{ $t('iframeElementForm.warningMessage') }}
+    </Alert>
+
     <FormGroup
       v-if="v$.values.source_type.$model === IFRAME_SOURCE_TYPES.URL"
       key="url"
@@ -27,6 +32,20 @@
         :placeholder="$t('iframeElementForm.urlPlaceholder')"
       />
       <template #helper>{{ $t('iframeElementForm.urlHelp') }}</template>
+    </FormGroup>
+
+    <FormGroup
+      v-if="v$.values.source_type.$model === IFRAME_SOURCE_TYPES.URL"
+      small-label
+      class="margin-bottom-2"
+      :optional="false"
+    >
+      <Checkbox v-model="v$.values.allow_same_origin.$model">{{
+        $t('iframeElementForm.allowSameOriginLabel')
+      }}</Checkbox>
+      <template #helper>
+        {{ $t('iframeElementForm.allowSameOriginHelp') }}
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -80,12 +99,20 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['source_type', 'url', 'embed', 'height', 'styles'],
+      allowedValues: [
+        'source_type',
+        'url',
+        'embed',
+        'height',
+        'allow_same_origin',
+        'styles',
+      ],
       values: {
         source_type: IFRAME_SOURCE_TYPES.URL,
         url: {},
         embed: {},
         height: 300,
+        allow_same_origin: false,
         styles: {},
       },
     }
@@ -128,6 +155,7 @@ export default {
         source_type: {},
         url: {},
         embed: {},
+        allow_same_origin: {},
       },
     }
   },

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed slow published app loads due to the used properties cache expiring too soon.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-25"
+}

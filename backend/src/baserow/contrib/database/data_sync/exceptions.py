@@ -40,3 +40,10 @@ class TwoWayDataSyncNotSupported(Exception):
     Raised when two-way sync is being enabled for a data sync type that doesn't support
     it.
     """
+
+
+class DataSyncCredentialRequired(Exception):
+    """
+    Raised when a connection target field is changed without re-supplying the
+    associated credential field.
+    """

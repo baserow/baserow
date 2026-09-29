@@ -9,6 +9,8 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @pytest.mark.django_db
@@ -238,6 +240,37 @@ def test_delete_service(data_fixture):
 @pytest.mark.django_db
 def test_dispatch_local_baserow_get_row_service_missing_integration(data_fixture):
     service = data_fixture.create_local_baserow_get_row_service(integration=None)
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        ServiceHandler().dispatch_service(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_a_local_baserow_service_never_requires_an_integration(data_fixture):
+    """An integration only supplies a user, and a dispatch source can supply one
+    itself. `get_acting_user` is what refuses when neither does."""
+
+    from baserow.contrib.integrations.local_baserow.service_types import (
+        LocalBaserowUpsertRowServiceType,
+    )
+
+    service = data_fixture.create_local_baserow_upsert_row_service(integration=None)
+
+    assert LocalBaserowUpsertRowServiceType().requires_integration(service) is False
+
+
+@pytest.mark.django_db
+def test_dispatch_service_with_trashed_integration_is_misconfigured(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    service = data_fixture.create_local_baserow_get_row_service(integration=integration)
+
+    TrashHandler.trash(
+        user,
+        integration.application.workspace,
+        integration.application,
+        integration,
+    )
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         ServiceHandler().dispatch_service(service, {})

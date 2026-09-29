@@ -1,10 +1,8 @@
 """
 Pydantic-ai toolset utilities for the assistant.
 
-Contains schema helpers (``inline_refs``), lenient argument validation,
-the ``InlineRefsToolset`` wrapper, ``ModeAwareToolset``, and the compact
-tool manifest builder.  These are pure toolset concerns with no dependency
-on the Baserow registry system.
+Contains schema helpers, lenient argument validation, and the
+``InlineRefsToolset`` wrapper.
 """
 
 from __future__ import annotations
@@ -20,10 +18,12 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
-from baserow_enterprise.assistant.deps import AgentMode
+from baserow.core.generative_ai.lifecycle import run_agent_with_model
 
 if TYPE_CHECKING:
-    from baserow_enterprise.assistant.deps import AssistantDeps
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
 
 # ---------------------------------------------------------------------------
 # Schema utilities
@@ -76,15 +76,247 @@ def inline_refs(schema: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Validation-error rendering
+# ---------------------------------------------------------------------------
+
+# Read-only tool that returns real values for a given id argument (suffix-matched).
+_ID_PRODUCERS: dict[str, str] = {
+    "database_id": "list_builders",
+    "application_id": "list_builders",
+    "automation_id": "list_builders",
+    "builder_id": "list_builders",
+    "table_id": "list_tables",
+    "field_id": "get_tables_schema",
+    "view_id": "list_views",
+    "row_id": "list_rows",
+    "page_id": "list_pages",
+    "element_id": "list_elements",
+    "data_source_id": "list_data_sources",
+    "workflow_id": "list_workflows",
+    "node_id": "list_nodes",
+}
+
+# row_id stays hint-only: data-source row ids may hold formulas or user data.
+_PLACEHOLDER_EXEMPT_IDS = frozenset({"row_id"})
+
+
+def _id_suffix(key: str) -> str | None:
+    """Longest-suffix match, so ``cover_field_id`` resolves like ``field_id``."""
+
+    for name in sorted(_ID_PRODUCERS, key=len, reverse=True):
+        if key.endswith(name):
+            return name
+    return None
+
+
+def _id_producer(key: str) -> str | None:
+    suffix = _id_suffix(key)
+    return _ID_PRODUCERS[suffix] if suffix else None
+
+
+_MAX_REPORTED_ERRORS = 8
+
+
+def _unwrap_union(node: Any) -> dict:
+    """First non-null branch of an anyOf/oneOf, else the node itself."""
+
+    if not isinstance(node, dict):
+        return {}
+    for key in ("anyOf", "oneOf"):
+        for branch in node.get(key) or ():
+            if isinstance(branch, dict) and branch.get("type") != "null":
+                return branch
+    return node
+
+
+def _schema_at(schema: dict, loc: tuple) -> tuple[dict, bool]:
+    """Follow a Pydantic error location into a schema with inlined references.
+
+    Union branch tags do not resolve, so a partial result must not be used
+    as the authoritative key set.
+
+    :param schema: The tool's parameter schema after reference inlining.
+    :param loc: Property names and array indices from a validation error.
+    :return: The deepest node reached and whether the full location resolved.
+    """
+
+    node = _unwrap_union(schema)
+    for part in loc:
+        nxt = (
+            _unwrap_union(node.get("items"))
+            if isinstance(part, int)
+            else _unwrap_union((node.get("properties") or {}).get(part))
+        )
+        if not nxt:
+            return node, False
+        node = nxt
+    return node, True
+
+
+def _keys_of(node: dict) -> list[str]:
+    """Property names of *node*, required ones suffixed with ``*``."""
+
+    required = set(node.get("required") or ())
+    return [f"{k}*" if k in required else k for k in (node.get("properties") or {})]
+
+
+def _describe_shape(node: dict, exact: bool) -> str:
+    """Describe an expected value without guessing from a partial schema match.
+
+    :param node: The schema node reached while resolving an error location.
+    :param exact: Whether the complete error location resolved to this node.
+    :return: A brief expected shape, or a generic schema reference.
+    """
+
+    if not node or not exact:
+        return "the value this tool's schema documents at that path"
+    if node.get("type") == "array":
+        item = _unwrap_union(node.get("items"))
+        keys = _keys_of(item)
+        if keys:
+            return f"a list of objects with keys: {', '.join(keys)}"
+        return f"a list of {item.get('type') or 'values'}"
+    if node.get("enum"):
+        return "one of: " + ", ".join(str(v) for v in node["enum"])
+    keys = _keys_of(node)
+    if keys:
+        return f"an object with keys: {', '.join(keys)}"
+    return str(node.get("type") or "value")
+
+
+def _discovery_hint(field_name: str) -> str:
+    """Suggest an ID lookup tool, or return no hint for other fields."""
+
+    tool = _id_producer(field_name)
+    if tool:
+        return f" Call {tool} to get a real id."
+    if field_name.endswith("_id"):
+        return " Call the matching list_* tool to get a real id."
+    return ""
+
+
+def _short(value: Any, limit: int = 60) -> str:
+    """Render a value for error feedback, truncating it after ``limit`` characters."""
+
+    try:
+        text = json.dumps(value, default=str)
+    except (TypeError, ValueError):
+        text = repr(value)
+    return text if len(text) <= limit else f"{text[:limit]}…(truncated)"
+
+
+def format_tool_arg_errors(
+    tool_name: str, schema: dict, wrong_args: Any, errors: list[dict]
+) -> str:
+    """Render Pydantic errors as recovery instructions, with a fallback on failure.
+
+    :param tool_name: The tool whose arguments failed validation.
+    :param schema: The tool's parameter schema after reference inlining.
+    :param wrong_args: The raw arguments that failed validation.
+    :param errors: Error details returned by Pydantic validation.
+    :return: Correction instructions, or the original errors if rendering fails.
+    """
+
+    try:
+        return _render_tool_arg_errors(tool_name, schema, wrong_args, errors)
+    except Exception:
+        logger.exception("[assistant] Could not render arg errors for '{}'", tool_name)
+        return f"{tool_name} did NOT run — its arguments were rejected: {errors}"
+
+
+def _render_tool_arg_errors(
+    tool_name: str, schema: dict, wrong_args: Any, errors: list[dict]
+) -> str:
+    """Build a bounded error report with expected shapes and ID lookup hints.
+
+    :param tool_name: The tool to call again with corrected arguments.
+    :param schema: The tool's parameter schema after reference inlining.
+    :param wrong_args: The rejected arguments, used to report the supplied keys.
+    :param errors: Pydantic errors, capped at ``_MAX_REPORTED_ERRORS`` in the report.
+    :return: A report describing rejected values and how to correct them.
+    """
+
+    lines: list[str] = []
+    id_rejected = False
+
+    for err in errors[:_MAX_REPORTED_ERRORS]:
+        loc = tuple(err.get("loc") or ())
+        path = ".".join(str(p) for p in loc) or "(arguments)"
+        leaf = str(loc[-1]) if loc else ""
+        id_rejected = id_rejected or leaf.endswith("_id")
+        err_type = err.get("type", "")
+
+        if err_type == "missing":
+            node, exact = _schema_at(schema, loc)
+            lines.append(
+                f"- {path}: required, but you did not send it. Send "
+                f"{_describe_shape(node, exact)}.{_discovery_hint(leaf)}"
+            )
+        elif err_type in ("extra_forbidden", "unexpected_keyword_argument"):
+            node, exact = _schema_at(schema, loc[:-1])
+            keys = _keys_of(node) if exact else []
+            allowed = (
+                f"The only keys accepted here are: {', '.join(keys)}."
+                if keys
+                else "Use only the keys this tool's schema defines at that path."
+            )
+            lines.append(
+                f"- {path}: '{leaf}' is not a key of this object. {allowed} "
+                "Move the value under an accepted key, or drop it."
+            )
+        else:
+            node, exact = _schema_at(schema, loc)
+            lines.append(
+                f"- {path}: {err.get('msg', err_type)} — you sent "
+                f"{_short(err.get('input'))}, expected "
+                f"{_describe_shape(node, exact)}.{_discovery_hint(leaf)}"
+            )
+
+    hidden = len(errors) - len(lines)
+    if hidden > 0:
+        lines.append(f"- ...and {hidden} more error(s); fix them the same way.")
+
+    sent = (
+        ", ".join(sorted(wrong_args))
+        if isinstance(wrong_args, dict) and wrong_args
+        else "(none)"
+    )
+    footer = (
+        "Keys marked * are required. Send the whole corrected argument object "
+        f"in a new {tool_name} call."
+    )
+    if id_rejected:
+        footer += (
+            " Never invent an id or send a placeholder such as 0 — take ids from "
+            "a create_* result or a list_* tool result."
+        )
+    return (
+        f"{tool_name} did NOT run — its arguments were rejected.\n"
+        f"Keys you sent: {sent}.\n" + "\n".join(lines) + f"\n{footer}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Lenient validator & fixer
 # ---------------------------------------------------------------------------
 
 _FIXER_PROMPT = """\
-You are a JSON repair tool. You receive a JSON object that failed schema \
-validation, the validation errors, and the target JSON schema. Return ONLY \
-the fixed JSON object — no explanation, no markdown fences. Preserve the \
-original values as much as possible; only change what is needed to satisfy \
-the schema."""
+You repair tool-call JSON. You receive the target JSON schema, the object that \
+failed validation, and the validation errors. Return ONLY a JSON object — no \
+explanation, no markdown fences.
+
+Rules:
+1. Preserve every value the caller supplied. You may move a value to the \
+correct key, rename a key, drop an unsupported key, or convert a value to the \
+type the schema requires — nothing else.
+2. Do not invent data. Fill in a required value only when it is already \
+present elsewhere in the caller's object, or when the schema itself \
+determines it (a default, a const, or a single-member enum). Never invent an \
+identifier, and never satisfy a required field with a placeholder such as 0, \
+1, "", "unknown" or a guessed name.
+3. If a required value is genuinely absent and rule 2 does not supply it, do \
+not guess. Return exactly \
+{"__cannot_fix__": "<which values are missing and where they must come from>"}."""
 
 
 class _LenientValidator:
@@ -105,7 +337,67 @@ class _LenientValidator:
         return input if input is not None else {}
 
 
-_LENIENT_VALIDATOR = _LenientValidator()
+LENIENT_ARGS_VALIDATOR = _LenientValidator()
+
+
+# ---------------------------------------------------------------------------
+# Invented resource ids
+# ---------------------------------------------------------------------------
+
+
+def _is_placeholder_id(value: Any) -> bool:
+    """Identify non-positive IDs, leaving malformed values for schema validation.
+
+    :param value: A raw tool argument that refers to a Baserow resource.
+    :return: Whether the argument represents an integer ID at or below zero.
+    """
+
+    if value is None or isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return value <= 0
+    if isinstance(value, str):
+        try:
+            return int(value) <= 0
+        except ValueError:
+            return False
+    return False
+
+
+def _find_placeholder_ids(node: Any, path: str = "") -> list[tuple[str, str, Any]]:
+    """Find non-positive resource IDs in nested raw tool arguments.
+
+    :param node: The argument value to inspect recursively.
+    :param path: The JSON path leading to this value, empty at the root.
+    :return: ``(json_path, producer_tool, value)`` tuples for rejected resource IDs.
+    """
+
+    found: list[tuple[str, str, Any]] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            child = f"{path}.{key}" if path else key
+            suffix = _id_suffix(key)
+            if suffix is not None and suffix not in _PLACEHOLDER_EXEMPT_IDS:
+                if _is_placeholder_id(value):
+                    found.append((child, _ID_PRODUCERS[suffix], value))
+                continue
+            plural = _id_suffix(key[:-1]) if key.endswith("s") else None
+            if (
+                plural is not None
+                and plural not in _PLACEHOLDER_EXEMPT_IDS
+                and isinstance(value, list)
+            ):
+                found.extend(
+                    (f"{child}[{i}]", _ID_PRODUCERS[plural], item)
+                    for i, item in enumerate(value)
+                    if _is_placeholder_id(item)
+                )
+                continue
+            found.extend(_find_placeholder_ids(value, child))
+    elif isinstance(node, list):
+        for i, item in enumerate(node):
+            found.extend(_find_placeholder_ids(item, f"{path}[{i}]"))
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -124,9 +416,17 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        and rarely succeeds).
     """
 
-    def __init__(self, inner: AbstractToolset[AgentDepsT], model: str):
+    def __init__(
+        self,
+        inner: AbstractToolset[AgentDepsT],
+        model: Any,
+        model_profile: "ResolvedAssistantModelProfile",
+    ):
         self._inner = inner
+        # The already-created model, so the fixer reuses this request's client
+        # instead of building another one from the profile.
         self._model = model
+        self._model_profile = model_profile
         self._original_validators: dict[str, Any] = {}
         self._schemas: dict[str, dict] = {}
 
@@ -151,27 +451,34 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         visitor: Callable[[AbstractToolset[AgentDepsT]], AbstractToolset[AgentDepsT]],
     ) -> AbstractToolset[AgentDepsT]:
         new = InlineRefsToolset(
-            self._inner.visit_and_replace(visitor), model=self._model
+            self._inner.visit_and_replace(visitor),
+            model=self._model,
+            model_profile=self._model_profile,
         )
         return new
 
     # --- Tool interception ---
 
     async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
+        """
+        Return the inner tools with inlined schemas and lenient validators.
+
+        :param ctx: The agent run context.
+        :return: The tools, with the original validators and schemas cached
+            so call_tool can validate and repair arguments itself.
+        """
+
         tools = await self._inner.get_tools(ctx)
         for name, tool in tools.items():
             # Inline $ref/$defs in the JSON schema
             tool.tool_def.parameters_json_schema = inline_refs(
                 tool.tool_def.parameters_json_schema
             )
-            # Save the original validator and schema once, then replace with
-            # lenient passthrough so validation failures reach call_tool()
-            # where we can attempt an async fix. Guard against multiple calls
-            # so we don't overwrite the real validator with _LENIENT_VALIDATOR.
-            if name not in self._original_validators:
+            # Re-cache on every re-issue so the fixer sees the schema the model saw.
+            if tool.args_validator is not LENIENT_ARGS_VALIDATOR:
                 self._original_validators[name] = tool.args_validator
                 self._schemas[name] = tool.tool_def.parameters_json_schema
-                tool.args_validator = _LENIENT_VALIDATOR
+                tool.args_validator = LENIENT_ARGS_VALIDATOR
         return tools
 
     async def call_tool(
@@ -181,6 +488,38 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         ctx: Any,
         tool: ToolsetTool[AgentDepsT],
     ) -> Any:
+        """
+        Validate the arguments, fixing them if needed, then call the tool.
+
+        :param name: The tool name.
+        :param tool_args: The raw tool arguments.
+        :param ctx: The agent run context.
+        :param tool: The toolset tool being called.
+        :return: The inner tool result, or an error dict when the arguments
+            carried placeholder IDs.
+        """
+
+        placeholders = _find_placeholder_ids(tool_args)
+        if placeholders:
+            logger.warning(
+                "[assistant] Tool '{}' called with placeholder IDs: {}",
+                name,
+                placeholders,
+            )
+            offenders = ", ".join(f"{p}={v!r}" for p, _, v in placeholders)
+            producers = " / ".join(sorted({t for _, t, _ in placeholders}))
+            return {
+                "error": (
+                    f"Not executed. Invented IDs: {offenders}. Baserow IDs start "
+                    "at 1. Only send an ID you have read from a tool result or "
+                    "from <ui_context>."
+                ),
+                "next_steps": (
+                    f"Call {producers} to read the real ID (switch_mode first if "
+                    f"it is not available in this mode), then call {name} again "
+                    "with the same arguments and that ID."
+                ),
+            }
         original_validator = self._original_validators.get(name)
         if original_validator:
             try:
@@ -197,12 +536,20 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
     ) -> dict[str, Any]:
         """
         Attempt to fix invalid tool arguments via a lightweight structured-
-        output call. If the fix also fails validation, raises ``ModelRetry``
-        so pydantic-ai can handle it normally.
+        output call.
+
+        :param tool_name: The tool whose arguments failed validation.
+        :param wrong_args: The rejected arguments.
+        :param error: The validation error they produced.
+        :return: The repaired arguments, validated against the original schema.
+        :raises ModelRetry: When the fixer fails, declares the arguments
+            unfixable, or its fix also fails validation, so pydantic-ai can
+            handle the retry normally.
         """
 
         schema = self._schemas.get(tool_name, {})
         error_details = error.errors(include_url=False, include_context=False)
+        report = format_tool_arg_errors(tool_name, schema, wrong_args, error_details)
 
         logger.warning(
             "[assistant] Tool '{}' args failed validation, attempting fix. Errors: {}",
@@ -214,7 +561,8 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             f"Tool: {tool_name}\n\n"
             f"Schema:\n{json.dumps(schema, indent=2)}\n\n"
             f"Invalid input:\n{json.dumps(wrong_args, indent=2)}\n\n"
-            f"Validation errors:\n{json.dumps(error_details, indent=2)}"
+            f"Validation errors:\n{json.dumps(error_details, indent=2)}\n\n"
+            f"What is wrong:\n{report}"
         )
 
         try:
@@ -223,13 +571,11 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 instructions=_FIXER_PROMPT,
                 name="fix_agent",
             )
-            from baserow_enterprise.assistant.model_profiles import (
-                UTILITY,
-                get_model_settings,
-            )
+            from baserow_enterprise.assistant.model_profiles import UTILITY
 
-            fixer_settings = get_model_settings(self._model, UTILITY)
-            result = await fix_agent.run(
+            fixer_settings = self._model_profile.get_settings(UTILITY)
+            result = await run_agent_with_model(
+                fix_agent,
                 prompt,
                 model=self._model,
                 model_settings={
@@ -244,192 +590,35 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 tool_name,
                 exc,
             )
+            raise ModelRetry(report) from exc
+
+        if isinstance(fixed_args, dict) and "__cannot_fix__" in fixed_args:
+            missing = fixed_args["__cannot_fix__"]
+            logger.warning(
+                "[assistant] Fixer could not repair args for tool '{}': {}",
+                tool_name,
+                missing,
+            )
             raise ModelRetry(
-                f"Tool arguments invalid and fix attempt failed: {error_details}"
-            ) from exc
+                f"Tool '{tool_name}' was called without required information: "
+                f"{missing}. Do not retry with a guessed or placeholder value — "
+                f"obtain the real value first (list or fetch the resource, or "
+                f"ask the user), then call the tool again."
+            )
 
         # Re-validate with original schema
         original_validator = self._original_validators[tool_name]
         try:
             validated = original_validator.validate_python(fixed_args)
         except ValidationError as e2:
+            retry_errors = e2.errors(include_url=False, include_context=False)
             logger.warning(
                 "[assistant] Fixed args for tool '{}' still invalid: {}",
                 tool_name,
-                e2.errors(include_url=False, include_context=False),
+                retry_errors,
             )
             raise ModelRetry(
-                f"Tool arguments still invalid after fix attempt: "
-                f"{e2.errors(include_url=False, include_context=False)}"
+                format_tool_arg_errors(tool_name, schema, fixed_args, retry_errors)
             ) from e2
 
         return validated
-
-
-# ---------------------------------------------------------------------------
-# Mode-aware toolset
-# ---------------------------------------------------------------------------
-
-
-def _build_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
-    """Build mode → tool-names mapping from actual function references.
-
-    Derives names via ``f.__name__`` instead of hand-maintained string
-    lists to eliminate typo risk.
-    """
-
-    from .automation.tools import TOOL_FUNCTIONS as AUTO_FN
-    from .builder.tools import TOOL_FUNCTIONS as BUILDER_FN
-    from .core.tools import create_builders, list_builders, switch_mode, update_builder
-    from .database.tools import TOOL_FUNCTIONS as DB_FN
-    from .navigation.tools import navigate
-    from .search_user_docs.tools import search_user_docs
-
-    n = frozenset  # alias for readability
-
-    def names(*funcs):
-        return n(f.__name__ for f in funcs)
-
-    shared = names(
-        navigate,
-        switch_mode,
-        list_builders,
-        # Read-only database tools available in every mode
-        *[f for f in DB_FN if f.__name__.startswith(("list_", "get_"))],
-    )
-
-    return {
-        AgentMode.DATABASE: shared | names(*DB_FN, create_builders, update_builder),
-        AgentMode.APPLICATION: shared
-        | names(*BUILDER_FN, create_builders, update_builder),
-        AgentMode.AUTOMATION: shared | names(*AUTO_FN, create_builders, update_builder),
-        AgentMode.EXPLAIN: shared
-        | names(
-            *[f for f in BUILDER_FN if f.__name__.startswith("list_")],
-            *[f for f in AUTO_FN if f.__name__.startswith("list_")],
-            search_user_docs,
-        ),
-    }
-
-
-_MODE_TOOL_MAP: dict[AgentMode, frozenset[str]] | None = None
-
-
-def _get_mode_tool_map() -> dict[AgentMode, frozenset[str]]:
-    global _MODE_TOOL_MAP
-    if _MODE_TOOL_MAP is None:
-        _MODE_TOOL_MAP = _build_mode_tool_map()
-    return _MODE_TOOL_MAP
-
-
-class ModeAwareToolset(AbstractToolset[AgentDepsT]):
-    """
-    Filters the inner toolset based on the current :class:`AgentMode`.
-
-    Each domain mode (DATABASE, APPLICATION, AUTOMATION) exposes only its
-    relevant tools plus shared read-only tools. EXPLAIN mode exposes
-    read-only tools plus ``search_user_docs``.
-    """
-
-    def __init__(self, inner: AbstractToolset[AgentDepsT], deps: "AssistantDeps"):
-        self._inner = inner
-        self._deps = deps
-
-    @property
-    def id(self) -> str:
-        return self._inner.id
-
-    async def __aenter__(self) -> Self:
-        await self._inner.__aenter__()
-        return self
-
-    async def __aexit__(self, *args: Any) -> bool | None:
-        return await self._inner.__aexit__(*args)
-
-    def apply(self, visitor: Callable[[AbstractToolset[AgentDepsT]], None]) -> None:
-        self._inner.apply(visitor)
-
-    def visit_and_replace(
-        self,
-        visitor: Callable[[AbstractToolset[AgentDepsT]], AbstractToolset[AgentDepsT]],
-    ) -> AbstractToolset[AgentDepsT]:
-        return ModeAwareToolset(self._inner.visit_and_replace(visitor), self._deps)
-
-    async def get_tools(self, ctx) -> dict[str, ToolsetTool[AgentDepsT]]:
-        all_tools = await self._inner.get_tools(ctx)
-        allowed = _get_mode_tool_map()[self._deps.mode]
-        return {k: v for k, v in all_tools.items() if k in allowed}
-
-    async def call_tool(
-        self,
-        name: str,
-        tool_args: dict[str, Any],
-        ctx: Any,
-        tool: ToolsetTool[AgentDepsT],
-    ) -> Any:
-        from baserow.core.exceptions import UserNotInWorkspace
-        from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
-
-        try:
-            return await self._inner.call_tool(name, tool_args, ctx, tool)
-        except ToolInputError as exc:
-            return {"error": str(exc)}
-        except UserNotInWorkspace:
-            return {
-                "error": (
-                    "One or more IDs reference a resource outside the current "
-                    "workspace. Use the appropriate list_* tool to find "
-                    "the correct IDs and retry."
-                )
-            }
-
-
-# ---------------------------------------------------------------------------
-# Compact tool manifest
-# ---------------------------------------------------------------------------
-
-
-def tool_manifest_line_compact(name: str, description: str) -> str:
-    """Format a single tool entry — first line of description only."""
-
-    desc = description.strip()
-    first_line = desc.split("\n")[0].strip() if desc else name
-    return f"- {name}: {first_line}"
-
-
-_MODULE_LABELS: dict[str, str] = {
-    "core": "Core (workspace & modules)",
-    "navigation": "Navigation",
-    "database": "Database (tables, fields, views, rows)",
-    "builder": "Application Builder (pages, elements, data sources, actions)",
-    "automation": "Automations (workflows, triggers, actions)",
-    "search_user_docs": "Documentation",
-}
-
-
-def generate_tool_manifest_compact(
-    module_groups: list[tuple[str, list[Callable]]],
-    routing_rules: str = "",
-) -> str:
-    """
-    Build a compact ``<available_tools>`` manifest: routing rules + tools
-    grouped by module with section headers.
-
-    :param module_groups: ``(module_type, funcs)`` pairs, one per module.
-    :param routing_rules: Cross-tool routing rules to prepend.
-    :return: A newline-separated manifest string.
-    """
-
-    lines: list[str] = []
-    if routing_rules:
-        lines.append(routing_rules.strip())
-        lines.append("")
-    for module_type, funcs in module_groups:
-        if not funcs:
-            continue
-        label = _MODULE_LABELS.get(module_type, module_type)
-        lines.append(f"## {label}")
-        for func in funcs:
-            lines.append(tool_manifest_line_compact(func.__name__, func.__doc__ or ""))
-        lines.append("")
-    return "\n".join(lines).rstrip()

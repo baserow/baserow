@@ -292,15 +292,18 @@
         "outputTypeChangedWarning": "Kasuje wygenerowane wartości w komórkach.",
         "autoUpdate": "Automatyczna aktualizacja",
         "autoUpdateHelp": "Włączenie tej opcji spowoduje, że po aktualizacji któregoś z pól użytych w promptcie wartość pola AI zostanie automatycznie wygenerowana ponownie.",
-        "autoUpdateDescription": "Wygeneruj ponownie jak zmienią się wartości w polach użytych w promptcie"
+        "autoUpdateDescription": "Wygeneruj ponownie jak zmienią się wartości w polach użytych w promptcie",
+        "invalidPrompt": "Formuła podana w prompcie jest nieprawidłowa."
     },
     "rowEditFieldAI": {
         "generate": "Wygeneruj",
-        "createRowBefore": "Dane w polu AI zostaną wygenerowane po utworzeniu wiersza."
+        "createRowBefore": "Dane w polu AI zostaną wygenerowane po utworzeniu wiersza.",
+        "promptBroken": "Prompt jest uszkodzony. Popraw go, zanim będzie można wygenerować odpowiedź."
     },
     "gridViewFieldAI": {
         "generate": "Wygeneruj",
-        "regenerate": "Wygeneruj ponownie"
+        "regenerate": "Wygeneruj ponownie",
+        "promptBroken": "Prompt jest uszkodzony. Popraw go, zanim będzie można wygenerować odpowiedź."
     },
     "rowCommentNotification": {
         "title": "{sender} opublikował komentarz w wierszu {row} w tabeli {table}",

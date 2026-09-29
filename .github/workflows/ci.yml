@@ -39,6 +39,8 @@ jobs:
     steps:
       - id: setflag
         shell: bash
+        env:
+          SAAS_REPO_TOKEN: ${{ secrets.SAAS_REPO_TOKEN }}
         run: |
           if [[ -n "${{ secrets.RELEASE_DOCKER_REPOSITORY }}" && \
                 -n "${{ secrets.RELEASE_DOCKER_REGISTRY }}" && \
@@ -49,7 +51,7 @@ jobs:
             echo "should_build_and_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-          if [[ -n "${{ secrets.GITLAB_SAAS_PAT }}" ]]; then
+          if [[ -n "$SAAS_REPO_TOKEN" ]]; then
             echo "should_trigger_saas=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_trigger_saas=false" >> "$GITHUB_OUTPUT"
@@ -61,73 +63,12 @@ jobs:
 
   build-backend:
     name: Build Backend CI Image
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/build-backend-ci-image.yml
+    with:
+      clear_cache: ${{ inputs.clear_cache == true }}
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.image.outputs.full }}
-      is_fork: ${{ steps.fork-check.outputs.is_fork }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check if PR is from a fork
-        id: fork-check
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" && \
-                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
-            echo "is_fork=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_fork=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        if: steps.fork-check.outputs.is_fork != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image tag
-        id: image
-        run: |
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
-          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
-          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
-
-      - name: Build and push backend CI image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: backend/Dockerfile
-          target: ci
-          push: ${{ steps.fork-check.outputs.is_fork != 'true' }}
-          load: ${{ steps.fork-check.outputs.is_fork == 'true' }}
-          tags: ${{ steps.image.outputs.full }}
-          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
-          cache-to: ${{ steps.fork-check.outputs.is_fork != 'true' && 'type=gha,scope=backend-ci,mode=max' || '' }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-
-      - name: Save Docker image for fork PRs
-        if: steps.fork-check.outputs.is_fork == 'true'
-        run: docker save ${{ steps.image.outputs.full }} | gzip > /tmp/backend-ci-image.tar.gz
-
-      - name: Upload Docker image artifact
-        if: steps.fork-check.outputs.is_fork == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-ci-image
-          path: /tmp/backend-ci-image.tar.gz
-          retention-days: 1
 
   build-frontend:
     name: Build Web-Frontend CI Image
@@ -211,6 +152,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
+      e2e: ${{ steps.filter.outputs.e2e }}
       mjml: ${{ steps.filter.outputs.mjml }}
       zapier: ${{ steps.filter.outputs.zapier }}
       helm: ${{ steps.filter.outputs.helm }}
@@ -235,6 +177,9 @@ jobs:
               - '.github/workflows/ci.yml'
             dockerfiles:
               - '**/Dockerfile'
+              - '.github/workflows/ci.yml'
+            e2e:
+              - 'e2e-tests/**'
               - '.github/workflows/ci.yml'
             mjml:
               - '**/*.eta'
@@ -447,90 +392,21 @@ jobs:
             ${{ needs.build-backend.outputs.image }} ci-check-migrations
 
   test-backend:
-    name: Backend Tests (Group ${{ matrix.group }})
-    runs-on: ubuntu-latest
+    name: Backend Tests
     needs:
       - build-backend
       - backend-lint
       - detect-changes
     if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    uses: ./.github/workflows/run-backend-tests.yml
+    with:
+      image: ${{ needs.build-backend.outputs.image }}
+      is_fork: ${{ needs.build-backend.outputs.is_fork }}
     permissions:
       contents: read
       packages: read
       checks: write
       pull-requests: write
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    services:
-      db:
-        image: pgvector/pgvector:pg14
-        env:
-          POSTGRES_USER: baserow
-          POSTGRES_PASSWORD: baserow
-          POSTGRES_DB: baserow
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
-          --shm-size=512m
-    steps:
-      - name: Log in to GitHub Container Registry
-        if: needs.build-backend.outputs.is_fork != 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download backend image artifact
-        if: needs.build-backend.outputs.is_fork == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-ci-image
-          path: /tmp
-
-      - name: Load backend image from artifact
-        if: needs.build-backend.outputs.is_fork == 'true'
-        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
-
-      - name: Run backend tests for group ${{ matrix.group }}
-        run: |
-          mkdir -p reports
-          docker run \
-            --name=baserow_backend_test_container \
-            --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=10 \
-            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
-            -e DATABASE_HOST=db \
-            -e DATABASE_PORT=5432 \
-            -e DATABASE_NAME=baserow \
-            -e DATABASE_USER=baserow \
-            -e DATABASE_PASSWORD=baserow \
-            -e SECRET_KEY=test-secret-key \
-            ${{ needs.build-backend.outputs.image }} ci-test
-          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
-          docker rm baserow_backend_test_container
-
-      - name: Upload test reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-test-reports-group-${{ matrix.group }}
-          path: reports/
-          retention-days: 7
-          include-hidden-files: true
-
-      - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: reports/report.xml
-          check_name: Backend Tests (Group ${{ matrix.group }})
-          comment_mode: off
 
   test-frontend:
     name: Web-Frontend Tests (Shard ${{ matrix.shard }})
@@ -673,7 +549,7 @@ jobs:
       - detect-changes
       - build-backend
       - build-frontend
-    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || needs.detect-changes.outputs.e2e == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -713,6 +589,17 @@ jobs:
           initialBuckets: testbucket
         ports:
           - 9090:9090
+      # Answers the requests a button field's HTTP action makes, so the suite
+      # never depends on reaching the internet. Pinned by digest, since httpbin
+      # publishes no tag but `latest`.
+      httpbin:
+        image: kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b
+      # Catches what a button field's email action sends, so a test can read
+      # it back over MailHog's HTTP API.
+      mailhog:
+        image: mailhog/mailhog:v1.0.1
+        ports:
+          - 8025:8025
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -770,6 +657,23 @@ jobs:
       - name: Start all services in parallel
         run: |
           # Start backend
+          # Answers the Slack API for the button field's Slack action, from
+          # e2e-tests/stubs/slack, since the job never reaches slack.com.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name slack-stub \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/slack:/home/wiremock:ro" \
+            wiremock/wiremock:3.13.1
+
+          # Holds a button's request open until a test releases it, from
+          # e2e-tests/stubs/barrier, so the concurrency tests do not depend on
+          # an endpoint being slow enough.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name barrier-stub \
+            -p 8102:8080 \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/barrier:/stub:ro" \
+            node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd \
+            node /stub/server.mjs
+
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -788,6 +692,12 @@ jobs:
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
+            -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS=3/m \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
             ${{ needs.build-backend.outputs.image }} gunicorn &
@@ -810,6 +720,11 @@ jobs:
             -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
             ${{ needs.build-backend.outputs.image }} celery-worker &
@@ -832,6 +747,8 @@ jobs:
         run: |
           cd e2e-tests
           yarn install
+          # System Chrome handles browsing, but retry videos need Playwright's ffmpeg.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 yarn playwright install ffmpeg
 
       - name: Verify Google Chrome
         run: google-chrome --version
@@ -866,6 +783,20 @@ jobs:
           PUBLIC_BACKEND_URL: http://localhost:8000
           PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
           PRIVATE_BACKEND_URL: http://backend:8000
+          # The CI web-frontend runs with the default (empty) cookie prefix, so
+          # tests that read/set cookies (e.g. the user_source_token) must use the
+          # same empty prefix rather than playwright.config's baserow_e2e_ default.
+          BASEROW_FRONTEND_COOKIE_PREFIX: ""
+          # The stub as the backend reaches it, on the job's own network, and
+          # the limit the backend above was started with.
+          E2E_HTTP_STUB_URL: http://httpbin:80
+          E2E_SLACK_STUB: "yes"
+          # MailHog as the tests reach it, from the runner.
+          E2E_MAIL_API_URL: http://localhost:8025
+          # The barrier as the backend reaches it, and as the tests reach it.
+          E2E_BARRIER_STUB_URL: http://barrier-stub:8080
+          E2E_BARRIER_CONTROL_URL: http://localhost:8102
+          E2E_BUTTON_RATE_LIMIT: "3"
           CI: 1
         run: |
           cd e2e-tests
@@ -943,6 +874,8 @@ jobs:
     name: Collect Backend Coverage
     runs-on: ubuntu-latest
     needs: [test-backend]
+    env:
+      COVERAGE_RCFILE: backend/.coveragerc
     permissions:
       contents: read
       pull-requests: write
@@ -1451,7 +1384,7 @@ jobs:
           fi
 
   trigger-saas-build:
-    name: Trigger SaaS GitLab Pipeline
+    name: Trigger baserow/baserow-saas pipeline
     runs-on: ubuntu-latest
     needs:
       - build-final-backend
@@ -1459,19 +1392,17 @@ jobs:
       - build-final-all-in-one
       - check-build-and-publish
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && needs.check-build-and-publish.outputs.should_trigger_saas == 'true' && github.ref_name == 'develop'
+    permissions:
+      contents: read
     env:
-      GITLAB_SAAS_PAT: ${{ secrets.GITLAB_SAAS_PAT }}
+      SAAS_REPO_TOKEN: ${{ secrets.SAAS_REPO_TOKEN }}
       GIT_USER_NAME: "Baserow CI"
       GIT_USER_EMAIL: "ci@baserow.io"
     steps:
-      - name: Checkout core repo
-        uses: actions/checkout@v4
-
-      - name: Clone SaaS repository from GitLab
+      - name: Clone SaaS repository
         run: |
           echo "🔄 Cloning baserow-saas..."
-          git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
-          cd saas
+          git clone -b develop "https://x-access-token:${SAAS_REPO_TOKEN}@github.com/baserow/baserow-saas.git" saas
 
       - name: Update baserow submodule to current commit
         working-directory: saas
@@ -1514,10 +1445,10 @@ jobs:
           UV_NO_SYNC=true just sync-deps
           yarn install --ignore-scripts --no-bin-links
 
-      - name: Commit and push changes to GitLab
+      - name: Commit and push changes
         working-directory: saas
         run: |
-          echo "📝 Committing and pushing changes to GitLab..."
+          echo "📝 Committing and pushing changes to baserow-saas..."
 
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"

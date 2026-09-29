@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
+from baserow_premium.charts import ChartSeriesChartType
 from baserow_premium.dashboard.widgets.models import (
-    ChartSeriesChartType,
     PieChartSeriesChartType,
 )
 

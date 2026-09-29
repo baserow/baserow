@@ -28,6 +28,7 @@ export default {
 
       return parseMarkdown(this.value, {
         openLinkOnClick: true,
+        enableImages: true,
         workspaceUsers: workspace ? workspace.users : null,
         loggedUserId,
       })

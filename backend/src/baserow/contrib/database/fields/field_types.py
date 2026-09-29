@@ -6,6 +6,7 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 from itertools import cycle
 from random import randint, randrange, sample
 from typing import (
@@ -27,6 +28,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import OperationalError, connection, models
@@ -50,7 +52,13 @@ from django.db.models import (
 )
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Cast, Coalesce, Left, RowNumber
+from django.db.models.functions import (
+    Cast,
+    Coalesce,
+    Left,
+    LPad,
+    RowNumber,
+)
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -59,6 +67,7 @@ from loguru import logger
 from rest_framework import serializers
 
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
     ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
     ERROR_INVALID_COUNT_THROUGH_FIELD,
@@ -69,6 +78,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INVALID_ROLLUP_THROUGH_FIELD,
     ERROR_LINK_ROW_TABLE_NOT_IN_SAME_DATABASE,
     ERROR_LINK_ROW_TABLE_NOT_PROVIDED,
+    ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
     ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD,
     ERROR_TOO_DEEPLY_NESTED_FORMULA,
     ERROR_WITH_FORMULA,
@@ -147,19 +157,39 @@ from baserow.contrib.database.views.models import (
     FormView,
     View,
 )
+from baserow.contrib.database.workflow_actions.handler import (
+    DatabaseWorkflowActionHandler,
+)
+from baserow.contrib.database.workflow_actions.models import (
+    DatabaseWorkflowAction,
+    OpenUrlWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
     specific_queryset,
+)
+from baserow.core.deferred_callbacks import (
+    deferred_callback_context,
+    register_deferred_callback,
 )
 from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
-from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.storage import (
+    ExportZipFile,
+    OverwritingStorageHandler,
+    get_default_storage,
+)
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
@@ -183,6 +213,7 @@ from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
     AllProvidedValuesMustBeIntegersOrStrings,
+    ButtonFieldLabelNotProvided,
     DateForceTimezoneOffsetValueError,
     FieldDoesNotExist,
     IncompatiblePrimaryFieldTypeError,
@@ -193,6 +224,8 @@ from .exceptions import (
     InvalidRollupThroughField,
     LinkRowTableNotInSameDatabase,
     LinkRowTableNotProvided,
+    RichTextImageDoesNotExist,
+    RichTextImageLimitExceeded,
     SelfReferencingLinkRowCannotHaveRelatedField,
 )
 from .expressions import extract_jsonb_array_values_to_single_string
@@ -205,14 +238,16 @@ from .field_filters import (
     parse_ids_from_csv_string,
     starts_with_filter,
 )
-from .field_helpers import prepare_files_for_export
+from .field_helpers import get_exported_zip_names, prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import (
+    AlwaysNullSerializerField,
     BaserowExpressionField,
     BaserowLastModifiedField,
     FormViewEditRowURLSerializerField,
     IntegerFieldWithSequence,
     MultipleSelectManyToManyField,
+    NoDatabaseColumnField,
     SingleSelectForeignKey,
     SyncedUserForeignKeyField,
 )
@@ -222,6 +257,7 @@ from .models import (
     AbstractSelectOption,
     AutonumberField,
     BooleanField,
+    ButtonField,
     CountField,
     CreatedByField,
     CreatedOnField,
@@ -257,6 +293,20 @@ from .registries import (
     ReadOnlyFieldType,
     StartingRowType,
     field_type_registry,
+)
+from .rich_text_utils import (
+    MARKDOWN_IMAGE_REGEX,
+    MAX_RICH_TEXT_IMAGES,
+    append_user_file_urls,
+    count_image_references,
+    escape_user_file_references,
+    extract_user_file_names,
+    is_renderable_user_file,
+    keep_first_image_references,
+    map_outside_code,
+    replace_user_file_images_with_alt,
+    resolve_user_file_urls,
+    strip_user_file_urls,
 )
 from .utils import DeferredForeignKeyUpdater
 from .utils.duration import (
@@ -505,11 +555,100 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    api_exceptions_map = {
+        RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
+    }
     _can_have_db_index = True
     can_upsert = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         return not field.long_text_enable_rich_text
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        """
+        Makes converted values saveable, since ``prepare_value_for_db`` never saw them.
+
+        :raises RichTextImageLimitExceeded: If a value references too many images.
+        """
+
+        was_rich_text = isinstance(from_field, LongTextField) and bool(
+            from_field.long_text_enable_rich_text
+        )
+        if was_rich_text or not to_field.long_text_enable_rich_text:
+            return
+
+        column = to_field.db_column
+        rows = (
+            self._rows_with_image_references(to_model, column)
+            .values_list("id", column)
+            .iterator(chunk_size=100)
+        )
+        user_file_exists: Dict[str, bool] = {}
+        for chunk in grouper(100, rows):
+            values = dict(chunk)
+            escaped = self._escape_missing_user_file_references(
+                values, user_file_exists
+            )
+            values.update(escaped)
+            if any(
+                count_image_references(value) > MAX_RICH_TEXT_IMAGES
+                for value in values.values()
+            ):
+                raise RichTextImageLimitExceeded(MAX_RICH_TEXT_IMAGES)
+            if escaped:
+                to_model.objects_and_trash.bulk_update(
+                    [
+                        to_model(id=row_id, **{column: value})
+                        for row_id, value in escaped.items()
+                    ],
+                    [column],
+                )
+
+    def should_backup_field_data_for_same_type_update(
+        self, old_field: LongTextField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        """
+        Backs up the values enabling rich text may escape, so undo restores them.
+
+        :param old_field: The field before the update.
+        :param new_field_attrs: The attributes being updated.
+        :return: Whether the update may escape references in some rows.
+        """
+
+        enables_rich_text = not old_field.long_text_enable_rich_text and bool(
+            new_field_attrs.get("long_text_enable_rich_text")
+        )
+        if not enables_rich_text:
+            return False
+
+        model = old_field.table.get_model(fields=[old_field], field_ids=[])
+        return self._rows_with_image_references(model, old_field.db_column).exists()
+
+    def _rows_with_image_references(
+        self, model: "GeneratedTableModel", column: str
+    ) -> QuerySet:
+        """
+        Returns the rows, trashed included, whose value may contain a reference.
+
+        :param model: The table model.
+        :param column: The long text column.
+        :return: A superset of those rows; the exact match must skip code in Python.
+        """
+
+        return model.objects_and_trash.filter(
+            Q(**{f"{column}__contains": "!["}) & Q(**{f"{column}__contains": "]["})
+        )
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:
         if isinstance(field_or_values, dict):
@@ -520,17 +659,52 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             )
         return enable_rich_text is False
 
-    def get_serializer_field(self, instance, **kwargs):
+    def _get_serializer_field_base_kwargs(self, **kwargs):
+        """
+        Kwargs shared by the request and response serializer fields, so the two
+        can't drift apart when a new default is added.
+
+        :param kwargs: Overrides passed by the caller; win over the defaults.
+        :return: The kwargs to construct a ``CharField`` with.
+        """
+
         required = kwargs.get("required", False)
-        return serializers.CharField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                "allow_blank": not required,
-                "max_length": settings.MAX_FIELD_TEXT_LENGTH,
-                **kwargs,
-            }
-        )
+        return {
+            "required": required,
+            "allow_null": not required,
+            "allow_blank": not required,
+            "max_length": settings.MAX_FIELD_TEXT_LENGTH,
+            **kwargs,
+        }
+
+    def get_serializer_field(self, instance, **kwargs):
+        # Input is not normalised here: `prepare_value_for_db` owns the storage
+        # format so every write path (API, import, data sync) stores one shape.
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
+        if not getattr(instance, "long_text_enable_rich_text", False):
+            return serializers.CharField(**base_kwargs)
+
+        class RichTextRequestField(serializers.CharField):
+            def to_internal_value(self, data):
+                # Resolved image URLs are appended on read and stripped again
+                # on write, so they must not count towards `max_length` or a
+                # value returned by GET could be rejected by an unchanged PATCH.
+                return strip_user_file_urls(super().to_internal_value(data))
+
+        return RichTextRequestField(**base_kwargs)
+
+    def get_response_serializer_field(self, instance, **kwargs):
+        if not instance.long_text_enable_rich_text:
+            return self.get_serializer_field(instance, **kwargs)
+
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
+
+        class RichTextResponseField(serializers.CharField):
+            def to_representation(self, value):
+                value = super().to_representation(value)
+                return append_user_file_urls(value)
+
+        return RichTextResponseField(**base_kwargs)
 
     def serialize_metadata_for_row_history(
         self,
@@ -572,6 +746,410 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> any:
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
+
+    def _fetch_rich_text_user_files(self, names: set[str]) -> Dict[str, UserFile]:
+        """
+        Fetches the user files referenced by the given names in a single query.
+        Filtering on the indexed ``unique`` part keeps the query cheap regardless
+        of how many names are referenced; the full name is verified in Python.
+        """
+
+        if not names:
+            return {}
+
+        uniques = {name.split("_", 1)[0] for name in names}
+        return {
+            user_file.name: user_file
+            for user_file in UserFile.objects.filter(unique__in=uniques)
+            if user_file.name in names
+        }
+
+    def _get_missing_user_file_names(
+        self, names: Set[str], user_file_exists: Dict[str, bool]
+    ) -> Set[str]:
+        """
+        Returns the names no user file has, querying only the names not seen before.
+
+        :param names: The user file names to check.
+        :param user_file_exists: Whether a name has a user file, filled in as it goes.
+        :return: The names without a user file.
+        """
+
+        unseen = names - user_file_exists.keys()
+        if unseen:
+            existing = self._fetch_rich_text_user_files(unseen)
+            user_file_exists.update((name, name in existing) for name in unseen)
+        return {name for name in names if not user_file_exists[name]}
+
+    def _escape_missing_user_file_references(
+        self, values: Dict[Any, str], user_file_exists: Dict[str, bool]
+    ) -> Dict[Any, str]:
+        """
+        Escapes the references no user file backs, which would fail every later save.
+
+        :param values: The rich text values, keyed by anything.
+        :param user_file_exists: Whether a name has a user file, filled in as it goes.
+        :return: The values that had to be escaped, keyed like ``values``.
+        """
+
+        names_by_key = {
+            key: extract_user_file_names(value) for key, value in values.items()
+        }
+        missing = self._get_missing_user_file_names(
+            set().union(*names_by_key.values()), user_file_exists
+        )
+        return {
+            key: escape_user_file_references(values[key], missing)
+            for key, names in names_by_key.items()
+            if names & missing
+        }
+
+    def _validate_rich_text_references(
+        self,
+        names: set[str],
+        user_files_by_name: Dict[str, UserFile],
+        reference_count: Optional[int] = None,
+    ):
+        """
+        Checks that every user file referenced by a rich text value may be embedded.
+
+        :param names: The user file names extracted from the value.
+        :param user_files_by_name: The matching ``UserFile`` rows, keyed by name.
+        :param reference_count: How many references the value contains, counting
+            repeats. ``names`` is a set, so it cannot bound what a client renders.
+            Defaults to the number of distinct names.
+        :raises ValidationError: If too many files are referenced or one is not
+            an image.
+        :raises RichTextImageDoesNotExist: If a referenced name has no user file.
+        """
+
+        if reference_count is None:
+            reference_count = len(names)
+
+        if reference_count > MAX_RICH_TEXT_IMAGES:
+            raise ValidationError(
+                f"A rich text value can reference at most {MAX_RICH_TEXT_IMAGES} "
+                "images.",
+                code="too_many_images",
+            )
+
+        missing = sorted(name for name in names if name not in user_files_by_name)
+        if missing:
+            raise RichTextImageDoesNotExist(missing)
+
+        not_renderable = sorted(
+            name
+            for name in names
+            if not is_renderable_user_file(user_files_by_name[name])
+        )
+        if not_renderable:
+            raise ValidationError(
+                f"The user files {not_renderable} are not images and cannot be "
+                "embedded.",
+                code="not_an_image",
+            )
+
+    def prepare_value_for_db(self, instance, value):
+        if not instance.long_text_enable_rich_text or not value:
+            return value
+
+        value = strip_user_file_urls(value)
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        self._validate_rich_text_references(
+            names,
+            self._fetch_rich_text_user_files(names),
+            count_image_references(value),
+        )
+        return value
+
+    def prepare_value_for_db_in_bulk(
+        self, instance, values_by_row, continue_on_error=False
+    ):
+        if not instance.long_text_enable_rich_text:
+            return values_by_row
+
+        names_by_row = {}
+        counts_by_row = {}
+        all_names = set()
+        for row_index, value in values_by_row.items():
+            if not value:
+                continue
+            value = strip_user_file_urls(value)
+            values_by_row[row_index] = value
+            names = extract_user_file_names(value)
+            if names:
+                names_by_row[row_index] = names
+                counts_by_row[row_index] = count_image_references(value)
+                all_names |= names
+
+        if not all_names:
+            return values_by_row
+
+        user_files_by_name = self._fetch_rich_text_user_files(all_names)
+        for row_index, names in names_by_row.items():
+            try:
+                self._validate_rich_text_references(
+                    names, user_files_by_name, counts_by_row[row_index]
+                )
+            except Exception as e:
+                if continue_on_error:
+                    values_by_row[row_index] = e
+                else:
+                    raise
+
+        return values_by_row
+
+    def get_export_serialized_value(
+        self,
+        row: "GeneratedTableModel",
+        field_name: str,
+        cache: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+    ):
+        content = self.get_internal_value_from_db(row, field_name)
+        if not content:
+            return content
+
+        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+        if not field.long_text_enable_rich_text:
+            return content
+
+        names = extract_user_file_names(content)
+        if not names or files_zip is None:
+            return content
+
+        user_file_handler = UserFileHandler()
+        existing_names = get_exported_zip_names(cache, files_zip)
+
+        if "_user_file_originals" not in cache:
+            cache["_user_file_originals"] = {}
+        originals_cache = cache["_user_file_originals"]
+
+        uncached = {n for n in names if n not in originals_cache}
+        if uncached:
+            for uf in self._fetch_rich_text_user_files(uncached).values():
+                originals_cache[uf.name] = uf.original_name
+
+        storage = storage or get_default_storage()
+        missing_files = cache.setdefault("_missing_user_files", set())
+
+        image_metadata = []
+        for name in sorted(names):
+            if name not in originals_cache or name in missing_files:
+                continue
+
+            cache_entry = f"user_file_{name}"
+            if cache_entry not in cache:
+                if name not in existing_names:
+                    file_path = user_file_handler.user_file_path(name)
+                    # `files_zip.add` only enqueues a lazy generator; the file is
+                    # read when the zip is streamed, so a missing one would fail the
+                    # export mid-stream. Check once per file and skip instead.
+                    if not storage.exists(file_path):
+                        missing_files.add(name)
+                        continue
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    files_zip.add(chunk_generator, name)
+                    existing_names.add(name)
+                cache[cache_entry] = True
+
+            image_metadata.append(
+                {"name": name, "original_name": originals_cache[name]}
+            )
+
+        return (
+            {"content": content, "images": image_metadata}
+            if image_metadata
+            else content
+        )
+
+    def set_import_serialized_value(
+        self,
+        row: "GeneratedTableModel",
+        field_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        cache: Dict[str, Any],
+        files_zip: Optional[ZipFile] = None,
+        storage=None,
+    ):
+        if isinstance(value, dict):
+            content = value.get("content", "")
+            image_metadata = value.get("images", [])
+        else:
+            content = value
+            image_metadata = []
+
+        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+        if content and field.long_text_enable_rich_text:
+            # The archive can carry resolved URLs from the instance that produced
+            # it. Those point at storage this instance does not own, so strip them
+            # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
+            content = strip_user_file_urls(content)
+            # Bound the references before touching the zip, so surplus images are
+            # never uploaded only to end up unreferenced.
+            content = self._sanitize_imported_rich_text(content)
+            if files_zip is not None:
+                originals = {
+                    img["name"]: img["original_name"]
+                    for img in image_metadata
+                    if "original_name" in img
+                }
+                content = self._rewrite_image_names(
+                    content, cache, files_zip, storage, originals
+                )
+
+        setattr(row, field_name, content)
+
+    def _sanitize_imported_rich_text(self, content: str) -> str:
+        """
+        Bounds the number of images an imported value may reference.
+
+        An archive can carry a cell with far more images than the API accepts,
+        which every viewer of the table then has to render. Raising would abort
+        the whole import over one cell, so the surplus is degraded to alt text.
+
+        Only a zip import checks the files exist, in ``_rewrite_image_names``.
+
+        :param content: The imported rich text value.
+        :return: The value with surplus image references replaced by alt text.
+        """
+
+        if count_image_references(content) > MAX_RICH_TEXT_IMAGES:
+            content = keep_first_image_references(content, MAX_RICH_TEXT_IMAGES)
+
+        return content
+
+    def _rewrite_image_names(
+        self,
+        value: str,
+        cache: Dict[str, Any],
+        files_zip: ZipFile,
+        storage: Optional[Storage],
+        originals: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """
+        Re-uploads the referenced zip files and escapes references no user file backs.
+
+        :param value: The imported rich text value.
+        :param cache: The import cache, shared by every imported value.
+        :param files_zip: The zip file of the import.
+        :param storage: The storage to upload the images to.
+        :param originals: The original file names, keyed by the exported names.
+        :return: The value with its references rewritten or escaped.
+        """
+
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        if originals is None:
+            originals = {}
+
+        user_file_handler = UserFileHandler()
+        name_mapping = {}
+        for name in names:
+            cache_entry = f"rich_text_file_{name}"
+            if cache_entry in cache:
+                name_mapping[name] = cache[cache_entry]
+                continue
+            try:
+                stream = files_zip.open(name)
+            except KeyError:
+                continue
+            with stream:
+                original_name = originals.get(name)
+                if not original_name:
+                    deconstructed = UserFile.deconstruct_name(name)
+                    original_name = f"{deconstructed['unique']}.{deconstructed['original_extension']}"
+                # `upload_user_file` consumes and closes the stream, and the zip
+                # stream is not seekable. Buffer so the backfill below still has it.
+                content = stream.read()
+                user_file = user_file_handler.upload_user_file(
+                    None, original_name, BytesIO(content), storage=storage
+                )
+
+            # `upload_user_file` deduplicates on `(original_name, sha256_hash)` and
+            # returns the existing row without writing to `storage`, so the bytes can
+            # be missing when importing into a different backend. Backfill them.
+            file_path = user_file_handler.user_file_path(user_file.name)
+            destination_storage = storage or get_default_storage()
+            if not destination_storage.exists(file_path):
+                OverwritingStorageHandler(destination_storage).save(
+                    file_path, BytesIO(content)
+                )
+
+            name_mapping[name] = user_file.name
+            cache[cache_entry] = user_file.name
+
+        missing = self._get_missing_user_file_names(
+            names - name_mapping.keys(),
+            cache.setdefault("_rich_text_user_file_exists", {}),
+        )
+        if missing:
+            value = escape_user_file_references(value, missing)
+
+        if not name_mapping:
+            return value
+
+        def _replace_import_name(match):
+            old_name = match.group("name")
+            new_name = name_mapping.get(old_name)
+            if new_name:
+                without_ref = match.group(0).removesuffix(f"[{old_name}]")
+                return f"{without_ref}[{new_name}]"
+            return match.group(0)
+
+        return map_outside_code(
+            value,
+            lambda segment: MARKDOWN_IMAGE_REGEX.sub(_replace_import_name, segment),
+        )
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        if not value:
+            return value
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        # A stored value can already carry a resolved URL -- nothing strips on the
+        # import path -- and appending to that would export `![alt](fresh)(stale)`.
+        # Strip first so this stays idempotent, like `append_user_file_urls`.
+        value = strip_user_file_urls(value)
+
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        url_map = resolve_user_file_urls(names)
+
+        def _replace_for_export(match):
+            name = match.group("name")
+            url = url_map.get(name)
+            if not url:
+                return match.group(0)
+            without_ref = match.group(0).removesuffix(f"[{name}]")
+            return f"{without_ref}({url})"
+
+        return map_outside_code(
+            value,
+            lambda segment: MARKDOWN_IMAGE_REGEX.sub(_replace_for_export, segment),
+        )
+
+    def get_human_readable_value(self, value, field_object):
+        if not value:
+            return value or ""
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        return replace_user_file_images_with_alt(value)
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
@@ -3038,6 +3616,22 @@ class LinkRowFieldType(
             },
         )
 
+    def get_query_value_serializer(self, field: LinkRowField):
+        response_serializer = self.get_response_serializer_field(field)
+        related_model = field.link_row_table.get_model()
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            rows_by_id = {
+                row.id: row for row in related_model.objects.filter(id__in=value)
+            }
+            rows = [rows_by_id[row_id] for row_id in value if row_id in rows_by_id]
+            return response_serializer.to_representation(rows)
+
+        return serialize
+
     def get_serializer_help_text(self, instance):
         return (
             "This field accepts an `array` containing the ids or the names of the "
@@ -3504,8 +4098,12 @@ class LinkRowFieldType(
             cache[queryset_name] = get_random_objects_iterator()
         return []
 
-    def export_serialized(self, field):
-        serialized = super().export_serialized(field, False)
+    def export_serialized(
+        self, field, include_allowed_fields=True, import_export_config=None
+    ):
+        serialized = super().export_serialized(
+            field, False, import_export_config=import_export_config
+        )
         serialized["link_row_table_id"] = field.link_row_table_id
         serialized["link_row_related_field_id"] = field.link_row_related_field_id
         serialized["link_row_limit_selection_view_id"] = (
@@ -3670,6 +4268,29 @@ class LinkRowFieldType(
             ]
         else:
             return []
+
+    def get_import_dependency_when_referenced(
+        self,
+        serialized_field: Dict[str, Any],
+        reference_name: str,
+        serialized_fields_map: Dict[int, Dict[str, Any]],
+        primary_table_fields_map: Dict[int, int],
+    ) -> Optional[Tuple[Union[int, str], Union[int, str]]]:
+        # A link row field renders the linked table's primary field, so referencing it
+        # by name really depends on that primary field, reached via this link row
+        # field. This is the import-time counterpart of `get_field_dependencies`.
+        related_table_id = serialized_field.get("link_row_table_id", None)
+
+        # A missing table means we're referencing a table that already exists before
+        # the import (i.e. duplicating a table/field), so there is nothing to order.
+        if related_table_id is None or related_table_id not in primary_table_fields_map:
+            return None
+
+        primary_field_id = primary_table_fields_map[related_table_id]
+        if primary_field_id not in serialized_fields_map:
+            return None
+
+        return (serialized_fields_map[primary_field_id]["name"], reference_name)
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
@@ -4839,6 +5460,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_query_value_serializer(self, field: SingleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            return response_serializer.to_representation(select_options.get(value))
+
+        return serialize
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
@@ -5042,6 +5675,23 @@ class MultipleSelectFieldType(
                 **kwargs,
             }
         )
+
+    def get_query_value_serializer(self, field: MultipleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            options = [
+                select_options[option_id]
+                for option_id in value
+                if option_id in select_options
+            ]
+            return response_serializer.to_representation(options)
+
+        return serialize
 
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
@@ -5361,30 +6011,119 @@ class MultipleSelectFieldType(
             for value in raw_values
         ]
 
+    def _get_through_sort_expression(self, field, field_name, sort_type):
+        """
+        Returns the expression to aggregate inside a through-table subquery,
+        referencing the related model's column via ``related_field__<attr>``.
+        """
+
+        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
+            return "order"
+        return "value"
+
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
         """
-        Order by the concatenated values of the select options, separated by a comma.
+        Order by the concatenated values of the select options, separated by a
+        comma.  Uses a correlated subquery against the through table when
+        ``table_model`` is available, preserving insertion order and preventing
+        M2M join multiplication.
         """
 
-        # FIXME: this is broken because the field sort items by insertion order with the
-        # id in the through table. It's fixable here using a subquery on the m2m table
-        # instead of a `StringAgg`, but it will be very difficult to fix in the formula
-        # language. Also the frontend is not matching exactly the backend sorting and we
-        # should also consider the possibility that a comma can be part of the value.
         sort_column_name = f"{field_name}_agg_sort"
-        query = Coalesce(
-            StringAgg(
-                self.get_sortable_column_expression(field, field_name, sort_type),
-                ",",
+
+        if table_model is not None:
+            through_model = table_model._meta.get_field(field_name).remote_field.through
+            reversed_field = through_model._meta.get_fields()[1].name
+            related_field = through_model._meta.get_fields()[2].name
+            sort_attr = self._get_through_sort_expression(field, field_name, sort_type)
+
+            query = Coalesce(
+                Subquery(
+                    through_model.objects.filter(
+                        **{f"{reversed_field}_id": OuterRef("id")}
+                    )
+                    .values(f"{reversed_field}_id")
+                    .annotate(
+                        _agg=StringAgg(
+                            F(f"{related_field}__{sort_attr}"),
+                            ",",
+                            ordering=F("id"),
+                            output_field=models.TextField(),
+                        )
+                    )
+                    .values("_agg")[:1]
+                ),
+                Value(""),
                 output_field=models.TextField(),
-            ),
-            Value(""),
-            output_field=models.TextField(),
-        )
+            )
+        else:
+            query = Coalesce(
+                StringAgg(
+                    self.get_sortable_column_expression(field, field_name, sort_type),
+                    ",",
+                    output_field=models.TextField(),
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+
         annotation = {sort_column_name: query}
         order = collate_expression(F(sort_column_name))
+
+        if order_direction == "DESC":
+            order = order.desc(nulls_first=True)
+        else:
+            order = order.asc(nulls_first=True)
+
+        return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_sort_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        """
+        Group-by treats a cell as a set of options: ``{A, B}`` and ``{B, A}``
+        are the same group.  Uses ``ArrayAgg(ARRAY[order, id])`` to produce a
+        collision-proof, deterministic sort key based on the field-defined
+        option order.  Wrapped in a correlated subquery when ``table_model`` is
+        available to prevent M2M join multiplication.
+        """
+
+        sort_column_name = f"{field_name}_group_by_agg_sort"
+
+        pair_field = ArrayField(models.IntegerField(), size=2)
+        sort_key_field = ArrayField(pair_field)
+
+        option_key = Func(
+            F(f"{field_name}__order"),
+            F(f"{field_name}__id"),
+            template="ARRAY[%(expressions)s]",
+            output_field=pair_field,
+        )
+
+        agg = Coalesce(
+            ArrayAgg(
+                option_key,
+                filter=Q(**{f"{field_name}__id__isnull": False}),
+                order_by=(f"{field_name}__order", f"{field_name}__id"),
+            ),
+            Value([], output_field=sort_key_field),
+            output_field=sort_key_field,
+        )
+
+        if table_model is not None:
+            query = Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_agg=agg)
+                .values("_group_agg")[:1]
+            )
+        else:
+            query = agg
+
+        annotation = {sort_column_name: query}
+        order = F(sort_column_name)
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -6956,6 +7695,23 @@ class MultipleCollaboratorsFieldType(
             }
         )
 
+    def get_query_value_serializer(self, field: MultipleCollaboratorsField):
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            users_by_id = {
+                user.id: user for user in get_user_model().objects.filter(id__in=value)
+            }
+            users = [
+                users_by_id[user_id] for user_id in value if user_id in users_by_id
+            ]
+            return response_serializer.to_representation(users)
+
+        return serialize
+
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
@@ -7275,25 +8031,109 @@ class MultipleCollaboratorsFieldType(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
         """
-        If the user wants to sort the results they expect them to be ordered
-        alphabetically based on the user's name and not in the id which is
-        stored in the table. This method generates a Case expression which maps
-        the id to the correct position.
+        Sort collaborators alphabetically by name.  Uses a correlated subquery
+        against the through table when ``table_model`` is available, preserving
+        insertion order and preventing M2M join multiplication.
         """
 
         sort_column_name = f"{field_name}_agg_sort"
-        query = Coalesce(
-            StringAgg(
-                self.get_sortable_column_expression(field, field_name, sort_type),
-                "",
-                output_field=models.TextField(),
-            ),
-            Value(""),
-            output_field=models.TextField(),
-        )
-        annotation = {sort_column_name: query}
 
+        if table_model is not None:
+            through_model = table_model._meta.get_field(field_name).remote_field.through
+            reversed_field = through_model._meta.get_fields()[1].name
+            related_field = through_model._meta.get_fields()[2].name
+
+            query = Coalesce(
+                Subquery(
+                    through_model.objects.filter(
+                        **{f"{reversed_field}_id": OuterRef("id")}
+                    )
+                    .values(f"{reversed_field}_id")
+                    .annotate(
+                        _agg=StringAgg(
+                            F(f"{related_field}__first_name"),
+                            "",
+                            ordering=F("id"),
+                            output_field=models.TextField(),
+                        )
+                    )
+                    .values("_agg")[:1]
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+        else:
+            query = Coalesce(
+                StringAgg(
+                    self.get_sortable_column_expression(field, field_name, sort_type),
+                    "",
+                    output_field=models.TextField(),
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+
+        annotation = {sort_column_name: query}
         order = collate_expression(F(sort_column_name))
+
+        if order_direction == "DESC":
+            order = order.desc(nulls_first=True)
+        else:
+            order = order.asc(nulls_first=True)
+
+        return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_sort_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        """
+        Group-by treats a cell as a set of collaborators: ``{A, B}`` and
+        ``{B, A}`` are the same group.  Uses ``ArrayAgg(ARRAY[first_name, id])``
+        ordered by ``(first_name, id)`` to produce a collision-proof sort key
+        with alphabetical group ordering.  Wrapped in a correlated subquery when
+        ``table_model`` is available to prevent M2M join multiplication.
+        """
+
+        sort_column_name = f"{field_name}_group_by_agg_sort"
+
+        pair_field = ArrayField(models.TextField(), size=2)
+        sort_key_field = ArrayField(pair_field)
+
+        collated_name = collate_expression(F(f"{field_name}__first_name"))
+
+        option_key = Func(
+            collated_name,
+            LPad(
+                Cast(F(f"{field_name}__id"), output_field=models.TextField()),
+                12,
+                Value("0"),
+            ),
+            template="ARRAY[%(expressions)s]",
+            output_field=pair_field,
+        )
+
+        agg = Coalesce(
+            ArrayAgg(
+                option_key,
+                filter=Q(**{f"{field_name}__id__isnull": False}),
+                order_by=(collated_name.asc(), F(f"{field_name}__id").asc()),
+            ),
+            Value([], output_field=sort_key_field),
+            output_field=sort_key_field,
+        )
+
+        if table_model is not None:
+            query = Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_agg=agg)
+                .values("_group_agg")[:1]
+            )
+        else:
+            query = agg
+
+        annotation = {sort_column_name: query}
+        order = F(sort_column_name)
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -7690,6 +8530,7 @@ class PasswordFieldType(FieldType):
 
     type = "password"
     model_class = PasswordField
+    write_only = True
     can_be_in_form_view = True
     keep_data_on_duplication = True
     _can_order_by_types = []
@@ -7882,3 +8723,388 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         self, row, field_name, value, id_mapping, cache, files_zip, storage
     ):
         pass
+
+
+class UnchangedIdMapping(dict[int, int]):
+    """
+    An import id mapping that maps every id to itself, for a copy that keeps
+    referencing the same objects as its original.
+
+    An empty mapping can't say that: importers read a missing id as "the object
+    is gone" and null the reference. Both `mapping[id]` and `mapping.get(id)`
+    are covered, since importers use either.
+    """
+
+    def __missing__(self, key: int) -> int:
+        return key
+
+    def get(self, key: int, default: Any = None) -> int:
+        return key
+
+
+class ButtonFieldType(ReadOnlyFieldType):
+    """
+    Read-only field whose cells render a button running the field's ordered
+    list of workflow actions. Stores configuration only; there is no cell data
+    and no database column.
+    """
+
+    type = "button"
+    model_class = ButtonField
+    allowed_fields = ["label"]
+    serializer_field_names = [
+        "label",
+        "has_workflow_actions",
+        "requires_reconfiguration",
+        "opens_new_tab",
+    ]
+    serializer_field_overrides = {
+        "label": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            max_length=255,
+            help_text="The text shown on the button. Must be provided when the "
+            "field is created, and can't be set to an empty value afterwards.",
+        ),
+        "has_workflow_actions": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether the field has any configured actions. The client "
+            "uses this to decide whether a cell renders a button that dispatches "
+            "actions or an inert one.",
+        ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether a click is sure to fail, because an action "
+            "points at a table, field or integration that is in the trash or "
+            "gone, updates a row without saying which, or sends an email to "
+            "nobody. The client renders a disabled button with a warning "
+            "instead.",
+        ),
+        "opens_new_tab": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether an action opens a URL in a new tab. The client "
+            "then opens the tab as the button is clicked, because a browser "
+            "may block one opened after the click's request returns.",
+        ),
+    }
+    api_exceptions_map = {
+        ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
+    }
+    can_be_in_form_view = False
+    # The label is only meaningful to someone configuring the field, and it'd
+    # be handed to anonymous visitors as-is.
+    can_be_in_public_view = False
+    _can_order_by_types = []
+    _can_be_primary_field = False
+    can_get_unique_values = False
+    keep_data_on_duplication = False
+    # The cell column is always null, so a type change has no data to back up.
+    # The configuration it must keep rides along in `export_prepared_values`.
+    field_data_is_derived_from_attrs = True
+    # They describe the button's actions rather than the table's data, and each
+    # costs a query, so a service's table schema leaves them out.
+    action_state_field_names = [
+        "has_workflow_actions",
+        "requires_reconfiguration",
+        "opens_new_tab",
+    ]
+
+    def get_field_names(self, request_serializer, extra_params, **kwargs):
+        names = super().get_field_names(request_serializer, extra_params, **kwargs)
+        if (extra_params or {}).get("data_schema"):
+            names = [n for n in names if n not in self.action_state_field_names]
+        return names
+
+    def get_field_overrides(self, request_serializer, extra_params, **kwargs):
+        overrides = super().get_field_overrides(
+            request_serializer, extra_params, **kwargs
+        )
+        if (extra_params or {}).get("data_schema"):
+            overrides = {
+                name: override
+                for name, override in overrides.items()
+                if name not in self.action_state_field_names
+            }
+        return overrides
+
+    def before_create(
+        self, table, primary, allowed_field_values, order, user, field_kwargs
+    ):
+        self._validate_label(allowed_field_values, required=True)
+
+    def before_update(self, from_field, to_field_values, user, field_kwargs):
+        # Converting another field type into a button counts as creating one.
+        converting_into_button = not isinstance(from_field, ButtonField)
+        self._validate_label(to_field_values, required=converting_into_button)
+
+    def _validate_label(self, field_values, required: bool):
+        """
+        The label is the only text a button shows, so it must be set on creation
+        and can never be emptied. An update that doesn't mention the label keeps
+        the one it already has.
+        """
+
+        if "label" not in field_values:
+            if required:
+                raise ButtonFieldLabelNotProvided(
+                    "The label argument must be provided when creating a button field."
+                )
+            return
+
+        if not (field_values["label"] or "").strip():
+            raise ButtonFieldLabelNotProvided(
+                "The label of a button field can't be empty."
+            )
+
+    def enhance_field_queryset_for_serialization(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        # The flags are serialized for every button field, so without this a
+        # table's field list costs queries per button. Not in
+        # `enhance_field_queryset`: they depend on other tables, so the cached
+        # table model would serve them stale.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            requires_reconfiguration,
+        )
+
+        queryset = super().enhance_field_queryset_for_serialization(queryset, field)
+        return queryset.annotate(
+            **{
+                ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
+                    DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
+                ),
+                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: (
+                    requires_reconfiguration(OuterRef("pk"))
+                ),
+                ButtonField.OPENS_NEW_TAB_ANNOTATION: Exists(
+                    OpenUrlWorkflowAction.objects.filter(
+                        field_id=OuterRef("pk"), target="blank"
+                    )
+                ),
+            }
+        )
+
+    def get_serializer_field(self, instance, **kwargs):
+        # The cell holds nothing, so don't advertise the type of a placeholder
+        # column in the API docs and generated schemas.
+        return AlwaysNullSerializerField(**kwargs)
+
+    def get_model_field(self, instance, **kwargs):
+        # No database column: the model field is contributed by
+        # `after_model_generation` instead.
+        return None
+
+    def after_model_generation(self, instance, model, field_name):
+        NoDatabaseColumnField().contribute_to_class(model, field_name)
+
+    def is_searchable(self, field) -> bool:
+        return False
+
+    def random_value(self, instance, fake, cache):
+        return None
+
+    def get_export_value(
+        self, value: Any, field_object: "FieldObject", rich_value: bool = False
+    ) -> Any:
+        # A button holds no cell data, so exports stay empty.
+        return None if rich_value else ""
+
+    def export_serialized(
+        self,
+        field: ButtonField,
+        include_allowed_fields: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
+    ) -> Dict[str, Any]:
+        serialized = super().export_serialized(
+            field, include_allowed_fields, import_export_config=import_export_config
+        )
+        # Passed on: an action's service can hold an API key, and only the
+        # config says whether this export is allowed to carry it.
+        serialized["workflow_actions"] = [
+            action.get_type().export_serialized(action, import_export_config)
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+        ]
+        return serialized
+
+    def import_serialized(
+        self,
+        table: "Table",
+        serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
+        id_mapping: Dict[str, Any],
+        deferred_fk_update_collector: DeferredForeignKeyUpdater,
+    ) -> ButtonField:
+        # The actions are stashed on the returned instance and imported in
+        # `after_import_serialized`, once every table and field exists. The
+        # input dict is copied so the caller can reuse it for another import.
+        serialized_values = {**serialized_values}
+        serialized_actions = serialized_values.pop("workflow_actions", [])
+        field = super().import_serialized(
+            table,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
+        )
+        field._serialized_workflow_actions = serialized_actions
+        # Stashed with them: the service types need it to tell a duplicate from
+        # an import when a target table is outside the id mapping.
+        field._workflow_action_import_config = import_export_config
+        return field
+
+    def after_import_serialized(
+        self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
+    ) -> None:
+        serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
+        import_export_config = getattr(field, "_workflow_action_import_config", None)
+
+        def import_workflow_actions():
+            # Deferred: an action can target another database, and this hook
+            # runs at the end of one database's import, so such a reference
+            # would be read as trashed and nulled.
+            for serialized_action in serialized_actions:
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action_type.import_serialized(
+                    field,
+                    serialized_action,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                    # A duplicated table or application is copied by a person,
+                    # and this path never passes through the endpoint that
+                    # checks what they may read. An import from a file has
+                    # nobody, and leaves this None.
+                    copied_by=getattr(import_export_config, "copied_by", None),
+                )
+
+        if serialized_actions:
+            register_deferred_callback(import_workflow_actions)
+
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
+
+    def after_field_duplicated(
+        self,
+        original_field: ButtonField,
+        new_field: ButtonField,
+        serialized_field: Dict[str, Any],
+        user: Optional[AbstractUser] = None,
+    ) -> None:
+        # Field duplication skips the serialization import path, so without
+        # this the actions would be dropped (ADR 006 section 8).
+        self._recreate_workflow_actions(
+            new_field, serialized_field.get("workflow_actions") or [], user=user
+        )
+
+    def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
+        values = super().export_prepared_values(field)
+        # A type change deletes the row the actions cascade off, so only this
+        # backup can bring them back. Trashed actions are kept too: undoing a
+        # save trashes the actions it created before it undoes the type change,
+        # and redo restores them from the trash. The backup is logged on the
+        # undo action and copied into the audit log, so whatever a service
+        # calls sensitive is left blank, as a workspace export leaves it. An
+        # email action's service calls its whole message sensitive, so it comes
+        # back empty.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=True,
+        )
+        values["workflow_actions"] = [
+            {
+                **action.get_type().export_serialized(action, import_export_config),
+                "trashed": action.trashed,
+            }
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(
+                field, base_queryset=DatabaseWorkflowAction.objects_and_trash
+            )
+        ]
+        return values
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        # A button that stayed one kept its actions; importing would double them.
+        if isinstance(from_field, ButtonField):
+            return
+
+        # `user` is checked against the restored actions (ADR 006 section 5),
+        # so a credential or workflow they may not read is dropped.
+        self._recreate_workflow_actions(
+            to_field,
+            to_field_kwargs.get("workflow_actions") or [],
+            user=user,
+            restore=True,
+        )
+
+    def _recreate_workflow_actions(
+        self,
+        field: ButtonField,
+        serialized_actions: List[Dict[str, Any]],
+        user: Optional[AbstractUser] = None,
+        restore: bool = False,
+    ) -> None:
+        """
+        Recreates the serialized actions on the field, in order.
+
+        :param restore: Whether these are the field's own actions coming back
+            after a type change, rather than copies. Each keeps its id, so the
+            undo steps naming it still work, and a trashed one is trashed again.
+            Its entry went with it, and redoing the step that trashed it
+            restores it from a new one.
+        """
+
+        if not serialized_actions:
+            return
+
+        # The actions land beside the ones they came from, so every table and
+        # field they reference still exists under its own id.
+        id_mapping = {
+            "database_tables": UnchangedIdMapping(),
+            "database_fields": UnchangedIdMapping(),
+        }
+
+        # Marked as a duplicate so the action types keep references outside
+        # the copied scope: the data never leaves the workspace.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+            exclude_sensitive_data=False,
+            copied_by=user,
+        )
+
+        # Opened only because the action import registers a deferred callback,
+        # which raises when no context is active.
+        with deferred_callback_context():
+            for serialized_action in serialized_actions:
+                trashed = restore and serialized_action.get("trashed", False)
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action = action_type.import_serialized(
+                    field,
+                    serialized_action,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                    copied_by=user,
+                    restored_workflow_action_id=(
+                        serialized_action.get("id") if restore else None
+                    ),
+                )
+                if trashed:
+                    database = field.table.database
+                    TrashHandler.trash(user, database.workspace, database, action)

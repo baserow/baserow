@@ -29,6 +29,7 @@ import {
   DateWithinWeeksViewFilterType,
   EmptyViewFilterType,
   EqualViewFilterType,
+  FilenameContainsViewFilterType,
   FilesLowerThanViewFilterType,
   HasFileTypeViewFilterType,
   HigherThanOrEqualViewFilterType,
@@ -36,14 +37,21 @@ import {
   IsEvenAndWholeViewFilterType,
   LengthIsLowerThanViewFilterType,
   LinkRowContainsFilterType,
+  LinkRowHasFilterType,
+  LinkRowHasNotFilterType,
   LinkRowNotContainsFilterType,
   LowerThanOrEqualViewFilterType,
   LowerThanViewFilterType,
+  MultipleCollaboratorsHasFilterType,
+  MultipleCollaboratorsHasNotFilterType,
   MultipleSelectHasFilterType,
   MultipleSelectHasNotFilterType,
   NotEmptyViewFilterType,
+  NotEqualViewFilterType,
+  SingleSelectEqualViewFilterType,
   SingleSelectIsAnyOfViewFilterType,
   SingleSelectIsNoneOfViewFilterType,
+  SingleSelectNotEqualViewFilterType,
 } from '@baserow/modules/database/viewFilters'
 import {
   DurationFieldType,
@@ -2953,6 +2961,313 @@ describe('Empty filter value tests', () => {
         {}
       )
       expect(result).toBe(values.expected)
+    }
+  )
+})
+
+describe('Null and undefined rowValue guards', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  // Text-like filters: canonical empty is ''
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty string', ''],
+  ])(
+    'EqualViewFilterType with %s rowValue matches empty-string behavior',
+    (_label, rowValue) => {
+      const filter = new EqualViewFilterType({ app: testApp._app })
+      const field = { type: 'text' }
+      const fieldType = { type: 'text' }
+      expect(filter.matches(rowValue, '', field, fieldType)).toBe(null)
+      expect(filter.matches(rowValue, 'test', field, fieldType)).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty string', ''],
+  ])(
+    'NotEqualViewFilterType with %s rowValue matches empty-string behavior',
+    (_label, rowValue) => {
+      const filter = new NotEqualViewFilterType({ app: testApp._app })
+      const field = { type: 'text' }
+      const fieldType = { type: 'text' }
+      expect(filter.matches(rowValue, '', field, fieldType)).toBe(null)
+      expect(filter.matches(rowValue, 'test', field, fieldType)).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['false', false],
+  ])(
+    'BooleanViewFilterType with %s rowValue matches false behavior',
+    (_label, rowValue) => {
+      const filter = new BooleanViewFilterType({ app: testApp._app })
+      const field = { type: 'boolean' }
+      expect(filter.matches(rowValue, 'true', field, {})).toBe(false)
+      expect(filter.matches(rowValue, 'false', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty string', ''],
+  ])(
+    'LengthIsLowerThanViewFilterType with %s rowValue matches empty-string behavior',
+    (_label, rowValue) => {
+      const filter = new LengthIsLowerThanViewFilterType({ app: testApp._app })
+      const field = { type: 'text' }
+      expect(filter.matches(rowValue, 5, field, {})).toBe(true)
+      expect(filter.matches(rowValue, 0, field, {})).toBe(true)
+    }
+  )
+
+  // File-array filters: canonical empty is []
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'HasFileTypeViewFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new HasFileTypeViewFilterType({ app: testApp._app })
+      const field = { type: 'file' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, 'image', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'FilesLowerThanViewFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new FilesLowerThanViewFilterType({ app: testApp._app })
+      const field = { type: 'file' }
+      expect(filter.matches(rowValue, '5', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '0', field, {})).toBe(false)
+      expect(filter.matches(rowValue, '', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'FilenameContainsViewFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new FilenameContainsViewFilterType({ app: testApp._app })
+      const field = { type: 'file' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, 'test', field, {})).toBe(false)
+    }
+  )
+
+  // Single select filters: canonical empty is null
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'SingleSelectEqualViewFilterType with %s rowValue matches null behavior',
+    (_label, rowValue) => {
+      const filter = new SingleSelectEqualViewFilterType({ app: testApp._app })
+      const field = { type: 'single_select' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(null)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'SingleSelectNotEqualViewFilterType with %s rowValue matches null behavior',
+    (_label, rowValue) => {
+      const filter = new SingleSelectNotEqualViewFilterType({
+        app: testApp._app,
+      })
+      const field = { type: 'single_select' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(null)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(true)
+    }
+  )
+
+  // Multi-select / array filters: canonical empty is []
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'MultipleSelectHasFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new MultipleSelectHasFilterType({ app: testApp._app })
+      const field = { type: 'multiple_select' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      const result = filter.matches(rowValue, '1', field, {})
+      expect(result).toBeFalsy()
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'MultipleSelectHasNotFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new MultipleSelectHasNotFilterType({ app: testApp._app })
+      const field = { type: 'multiple_select' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'MultipleCollaboratorsHasFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new MultipleCollaboratorsHasFilterType({
+        app: testApp._app,
+      })
+      const field = { type: 'multiple_collaborators' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'MultipleCollaboratorsHasNotFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new MultipleCollaboratorsHasNotFilterType({
+        app: testApp._app,
+      })
+      const field = { type: 'multiple_collaborators' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'LinkRowHasFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new LinkRowHasFilterType({ app: testApp._app })
+      const field = { type: 'link_row' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'LinkRowHasNotFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new LinkRowHasNotFilterType({ app: testApp._app })
+      const field = { type: 'link_row' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, '1', field, {})).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'LinkRowContainsFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new LinkRowContainsFilterType({ app: testApp._app })
+      const field = { type: 'link_row' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, 'test', field, {})).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty array', []],
+  ])(
+    'LinkRowNotContainsFilterType with %s rowValue matches empty-array behavior',
+    (_label, rowValue) => {
+      const filter = new LinkRowNotContainsFilterType({ app: testApp._app })
+      const field = { type: 'link_row' }
+      expect(filter.matches(rowValue, '', field, {})).toBe(true)
+      expect(filter.matches(rowValue, 'test', field, {})).toBe(true)
+    }
+  )
+
+  // Date filters: canonical empty is null
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'DateEqualViewFilterType with %s rowValue matches null behavior',
+    (_label, rowValue) => {
+      const filter = new DateEqualViewFilterType({ app: testApp })
+      const field = { date_include_time: true }
+      expect(
+        filter.matches(rowValue, 'Europe/Berlin?2021-08-11', field, {})
+      ).toBe(false)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'DateNotEqualViewFilterType with %s rowValue matches null behavior',
+    (_label, rowValue) => {
+      const filter = new DateNotEqualViewFilterType({ app: testApp })
+      const field = { date_include_time: true }
+      expect(
+        filter.matches(rowValue, 'Europe/Berlin?2021-08-11', field, {})
+      ).toBe(true)
+    }
+  )
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])(
+    'DateIsEqualMultiStepViewFilterType with %s rowValue matches null behavior',
+    (_label, rowValue) => {
+      const filter = new DateIsEqualMultiStepViewFilterType({
+        app: testApp._app,
+      })
+      const field = { date_include_time: false }
+      expect(filter.matches(rowValue, 'UTC?2021-08-11?is', field, {})).toBe(
+        false
+      )
     }
   )
 })

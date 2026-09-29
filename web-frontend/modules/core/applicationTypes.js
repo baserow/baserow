@@ -123,6 +123,7 @@ export class ApplicationType extends Registerable {
     super(...args)
     this.type = this.getType()
     this.iconClass = this.getIconClass()
+    this.iconColor = this.getIconColor()
 
     if (this.type === null) {
       throw new Error('The type name of an application type must be set.')
@@ -142,6 +143,7 @@ export class ApplicationType extends Registerable {
     return {
       type: this.type,
       iconClass: this.iconClass,
+      iconColor: this.iconColor,
       name: this.getName(),
       routeName: this.routeName,
       hasSidebarComponent: this.getSidebarComponent() !== null,
@@ -189,6 +191,13 @@ export class ApplicationType extends Registerable {
    */
   isVisible(application) {
     return true
+  }
+
+  /**
+   * The colour the icon is shown in, one of the colours `ItemIcon` accepts.
+   */
+  getIconColor() {
+    return null
   }
 
   /**

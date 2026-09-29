@@ -34,6 +34,10 @@ class ReadUserSourceOperationType(UserSourceOperationType):
     type = "application.user_source.read"
 
 
+class RestoreUserSourceOperationType(UserSourceOperationType):
+    type = "application.user_source.restore"
+
+
 class AuthenticateUserSourceOperationType(UserSourceOperationType):
     type = "application.user_source.authenticate"
 

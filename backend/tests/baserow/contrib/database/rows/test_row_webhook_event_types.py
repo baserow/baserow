@@ -8,7 +8,10 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.rows.webhook_event_types import RowsUpdatedEventType
+from baserow.contrib.database.rows.webhook_event_types import (
+    RowsDeletedEventType,
+    RowsUpdatedEventType,
+)
 from baserow.contrib.database.webhooks.handler import WebhookHandler
 from baserow.contrib.database.webhooks.models import TableWebhook
 from baserow.contrib.database.webhooks.registries import webhook_event_type_registry
@@ -974,3 +977,30 @@ def test_rows_updated_can_trigger_webhooks_in_linked_tables_without_additional_q
         assert len(_without_version_checks(captured.captured_queries)) >= len(
             _without_version_checks(captured2.captured_queries)
         )
+
+
+@pytest.mark.django_db()
+def test_get_filters_for_webhooks_to_call_with_empty_rows(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    event_type: RowsDeletedEventType = webhook_event_type_registry.get("rows.deleted")
+    model_a = table_a.get_model()
+
+    q = event_type.get_filters_for_webhooks_to_call(
+        model=model_a, table=table_a, rows=[]
+    )
+
+    assert list(TableWebhook.objects.filter(q).values_list("id", flat=True)) == []
+
+
+@pytest.mark.django_db()
+def test_get_related_table_row_ids_with_changes_empty_rows(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    event_type: RowsDeletedEventType = webhook_event_type_registry.get("rows.deleted")
+
+    result = event_type.get_related_table_row_ids_with_changes(table_b, rows=[])
+
+    assert result == []

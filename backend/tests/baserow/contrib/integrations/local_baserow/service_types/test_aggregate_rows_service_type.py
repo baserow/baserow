@@ -342,6 +342,44 @@ def test_local_baserow_aggregate_rows_dispatch_transform_with_scalar_result_for_
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_factory,aggregation_type",
+    [
+        ("create_autonumber_field", "min"),
+        ("create_rating_field", "max"),
+        ("create_duration_field", "sum"),
+        ("create_number_field", "average"),
+    ],
+)
+def test_local_baserow_aggregate_rows_dispatch_with_null_result(
+    data_fixture, field_factory, aggregation_type
+):
+    """
+    An aggregation over an empty table returns null instead of failing (or, for
+    number fields, returning an empty string) during serialization.
+    """
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_builder_page(user=user).builder
+    table = data_fixture.create_database_table(user=user)
+    field = getattr(data_fixture, field_factory)(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        integration=integration,
+        table=table,
+        field=field,
+        aggregation_type=aggregation_type,
+    )
+
+    result = service_type.dispatch(service, FakeDispatchContext())
+
+    assert result == DispatchResult(data={"result": None}, status=200, output_uid="")
+
+
+@pytest.mark.django_db
 def test_local_baserow_aggregate_rows_dispatch_data_with_total(data_fixture):
     """
     Tests an aggregation that is not based only on
@@ -681,3 +719,27 @@ def test_create_local_baserow_aggregate_rows_service_with_unsupported_aggregatio
         match=f"The {unsupported_agg_type} aggregation type is not currently supported.",
     ):
         service_type.prepare_values({"aggregation_type": unsupported_agg_type}, user)
+
+
+def test_local_baserow_aggregate_rows_extract_properties_with_empty_path():
+    """
+    When path is empty, e.g. `get('data_source.606')`, extract_properties should
+    return all properties instead of raising an IndexError.
+    """
+
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    assert service_type.extract_properties(Mock(), []) == ["result"]
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        (["result"], ["result"]),
+        (["field_123"], []),
+    ],
+)
+def test_local_baserow_aggregate_rows_extract_properties(path, expected):
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    assert service_type.extract_properties(Mock(), path) == expected

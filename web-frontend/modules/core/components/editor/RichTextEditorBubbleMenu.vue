@@ -129,6 +129,7 @@
 
 <script>
 import { BubbleMenu } from '@tiptap/vue-3/menus'
+import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
 import { isElement } from '@baserow/modules/core/utils/dom'
 
 export default {
@@ -158,6 +159,10 @@ export default {
       type: Object,
       default: null,
     },
+    visibilityTargets: {
+      type: Array,
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -172,6 +177,7 @@ export default {
         strategy: 'fixed',
         placement: 'top',
         offset: 5,
+        onUpdate: this.updateScrollVisibility,
       }
       if (this.scrollTarget) {
         opts.scrollTarget = this.scrollTarget
@@ -204,6 +210,16 @@ export default {
     }
   },
   methods: {
+    updateScrollVisibility() {
+      this.$el.style.visibility = isRichTextSelectionVisible(
+        this.editor,
+        this.visibilityTargets.length
+          ? this.visibilityTargets
+          : this.scrollTarget
+      )
+        ? 'visible'
+        : 'hidden'
+    },
     shouldShowMenu({ editor, view, element }) {
       if (!this.visible) return false
 

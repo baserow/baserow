@@ -21,6 +21,11 @@ ERROR_LINK_ROW_TABLE_NOT_PROVIDED = (
     "The `link_row_table_id` must be provided.",
 )
 ERROR_LINK_ROW_TABLE_NOT_IN_SAME_DATABASE = "ERROR_LINK_ROW_TABLE_NOT_IN_SAME_DATABASE"
+ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED = (
+    "ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED",
+    HTTP_400_BAD_REQUEST,
+    "The `label` must be provided and can't be empty.",
+)
 ERROR_FIELD_NOT_IN_TABLE = (
     "ERROR_FIELD_NOT_IN_TABLE",
     HTTP_400_BAD_REQUEST,
@@ -193,6 +198,12 @@ ERROR_FIELD_CONSTRAINT = (
     "ERROR_FIELD_CONSTRAINT",
     HTTP_400_BAD_REQUEST,
     "Cannot apply field constraint due to existing data conflicts.",
+)
+ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED = (
+    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+    HTTP_400_BAD_REQUEST,
+    "Cannot enable rich text because an existing value references more than "
+    "{e.limit} images.",
 )
 ERROR_FIELD_DATA_CONSTRAINT = (
     "ERROR_FIELD_DATA_CONSTRAINT",

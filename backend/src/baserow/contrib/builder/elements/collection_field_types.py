@@ -7,7 +7,10 @@ from rest_framework import serializers
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.core.constants import RatingStyleChoices
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
@@ -286,6 +289,7 @@ class TagsCollectionFieldType(CollectionFieldType):
 
 class ButtonCollectionFieldType(CollectionFieldType):
     type = "button"
+    event_names = [EventTypes.CLICK.value]
     allowed_fields = ["label"]
     serializer_field_names = ["label"]
     simple_formula_fields = ["label"]

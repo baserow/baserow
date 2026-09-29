@@ -40,7 +40,7 @@ class RealtimeRowMessages:
         table_id: int,
         serialized_rows_before_update: List[Dict[str, Any]],
         serialized_rows: List[Dict[str, Any]],
-        metadata: Dict[int, Dict[str, Any]],
+        metadata: Dict[str, Dict[str, Any]],
         updated_field_ids: List[int],
     ) -> Dict[str, Any]:
         return {

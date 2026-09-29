@@ -33,6 +33,14 @@
         color: $palette-red-800;
       }
     }
+
+    &-pass {
+      flex-shrink: 0;
+      font-size: 11px;
+      line-height: 20px;
+      white-space: nowrap;
+      color: $palette-neutral-700;
+    }
   }
 
   &-show-result {

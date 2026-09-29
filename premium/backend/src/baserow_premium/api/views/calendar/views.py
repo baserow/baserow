@@ -414,8 +414,6 @@ class PublicCalendarViewView(APIView):
 
         model = view.table.get_model()
 
-        adhoc_filters = AdHocFilters.from_request(request)
-
         view_type = view_type_registry.get_by_model(view)
         (
             _,  # fields queryset, not used
@@ -425,6 +423,12 @@ class PublicCalendarViewView(APIView):
             view,
             table_model=model,
             view_type=view_type,
+        )
+
+        # Hidden fields must stay unfilterable: the per day `count` would leak
+        # their cell values even though the rows themselves never include them.
+        adhoc_filters = AdHocFilters.from_request(
+            request, only_filter_by_field_ids=list(field_ids)
         )
 
         grouped_rows = get_rows_grouped_by_date_field(

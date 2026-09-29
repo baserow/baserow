@@ -22,6 +22,13 @@ class DashboardConfig(AppConfig):
 
         object_scope_type_registry.register(DashboardObjectScopeType())
 
+        from baserow.contrib.dashboard.last_viewed_types import (
+            DashboardLastViewedItemType,
+        )
+        from baserow.core.registries import last_viewed_item_type_registry
+
+        last_viewed_item_type_registry.register(DashboardLastViewedItemType())
+
         from baserow.contrib.dashboard.data_sources.object_scopes import (
             DashboardDataSourceObjectScopeType,
         )
@@ -40,6 +47,7 @@ class DashboardConfig(AppConfig):
             ListWidgetsOperationType,
             ReadWidgetOperationType,
             RestoreWidgetOperationType,
+            UpdateWidgetLayoutOperationType,
             UpdateWidgetOperationType,
         )
 
@@ -47,6 +55,7 @@ class DashboardConfig(AppConfig):
         operation_type_registry.register(ReadWidgetOperationType())
         operation_type_registry.register(CreateWidgetOperationType())
         operation_type_registry.register(UpdateWidgetOperationType())
+        operation_type_registry.register(UpdateWidgetLayoutOperationType())
         operation_type_registry.register(DeleteWidgetOperationType())
         operation_type_registry.register(RestoreWidgetOperationType())
 
@@ -95,6 +104,7 @@ class DashboardConfig(AppConfig):
             AllowIfTemplatePermissionManagerType(prev_manager)
         )
 
+        import baserow.contrib.dashboard.receivers  # noqa: F401
         from baserow.contrib.dashboard.data_sources.actions import (
             UpdateDashboardDataSourceActionType,
         )
@@ -102,6 +112,7 @@ class DashboardConfig(AppConfig):
             CreateWidgetActionType,
             DeleteWidgetActionType,
             UpdateWidgetActionType,
+            UpdateWidgetLayoutActionType,
         )
 
         from .ws.receivers import (  # noqa: F401
@@ -109,10 +120,12 @@ class DashboardConfig(AppConfig):
             widget_created,
             widget_deleted,
             widget_updated,
+            widgets_layout_updated,
         )
 
         action_type_registry.register(CreateWidgetActionType())
         action_type_registry.register(UpdateWidgetActionType())
+        action_type_registry.register(UpdateWidgetLayoutActionType())
         action_type_registry.register(DeleteWidgetActionType())
         action_type_registry.register(UpdateDashboardDataSourceActionType())
 

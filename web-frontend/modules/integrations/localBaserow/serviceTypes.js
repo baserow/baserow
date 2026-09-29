@@ -34,6 +34,20 @@ export class LocalBaserowTableServiceType extends ServiceType {
     return service.context_data_schema
   }
 
+  getSchemaProperties(service) {
+    const schema = this.getDataSchema(service)
+    return this.returnsList ? schema?.items?.properties : schema?.properties
+  }
+
+  getSchemaProperty(service, propertyName) {
+    return this.getSchemaProperties(service)?.[propertyName]
+  }
+
+  getSchemaPropertyDisplayName(service, propertyName) {
+    const property = this.getSchemaProperty(service, propertyName)
+    return property?.metadata?.display_name || property?.title || propertyName
+  }
+
   /**
    * Given an array of tables, returns the supported tables for this service type.
    * By default, we return all tables, but specific service types can override this
@@ -47,17 +61,40 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
   /**
    * Responsible for determining if this service is in error. It will be if the
-   * `table_id` is missing.
+   * integration can't be resolved to a live integration (e.g. it has been
+   * trashed, or was never set) or if the `table_id` is missing.
+   *
+   * The integration check requires `application` to be passed so the integration
+   * can be looked up in the store; callers that don't provide it (the integration
+   * isn't resolvable from a service alone) simply skip that check.
+   *
    * @param service - The service object.
+   * @param application - The application the service's integration belongs to.
    * @returns {boolean} - If the service is valid.
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
+      // Only flag an unresolvable integration when one is actually configured
+      // (`integration_id` set). A service that was never given an integration is
+      // reported by the more specific checks below (e.g. no table selected).
+      // Callers must only pass `application` when the builder's integrations are
+      // loaded in the store (editor mode) - see WorkflowActionServiceType.
+      if (application !== undefined && service.integration_id) {
+        const integration = this.app.$store.getters[
+          'integration/getIntegrationById'
+        ](application, service.integration_id)
+        // A data source whose integration has been trashed keeps its
+        // integration_id, but the trashed integration is no longer in the store,
+        // so it can't be resolved — the data source is misconfigured.
+        if (!integration) {
+          return this.app.$i18n.t('serviceType.errorMisconfiguredIntegration')
+        }
+      }
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 
   /**
@@ -124,13 +161,80 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
   }
 
   /**
+   * Generate Table columns from the result schema shared by row-list services.
+   * Aggregations use their result types, while ordinary fields retain their
+   * specialized rendering and formula paths.
+   */
+  getDefaultCollectionFields(service) {
+    const properties = this.getSchemaProperties(service) || {}
+    return Object.keys(properties)
+      .filter(
+        (field) =>
+          field !== 'id' &&
+          (properties[field].metadata?.aggregation ||
+            properties[field].original_type !== 'formula') // every formula has different properties
+      )
+      .map((field) => {
+        const type = properties[field].type
+        const originalType = properties[field].metadata?.aggregation
+          ? type
+          : properties[field].original_type || type
+        let outputType = 'text'
+        let valueFormula = `get('current_record.${field}')`
+        if (originalType === 'boolean') {
+          outputType = 'boolean'
+        } else if (originalType === 'rating') {
+          outputType = 'rating'
+        } else if (originalType === 'url') {
+          return {
+            link_name: { formula: valueFormula },
+            name: properties[field].title,
+            id: uuid(), // Temporary id
+            navigate_to_page_id: null,
+            navigate_to_url: { formula: valueFormula },
+            navigation_type: 'custom',
+            page_parameters: [],
+            target: 'blank',
+            type: 'link',
+          }
+        } else if (originalType === 'file') {
+          return {
+            id: uuid(),
+            name: properties[field].title,
+            type: 'image',
+            src: { formula: `get('current_record.${field}.*.url')` },
+            alt: { formula: `get('current_record.${field}.*.visible_name')` },
+          }
+        } else if (
+          originalType === 'last_modified_by' ||
+          originalType === 'created_by'
+        ) {
+          valueFormula = `get('current_record.${field}.name')`
+        } else if (originalType === 'single_select') {
+          valueFormula = `get('current_record.${field}.value')`
+        }
+        if (originalType === 'multiple_collaborators') {
+          valueFormula = `get('current_record.${field}.*.name')`
+        } else if (type === 'array') {
+          valueFormula = `get('current_record.${field}.*.value')`
+        }
+        return {
+          name: properties[field].title,
+          type: outputType,
+          value: { formula: valueFormula },
+          id: uuid(), // Temporary id
+        }
+      })
+  }
+
+  /**
    * Responsible for determining if this service is in error. It will be if the
    * `table_id` is missing, or if one or more filters/sortings point to a field that
    * has been trashed.
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
       const filtersInError = service.filters?.some((filter) => filter.trashed)
       if (filtersInError) {
@@ -144,7 +248,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
         return this.app.$i18n.t('serviceType.errorSortingInError')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 }
 
@@ -244,65 +348,6 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
     return newValues
   }
 
-  getDefaultCollectionFields(service) {
-    return Object.keys(service.schema.items.properties)
-      .filter(
-        (field) =>
-          field !== 'id' &&
-          service.schema.items.properties[field].original_type !== 'formula' // every formula has different properties
-      )
-      .map((field) => {
-        const type = service.schema.items.properties[field].type
-        const originalType =
-          service.schema.items.properties[field].original_type
-        let outputType = 'text'
-        let valueFormula = `get('current_record.${field}')`
-        if (originalType === 'boolean') {
-          outputType = 'boolean'
-        } else if (originalType === 'rating') {
-          outputType = 'rating'
-        } else if (originalType === 'url') {
-          return {
-            link_name: { formula: valueFormula },
-            name: service.schema.items.properties[field].title,
-            id: uuid(), // Temporary id
-            navigate_to_page_id: null,
-            navigate_to_url: { formula: valueFormula },
-            navigation_type: 'custom',
-            page_parameters: [],
-            target: 'blank',
-            type: 'link',
-          }
-        } else if (originalType === 'file') {
-          return {
-            id: uuid(),
-            name: service.schema.items.properties[field].title,
-            type: 'image',
-            src: { formula: `get('current_record.${field}.*.url')` },
-            alt: { formula: `get('current_record.${field}.*.visible_name')` },
-          }
-        } else if (
-          originalType === 'last_modified_by' ||
-          originalType === 'created_by'
-        ) {
-          valueFormula = `get('current_record.${field}.name')`
-        } else if (originalType === 'single_select') {
-          valueFormula = `get('current_record.${field}.value')`
-        }
-        if (originalType === 'multiple_collaborators') {
-          valueFormula = `get('current_record.${field}.*.name')`
-        } else if (type === 'array') {
-          valueFormula = `get('current_record.${field}.*.value')`
-        }
-        return {
-          name: service.schema.items.properties[field].title,
-          type: outputType,
-          value: { formula: valueFormula },
-          id: uuid(), // Temporary id
-        }
-      })
-  }
-
   getRecordName(service, record) {
     const schema = this.getDataSchema(service)
     if (!schema?.items?.properties) {
@@ -368,7 +413,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return null
   }
 
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
       if (!service.field_id) {
         return this.app.$i18n.t('serviceType.errorNoFieldSelected')
@@ -381,7 +426,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
         return this.app.$i18n.t('serviceType.errorFilterInError')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 
   getDescription(service, application) {
@@ -470,11 +515,14 @@ export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionSer
   }
 
   getErrorMessage({ service }) {
+    const inherited = super.getErrorMessage({ service })
+    if (inherited) {
+      return inherited
+    }
     if (service?.rows !== undefined && !service.rows?.formula) {
       return this.app.$i18n.t('serviceType.errorNoRowsSelected')
     }
-
-    return super.getErrorMessage({ service })
+    return null
   }
 
   get formComponent() {
@@ -517,6 +565,21 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
 
   get description() {
     return this.app.$i18n.t('serviceType.localBaserowUpdateRowDescription')
+  }
+
+  /**
+   * The backend service creates a row when the row ID is empty, so an update
+   * without one is misconfigured.
+   */
+  getErrorMessage({ service, application }) {
+    const inherited = super.getErrorMessage({ service, application })
+    if (inherited) {
+      return inherited
+    }
+    if (service?.row_id !== undefined && !service.row_id?.formula?.trim()) {
+      return this.app.$i18n.t('serviceType.errorNoRowIdSelected')
+    }
+    return null
   }
 
   get formComponent() {

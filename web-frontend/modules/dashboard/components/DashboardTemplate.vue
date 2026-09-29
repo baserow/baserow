@@ -1,5 +1,9 @@
 <template>
-  <Dashboard :dashboard="pageValue.dashboard" store-prefix="template/" />
+  <Dashboard
+    :dashboard="pageValue.dashboard"
+    :loading="loading"
+    store-prefix="template/"
+  />
 </template>
 
 <script>
@@ -13,6 +17,11 @@ export default {
     pageValue: {
       type: Object,
       required: true,
+    },
+  },
+  computed: {
+    loading() {
+      return this.$store.getters['template/dashboardApplication/isLoading']
     },
   },
   watch: {
@@ -29,19 +38,11 @@ export default {
     async fetchDashboard(dashboard) {
       try {
         await this.$store.dispatch(
-          'template/dashboardApplication/setLoading',
-          true
-        )
-        await this.$store.dispatch(
           'template/dashboardApplication/fetchInitial',
           {
             dashboardId: dashboard.id,
             forEditing: false,
           }
-        )
-        await this.$store.dispatch(
-          'template/dashboardApplication/setLoading',
-          false
         )
       } catch (error) {
         notifyIf(error, 'dashboard')

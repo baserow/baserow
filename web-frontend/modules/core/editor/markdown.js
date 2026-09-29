@@ -1,6 +1,61 @@
 import Markdown from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
+import { MarkdownManager } from '@tiptap/markdown'
+
 import { parseMention } from '@baserow/modules/core/editor/mention'
+import {
+  configureMarkdownSerializerCompatibility,
+  prepareMarkdownDocumentForSerialization,
+} from '@baserow/modules/core/editor/markdownCompatibility'
+import {
+  createMarkedInstance,
+  createRichTextContentExtensions,
+  MARKDOWN_OPTIONS,
+} from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  IMAGE_PLACEHOLDER,
+  preprocessRichTextImages,
+  renderImagePlaceholders,
+  replaceImagesWithPlaceholder,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
+
+const previewMarkdownManager = new MarkdownManager({
+  extensions: createRichTextContentExtensions({ enableImages: true }),
+  marked: createMarkedInstance(),
+  markedOptions: MARKDOWN_OPTIONS,
+})
+configureMarkdownSerializerCompatibility(previewMarkdownManager)
+
+const makeEmptyParagraphsVisible = (node) => {
+  if (node.type === 'paragraph' && !node.content?.length) {
+    node.content = [{ type: 'text', text: '\u00a0' }]
+    return true
+  }
+
+  return (
+    node.content?.reduce(
+      (found, child) => makeEmptyParagraphsVisible(child) || found,
+      false
+    ) ?? false
+  )
+}
+
+// Only sentinels and blank-line runs can produce empty paragraphs on parse.
+const EMPTY_PARAGRAPH_HINT_REGEXP = /&nbsp;|\u00a0|\n[ \t\r]*\n[ \t\r]*\n/
+
+const prepareMarkdownForPreview = (value) => {
+  // Parsing every value is too costly for grid cell previews, so gate it.
+  if (!EMPTY_PARAGRAPH_HINT_REGEXP.test(value)) {
+    return value
+  }
+  const document = previewMarkdownManager.parse(value)
+  return makeEmptyParagraphsVisible(document)
+    ? previewMarkdownManager.serialize(
+        prepareMarkdownDocumentForSerialization(document)
+      )
+    : value
+}
 
 export const parseMarkdown = (
   value,
@@ -11,7 +66,33 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
+  // Round trip first: after `preprocessRichTextImages` a reference has lost its file name.
+  const original = value || ''
+  let content = prepareMarkdownForPreview(original)
+
   const md = new Markdown({ html: false })
+  // markdown-it normalises a destination before it lands in `src`, so the
+  // resolved URLs are compared in the same form.
+  let resolvedUrls = new Set()
+
+  if (enableImages) {
+    const { content: processed, nameMap } = preprocessRichTextImages(content)
+    // The round trip can move text out of code, so only a URL the backend
+    // resolved in the value itself is trusted.
+    const originalNameMap =
+      content === original
+        ? nameMap
+        : preprocessRichTextImages(original).nameMap
+    resolvedUrls = new Set(
+      Object.keys(nameMap)
+        .filter((url) => originalNameMap[url] === nameMap[url])
+        .map((url) => md.normalizeLink(url))
+    )
+    content = stripUnresolvedImageRefs(processed)
+  } else {
+    // Image-less surfaces (the grid cell preview) show a placeholder for every image.
+    content = replaceImagesWithPlaceholder(content)
+  }
 
   // task lists
   md.use(taskLists, { label: true, enabled: true })
@@ -51,13 +132,17 @@ export const parseMarkdown = (
   }
 
   if (enableImages) {
+    const renderImage = md.renderer.rules.image
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Show only the first image in the preview.
-      const style = tokens[idx].attrIndex('style')
-      if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block;'])
+      // Only Baserow references resolved above render; external images are placeholders.
+      const src = tokens[idx].attrGet('src')
+      if (!resolvedUrls.has(src)) {
+        const alt = md.utils.escapeHtml(
+          self.renderInlineAsText(tokens[idx].children || [], options, env)
+        )
+        return alt ? `${IMAGE_PLACEHOLDER} ${alt}` : IMAGE_PLACEHOLDER
       }
-      return self.renderToken(tokens, idx, options)
+      return renderImage(tokens, idx, options, env, self)
     }
   } else {
     md.disable('image')
@@ -66,5 +151,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(value || '')
+  return renderImagePlaceholders(md.render(content))
 }

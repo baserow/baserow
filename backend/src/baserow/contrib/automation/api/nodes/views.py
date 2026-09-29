@@ -15,6 +15,7 @@ from baserow.api.decorators import (
     validate_body,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
+from baserow.api.services.errors import ERROR_SERVICE_INVALID_TYPE
 from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
     type_from_data_or_registry,
@@ -74,7 +75,11 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_loaded,
+)
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -188,6 +193,10 @@ class AutomationNodesView(APIView):
             for node in nodes
         ]
 
+        automation_workflow_loaded.send(
+            sender=self, workflow=workflow, user=request.user
+        )
+
         return Response(data)
 
 
@@ -217,6 +226,7 @@ class AutomationNodeView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_SERVICE_INVALID_TYPE",
                 ]
             ),
             404: get_error_schema(
@@ -231,6 +241,7 @@ class AutomationNodeView(APIView):
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
+            ServiceTypeDoesNotExist: ERROR_SERVICE_INVALID_TYPE,
         }
     )
     @require_request_data_type(dict)

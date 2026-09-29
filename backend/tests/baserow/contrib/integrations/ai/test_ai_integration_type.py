@@ -55,6 +55,31 @@ def test_ai_integration_creation_with_settings(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("provider_type", ["google", "groq", "xai"])
+def test_ai_integration_accepts_database_only_provider_overrides(
+    data_fixture, provider_type
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = integration_type_registry.get("ai")
+    ai_settings = {
+        provider_type: {
+            "api_key": "integration-secret",
+            "models": ["integration-model"],
+        }
+    }
+
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings=ai_settings,
+    )
+
+    assert integration.ai_settings == ai_settings
+
+
+@pytest.mark.django_db
 def test_ai_integration_update(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
@@ -77,10 +102,15 @@ def test_ai_integration_update(data_fixture):
         },
     )
 
-    assert updated_integration.ai_settings["openai"]["api_key"] == "sk-new"
-    assert updated_integration.ai_settings["openai"]["models"] == ["gpt-4"]
-    assert updated_integration.ai_settings["anthropic"]["api_key"] == "sk-anthropic"
-    assert updated_integration.ai_settings["anthropic"]["models"] == ["claude-3-opus"]
+    assert updated_integration.integration.ai_settings["openai"]["api_key"] == "sk-new"
+    assert updated_integration.integration.ai_settings["openai"]["models"] == ["gpt-4"]
+    assert (
+        updated_integration.integration.ai_settings["anthropic"]["api_key"]
+        == "sk-anthropic"
+    )
+    assert updated_integration.integration.ai_settings["anthropic"]["models"] == [
+        "claude-3-opus"
+    ]
 
 
 @pytest.mark.django_db
@@ -109,10 +139,14 @@ def test_ai_integration_partial_update(data_fixture):
     )
 
     # OpenAI should be updated
-    assert updated_integration.ai_settings["openai"]["api_key"] == "sk-updated"
-    assert updated_integration.ai_settings["openai"]["models"] == ["gpt-4-turbo"]
+    assert (
+        updated_integration.integration.ai_settings["openai"]["api_key"] == "sk-updated"
+    )
+    assert updated_integration.integration.ai_settings["openai"]["models"] == [
+        "gpt-4-turbo"
+    ]
     # Anthropic should be removed (replaced, not merged)
-    assert "anthropic" not in updated_integration.ai_settings
+    assert "anthropic" not in updated_integration.integration.ai_settings
 
 
 @pytest.mark.django_db
@@ -218,6 +252,37 @@ def test_ai_integration_export_serialized_exclude_sensitive(data_fixture):
 
 
 @pytest.mark.django_db
+def test_publishing_defers_inherited_settings_to_original_workspace(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    workspace.generative_ai_models_settings = {
+        "openai": {"api_key": "legacy-key", "models": ["legacy-model"]}
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    application = data_fixture.create_builder_application(
+        user=user, workspace=workspace
+    )
+    integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings={},
+    )
+
+    serialized = integration_type.export_serialized(
+        integration,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=False,
+            is_publishing=True,
+        ),
+    )
+
+    assert serialized["ai_settings"] == {}
+
+
+@pytest.mark.django_db
 def test_ai_integration_import_serialized(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
@@ -278,7 +343,7 @@ def test_ai_integration_deletion(data_fixture):
 
 
 @pytest.mark.django_db
-def test_ai_integration_get_provider_settings_from_workspace(data_fixture, settings):
+def test_ai_integration_defers_legacy_workspace_settings_to_resolver(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(
@@ -299,9 +364,7 @@ def test_ai_integration_get_provider_settings_from_workspace(data_fixture, setti
         ai_settings={},
     )
 
-    # Should get settings from workspace
-    provider_settings = integration_type.get_provider_settings(integration, "openai")
-    assert provider_settings["api_key"] == "sk-workspace-key"
+    assert integration_type.get_provider_settings(integration, "openai") == {}
 
 
 @pytest.mark.django_db
@@ -404,7 +467,48 @@ def test_ai_integration_settings_hierarchy(data_fixture, settings):
     IntegrationService().update_integration(user, integration, ai_settings={})
     integration.refresh_from_db()
 
-    # Should now get workspace settings
-    provider_settings = integration_type.get_provider_settings(integration, "openai")
-    assert provider_settings["api_key"] == "sk-workspace-key"
-    assert provider_settings["models"] == ["gpt-4"]
+    # Removing the override delegates workspace inheritance to the model resolver.
+    assert integration_type.get_provider_settings(integration, "openai") == {}
+
+
+@pytest.mark.django_db
+def test_get_integration_provider_settings_returns_blob_or_none(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings={"openai": {"api_key": "sk-blob", "models": ["gpt-4"]}},
+    )
+
+    blob = integration_type.get_integration_provider_settings(integration, "openai")
+    assert blob == {"api_key": "sk-blob", "models": ["gpt-4"]}
+    assert (
+        integration_type.get_integration_provider_settings(integration, "anthropic")
+        is None
+    )
+
+
+@pytest.mark.django_db
+def test_get_integration_provider_settings_ignores_workspace_settings(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    workspace.generative_ai_models_settings = {
+        "openai": {"api_key": "sk-workspace", "models": ["gpt-4"]}
+    }
+    workspace.save()
+    application = data_fixture.create_builder_application(
+        user=user, workspace=workspace
+    )
+    integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user, integration_type, application=application, ai_settings={}
+    )
+
+    assert (
+        integration_type.get_integration_provider_settings(integration, "openai")
+        is None
+    )
+    assert integration_type.get_provider_settings(integration, "openai") == {}

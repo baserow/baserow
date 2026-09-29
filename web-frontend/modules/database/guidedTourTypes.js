@@ -26,6 +26,10 @@ class FiltersSortGroupGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'bottom-left'
   }
+
+  get videos() {
+    return ['GHnspwPL5ZI', 'SC8PWV0bKDA', 'qZLO_SRKFb4']
+  }
 }
 
 class AddFieldGuidedTourStep extends GuidedTourStep {
@@ -43,6 +47,10 @@ class AddFieldGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'bottom-right'
+  }
+
+  get videos() {
+    return ['bn3AD2gjja4']
   }
 }
 
@@ -62,6 +70,10 @@ class CreateViewGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'bottom-left'
   }
+
+  get videos() {
+    return ['gKdwv4zQ3Lk', 'xwL8y-bZcNs', 'h5MT1_Nh6xM', 'h0WXU5ij5i0']
+  }
 }
 
 class CreateFormViewGuidedTourStep extends GuidedTourStep {
@@ -79,6 +91,10 @@ class CreateFormViewGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'bottom-left'
+  }
+
+  get videos() {
+    return ['wMyhKjVfC2A']
   }
 
   async beforeShow() {
@@ -108,6 +124,10 @@ class ViewOptionGuidedTourStep extends GuidedTourStep {
     return 'bottom-left'
   }
 
+  get videos() {
+    return ['I4C8208TgYo']
+  }
+
   async beforeShow() {
     this.app.$bus.$emit('open-table-view-context')
     await nextTick()
@@ -133,6 +153,10 @@ class TablesGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'right-bottom'
+  }
+
+  get videos() {
+    return ['ASi4H11uXNA']
   }
 }
 

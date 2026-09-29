@@ -12,6 +12,8 @@ import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
+import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
@@ -63,9 +65,7 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getRightSidebarWorkspaceComponents(workspace) {
-    const rightSidebarItems = []
-    rightSidebarItems.push(AssistantPanel)
-    return rightSidebarItems
+    return isAssistantConfigured(this.app, workspace) ? [AssistantPanel] : []
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
@@ -112,6 +112,12 @@ export class EnterprisePlugin extends BaserowPlugin {
     return [EnterpriseSettings]
   }
 
+  getDashboardTopComponents(workspace) {
+    // The component decides whether the assistant is available, because that
+    // depends on permissions that are loaded after the page first renders.
+    return [AssistantDashboardPrompt]
+  }
+
   getDashboardHelpComponents() {
     if (this.app.$hasFeature(EnterpriseFeatures.ENTERPRISE_SETTINGS)) {
       return [EnterpriseSettingsOverrideDashboardHelp]
@@ -145,12 +151,12 @@ export class EnterprisePlugin extends BaserowPlugin {
    * Adds the custom CSS/JS defined for this builder.
    */
   getBuilderApplicationHeaderAddition({ builder, mode }) {
-    const css = `${this.app.$config.public.publicBackendUrl}/api/custom_code/${
-      builder.id
-    }/css/${mode === 'preview' ? '' : 'public/'}`
-    const js = `${this.app.$config.public.publicBackendUrl}/api/custom_code/${
-      builder.id
-    }/js/${mode === 'preview' ? '' : 'public/'}`
+    const customCodeBase =
+      mode === 'preview'
+        ? `${this.app.$config.public.publicBackendUrl}/api/builder/preview/${builder.id}/custom-code`
+        : `${this.app.$config.public.publicBackendUrl}/api/custom_code/${builder.id}`
+    const css = `${customCodeBase}/css/${mode === 'preview' ? '' : 'public/'}`
+    const js = `${customCodeBase}/js/${mode === 'preview' ? '' : 'public/'}`
 
     const script = []
     const link = []
@@ -191,12 +197,14 @@ export class EnterprisePlugin extends BaserowPlugin {
       link.push({
         rel: 'stylesheet',
         href: css,
+        crossorigin: mode === 'preview' ? 'use-credentials' : null,
         tagPosition: 'bodyClose',
       })
     }
     if (builder.custom_code.js) {
       script.push({
         src: js,
+        crossorigin: mode === 'preview' ? 'use-credentials' : null,
         defer: true,
         tagPosition: 'bodyClose',
       })

@@ -7,7 +7,6 @@
 <script>
 export default {
   name: 'LongTextField',
-  functional: true,
   props: {
     row: {
       required: true,

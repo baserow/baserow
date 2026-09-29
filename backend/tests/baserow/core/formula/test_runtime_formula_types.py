@@ -19,6 +19,8 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeDay,
     RuntimeDivide,
     RuntimeDurationFormat,
+    RuntimeEncodeUri,
+    RuntimeEncodeUriComponent,
     RuntimeEqual,
     RuntimeFromJson,
     RuntimeGenerateUUID,
@@ -2269,6 +2271,56 @@ def test_runtime_strip_validate_type_of_args(args, expected):
 def test_runtime_strip_validate_number_of_args(args, expected):
     result = RuntimeStrip().validate_number_of_args(args)
     assert result is expected
+
+
+# The browser resolves a button field's URL formula, so these must encode
+# exactly like JavaScript's encodeURI / encodeURIComponent.
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], ""),
+        (["https://example.com/a b"], "https://example.com/a%20b"),
+        # The URL structure is left alone.
+        (["https://example.com/?q=1&x=2#top"], "https://example.com/?q=1&x=2#top"),
+        (["100%"], "100%25"),
+        (['a"b'], "a%22b"),
+    ],
+)
+def test_runtime_encode_uri_execute(args, expected):
+    parsed_args = RuntimeEncodeUri().parse_args(args)
+    result = RuntimeEncodeUri().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], ""),
+        (["shoes#7"], "shoes%237"),
+        (["a&b=1"], "a%26b%3D1"),
+        (["a b"], "a%20b"),
+        (["100%"], "100%25"),
+        # The characters JavaScript leaves alone.
+        (["-_.!~*'()"], "-_.!~*'()"),
+    ],
+)
+def test_runtime_encode_uri_component_execute(args, expected):
+    parsed_args = RuntimeEncodeUriComponent().parse_args(args)
+    result = RuntimeEncodeUriComponent().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_encode_uri_validate_number_of_args(args, expected):
+    assert RuntimeEncodeUri().validate_number_of_args(args) is expected
+    assert RuntimeEncodeUriComponent().validate_number_of_args(args) is expected
 
 
 @pytest.mark.parametrize(

@@ -3,15 +3,19 @@ import io
 import json
 import re
 import socket
+import time
 import uuid
 from datetime import datetime
+from functools import partial
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, get_connection
-from django.db import router
+from django.db import IntegrityError, router, transaction
 from django.db.models import Q, QuerySet
 from django.urls import path
 from django.utils import timezone
@@ -27,6 +31,9 @@ from baserow.config.celery import app as celery_app
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
+from baserow.contrib.integrations.core.api.inbound_email.views import (
+    CoreInboundEmailWebhookView,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
@@ -34,20 +41,31 @@ from baserow.contrib.integrations.core.constants import (
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_TIMEZONE_DEFAULT,
+    RESPONSE_BODY_TYPE,
     SMTP_EMAIL_TIMEOUT,
 )
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
+    CoreInboundEmailTriggerServiceDoesNotExist,
+)
+from baserow.contrib.integrations.core.inbound_email import (
+    InboundEmail,
+    InboundEmailAddress,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
+    CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreInboundEmailTriggerService,
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
+    CoreResponseHeader,
+    CoreResponseService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
@@ -55,25 +73,44 @@ from baserow.contrib.integrations.core.models import (
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
+    generate_inbound_email_token,
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
-from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.contrib.integrations.utils import (
+    send_http_request,
+)
+from baserow.core.datetime import get_timezones
+from baserow.core.deferred_callbacks import (
+    is_deferred_callback_context_active,
+    register_deferred_callback,
+)
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
+    ensure_deserialized_json,
     ensure_email,
     ensure_file,
+    ensure_integer,
+    ensure_json_serializable,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
+    RemoteRefusedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
+    UnreachableAddressDispatchException,
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
@@ -85,11 +122,31 @@ from baserow.core.services.registries import (
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
+if TYPE_CHECKING:
+    from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+    from baserow.contrib.automation.workflows.models import AutomationWorkflow
+
 # Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
 # The captured name is checked against the runtime function registry so that
 # literal text like `foo(` (which isn't a real function) doesn't match. Function
 # names are case-insensitive, so the name is lowercased before the lookup.
 RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
+
+
+def ensure_http_status_code(value: Any) -> int:
+    status_code = ensure_integer(value)
+    if not 100 <= status_code <= 599:
+        raise ValidationError("The value must be between 100 and 599.")
+    return status_code
+
+
+def ensure_http_header_value(value: Any) -> str:
+    value = ensure_string(value)
+    if "\r" in value or "\n" in value:
+        raise ValidationError(
+            "Header values cannot contain carriage returns or newlines."
+        )
+    return value
 
 
 class CoreServiceType(ServiceType):
@@ -103,6 +160,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     type = "http_request"
     model_class = CoreHTTPRequestService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
+
+    # Where a credential on a request can sit. This service has no integration,
+    # so there is nowhere else for one to be kept, and which header or field
+    # holds it is not knowable: every value goes rather than a guess at the
+    # secret one. The keys stay, so an import says what has to be entered
+    # again. `url` is not here, since blanking it leaves an action that names
+    # nothing at all; a key in its query string is the one placement an export
+    # still carries.
+    sensitive_fields = ["headers", "query_params", "form_data", "body_content"]
 
     allowed_fields = [
         "http_method",
@@ -270,6 +337,26 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     ):
         return self.after_create(instance, values)
 
+    def export_prepared_values(self, instance: Service) -> dict[str, Any]:
+        values = super().export_prepared_values(instance)
+        # Headers, query params and form data live on related models (rebuilt in
+        # `after_create`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the same shape `after_create` restores them
+        # from, so that changing them can be undone/redone.
+        values["headers"] = [
+            {"key": header.key, "value": header.value}
+            for header in instance.headers.all()
+        ]
+        values["query_params"] = [
+            {"key": query_param.key, "value": query_param.value}
+            for query_param in instance.query_params.all()
+        ]
+        values["form_data"] = [
+            {"key": form_data.key, "value": form_data.value}
+            for form_data in instance.form_data.all()
+        ]
+        return values
+
     def formula_generator(
         self, service: ServiceType
     ) -> Generator[str | Instance, str, None]:
@@ -354,9 +441,18 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         Responsible for creating related data (headers, query params, form_data).
         """
 
-        headers = serialized_values.pop("headers", [])
-        query_params = serialized_values.pop("query_params", [])
-        form_data = serialized_values.pop("form_data", [])
+        # An export that stripped these leaves the keys with a `None` value,
+        # so the row is kept and the value comes back as an empty formula for
+        # somebody to fill in.
+        def rows_of(prop_name):
+            return [
+                {**row, "value": row.get("value") or {}}
+                for row in (serialized_values.pop(prop_name, None) or [])
+            ]
+
+        headers = rows_of("headers")
+        query_params = rows_of("query_params")
+        form_data = rows_of("form_data")
 
         service = super().create_instance_from_serialized(
             serialized_values,
@@ -406,6 +502,14 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             .prefetch_related("headers", "query_params", "form_data")
         )
 
+    def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
+        # For a click, whose request gets one timeout in all. The watchdog
+        # hangs up at the deadline; should the hang-up land late, a read
+        # already waiting still stops within `operation_timeout`, the whole
+        # timeout at most, so doubling covers it, and an address lookup,
+        # which no timeout bounds.
+        return (service.timeout or 0) * 2
+
     def get_schema_name(self, service: CoreHTTPRequestService) -> str:
         return f"HTTPRequest{service.id}Schema"
 
@@ -420,11 +524,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         properties = {}
 
-        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+        # A stored failure is a message rather than an answer, so it
+        # describes no shape. Without this the body would come back as an
+        # empty object.
+        sample_data = service.sample_data
+        if sample_data and "_error" in sample_data:
+            sample_data = None
+
+        if (allowed_fields is None or "body" in allowed_fields) and sample_data:
             schema_builder = SchemaBuilder()
-            schema_builder.add_object(
-                service.sample_data.get("data", {}).get("body", {})
-            )
+            schema_builder.add_object(sample_data.get("data", {}).get("body", {}))
             schema = schema_builder.to_schema()
 
             properties |= {
@@ -446,12 +555,18 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         if allowed_fields is None or "headers" in allowed_fields:
             schema = {}
-            if service.sample_data:
+            if sample_data:
                 schema_builder = SchemaBuilder()
                 schema_builder.add_object(
-                    service.sample_data.get("data", {}).get("headers", {})
+                    sample_data.get("data", {}).get("headers", {})
                 )
                 schema = schema_builder.to_schema()
+                for key, property_schema in schema.get("properties", {}).items():
+                    if key != key.lower():
+                        property_schema["deprecated"] = True
+                        property_schema["description"] = (
+                            f"Deprecated: use the lowercase `{key.lower()}` key instead."
+                        )
 
             properties.update(
                 **{
@@ -460,13 +575,31 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                         "properties": {
                             "Content-Type": {
                                 "type": "string",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-type` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-type": {
+                                "type": "string",
                                 "description": "The MIME type of the response body",
                             },
                             "Content-Length": {
                                 "type": "number",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-length` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-length": {
+                                "type": "number",
                                 "description": "The length of the response body in octets (8-bit bytes)",
                             },
                             "ETag": {
+                                "type": "string",
+                                "description": "Deprecated: use the lowercase `etag` key "
+                                "instead.",
+                                "deprecated": True,
+                            },
+                            "etag": {
                                 "type": "string",
                                 "description": "An identifier for a specific version of "
                                 "a resource",
@@ -602,17 +735,35 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             q.key: resolved_values[f"param_{q.id}"] for q in service.query_params.all()
         }
 
+        # One deadline for the whole exchange, every redirect and every body
+        # included. Requests' own timeout starts again on every hop and every
+        # byte, so on its own it does not bound a click, or the lock that
+        # guards its row.
+        deadline = (
+            time.monotonic()
+            + service.timeout * dispatch_context.external_request_timeouts
+        )
         try:
-            response = get_http_request_function()(
+            response = send_http_request(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
                 params=query_params,
-                timeout=service.timeout,
+                deadline=deadline,
+                operation_timeout=service.timeout,
                 **body_dict,
             )
-
-        except (UnacceptableAddressException, ConnectionError) as e:
+        except ServiceImproperlyConfiguredDispatchException:
+            # Too big. The message names no address, so it travels as it is
+            # rather than as an unknown error.
+            raise
+        except UnacceptableAddressException as e:
+            # Refused before anything was sent, so a caller counting outbound
+            # traffic must not count it.
+            raise AddressNotAllowedDispatchException(
+                f"Invalid URL: {resolved_values['url']}"
+            ) from e
+        except ConnectionError as e:
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
@@ -623,7 +774,15 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
-            logger.exception("Error while dispatching HTTP request")
+            # Not `logger.exception`: loguru prints the frame locals beside the
+            # traceback, and this frame holds the URL, every resolved header
+            # and the body. Only the class of the failure is logged.
+            logger.error(
+                "Error while dispatching HTTP request: {exception}. The "
+                "failure itself is not logged: it names the address and what "
+                "was sent with it.",
+                exception=type(e).__name__,
+            )
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         try:
@@ -634,8 +793,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             # Otherwise, fall back to text
             response_body = response.text
 
-        # Extract the response headers
-        response_headers = {key: value for key, value in response.headers.items()}
+        # Preserve the original keys for existing formulas and add normalized
+        # aliases so new formulas don't depend on the server's casing.
+        response_headers = dict(response.headers.items())
+        for key, value in tuple(response_headers.items()):
+            response_headers.setdefault(key.lower(), value)
 
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
@@ -657,6 +819,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     type = "smtp_email"
     model_class = CoreSMTPEmailService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     integration_type = SMTPIntegrationType.type
 
     allowed_fields = [
@@ -669,6 +832,19 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         "bcc_emails",
         "subject",
         "body_type",
+        "body",
+    ]
+
+    # Who the message goes to and what it says. A literal recipient is somebody
+    # personal data, and a literal body is whatever the button was set up to
+    # send, so neither travels to a third party the way the configuration does.
+    sensitive_fields = [
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
         "body",
     ]
 
@@ -714,7 +890,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         return {
             "use_instance_smtp_settings": serializers.BooleanField(
                 required=False,
-                default=self._instance_smtp_is_available(),
+                default=self.instance_smtp_is_available(),
                 help_text=CoreSMTPEmailService._meta.get_field(
                     "use_instance_smtp_settings"
                 ).help_text,
@@ -759,15 +935,65 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
-    def _instance_smtp_is_available(self) -> bool:
+    # An installation with no SMTP server keeps a backend that writes the
+    # message somewhere local and reports that it sent it.
+    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
+
+    # Why this installation cannot send through its own server. Returned as a
+    # code rather than a sentence, so each caller can word it for its own
+    # reader and translate it.
+    INSTANCE_SMTP_TURNED_OFF = "turned_off"
+    INSTANCE_SMTP_NO_SERVER = "no_server"
+
+    def instance_smtp_is_available(self) -> bool:
+        """
+        Whether a service may send through this installation's own mail
+        server. The setting and a host are what the Application Builder and
+        automations have always gone by; what the backend does with a message
+        is left to callers that must know it is delivered, see
+        `instance_smtp_unavailable_reason`.
+
+        :return: True when the instance server may be used.
+        """
+
         return bool(
             settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
             and getattr(settings, "EMAIL_HOST", "")
         )
 
+    def instance_smtp_unavailable_reason(self) -> Optional[str]:
+        """
+        Why a message handed to this installation's own server would not be
+        delivered. Stricter than `instance_smtp_is_available`: a backend that
+        only prints the message counts as having no server. For a caller with
+        no integration to fall back on, such as a button field's action.
+
+        :return: One of the `INSTANCE_SMTP_*` codes, or `None` when it can.
+        """
+
+        if not settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
+            return self.INSTANCE_SMTP_TURNED_OFF
+
+        # The same question a dispatch asks, so the editor cannot offer an
+        # action that the send then refuses for want of a host.
+        if not self.instance_smtp_is_available():
+            return self.INSTANCE_SMTP_NO_SERVER
+
+        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
+        # says nothing about whether this installation can send. What it does
+        # with a message it is given does, and a backend it does not name at
+        # all is one the service could not ask for.
+        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
+        segments = backend.split(".")
+        if not backend or any(
+            name in segments for name in self.NON_DELIVERING_EMAIL_BACKENDS
+        ):
+            return self.INSTANCE_SMTP_NO_SERVER
+        return None
+
     def _should_use_instance_smtp(self, service: CoreSMTPEmailService) -> bool:
         return bool(
-            service.use_instance_smtp_settings and self._instance_smtp_is_available()
+            service.use_instance_smtp_settings and self.instance_smtp_is_available()
         )
 
     def requires_integration(self, service: CoreSMTPEmailService) -> bool:
@@ -781,7 +1007,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "use_instance_smtp_settings",
                 instance.use_instance_smtp_settings if instance else True,
             )
-            if self._instance_smtp_is_available()
+            if self.instance_smtp_is_available()
             else False
         )
 
@@ -791,6 +1017,15 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         values["use_instance_smtp_settings"] = use_instance_smtp_settings
 
         return values
+
+    # The timeout is per socket operation rather than for the send as a whole,
+    # and a send is a conversation: connect, greeting, EHLO, STARTTLS, EHLO
+    # again, AUTH, MAIL FROM, one RCPT per recipient, DATA, the body, QUIT.
+    # Sized for a handful of recipients on a relay that is slow at every step.
+    SMTP_SEND_SOCKET_OPERATIONS = 15
+
+    def max_dispatch_seconds(self, service: CoreSMTPEmailService) -> int:
+        return SMTP_EMAIL_TIMEOUT * self.SMTP_SEND_SOCKET_OPERATIONS
 
     def get_schema_name(self, service: CoreSMTPEmailService) -> str:
         return f"SMTPEmail{service.id}Schema"
@@ -895,8 +1130,11 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 backend="django.core.mail.backends.smtp.EmailBackend",
                 host=smtp_integration.host,
                 port=smtp_integration.port,
-                username=smtp_integration.username,
-                password=smtp_integration.password,
+                # Django's backend replaces a None username or password with the
+                # instance's EMAIL_HOST_USER / EMAIL_HOST_PASSWORD, which would
+                # authenticate to a host the builder chose.
+                username=smtp_integration.username or "",
+                password=smtp_integration.password or "",
                 use_tls=smtp_integration.use_tls,
                 timeout=SMTP_EMAIL_TIMEOUT,
             )
@@ -927,19 +1165,19 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 }
             }
         except SMTPNotSupportedError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "TLS not supported by server"
-            ) from e
+            # The server was reached and answered, so the click is charged for
+            # it even though the fix is in the configuration.
+            raise RemoteRefusedDispatchException("TLS not supported by server") from e
         except socket.gaierror as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise UnreachableAddressDispatchException(
                 f"The host {smtp_host}:{smtp_port} could not be reached"
             ) from e
         except ConnectionRefusedError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise UnreachableAddressDispatchException(
                 f"Connection refused by {smtp_host}:{smtp_port}"
             ) from e
         except SMTPAuthenticationError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise RemoteRefusedDispatchException(
                 "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
@@ -1262,12 +1500,204 @@ class CoreRouterServiceType(CoreServiceType):
         }
 
 
+class CoreGotoServiceType(CoreServiceType):
+    type = "goto"
+    model_class = CoreGotoService
+    allowed_fields = ["condition", "destination_service_id"]
+    dispatch_types = [DispatchTypes.ACTION]
+    serializer_field_names = ["condition", "destination_service_id"]
+    simple_formula_fields = ["condition"]
+
+    class SerializedDict(ServiceDict):
+        condition: str
+        destination_service_id: int
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "condition": FormulaSerializerField(
+                help_text=CoreGotoService._meta.get_field("condition").help_text,
+                required=False,
+                default="",
+            ),
+            "destination_service_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text=CoreGotoService._meta.get_field(
+                    "destination_service"
+                ).help_text,
+            ),
+        }
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        The destination is a reference to another service which may not have
+        been imported yet, as the import order is not guaranteed to follow the
+        graph order. We therefore null it on this first pass and remap it
+        during the second pass in after_import(), once all the workflow's
+        services have been imported.
+        """
+
+        original_destination_id = serialized_values.pop("destination_service_id", None)
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        if original_destination_id is not None:
+            id_mapping.setdefault("goto_destination_services", {})[service.id] = (
+                original_destination_id
+            )
+
+        return service
+
+    def after_import(self, instance, id_mapping, **kwargs):
+        """
+        Performs the second-pass remap of the destination service reference.
+
+        By this point every service of the workflow has been imported, so
+        id_mapping["services"] can resolve every jump destination.
+
+        When the destination service was part of this import - e.g. a full
+        workflow duplicate - it is remapped to the newly imported service. For a
+        partial duplicate, which copies just this Go to service and leaves the
+        destination service in place, the destination is carried over unchanged
+        so the duplicate jumps to the same place as the original. The link is
+        only reset when the destination service is genuinely absent from this
+        import.
+        """
+
+        updated_models = super().after_import(instance, id_mapping, **kwargs)
+
+        pending_destinations = id_mapping.get("goto_destination_services", {})
+        if instance.id in pending_destinations:
+            original_destination_id = pending_destinations[instance.id]
+            service_mapping = id_mapping.get("services", {})
+            # A partial duplicate seeds the service mapping with a MirrorDict,
+            # whose `get` echoes back any unmapped id, so the destination is
+            # carried over unchanged. A regular dict returns None instead.
+            instance.destination_service_id = service_mapping.get(
+                original_destination_id
+            )
+            updated_models.add(instance)
+
+        return updated_models
+
+    def get_schema_name(self, service: CoreGotoService) -> str:
+        return f"CoreGoto{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreGotoService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        properties = {}
+        if allowed_fields is None or "condition" in allowed_fields:
+            properties["condition"] = {
+                "type": "boolean",
+                "title": _("Condition"),
+                "description": _(
+                    "Whether the condition evaluated to true and the jump was followed."
+                ),
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(self, service: CoreGotoService) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "condition",
+                service.condition,
+                lambda x: ensure_boolean(x, False),
+                'property "condition"',
+            )
+        ]
+
+    def _condition_is_set(self, service: CoreGotoService) -> bool:
+        """
+        Whether a condition formula has actually been configured. An unset
+        condition means the jump is unconditional, so it must be distinguished
+        from a configured condition that resolves to false (which suppresses
+        the jump). The resolved boolean alone can't tell these two apart, as
+        both arrive as `False`.
+        """
+
+        formula = (service.condition or {}).get("formula") or ""
+        # a formula of just white spaces should be considered unset
+        return bool(formula.strip())
+
+    def dispatch_data(
+        self,
+        service: CoreGotoService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        """
+        Decides whether to follow the jump to the configured destination. The
+        jump is followed when no condition has been configured (an unconditional
+        jump) or when the condition resolves to true. It is only skipped when a
+        condition is set and explicitly resolves to false.
+
+        This only resolves the intent to jump; how the jump is validated against
+        the graph, and whether it should be suppressed (e.g. while simulating),
+        is decided by the consumer that owns the graph. The returned
+        destination_service_id is a plain reference to the configured destination
+        service, which the consumer resolves within its own graph.
+        """
+
+        # An empty condition means "always jump"; only a configured condition
+        # that resolves to false can prevent it.
+        should_jump = resolved_values["condition"] or not self._condition_is_set(
+            service
+        )
+        destination_service_id = None
+        if should_jump:
+            if service.destination_service_id is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "No destination has been configured for this service."
+                )
+            destination_service_id = service.destination_service_id
+
+        return {
+            "destination_service_id": destination_service_id,
+            "data": {"condition": bool(should_jump)},
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(
+            destination_service_id=data["destination_service_id"], data=data["data"]
+        )
+
+
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
     model_class = CorePeriodicService
 
     allowed_fields = [
         "interval",
+        "timezone",
         "minute",
         "hour",
         "day_of_week",
@@ -1276,17 +1706,23 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
     serializer_field_names = [
         "interval",
+        "timezone",
         "minute",
         "hour",
         "day_of_week",
         "day_of_month",
-        "next_run_at",
     ]
 
     serializer_field_overrides = {
         "interval": serializers.ChoiceField(
             choices=PERIODIC_INTERVAL_CHOICES,
+            required=False,
+            allow_null=True,
             help_text=CorePeriodicService._meta.get_field("interval").help_text,
+        ),
+        "timezone": serializers.CharField(
+            required=False,
+            help_text=CorePeriodicService._meta.get_field("timezone").help_text,
         ),
         "minute": serializers.IntegerField(
             min_value=0,
@@ -1324,11 +1760,11 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
     class SerializedDict(ServiceDict):
         interval: str
+        timezone: str
         minute: int
         hour: int
         day_of_week: int
         day_of_month: int
-        next_run_at: datetime
 
     def prepare_values(
         self,
@@ -1340,6 +1776,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         Responsible for preparing and validating the periodic service values.
         If the `interval` is set to `MINUTE`, it ensures that the `minute` value
         is greater than or equal to the minimum allowed value defined in the settings.
+        The `timezone` is validated here so that an unknown one can't be persisted,
+        as it would then raise every time the schedule is calculated.
 
         :param values: The values to prepare.
         :param user: The user creating or updating the service.
@@ -1355,43 +1793,44 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
                 )
 
-        return super().prepare_values(values, user, instance)
-
-    def serialize_property(
-        self,
-        service: CorePeriodicService,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        if prop_name == "next_run_at":
-            return (
-                service.next_run_at.isoformat()
-                if service.next_run_at is not None
-                else None
+        service_timezone = values.get("timezone", None)
+        if service_timezone is not None and service_timezone not in get_timezones():
+            raise AutomationNodeMisconfiguredService(
+                f"The timezone `{service_timezone}` is not a valid timezone."
             )
 
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
+        return super().prepare_values(values, user, instance)
 
-    def deserialize_property(
+    def create_instance_from_serialized(
         self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
+        serialized_values: Dict[str, Any],
+        id_mapping,
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
         **kwargs,
-    ):
-        if prop_name == "next_run_at" and value is not None:
-            return datetime.fromisoformat(value)
+    ) -> CorePeriodicService:
+        """
+        Initialize the runtime-only `next_run_at` when publishing. Draft services are
+        never dispatched, so this value is intentionally omitted from serialization.
 
-        return super().deserialize_property(
-            prop_name,
-            value,
+        :param serialized_values: The deserialized values.
+        :return: The created service.
+        """
+
+        if import_export_config and import_export_config.is_publishing:
+            serialized_values["next_run_at"] = calculate_next_periodic_run(
+                interval=serialized_values.get("interval"),
+                minute=serialized_values.get("minute"),
+                hour=serialized_values.get("hour"),
+                day_of_week=serialized_values.get("day_of_week"),
+                day_of_month=serialized_values.get("day_of_month"),
+                tz=serialized_values.get("timezone"),
+            )
+
+        return super().create_instance_from_serialized(
+            serialized_values,
             id_mapping,
             files_zip=files_zip,
             storage=storage,
@@ -1431,10 +1870,30 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         super().stop_listening()
         self._cancel_periodic_task()
 
+    def _localize(
+        self, service: CorePeriodicService, value: Optional[datetime]
+    ) -> Optional[str]:
+        """
+        Formats a run timestamp in the service's own timezone. The instant is
+        unchanged and the string keeps its UTC offset, so downstream formulas
+        parse it as before, but a user scheduling "23:30 Europe/London" sees
+        23:30 in the payload rather than the UTC equivalent.
+
+        :param service: The service whose timezone the value is formatted in.
+        :param value: The timestamp to format, or `None` if there isn't one.
+        :return: An ISO 8601 string, or `None`.
+        """
+
+        if value is None:
+            return None
+
+        zone = ZoneInfo(service.timezone or PERIODIC_TIMEZONE_DEFAULT)
+        return value.astimezone(zone).isoformat()
+
     def _get_dispatch_payload(self, service: CorePeriodicService) -> Dict[str, str]:
         return {
-            "triggered_at": service.last_periodic_run.isoformat(),
-            "next_run_at": service.next_run_at.isoformat(),
+            "triggered_at": self._localize(service, service.last_periodic_run),
+            "next_run_at": self._localize(service, service.next_run_at),
         }
 
     def _get_simulation_payload(self, service: CorePeriodicService) -> Dict[str, str]:
@@ -1446,10 +1905,11 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             day_of_week=service.day_of_week,
             day_of_month=service.day_of_month,
             from_time=now,
+            tz=service.timezone,
         )
         return {
-            "triggered_at": now.isoformat(),
-            "next_run_at": next_run.isoformat(),
+            "triggered_at": self._localize(service, now),
+            "next_run_at": self._localize(service, next_run),
         }
 
     def dispatch_data(
@@ -1491,8 +1951,15 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return (
             CorePeriodicService.objects.filter(
+                # A service without an interval hasn't been configured yet, so it
+                # has no schedule to be due against.
+                Q(interval__isnull=False),
+                # Publishing sets `next_run_at` during import. Draft services and
+                # records created before that behavior can still have a null value.
+                # Treat them as due so the parent can select dispatchable services;
+                # any dispatched service is rescheduled below.
                 Q(next_run_at__lte=current.replace(second=0, microsecond=0))
-                | Q(next_run_at__isnull=True)
+                | Q(next_run_at__isnull=True),
             )
             .select_for_update(
                 of=("self",),
@@ -1557,6 +2024,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                     hour=dispatched_service.hour,
                     day_of_week=dispatched_service.day_of_week,
                     day_of_month=dispatched_service.day_of_month,
+                    tz=dispatched_service.timezone,
                     from_time=next_run,
                 )
 
@@ -1600,18 +2068,341 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         }
 
 
+class CoreResponseServiceType(CoreServiceType):
+    type = "response"
+    model_class = CoreResponseService
+    dispatch_types = [DispatchTypes.ACTION]
+
+    allowed_fields = [
+        "status_code",
+        "body_type",
+        "body",
+    ]
+
+    serializer_field_names = [
+        "status_code",
+        "body_type",
+        "body",
+        "headers",
+    ]
+
+    request_serializer_field_names = [
+        "status_code",
+        "body_type",
+        "body",
+        "headers",
+    ]
+
+    class SerializedDict(ServiceDict):
+        status_code: BaserowFormulaObject
+        body_type: str
+        body: BaserowFormulaObject
+        headers: List[Dict[str, str | BaserowFormulaObject]]
+
+    simple_formula_fields = ["status_code", "body"]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.integrations.core.api.serializers import (
+            CoreResponseHeaderSerializer,
+        )
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        status_code_field = FormulaSerializerField(
+            required=False,
+            help_text=CoreResponseService._meta.get_field("status_code").help_text,
+        )
+        status_code_field.default = BaserowFormulaObject.create(
+            "204", mode=BASEROW_FORMULA_MODE_RAW
+        )
+
+        return {
+            "status_code": status_code_field,
+            "body_type": serializers.ChoiceField(
+                choices=RESPONSE_BODY_TYPE.choices,
+                required=False,
+                default=RESPONSE_BODY_TYPE.EMPTY,
+                help_text=CoreResponseService._meta.get_field("body_type").help_text,
+            ),
+            "body": FormulaSerializerField(
+                required=False,
+                default="",
+                help_text=CoreResponseService._meta.get_field("body").help_text,
+            ),
+            "headers": CoreResponseHeaderSerializer(
+                many=True,
+                required=False,
+                help_text="The headers for the response.",
+            ),
+        }
+
+    def after_create(
+        self,
+        instance: CoreResponseService,
+        values: Dict,
+    ):
+        if "headers" in values:
+            instance.headers.all().delete()
+            CoreResponseHeader.objects.bulk_create(
+                [
+                    CoreResponseHeader(
+                        service=instance,
+                        key=header["key"],
+                        value=header["value"],
+                    )
+                    for header in values["headers"]
+                ]
+            )
+
+    def after_update(
+        self,
+        instance,
+        values,
+        changes: Dict[str, Tuple],
+    ):
+        return self.after_create(instance, values)
+
+    def formula_generator(
+        self, service: CoreResponseService
+    ) -> Generator[str | Instance, str, None]:
+        yield from super().formula_generator(service)
+
+        for header in service.headers.all():
+            new_formula = yield BaserowFormulaObject.to_formula(header.value)
+            if new_formula is not None:
+                header.value = new_formula
+                yield header
+
+    def serialize_property(
+        self,
+        service: CoreResponseService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "headers":
+            return [
+                {
+                    "key": header.key,
+                    "value": header.value,
+                }
+                for header in service.headers.all()
+            ]
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        headers = serialized_values.pop("headers", [])
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        CoreResponseHeader.objects.bulk_create(
+            [
+                CoreResponseHeader(
+                    **header,
+                    service=service,
+                )
+                for header in headers
+            ]
+        )
+
+        return service
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("headers")
+
+    def formulas_to_resolve(
+        self, service: CoreResponseService
+    ) -> list[FormulaToResolve]:
+        formulas = []
+
+        formulas.append(
+            FormulaToResolve(
+                "status_code",
+                service.status_code,
+                ensure_http_status_code,
+                "'status_code' property",
+            )
+        )
+
+        if service.body_type != RESPONSE_BODY_TYPE.EMPTY:
+            body_ensurer = ensure_string
+            if (
+                service.body_type == RESPONSE_BODY_TYPE.JSON
+                and service.body.get("mode") != BASEROW_FORMULA_MODE_ADVANCED
+            ):
+                body_ensurer = partial(ensure_deserialized_json, strict=True)
+            elif service.body_type == RESPONSE_BODY_TYPE.JSON:
+                body_ensurer = ensure_json_serializable
+            formulas.append(
+                FormulaToResolve(
+                    "body",
+                    service.body,
+                    body_ensurer,
+                    "'body' property",
+                )
+            )
+
+        formulas.extend(
+            FormulaToResolve(
+                f"header_{header.id}",
+                header.value,
+                ensure_http_header_value,
+                f"'{header.key}' header",
+            )
+            for header in service.headers.all()
+        )
+
+        return formulas
+
+    def should_resolve_service_formula(
+        self,
+        service: CoreResponseService,
+        formula: FormulaToResolve,
+        resolved_values: Dict[str, Any],
+    ) -> bool:
+        return not (formula.key == "body" and resolved_values.get("status_code") == 204)
+
+    def _normalize_response_body(
+        self,
+        body_type: str,
+        resolved_values: Dict[str, Any],
+    ) -> Any:
+        if body_type == RESPONSE_BODY_TYPE.EMPTY:
+            return None
+        if body_type == RESPONSE_BODY_TYPE.TEXT:
+            return ensure_string(resolved_values.get("body"), allow_empty=True)
+        return resolved_values.get("body")
+
+    def dispatch_data(
+        self,
+        service: CoreResponseService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        from baserow.contrib.automation.history.models import (
+            AutomationWorkflowHistoryResponse,
+        )
+
+        workflow_history = getattr(dispatch_context, "history", None)
+        if workflow_history is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Response services can only be dispatched from automation workflows."
+            )
+
+        source_node = getattr(service, "automation_workflow_node", None)
+        headers = {
+            header.key: resolved_values[f"header_{header.id}"]
+            for header in service.headers.all()
+            if header.key
+        }
+        status_code = resolved_values["status_code"]
+        body_type = (
+            RESPONSE_BODY_TYPE.EMPTY if status_code == 204 else service.body_type
+        )
+        body = self._normalize_response_body(body_type, resolved_values)
+
+        try:
+            with transaction.atomic():
+                AutomationWorkflowHistoryResponse.objects.create(
+                    workflow_history=workflow_history,
+                    status_code=status_code,
+                    headers=headers,
+                    body=body,
+                    body_type=body_type,
+                    source_node=source_node,
+                    is_default=False,
+                )
+                created = True
+        except IntegrityError:
+            created = False
+
+        return {
+            "data": {
+                "response_written": created,
+                "ignored": not created,
+                "status_code": status_code,
+                "headers": headers,
+                "body": body,
+                "body_type": body_type,
+            }
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data["data"])
+
+
 class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerService
 
-    allowed_fields = ["exclude_get", "is_public"]
-    serializer_field_names = ["uid", "exclude_get", "is_public"]
-    request_serializer_field_names = ["exclude_get"]
+    allowed_fields = [
+        "exclude_get",
+        "is_public",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    serializer_field_names = [
+        "uid",
+        "exclude_get",
+        "is_public",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    request_serializer_field_names = [
+        "exclude_get",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
 
     class SerializedDict(ServiceDict):
         uid: str
         exclude_get: bool
         is_public: bool
+        wait_for_response: bool
+        response_timeout_seconds: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "response_timeout_seconds": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
+                help_text=CoreHTTPTriggerService._meta.get_field(
+                    "response_timeout_seconds"
+                ).help_text,
+            ),
+            "wait_for_response": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreHTTPTriggerService._meta.get_field(
+                    "wait_for_response"
+                ).help_text,
+            ),
+        }
 
     def get_api_urls(self) -> List[path]:
         return [
@@ -1649,7 +2440,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
 
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
-    ) -> None:
+    ) -> tuple[CoreHTTPTriggerService, Optional["AutomationWorkflowHistory"]]:
         """
         Finds a CoreHTTPTriggerService instance by its webhook UUID and calls
         the on_event handler to process it.
@@ -1682,7 +2473,10 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         if request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPTriggerServiceMethodNotAllowed()
 
-        self.on_event([service], request_data)
+        with transaction.atomic():
+            histories = self.on_event([service], request_data)
+        history = histories[0] if histories else None
+        return service, history
 
     def generate_schema(
         self,
@@ -1798,12 +2592,304 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         )
 
 
+class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
+    type = "email_trigger"
+    model_class = CoreInboundEmailTriggerService
+
+    # The token is deliberately not part of the request serializer fields: a
+    # client-chosen token could collide with another workspace's address. It
+    # can only be regenerated via the `regenerate_token` flag.
+    allowed_fields = ["token", "is_public"]
+    serializer_field_names = [
+        "token",
+        "email_address",
+        "test_email_address",
+        "max_message_size_mb",
+        "is_public",
+    ]
+    serializer_field_overrides = {
+        "email_address": serializers.CharField(
+            read_only=True,
+            allow_null=True,
+            help_text="The generated inbound email address of this trigger, or "
+            "null when the instance has no inbound email domain configured.",
+        ),
+        "test_email_address": serializers.CharField(
+            read_only=True,
+            allow_null=True,
+            help_text="The `test-` prefixed inbound email address that starts a "
+            "test run of the draft workflow instead of the published one, or "
+            "null when the instance has no inbound email domain configured.",
+        ),
+        "max_message_size_mb": serializers.IntegerField(
+            read_only=True,
+            help_text="The largest email, in MB, the inbound mail server of this "
+            "instance accepts. Larger emails are refused during delivery.",
+        ),
+    }
+    request_serializer_field_names = ["regenerate_token"]
+    request_serializer_field_overrides = {
+        "regenerate_token": serializers.BooleanField(
+            write_only=True,
+            required=False,
+            help_text="When true, a new inbound email address is generated for "
+            "this trigger.",
+        ),
+    }
+
+    class SerializedDict(ServiceDict):
+        token: str
+        is_public: bool
+
+    def get_api_urls(self) -> List[path]:
+        return [
+            path(
+                r"inbound-email/",
+                CoreInboundEmailWebhookView.as_view(),
+                name="inbound_email",
+            ),
+        ]
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreInboundEmailTriggerService] = None,
+    ) -> Dict[str, Any]:
+        if values.pop("regenerate_token", False):
+            values["token"] = generate_inbound_email_token()
+
+        return super().prepare_values(values, user, instance)
+
+    def process_inbound_email(
+        self, token: str, email: InboundEmail, simulate: bool = False
+    ) -> None:
+        """
+        Finds the CoreInboundEmailTriggerService matching the provided token and
+        calls the on_event handler for it with the email payload. The email is
+        passed through as-is; the trigger doesn't care which provider sent or
+        forwarded it.
+
+        The draft and the published version of a service share the same token,
+        so `simulate` decides which one is targeted, exactly like the HTTP
+        trigger's `?test=true`: the `test-` prefixed address reaches the draft,
+        the bare one the published version.
+
+        :param token: The token extracted from the recipient address.
+        :param email: The normalized inbound email.
+        :param simulate: True when the message was sent to the `test-` address,
+            targeting the draft version of the service; False targets the
+            published version.
+        :raises CoreInboundEmailTriggerServiceDoesNotExist: When the token doesn't
+            match a service of the requested version.
+        """
+
+        # When the service is published, the previous published service may be
+        # kept (e.g. see `AutomationWorkflowHandler::publish()`). Since the
+        # token is the same between the two, only the latest one is used.
+        service = (
+            self.model_class.objects.filter(token=token, is_public=not simulate)
+            .order_by("-id")
+            .first()
+        )
+
+        if not service:
+            raise CoreInboundEmailTriggerServiceDoesNotExist(token)
+
+        payload = email.to_payload()
+        self.on_event([service], lambda service: payload)
+
+    def dispatch_data(
+        self,
+        service: CoreInboundEmailTriggerService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        # When the trigger is simulated before any real email arrived, there
+        # is no event payload, so a sample email is returned instead.
+        if dispatch_context.event_payload is None:
+            return self._get_sample_payload(service)
+
+        return super().dispatch_data(service, resolved_values, dispatch_context)
+
+    def _get_sample_payload(
+        self, service: CoreInboundEmailTriggerService
+    ) -> Dict[str, Any]:
+        return InboundEmail(
+            from_=InboundEmailAddress(
+                name="Sample sender", address="sender@example.com"
+            ),
+            to=[InboundEmailAddress(address=service.email_address or "")],
+            rcpt_to=service.email_address or "",
+            subject="Sample email subject",
+            body_text="This is a sample email body.",
+            body_html="<p>This is a sample email body.</p>",
+            message_id="<sample@example.com>",
+            received_at=timezone.now().isoformat(),
+        ).to_payload()
+
+    def get_schema_name(self, service: CoreInboundEmailTriggerService) -> str:
+        return f"EmailTrigger{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreInboundEmailTriggerService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        email_address_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "title": _("Name")},
+                "address": {"type": "string", "title": _("Address")},
+            },
+        }
+
+        properties = {
+            "from": {**email_address_schema, "title": _("From")},
+            "to": {
+                "type": "array",
+                "title": _("To"),
+                "items": email_address_schema,
+            },
+            "cc": {
+                "type": "array",
+                "title": _("Cc"),
+                "items": email_address_schema,
+            },
+            "reply_to": {
+                "type": "array",
+                "title": _("Reply to"),
+                "items": email_address_schema,
+            },
+            "rcpt_to": {"type": "string", "title": _("Recipient")},
+            "recipient_tag": {"type": "string", "title": _("Recipient tag")},
+            "subject": {"type": "string", "title": _("Subject")},
+            "body_text": {"type": "string", "title": _("Body (text)")},
+            "body_html": {"type": "string", "title": _("Body (HTML)")},
+            "body_text_truncated": {
+                "type": "boolean",
+                "title": _("Body (text) truncated"),
+            },
+            "body_html_truncated": {
+                "type": "boolean",
+                "title": _("Body (HTML) truncated"),
+            },
+            "message_id": {"type": "string", "title": _("Message ID")},
+            "in_reply_to": {"type": "string", "title": _("In reply to")},
+            "received_at": {"type": "string", "title": _("Received at")},
+            "attachments": {
+                "type": "array",
+                "title": _("Attachments"),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "title": _("Filename")},
+                        "content_type": {
+                            "type": "string",
+                            "title": _("Content type"),
+                        },
+                        "size": {"type": "number", "title": _("Size")},
+                    },
+                },
+            },
+            "sender_validated": {
+                "type": "boolean",
+                "title": _("Sender validated"),
+            },
+            "dkim_verified_domains": {
+                "type": "array",
+                "title": _("DKIM verified domains"),
+                "items": {"type": "string"},
+            },
+            "remote_ip": {"type": "string", "title": _("Remote IP")},
+        }
+
+        if allowed_fields is not None:
+            properties = {
+                key: value for key, value in properties.items() if key in allowed_fields
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        import_export_config: Optional[ImportExportConfig] = None,
+        **kwargs,
+    ):
+        """
+        Handle the is_public field during import based on publishing context.
+        """
+
+        if import_export_config:
+            if import_export_config.is_publishing:
+                # Publishing must keep the token so the published address is
+                # the one shown next to the draft.
+                serialized_values["is_public"] = True
+            else:
+                # Every other import (duplicating, installing a template,
+                # importing an exported application) gets a new address. The
+                # token is the address's only secret: keeping it would let an
+                # import of someone's export take over their trigger's mail,
+                # since the newest published service with a token wins.
+                serialized_values["token"] = generate_inbound_email_token()
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            import_export_config=import_export_config,
+            **kwargs,
+        )
+
+
 class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "manual"
     model_class = CoreManualTriggerService
 
+    allowed_fields = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    request_serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+
     class SerializedDict(ServiceDict):
-        pass
+        wait_for_response: bool
+        response_timeout_seconds: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "response_timeout_seconds": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "response_timeout_seconds"
+                ).help_text,
+            ),
+            "wait_for_response": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "wait_for_response"
+                ).help_text,
+            ),
+        }
 
     def can_be_immediately_dispatched(self, service: CoreManualTriggerService):
         return True
@@ -1856,8 +2942,11 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         service: CoreIteratorService,
         allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        if service.sample_data and (
-            allowed_fields is None or "items" in allowed_fields
+        if (
+            service.sample_data
+            and "data" in service.sample_data
+            and "results" in service.sample_data["data"]
+            and (allowed_fields is None or "items" in allowed_fields)
         ):
             schema_builder = SchemaBuilder()
             schema_builder.add_object(service.sample_data["data"]["results"])
@@ -1869,10 +2958,8 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
                     **schema,
                     "title": self.get_schema_name(service),
                 }
-            else:
-                return None
-        else:
-            return None
+
+        return None
 
     def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
         """
@@ -2131,6 +3218,12 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     model_class = CoreStartWorkflowService
     dispatch_types = [DispatchTypes.ACTION]
 
+    WORKFLOW_DOES_NOT_EXIST_ERROR = "The workflow with ID {workflow_id} does not exist."
+    TRIGGER_NOT_ON_DEMAND_ERROR = (
+        "Only workflows whose trigger can start on demand, such as a manual "
+        "or periodic trigger, can be started."
+    )
+
     allowed_fields = ["workflow"]
     serializer_field_names = ["workflow_id"]
     serializer_field_overrides = {
@@ -2144,6 +3237,46 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     class SerializedDict(ServiceDict):
         workflow_id: int
 
+    def get_schema_name(self, service: CoreStartWorkflowService) -> str:
+        return f"StartWorkflow{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreStartWorkflowService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {
+            "status_code": {
+                "type": "integer",
+                "title": "Status code",
+            },
+            "headers": {
+                "type": "object",
+                "title": "Headers",
+                "additionalProperties": {"type": "string"},
+            },
+            "body": {
+                "title": "Body",
+            },
+            "body_type": {
+                "type": "string",
+                "title": "Body type",
+                "enum": list(RESPONSE_BODY_TYPE.values),
+            },
+        }
+        if allowed_fields is not None:
+            properties = {
+                name: schema
+                for name, schema in properties.items()
+                if name in allowed_fields
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -2151,10 +3284,197 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         id_mapping: Dict[str, Dict[int, int]],
         **kwargs,
     ) -> Any:
+        # For callers asking what the mapping makes of an id. The import itself
+        # never writes this value: `import_serialized` decides the workflow.
         if prop_name == "workflow_id" and value is not None:
             return id_mapping.get("automation_workflows", {}).get(value, value)
 
         return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        import_formula: Callable[[str, Dict[str, Any]], str] = None,
+        **kwargs,
+    ) -> CoreStartWorkflowService:
+        """
+        Imports the service without a workflow, then decides the workflow once
+        the import can name every workflow it created.
+
+        The workflow can live in another application of the same import: a
+        builder action starts an automation's workflow, and a workflow can
+        start one of another automation. Applications are imported one after
+        the other, so at this point `id_mapping["automation_workflows"]` may
+        not hold the id yet. An import of several applications runs inside a
+        `deferred_callback_context()`, and the decision waits for it to exit,
+        by which point every application exists. A copy that stays inside the
+        instance, such as a duplicate or a publication, opens no context and
+        decides right away: nothing later in that copy can add the mapping.
+        """
+
+        exported_workflow_id = serialized_values.get("workflow_id")
+        service = super().import_serialized(
+            parent,
+            {**serialized_values, "workflow_id": None},
+            id_mapping,
+            import_formula=import_formula,
+            **kwargs,
+        )
+        if exported_workflow_id is None:
+            return service
+
+        import_export_config = kwargs.get("import_export_config")
+
+        def decide_workflow():
+            service.workflow_id = self.import_workflow_id(
+                exported_workflow_id, id_mapping, import_export_config
+            )
+            service.save(update_fields=["workflow"])
+
+        if is_deferred_callback_context_active():
+            register_deferred_callback(decide_workflow)
+        else:
+            decide_workflow()
+
+        return service
+
+    def import_workflow_id(
+        self,
+        exported_workflow_id: Any,
+        id_mapping: Dict[str, Any],
+        import_export_config: Optional[ImportExportConfig],
+    ) -> Optional[int]:
+        """
+        The workflow an imported service may start, or None when it may not
+        start the one the export named.
+
+        Ids are one global sequence, so an export written on another
+        installation can name an id this installation happens to own. The
+        reference is kept only when this import remapped it, or when the data
+        never left the instance: a duplicate, a snapshot, a publication. A file
+        import and a template install keep neither. A kept workflow must still
+        exist, be readable by whoever asked for the copy, belong to the
+        workspace imported into when the import names one, and have a trigger
+        that starts on demand.
+
+        :param exported_workflow_id: What the export named, which is whatever
+            was in the file.
+        :param id_mapping: What this import has remapped so far.
+        :param import_export_config: What kind of import this is.
+        :return: The id to write, or None.
+        """
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        # Nothing coerces this the way the endpoint's serializer does, so a
+        # hand-edited export could key the mapping with a list, or slip a
+        # `True` through, which hashes equal to 1.
+        if isinstance(exported_workflow_id, bool) or not isinstance(
+            exported_workflow_id, int
+        ):
+            return None
+
+        workflow_mapping = id_mapping.get("automation_workflows", {})
+        # `.keys()`, not `in`: a `MirrorDict` answers `in` for every key, and
+        # the key view only for what this import actually remapped.
+        if exported_workflow_id in workflow_mapping.keys():
+            workflow_id = workflow_mapping[exported_workflow_id]
+        elif (
+            import_export_config is not None
+            and not import_export_config.is_template
+            and (
+                import_export_config.is_duplicate or import_export_config.is_publishing
+            )
+        ):
+            workflow_id = exported_workflow_id
+        else:
+            return None
+
+        copied_by = import_export_config.copied_by if import_export_config else None
+        try:
+            if copied_by is None:
+                workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+            else:
+                workflow = AutomationWorkflowService().get_workflow(
+                    copied_by, workflow_id
+                )
+        except (AutomationWorkflowDoesNotExist, PermissionException):
+            return None
+
+        reason = self.unusable_workflow_reason(
+            workflow, id_mapping.get("import_workspace_id")
+        )
+        return None if reason is not None else workflow.id
+
+    def unusable_workflow_reason(
+        self, workflow: "AutomationWorkflow", workspace_id: Optional[int]
+    ) -> Optional[str]:
+        """
+        The rule save and import both read: the workflow belongs to the
+        workspace the service is configured in, and its trigger can start on
+        demand.
+
+        :param workflow: The workflow the caller named.
+        :param workspace_id: The workspace the service belongs to, or None when
+            the caller cannot name one, which skips that half of the rule.
+        :return: The refusal, or None when the workflow may be started.
+        """
+
+        if (
+            workspace_id is not None
+            and workflow.automation.workspace_id != workspace_id
+        ):
+            return self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(workflow_id=workflow.id)
+        if not workflow.can_be_immediately_dispatched():
+            return self.TRIGGER_NOT_ON_DEMAND_ERROR
+        return None
+
+    def get_workflow_to_start(
+        self, user: AbstractUser, workflow_id: int, workspace_id: Optional[int] = None
+    ) -> "AutomationWorkflow":
+        """
+        Resolves the workflow a service may start. Permission is checked before
+        anything about the workflow is inspected, and refused the way a missing
+        one is, so a refusal never says whether a workflow exists or what kind
+        of trigger it has.
+
+        :param user: Who is configuring the service.
+        :param workflow_id: The workflow they want to start.
+        :param workspace_id: The workspace the service belongs to. The hosts of
+            the service pass it, as a user is often in more than one workspace.
+        :raises serializers.ValidationError: When the workflow does not exist
+            in that workspace or cannot be started on demand.
+        :return: The workflow.
+        """
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        try:
+            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
+        except (AutomationWorkflowDoesNotExist, PermissionException) as exc:
+            raise serializers.ValidationError(
+                self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(workflow_id=workflow_id)
+            ) from exc
+
+        reason = self.unusable_workflow_reason(workflow, workspace_id)
+        if reason is not None:
+            raise serializers.ValidationError(reason)
+        return workflow
 
     def prepare_values(
         self,
@@ -2171,26 +3491,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
             values["workflow"] = None
             return values
 
-        from baserow.contrib.automation.workflows.exceptions import (
-            AutomationWorkflowDoesNotExist,
-        )
-        from baserow.contrib.automation.workflows.service import (
-            AutomationWorkflowService,
-        )
-
-        try:
-            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
-        except AutomationWorkflowDoesNotExist as exc:
-            raise serializers.ValidationError(
-                f"The workflow with ID {workflow_id} does not exist."
-            ) from exc
-
-        if not workflow.can_be_immediately_dispatched():
-            raise serializers.ValidationError(
-                "Only workflows with an immediate dispatch trigger can be started."
-            )
-
-        values["workflow"] = workflow
+        values["workflow"] = self.get_workflow_to_start(user, workflow_id)
         return values
 
     def export_prepared_values(self, instance: CoreStartWorkflowService):
@@ -2206,15 +3507,32 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Any:
+        from baserow.contrib.automation.workflows.constants import WorkflowState
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
         if service.workflow_id is None:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The workflow to start is not configured."
             )
 
-        from baserow.contrib.automation.workflows.constants import WorkflowState
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
+        # A user can be in more than one workspace, and an import can bind
+        # a service to a workflow elsewhere, so the run checks what save
+        # checks: the workflow belongs to the workspace the service runs in.
+        workspace = dispatch_context.workspace
+        if (
+            workspace is None
+            or service.workflow.automation.workspace_id != workspace.id
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(
+                    workflow_id=service.workflow_id
+                )
+            )
+
+        from baserow.contrib.automation.history.constants import HistoryStatusChoices
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 
         published_workflow = AutomationWorkflowHandler().get_published_workflow(
             service.workflow
@@ -2231,14 +3549,119 @@ class CoreStartWorkflowServiceType(CoreServiceType):
 
         if not published_workflow.can_be_immediately_dispatched():
             raise ServiceImproperlyConfiguredDispatchException(
-                "Only workflows with an immediate dispatch trigger can be started."
+                self.TRIGGER_NOT_ON_DEMAND_ERROR
             )
 
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        workflow_handler = AutomationWorkflowHandler()
+        history_handler = AutomationHistoryHandler()
+        trigger_service = published_workflow.get_trigger().service.specific
+        should_wait = bool(getattr(trigger_service, "wait_for_response", False))
+        response_timeout_seconds = getattr(
+            trigger_service, "response_timeout_seconds", 10
+        )
+        if should_wait:
+            history = workflow_handler.async_start_workflow(
+                published_workflow,
+                triggered_by=dispatch_context.actor,
+                defer_scheduling=True,
+            )
+            if history is None:
+                return None
+            if history.status != HistoryStatusChoices.STARTED:
+                workflow_response = history_handler.get_workflow_history_response(
+                    history
+                ) or history_handler.ensure_default_response(history)
+                return {
+                    "status_code": workflow_response.status_code,
+                    "headers": workflow_response.headers,
+                    "body": workflow_response.body,
+                    "body_type": workflow_response.body_type,
+                }
+            return {
+                "_deferred_workflow_id": published_workflow.id,
+                "_deferred_history_id": history.id,
+                "_deferred_timeout_seconds": response_timeout_seconds,
+            }
+        else:
+            workflow_handler.async_start_workflow(
+                published_workflow, triggered_by=dispatch_context.actor
+            )
+
         return None
 
     def dispatch_transform(
         self,
         data: Any,
     ) -> DispatchResult:
+        if data and "_deferred_workflow_id" in data:
+            return DispatchResult(
+                data=None,
+                deferred_workflow_id=data["_deferred_workflow_id"],
+                deferred_history_id=data["_deferred_history_id"],
+                deferred_timeout_seconds=data["_deferred_timeout_seconds"],
+            )
         return DispatchResult(data=data)
+
+    def after_dispatch(
+        self,
+        service: CoreStartWorkflowService,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        if (
+            dispatch_result.deferred_history_id is None
+            or getattr(dispatch_context, "history", None) is not None
+        ):
+            return dispatch_result
+
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+        from baserow.contrib.automation.workflows.tasks import (
+            start_workflow_celery_task,
+        )
+
+        start_workflow_celery_task.delay(
+            dispatch_result.deferred_workflow_id,
+            dispatch_result.deferred_history_id,
+        )
+        history_handler = AutomationHistoryHandler()
+        history = history_handler.get_workflow_history(
+            dispatch_result.deferred_history_id
+        )
+        workflow_response = history_handler.wait_for_workflow_response(
+            history,
+            dispatch_result.deferred_timeout_seconds,
+        )
+        if workflow_response is None:
+            return DispatchResult(
+                data={
+                    "status_code": 504,
+                    "headers": {},
+                    "body": None,
+                    "body_type": RESPONSE_BODY_TYPE.EMPTY,
+                }
+            )
+        return DispatchResult(
+            data={
+                "status_code": workflow_response.status_code,
+                "headers": workflow_response.headers,
+                "body": workflow_response.body,
+                "body_type": workflow_response.body_type,
+            }
+        )
+
+    def requires_autocommit(self, service: CoreStartWorkflowService) -> bool:
+        if service.workflow_id is None:
+            return False
+
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(
+            service.workflow
+        )
+        if published_workflow is None:
+            return False
+
+        trigger_service = published_workflow.get_trigger().service.specific
+        return bool(getattr(trigger_service, "wait_for_response", False))

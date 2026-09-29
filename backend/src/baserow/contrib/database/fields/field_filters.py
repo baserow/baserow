@@ -6,21 +6,15 @@ from django.db.models import BooleanField, Q
 from django.db.models.expressions import F, Value
 from django.db.models.functions import Mod
 
-from opentelemetry import trace
-
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     FileNameContainsExpr,
 )
-from baserow.core.telemetry.utils import baserow_trace_methods
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel
 
 FILTER_TYPE_AND = "AND"
 FILTER_TYPE_OR = "OR"
-
-
-tracer = trace.get_tracer(__name__)
 
 
 def parse_ids_from_csv_string(value: str) -> list[int]:
@@ -306,7 +300,7 @@ class GroupedFiltersAdapter(ABC):
         """
 
 
-class AdvancedFilterBuilder(metaclass=baserow_trace_methods(tracer)):
+class AdvancedFilterBuilder:
     """
     This utility class constructs a filter builder using an instance of
     GroupedFiltersAdapter. While the FilterBuilder class combines filters using

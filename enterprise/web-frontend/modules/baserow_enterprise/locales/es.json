@@ -31,9 +31,10 @@
         "roleTitle": "Rol por defecto",
         "inviteMembers": "Añadir miembros",
         "membersTitle": "Miembros",
-        "noSubjectsSelected": "Haz clic en '{buttonLabel}' para añadir opcionalmente usuarios del equipo.",
+        "noSubjectsSelected": "Nadie tiene acceso a través de este equipo todavía.",
         "roleHelpText": "Los roles específicos de usuario siempre prevalecerán sobre los roles de equipo.",
-        "submit": "Guardar"
+        "submit": "Guardar",
+        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo."
     },
     "editTeamContext": {
         "edit": "Editar equipo",
@@ -74,10 +75,10 @@
         "description": "Descripción",
         "timestamp": "Marca de tiempo",
         "exportModalTitle": "Exportar a CSV",
-        "clearFilters": "Despejar",
+        "clearFilters": "Limpiar",
         "allUsers": "Todos los usuarios",
         "allWorkspaces": "Todos los grupos",
-        "allActionTypes": "Todos los tipos de actos",
+        "allActionTypes": "Todos los tipos de eventos",
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
         "workspaceTitle": "Registro de auditoría - {nombreDelEspacioDeTrabajo}",
@@ -125,7 +126,8 @@
         "samlResponseSettings": "Atributos de respuesta SAML",
         "emailAttrKeyHelper": "El correo electrónico que se utilizará como nombre de usuario para el usuario.",
         "lastNameAttrKey": "Apellido",
-        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre»."
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre».",
+        "emailVerificationNotice": "Asegúrate de que tu proveedor de identidad exija direcciones de correo electrónico verificadas antes de autenticar a los usuarios. Las firmas SAML autentican al proveedor, no la propiedad del correo."
     },
     "createSettingsAuthProviderModal": {
         "title": "Añadir un nuevo {tipo}"
@@ -157,7 +159,9 @@
         "errorDifferentProvider": "utilice el proveedor con el que se registró originalmente.",
         "errorSsoFeatureNotActive": "La función SSO no está activa. Consulta a tu administrador.",
         "errorSignupDisabled": "El administrador ha desactivado el registro.",
-        "errorWorkspaceInvitationEmailMismatch": "su dirección de correo electrónico no coincide con la invitación."
+        "errorWorkspaceInvitationEmailMismatch": "su dirección de correo electrónico no coincide con la invitación.",
+        "errorUnverifiedEmail": "el proveedor de identidad no ha verificado tu dirección de correo electrónico. Por favor, verifica tu correo con el proveedor e inténtalo de nuevo.",
+        "errorApplicationUserLimitReached": "El inicio de sesión no está disponible temporalmente. Por favor, contacta al propietario del sitio web o inténtalo de nuevo más tarde."
     },
     "roles": {
         "builder": {
@@ -246,7 +250,8 @@
         "membersTab": "Miembros",
         "subjectTypeNameMembers": "miembros",
         "subjectTypeNameTeams": "equipos",
-        "teamsTab": "Equipos"
+        "teamsTab": "Equipos",
+        "agentsTab": "Agentes"
     },
     "selectTeamsList": {
         "searchPlaceholder": "Encontrar equipos...",
@@ -256,9 +261,10 @@
         "invite": "Invitar {cuenta} {tipo}",
         "types": {
             "members": "miembros",
-            "teams": "equipos"
+            "teams": "equipos",
+            "agents": "agentes"
         },
-        "helpTooltip": "La asignación de funciones a los miembros anula la asignación de funciones a los equipos.",
+        "helpTooltip": "Las asignaciones de roles a miembros y agentes anulan las asignaciones de roles a equipos.",
         "roleSelectorBuilderDataWarningTooltip": "Podrán crear fórmulas y campos de búsqueda que expongan cualquier campo de cualquier tabla vinculada."
     },
     "membersRoleField": {
@@ -289,7 +295,8 @@
         "emailAttrKeyHelper": "La dirección de correo electrónico que se usará como nombre de usuario para el usuario. ",
         "lastNameAttrKey": "Apellidos",
         "firstNameAttrKeyHelper": "El primer nombre del usuario, o el nombre completo si no se indica los 'Apellidos'.",
-        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’."
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’.",
+        "emailVerificationNotice": "Asegúrate de que tu proveedor de identidad exija direcciones de correo electrónico verificadas antes de autenticar a los usuarios. Baserow confía en la dirección de correo electrónico reportada por el proveedor."
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
@@ -338,7 +345,8 @@
         "xlsFileReaderContent": "Lee filas desde archivos XLS y XLSX en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "codeRunnerContent": "Ejecuta código JavaScript en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "xlsFileReader": "Lector de archivos XLS",
-        "codeRunner": "Ejecutor de código"
+        "codeRunner": "Ejecutor de código",
+        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Soporte directo"
@@ -667,7 +675,8 @@
         "nobodyTitle": "Nadie",
         "nobodyDescription": "Ningún usuario",
         "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
-        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada."
+        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada.",
+        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador"
     },
     "builderSettingTypes": {
         "customCode": "CSS/JS personalizados"
@@ -758,7 +767,15 @@
         "exampleProjectTrackerName": "Gestor de proyectos",
         "exampleProductRoadmapName": "Hoja de ruta del producto",
         "exampleTeamCheckInsName": "Gestor de seguimiento de equipo",
-        "exampleBugTrackerName": "Gestor de errores"
+        "exampleBugTrackerName": "Gestor de errores",
+        "progress": "Pregunta {current} de {total}",
+        "industryLabel": "¿En qué industria estás?",
+        "industryDescription": "Unas pocas palabras son suficientes, como \"Manufactura\", \"Aeroespacial\" o \"Marketing digital\".",
+        "industryPlaceholder": "Marketing digital",
+        "teamLabel": "¿En qué equipo estás?",
+        "teamDescription": "Por ejemplo \"Servicios al cliente\", \"Finanzas\" u \"Operaciones\".",
+        "teamPlaceholder": "ej. Servicios al cliente",
+        "explanation": "Kuma construye tu espacio de trabajo por ti. Responder un par de preguntas permite que sugiera qué construir primero, así empiezas con algo que coincide con el trabajo que realmente haces."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Crea una base de datos que incluya: tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}"
@@ -866,14 +883,14 @@
     },
     "coreCodeServiceForm": {
         "codeHelperText": "Baserow llama a la función `principal(contexto)` cuando se ejecuta la acción. Usa `contexto` para leer valores inyectados y devuelve un `objeto` cuyas propiedades pueden ser usadas por acciones posteriores.",
-        "injectionsHelperText": "Las inyecciones son fórmulas evaluadas antes de que el código se ejecute. Cada nombre de inyección se convierte en una propiedad de `contexto`. Por ejemplo, una inyección llamada `nombreCliente` está disponible como `contexto.nombreCliente`.",
+        "injectionsHelperText": "Las inyecciones son expresiones evaluadas antes de que el código se ejecute. Cada nombre de inyección se convierte en una propiedad de `contexto`. Por ejemplo, una inyección llamada `nombreCliente` está disponible como `contexto.nombreCliente`.",
         "nameFieldInvalid": "El nombre debe ser un nombre de variable válido.",
         "codePlaceholder": "Ingresa el código para ejecutar",
         "nameFieldRequired": "El campo nombre es obligatorio.",
         "editCode": "Editar código",
         "injectionsLabel": "Inyecciones de datos",
         "namePlaceholder": "Nombre de la variable",
-        "valuePlaceholder": "Fórmula del valor",
+        "valuePlaceholder": "Expresión de valor",
         "addInjection": "Añadir inyección",
         "codeLabel": "Código",
         "nameLabel": "Nombre",
@@ -897,5 +914,42 @@
     "nodeType": {
         "xlsFileReaderLabel": "Leer un archivo XLS",
         "codeLabel": "Ejecutar código"
+    },
+    "aiPromptStep": {
+        "title": "¿Qué debería Kuma construir para ti?",
+        "modelNotSupportedMessage": "No se puede contactar a Kuma porque ningún modelo de IA funcional está configurado, así que no puede construir una base de datos para ti ahora. Intentar de nuevo no ayudará hasta que eso se arregle.",
+        "description": "Hemos escrito una primera sugerencia basada en tus respuestas. Cámbiala, o elige otra a continuación.",
+        "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero.",
+        "placeholder": "ej. Realiza un seguimiento de proyectos de clientes con fechas límite, responsables y estado.",
+        "generating": "Kuma está escribiendo una sugerencia para ti…",
+        "suggestionsTitle": "O empieza con uno de estos"
+    },
+    "aiPromptOnboardingType": {
+        "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
+        "prompt": "Crea una base de datos que incluya tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}",
+        "language": "Escribe todo lo que generes en el idioma con código ISO 639-1 \"{language}\"."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "La selección no otorga acceso a la tabla. Un usuario seleccionado, un agente, o un miembro de un equipo seleccionado debe tener además un rol de Editor, Constructor o Administrador donde esta tabla se encuentra.",
+        "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo.",
+        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros"
+    },
+    "applicationUserLimitNotification": {
+        "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan.",
+        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Por favor, actualiza el plan.",
+        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles."
+    },
+    "graphElementForm": {
+        "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico.",
+        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta."
+    },
+    "enterpriseAgents": {
+        "retry": "Reintentar",
+        "teamsLoadErrorDescription": "Comprueba la conexión e inténtalo de nuevo.",
+        "teamsLoadError": "No se pudieron cargar los equipos."
+    },
+    "subjectType": {
+        "team": "Equipo",
+        "teams": "Equipos"
     }
 }

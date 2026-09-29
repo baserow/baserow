@@ -65,6 +65,11 @@ const IntegrationDropdownStub = defineComponent({
       type: Object,
       required: true,
     },
+    allowEditing: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   template: `
     <div
@@ -112,12 +117,14 @@ async function mountComponent({
   defaultValues = service,
   integrations = [],
   application = { id: 1 },
+  props = {},
 } = {}) {
   return await mountSuspended(CoreSMTPEmailServiceForm, {
     props: {
       application,
       service,
       defaultValues,
+      ...props,
     },
     global: {
       stubs: {
@@ -230,5 +237,91 @@ describe('Core SMTP email service form', () => {
     expect(
       wrapper.findComponent(IntegrationDropdownStub).props('integrations')
     ).toEqual([smtpIntegration])
+  })
+
+  test('an explicit instance flag wins over the service', async () => {
+    // A button action being added has no saved service to carry the flag.
+    const wrapper = await mountComponent({
+      service: { instance_smtp_settings_enabled: true },
+      props: { instanceSmtpAvailable: false },
+    })
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
+  })
+
+  test('with the instance available, the choice is offered', async () => {
+    const wrapper = await mountComponent({
+      service: {},
+      defaultValues: { use_instance_smtp_settings: true },
+      props: { instanceSmtpAvailable: true },
+    })
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(true)
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(false)
+  })
+
+  test('a stale instance choice offers the integration without changing it', async () => {
+    // Opening the form must not be an edit: the choice changes only when the
+    // user picks an integration, so a save of anything else keeps it.
+    const stale = { use_instance_smtp_settings: true }
+    const wrapper = await mountComponent({
+      service: stale,
+      defaultValues: stale,
+      props: { instanceSmtpAvailable: false },
+    })
+    await nextTick()
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
+    expect(
+      wrapper
+        .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
+        .exists()
+    ).toBe(true)
+    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(true)
+    const changed = (wrapper.emitted('values-changed') || []).filter(
+      ([values]) => values.use_instance_smtp_settings !== true
+    )
+    expect(changed).toHaveLength(0)
+  })
+
+  test('without the new prop the form reads the service as before', async () => {
+    const stale = {
+      use_instance_smtp_settings: true,
+      instance_smtp_settings_enabled: false,
+    }
+    const wrapper = await mountComponent({
+      service: stale,
+      defaultValues: stale,
+    })
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(
+      wrapper
+        .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
+        .exists()
+    ).toBe(false)
+  })
+
+  test('an integration can be edited from a database but not a builder', async () => {
+    // A database has no integrations page, so the dropdown is the only place
+    // to edit one. The builder and automations keep their own pages.
+    const service = { instance_smtp_settings_enabled: false }
+    const inDatabase = await mountComponent({
+      service,
+      application: { id: 1, type: 'database' },
+    })
+    const inBuilder = await mountComponent({
+      service,
+      application: { id: 2, type: 'builder' },
+    })
+
+    expect(
+      inDatabase.findComponent(IntegrationDropdownStub).props('allowEditing')
+    ).toBe(true)
+    expect(
+      inBuilder.findComponent(IntegrationDropdownStub).props('allowEditing')
+    ).toBe(false)
   })
 })

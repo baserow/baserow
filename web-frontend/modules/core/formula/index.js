@@ -3,6 +3,33 @@ import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser
 import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
+// Identical formulas share one parse tree, which avoids re-lexing and
+// re-parsing the same formula for every cell in large grids. This is only safe
+// while the visitors below treat the tree as read-only: they must never store
+// state on the context nodes, or one caller would see another's leftovers. The
+// cache is keyed purely on the formula text, so a tree can also be reused
+// across requests on the server.
+export const PARSE_TREE_CACHE_MAX_SIZE = 512
+const parseTreeCache = new Map()
+
+const getCachedParseTree = (formula) => {
+  const tree = parseTreeCache.get(formula)
+  if (tree !== undefined) {
+    // A Map iterates in insertion order, so re-inserting a hit moves it to the
+    // back and keeps the eviction below least-recently-used rather than
+    // first-in-first-out.
+    parseTreeCache.delete(formula)
+    parseTreeCache.set(formula, tree)
+    return tree
+  }
+  const parsed = parseBaserowFormula(formula)
+  if (parseTreeCache.size >= PARSE_TREE_CACHE_MAX_SIZE) {
+    parseTreeCache.delete(parseTreeCache.keys().next().value)
+  }
+  parseTreeCache.set(formula, parsed)
+  return parsed
+}
+
 /**
  * Resolves a formula in the context of the given context.
  *
@@ -27,7 +54,7 @@ export const resolveFormula = (
   }
 
   try {
-    const tree = parseBaserowFormula(formulaCtx.formula)
+    const tree = getCachedParseTree(formulaCtx.formula)
     return new BaserowFormulaExecutionVisitor(
       functions,
       RuntimeFormulaContext
@@ -325,15 +352,16 @@ export const buildFormulaFunctionNodes = (app) => {
 
         // Get description and examples
         let description = null
-        let example = null
+        let examples = null
         try {
           description = instance.getDescription()
         } catch (e) {
           // Method not implemented
         }
         try {
-          const examples = instance.getExamples()
-          example = examples && examples.length > 0 ? examples[0] : null
+          const typeExamples = instance.getExamples()
+          examples =
+            typeExamples && typeExamples.length > 0 ? typeExamples : null
         } catch (e) {
           // Method not implemented
         }
@@ -342,7 +370,7 @@ export const buildFormulaFunctionNodes = (app) => {
           name: func.name,
           type: 'function',
           description,
-          example,
+          examples,
           highlightingColor: 'blue',
           icon: func.icon,
           identifier: null,
@@ -357,7 +385,7 @@ export const buildFormulaFunctionNodes = (app) => {
         order: null,
         signature: null,
         description: null,
-        example: null,
+        examples: null,
         highlightingColor: null,
         icon: null,
         nodes: categoryNodes,
@@ -374,7 +402,7 @@ export const buildFormulaFunctionNodes = (app) => {
       order: null,
       signature: null,
       description: null,
-      example: null,
+      examples: null,
       highlightingColor: 'blue',
       icon: null,
       nodes: functionCategories,
@@ -441,14 +469,15 @@ export const buildFormulaFunctionNodes = (app) => {
         }
 
         const description = instance.getDescription()
-        const examples = instance.getExamples()
-        const example = examples && examples.length > 0 ? examples[0] : null
+        const typeExamples = instance.getExamples()
+        const examples =
+          typeExamples && typeExamples.length > 0 ? typeExamples : null
 
         categoryNodes.push({
           name: op.name,
           type: 'operator',
           description,
-          example,
+          examples,
           highlightingColor: 'green',
           icon: op.icon,
           identifier: null,
@@ -459,7 +488,7 @@ export const buildFormulaFunctionNodes = (app) => {
 
       operatorCategories.push({
         name: category.name,
-        example: null,
+        examples: null,
         signature: null,
         highlightingColor: null,
         icon: null,

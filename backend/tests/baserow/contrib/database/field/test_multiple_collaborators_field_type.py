@@ -14,6 +14,7 @@ from pytest_unordered import unordered
 from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import MultipleCollaboratorsField
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.views.handler import ViewHandler
@@ -323,14 +324,14 @@ def test_multiple_collaborators_field_type_sorting(
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_1.id, row_4.id, row_3.id, row_2.id]
 
     sort.order = "DESC"
     sort.save()
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_2.id, row_3.id, row_4.id, row_1.id, row_5.id]
 
@@ -1056,11 +1057,12 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
                 getattr(row, field_object["name"]), field_object
             )
 
-    # Let's count the number of queries to export one row
+    # Creation prefetches the collaborators, so only the formula's user-details
+    # query is needed when exporting the first row.
     with CaptureQueriesContext(connection) as queries_for_first:
         export_row(first_row)
 
-    assert len(queries_for_first.captured_queries) == 2
+    assert len(queries_for_first.captured_queries) == 1
 
     other_rows = row_handler.force_create_rows(
         user=user,
@@ -1239,3 +1241,52 @@ def test_list_rows_with_group_by_and_multiple_collaborators_field(
             ]
         ),
     }
+
+
+@pytest.mark.django_db
+def test_multiple_collaborators_field_type_group_by_sort_order_ignores_selection_order(
+    data_fixture,
+):
+    """
+    Group-by treats a collaborator cell as a set: ``{A, B}`` and ``{B, A}`` are the
+    same group. ``get_group_by_sort_order`` must produce the same sort key for both so
+    that rows of one group sort contiguously.
+    """
+
+    user = data_fixture.create_user(email="user1@baserow.io", first_name="User 1")
+    user_2 = data_fixture.create_user(email="user2@baserow.io", first_name="User 2")
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    data_fixture.create_user_workspace(workspace=database.workspace, user=user_2)
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name="Multiple Collaborators"
+    )
+
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[{"id": user.id}, {"id": user_2.id}], user=user
+    )
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[{"id": user_2.id}, {"id": user.id}], user=user
+    )
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[{"id": user_2.id}], user=user
+    )
+
+    model = table.get_model()
+    field_type = field_type_registry.get_by_model(field)
+    field_name = field.db_column
+    order = field_type.get_group_by_sort_order(
+        field, field_name, "ASC", "default", table_model=model
+    )
+
+    qs = model.objects.all()
+    if order.annotation:
+        qs = qs.annotate(**order.annotation)
+    rows = list(qs.order_by(order.order))
+
+    # Rows 1 and 2 share the same set {User 1, User 2} so they must be adjacent.
+    collab_sets = [frozenset(c.id for c in getattr(r, field_name).all()) for r in rows]
+    pair_indices = [i for i, s in enumerate(collab_sets) if s == {user.id, user_2.id}]
+    assert len(pair_indices) == 2
+    assert pair_indices[1] - pair_indices[0] == 1

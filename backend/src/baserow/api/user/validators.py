@@ -4,14 +4,18 @@ from django.core.exceptions import ValidationError
 
 from rest_framework import serializers
 
-from baserow.api.validators import EMAIL_LIKE_NAME_REGEX, no_url_validation
+from baserow.api.validators import (
+    EMAIL_LIKE_NAME_REGEX,
+    no_spam_validation,
+    no_url_validation,
+)
 
 
 def name_validation(value):
     """
-    Rejects names containing URL-like content or control characters to prevent
-    abuse of transactional emails for phishing, and email addresses because
-    they're not a name.
+    Rejects names containing URL-like content, control characters or spam patterns
+    to prevent abuse of transactional emails, and email addresses because they're
+    not a name.
     """
 
     if EMAIL_LIKE_NAME_REGEX.match(value):
@@ -20,7 +24,8 @@ def name_validation(value):
             code="name_is_email",
         )
 
-    return no_url_validation(value)
+    no_url_validation(value)
+    return no_spam_validation(value)
 
 
 def password_validation(value):

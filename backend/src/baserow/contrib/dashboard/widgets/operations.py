@@ -19,6 +19,10 @@ class UpdateWidgetOperationType(WidgetOperationType):
     type = "dashboard.widget.update"
 
 
+class UpdateWidgetLayoutOperationType(DashboardOperationType):
+    type = "dashboard.update_widget_layout"
+
+
 class DeleteWidgetOperationType(WidgetOperationType):
     type = "dashboard.widget.delete"
 

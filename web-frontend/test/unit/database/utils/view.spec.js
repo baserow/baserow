@@ -1,10 +1,15 @@
 import {
   TreeGroupNode,
+  canRowsBeOptimisticallyUpdatedInView,
   createFiltersTree,
+  getOrderBy,
   matchSearchFilters,
+  reportHiddenRows,
+  serializeGroupBys,
 } from '@baserow/modules/database/utils/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import _ from 'lodash'
+import { vi } from 'vitest'
 
 describe('TreeGroupNode', () => {
   it('should initialize correctly', () => {
@@ -271,5 +276,172 @@ describe('matchSearchFilters', () => {
         ],
       })
     ).toBe(true)
+  })
+})
+
+describe('canRowsBeOptimisticallyUpdatedInView', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const view = { sortings: [], filters: [], group_bys: [] }
+
+  it('gives up on optimistic updates when a searched view has a read-only field whose value the backend computes', () => {
+    const fields = [{ id: 1, type: 'formula' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        view,
+        fields,
+        'search'
+      )
+    ).toBe(false)
+  })
+
+  it('keeps optimistic updates when the only read-only field holds no value', () => {
+    // A button field is read only, but it has no cell value for the search to
+    // match, so the backend is not the source of truth for the result.
+    const fields = [{ id: 1, type: 'button' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        view,
+        fields,
+        'search'
+      )
+    ).toBe(true)
+  })
+
+  it('still gives up when a read-only field is sorted on', () => {
+    const fields = [{ id: 1, type: 'button' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        { ...view, sortings: [{ field: 1 }] },
+        fields,
+        null
+      )
+    ).toBe(false)
+  })
+})
+
+describe('getOrderBy', () => {
+  it('returns null when adhocSorting is false', () => {
+    const view = { sortings: [{ field: 1, order: 'ASC', type: 'default' }] }
+    expect(getOrderBy(view, false)).toBeNull()
+  })
+
+  it('returns only sortings, not group_bys', () => {
+    const view = {
+      sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+      group_bys: [{ field: 1, order: 'DESC', type: 'default' }],
+    }
+    expect(getOrderBy(view, true)).toBe('field_2')
+  })
+
+  it('returns empty string when no sortings exist', () => {
+    const view = {
+      sortings: [],
+      group_bys: [{ field: 1, order: 'ASC', type: 'default' }],
+    }
+    expect(getOrderBy(view, true)).toBe('')
+  })
+
+  it('serializes DESC and non-default sort type', () => {
+    const view = {
+      sortings: [
+        { field: 3, order: 'DESC', type: 'default' },
+        { field: 4, order: 'ASC', type: 'numeric' },
+      ],
+      group_bys: [],
+    }
+    expect(getOrderBy(view, true)).toBe('-field_3,field_4[numeric]')
+  })
+})
+
+describe('serializeGroupBys', () => {
+  it('returns empty string when no group_bys', () => {
+    expect(serializeGroupBys({ group_bys: [] })).toBe('')
+    expect(serializeGroupBys({})).toBe('')
+  })
+
+  it('serializes group_bys correctly', () => {
+    const view = {
+      group_bys: [
+        { field: 1, order: 'ASC', type: 'default' },
+        { field: 2, order: 'DESC', type: 'default' },
+      ],
+    }
+    expect(serializeGroupBys(view)).toBe('field_1,-field_2')
+  })
+
+  it('includes non-default sort type', () => {
+    const view = {
+      group_bys: [{ field: 5, order: 'ASC', type: 'numeric' }],
+    }
+    expect(serializeGroupBys(view)).toBe('field_5[numeric]')
+  })
+})
+
+describe('reportHiddenRows', () => {
+  const i18n = { t: (key, { count }) => `${key} - ${count}` }
+
+  it('returns the hidden row ids and shows one toast', () => {
+    const dispatch = vi.fn()
+    const data = {
+      items: [],
+      metadata: { hidden_row_ids: [1, 2] },
+    }
+
+    const hidden = reportHiddenRows(data, {
+      dispatch,
+      i18n,
+      created: true,
+    })
+
+    expect([...hidden]).toEqual([1, 2])
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith(
+      'toast/info',
+      {
+        title: 'hiddenRows.title - 2',
+        message: 'hiddenRows.createdMessage - 2',
+      },
+      { root: true }
+    )
+  })
+
+  it('uses the updated message for updated rows', () => {
+    const dispatch = vi.fn()
+    const data = { items: [], metadata: { hidden_row_ids: [1] } }
+
+    reportHiddenRows(data, { dispatch, i18n, created: false })
+
+    expect(dispatch).toHaveBeenCalledWith(
+      'toast/info',
+      {
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.updatedMessage - 1',
+      },
+      { root: true }
+    )
+  })
+
+  it('does nothing when the backend reports no hidden rows', () => {
+    const dispatch = vi.fn()
+
+    const hidden = reportHiddenRows(
+      { items: [], metadata: {} },
+      { dispatch, i18n, created: false }
+    )
+
+    expect(hidden.size).toBe(0)
+    expect(dispatch).not.toHaveBeenCalled()
   })
 })

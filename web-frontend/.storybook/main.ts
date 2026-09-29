@@ -1,7 +1,12 @@
 import type { StorybookConfig } from '@nuxtjs/storybook'
 import { mergeConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
 
 const config: StorybookConfig = {
+  previewAnnotations: (entries = []) => [
+    fileURLToPath(new URL('./runtime-config.js', import.meta.url)),
+    ...entries,
+  ],
   stories: [
     '../stories/**/*.mdx',
     '../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)',
@@ -13,7 +18,11 @@ const config: StorybookConfig = {
   ],
   framework: {
     name: '@storybook-vue/nuxt',
-    options: {},
+    options: {
+      // vue-docgen-api tries to read Nuxt's virtual page modules from disk.
+      // vue-component-meta skips those virtual modules and still documents real components.
+      docgen: 'vue-component-meta',
+    },
   },
   docs: {
     autodocs: 'tag',

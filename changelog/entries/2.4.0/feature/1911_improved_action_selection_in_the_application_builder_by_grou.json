@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Improved action selection in the Application Builder by grouping data source actions by integration and adding search.",
+    "issue_origin": "github",
+    "issue_number": 1911,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

@@ -68,7 +68,11 @@ async function gotoAndExpectEmptyWorkflow(
     await automationWorkflowPage.goto();
 
     try {
-      await expect(page.getByText("Choose an event...")).toBeVisible({
+      await expect(
+        page
+          .locator(".workflow-editor__trigger-selector")
+          .getByRole("searchbox")
+      ).toBeVisible({
         timeout,
       });
       return await realtimeAuthentication;
@@ -102,9 +106,14 @@ test.describe("Automation node test suite", () => {
     });
     await createNodeButton.click();
 
-    const rowsCreatedOption = page.getByText("Create a row");
-    await expect(rowsCreatedOption).toBeVisible();
-    await rowsCreatedOption.click();
+    const addNodeMenu = page.locator(".workflow-node__context:visible");
+    await addNodeMenu.getByRole("searchbox").fill("Create a row");
+
+    const createRowOption = addNodeMenu
+      .locator(".grouped-menu__actions")
+      .getByText("Create a row", { exact: true });
+    await expect(createRowOption).toBeVisible();
+    await createRowOption.click();
 
     const nodeDiv = page.getByRole("heading", {
       name: "Create a row",

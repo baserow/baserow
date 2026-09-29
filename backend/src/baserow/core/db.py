@@ -44,24 +44,54 @@ ModelInstance = TypeVar("ModelInstance", bound=object)
 
 
 APPROXIMATE_COUNT_THRESHOLD = 50_000
+EXACT_COUNT_MAX_COST = 200_000
+
+# Where the Postgres `integer` behind Django's `AutoField` and `IntegerField` stops.
+MAX_INT_FIELD_VALUE = 2**31 - 1
+
+
+def parse_int_field_value(value: Optional[str]) -> Optional[int]:
+    """
+    Parses a string into a value that can be matched against an integer column,
+    returning None when it cannot be one.
+
+    Anything that does not fit in such a column is rejected rather than matched
+    against it: no row can hold that value, and comparing against it makes Postgres
+    widen the comparison to numeric, which costs a scan of the table instead of a
+    seek on the index over the column.
+
+    :param value: The string to parse, typically an untrusted query parameter.
+    :return: The value, or None if it is not a usable one.
+    """
+
+    if value is None or not value.isdigit():
+        return None
+
+    parsed = int(value)
+    return parsed if parsed <= MAX_INT_FIELD_VALUE else None
 
 
 def get_approximate_row_count(queryset: QuerySet) -> int:
     """
-    Uses Postgres EXPLAIN to estimate the row count for the given queryset.
-    If the estimate is below APPROXIMATE_COUNT_THRESHOLD, falls back to an
-    exact COUNT(*) since the cost is negligible for small result sets and
-    the planner estimate is unreliable at that scale.
+    Uses Postgres EXPLAIN to estimate the row count for the given queryset, falling
+    back to an exact COUNT(*) when the planner reports both a small result set,
+    because the estimate is unreliable at that scale, and a cheap plan to produce it.
 
     :param queryset: The queryset to estimate the row count for.
     :return: An estimate of the row count for the queryset.
     """
 
     queryset = queryset.order_by()
-    plan = json.loads(queryset.explain(format="json"))
-    estimate = int(plan[0]["Plan"]["Plan Rows"])
+    plan = json.loads(queryset.explain(format="json"))[0]["Plan"]
+    estimate = int(plan["Plan Rows"])
 
-    if estimate < APPROXIMATE_COUNT_THRESHOLD:
+    # A low row estimate does not mean the count is cheap. A selective filter with
+    # no index to support it still has to scan the whole table to prove how few rows
+    # match, so the cost has to be checked as well as the number of rows.
+    if (
+        estimate < APPROXIMATE_COUNT_THRESHOLD
+        and plan["Total Cost"] < EXACT_COUNT_MAX_COST
+    ):
         return queryset.count()
 
     return estimate

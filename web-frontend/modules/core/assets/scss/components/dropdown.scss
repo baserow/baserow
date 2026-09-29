@@ -65,6 +65,17 @@
   color: $palette-neutral-600;
 }
 
+.dropdown__toggle-loading {
+  display: flex;
+  margin-left: auto;
+
+  @include loading-spinner;
+}
+
+.dropdown--loading .dropdown__selected {
+  cursor: wait;
+}
+
 .dropdown__items {
   border: 1px solid $palette-neutral-400;
   background-color: $white;

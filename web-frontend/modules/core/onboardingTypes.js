@@ -19,6 +19,18 @@ export class OnboardingType extends Registerable {
    * where the user must make a choice. It must contain a method called `isValid`.
    * If `true` is returned, then the user can click on the continue button. It can
    * $emit the `update-data` event to
+   *
+   * It can optionally implement `beforeNext`, which is called when the user clicks
+   * on the continue button. Returning `true` means the component handled the click
+   * itself, and the onboarding must stay on this step. It can also $emit the
+   * `next-step` event to move on without the user clicking continue.
+   *
+   * A component that asks several questions in a row can implement `canGoBack` and
+   * `goBack` to make the back button move between its own questions instead of
+   * going to the previous step.
+   *
+   * Note that the components are kept alive, so `mounted` is only called once. Use
+   * the `activated` hook to react to becoming visible again.
    */
   getFormComponent() {
     throw new Error('getFormComponent is not implemented')
@@ -61,6 +73,15 @@ export class OnboardingType extends Registerable {
   getJobForPolling(data, responses) {}
 
   /**
+   * Can optionally return an object containing a `title` and `message` explaining
+   * why the job returned by `getJobForPolling` failed, so that the user can take
+   * action. If `null` is returned, a generic failure message is shown.
+   */
+  getJobErrorMessage(job, data, responses) {
+    return null
+  }
+
+  /**
    * Can optionally return a route to where the user must be redirected after
    * completing all steps. Note that the last route will be used as we can only
    * redirect to one.
@@ -83,6 +104,20 @@ export class OnboardingType extends Registerable {
    */
   canSkip() {
     return false
+  }
+
+  /**
+   * Called when the user clicks on the cancel button while this step is active, before
+   * the onboarding is actually cancelled. It gives the step the opportunity to offer an
+   * alternative to cancelling, like choosing a template. Must resolve with `null` if
+   * the onboarding must be cancelled as normal, or with an object containing the
+   * `component` of the modal that must be shown, and optionally the `props` that are
+   * passed into it. The modal must emit `selected` with the data of this step if the
+   * onboarding must be completed with it, and `hidden` if the user dismissed it. It
+   * can emit `cancel` if it offers a way to cancel the onboarding after all.
+   */
+  async getCancelModal() {
+    return null
   }
 }
 

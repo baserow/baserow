@@ -30,6 +30,16 @@ FORMULAS = [
         "output": "concat(get('test_provider.1.10'),'bar')",
         "output2": "concat(get('test_provider.10.42'),'bar')",
     },
+    # Parentheses must survive the import, otherwise the operator precedence
+    # of the formula changes.
+    {"input": "(1 + 2) * 3", "output": "(1 + 2) * 3"},
+    {"input": "1 + (2 * 3)", "output": "1 + (2 * 3)"},
+    {"input": "((1))", "output": "((1))"},
+    {
+        "input": "round(((get('test_provider.1.10') - 1) / 2) * 100,0)",
+        "output": "round(((get('test_provider.1.10') - 1) / 2) * 100,0)",
+        "output2": "round(((get('test_provider.10.42') - 1) / 2) * 100,0)",
+    },
 ]
 
 
@@ -88,3 +98,52 @@ def test_formula_import_formula_with_import(
     result = import_formula(BaserowFormulaObject.create(formula["input"]), id_mapping)
 
     assert result["formula"] == formula.get("output2", formula["output"])
+
+
+@pytest.mark.django_db
+def test_formula_import_ignores_unparsable_formula(
+    mutable_builder_data_provider_registry,
+):
+    """
+    An invalid formula can be persisted by code paths that bypass the API
+    serializers. It must not make the whole application impossible to
+    duplicate, export or import.
+    """
+
+    mutable_builder_data_provider_registry.register(TestDataProviderType())
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+    invalid = "'Hello' World'"
+
+    result = import_formula(BaserowFormulaObject.create(invalid), id_mapping)
+
+    assert result["formula"] == invalid
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid_formula",
+    [
+        pytest.param("get('unknown_provider.x')", id="InstanceTypeDoesNotExist"),
+        pytest.param("get('test_provider.abc.10')", id="ValueError-non-numeric-id"),
+        pytest.param("get('')", id="ValueError-empty-path"),
+        pytest.param("field_by_id(1)", id="FieldByIdReferencesAreDeprecated"),
+        pytest.param("(" * 5000 + "1" + ")" * 5000, id="RecursionError"),
+    ],
+)
+def test_formula_import_ignores_parseable_but_invalid_formula(
+    invalid_formula, mutable_builder_data_provider_registry
+):
+    """
+    A formula that parses but references an unknown data provider, a bogus
+    path, or deprecated syntax must not make the whole application impossible
+    to duplicate, export or import either.
+    """
+
+    mutable_builder_data_provider_registry.register(TestDataProviderTypeWithImport())
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+
+    result = import_formula(BaserowFormulaObject.create(invalid_formula), id_mapping)
+
+    assert result["formula"] == invalid_formula

@@ -1,0 +1,217 @@
+from django.db import transaction
+
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from baserow.api.agents.errors import (
+    ERROR_AGENT_DOES_NOT_EXIST,
+    ERROR_AGENT_ROLE_DOES_NOT_EXIST,
+)
+from baserow.api.agents.serializers import (
+    AgentListParamsSerializer,
+    AgentRequestSerializer,
+    AgentSerializer,
+    UpdateAgentRequestSerializer,
+)
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_query_parameters,
+)
+from baserow.api.errors import (
+    ERROR_GROUP_DOES_NOT_EXIST,
+    ERROR_INVALID_SORT_ATTRIBUTE,
+    ERROR_INVALID_SORT_DIRECTION,
+    ERROR_USER_NOT_IN_GROUP,
+)
+from baserow.api.exceptions import (
+    InvalidSortAttributeException,
+    InvalidSortDirectionException,
+)
+from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
+from baserow.api.pagination import PageNumberPagination
+from baserow.api.schemas import get_error_schema
+from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.core.agents.exceptions import AgentDoesNotExist, AgentRoleDoesNotExist
+from baserow.core.agents.handler import AgentHandler
+from baserow.core.agents.service import AgentService
+from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
+from baserow.core.handler import CoreHandler
+
+WORKSPACE_ID_PATH_PARAMETER = OpenApiParameter(
+    name="workspace_id",
+    type=OpenApiTypes.INT,
+    location=OpenApiParameter.PATH,
+    description="The workspace whose agents are being managed.",
+)
+AGENT_ID_PATH_PARAMETER = OpenApiParameter(
+    name="agent_id",
+    type=OpenApiTypes.INT,
+    location=OpenApiParameter.PATH,
+    description="The agent being managed.",
+)
+
+
+class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
+    """Lists agents in a workspace and creates new workspace agents."""
+
+    permission_classes = (IsAuthenticated,)
+    search_fields = ["name"]
+    sort_field_mapping = {
+        "name": "name",
+        "role_uid": "role_uid",
+        "last_active": "last_active",
+        "created_on": "created_on",
+    }
+
+    @extend_schema(
+        parameters=[
+            WORKSPACE_ID_PATH_PARAMETER,
+            OpenApiParameter(
+                name="page",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Selects which page of agents to return.",
+            ),
+            OpenApiParameter(
+                name="size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Sets the number of agents returned per page.",
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filters agents by name.",
+            ),
+            OpenApiParameter(
+                name="sorts",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Orders agents by a comma-separated list of fields.",
+            ),
+        ],
+        tags=["Agents"],
+        operation_id="list_workspace_agents",
+        description="Lists the agents in a workspace.",
+        responses={
+            200: get_example_pagination_serializer_class(
+                AgentSerializer, serializer_name="AgentPagination"
+            )
+        },
+    )
+    @validate_query_parameters(AgentListParamsSerializer)
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            InvalidSortAttributeException: ERROR_INVALID_SORT_ATTRIBUTE,
+            InvalidSortDirectionException: ERROR_INVALID_SORT_DIRECTION,
+        }
+    )
+    def get(self, request, workspace_id, query_params):
+        """Returns a paginated, searchable, and sortable list of workspace agents."""
+
+        workspace = CoreHandler().get_workspace(workspace_id)
+        queryset = AgentService().list_agents(request.user, workspace)
+        queryset = self.apply_search(query_params.get("search"), queryset)
+        queryset = self.apply_sorts_or_default_sort(query_params.get("sorts"), queryset)
+        # Duplicate sort values need a unique tie-breaker for stable page boundaries.
+        if "id" not in queryset.query.order_by:
+            queryset = queryset.order_by(*queryset.query.order_by, "id")
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response(AgentSerializer(page, many=True).data)
+
+    @extend_schema(
+        parameters=[WORKSPACE_ID_PATH_PARAMETER],
+        tags=["Agents"],
+        operation_id="create_workspace_agent",
+        description="Creates a new agent in a workspace.",
+        request=AgentRequestSerializer,
+        responses={
+            200: AgentSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_ROLE_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @transaction.atomic
+    @validate_body(AgentRequestSerializer)
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            AgentRoleDoesNotExist: ERROR_AGENT_ROLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def post(self, request, data, workspace_id):
+        """Creates a new agent in the workspace."""
+
+        feature_flag_is_enabled(FF_AGENTS, raise_if_disabled=True)
+        workspace = CoreHandler().get_workspace(workspace_id)
+        agent = AgentService().create_agent(request.user, workspace, **data)
+        return Response(AgentSerializer(agent).data)
+
+
+class AgentView(APIView):
+    """Updates and deletes an individual agent."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        tags=["Agents"],
+        operation_id="update_agent",
+        description="Updates an existing agent.",
+        request=UpdateAgentRequestSerializer,
+        responses={
+            200: AgentSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_ROLE_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @transaction.atomic
+    @validate_body(UpdateAgentRequestSerializer)
+    @map_exceptions(
+        {
+            AgentDoesNotExist: ERROR_AGENT_DOES_NOT_EXIST,
+            AgentRoleDoesNotExist: ERROR_AGENT_ROLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def patch(self, request, data, agent_id):
+        """Updates an existing agent."""
+
+        agent = AgentHandler().get_agent(agent_id)
+        agent = AgentService().update_agent(request.user, agent, **data)
+        return Response(AgentSerializer(agent).data)
+
+    @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        tags=["Agents"],
+        operation_id="delete_agent",
+        description="Deletes an existing agent.",
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AgentDoesNotExist: ERROR_AGENT_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def delete(self, request, agent_id):
+        """Deletes an existing agent."""
+
+        agent = AgentHandler().get_agent(agent_id)
+        AgentService().delete_agent(request.user, agent)
+        return Response(status=204)

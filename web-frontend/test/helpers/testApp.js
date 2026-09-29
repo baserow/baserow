@@ -4,6 +4,7 @@ import axios from 'axios'
 import setupClient, {
   ClientErrorMap,
 } from '@baserow/modules/core/plugins/clientHandler'
+import setupUserSourceClient from '@baserow/modules/core/plugins/userSourceClientHandler'
 
 import setupDatabasePlugin from '@baserow/modules/database/plugin'
 import setupBuilderPlugin from '@baserow/modules/builder/plugin'
@@ -35,6 +36,7 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
     app[key] = value
   })
   app.$client = app.client
+  setupUserSourceClient({ store, app })
   store.$registry = app.$registry
   store.$client = app.client
   store.$config = app.$config
@@ -287,8 +289,8 @@ export const UIHelpers = {
     const searchBox = body.get(
       'input[placeholder*="viewSearchContext.searchInRows"]'
     )
-    await searchBox.setValue(searchTerm)
     vi.useFakeTimers()
+    await searchBox.setValue(searchTerm)
     await searchBox.trigger('submit')
     vi.runAllTimers() // Consume the debounce
     await flushPromises()
@@ -424,6 +426,29 @@ export class TestApp {
 
   failOnErrorResponses() {
     this.failTestOnErrorResponse = true
+  }
+
+  /**
+   * Signs the user in without a backend. The store decodes the access token
+   * without verifying it, so an unsigned one carrying the user id is enough.
+   *
+   * @param {object} user The user object as the backend would return it.
+   */
+  authenticate(user) {
+    const encode = (value) =>
+      btoa(JSON.stringify(value))
+        .replace(/=+$/, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+    const accessToken = [
+      encode({ alg: 'none', typ: 'JWT' }),
+      encode({ user_id: user.id }),
+      '',
+    ].join('.')
+    this.store.dispatch('auth/forceSetUserData', {
+      user,
+      access_token: accessToken,
+    })
   }
 
   get body() {

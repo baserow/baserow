@@ -1,0 +1,483 @@
+from unittest.mock import patch
+
+from django.db import DatabaseError
+from django.urls import reverse
+
+import pytest
+from requests import exceptions as request_exceptions
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_202_ACCEPTED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_409_CONFLICT,
+    HTTP_429_TOO_MANY_REQUESTS,
+)
+
+from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
+    CoreHTTPRequestWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.operations import (
+    DispatchDatabaseWorkflowActionOperationType,
+)
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
+from baserow.contrib.database.workflow_actions.service import (
+    DatabaseWorkflowActionService,
+)
+from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
+from baserow.core.jobs.constants import JOB_FAILED, JOB_STARTED
+from baserow.throttling.types import RateLimit
+from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
+    mock_advocate_request,
+)
+
+ONE_PER_MINUTE = (RateLimit(period_in_seconds=60, number_of_calls=1),)
+
+
+def _button(data_fixture, user):
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    return table, button_field, row
+
+
+def _add_http_action(data_fixture, button_field):
+    action = data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.url = "'http://example.notexist/'"
+    service.save()
+    return action
+
+
+def _add_row_action(data_fixture, button_field, table):
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    name_field = table.field_set.get(name="Name")
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+    return action
+
+
+def _add_email_action(data_fixture, user, button_field):
+    """
+    Created through the service, the way a real editor does, sending through
+    the instance server.
+    """
+
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("smtp_email"),
+        button_field,
+        service={"use_instance_smtp_settings": True},
+    )
+    service = action.service.specific
+    service.to_emails = "'someone@example.com'"
+    service.subject = "'Hello'"
+    service.body = "'Hi'"
+    service.save()
+    return action
+
+
+def _click(api_client, token, button_field, row):
+    return api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_that_reaches_outside_spends_the_budget(
+    api_client, data_fixture, settings
+):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+
+    with mock_advocate_request({"ok": True}):
+        first = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+def test_a_click_that_stays_inside_spends_nothing(api_client, data_fixture, settings):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    for _ in range(3):
+        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_the_workspace_budget_is_shared_between_its_members(
+    api_client, data_fixture, settings
+):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ()
+    settings.DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    # A second row, so the second click meets the workspace budget rather than
+    # the first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"ok": True}):
+        first = _click(api_client, token, button_field, row)
+        second = _click(api_client, other_token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    # The second user never clicked before, so only the workspace's own budget
+    # can be what stopped them.
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+def test_a_refused_click_does_not_charge_the_other_limit(
+    api_client, data_fixture, settings
+):
+    """
+    The user limit is reserved before the workspace limit is consulted. A click
+    the workspace refuses must give that reservation back, or a busy workspace
+    would eat its members' personal budgets too.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=2),
+    )
+    settings.DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    # A second row, so the workspace-refused click does not also meet the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+
+    with mock_advocate_request({"ok": True}):
+        first = _click(api_client, token, button_field, row)
+        refused = _click(api_client, token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+    # One call of the user's two was spent by the click that ran, and the
+    # refused one gave its reservation back, so the workspace limit is the only
+    # thing still standing in the way. The refusal left no job behind, so the
+    # same row is free again.
+    settings.DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = ()
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row_two).status_code == (
+            HTTP_202_ACCEPTED
+        )
+
+
+@pytest.mark.django_db
+def test_a_local_click_that_fails_spends_nothing(api_client, data_fixture, settings):
+    """
+    A budget is for reaching outside Baserow. A button that only touches rows
+    here must not spend one when an action of it fails either, or a
+    misconfigured local button would lock its clicker out of every button.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    action = _add_row_action(data_fixture, button_field, table)
+    # A create row action with no table cannot run.
+    service = action.service.specific
+    service.table = None
+    service.save()
+
+    for _ in range(3):
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_400_BAD_REQUEST
+        )
+
+    _add_http_action(data_fixture, button_field)
+    service.table = table
+    service.save()
+
+    # Nothing was spent above, so the one external click is still available.
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
+
+
+@pytest.mark.django_db
+def test_a_click_refused_by_a_pending_job_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """
+    A second click while the first's job is still pending or running is
+    refused before anything is reserved, so it owes nothing. The job's own
+    row, not the old dispatch lock, is what a click with an external action
+    is refused by, since it never reaches `dispatch_workflow_actions`
+    synchronously.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=row.id, state=JOB_STARTED
+    )
+
+    refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_409_CONFLICT
+
+    # Nothing was reserved for the refusal, so the one external click the
+    # budget allows is still there, on a row with no job of its own.
+    row_two = table.get_model().objects.create()
+    assert _click(api_client, token, button_field, row_two).status_code == (
+        HTTP_202_ACCEPTED
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_refused_by_permissions_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """
+    Otherwise a member who may not dispatch could spend the whole workspace's
+    budget on refusals, and lock out the members who may.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    original = CoreHandler.check_permissions
+
+    def all_but_dispatch(self, actor, operation_name, *args, **kwargs):
+        # Only the dispatch permission, so the click gets past reading the
+        # row and is refused by the check that guards the budget.
+        if operation_name == DispatchDatabaseWorkflowActionOperationType.type:
+            raise PermissionException()
+        return original(self, actor, operation_name, *args, **kwargs)
+
+    with patch.object(CoreHandler, "check_permissions", all_but_dispatch):
+        refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_401_UNAUTHORIZED
+    assert ButtonFieldDispatchJob.objects.count() == 0
+
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
+
+
+@pytest.mark.django_db
+def test_every_request_on_a_button_spends_its_own_slot(
+    api_client, data_fixture, settings
+):
+    """
+    A slot per click would let one button carrying ten requests send ten for
+    the price of one, so a `30/m` limit would really allow three hundred.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=2),
+    )
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+
+    with mock_advocate_request({"ok": True}):
+        first = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    # The two requests of the first click used the whole budget.
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+def test_a_button_carrying_more_requests_than_the_budget_is_refused(
+    api_client, data_fixture, settings
+):
+    """
+    Capping the reservation at what the limit holds would let the click send
+    every one of its requests for the price of the limit, which is the burst
+    the limit exists to stop. Such a button cannot be clicked inside the budget
+    at all, so it is refused rather than undercharged, and the answer says
+    waiting will not help.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"ok": True}) as request:
+        refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
+    # Nothing was sent, so the burst never happened.
+    assert request.call_count == 0
+    assert "fewer" in refused.json()["detail"]
+
+    # And the refusal spent nothing, so a button the budget can hold still
+    # works for the same clicker.
+    smaller = data_fixture.create_button_field(table=table, label="Go")
+    _add_http_action(data_fixture, smaller)
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, smaller, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
+
+
+@pytest.mark.django_db
+def test_a_click_refused_before_it_runs_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """
+    Nothing ran, so nothing reached outside. An instance that stopped being
+    able to send must not also cost its members their budget on every click.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_email_action(data_fixture, user, button_field)
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    refused = _click(api_client, token, button_field, row)
+    assert refused.status_code == HTTP_400_BAD_REQUEST
+    assert refused.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+
+    # The budget is intact, so the one external click it allows is still there.
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    with patch("django.core.mail.EmailMultiAlternatives.send", return_value=1):
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
+
+
+@pytest.mark.django_db
+def test_an_enqueued_click_keeps_its_slot_whatever_the_job_goes_on_to_do(
+    api_client, data_fixture, settings
+):
+    """
+    The slot for an external action is spent when the click is enqueued, not
+    when the job runs it: whether the job goes on to succeed, refuses to
+    build its request, fails on a local action first, or fails after its
+    request already left the instance, is all decided later, inside the job,
+    and does not change what this request already charged. The async path
+    never refunds.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+
+    first = _click(api_client, token, button_field, row)
+    second = _click(api_client, token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_click_whose_job_fails_still_keeps_its_slot(
+    api_client, data_fixture, settings, django_capture_on_commit_callbacks
+):
+    """The same property, proven by actually running the job: a failed send
+    does not give the slot back either."""
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
+
+    with (
+        mock_advocate_request(
+            raise_exception=request_exceptions.ConnectionError("nope")
+        ),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        first = _click(api_client, token, button_field, row)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    job = ButtonFieldDispatchJob.objects.get(id=first.json()["id"])
+    assert job.state == JOB_FAILED
+
+    assert _click(api_client, token, button_field, row_two).status_code == (
+        HTTP_429_TOO_MANY_REQUESTS
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_whose_job_row_cannot_be_written_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """No job was created to charge the slots to, so they go back, as they do
+    when the per-user job cap refuses the click."""
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    api_client.raise_request_exception = False
+
+    with patch(
+        "baserow.core.jobs.handler.JobHandler.create_and_start_job",
+        side_effect=DatabaseError("read-only replica"),
+    ):
+        failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == 500
+    assert _click(api_client, token, button_field, row).status_code == (
+        HTTP_202_ACCEPTED
+    )

@@ -41,9 +41,7 @@ export class GridPage {
 
   async goTo(database: Database, table: Table, view?: View): Promise<void> {
     const url = new URL(
-      `/database/${database.id}/table/${table.id}${
-        view ? `/${view.id}` : ""
-      }`,
+      `/database/${database.id}/table/${table.id}${view ? `/${view.id}` : ""}`,
       this.baseUrl,
     );
     url.searchParams.set("token", this.user.refreshToken);
@@ -193,6 +191,11 @@ export class GridPage {
     return this.page.locator(".grid-view__cell.active .grid-view__cell-error");
   }
 
+  /** The active rich text (TipTap) cell editor, visible while editing a rich text cell */
+  activeRichTextEditor(): Locator {
+    return this.page.locator(".grid-view__cell.active .tiptap.ProseMirror");
+  }
+
   /** The selected primary field cell content for the row at `rowIndex`. */
   selectedPrimaryCellAt(rowIndex: number): Locator {
     return this.primaryCellAt(rowIndex).locator(".grid-view__cell.active");
@@ -256,6 +259,31 @@ export class GridPage {
         }),
       })
       .first();
+  }
+
+  groupSpanByValue(value: string): Locator {
+    return this.page.locator(".grid-view__left .grid-view__group-span", {
+      has: this.page
+        .locator(".grid-view__group-value")
+        .filter({ hasText: this.exactTextRegex(value) }),
+    });
+  }
+
+  async selectGroupLayout(label: "Sections" | "Columns"): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .locator(".segment-control__button", { hasText: label })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async expectGroupSpanCount(value: string, count: number): Promise<void> {
+    const span = this.groupSpanByValue(value);
+    await expect(span).toHaveCount(1, { timeout: 10_000 });
+    await expect(span.locator(".grid-view__group-count")).toHaveText(
+      this.exactTextRegex(String(count)),
+      { timeout: 10_000 },
+    );
   }
 
   groupByContextToggle(): Locator {
@@ -394,6 +422,18 @@ export class GridPage {
     await this.selectPrimaryCell(rowIndex);
     await this.page.keyboard.press("Enter");
     await expect(this.activeEditor()).toBeVisible({ timeout: 10_000 });
+  }
+
+  /**
+   * Select a rich text cell and press Enter to open its TipTap editor.
+   */
+  async startEditingRichTextField(
+    rowIndex: number,
+    fieldIndex: number,
+  ): Promise<void> {
+    await this.selectFieldCell(rowIndex, fieldIndex);
+    await this.page.keyboard.press("Enter");
+    await expect(this.activeRichTextEditor()).toBeVisible({ timeout: 10_000 });
   }
 
   /** Type into the currently active editor (replaces existing content) */
@@ -623,6 +663,42 @@ export class GridPage {
     const input = this.rowEditModalTextField(fieldName);
     await input.fill(value);
     await input.blur();
+  }
+
+  floatingAddRowButton(): Locator {
+    return this.gridRoot().locator(".button-floating");
+  }
+
+  async expectFloatingAddRowButtonAboveFooter(): Promise<void> {
+    const button = await this.floatingAddRowButton().boundingBox();
+    const footer = await this.page
+      .locator(".grid-view__foot")
+      .first()
+      .boundingBox();
+    expect(button).not.toBeNull();
+    expect(footer).not.toBeNull();
+    expect(footer!.y - (button!.y + button!.height)).toBeCloseTo(20, 0);
+  }
+
+  async openCreateRowModal(): Promise<void> {
+    await this.floatingAddRowButton().click();
+    await expect(this.rowEditModal()).toBeVisible({ timeout: 10_000 });
+  }
+
+  async submitCreateRowModal(): Promise<void> {
+    await this.rowEditModal()
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+  }
+
+  async expectRowModalClosed(): Promise<void> {
+    await expect(this.rowEditModal()).toHaveCount(0, { timeout: 10_000 });
+  }
+
+  async expectRowModalError(): Promise<void> {
+    await expect(this.rowEditModal().locator(".alert--error")).toBeVisible({
+      timeout: 10_000,
+    });
   }
 
   private escapeRegex(value: string): string {
@@ -888,6 +964,19 @@ export class GridPage {
     await expect(this.selectedPrimaryCellAt(rowIndex)).toBeVisible({
       timeout: 5_000,
     });
+  }
+
+  async expectPrimaryNotSelected(rowIndex: number): Promise<void> {
+    await expect(this.selectedPrimaryCellAt(rowIndex)).toHaveCount(0, {
+      timeout: 5_000,
+    });
+  }
+
+  async expectFooterRowCount(count: number): Promise<void> {
+    await expect(this.page.locator(".grid-view__foot-info")).toHaveText(
+      `${count} rows`,
+      { timeout: 10_000 },
+    );
   }
 
   async expectFieldSelected(

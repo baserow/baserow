@@ -7,7 +7,11 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t keypath="versionUpgradeNotification.title" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="versionUpgradeNotification.title"
+        tag="span"
+      >
         <template #version>
           <strong>{{ `Baserow ${notification.data.version}` }}</strong>
         </template>

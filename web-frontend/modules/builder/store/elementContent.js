@@ -71,7 +71,7 @@ const actions = {
    * @param {object} data - the query body
    */
   async fetchElementContent(
-    { commit, getters },
+    { commit, getters, rootGetters },
     {
       page,
       element,
@@ -146,7 +146,8 @@ const actions = {
         dataSource.id,
         dispatchContext,
         { range: rangeToFetch, filters, sortings, search, searchMode },
-        queriesInProgress[element.id][`${rangeToFetch}`]?.signal
+        queriesInProgress[element.id][`${rangeToFetch}`]?.signal,
+        rootGetters['publicBuilder/getPreviewBuilderId']
       )
 
       delete queriesInProgress[element.id][`${rangeToFetch}`]

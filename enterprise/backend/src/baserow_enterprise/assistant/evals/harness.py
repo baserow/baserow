@@ -1,0 +1,440 @@
+"""Eval run engine: build a scenario, run ``main_agent``, execute checks."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import threading
+import time
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
+from types import ModuleType
+from typing import Any
+
+from pydantic_ai import Agent
+from pydantic_ai._utils import (  # noqa: PLC2701
+    run_until_complete,
+    using_thread_executor,
+)
+from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
+from pydantic_ai.models import Model
+from pydantic_ai.tool_manager import ToolManager
+from pydantic_ai.toolsets import WrapperToolset
+from pydantic_ai.usage import UsageLimits
+
+from baserow.core.generative_ai.lifecycle import run_agent_with_model
+from baserow_enterprise.assistant.agents import main_agent
+from baserow_enterprise.assistant.assistant import build_agent_run_context
+from baserow_enterprise.assistant.deps import ToolHelpers
+from baserow_enterprise.assistant.evals.registry import get_scenario, load_all
+from baserow_enterprise.assistant.evals.scenarios import make_fixtures
+from baserow_enterprise.assistant.evals.types import (
+    CheckResult,
+    EvalCase,
+    EvalRunOutput,
+)
+from baserow_enterprise.assistant.model_profiles import (
+    ORCHESTRATOR,
+    resolve_assistant_model,
+)
+from baserow_enterprise.assistant.onboarding import onboarding_suggestions_agent
+from baserow_enterprise.assistant.tools.automation import agents as automation_agents
+from baserow_enterprise.assistant.tools.builder import agents as builder_agents
+from baserow_enterprise.assistant.tools.database import agents as database_agents
+from baserow_enterprise.assistant.tools.database.agents import formula_generation_agent
+from baserow_enterprise.assistant.tools.routing import is_mode_redirect
+from baserow_enterprise.assistant.tools.search_user_docs.tools import search_docs_agent
+
+# Prompts bound into Agent singletons at import time: swapped via Agent.override.
+PROMPT_AGENT_TARGETS: dict[str, Agent] = {
+    "kuma-system-prompt": main_agent,
+    "kuma-database-formula-agent": formula_generation_agent,
+    "kuma-search-docs-agent": search_docs_agent,
+    "kuma-onboarding-suggestions-agent": onboarding_suggestions_agent,
+}
+
+# Prompts read from their consumer module at call time: swapped by attribute patch.
+PROMPT_ATTR_TARGETS: dict[str, tuple[ModuleType, str]] = {
+    "kuma-database-sample-rows-agent": (
+        database_agents,
+        "SAMPLE_ROW_AGENT_INSTRUCTIONS",
+    ),
+    "kuma-builder-formula-agent": (builder_agents, "BUILDER_FORMULA_PROMPT"),
+    "kuma-automation-formula-agent": (automation_agents, "GENERATE_FORMULA_PROMPT"),
+}
+
+
+@contextmanager
+def _patched_module_attr(module: ModuleType, attr: str, value: str) -> Iterator[None]:
+    previous = getattr(module, attr)
+    setattr(module, attr, value)
+    try:
+        yield
+    finally:
+        # A stuck thread still reads module globals. Keep its prompts stable
+        # until the process is restarted; no further cases may run meanwhile.
+        if _cleanup_error is None:
+            setattr(module, attr, previous)
+
+
+@contextmanager
+def override_assistant_prompts(prompt_texts: dict[str, str]) -> Iterator[None]:
+    """Scoped prompt swaps for an eval run (single-worker only).
+
+    Agent-singleton prompts keep their dynamic ``@instructions`` functions:
+    only the static string entries are replaced.
+    """
+
+    ensure_worker_safe()
+    with ExitStack() as stack:
+        for name, text in prompt_texts.items():
+            agent = PROMPT_AGENT_TARGETS.get(name)
+            if agent is not None:
+                instructions = [
+                    text if isinstance(entry.instruction, str) else entry.instruction
+                    for entry in agent._instructions
+                ]
+                stack.enter_context(agent.override(instructions=instructions))
+            elif name in PROMPT_ATTR_TARGETS:
+                module, attr = PROMPT_ATTR_TARGETS[name]
+                stack.enter_context(_patched_module_attr(module, attr, text))
+            else:
+                raise ValueError(f"Unknown assistant prompt '{name}'")
+        yield
+
+
+def format_message_history(result: Any) -> list[dict]:
+    """
+    Format the full message history from an agent run for inspection.
+
+    Returns a list of dicts with structured info about each message:
+    - role: system/user/assistant/tool
+    - type: the pydantic-ai message class name
+    - content: text content (if any)
+    - tool_calls: list of tool call info (if any)
+    - tool_name: name of tool that returned this result (for tool results)
+    - timestamp: message timestamp (if available)
+    """
+    messages = getattr(result, "all_messages", lambda: [])() or []
+    formatted = []
+
+    for msg in messages:
+        if isinstance(msg, ModelRequest):
+            for part in msg.parts:
+                part_type = type(part).__name__
+                entry = {"role": "user", "type": part_type}
+
+                if hasattr(part, "content"):
+                    entry["content"] = part.content
+                if hasattr(part, "tool_name"):
+                    entry["tool_name"] = part.tool_name
+                if hasattr(part, "tool_call_id"):
+                    entry["tool_call_id"] = part.tool_call_id
+                if hasattr(part, "timestamp"):
+                    entry["timestamp"] = str(part.timestamp)
+
+                formatted.append(entry)
+
+        elif isinstance(msg, ModelResponse):
+            for part in msg.parts:
+                part_type = type(part).__name__
+                entry = {"role": "assistant", "type": part_type}
+
+                if hasattr(part, "content"):
+                    entry["content"] = part.content
+                if hasattr(part, "tool_name"):
+                    entry["tool_name"] = part.tool_name
+                if hasattr(part, "tool_call_id"):
+                    entry["tool_call_id"] = part.tool_call_id
+                if hasattr(part, "args"):
+                    # Tool call arguments
+                    args = part.args
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    entry["args"] = args
+
+                formatted.append(entry)
+
+    return formatted
+
+
+def get_tool_call_sequence(result: Any) -> list[str]:
+    """
+    Return the ordered list of tool names called during an agent run.
+
+    Extracts assistant-side tool call entries from the message history,
+    preserving chronological order.
+    """
+
+    history = format_message_history(result)
+    return [
+        e["tool_name"]
+        for e in history
+        if e["role"] == "assistant" and "tool_name" in e and "args" in e
+    ]
+
+
+def count_tool_errors(result: Any) -> tuple[int, str]:
+    """
+    Count tool validation errors in the agent result.
+
+    Inspects the pydantic-ai message history for ``RetryPromptPart`` entries,
+    which indicate the LLM sent invalid arguments that failed pydantic
+    validation. Unknown-tool exploration, calls refused until tool search reveals
+    the tool, and mode-switch redirects are excluded: the model recovers from
+    each without a failed tool execution.
+
+    Returns ``(error_count, hint)`` suitable for a ``CheckResult`` hint.
+    """
+    if result is None:
+        return 0, ""
+
+    messages = getattr(result, "all_messages", lambda: [])() or []
+    retry_errors = []
+    for msg in messages:
+        if isinstance(msg, ModelRequest):
+            for part in msg.parts:
+                if isinstance(part, RetryPromptPart):
+                    content = str(part.content)
+                    if (
+                        "Unknown tool name" in content
+                        or "is not available yet" in content
+                        or is_mode_redirect(content)
+                    ):
+                        continue
+                    retry_errors.append(
+                        {
+                            "tool_name": getattr(part, "tool_name", None),
+                            "content": content,
+                        }
+                    )
+    hint = "\n".join(f"  - {e['tool_name']}: {e['content']}" for e in retry_errors)
+    return len(retry_errors), hint
+
+
+def tool_called(output: EvalRunOutput, name: str) -> int:
+    """Return how many times *name* was called during the run."""
+
+    return output.tool_calls.count(name)
+
+
+def tool_call_order_ok(output: EvalRunOutput, names: list[str]) -> bool:
+    """Check that tools were called in the given relative order.
+
+    For each consecutive pair (A, B) in *names*, the **last** call to A must
+    come before the **first** call to B, so all A work finishes before any B
+    work begins.
+    """
+
+    sequence = output.tool_calls
+    for name_a, name_b in zip(names, names[1:]):
+        indices_a = [i for i, n in enumerate(sequence) if n == name_a]
+        indices_b = [i for i, n in enumerate(sequence) if n == name_b]
+        if not indices_a or not indices_b or indices_a[-1] >= indices_b[0]:
+            return False
+    return True
+
+
+DEFAULT_CASE_TIMEOUT_S = 120
+TOOL_CLEANUP_TIMEOUT_S = 5
+
+
+def get_case_timeout_s() -> float:
+    """Wall-clock budget for one case; the slowest baseline case takes 17s."""
+
+    # Blank, not just missing: compose always defines the key.
+    raw = os.environ.get("BASEROW_EVAL_CASE_TIMEOUT", "").strip()
+    return float(raw) if raw else float(DEFAULT_CASE_TIMEOUT_S)
+
+
+class EvalCaseTimeout(Exception):
+    """A case outran its budget and its cancelled tools have finished."""
+
+
+class EvalCaseCleanupError(RuntimeError):
+    """A tool outlived bounded cleanup; the eval process must be restarted."""
+
+
+_cleanup_error: str | None = None
+
+
+def ensure_worker_safe() -> None:
+    """Reject subsequent work before changing prompts or creating fixtures."""
+
+    if _cleanup_error is not None:
+        raise EvalCaseCleanupError(_cleanup_error)
+
+
+class _CaseExecutor(ThreadPoolExecutor):
+    """Track actual sync work, even after its asyncio waiter is cancelled."""
+
+    def __init__(self):
+        super().__init__(thread_name_prefix="eval-tool")
+        self._futures = []
+        self._futures_lock = threading.Lock()
+        self.tool_tasks: list[asyncio.Task] = []
+
+    def submit(self, *args, **kwargs):
+        with self._futures_lock:
+            future = super().submit(*args, **kwargs)
+            self._futures.append(future)
+            return future
+
+    async def drain(self, timeout_s: float) -> None:
+        self.shutdown(wait=False, cancel_futures=True)
+        with self._futures_lock:
+            futures = list(self._futures)
+        # Keep the loop alive: synchronous tools can await async sub-agents.
+        await asyncio.wait_for(
+            asyncio.shield(
+                asyncio.gather(
+                    *(asyncio.wrap_future(future) for future in futures),
+                    *self.tool_tasks,
+                    return_exceptions=True,
+                )
+            ),
+            timeout_s,
+        )
+
+
+@dataclass
+class _CaseToolset(WrapperToolset):
+    tasks: list[asyncio.Task]
+
+    async def call_tool(self, name, tool_args, ctx, tool):
+        # Async tools can also spawn threads (e.g. sync_to_async search). Keep
+        # their coroutines alive so cancellation cannot detach that work.
+        task = asyncio.create_task(self.wrapped.call_tool(name, tool_args, ctx, tool))
+        self.tasks.append(task)
+        return await asyncio.shield(task)
+
+
+async def _run_with_timeout(
+    coro, timeout_s: float, helpers: ToolHelpers, executor: _CaseExecutor
+):
+    task = asyncio.create_task(coro)
+    cleanup_deadline = None
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout_s)
+    except BaseException:
+        # Signal checkpoints before task cancellation starts unwinding clients.
+        helpers.cancel()
+        task.cancel()
+        cleanup_deadline = time.monotonic() + TOOL_CLEANUP_TIMEOUT_S
+        done, _ = await asyncio.wait({task}, timeout=TOOL_CLEANUP_TIMEOUT_S)
+        if not done:
+            # Retrieve any eventual failure without waiting indefinitely for
+            # cancellation-resistant async tools or client cleanup.
+            task.add_done_callback(
+                lambda finished: None if finished.cancelled() else finished.exception()
+            )
+            raise EvalCaseCleanupError("Agent cancellation did not finish")
+        if not task.cancelled():
+            task.exception()
+        raise
+    finally:
+        remaining = (
+            max(0, cleanup_deadline - time.monotonic())
+            if cleanup_deadline is not None
+            else TOOL_CLEANUP_TIMEOUT_S
+        )
+        try:
+            await executor.drain(remaining)
+        except TimeoutError as exc:
+            raise EvalCaseCleanupError("Synchronous tools did not finish") from exc
+
+
+def run_case(
+    case: EvalCase, model: str | Model
+) -> tuple[EvalRunOutput, list[CheckResult]]:
+    """Build the scenario, run ``main_agent``, and execute the case's checks.
+
+    Performs no teardown and no chat persistence — the eval DB is disposable.
+    Raises ``EvalCaseTimeout`` after cancellation and bounded tool cleanup.
+    If a tool cannot finish, ``EvalCaseCleanupError`` blocks further cases
+    until the eval process is restarted, preserving shared prompt state.
+    """
+
+    global _cleanup_error
+
+    ensure_worker_safe()
+    load_all()
+    scenario = get_scenario(case.scenario)(make_fixtures())
+    model_profile = resolve_assistant_model(
+        workspace=scenario.workspace,
+        model=model if isinstance(model, str) else model.model_name,
+    )
+    tool_helpers = ToolHelpers(
+        lambda x: None, lambda x: None, model_profile=model_profile
+    )
+    ctx = build_agent_run_context(
+        scenario.user,
+        scenario.workspace,
+        tool_helpers,
+        model=None if isinstance(model, str) else model,
+    )
+    ctx.deps.mode = case.mode
+    ctx.deps.tool_helpers.request_context["ui_context"] = scenario.ui_context
+
+    timeout_s = get_case_timeout_s()
+    start = time.monotonic()
+    executor = _CaseExecutor()
+    try:
+        # Match production when a model batches dependent tool calls.
+        with (
+            using_thread_executor(executor),
+            ToolManager.parallel_execution_mode("sequential"),
+        ):
+            result = run_until_complete(
+                _run_with_timeout(
+                    run_agent_with_model(
+                        main_agent,
+                        case.prompt,
+                        deps=ctx.deps,
+                        model=ctx.model,
+                        model_settings=model_profile.get_settings(ORCHESTRATOR),
+                        usage_limits=UsageLimits(request_limit=case.max_iters),
+                        toolsets=[_CaseToolset(ctx.toolset, executor.tool_tasks)],
+                    ),
+                    timeout_s,
+                    tool_helpers,
+                    executor,
+                )
+            )
+    except EvalCaseCleanupError as exc:
+        _cleanup_error = (
+            f"{case.id}: cleanup did not finish within {TOOL_CLEANUP_TIMEOUT_S:g}s "
+            "after cancellation. Restart the eval runner before running more cases."
+        )
+        raise EvalCaseCleanupError(_cleanup_error) from exc
+    except (TimeoutError, asyncio.CancelledError) as exc:
+        raise EvalCaseTimeout(
+            f"{case.id} exceeded {timeout_s:g}s and was cancelled"
+        ) from exc
+    duration_s = time.monotonic() - start
+
+    tool_error_count, tool_error_hint = count_tool_errors(result)
+    output = EvalRunOutput(
+        answer=result.output,
+        messages=format_message_history(result),
+        tool_calls=get_tool_call_sequence(result),
+        tool_error_count=tool_error_count,
+        tool_error_hint=tool_error_hint,
+        sources=list(ctx.deps.sources),
+        request_count=result.usage.requests,
+        duration_s=duration_s,
+    )
+
+    budget_check = CheckResult(
+        name="tool_errors_within_budget",
+        passed=tool_error_count <= case.max_tool_errors,
+        hint=tool_error_hint,
+    )
+    checks = [budget_check, *case.checks(case, scenario, output)]
+    return output, checks

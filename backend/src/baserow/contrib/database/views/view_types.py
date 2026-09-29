@@ -48,6 +48,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
+from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
@@ -59,6 +60,7 @@ from .exceptions import (
     GridViewAggregationDoesNotSupportField,
 )
 from .handler import ViewHandler
+from .last_viewed_types import DatabaseViewLastViewedItemType
 from .models import (
     FormView,
     FormViewFieldOptions,
@@ -85,7 +87,18 @@ class GridViewType(ViewType):
     has_public_info = True
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
-    allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
+    allowed_fields = [
+        "row_identifier_type",
+        "row_height_size",
+        "frozen_column_count",
+        "group_by_layout",
+    ]
+    copyable_view_attributes = [
+        "row_height_size",
+        "frozen_column_count",
+        "row_identifier_type",
+        "group_by_layout",
+    ]
     field_options_allowed_fields = [
         "width",
         "hidden",
@@ -97,6 +110,7 @@ class GridViewType(ViewType):
         "row_identifier_type",
         "row_height_size",
         "frozen_column_count",
+        "group_by_layout",
     ]
     serializer_field_overrides = {
         "frozen_column_count": serializers.IntegerField(
@@ -137,6 +151,7 @@ class GridViewType(ViewType):
         serialized["row_identifier_type"] = grid.row_identifier_type
         serialized["row_height_size"] = grid.row_height_size
         serialized["frozen_column_count"] = grid.frozen_column_count
+        serialized["group_by_layout"] = grid.group_by_layout
 
         serialized_field_options = []
         for field_option in grid.get_field_options():
@@ -674,12 +689,21 @@ class FormViewType(ViewType):
         SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     }
 
+    def get_copyable_configuration_categories(self) -> Set[str]:
+        # Even though the form view has an `order` field option, none of its
+        # configuration is interchangeable with the other view types, its field
+        # options describe form fields instead of table columns.
+        return set()
+
     def get_api_urls(self):
         from baserow.contrib.database.api.views.form import urls as api_urls
 
         return [
             path("form/", include(api_urls, namespace=self.type)),
         ]
+
+    def get_public_url_path(self, view):
+        return f"/form/{view.slug}"
 
     def after_fields_type_change(self, fields):
         fields_cannot_be_in_form_view = [
@@ -696,6 +720,15 @@ class FormViewType(ViewType):
             FormViewFieldOptions.objects_and_trash.filter(
                 field__in=[f.id for f in fields_cannot_be_in_form_view], enabled=True
             ).update(enabled=False)
+
+    def after_field_options_loaded(self, view, user):
+        # The form editor only requests the field options, there is no rows endpoint
+        # that would send `view_loaded` like the other view types do. `view_loaded`
+        # itself is not sent here: its other receivers do row related maintenance and
+        # need the generated table model, which this endpoint otherwise never builds.
+        LastViewedHandler.schedule_mark_viewed(
+            user, DatabaseViewLastViewedItemType.type, view.id
+        )
 
     def before_field_options_update(self, view, field_options, fields):
         """
@@ -1284,6 +1317,13 @@ class FormViewType(ViewType):
 
             condition_objects = []
             form_view_field_options_allowed_select_options = []
+            # Conditions can only map their values if they know the field they
+            # apply to, just like view filters.
+            fields_by_id = (
+                self.get_fields_by_id(table)
+                if any(field_option.get("conditions") for field_option in field_options)
+                else {}
+            )
             for field_option in field_options:
                 field_option_copy = field_option.copy()
                 field_option_id = field_option_copy.pop("id")
@@ -1316,9 +1356,16 @@ class FormViewType(ViewType):
                         condition_group_id
                     ] = condition_group_object.id
                 for condition in field_option_conditions:
+                    condition_field_id = id_mapping["database_fields"][
+                        condition["field"]
+                    ]
                     value = view_filter_type_registry.get(
                         condition["type"]
-                    ).set_import_serialized_value(condition["value"], id_mapping)
+                    ).set_import_serialized_value(
+                        condition["value"],
+                        id_mapping,
+                        fields_by_id.get(condition_field_id),
+                    )
                     mapped_group_id = None
                     group = condition.get("group", None)
                     if group:
@@ -1328,7 +1375,7 @@ class FormViewType(ViewType):
                     condition_objects.append(
                         FormViewFieldOptionsCondition(
                             field_option=field_option_object,
-                            field_id=id_mapping["database_fields"][condition["field"]],
+                            field_id=condition_field_id,
                             type=condition["type"],
                             value=value,
                             group_id=mapped_group_id,

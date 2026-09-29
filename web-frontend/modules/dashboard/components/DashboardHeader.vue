@@ -1,7 +1,12 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <div v-show="isLoading" class="header__loading"></div>
-    <template v-if="!isLoading">
+    <SkeletonBlock
+      v-if="loading"
+      class="header__loading"
+      width="140px"
+      height="12px"
+    ></SkeletonBlock>
+    <template v-else>
       <DashboardHeaderMenuItems
         v-if="!isEditMode"
         :dashboard="dashboard"
@@ -11,6 +16,14 @@
         <Button type="primary" @click="doneEditing">{{
           $t('dashboardHeader.doneEditing')
         }}</Button>
+        <CreateWidgetButton
+          v-if="canCreateWidget"
+          :dashboard="dashboard"
+          :loading="isCreatingWidget"
+          @widget-variation-selected="
+            $emit('widget-variation-selected', $event)
+          "
+        />
       </div>
     </template>
   </header>
@@ -18,11 +31,13 @@
 
 <script>
 import DashboardHeaderMenuItems from '@baserow/modules/dashboard/components/DashboardHeaderMenuItems'
+import CreateWidgetButton from '@baserow/modules/dashboard/components/CreateWidgetButton'
 
 export default {
   name: 'DashboardHeader',
   components: {
     DashboardHeaderMenuItems,
+    CreateWidgetButton,
   },
   props: {
     dashboard: {
@@ -34,17 +49,29 @@ export default {
       required: false,
       default: '',
     },
+    loading: {
+      type: Boolean,
+      required: true,
+    },
+    isCreatingWidget: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
+  emits: ['widget-variation-selected'],
   computed: {
     isEditMode() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEditMode`
       ]
     },
-    isLoading() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isLoading`
-      ]
+    canCreateWidget() {
+      return this.$hasPermission(
+        'dashboard.create_widget',
+        this.dashboard,
+        this.dashboard.workspace.id
+      )
     },
   },
   methods: {

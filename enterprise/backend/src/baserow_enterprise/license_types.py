@@ -6,6 +6,8 @@ from baserow_enterprise.features import (
     AUDIT_LOG,
     BUILDER_CUSTOM_CODE,
     BUILDER_FILE_INPUT,
+    BUILDER_GRAPH_ELEMENT,
+    BUILDER_GROUPED_AGGREGATE_ROWS,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
     CODE_RUNNER,
@@ -46,6 +48,8 @@ COMMON_ADVANCED_FEATURES = [
     BUILDER_CUSTOM_CODE,
     CODE_RUNNER,
     XLS_FILE_READER,
+    BUILDER_GROUPED_AGGREGATE_ROWS,
+    BUILDER_GRAPH_ELEMENT,
     # only self-hosted
     SSO,
 ]
@@ -92,13 +96,6 @@ class AdvancedLicenseType(LicenseType):
         # okay for now because we'll be monitoring the usage manually.
         pass
 
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # We don't have to do anything because the application user limit is a soft
-        # limit. This is okay for now because we'll be monitoring the usage manually.
-        pass
-
 
 class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
     type = "enterprise_without_support"
@@ -112,13 +109,6 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         # We don't have to do anything because the seat limit is a soft limit.
-        pass
-
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # We don't have to do anything because the application user limit is a soft
-        # limit.
         pass
 
 

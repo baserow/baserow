@@ -4,7 +4,7 @@
       :application="application"
       :service-type="serviceType"
       :default-values="defaultValues"
-      :enable-integration-picker="enableIntegrationPicker"
+      :databases="databases"
       :enable-view-picker="false"
       @values-changed="values = { ...values, ...$event }"
     ></LocalBaserowServiceForm>

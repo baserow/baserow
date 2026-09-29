@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where column resizes and other field option changes weren't shown to other users in real time",
+    "issue_origin": "github",
+    "issue_number": 5827,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-03"
+}

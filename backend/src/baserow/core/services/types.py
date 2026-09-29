@@ -32,6 +32,21 @@ class DispatchResult:
     data: dict = field(default_factory=dict)
     status: int = 200
     output_uid: str = ""
+    # When set, the runner redirects execution to this service instead of
+    # resolving the natural next step. Used to implement conditional jumps.
+    destination_service_id: Optional[int] = None
+    # When set, the automation runner starts the child workflow independently and
+    # asynchronously polls for its response. These fields are internal and must not
+    # be saved as reusable sample data.
+    deferred_workflow_id: Optional[int] = field(
+        default=None, metadata={"exclude_from_sample_data": True}
+    )
+    deferred_history_id: Optional[int] = field(
+        default=None, metadata={"exclude_from_sample_data": True}
+    )
+    deferred_timeout_seconds: Optional[int] = field(
+        default=None, metadata={"exclude_from_sample_data": True}
+    )
 
 
 @dataclass

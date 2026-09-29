@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved builder and automation hierarchy bugs which prevented elements and nodes from being pruned correctly.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-29"
+}

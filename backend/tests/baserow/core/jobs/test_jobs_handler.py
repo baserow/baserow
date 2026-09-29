@@ -3,8 +3,12 @@ import threading
 from time import sleep
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+
 import pytest
 
+from baserow.contrib.database.export.models import ExportJob
 from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import (
     JobDoesNotExist,
@@ -396,3 +400,48 @@ def test_job_cancel_cancelled(data_fixture, test_thread, mutable_job_type_regist
     out = JobHandler.cancel_job(job)
     # won't cancel already cancelled
     assert out is None
+
+
+@pytest.mark.django_db
+def test_get_jobs_for_user_remains_scoped_to_owner(data_fixture):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    job_1 = data_fixture.create_fake_job(user=user_1)
+    job_2 = data_fixture.create_fake_job(user=user_2)
+
+    jobs = JobHandler.get_jobs_for_user(user_1, filter_states=None, filter_ids=None)
+    assert [job.id for job in jobs] == [job_1.id]
+
+    # Requesting another user's job by id must not expose it (owner-only default).
+    jobs = JobHandler.get_jobs_for_user(
+        user_1, filter_states=None, filter_ids=[job_1.id, job_2.id]
+    )
+    assert [job.id for job in jobs] == [job_1.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "principal_type", ["user_source", "anonymous", "unsaved", "none"]
+)
+def test_job_ownership_rejects_unsupported_principals(data_fixture, principal_type):
+    """Ownership requires a saved Baserow user, even when numeric IDs collide."""
+    owner = data_fixture.create_user()
+    principals = {
+        "user_source": data_fixture.create_user_source_user(user_id=owner.id),
+        "anonymous": AnonymousUser(),
+        "unsaved": get_user_model()(),
+        "none": None,
+    }
+    principal = principals[principal_type]
+    job = data_fixture.create_fake_job(user=owner)
+    export = ExportJob.objects.create(user=owner, export_options={})
+
+    for model, instance in [(Job, job), (ExportJob, export)]:
+        with pytest.raises(JobDoesNotExist):
+            JobHandler.get_job(principal, instance.id, job_model=model)
+        assert not JobHandler.get_jobs_for_user(
+            principal, None, [instance.id], base_model=model
+        ).exists()
+        assert JobHandler.get_job(owner, instance.id, job_model=model).id == instance.id
+        with pytest.raises(JobDoesNotExist):
+            JobHandler.get_job(data_fixture.create_user(), instance.id, job_model=model)

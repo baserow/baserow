@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections import defaultdict
 from io import BytesIO
 from tempfile import tempdir
@@ -853,6 +854,21 @@ def test_iframe_element_import_export_formula(data_fixture):
 
 
 @pytest.mark.django_db
+def test_iframe_element_import_export_same_origin_permission(data_fixture):
+    page = data_fixture.create_builder_page()
+    exported_element = data_fixture.create_builder_iframe_element(
+        page=page,
+        allow_same_origin=True,
+    )
+
+    serialized = IFrameElementType().export_serialized(exported_element)
+    assert serialized["allow_same_origin"] is True
+
+    [imported_element] = PageHandler().import_elements(page, [serialized], {})
+    assert imported_element.allow_same_origin is True
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "storage",
     [None, FileSystemStorage(location=str(tempdir), base_url="http://localhost")],
@@ -1055,6 +1071,13 @@ def test_sanitize_element_roles_removes_invalid_roles(
     [
         (
             (100, 7777),
+            [f"{DEFAULT_USER_ROLE_PREFIX}100"],
+            [f"{DEFAULT_USER_ROLE_PREFIX}100", f"{DEFAULT_USER_ROLE_PREFIX}7777"],
+            # Preserve explicit roles even if they match an old default role.
+            [f"{DEFAULT_USER_ROLE_PREFIX}100"],
+        ),
+        (
+            (100, 7777),
             [],
             [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
             # existing roles is empty, so despite there existing a Default User
@@ -1127,6 +1150,11 @@ def test_collection_element_type_publicly_searchable_sortable_filterable(
             "is_publicly_sortable": True,
             "is_publicly_searchable": True,
             "is_publicly_filterable": True,
+        },
+        "graph": {
+            "is_publicly_sortable": False,
+            "is_publicly_searchable": False,
+            "is_publicly_filterable": False,
         },
         "table": {
             "is_publicly_sortable": True,
@@ -1610,3 +1638,42 @@ def test_element_type_has_display_name(element_type):
     assert element_type.display_name != _("Unnamed node"), (
         f"{type(element_type).__name__}.display_name is still the default 'Unnamed node'"
     )
+
+
+@pytest.mark.django_db
+def test_element_type_get_event_names(data_fixture):
+    page = data_fixture.create_builder_page()
+    heading = data_fixture.create_builder_heading_element(page=page)
+    button = data_fixture.create_builder_button_element(page=page)
+    form = data_fixture.create_builder_form_container_element(page=page)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {"name": "Text", "type": "text", "config": {"value": "'a'"}},
+            {"name": "Button", "type": "button", "config": {"label": "'b'"}},
+        ],
+    )
+    button_field = table.fields.get(name="Button")
+    button_item_uid, link_item_uid = uuid.uuid4(), uuid.uuid4()
+    menu = data_fixture.create_builder_menu_element_items(
+        page=page,
+        menu_items=[
+            {
+                "variant": "button",
+                "type": "button",
+                "uid": button_item_uid,
+                "name": "Button",
+            },
+            {"variant": "link", "type": "link", "uid": link_item_uid, "name": "Link"},
+        ],
+    )
+
+    def get_event_names(element):
+        element_type = element_type_registry.get_by_model(element.specific_class)
+        return element_type.get_event_names(element)
+
+    assert get_event_names(heading) == []
+    assert get_event_names(button) == ["click"]
+    assert get_event_names(form) == ["submit"]
+    assert get_event_names(table) == [f"{button_field.uid}_click"]
+    assert get_event_names(menu) == [f"{button_item_uid}_click"]

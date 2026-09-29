@@ -30,21 +30,21 @@ class RowMetadataRegistry(Registry):
 
         return self.generate_and_merge_metadata_for_rows(
             user, table, (i for i in [row_id])
-        ).get(row_id, {})
+        ).get(str(row_id), {})
 
     def generate_and_merge_metadata_for_rows(
         self, user, table, row_ids: Generator[int, None, None]
-    ) -> Dict[int, Dict[str, Any]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         For every type of row metadata will generate that type of metadata for each
         provided row in the row_ids generator. Then returns a dictionary keyed by the
-        row id with the value being a dictionary of metadata. The dictionary of metadata
-        is keyed by the particular instance's RowMetadataType.type with the value being
-        whatever was returned by that instances generate_metadata_for_rows for that
-        row id.
+        stringified row id with the value being a dictionary of metadata. The dictionary
+        of metadata is keyed by the particular instance's RowMetadataType.type with the
+        value being whatever was returned by that instances generate_metadata_for_rows
+        for that row id.
 
         For example if two different RowMetadata types 'A' and 'B" were registered,
-        and they returned {'1': 10, '2': 2} and {'1': False, '2': True} from their
+        and they returned {1: 10, 2: 2} and {1: False, 2: True} from their
         respective generate_metadata_for_rows methods. This function would then return
         a dict which looked like: {'1': {'A':10, 'B':False}, '2': {'A':2, 'B':True}}.
 
@@ -53,8 +53,8 @@ class RowMetadataRegistry(Registry):
         :param row_ids: A generator which should return the row ids generate metadata
             for. If no RowMetadataTypes are registered then this generator will not be
             invoked.
-        :return: A dictionary of Row Id -> RowMetadataType -> Metadata Value if
-            metadata types are registered, otherwise an empty dict.
+        :return: A dictionary of stringified Row Id -> RowMetadataType -> Metadata
+            Value if metadata types are registered, otherwise an empty dict.
         """
 
         metadata_types = self.get_all()
@@ -66,7 +66,10 @@ class RowMetadataRegistry(Registry):
                     user, table, row_ids
                 )
                 for row_id, metadata in per_row_metadata.items():
-                    single_row_metadata = row_metadata.setdefault(row_id, {})
+                    # Keys must be strings: channels_redis unpacks msgpack with
+                    # strict_map_key=True and rejects integer map keys.
+                    str_row_id = str(row_id)
+                    single_row_metadata = row_metadata.setdefault(str_row_id, {})
                     single_row_metadata[metadata_type.type] = metadata
             return row_metadata
         else:

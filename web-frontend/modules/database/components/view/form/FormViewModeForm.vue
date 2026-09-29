@@ -32,11 +32,12 @@
         :class="{ hidden: field._.hiddenViaQueryParam }"
         @input="updateValue('field_' + field.field.id, $event)"
       ></FormPageField>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !showLogo }"
-      >
-        <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+          :identifier="$route.params.slug"
+        ></FormViewFooterLinks>
         <div class="form-view__submit">
           <Button
             type="primary"
@@ -62,7 +63,7 @@
 <script>
 import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
 import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
@@ -71,7 +72,7 @@ export default {
   components: {
     FormViewSubmitted,
     FormPageField,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewDescription,
   },
   mixins: [baseFormViewMode],

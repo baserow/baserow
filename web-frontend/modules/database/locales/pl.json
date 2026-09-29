@@ -65,7 +65,8 @@
     },
     "sidebar": {
         "viewAPI": "Wyświetl dokumentację API",
-        "createTable": "Nowa tabela"
+        "createTable": "Nowa tabela",
+        "adminContentCategory": "Treści"
     },
     "sidebarItem": {
         "exportTable": "Eksportuj tabelę",
@@ -586,7 +587,9 @@
         "hideField": "Ukryj pole",
         "dataSyncField": "To pole jest tylko do odczytu i jest częścią synchronizacji danych tabeli.",
         "dataSyncFieldTwoWaySync": "To pole jest zsynchronizowane z synchronizacją danych tabeli.",
-        "noWriteValues": "Zmiany w tym polu są ograniczone."
+        "noWriteValues": "Zmiany w tym polu są ograniczone.",
+        "groupByField": "Pogrupuj wg.",
+        "ungroupByField": "Nie grupuj wg."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Wiersz nie spełnia kryteriów filtrowania",
@@ -614,7 +617,8 @@
         "AIValuesGenerationErrorTitle": "Wygenerowanie wartości przy użyciu AI nie powiodło się",
         "AIValuesGenerationErrorMessage": "Sprawdź API_KEY i zweryfikuj wybrany model.",
         "copyCellsWithHeader": "Skopiuj komórki wraz z nagłówkiem",
-        "generateAllAiValues": "Wygeneruj wszystkie wartości przy użyciu AI"
+        "generateAllAiValues": "Wygeneruj wszystkie wartości przy użyciu AI",
+        "promptBroken": "Błąd promptu. Aby wygenerować wartości, popraw prompt."
     },
     "gridViewFieldFile": {
         "dropHere": "Upuść tutaj",
@@ -711,7 +715,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Udostępnij link do swojej bazy",
-        "airtableShareLinkDescription": "Import bazy Airtable jest możliwy przy pomocy linku do udostępniania całej bazy. Aby uzyskać taki link, otwórz bazę Airtable i w prawym górnym rogu kliknij przycisk udostępniania. Następnie wybierz opcję \"Share via link\", po czym w oknie udostępniania kliknij zakładkę \"Share publicly\", a następnie \"Enable shared base link\". Skopiuj link i wklej go w polu poniżej.",
+        "airtableShareLinkDescription": "Import bazy Airtable jest możliwy przy pomocy linku do udostępniania całej bazy. Aby uzyskać taki link, otwórz bazę Airtable i w prawym górnym rogu kliknij przycisk udostępniania. Następnie wybierz opcję \"Share via link\", po czym w oknie udostępniania kliknij zakładkę \"Share publicly\", a następnie \"Enable shared base link\". Skopiuj link i wklej go w polu poniżej. Można również użyć linku do widoku udostępnionego publicznie. W takim przypadku zostanie zaimportowana baza z jedną tabelą i danymi zawartymi w tym widoku.",
         "airtableShareLinkBeta": "Ta funkcja zaimportuje większość danych, jednak mogą wystąpić niezgodności. Z tego powodu zostanie dodana tabela o nazwie \"Raport importu Airtable\" zawierająca listę elementów, które nie zostały zaimportowane lub zostały zaimportowane częściowo.",
         "airtableShareLinkPaste": "Tutaj wklej link",
         "importButtonLabel": "Importuj z Airtable",
@@ -732,9 +736,14 @@
         "skipFilesHelper": "Duża liczba plików w bazie Airtable może spowolnić import. Opcja ta umożliwia pominięcie załączenia plików.",
         "useSession": "Uwierzytelnienie sesji",
         "useSessionHelper": "Użyj tej opcji, jeśli publicznie udostępniona baza wymaga uwierzytelnienia.",
-        "sessionDescription": "Jeśli import zwraca odpowiedź \"The Airtable base requires authentication.\", to ustawienia w Airtable mogą blokować dostęp do bazy bez wcześniejszego uwierzytelnienia. W takim przypadku będziesz musiał ręcznie skopiować cookie sesji i podpisu. W tym celu otwórz adres URL publicznie udostępnionej bazy i zaloguj się. Następnie, klikając w prawym górnym rogu, otwórz menu aplikacji -> \"More tools\" -> \"Developer tools\" i otwórz zakładkę \"Application\" (w przeglądarce Firefox \"Storage\"), a następnie kliknij \"https://airtable.com\" i znajdź cookie \"__Host-airtable-session\" oraz \"__Host-airtable-session.sig\". Wklej wartości cookie w poniższych polach.",
+        "sessionDescription": "Jeśli import nie powiedzie się, ponieważ baza wymaga uwierzytelnienia, to prawdopodobnie ustawienia w Airtable blokują dostęp do bazy, o ile wcześniej nie zalogowałeś się. W takim przypadku będziesz musiał ręcznie skopiować cookie sesji i podpisu. W tym celu otwórz adres URL publicznie udostępnionej bazy i zaloguj się. Następnie, klikając w prawym górnym rogu, otwórz menu aplikacji -> \"More tools\" -> \"Developer tools\" i otwórz zakładkę \"Application\" (w przeglądarce Firefox \"Storage\"), a następnie kliknij \"https://airtable.com\" i znajdź cookie \"__Host-airtable-session\" oraz \"__Host-airtable-session.sig\". Wklej wartości cookie w poniższych polach.",
         "sessionLabel": "Cookie sesji (__Host-airtable-session)",
-        "sessionSignatureLabel": "Cookie podpisu sesji (__Host-airtable-session.sig)"
+        "sessionSignatureLabel": "Cookie podpisu sesji (__Host-airtable-session.sig)",
+        "errorRequiresAuthenticationTitle": "Wymagane jest uwierzytelnienie",
+        "errorRequiresAuthenticationDescription": "Tę bazę danych można zaimportować wyłącznie po zalogowaniu się. Dla ułatwienia została włączona opcja uwierzytelnienia za pomocą sesji przeglądarki. Postępuj zgodnie z instrukcjami i skopiuj wartości plików cookie „__Host-airtable-session” i „__Host-airtable-session.sig” do odpowiednich pól, a następnie spróbuj ponownie.",
+        "errorBaseNotPublicTitle": "Nie ma dostępu do bazy",
+        "errorBaseNotPublicDescription": "Pod tym adresem nie ma publicznie udostępnionej bazy Airtable. Otwórz link w przeglądarce i sprawdź, czy baza, którą chcesz zaimportować, załaduje się oraz czy adres URL został skopiowany w całości. Następnie spróbuj ponownie.",
+        "openSharedLink": "Otwórz udostępniony link"
     },
     "chooseSingleSelectField": {
         "addSelectField": "Dodaj pojedyncze pole wyboru",
@@ -1173,7 +1182,8 @@
     "configureDataSyncModal": {
         "title": "Synchronizacja danych",
         "syncedFields": "Pola zsynchronizowane",
-        "syncSettings": "Ustawienia synchronizacji"
+        "syncSettings": "Ustawienia synchronizacji",
+        "syncHistory": "Historia synchronizacji"
     },
     "configureDataSyncVisibleFields": {
         "title": "Zmień pola synchronizowane",
@@ -1253,5 +1263,69 @@
         "emptyValue": "(Pusty)",
         "expandGroup": "Rozwiń grupę",
         "collapseGroup": "Zwiń grupę"
+    },
+    "adminType": {
+        "databaseViews": "Widoki"
+    },
+    "viewsAdmin": {
+        "title": "Widoki"
+    },
+    "viewsAdminTable": {
+        "allViews": "Wszystkie widoki",
+        "onlyPublic": "Tylko widoki udpostępnione publicznie",
+        "name": "Widok",
+        "type": "Rodzaj",
+        "table": "Tabela",
+        "database": "Baza danych",
+        "workspace": "Obszar roboczy",
+        "public": "Udostępnione publicznie",
+        "passwordProtected": "Hasło",
+        "ownedBy": "Właściciel",
+        "createdOn": "Utworzono",
+        "allWorkspaces": "Wszystkie obszary robocze"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "Odśwież adres URL",
+        "refreshWarning": "Czy na pewno chcesz odświeżyć adres URL widoku {viewName}? Po odświeżeniu zostanie wygenerowany nowy adres i nie będzie można uzyskać dostępu do widoku, korzystając ze starego adresu. Użytkownicy posiadający stary adres stracą dostęp do tego widoku.",
+        "generateNewURL": "Wygeneruj nowy adres URL"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Skopiuj publiczny adres URL",
+        "openPublicView": "Otwórz widok publiczny w nowej zakładce",
+        "filterWorkspace": "Filtruj wg. obszaru roboczego",
+        "rotateSlug": "Wyrotuj slug",
+        "makePrivate": "Zmień status na prywatny",
+        "makePublic": "Zmień status na publiczny",
+        "publicUrlCopiedTitle": "Skopiowano publiczny adres URL",
+        "publicUrlCopiedMessage": "Publiczny adres URL widoku został skopiowany do schowka."
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Zgłoś nadużycie"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Zgłoś nadużycie",
+        "moreOptions": "Więcej opcji"
+    },
+    "templateOnboardingCancelModal": {
+        "title": "Aby rozpocząć wybierz szablon",
+        "description": "Aby pominąć proces wdrażania, wybierz jeden z poniższych szablonów. Rozpoczęcie pracy przy pomocy szablonu to świetny sposób na poznanie bazy Baserow, a tabele, pola i przykładowe dane zostaną automatycznie skonfigurowane. Zawsze możesz później wszystko zmienić lub usunąć.",
+        "continue": "Użyj tego szablonu"
+    },
+    "dataSyncRuns": {
+        "title": "Historia synchronizacji",
+        "description": "Ostatnie synchronizacje tej tabeli, niezależnie od tego, kto lub co je uruchomiło.",
+        "previousRuns": "Poprzednie synchronizacje",
+        "noRuns": "Ta tabela jeszcze nie została zsynchronizowana.",
+        "triggerManual": "Ręczny",
+        "triggerPeriodic": "Okresowy",
+        "byUser": "przez {name}",
+        "duration": "{seconds}s"
+    },
+    "fieldButtonSubForm": {
+        "label": "Etykieta",
+        "labelPlaceholder": "Otwórz",
+        "url": "Adres URL",
+        "urlPlaceholder": "np. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "Formuła w adresie URL jest nieprawidłowa."
     }
 }

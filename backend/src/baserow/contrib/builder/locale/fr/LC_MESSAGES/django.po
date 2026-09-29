@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-01-18 13:32+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,41 +18,319 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: src/baserow/contrib/builder/action_scopes.py:10
+#, python-format
+msgid ""
+"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+"de type \"%(element_type)s\" sur la page (%(page_id)s) du générateur "
+"\"%(builder_name)s\" (%(builder_id)s)."
+
 #: src/baserow/contrib/builder/builder_beta_init_application.py:45
 msgid "Homepage"
-msgstr ""
+msgstr "Page d'accueil"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:46
 msgid "Examples"
-msgstr ""
+msgstr "Exemples"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:47
 msgid "Customers"
-msgstr ""
+msgstr "Clients"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:48
 msgid "List rows"
-msgstr ""
+msgstr "Lister les lignes"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:49
 msgid "Local Baserow"
-msgstr ""
+msgstr "Baserow local"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:50
 msgid "Name"
-msgstr ""
+msgstr "Nom"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:51
 msgid "Last name"
-msgstr ""
+msgstr "Nom de famille"
 
-#: src/baserow/contrib/builder/data_sources/service.py:128
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:656
+#, python-format
+msgid "%(user_source_name)s member"
+msgstr "Membre de %(user_source_name)s"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:29
+#: src/baserow/contrib/builder/workflow_actions/actions.py:36
+#, python-format
+msgid "of page (%(page_id)s) in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+"de la page (%(page_id)s) du générateur \"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/data_sources/actions.py:50
+msgid "Create data source"
+msgstr "Créer une source de données"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:51
+#, python-format
+msgid "Data source (%(data_source_id)s) created"
+msgstr "Source de données (%(data_source_id)s) créée"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:114
+msgid "Update data source"
+msgstr "Modifier la source de données"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:115
+#, python-format
+msgid "Data source (%(data_source_id)s) updated"
+msgstr "Source de données (%(data_source_id)s) modifiée"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:206
+msgid "Delete data source"
+msgstr "Supprimer la source de données"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:207
+#, python-format
+msgid "Data source (%(data_source_id)s) deleted"
+msgstr "Source de données (%(data_source_id)s) supprimée"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:262
+msgid "Move data source"
+msgstr "Déplacer la source de données"
+
+#: src/baserow/contrib/builder/data_sources/actions.py:263
+#, python-format
+msgid "Data source (%(data_source_id)s) moved"
+msgstr "Source de données (%(data_source_id)s) déplacée"
+
+#: src/baserow/contrib/builder/data_sources/service.py:169
 msgid "Data source"
-msgstr ""
+msgstr "Source de données"
 
-#: src/baserow/contrib/builder/elements/element_types.py:184
-#: src/baserow/contrib/builder/elements/element_types.py:189
-#: src/baserow/contrib/builder/elements/element_types.py:194
+#: src/baserow/contrib/builder/elements/actions.py:48
+msgid "Create element"
+msgstr "Créer un élément"
+
+#: src/baserow/contrib/builder/elements/actions.py:49
+#, python-format
+msgid "Element (%(element_id)s) created"
+msgstr "Élément (%(element_id)s) créé"
+
+#: src/baserow/contrib/builder/elements/actions.py:107
+msgid "Update element"
+msgstr "Modifier l'élément"
+
+#: src/baserow/contrib/builder/elements/actions.py:108
+#, python-format
+msgid "Element (%(element_id)s) updated"
+msgstr "Élément (%(element_id)s) modifié"
+
+#: src/baserow/contrib/builder/elements/actions.py:161
+msgid "Delete element"
+msgstr "Supprimer l'élément"
+
+#: src/baserow/contrib/builder/elements/actions.py:162
+#, python-format
+msgid "Element (%(element_id)s) deleted"
+msgstr "Élément (%(element_id)s) supprimé"
+
+#: src/baserow/contrib/builder/elements/actions.py:217
+msgid "Duplicate element"
+msgstr "Dupliquer l'élément"
+
+#: src/baserow/contrib/builder/elements/actions.py:218
+#, python-format
+msgid "Element (%(element_id)s) duplicated"
+msgstr "Élément (%(element_id)s) dupliqué"
+
+#: src/baserow/contrib/builder/elements/actions.py:278
+msgid "Move element"
+msgstr "Déplacer l'élément"
+
+#: src/baserow/contrib/builder/elements/actions.py:279
+#, python-format
+msgid "Element (%(element_id)s) moved"
+msgstr "Élément (%(element_id)s) déplacé"
+
+#: src/baserow/contrib/builder/elements/element_types.py:141
+msgid "Column"
+msgstr "Colonne"
+
+#: src/baserow/contrib/builder/elements/element_types.py:350
+msgid "Form"
+msgstr "Formulaire"
+
+#: src/baserow/contrib/builder/elements/element_types.py:425
+msgid "Container"
+msgstr "Conteneur"
+
+#: src/baserow/contrib/builder/elements/element_types.py:437
+msgid "Table"
+msgstr "Table"
+
+#: src/baserow/contrib/builder/elements/element_types.py:502
+msgid "Repeat"
+msgstr "Répétition"
+
+#: src/baserow/contrib/builder/elements/element_types.py:570
+msgid "Record selector"
+msgstr "Sélecteur d'enregistrement"
+
+#: src/baserow/contrib/builder/elements/element_types.py:829
+msgid "Heading"
+msgstr "Titre"
+
+#: src/baserow/contrib/builder/elements/element_types.py:896
+msgid "Text"
+msgstr "Texte"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1118
+msgid "Link"
+msgstr "Lien"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1256
+msgid "Image"
+msgstr "Image"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1420
+msgid "Rating"
+msgstr "Évaluation"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1467
+msgid "Rating input"
+msgstr "Champ d'évaluation"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1553
+msgid "Input text"
+msgstr "Champ de saisie"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1693
+msgid "Button"
+msgstr "Bouton"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1741
+msgid "Checkbox"
+msgstr "Case à cocher"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1815
+msgid "Choice"
+msgstr "Choix"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2128
+msgid "Iframe"
+msgstr "Iframe"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2200
+msgid "Date time picker"
+msgstr "Sélecteur de date et d'heure"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2344
+msgid "Shared header"
+msgstr "En-tête partagé"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2354
+msgid "Shared footer"
+msgstr "Pied de page partagé"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2364
+msgid "Menu"
+msgstr "Menu"
+
+#: src/baserow/contrib/builder/elements/mixins.py:744
+#: src/baserow/contrib/builder/elements/mixins.py:749
+#: src/baserow/contrib/builder/elements/mixins.py:754
 #, python-format
 msgid "Column %(count)s"
+msgstr "Colonne %(count)s"
+
+#: src/baserow/contrib/builder/elements/registries.py:68
+msgid "Unnamed element"
+msgstr "Élément sans nom"
+
+#: src/baserow/contrib/builder/pages/actions.py:24
+#, python-format
+msgid "in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr "dans le générateur \"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/pages/actions.py:30
+msgid "Create page"
+msgstr "Créer une page"
+
+#: src/baserow/contrib/builder/pages/actions.py:31
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) created"
+msgstr "Page \"%(page_name)s\" (%(page_id)s) créée"
+
+#: src/baserow/contrib/builder/pages/actions.py:86
+msgid "Update page"
+msgstr "Modifier la page"
+
+#: src/baserow/contrib/builder/pages/actions.py:87
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) updated"
+msgstr "Page \"%(page_name)s\" (%(page_id)s) modifiée"
+
+#: src/baserow/contrib/builder/pages/actions.py:141
+msgid "Delete page"
+msgstr "Supprimer la page"
+
+#: src/baserow/contrib/builder/pages/actions.py:142
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) deleted"
+msgstr "Page \"%(page_name)s\" (%(page_id)s) supprimée"
+
+#: src/baserow/contrib/builder/pages/actions.py:185
+msgid "Duplicate page"
+msgstr "Dupliquer la page"
+
+#: src/baserow/contrib/builder/pages/actions.py:187
+#, python-format
+msgid ""
+"Page \"%(page_name)s\" (%(page_id)s) duplicated from "
+"\"%(original_page_name)s\" (%(original_page_id)s)"
 msgstr ""
+"Page \"%(page_name)s\" (%(page_id)s) dupliquée à partir de "
+"\"%(original_page_name)s\" (%(original_page_id)s)"
+
+#: src/baserow/contrib/builder/pages/actions.py:251
+msgid "Order pages"
+msgstr "Ordonner les pages"
+
+#: src/baserow/contrib/builder/pages/actions.py:252
+msgid "Pages ordered"
+msgstr "Pages ordonnées"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:57
+msgid "Create workflow action"
+msgstr "Créer une action de scénario"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:58
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) created"
+msgstr "Action de scénario (%(workflow_action_id)s) créée"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:120
+msgid "Update workflow action"
+msgstr "Modifier l'action de scénario"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:121
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) updated"
+msgstr "Action de scénario (%(workflow_action_id)s) modifiée"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:188
+msgid "Delete workflow action"
+msgstr "Supprimer l'action de scénario"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:189
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) deleted"
+msgstr "Action de scénario (%(workflow_action_id)s) supprimée"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:244
+msgid "Order workflow actions"
+msgstr "Ordonner les actions du scénario"
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:245
+msgid "Workflow actions ordered"
+msgstr "Actions du scénario ordonnées"

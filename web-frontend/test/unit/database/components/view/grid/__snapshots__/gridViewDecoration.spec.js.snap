@@ -63,13 +63,11 @@ exports[`GridView component with decoration > Default component with first_cell 
             class="grid-view__placeholder"
             style="height: 66px; width: 72px;"
           >
-            <div
-              class="grid-view__placeholder-groups"
-              style="width: 0px;"
-            />
+            <!--v-if-->
             
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -149,6 +147,7 @@ exports[`GridView component with decoration > Default component with first_cell 
       <div
         class="grid-view__foot"
       >
+        <!--v-if-->
         <div
           class="grid-view__foot-info"
         >
@@ -346,6 +345,7 @@ exports[`GridView component with decoration > Default component with first_cell 
             />
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -428,6 +428,7 @@ exports[`GridView component with decoration > Default component with first_cell 
         class="grid-view__foot"
       >
         <!--v-if-->
+        <!--v-if-->
         
         <div
           style="width: 200px;"
@@ -506,7 +507,7 @@ exports[`GridView component with decoration > Default component with first_cell 
     />
     <div
       class="grid-view__row-target"
-      style="width: 472px; top: 0px;"
+      style="width: 472px; top: 0px; display: none;"
     />
   </div>
   <teleport-stub
@@ -517,6 +518,18 @@ exports[`GridView component with decoration > Default component with first_cell 
     >
       <!--v-if-->
     </div>
+  </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
   </teleport-stub>
   <teleport-stub
     to="body"
@@ -589,13 +602,11 @@ exports[`GridView component with decoration > Default component with row wrapper
             class="grid-view__placeholder"
             style="height: 66px; width: 72px;"
           >
-            <div
-              class="grid-view__placeholder-groups"
-              style="width: 0px;"
-            />
+            <!--v-if-->
             
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -677,6 +688,7 @@ exports[`GridView component with decoration > Default component with row wrapper
       <div
         class="grid-view__foot"
       >
+        <!--v-if-->
         <div
           class="grid-view__foot-info"
         >
@@ -874,6 +886,7 @@ exports[`GridView component with decoration > Default component with row wrapper
             />
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -964,6 +977,7 @@ exports[`GridView component with decoration > Default component with row wrapper
         class="grid-view__foot"
       >
         <!--v-if-->
+        <!--v-if-->
         
         <div
           style="width: 200px;"
@@ -1042,7 +1056,7 @@ exports[`GridView component with decoration > Default component with row wrapper
     />
     <div
       class="grid-view__row-target"
-      style="width: 472px; top: 0px;"
+      style="width: 472px; top: 0px; display: none;"
     />
   </div>
   <teleport-stub
@@ -1053,6 +1067,18 @@ exports[`GridView component with decoration > Default component with row wrapper
     >
       <!--v-if-->
     </div>
+  </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
   </teleport-stub>
   <teleport-stub
     to="body"
@@ -1125,13 +1151,11 @@ exports[`GridView component with decoration > Default component with unavailable
             class="grid-view__placeholder"
             style="height: 66px; width: 72px;"
           >
-            <div
-              class="grid-view__placeholder-groups"
-              style="width: 0px;"
-            />
+            <!--v-if-->
             
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -1205,6 +1229,7 @@ exports[`GridView component with decoration > Default component with unavailable
       <div
         class="grid-view__foot"
       >
+        <!--v-if-->
         <div
           class="grid-view__foot-info"
         >
@@ -1402,6 +1427,7 @@ exports[`GridView component with decoration > Default component with unavailable
             />
             
           </div>
+          <!--v-if-->
           <div
             class="grid-view__rows"
             style="transform: translateY(0px) translateX(0px); left: 0px;"
@@ -1484,6 +1510,7 @@ exports[`GridView component with decoration > Default component with unavailable
         class="grid-view__foot"
       >
         <!--v-if-->
+        <!--v-if-->
         
         <div
           style="width: 200px;"
@@ -1562,7 +1589,7 @@ exports[`GridView component with decoration > Default component with unavailable
     />
     <div
       class="grid-view__row-target"
-      style="width: 472px; top: 0px;"
+      style="width: 472px; top: 0px; display: none;"
     />
   </div>
   <teleport-stub
@@ -1573,6 +1600,18 @@ exports[`GridView component with decoration > Default component with unavailable
     >
       <!--v-if-->
     </div>
+  </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
   </teleport-stub>
   <teleport-stub
     to="body"

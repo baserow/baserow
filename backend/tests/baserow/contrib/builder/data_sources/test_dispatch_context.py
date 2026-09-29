@@ -17,25 +17,33 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
+def fake_workspace():
+    return Mock(id=-1)
+
+
+def fake_page():
+    return Mock(builder=Mock(get_workspace=Mock(return_value=fake_workspace())))
+
+
 def test_dispatch_context_page_range():
     request = HttpRequest()
     request.GET = {"offset": 42, "count": 42}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
-    assert dispatch_context.range(None) == [42, 42]
+    assert dispatch_context.range(None) == (42, 42)
 
     request.GET = {"offset": "foo", "count": "bar"}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
-    assert dispatch_context.range(None) == [0, None]
+    assert dispatch_context.range(None) == (0, None)
 
     request.GET = {"offset": "-20", "count": "-10"}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
-    assert dispatch_context.range(None) == [0, 0]
+    assert dispatch_context.range(None) == (0, 0)
 
 
 @pytest.mark.django_db
@@ -102,8 +110,31 @@ def test_dispatch_context_element_type(data_fixture):
 def test_dispatch_context_search_query():
     request = HttpRequest()
     request.GET["search_query"] = "foobar"
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.search_query() == "foobar"
+
+
+@pytest.mark.django_db
+def test_dispatch_context_is_adhoc_refinable(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page
+    )
+    other_data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page
+    )
+    request = HttpRequest()
+
+    # Without a targeted data source, any service is adhoc refinable.
+    dispatch_context = BuilderDispatchContext(request, page)
+    assert dispatch_context.is_adhoc_refinable(data_source.service) is True
+
+    # With a targeted data source, only its own service is adhoc refinable.
+    dispatch_context = BuilderDispatchContext(request, page, data_source=data_source)
+    assert dispatch_context.is_adhoc_refinable(data_source.service) is True
+    assert dispatch_context.is_adhoc_refinable(other_data_source.service) is False
 
 
 @pytest.mark.django_db
@@ -191,7 +222,7 @@ def test_dispatch_context_filters():
         ],
     }
     request.GET["filters"] = filter_data
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.filters() == filter_data
 
 
@@ -222,7 +253,7 @@ def test_dispatch_context_is_publicly_sortable(collection_element_type, data_fix
 def test_dispatch_context_sortings():
     request = HttpRequest()
     request.GET["order_by"] = "-field_1,-field_2"
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.sortings() == "-field_1,-field_2"
 
 
@@ -359,7 +390,7 @@ def test_get_element_property_options(data_fixture, django_assert_num_queries):
 
 
 def test_validate_filter_search_sort_fields_without_element():
-    dispatch_context = BuilderDispatchContext(HttpRequest(), None)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), fake_page())
     with pytest.raises(DataSourceRefinementForbidden) as exc:
         dispatch_context.validate_filter_search_sort_fields(
             ["name"], ServiceAdhocRefinements.FILTER
@@ -461,7 +492,7 @@ def test_builder_dispatch_context_public_allowed_properties_is_cached(
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(14):
+    with django_assert_num_queries(15):
         result = dispatch_context.public_allowed_properties
         assert result == expected_results
 

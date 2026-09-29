@@ -26,7 +26,14 @@
         "saturday": "Samedi",
         "sunday": "Dimanche",
         "value": "valeur",
-        "workspace": "projet"
+        "workspace": "projet",
+        "created": "Créé",
+        "lastViewed": "Dernière consultation",
+        "nameAsc": "Nom (A-Z)",
+        "nameDesc": "Nom (Z-A)",
+        "neverViewed": "Jamais consulté",
+        "createdAgo": "Créé {ago}",
+        "viewedAgo": "Consulté {ago}"
     },
     "action": {
         "upload": "Envoyer",
@@ -129,7 +136,8 @@
         "invalidCharacters": "Ce champ contient des caractères invalides.",
         "copyFailed": "La copie dans le presse-papiers a échoué. Veuillez réessayer.",
         "nameContainsUrl": "Les noms ne peuvent pas contenir de liens, de noms de domaine ou d'adresses Web.",
-        "nameCantBeEmail": "Veuillez saisir votre nom, et non votre adresse e-mail."
+        "nameCantBeEmail": "Veuillez saisir votre nom, et non votre adresse e-mail.",
+        "nameContainsSpam": "Les noms ne peuvent pas contenir de caractères décoratifs ni de longues suites de chiffres."
     },
     "permission": {
         "admin": "Admin",
@@ -176,7 +184,8 @@
         "multipleCollaboratorsDropdown": "Liste déroulante",
         "formViewEditRow": "Lien vers un formulaire d'édition",
         "formViewEditRowShareWarning": "Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant la colonne « Modifier la ligne » accessible au public.|Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant les colonnet « Modifier la ligne » accessible au public.",
-        "defaultValueFunctionNow": "Date courante"
+        "defaultValueFunctionNow": "Date courante",
+        "button": "Bouton"
     },
     "fieldErrors": {
         "invalidNumber": "Nombre invalide",
@@ -188,8 +197,10 @@
         "invalidDuration": "Format invalide ({durationFormat}).",
         "overflowDuration": "La valeur est hors limites.",
         "maxChars": "Max {max} caractères.",
+        "maxCharsExceeded": "Max {max} caractères (-{over}).",
         "minChars": "Min {min} caractères.",
-        "higherThan": "La valeur est supérieure à {max}."
+        "higherThan": "La valeur est supérieure à {max}.",
+        "maxImagesExceeded": "Max {max} images (supprime {over})."
     },
     "fieldDocs": {
         "readOnly": "Ce champ est en lecture seule.",
@@ -198,8 +209,8 @@
         "linkRow": "Accepte un tableau contenant les identifiants ou les valeurs textuelles des champs principaux des lignes liées de la table {table}. Tous les identifiants doivent être fournis à chaque fois que les relations sont mises à jour. Si un tableau vide est fourni, toutes les relations seront supprimées. Dans le cas d'une valeur textuelle au lieu d'un identifiant, une ligne avec la valeur correspondante pour son champ principal sera recherchée. Si plusieurs correspondances sont trouvées, la première dans l'ordre du tableau est sélectionnée. Vous pouvez également envoyer un chaine de caractères avec les noms séparés par des virgules, dans ce cas la chaine sera convertie en une liste de noms. Vous pouvez également envoyer un unique ID de ligne.",
         "number": "Accepte un entier.",
         "numberPositive": "Accepte un entier positive.",
-        "decimal": "Accepte un nombre décimal.",
-        "decimalPositive": "Accepte un nombre décimal positif.",
+        "decimal": "Accepte un nombre décimal avec {places} décimales après le point.",
+        "decimalPositive": "Accepte un nombre décimal positif avec {places} décimales après le point.",
         "rating": "Accepte un nombre entier.",
         "boolean": "Accepte une valeur booléenne.",
         "date": "Accepte une date au format ISO.",
@@ -225,7 +236,9 @@
         "createdBy": "Le champ « Créé par » est un champ en lecture seule qui indique l'utilisateur qui a créé la ligne.",
         "duration": "Accepte une durée temporelle sous la forme d'une chaîne au format {format} ou d'un nombre représentant le nombre total de secondes.",
         "password": "Un champ en écriture seule qui contient un mot de passe haché. La valeur sera `null` s'il n'est pas défini, ou `true` s'il a été défini. Il accepte une chaîne de caractères pour le définir.",
-        "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée."
+        "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée.",
+        "button": "Un champ bouton. Cliquer sur le bouton ouvre une URL construite à partir des valeurs de la ligne. La cellule ne stocke aucune donnée et les écritures sont rejetées.",
+        "longTextRichText": "Accepte du texte sur plusieurs lignes au format Markdown. Pour intégrer une image, téléchargez-la via l'URL de téléchargement de fichiers et faites référence à son nom renvoyé sous la forme ![alt][nom]. Les réponses ajoutent une URL temporaire, ![alt][nom](url), qui est ignorée lorsque la valeur est renvoyée. Une valeur peut faire référence à un maximum de 100 images, et chaque nom doit correspondre à une image téléchargée."
     },
     "viewFilter": {
         "contains": "contient",
@@ -345,7 +358,9 @@
         "automation_workflow": "scénario",
         "automation_node": "nœud de scénario",
         "builder_page": "Page d'application",
-        "builder_element": "Élément"
+        "builder_element": "Élément",
+        "agent": "agent",
+        "database_workflow_action": "action de bouton"
     },
     "webhook": {
         "request": "Requête",
@@ -378,8 +393,8 @@
     "clientHandler": {
         "notFoundTitle": "L'élément {name} n'a pas été trouvé.",
         "notFoundDescription": "L'élément {name} sélectionné n'a pas été trouvé. Peut-être qu'il a déjà été supprimé.",
-        "networkErrorTitle": "Erreur de connection",
-        "networkErrorDescription": "Connection impossible avec le serveur. Veuillez vérifier votre connection.",
+        "networkErrorTitle": "Erreur de connexion",
+        "networkErrorDescription": "Connexion impossible avec le serveur. Veuillez vérifier votre connexion.",
         "tooManyRequestsTitle": "Trop de requêtes",
         "tooManyRequestsDescription": "Vous envoyez trop de requêtes au serveur. Veuillez patienter avant de recommencer.",
         "notCompletedTitle": "Échec de l'action.",
@@ -467,7 +482,9 @@
         "fieldConstraintTitle": "Violation de la contrainte de champ",
         "fieldConstraintDescription": "Impossible d'appliquer la contrainte.",
         "fieldDataConstraintTitle": "Violation des contraintes liées aux données de terrain",
-        "fieldDataConstraintDescription": "Impossible de terminer l'opération en raison d'une violation des contraintes existantes."
+        "fieldDataConstraintDescription": "Impossible de terminer l'opération en raison d'une violation des contraintes existantes.",
+        "userFileDoesNotExistTitle": "L'image n'existe pas",
+        "userFileDoesNotExistDescription": "Cette valeur fait référence à une image qui n'existe plus. Supprimez-la et réessayez."
     },
     "importerType": {
         "csv": "Importer un fichier CSV",
@@ -493,7 +510,7 @@
         "queryParameters": "Paramètres de requête",
         "pathParameters": "Paramètres d'URL",
         "requestBodySchema": "Schéma du corps de la requête",
-        "userFieldNamesDescription": "Quand valeur définie pour le paramètre GET `user_field_names` est l'une des suivantes `y`, `yes`, `true`, `t`, `on`, `1`, ou `\"\"`, les noms de champs retournés par ce point d'accès seront les noms définis par l'utilisateur.\n\nSi le paramètre `user_field_names` n'est pas fourni, ou s'il ne correspond à aucune des valeurs ci-dessus, alors le nom des champs sera `field_` suivi par l'identifiant du champ. Par exemple `field_1` fait référence au champ dont l'identifiant est `1`.",
+        "userFieldNamesDescription": "Quand la valeur définie pour le paramètre GET `user_field_names` est l'une des suivantes : `y`, `yes`, `true`, `t`, `on`, `1`, ou `\"\"`, les noms de champs retournés par ce point d'accès seront les noms définis par l'utilisateur.\n\nSi le paramètre `user_field_names` n'est pas fourni, ou s'il ne correspond à aucune des valeurs ci-dessus, alors le nom des champs sera `field_` suivi par l'identifiant du champ. Par exemple `field_1` fait référence au champ dont l'identifiant est `1`.",
         "createRows": "Créer des rangées",
         "updateRows": "Mettre à jour les rangées",
         "deleteRows": "Supprimer des rangées",
@@ -575,9 +592,9 @@
         "minDescription": "Retourne la plus petite des valeurs en argument.",
         "joinDescription": "Concatène toutes les valeurs du premier argument en les séparant par le second argument.",
         "stddevPopDescription": "Calcule l'écart-type (standard deviation) de l'ensemble de la population des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée uniquement quand les arguments fournis contiennent une valeur pour l'ensemble de la population.",
-        "stddevSampleDescription": "Calcule l'écart-type (standard deviation) du sous ensemble des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée quand les arguments fournis contiennent une valeur uniquement pour un sous ensemble de la population.",
+        "stddevSampleDescription": "Calcule l'écart-type (standard deviation) du sous-ensemble des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée quand les arguments fournis contiennent une valeur uniquement pour un sous-ensemble de la population.",
         "variancePopDescription": "Calcule la variance des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée uniquement quand tous les arguments fournis contiennent une valeur pour l'ensemble de la population.",
-        "varianceSampleDescription": "Calcule la variance des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée quand les arguments fournis contiennent une valeur uniquement pour un sous ensemble de la population.",
+        "varianceSampleDescription": "Calcule la variance des valeurs en argument et retourne le résultat. Cette fonction peut être utilisée quand les arguments fournis contiennent une valeur uniquement pour un sous-ensemble de la population.",
         "avgDescription": "Calcule la moyenne de toutes les valeurs et retourne le résultat.",
         "sumDescription": "Retourne la somme de toutes les valeurs en argument et retourne le résultat.",
         "filterDescription": "Filtre une expression impliquant un champ rapporté,un champ lien vers une table ou un appel de la fonction lookup.",
@@ -693,6 +710,7 @@
         "minuteDescription": "Renvoie les minutes de la date fournie en argument.",
         "secondDescription": "Renvoie les secondes de la date fournie en argument.",
         "todayDescription": "Retourne la date courante.",
+        "nowDescription": "Renvoie la date et l'heure actuelles.",
         "getPropertyDescription": "Renvoie la propriété de l'objet.",
         "randomIntDescription": "Renvoie un nombre entier aléatoire dans l'intervalle spécifié par les arguments.",
         "randomFloatDescription": "Renvoie un flottant aléatoire dans l'intervalle spécifié par les arguments.",
@@ -718,6 +736,8 @@
         "splitDescription": "Découpe le premier argument en utilisant le deuxième argument optionnel comme séparateur. Si le deuxième argument n'est pas fourni, utilise ' ' comme séparateur.",
         "isEmptyDescription": "Retourne vrai si l'argument est vide, sinon retourne faux",
         "stripDescription": "Supprime tout espace finale ou initiale de l'argument",
+        "encodeUriDescription": "Encode en pourcent les caractères non autorisés dans une URL, en laissant la structure de l'URL intacte",
+        "encodeUriComponentDescription": "Encode en pourcent l'argument afin qu'il puisse être utilisé en toute sécurité comme une partie d'une URL, comme un segment de chemin ou un paramètre de requête",
         "sumDescription": "Calcule la somme des nombres en argument.",
         "avgDescription": "Calcule la moyenne des nombres en argument.",
         "atDescription": "Retourne l'élément du premier argument à l'index spécifié par le deuxième argument.",
