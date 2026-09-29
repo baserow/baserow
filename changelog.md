@@ -2,6 +2,168 @@
 
 ## Released 2.4.0
 
+### New features
+* [Builder] Clarify in the Application Builder editor when IFrame URL content is only shown in preview and published applications. [#5876](https://github.com/baserow/baserow/issues/5876)
+* [Database] Added the button field. A button in a row runs a sequence of actions: open a URL, create, update or delete rows, send an HTTP request, email or Slack message, or start a workflow. [#1722](https://github.com/baserow/baserow/issues/1722)
+* [Builder] Improved action selection in the Application Builder by grouping data source actions by integration and adding search. [#1911](https://github.com/baserow/baserow/issues/1911)
+* [Database] Adds a floating button to create rows from the grid view [#2272](https://github.com/baserow/baserow/issues/2272)
+* [Dashboard] Allow dashboard widgets to be arranged and resized on a grid. [#3306](https://github.com/baserow/baserow/issues/3306)
+* [Builder] Improved detection of misconfigured elements, actions, and data sources in Application Builder. [#3808](https://github.com/baserow/baserow/issues/3808)
+* [Database] Adds field permissions for specific users and teams [#5005](https://github.com/baserow/baserow/issues/5005)
+* [Database] Enable image embedding in rich text fields via drag-and-drop and paste [#5027](https://github.com/baserow/baserow/issues/5027)
+* [Core] Manage AI providers and model availability across your instance and workspaces [#5182](https://github.com/baserow/baserow/issues/5182)
+  * Configure connections and models in Admin tools → AI providers, or per workspace in the workspace's Settings → AI providers.
+  * Choose which features may use each model.
+  * Upgrading imports existing environment and workspace settings automatically.
+* [Core] Added support for multiple examples in formula expression help tooltip. [#5442](https://github.com/baserow/baserow/issues/5442)
+* [Automation] Adds a Go to node action that jumps to another node when a condition is true [#5559](https://github.com/baserow/baserow/issues/5559)
+* [Builder] Added notifications and enforcement settings for user limits. [#5567](https://github.com/baserow/baserow/issues/5567)
+* [Automation] Added the ability to cancel a running automation workflow. [#5587](https://github.com/baserow/baserow/issues/5587)
+* [Builder] Add configurable mobile and tablet breakpoints to Builder applications. [#5681](https://github.com/baserow/baserow/issues/5681)
+* [Database] Shows the sync history of synced tables, including runs started by the periodic schedule [#5722](https://github.com/baserow/baserow/issues/5722)
+* [Core] Amazon Bedrock can be added as an AI provider with an IAM access key or a Bedrock API key [#5753](https://github.com/baserow/baserow/issues/5753)
+* [Core] xAI can be added as an AI provider with an API key [#5753](https://github.com/baserow/baserow/issues/5753)
+* [Builder] Added a reminder in Application Builder field settings to use a Form element for validation before submitting data. [#6166](https://github.com/baserow/baserow/issues/6166)
+* [Core] Add optional request body size limit via BASEROW_REQUEST_BODY_SIZE_LIMIT_MB
+* [Builder] Add Group and summarize rows data source
+* [Database] Added a staff-only admin page listing all database views.
+* [Automation] Added a 'Start workflow by email' trigger that starts an automation workflow when an email is sent to its generated inbound email address.
+* [Core] Added a recently viewed page and show recently viewed items on the workspace homepage.
+* [Database] Adds a Columns layout option for grouped grid views
+* [Core] Adds a homepage listing all your workspaces and their applications
+* [Core] Adds an option to replay the guided tour
+* [Core] Adds Baserow academy videos to the guided tour
+* [Core] Administrators are now warned which AI fields and AI Agent actions use an AI provider model before it is disabled or deleted.
+* [Database] Airtable import now supports publicly shared views and improved errors.
+* [Core] Assistant onboarding now suggests what database to build based on your industry and team
+* [Core] The captcha can now be enabled on the workspace invite form.
+* [Database] Copy the configuration of another view, filters and sorts for example, into a view. [#2762](https://github.com/baserow/baserow/issues/2762)
+* [Core] Improves AI assistant follow-through across multi-step requests
+* [Builder] Introduced undo/redo support for integrations, data sources, workflow actions and pages
+* [Core] Pages open instantly and show a skeleton while their data loads
+* [Builder] Preview can be set to separate URL to improve security
+* [Core] Added an optional rate limit for sending workspace invitations.
+* [Core] Publicly shared views and forms can now be reported for abuse.
+* [Core] Suggests installing a template when you skip the onboarding
+* [Core] Track when a user last viewed a view, page, dashboard or workflow.
+
+### Bug fixes
+* [Database] Fix new lines disappearing from long text fields with rich text enabled [#2495](https://github.com/baserow/baserow/issues/2495)
+* [Database] Fixed `when_empty` formula function not treating empty string values as empty, only handling NULL. [#3121](https://github.com/baserow/baserow/issues/3121)
+* [Database] Fixed text overlap in rich text field preview with nested lists [#3475](https://github.com/baserow/baserow/issues/3475)
+* [Builder] Support full MIME types, JPEG aliases, and MIME wildcards in file input filters and upload validation. [#4325](https://github.com/baserow/baserow/issues/4325)
+* [Builder] Fixed users being sent back to the login page in published applications when a page only allows the user source's default role. Existing applications must be re-published for the fix to take effect. [#4331](https://github.com/baserow/baserow/issues/4331)
+* [Builder] Fixed required Application Builder inputs outside forms showing validation errors before user interaction. [#4492](https://github.com/baserow/baserow/issues/4492)
+* [Dashboard] Introduces configurable maximum dashboard data source concurrent dispatch. [#4545](https://github.com/baserow/baserow/issues/4545)
+* [Automation] Fixed a bug where moving a node didn't update the graph. [#5559](https://github.com/baserow/baserow/issues/5559)
+* [Builder] Fixes imported Start Workflow actions losing or mislinking the workflow they start. [#5560](https://github.com/baserow/baserow/issues/5560)
+* [Database] Allow required duration fields with valid values to be submitted in public forms [#5741](https://github.com/baserow/baserow/issues/5741)
+* [Database] Fixed a race condition where changing search terms, filters, or sort order during an in-flight request could display stale rows [#5764](https://github.com/baserow/baserow/issues/5764)
+* [Database] Fixed ad-hoc filter field validation not raising an error when all view fields are hidden in public views. [#5778](https://github.com/baserow/baserow/issues/5778)
+* [Database] Fixed blank rows appearing in grid views grouped by a multiple select or multiple collaborators field. [#5782](https://github.com/baserow/baserow/issues/5782)
+* [Database] Fixed file attachments not being imported when their URLs were not included in the external system's signed URL mapping [#5799](https://github.com/baserow/baserow/issues/5799)
+* [Database] Fixed the "To personal" / "To collaborative" button being visible to users without permission to change view ownership type. [#5804](https://github.com/baserow/baserow/issues/5804)
+* [Builder] Fixed truncated padding values in the App Builder style sidebar. [#5809](https://github.com/baserow/baserow/issues/5809)
+* [Builder] Allow trusted external IFrame URLs to access their own origin in previews and published applications. [#5812](https://github.com/baserow/baserow/issues/5812)
+* [Database] Raise a 400 validation error instead of an unhandled 500 when comma-separated field values contain unquoted newlines. [#5823](https://github.com/baserow/baserow/issues/5823)
+* [Database] Filter trashed fields from data sync export and guard import against missing field mappings. [#5825](https://github.com/baserow/baserow/issues/5825)
+* [Database] Strip XML-illegal control characters from cell values during Excel export instead of crashing. [#5829](https://github.com/baserow/baserow/issues/5829)
+* [Database] Sanitize float NaN and infinity values in grid view aggregation responses to prevent 500 errors. [#5831](https://github.com/baserow/baserow/issues/5831)
+* [Builder] Fixed Data Input fields not displaying the number 0 when number validation is enabled. [#5835](https://github.com/baserow/baserow/issues/5835)
+* [Database] Guard webhook filter computation against empty rows lists to prevent IndexError on undo. [#5838](https://github.com/baserow/baserow/issues/5838)
+* [Database] Resolve real workspace during snapshot view import to fix null workspace_id on role assignments. [#5844](https://github.com/baserow/baserow/issues/5844)
+* [Database] Fix field store crash when deleting a Kanban single-select stack. [#5846](https://github.com/baserow/baserow/issues/5846)
+* [Database] Fixed date copy-paste between US-format fields silently swapping month and day for ambiguous dates. [#5870](https://github.com/baserow/baserow/issues/5870)
+* [Database] Fixed frontend sorting by lookup fields — rows no longer jump to wrong positions when created or updated in a view sorted by a lookup field. [#5893](https://github.com/baserow/baserow/issues/5893)
+* [Core] Enforce SAML response and assertion signature validation against IdP certificates, add URL scheme validation to SSO redirects, and add license checks to Builder SAML endpoints. [#5905](https://github.com/baserow/baserow/issues/5905)
+* [Core] Check email verification status from OAuth2/OIDC providers before binding a provider identity to an existing Baserow account, preventing account takeover via unverified provider emails. [#5907](https://github.com/baserow/baserow/issues/5907)
+* [Database] Fixed an issue where data sync connection target fields (host, port, URL) could be changed without re-supplying the associated credential. [#5922](https://github.com/baserow/baserow/issues/5922)
+* [Database] Fixed view filter crashes when row field values are undefined during collaborative editing. [#5925](https://github.com/baserow/baserow/issues/5925)
+* [Database] Reduced WebSocket row update payload size by serializing only changed fields instead of all fields. [#5927](https://github.com/baserow/baserow/issues/5927)
+* [Database] Fixed blank rows appearing in grouped grid views for Editor-role users when grouping by a multiple select or multiple collaborators field. Separated group-by from order-by in frontend API calls so each uses the correct sort semantics. [#5937](https://github.com/baserow/baserow/issues/5937)
+* [Database] Fixed a bug where editing a field value in a view with filters, sorts, or group-bys would briefly revert to the old value when another update was still in progress. [#5955](https://github.com/baserow/baserow/issues/5955)
+* [Database] Fixed MCP server tool errors returning isError: false instead of true [#5961](https://github.com/baserow/baserow/issues/5961)
+* [Core] Fixed formula inputs retaining their formula when switching from expert to basic mode. [#5962](https://github.com/baserow/baserow/issues/5962)
+* [Builder] Fixed Application Builder number inputs silently changing malformed values, and allowed decimal points when they do not conflict with locale-specific thousands separators. [#5975](https://github.com/baserow/baserow/issues/5975)
+* [Core] Fixed new users getting an error page instead of the onboarding screen on their first SAML or OAuth2 SSO login. [#6043](https://github.com/baserow/baserow/issues/6043)
+* [Database] Fixed a crash when snapshotting, duplicating, or importing a database containing formulas with implicit link field references to array-typed primary fields [#6067](https://github.com/baserow/baserow/issues/6067)
+* [Database] Fix row updates failing when they include an existing link to a trashed row. [#6091](https://github.com/baserow/baserow/issues/6091)
+* [Core] Fixes messages to the AI assistant silently failing to send [#6094](https://github.com/baserow/baserow/issues/6094)
+* [Database] Fixed a crash when creating a snapshot, duplicating or exporting a database containing an active but invalid field rule. [#6095](https://github.com/baserow/baserow/issues/6095)
+* [Database] Fix newly created rows sometimes appearing twice in restricted views. [#6119](https://github.com/baserow/baserow/issues/6119)
+* [Builder] Add right permission classes to internal data source dispatch endpoints
+* [Core] Avoids unnecessary refresh prompts when reconnecting after old real-time history expired
+* [Builder] Fixed Application Builder previews failing when concurrent request throttling is enabled.
+* [Builder] Fixed a bug that prevented publishing an application due to a workflow action with an invalid event.
+* [Database] Fix filter values on lookups of select fields being lost on serialized import
+* [Database] Fixes grid scrolling being blocked when hovering a scrollable cell.
+* [Builder] Fixed link URL protocol validation to prevent code execution.
+* [Builder] Fix markdown parsing in Text element to prevent code execution
+* [Builder] Fixed SAML attribute keys being reset to their defaults when publishing an application.
+* [Database] Fixed an error when searching rows of a view that has all of its fields hidden, for example a publicly shared gallery view.
+* [Automation] Fixed a bug causing a crash when generating the schema for the Iterator service type.
+* [Builder] Fixed a bug in Summarize field data source using aggregation that caused a crash in preview and published modes.
+* [Builder] Fixed a bug that caused the time to be truncated in the Datetime picker.
+* [Builder] Fixed a bug that prevented creating or duplicating a builder page when a trashed page uses the same path.
+* [Dashboard] Fixed a crash in dashboard summary widgets when aggregating an empty rating, autonumber or duration field.
+* [Core] Fixed a crash when clicking in a formula field that has a null value.
+* [Core] Fixed an error that could occur after interacting with formula inputs.
+* [Builder] Fixed an error when adding an element to a column with an invalid or missing position.
+* [Builder] Fixed Application Builder search not working when the data source is filtered using a value from another data source.
+* [Core] Fixed missing spacing between buttons in the formula mode confirmation dialog.
+* [Core] Fixed parentheses being removed from formulas when publishing, duplicating, or importing an application, which changed their result.
+* [Builder] Fixed slow published app loads due to the used properties cache expiring too soon.
+* [Automation] Fixed the automation HTTP trigger webhook returning errors for requests with non UTF-8, plain text, binary, or malformed bodies.
+* [Database] Fixes a cache miss that slowed down requests on tables linked to other tables
+* [Builder] Fixes a crash when saving a workflow action with a missing service type.
+* [Builder] Fixes previews closing after selecting a View as user
+* [Builder] Fixes Builder application imports with non-standard page graph outputs
+* [Database] Fixes date formulas going stale or empty when a periodic update runs out of time
+* [Database] Fixes multiple select formulas showing blank text after using a collaborators field in a formula
+* [Core] Fixes stalled real-time connections and improves recovery after reconnecting
+* [Automation] Fixes the AI assistant storing broken formulas that broke duplicating and exporting.
+* [Integration] Improves the accuracy of periodic triggers so they run at the time you scheduled them for
+* [Builder] Limit IFrame element script execution to preview
+* [Integration] Makes the OpenAI base URL optional when overriding AI integration settings
+* [Core] Reject decorative characters and long numbers in user and workspace names
+* [Core] Resolved builder and automation hierarchy bugs which prevented elements and nodes from being pruned correctly.
+* [Core] Prevent health check requests cancelled by a timed-out probe from being reported to Sentry.
+
+### Refactors
+* [Integration] Introduced filter groups to filterable Local Baserow services. [#5558](https://github.com/baserow/baserow/issues/5558)
+* [Database] Improved Jira data sync performance and stopped blocking the table while a sync fetches its source [#6110](https://github.com/baserow/baserow/issues/6110)
+* [Core] Made filtering the audit log by user, workspace or event type fast on large installations.
+* [Core] Made listing all applications fast for users with access to many workspaces
+* [Database] Made the admin views page fast on large installations.
+* [Core] Upgraded the AI assistant's pydantic-ai dependency to version 2
+* [Core] Upgraded and refactored to Nuxt 4.5 with Vite 8.
+* [Core] Upgrades the AI libraries, and model suggestions no longer include the retired Claude Opus 4.1
+
+### Breaking API changes
+* [Core] AI provider environment variables are imported on upgrade and no longer read afterwards [#5182](https://github.com/baserow/baserow/issues/5182)
+  * Instance admins manage providers in Admin tools → AI providers; workspace admins in the workspace's Settings → AI providers.
+  * Changing a `BASEROW_*` provider variable after the upgrade has no effect; rotate keys in AI providers instead.
+  * Imported credentials are stored in the database rather than the environment; exports still exclude them.
+  * A workspace with a credential but no models now has no models available.
+  * A workspace with models but no credential now uses the instance model list.
+  * A workspace with a credential but no endpoint or organization uses the provider's defaults.
+  * Kuma keeps using `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` until you make a model available to Kuma and select it under AI features.
+  * The `/api/workspaces/{id}/settings/generative-ai/` endpoint is removed; manage workspace providers with `/api/ai-providers/?workspace_id={id}` instead.
+  * https://baserow.io/docs/installation%2Fai-providers#upgrading-to-baserow-24
+* [Integration] Update row actions now require a row ID [#5934](https://github.com/baserow/baserow/issues/5934)
+  * Breaking change: an update row action in the application builder, automations or a button field whose row ID is empty, or resolves to 0, now fails instead of creating a new row. Use a create row action to add rows.
+* [Database] Added workspace permission checks to the data sync type properties endpoint [#5971](https://github.com/baserow/baserow/issues/5971)
+  * Breaking change: the data sync type properties endpoint URL changed from `POST /api/database/data-sync/properties/` to `POST /api/database/data-sync/database/{database_id}/properties/` and now requires a `database_id` path parameter for workspace permission checks.
+  * When `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` is `false`, existing PostgreSQL data syncs pointing at private-network hosts will now fail to sync. Previously, this setting only affected HTTP-based data syncs (iCal, etc.).
+* [Integration] SMTP integration passwords and Slack bot tokens are now write-only and are never returned by the API
+  * Breaking change: the SMTP integration's `password` and the Slack bot integration's `token` are no longer returned by the integration API. Each is replaced by a read-only `has_password` / `has_token` boolean. Any integration that reads those fields must be updated.
+  * Changing an SMTP integration's host, port or TLS setting now requires the password to be supplied again in the same request, so a stored password cannot be redirected to another server or sent over an unencrypted connection.
+  * During a rolling deploy, a browser tab still running the previous frontend sends an empty SMTP password when the integration is saved, which clears the stored one. Re-entering the password restores it.
+* [Core] The audit log can now only be sorted by timestamp, and can no longer be filtered by IP address.
+
+
+## Released 2.3.4
+
 ### Bug fixes
 * [Database] Fixed a bug where column resizes and other field option changes weren't shown to other users in real time [#5827](https://github.com/baserow/baserow/issues/5827)
 * [Database] Fixed missing row update permission check when importing rows with upsert configuration. [#5916](https://github.com/baserow/baserow/issues/5916)
