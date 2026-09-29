@@ -352,12 +352,22 @@ credentials on the action to lend to anybody. It also makes
 `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS` a switch for the
 feature: with it off, or with no mail server configured, the editor offers the action
 disabled and says which of the two it is. An installation that wants per-action
-credentials is the revisit trigger for attaching an integration here.
+credentials is the revisit trigger for attaching an integration here. It fired; see the follow-up below.
 
 **Amendment (phase 4c, September 2026).** External integrations attach on the database
 application itself, which the generic integration API already supports once the
 application type declares `supports_integrations`. The Slack action is the first to use
 this.
+
+**Amendment (phase 4b follow-up, September 2026).** The revisit trigger above fired:
+SaaS turns off `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS`, which
+left the email action unusable there. The email action now also accepts an
+`SMTPIntegrationType` integration attached on the database, the way the Slack action
+takes its bot, and its form offers the same instance/integration choice as the builder.
+Sharing follows the Slack action: whoever can read the integration may attach it, and
+every clicker sends through it. The type is no longer deactivated as a whole. An action
+set to the instance server where this installation cannot deliver is flagged for
+reconfiguration and refused on click instead.
 
 **Amendment (phase 4d, September 2026).** A fourth service-backed type, start workflow,
 reuses the `CoreStartWorkflowServiceType` the builder and automation already have:

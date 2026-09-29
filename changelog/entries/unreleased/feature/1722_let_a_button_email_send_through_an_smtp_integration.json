@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "A button field's email action can send through an SMTP integration, so it works without an instance mail server.",
+    "issue_origin": "github",
+    "issue_number": 1722,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-29"
+}
