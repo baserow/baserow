@@ -2365,7 +2365,9 @@ Click any field to access its configuration options:
 
 **Field label:** Customize how the field name appears on the form. For example, change ""email"" to ""Your email address"" for clarity.
 
-**Description:** Add helper text that appears below the field label to guide respondents.
+**Description:** Add rich content and links below the field label to provide additional context or instructions for respondents.
+
+Field descriptions support rich text formatting and links.
 
 **Required toggle:** Make fields mandatory for form submission. Respondents cannot submit without completing required fields.
 
@@ -5639,7 +5641,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [long-text]: https://www.google.com/search?q=/user-docs/long-text-field",,baserow_user_docs,https://baserow.io/user-docs/single-line-text-field
 32,Long text field,long-text-field,Baserow: Working with Long text fields,"# Long text field in Baserow
 
-Long text fields in Baserow handle everything from brief descriptions to detailed notes, with built-in Markdown support and rich text formatting to style your content without leaving your database.
+Long text fields in Baserow handle everything from brief descriptions to detailed notes, with built-in Markdown support and rich text formatting, including images.
 
 This guide will cover how to use Long text fields to store multi-line text, descriptions, and notes with optional rich text formatting and Markdown support.
 
@@ -5701,6 +5703,19 @@ Once enabled, you can format text using the toolbar or [Markdown shortcuts][5].
 2. Click the expand icon for the full editor
 3. Use the formatting toolbar or type Markdown syntax
 4. Apply styles: **Bold** (Ctrl+B), *Italic* (Ctrl+I), Underline (Ctrl+U), ~~Strikethrough~~ (Ctrl+S)
+
+### Add images
+
+You can add images to rich text content in Long text fields.
+
+To add images:
+
+1. Open a rich text-enabled Long text field.
+2. Open the full editor.
+3. Upload one or more images.
+4. Insert the images into your content.
+
+You can copy or delete images after adding them.
 
 ### Markdown formatting reference
 
@@ -5789,7 +5804,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [5]: /user-docs/baserow-keyboard-shortcuts
   [6]: /user-docs/row-commenting
   [7]: /user-docs/formula-field-overview
-  [8]: /user-docs/baserow-field-overview",,baserow_user_docs,https://baserow.io/user-docs/long-text-field
+  [8]: /user-docs/baserow-field-overview",field,baserow_user_docs,https://baserow.io/user-docs/long-text-field
 33,Number field,number-field,Baserow Number field: How to use it,"# Number field
 
 The Baserow **Number field** makes it easy to store, format, and perform calculations on numerical data.
@@ -6651,10 +6666,9 @@ Still need help? If you're looking for something else, please feel free to make 
   [10]: /user-docs/field-customization",,baserow_user_docs,https://baserow.io/user-docs/multiple-select-field
 42,Phone number field,phone-number-field,Phone number field in Baserow table,"# Working with the Phone number field
 
+The **Phone number field** validates phone number input and renders phone numbers as clickable links, making it easy to store and use contact numbers directly from your table.
 
-The **Phone number field** validates and formats numerical inputs, making it easy to store and use contact numbers directly from your table.
-
-This guide covers what a Phone number field is and its key features, how to add a Phone number field to your table, how the field validates and formats data, and how to use the field for click-to-call.
+This guide covers what a Phone number field is and its key features, how to add a Phone number field to your table, how the field validates data, and how to use click-to-call functionality.
 
 Learn more: [Configure field types](https://baserow.io/user-docs/field-customization)
 
@@ -6662,48 +6676,48 @@ Learn more: [Configure field types](https://baserow.io/user-docs/field-customiza
 
 ## What is a Phone number field?
 
-A Phone number field is a specialized field type designed to store contact phone numbers. Unlike a standard text field, it ensures that your data is consistent, valid, and actionable.
+A Phone number field is a specialized field type designed to store contact phone numbers. Unlike a standard text field, it validates that the input contains only characters commonly used in phone numbers and automatically renders values as clickable tel: links.
 
-Its main purpose is to clean up and structure data at the point of entry.
+Its main purpose is to help ensure that phone numbers are entered in a valid format while making them easy to use.
 
-* **Validation:** It automatically checks that the entered value is a plausible phone number, preventing simple data entry errors.
-* **Formatting:** It formats the string of numbers into a standardized, readable format (e.g., `+1 (555) 123-4567`). This keeps your database clean and easy to read.
-* **Click-to-Call:** Numbers in this field become actionable links. Clicking a number in your browser or on mobile will automatically launch your device's default calling (e.g., FaceTime, Skype) or texting (e.g., iMessage) application.
+* **Input validation:** The field accepts only characters commonly used in phone numbers, including digits (`0-9`), `+`, `(`, `)`, `-`, spaces, `#`, `*`, and `N`/`X`. Entries are limited to 100 characters.
+* **Click-to-call:** Phone numbers are rendered as clickable `tel:` links. Clicking or tapping a number opens your device's default calling application or any app registered to handle phone links.
 
-This field is essential for any table that tracks leads, contacts, user lists, or any record requiring a valid phone number.
+This field is useful for any table that stores customer contacts, leads, employees, suppliers, or other records containing phone numbers.
 
 ## Add a Phone number field
 
 To add a Phone number field to your table:
 
-1.  In your table, click the plus sign `+`  to [add a new field](/user-docs/adding-a-field).
-2.  In the dropdown menu, select **Phone number** as the field type.
-3.  Input a name for your field (e.g., ""Contact Phone"").
-4.  Click **Create**.
-
-
+1. In your table, click the plus sign `+` to [add a new field](/user-docs/adding-a-field).
+2. In the dropdown menu, select **Phone number** as the field type.
+3. Enter a name for your field (for example, **Contact Phone**).
+4. Click **Create**.
 
 ## Using the Phone number field
 
-Once you've added the field, you can start entering numbers. You'll notice that as you type, Baserow formats the number for you.
+Once you've added the field, you can begin entering phone numbers.
 
-The primary benefit is the **click-to-call** functionality. Simply tap or click on the cell containing the phone number. Your browser or operating system will prompt you to open the link with your default calling or messaging app.
+The field validates that only supported phone number characters are entered. It **does not automatically format or standardize** phone numbers, so values are displayed exactly as entered.
 
-
+Each phone number is rendered as a clickable `tel:` link. Clicking or tapping the value opens your browser or operating system's default calling application (such as FaceTime, Skype, or your phone app), or another application that supports `tel:` links.
 
 ## Frequently asked questions
 
 ### What's the difference between a Phone number field and a text field?
-A [Single line text field][34] accepts *any* combination of characters. A Phone number field is specialized: it validates that the input is a phone number and automatically formats it into a standard, consistent structure. It also makes the number a clickable `tel:` link, which a text field does not do by default.
+
+A [Single line text field][34] accepts any combination of characters. A Phone number field restricts input to characters commonly used in phone numbers and automatically renders the value as a clickable `tel:` link.
 
 ### What format should I use to enter a number?
-The field is flexible and will do its best to interpret the number you enter. For best results and to avoid ambiguity, it's recommended to use the international format, including the country code (e.g., `+1` for the United States, `+44` for the United Kingdom).
+
+The field does not enforce a specific phone number format or automatically reformat your input. For maximum compatibility with calling applications, we recommend entering phone numbers in international format, including the country code (for example, `+1 555 123 4567` or `+44 20 7946 0958`).
 
 ### Does this field validate that the phone number is real?
-The field validates that the entry *is in the format* of a phone number (e.g., it has the correct number of digits). It does not, however, check if the number is currently in service or ""real."" Its purpose is to ensure data *consistency*, not to verify the number's active status.
 
+No. The field validates only that the entered value contains supported phone number characters. It does not verify whether a phone number exists, is active, or can be reached.
 
 ## Related content
+
 * [Email field][42]
 * [URL field][41]
 * [Single line text field][34]
@@ -6711,17 +6725,16 @@ The field validates that the entry *is in the format* of a phone number (e.g., i
 
 ---
 
-
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
 - [Ask the Baserow community](https://community.baserow.io)
 - [Contact support](https://baserow.io/contact) for questions about Baserow or help with your account.
 
- [25]: /user-docs/baserow-field-overview
- [34]: /user-docs/single-line-text-field
- [41]: /user-docs/url-field
- [42]: /user-docs/email-field
- [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c07d7876-fa6e-47d9-82d3-2da70eb0b82a/Screenshot%25202022-07-14%2520at%252012.14.15.png",,baserow_user_docs,https://baserow.io/user-docs/phone-number-field
+[25]: /user-docs/baserow-field-overview
+[34]: /user-docs/single-line-text-field
+[41]: /user-docs/url-field
+[42]: /user-docs/email-field
+[1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c07d7876-fa6e-47d9-82d3-2da70eb0b82a/Screenshot%25202022-07-14%2520at%252012.14.15.png",database,baserow_user_docs,https://baserow.io/user-docs/phone-number-field
 43,Link to table field,link-to-table-field,Link to table field in Baserow,"# Working with the Link-to-table field
 
 The **Link-to-table field** is the most powerful way to create relationships between tables, allowing you to connect records and look up information from other tables.
@@ -8128,9 +8141,50 @@ Workspaces keep your teams, projects, and data organized in secure, collaborativ
 
 A workspace is Baserow's foundational organizational unit, a dedicated space where teams collaborate on related work. Everything you create in Baserow (databases, applications, dashboards, automations) lives inside a workspace. Each workspace has its own members with defined roles and permissions, ensuring secure access control and organized collaboration.
 
-![Baserow workspace interface][1]
+![Baserow workspace homepage][1]
 
+The workspace homepage gives you a central place to view and manage your Baserow workspaces and the databases, applications, dashboards, and automations inside them.
 
+## View your workspaces
+
+1. Open Baserow.
+2. Select **All workspaces** from the sidebar.
+3. Browse your workspaces and the items inside each workspace.
+
+Each workspace shows its name, plan, members, number of items, and row usage. You can expand a workspace to see its items or collapse it to show only the workspace header.
+
+## Find and organize items
+
+Use the controls at the top of the page to find and organize your workspaces:
+
+- Search for a workspace or item.
+- Filter items by type, such as **Database**, **Application**, **Dashboard**, or **Automation**.
+- Sort workspaces by **Created**, **Last viewed**, or **Name**.
+- Switch between **Expanded view** and **Compact view**.
+- Use **Expand all** or **Collapse all** to change the view of all workspaces at once.
+
+## Create items
+
+Select ‘Create’ inside a workspace to create a new item.
+
+**You can create:**
+
+- Database
+- Application
+- Dashboard
+- Automation
+- From template
+- Import data
+
+## Manage a workspace
+
+Use the workspace controls to manage its settings and members.
+
+You can:
+
+- Open **Members** to manage workspace members.
+- Open **Settings** to configure the workspace.
+- Use the workspace menu to export or import data, rename the workspace, manage members, view the trash, leave the workspace, or delete the workspace.
 
 ## How workspaces organize your work
 
@@ -8285,7 +8339,7 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](https://baserow.io/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f7895adc-ae4c-4ce2-91d4-f12e76daef12/Baserow%20workspace.jpg
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c167bbee-7b77-4cda-a94f-7e9bbac9b8c0/New%20homepage.png
   [2]: /user-docs/intro-to-databases
   [3]: https://baserow.io/user-docs/application-builder-overview
   [4]: https://baserow.io/user-docs/dashboards-overview
@@ -9698,7 +9752,9 @@ Baserow supports the three major industry standards for authentication.
 
 ### SAML 2.0
 
-Security Assertion Markup Language (SAML) is the standard for enterprise-grade identity management. It allows your Identity Provider (IdP) to pass authorization credentials to Baserow securely.
+Security Assertion Markup Language (SAML) is the standard for enterprise-grade identity management. It allows your Identity Provider (IdP) to authenticate users and securely pass identity information to Baserow.
+
+**Security note:** A SAML signature authenticates the identity provider, not email ownership. Make sure your identity provider is configured to require verified email addresses before authenticating users.
 
 **Supported dedicated integrations:**
 
@@ -9720,6 +9776,8 @@ OAuth 2 is commonly used for ""Social Login"" or delegated access. It allows use
 ### OpenID Connect (OIDC)
 
 OpenID Connect is an identity layer built on top of OAuth 2.0. It allows Baserow to verify user identity against *any* service that supports the OIDC standard, even if a dedicated integration is not listed above.
+
+**Security note:** Make sure your identity provider is configured to require verified email addresses before authenticating users. Baserow trusts the email address reported by the provider.
 
   * [Set up Generic OpenID Connect](/user-docs/configure-openid-connect-for-oauth-2-sso)
 
@@ -9762,7 +9820,7 @@ Yes. You can configure multiple providers (e.g., ""Google"" for the marketing te
 
 ### What happens to existing accounts if I enable SSO?
 
-If the email address in Baserow matches the email address in the SSO provider, the user will be logged into their existing account. Baserow links the identity based on the email address.
+If the email address in Baserow matches the email address reported by the SSO provider, Baserow can link the SSO identity to the existing account. Because Baserow trusts the email address reported by the provider, administrators should ensure their identity provider requires verified email addresses.
 
 ## Related content
 
@@ -12249,13 +12307,11 @@ The process takes just minutes and handles field type conversions automatically,
 <iframe width=""560"" height=""315"" src=""https://www.youtube.com/embed/HaHY0GSflWM?si=YPg_su2Yt6Q7eMZB"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
 
 
-
 ## Before you import: Prerequisites
 
-You'll need a public share link to your entire Airtable base. If you can't find the share option, check your Airtable permissions. See [Airtable's documentation](https://support.airtable.com/docs/creating-airtable-base-share-links) for detailed help.
+You’ll need a public share link to the Airtable base or view you want to import. If you can’t find the share option, check your Airtable permissions. See [Airtable's documentation](https://support.airtable.com/docs/creating-airtable-base-share-links) for detailed help.
 
-Ensure you have a [Baserow workspace](/user-docs/setting-up-a-workspace) ready, and verify you have permissions in the workspace. Check storage availability if importing large bases with many attachments
-
+Ensure you have a [Baserow workspace](/user-docs/setting-up-a-workspace) ready, and verify you have permissions in the workspace. Check storage availability if importing large bases with many attachments.
 
 ## How to import from Airtable
 
@@ -12263,7 +12319,7 @@ Ensure you have a [Baserow workspace](/user-docs/setting-up-a-workspace) ready, 
 2. Click **+ Add new** at the top of the workspace
 3. Select **Database** from the dropdown menu
 4. Switch to the ""Import from Airtable"" tab in the creation dialog
-5. Paste your Airtable share link into the input field
+5. Paste your Airtable share link into the input field. You can provide a public share link to an entire Airtable base or to a publicly shared view.
 6. Click **Import from Airtable** to start the process
 
 You'll see a progress indicator during import. An Airtable base with many files can slow down the import. Enabling ""Skip importing files"" skips the import of the files.
@@ -12282,6 +12338,10 @@ If the import responds with ""The Airtable base requires authentication."" then 
  2. Click on the application menu by clicking in the top right corner -> **More tools** -> **Developer tools**. 
  3. Open the **Application** (in Firefox ""Storage"") tab and click on `https://airtable.com`.
  4. Then, find the `__Host-airtable-session` and `__Host-airtable-session.sig` cookie values, and paste them in the inputs.
+
+### Import errors
+
+If your Airtable link requires authentication or isn’t valid, Baserow displays an error explaining the issue. Check that you’re using a valid public share link and that the Airtable base or view is accessible without authentication.
 
 ## What gets imported
 
@@ -12399,8 +12459,8 @@ Yes, you can import an Airtable base as many times as needed. Each import create
 ### ""Invalid share link"" error
 This is caused by the share link isn't properly formatted or has expired. Generate a new share link in Airtable and ensure you're copying the entire URL
 
-### Missing tables after import
-This is caused by the share link might be for a view, not the entire base. Make sure you're sharing the whole base, not just a single view or table
+### Importing from an Airtable view
+You can import from a publicly shared Airtable view. If you want to import the full base, make sure you’re using a public share link to the entire base.
 
 ### Formulas showing as empty fields
 This is caused by formula fields aren't imported automatically. This is expected behavior. Recreate formulas using [Baserow formula syntax](/user-docs/understanding-formulas)
@@ -19973,6 +20033,21 @@ You can:
 
 Collapsed groups display their row count and any configured summary values, making it easier to navigate large tables.
 
+### Choose a group layout
+
+You can choose how grouped data is displayed in your view:
+
+- **Sections:** Display each group as a collapsible section.
+- **Columns:** Display groups as columns for a more compact view.
+
+Switch between layouts from the Group panel to find the format that works best for your data.
+
+### Reorder rows within and between groups
+
+Drag and drop rows to reorder them within a group or move them between groups.
+
+You can also create new rows directly within a group, making it easier to organize and update grouped data without scrolling to the bottom of the view.
+
 ### Reorder group levels
 
 Re-order group by fields using drag and drop.
@@ -19983,6 +20058,12 @@ For example:
 
 - Status → Assignee groups tasks by Status first, then by Assignee.
 - Assignee → Status groups tasks by Assignee first, then by Status.
+
+### Reorder rows within and between groups
+
+Drag and drop rows to reorder them within a group or move them between groups.
+
+You can also create new rows directly within a group, making it easier to add records where they belong without scrolling to the bottom of the view.
 
 ### Remove a group level
 
@@ -25511,6 +25592,18 @@ Configure automatic sync schedules through the ellipsis menu of any synced table
 
 ![Daily sync schedule settings](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/O24Ax8tN1cMsz6UfGkTTxvP6rVyDVNzM_097dd28d744e7a5d6fbf0375730349211d7f60255974000afa50eb37b5c6cd42.png)
 
+### View sync history
+
+Data Sync keeps a history of sync jobs so you can review previous runs and monitor syncs that are still in progress.
+
+To view sync history:
+
+1. Open the table menu.
+2. Select **Update sync configuration**.
+3. Go to **Sync history**.
+
+Here you can see when previous syncs started and finished and whether they completed successfully. Running syncs also retain their progress when you refresh the page.
+
 ### Delete rows when they are deleted or hidden in the source
 
 ![Option to keep synced rows when they are deleted in source][10]
@@ -26289,6 +26382,12 @@ Each widget can be customized to display exactly the information you need:
 **Sorting preferences:** Control how data is ordered in your visualizations. Sort by value, alphabetically, or by custom criteria.
 
 **Color schemes:** Customize colors to match your brand or to highlight specific data points.
+
+## Arrange dashboard elements
+
+The Dashboard Builder uses a grid system that makes it easier to arrange your dashboard elements.
+
+Drag and resize widgets to create layouts that fit your data and the way you want to present it.
 
 ## How dashboards update
 
@@ -28395,6 +28494,37 @@ Click **Show result** to inspect the data returned by the node.
 
 This is especially useful when later nodes depend on values produced by previous workflow steps.
 
+
+### Stop a running workflow
+
+![Stop a running workflow][8]
+
+You can **Stop a workflow** while it is running from the workflow's ‘History’.
+
+This is useful when a workflow is taking longer than expected, is processing the wrong data, or you want to prevent the remaining steps from running.
+
+**Stop a workflow run:**
+
+1. Open the workflow you want to check.
+2. Click **History** in the top navigation.
+3. Find the workflow run that is currently in progress.
+4. Click **Cancel this workflow run**.
+
+The workflow run stops and no remaining steps are executed.
+
+>  **Note:** Steps that have already completed are not undone. Stopping a workflow only prevents the current run from continuing. If you want to prevent the workflow from starting new runs, pause the workflow. A paused workflow won’t run again until it is resumed and published.
+> 
+
+**Check the workflow run status:**
+
+Open **History** to see the status of your workflow runs.
+
+A running workflow shows **[Test] In progress...** or **In progress**, along with the option to **Cancel this workflow run**.
+
+After you stop the run, the history shows that the run was cancelled.
+
+You can also see how long the workflow ran and the number of automation credits consumed by the run.
+
 ---
 
 ## Troubleshoot workflow errors
@@ -28432,7 +28562,7 @@ Nested Iterators are displayed hierarchically, allowing you to drill down into e
 3. Select **Automation** from the dropdown menu
 4. (Optional) Click the ellipsis beside the automation name and select **Rename** to give it a descriptive name or **Duplicate** to create a copy of an automation.
 
-> Learn more about [how snapshots work in Baserow][8].
+> Learn more about [how snapshots work in Baserow][9].
 
 ### Building your workflow
 
@@ -28463,7 +28593,7 @@ You must publish your workflow for it to begin processing real data. Baserow wor
 
 Learn more: [Publishing and managing workflows][5]
 
-![image Baserow router automation][9]
+![image Baserow router automation][10]
 
 ## Frequently asked questions
 
@@ -28511,8 +28641,9 @@ Still need help? If you're looking for something else, please feel free to make 
   [5]: https://baserow.io/user-docs/workflow-management
   [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3f66fc94-7225-4693-b169-ea7e1ca7bb02/Node%20history.png
   [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7a618064-dfe3-4df8-93bf-ce9393aeec9a/Node%20history%20details.png
-  [8]: https://baserow.io/user-docs/snapshots
-  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/14d8595d-2484-458a-b77b-dc25018110b1/Baserow%20router%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/workflow-automation
+  [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/04e614d6-e536-4ac1-8944-468005b26967/Stop%20a%20running%20workflow.png
+  [9]: https://baserow.io/user-docs/snapshots
+  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/14d8595d-2484-458a-b77b-dc25018110b1/Baserow%20router%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/workflow-automation
 525,Workflow triggers,automation-triggers,Baserow workflow triggers,"# Workflow triggers: How to start an automation
 
 Triggers are the starting point of every Baserow workflow. They define when your automation runs, whether on a schedule, when data changes in your tables, or when external services send requests. Configure your trigger first, then build actions that respond to it.
@@ -28668,7 +28799,69 @@ Create a **Send monthly report** workflow with a **Manual trigger**. The workflo
 
 A scheduled workflow runs every month and uses the **Start workflow** action to start the **Send monthly report** workflow. The same workflow can also be started from an application when a user clicks a button, allowing the reporting logic to be reused without duplicating it.
 
-## How to test your trigger
+### Email trigger
+
+![Baserow email trigger][3]
+
+The Baserow **Email Trigger** starts an automation workflow when an email is sent to a generated Baserow email address.
+
+You can also use it to start a workflow when an email arrives in another email inbox by configuring that inbox to automatically forward messages to the generated Baserow email address.
+
+The email's sender, subject, body, and attachment details are available to the workflow as the trigger payload.
+
+**Add an Email Trigger:**
+
+1. Open an automation.
+2. Add an **Email Trigger** as the starting trigger.
+3. Enter an optional label.
+4. Copy the generated email address.
+5. To test the trigger, click **Test node** and send an email to the generated test address.
+6. To use the trigger in a published workflow, publish the workflow and send an email to the generated live address.
+
+You can also configure your email provider to automatically forward incoming emails to the generated Baserow email address.
+
+For example, you could configure Gmail or Outlook to forward emails from `support@example.com` to your generated Baserow email address. When someone sends an email to `support@example.com`, the email is forwarded to Baserow and starts the workflow.
+
+See how to set up automatic forwarding with Gmail or Outlook.
+
+**Email payload**
+
+The Email Trigger passes the following information to the workflow:
+
+- Sender
+- Subject
+- Text body
+- HTML body
+- Attachment name, type, and size
+
+Email messages up to 25 MB are accepted. Text and HTML bodies are passed to the workflow up to 1 MB each. Attachments are not stored; only their name, type, and size are included in the payload.
+
+**Regenerate the email address**
+
+You can generate a new email address using ‘Regenerate address’.
+
+If you accidentally regenerate the address, you can immediately undo the change by clicking the ‘Undo’ button.
+
+If you keep the new address, update any email forwarding rules or integrations that use the previous address.
+
+**Keep the address secure**
+
+Treat the generated email address as a secret. Anyone who has the address can send an email to it and start the workflow.
+
+**Example:**
+
+You can use an Email Trigger to receive support requests without requiring customers to know your Baserow email address.
+
+**Customer → support@example.com → email forwarding → Baserow Email Trigger → Create support ticket**
+
+You can configure your support inbox to automatically forward incoming emails to the generated Baserow email address. Baserow then detects the forwarded email and starts the workflow.
+
+**This lets you use the Email Trigger in two ways:**
+
+- Start a workflow directly by sending an email to the generated Baserow address.
+- Start a workflow when an email arrives in an existing inbox by forwarding it to the Baserow address.
+
+## How to test your trigger:
 
 Testing generates sample data that you'll use to configure your workflow's actions. Always test your trigger before adding actions.
 
@@ -28706,6 +28899,14 @@ curl -X POST [YOUR_WEBHOOK_URL] \
   -H ""Content-Type: application/json"" \
   -d '{""customer_name"": ""John Doe"", ""amount"": 99.99}'
 ```
+
+### Testing email triggers**
+
+Use ‘Test node’ to test the Email Trigger.
+
+After clicking ‘Test node’, Baserow provides a test email address. Send an email to this address to trigger the test workflow run.
+
+For a published workflow, use the live email address shown by the trigger.
 
 ## Frequently asked questions
 
@@ -28783,7 +28984,8 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3a11987e-6c82-47d8-9670-19cc14397edb/Baserow%20workflow%20automation.jpg
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d23180d4-fcc1-437f-a744-01d385059d62/Baserow%20trigger%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/automation-triggers
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d23180d4-fcc1-437f-a744-01d385059d62/Baserow%20trigger%20automation.jpg
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/12ce8b0b-39c4-43c7-9e85-0c003a29c151/Email%20trigger.png",automation,baserow_user_docs,https://baserow.io/user-docs/automation-triggers
 526,Workflow actions,automation-actions,Baserow Workflow actions,"# Workflow actions: Reading and modifying data
 
 Baserow workflow actions turn static data into dynamic processes by automating updates, notifications, and external syncs instantly.
@@ -29069,88 +29271,13 @@ The workflow will only proceed to the nodes *after* the Iterator once all items 
 
 ## Core actions
 
-### Send an HTTP request
-
-This action allows your workflow to connect to any external API or web service, enabling broad integration possibilities. It sends data via HTTP requests, letting you trigger actions in other platforms or retrieve information from external systems.
-
-Use the generic HTTP Request action to connect to thousands of tools, including Dropbox, CloseCRM, Salesforce, HubSpot, Gmail, Shopify, etc.
-
-**Configuration:**
-
-| Setting | Description | Example |
-|---------|-------------|---------|
-| **HTTP method** | Request type required by the API | POST (create data), GET (retrieve data), PUT (update data), DELETE (remove data), PATCH, HEAD, OPTIONS |
-| **Endpoint URL** | The API's destination address | `https://api.example.com/v1/customers` |
-| **Query parameters** | Data passed in the URL | `?customer_id=123&action=notify` |
-| **Headers** | Metadata sent with the request | `Authorization: Token YOUR_TOKEN` |
-| **Body type** | Format of the data payload | JSON (most common), Form data, Raw text |
-| **Body content** | The actual data being sent | Customer details, order information, etc. |
-| **Timeout** | Max wait time for response | 30 seconds (default) |
-
-> You can insert trigger and action data anywhere using dynamic data. 
-
-Common use cases include sending new customer data to your CRM, notifying Slack channels when important events occur, automatically creating Trello cards or Jira issues, syncing order data with fulfillment services, updating external inventory management systems, and triggering workflows in platforms like Zapier or Make.
-
-**Example: Sending data to Slack**
-```
-Method: POST
-URL: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-Body Type: JSON
-Body:
-{
-  ""text"": ""New customer registered: customer_name"",
-  ""channel"": ""#sales""
-}
-```
-
-Learn more about [Baserow database tokens][9].
-
-### Send an email
-
-This action allows your workflow to automatically notify users, teams, or customers when specific events occur. It sends emails using your configured SMTP settings, enabling immediate communication from your automation.
-
-> Automations can use a pre-configured SMTP server when [self-hosting][10]. This removes the need to configure email settings for each automation individually, while still allowing custom configurations when needed.
-
-**Configuration:**
-
-**SMTP configuration for email actions**
-
-To send emails from Baserow, you must configure an SMTP integration for each email action.
-
-Open the Integration sidebar and select **Add new integration**. In the modal, enter your SMTP credentials: host, port, username, and password. 
-
-**Recipients:**
-- **From email:** The sender address (must be configured in your SMTP settings)
-- **From name:** (Optional) Display name for the sender (e.g., ""Baserow Notifications"")
-- **To emails:** Primary recipients (comma-separated for multiple)
-- **CC emails:** (Optional) Carbon copy recipients
-- **BCC emails:** (Optional) Blind carbon copy recipients
-
-**Content:**
-- **Subject:** Email subject line (can include dynamic data) `New order #order_id received`
-- **Body:** Email content (can include trigger/action data) `Hello customer_name, thank you for your order...`
-- **Body type:** Plain text or HTML for styled emails
-
-Common use cases include welcoming new users after registration, sending order confirmation emails, notifying team members when tasks are assigned, alerting managers about high-priority items, sending daily or weekly summary reports, and reminding users about upcoming deadlines.
-
-**HTML email example:**
-```html
-<h2>Welcome to Baserow, customer_name!</h2>
-<p>Your account has been created successfully.</p>
-<ul>
-  <li>Email: email</li>
-  <li>Account ID: row_id</li>
-</ul>
-<p><a href=""https://baserow.io/dashboard"">Get Started</a></p>
-```
-
 ### Execute code node
 
-The Execute code action lets you run JavaScript directly inside Automation workflows and [Application Builder][11] pages.
+The Execute code action lets you run JavaScript directly inside Automation workflows and [Application Builder][9] pages.
 
 Use it to transform data, perform calculations, generate custom outputs, or prepare information before passing it to the next action.
 
-![Execute code node example][12]
+![Execute code node example][10]
 
 **For example, you can use the Execute code action to:**
 
@@ -29173,7 +29300,7 @@ Currently, JavaScript is the supported language.
 2. Click the **+** button where you want to add a new action (after a trigger or another action).
 3. Select **Execute code**.
 
-![Add an Execute code action][13]
+![Add an Execute code action][11]
 
 The action contains two main sections:
 
@@ -29275,7 +29402,7 @@ The Output section displays the object returned by your script, making it easy t
 
 One practical use case is generating HTML before sending an email.
 
-![Example: Build an HTML email][14]
+![Example: Build an HTML email][12]
 
 Suppose you have a workflow that:
 
@@ -29309,7 +29436,7 @@ return {
 }
 ```
 
-The following **[Send email][15]** action inserts `html` directly into the email body, producing a formatted report such as:
+The following **[Send email][13]** action inserts `html` directly into the email body, producing a formatted report such as:
 
 - Total tasks
 - Completed tasks
@@ -29324,9 +29451,233 @@ Code is executed in a secure, isolated runtime designed to prevent access to the
 
 Your script only has access to the values you explicitly provide through Data injections, helping keep workflow execution isolated and predictable.
 
+### Go to node
+
+The Baserow **Go to node** action lets you jump to another point in a workflow when a condition is true.
+
+This is useful for creating loops, repeating parts of a workflow, and controlling the order in which workflow steps run.
+
+**Overview**
+
+The ‘Go to node’ action checks a condition and, when that condition is true, sends the workflow to a selected destination node instead of continuing to the next node.
+
+For example, you can use it to:
+
+- Repeat a set of actions until a condition is met
+- Process items in batches or loops
+- Return to an earlier step in a workflow
+- Continue processing while there are still records that need attention
+
+If the condition is false, the workflow continues to the next node as normal.
+
+**How to add a Go to node action**
+
+1. Open the workflow where you want to add the action.
+2. Click the **+** button to add a new node.
+3. In the node picker, select **Core**.
+4. Select **Go to node**.
+5. Configure the condition and destination node.
+
+**Configure the Go to node action:**
+
+**Condition**
+
+The Condition determines when the workflow should jump to another node.
+
+Enter an expression that evaluates to `true` or `false`.
+
+When the condition is true, the workflow jumps to the selected destination node instead of continuing to the next node.
+
+For example, you could use a condition to check whether there are still items that need to be processed.
+
+**Destination node**
+
+The Destination node determines where the workflow should continue when the condition is true.
+
+Select a node from the dropdown. The workflow will jump to this node when the condition is met.
+
+The destination can be a node that appears earlier in the workflow, allowing you to create a loop.
+
+**Create a workflow loop**
+
+You can use ‘Go to node’ to repeat part of a workflow.
+
+For example, a workflow could:
+
+1. Find the next item that needs to be processed.
+2. Process the item.
+3. Check whether more items need to be processed.
+4. Use ‘Go to node’ to return to the step that finds the next item.
+5. Continue until the condition is no longer true.
+
+When the condition becomes false, the workflow continues to the next node instead of jumping back.
+
+**Test the action**
+
+After configuring the ‘Condition’ and ‘Destination node’, click ‘Test node’ to check the configuration.
+
+The node must be configured before it can be tested.
+
+Testing the node can also make its output available to later workflow steps.
+
+### Response node
+
+![Baserow response node][14]
+
+The **Response** node returns a response from a workflow when the trigger supports waiting for a response.
+
+Use it when you want a workflow to send a specific HTTP response back to the service or request that started the workflow.
+
+**Add a Response node:**
+
+1. Open an automation.
+2. Add a trigger that supports waiting for a response.
+3. Click **+** to add a new node.
+4. Select **Response** from the **Core** category.
+5. Configure the response.
+6. Test the node to confirm that the configuration is correct.
+7. Publish the workflow.
+
+The Response node can only return a response when the workflow's trigger supports waiting for a response and **Wait for workflow response** is enabled.
+
+**Configure the response:**
+
+The Response node includes the following options:
+
+**1. Label**
+
+Optionally enter a name for the node. This label helps you identify the node in your workflow.
+
+**2. Status code**
+
+Select the HTTP status code to return.
+
+Available status codes include:
+
+- **200 – OK**
+- **201 – Created**
+- **202 – Accepted**
+- **204 – No Content**
+- **400 – Bad Request**
+- **401 – Unauthorized**
+- **403 – Forbidden**
+- **404 – Not Found**
+- **405 – Method Not Allowed**
+- **409 – Conflict**
+- **422 – Unprocessable Content**
+- **429 – Too Many Requests**
+
+Choose the status code that matches the result of your workflow.
+
+**3. Wait for a workflow response**
+
+For a Response node to return a response, the workflow trigger must support waiting for a response.
+
+When configuring a supported trigger, enable ‘Wait for workflow response’. The workflow then waits for the Response node before returning the configured status code.
+
+If the trigger does not support waiting for a response, the Response node cannot return a response to the original request.
+
+**4. Test the Response node**
+
+Before publishing your workflow, test the Response node to confirm that the configuration is correct.
+
+Data from the test can be used in later steps of the workflow.
+
+If the previous node has not been tested, you may need to test it first before testing the Response node.
+
+**Example:**
+
+You can use a Response node to acknowledge an incoming request after your workflow has processed it.
+
+For example:
+
+1. A request starts the workflow.
+2. The workflow processes the request.
+3. The Response node returns ‘200 – OK’.
+4. The service that sent the request receives the successful response.
+
+For requests where no response body is needed, you can use ‘204 – No Content’ instead.
+
+## HTTP
+
+### Send an HTTP request
+
+This action allows your workflow to connect to any external API or web service, enabling broad integration possibilities. It sends data via HTTP requests, letting you trigger actions in other platforms or retrieve information from external systems.
+
+Use the generic HTTP Request action to connect to thousands of tools, including Dropbox, CloseCRM, Salesforce, HubSpot, Gmail, Shopify, etc.
+
+**Configuration:**
+
+| Setting | Description | Example |
+|---------|-------------|---------|
+| **HTTP method** | Request type required by the API | POST (create data), GET (retrieve data), PUT (update data), DELETE (remove data), PATCH, HEAD, OPTIONS |
+| **Endpoint URL** | The API's destination address | `https://api.example.com/v1/customers` |
+| **Query parameters** | Data passed in the URL | `?customer_id=123&action=notify` |
+| **Headers** | Metadata sent with the request | `Authorization: Token YOUR_TOKEN` |
+| **Body type** | Format of the data payload | JSON (most common), Form data, Raw text |
+| **Body content** | The actual data being sent | Customer details, order information, etc. |
+| **Timeout** | Max wait time for response | 30 seconds (default) |
+
+> You can insert trigger and action data anywhere using dynamic data. 
+
+Common use cases include sending new customer data to your CRM, notifying Slack channels when important events occur, automatically creating Trello cards or Jira issues, syncing order data with fulfillment services, updating external inventory management systems, and triggering workflows in platforms like Zapier or Make.
+
+**Example: Sending data to Slack**
+```
+Method: POST
+URL: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+Body Type: JSON
+Body:
+{
+  ""text"": ""New customer registered: customer_name"",
+  ""channel"": ""#sales""
+}
+```
+
+Learn more about [Baserow database tokens][15].
+
+### Send an email
+
+This action allows your workflow to automatically notify users, teams, or customers when specific events occur. It sends emails using your configured SMTP settings, enabling immediate communication from your automation.
+
+> Automations can use a pre-configured SMTP server when [self-hosting][16]. This removes the need to configure email settings for each automation individually, while still allowing custom configurations when needed.
+
+**Configuration:**
+
+**SMTP configuration for email actions**
+
+To send emails from Baserow, you must configure an SMTP integration for each email action.
+
+Open the Integration sidebar and select **Add new integration**. In the modal, enter your SMTP credentials: host, port, username, and password. 
+
+**Recipients:**
+- **From email:** The sender address (must be configured in your SMTP settings)
+- **From name:** (Optional) Display name for the sender (e.g., ""Baserow Notifications"")
+- **To emails:** Primary recipients (comma-separated for multiple)
+- **CC emails:** (Optional) Carbon copy recipients
+- **BCC emails:** (Optional) Blind carbon copy recipients
+
+**Content:**
+- **Subject:** Email subject line (can include dynamic data) `New order #order_id received`
+- **Body:** Email content (can include trigger/action data) `Hello customer_name, thank you for your order...`
+- **Body type:** Plain text or HTML for styled emails
+
+Common use cases include welcoming new users after registration, sending order confirmation emails, notifying team members when tasks are assigned, alerting managers about high-priority items, sending daily or weekly summary reports, and reminding users about upcoming deadlines.
+
+**HTML email example:**
+```html
+<h2>Welcome to Baserow, customer_name!</h2>
+<p>Your account has been created successfully.</p>
+<ul>
+  <li>Email: email</li>
+  <li>Account ID: row_id</li>
+</ul>
+<p><a href=""https://baserow.io/dashboard"">Get Started</a></p>
+```
+
 ### AI Prompt
 
-The AI Prompt node connects to [generative AI models][16] to execute prompts, analyze data, or generate content directly within your workflow. This allows you to build powerful automations that can summarize text, categorize customer feedback, translate languages, or generate email replies based on your Baserow data.
+The AI Prompt node connects to [generative AI models][17] to execute prompts, analyze data, or generate content directly within your workflow. This allows you to build powerful automations that can summarize text, categorize customer feedback, translate languages, or generate email replies based on your Baserow data.
 
 **Configuration:**
 
@@ -29336,7 +29687,7 @@ To use the AI Prompt, you must first configure an AI integration.
 
       * Click the **AI integration** dropdown. If you have already set up AI in your workspace, you can select it here.
       * To add a new one, click **Add new integration**. A modal will appear.
-      * **Workspace AI Settings:** By default, new integrations inherit [settings from your workspace][16]. You can override specific AI providers with different API keys or models if needed.
+      * **Workspace AI Settings:** By default, new integrations inherit [settings from your workspace][17]. You can override specific AI providers with different API keys or models if needed.
       * Click **Create** to save the integration.
 
 2.  **Configure AI action:**
@@ -29367,7 +29718,7 @@ How to set up the Slack Bot:
 
 To use this integration, you must create a Slack App and issue a token.
 
- 1. Navigate to your [workspace's apps page][17].
+ 1. Navigate to your [workspace's apps page][18].
  2. Create a new App in the **Slack API** portal, choose 'From scratch' and enter a name. Select the workspace your app should operate in, and click 'Create'.
      > Notify your Slack workspace admin if you are unable to create a new Slack app. If you are re-using an existing app which can write messages, proceed to **Step 5** to install the app to your workspace.
 
@@ -29379,7 +29730,7 @@ To use this integration, you must create a Slack App and issue a token.
 
 ## File processing actions
 
-The **Read a CSV file** and **Read an XLS file** actions let you read structured spreadsheet data directly inside Automations and [Application Builder.][11]
+The **Read a CSV file** and **Read an XLS file** actions let you read structured spreadsheet data directly inside Automations and [Application Builder.][9]
 
 These actions read CSV or Excel files and return their rows so they can be used by later actions. 
 
@@ -29534,6 +29885,22 @@ Yes. This is the primary function of the AI Prompt node. In the **Prompt** field
 
 Temperature controls the ""creativity"" or randomness of the AI's response. A low value (like 0.1) will produce very consistent, focused answers. A high value (like 1.0) will produce more varied and creative, but less predictable, responses.
 
+### What happens when the condition is false?
+
+The workflow continues to the next node in the workflow.
+
+### Can I use Go to node to create a loop?
+
+Yes. Select an earlier node as the Destination node and use a condition to determine when the workflow should jump back to it.
+
+### What happens when the condition is true?
+
+The workflow skips the next node in the sequence and jumps to the selected ‘Destination node’.
+
+### Where can I find the Go to node action?
+
+You can find ‘Go to node’ in the Core section when adding an action to a workflow.
+
 ## Troubleshooting common issues
 
 ### ""Previous node must be tested first"" error
@@ -29554,7 +29921,7 @@ The condition formula isn't returning a boolean value or has syntax errors. Test
 
 ### I’m trying to create a new row, but I’m getting an error or no response.
 
-This usually happens when your workspace has reached its row limit. Check your current plan to confirm that it allows additional rows. If the workspace has exceeded its row limit, you’ll need to either delete some rows to stay within your plan’s limit or upgrade your plan to continue adding new rows. Learn more about [Baserow pricing plan and limits][18].
+This usually happens when your workspace has reached its row limit. Check your current plan to confirm that it allows additional rows. If the workspace has exceeded its row limit, you’ll need to either delete some rows to stay within your plan’s limit or upgrade your plan to continue adding new rows. Learn more about [Baserow pricing plan and limits][19].
 
 ## Related content
 
@@ -29583,16 +29950,17 @@ Still need help? If you're looking for something else, please feel free to make 
   [6]: https://baserow.io/user-docs/footer-aggregation
   [7]: https://baserow.io/user-docs/understanding-formulas
   [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f1b84bbf-6bb8-463b-ad37-3f9af542b9bd/Baserow%20router%20automation.jpg
-  [9]: https://baserow.io/user-docs/personal-api-tokens
-  [10]: https://baserow.io/user-docs/set-up-baserow
-  [11]: https://baserow.io/user-docs/element-events#
-  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f96072ed-53e2-410c-a348-a499716f00df/Table.png
-  [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e7f4106d-b9cf-4611-9a87-0bc6e45c681c/Execute%20code.png
-  [14]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8b60b7e3-c9d8-495e-bb15-a54f0add8076/Code%20node%20example.png
-  [15]: https://baserow.io/user-docs/automation-actions#send-an-email
-  [16]: https://baserow.io/user-docs/configure-generative-ai
-  [17]: https://api.slack.com/apps
-  [18]: https://baserow.io/user-docs/pricing-plans",automation,baserow_user_docs,https://baserow.io/user-docs/automation-actions
+  [9]: https://baserow.io/user-docs/element-events#
+  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f96072ed-53e2-410c-a348-a499716f00df/Table.png
+  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e7f4106d-b9cf-4611-9a87-0bc6e45c681c/Execute%20code.png
+  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8b60b7e3-c9d8-495e-bb15-a54f0add8076/Code%20node%20example.png
+  [13]: https://baserow.io/user-docs/automation-actions#send-an-email
+  [14]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/481a12c9-c218-4235-937d-b43943b068b2/Response%20node.png
+  [15]: https://baserow.io/user-docs/personal-api-tokens
+  [16]: https://baserow.io/user-docs/set-up-baserow
+  [17]: https://baserow.io/user-docs/configure-generative-ai
+  [18]: https://api.slack.com/apps
+  [19]: https://baserow.io/user-docs/pricing-plans",automation,baserow_user_docs,https://baserow.io/user-docs/automation-actions
 527,Publish & manage workflow,workflow-management,Baserow Workflow settings and management,"# Manage workflow automation in Baserow
 
 Automation management gives you full control over the lifecycle of your workflows, from initial testing to real-time, published execution.
@@ -33563,6 +33931,612 @@ Automation credits are allocated per workspace, not per user. Each workspace rec
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/42f127bd-fe50-4d73-a9d6-273577afa681/usage.png
   [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/192235e0-4e91-41bf-a1c8-98888adf89e7/80%25.png
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/a7a822da-33e3-425e-a6f7-bf198425387a/100%25.png",automation,baserow_user_docs,https://baserow.io/user-docs/baserow-automation-credits
+921,Workspace usage,workspace-usage,Workspace usage | Baserow documentation,"# Workspace usage
+
+The Usage dashboard helps you monitor your workspace usage and understand how close you are to the limits included with your plan.
+
+To view your workspace usage, hover over the **Row usage** indicator in the top-right corner of your workspace home page.
+
+![enter image description here][1]
+
+The Usage dashboard is available in Baserow Cloud and provides an overview of your workspace usage and plan limits.
+
+The usage dashboard displays the following metrics:
+
+- Storage
+- Row usage
+- Page views usage
+- Application user usage
+- Automation usage
+
+---
+
+## Storage
+
+The **Storage** metric shows how much file storage your workspace is currently using.
+
+Storage limits depend on your Baserow Cloud subscription:
+
+| Plan | Storage |
+| --- | --- |
+| Free | 2 GB |
+| Premium | 20 GB |
+| Advanced | 100 GB |
+| Enterprise | 1,000 GB |
+
+Storage is calculated per workspace.
+
+For self-hosted instances, storage is unlimited and depends only on your own infrastructure.
+
+Storage limits depend on your Baserow Cloud subscription. For the latest storage limits available on each plan, see the [Baserow pricing page.][2]
+
+---
+
+## Row usage
+
+The **Row usage** metric shows the total number of rows stored across all databases in your workspace.
+
+Row limits depend on your Baserow Cloud subscription:
+
+| Plan | Rows |
+| --- | --- |
+| Free | 3,000 |
+| Premium | 50,000 |
+| Advanced | 250,000 |
+| Enterprise | 1,000,000 |
+
+The row limit is calculated per workspace.
+
+For self-hosted instances, the number of rows is unlimited.
+
+Row limits depend on your Baserow Cloud subscription. For the latest storage limits available on each plan, see the [Baserow pricing page.][2]
+
+---
+
+## Page views usage
+
+The **Page views** usage metric shows the number of page views generated by your published Baserow applications.
+
+This metric applies only to Baserow Cloud (SaaS) workspaces.
+
+> **Note:** The Page views usage metric is displayed in the Usage dashboard but is not currently tracking page views. Page view counting will be introduced in a future update.
+> 
+
+---
+
+## Application user usage
+
+The **Application user usage** metric shows the number of external application user accounts associated with your published applications.
+
+Application users are counted across all user sources in every published application within a workspace. If the same person exists in multiple user sources, each account is counted separately.
+
+For example, if your workspace contains:
+
+- 4 published applications
+- each application has 3 user sources
+- each user source contains 2 external user accounts
+
+the total application user count is:
+
+`4 × 3 × 2 = 24 application users`
+
+For applications using the Local Baserow user source, each row in the configured users table represents one external application user account.
+
+Application user limits depend on your subscription:
+
+| Plan | External application users |
+| --- | --- |
+| Free | 500 |
+| Premium | 500 |
+| Advanced | 500 |
+| Enterprise | 500 |
+
+> **Note:** The displayed application user limit is currently 15 users. This is a legacy limit and is provided for informational purposes only. It is not enforced yet, and the limit will be updated in a future release.
+> 
+
+---
+
+## Automation usage
+
+The **Automation usage** metric shows how many automation credits your workspace has used during the current billing month.
+
+Automation credits are only available in Baserow Cloud. Self-hosted workspaces have unlimited automation usage.
+
+Automation actions consume automation credits. The number of credits consumed depends on the action being performed. You can see the credit cost of each action in the automation editor when adding a new node. The total number of credits used depends on:
+
+- how many actions each automation performs
+- how often those automations run
+
+Your monthly automation credit allowance depends on your subscription:
+
+| Plan | Monthly automation credits |
+| --- | --- |
+| Free | 2,000 |
+| Premium | 100,000 |
+| Advanced | 500,000 |
+| Enterprise | 2,000,000 |
+
+For a detailed explanation of how automation credits are calculated, see [Automation credits.][3]
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2ef9f617-8eba-4e07-9de3-7d5ceee6c7b3/limitations.png
+  [2]: https://baserow.io/pricing
+  [3]: https://baserow.io/user-docs/baserow-automation-credits",workspace,baserow_user_docs,https://baserow.io/user-docs/workspace-usage
+922,Button field,button-field,Button field,"# Button field
+
+![Baserow Button field][1]
+
+The Baserow **Button field** lets you add an interactive button to each row and trigger one or more actions directly from your database.
+
+This is useful when you want users to perform common tasks without manually editing a row or opening another application. For example, you can create a button to send an email to a customer, update a record, notify your team in Slack, or start a workflow.
+
+A button can also combine multiple actions and run them in a specific order. Actions can pass information to later actions, allowing you to build simple multi-step processes directly from your table.
+
+## Overview
+
+A Button field adds a clickable button to every row in your table.
+
+When someone clicks the button, Baserow runs the actions configured for that button. Depending on the actions you add, a button can:
+
+- Create a row
+- Update a row
+- Delete a row
+- Start a workflow
+- Send an HTTP request
+- Send an email
+- Send a Slack message
+- Open a URL
+- Run multiple actions in sequence
+
+For example, you could add a ‘Send email’ button to a customer table. When clicked, the button can send an email to the customer using their email address from the current row.
+
+You can also combine actions. For example, a button could send an HTTP request, use information from the response to update the current row, and then send an email.
+
+## How to add a Button field
+
+1. In your table, click the **+** button after your last field to add a new field.
+2. Search for **Button** and select the **Button** field type.
+3. Enter a name for the field.
+4. Enter the text you want to display on the button in the **Label** field.
+5. Under **Actions**, click **Add action**.
+6. Select the action you want the button to perform and configure it.
+7. Add additional actions if needed.
+8. Click **Create**.
+
+After creating the field, each row will contain the button you configured.
+
+- Only Editors and above can click the button. Viewers and commenters see the button disabled.
+- The button isn’t shown in form views or public/shared views.
+- If an action fails, actions that have already run are not rolled back. The error message indicates which action failed.
+
+## Configure button actions
+
+A Button field can contain one or more actions. You can add actions by clicking ‘Add action’ in the Button field configuration.
+
+You can drag actions to change their order or remove an action using the trash icon.
+
+### Create a row
+
+The ‘Create a row’ action creates a new row in a selected database and table.
+
+Select the database and table where you want to create the row, then configure the fields you want to populate.
+
+You can use values from the row where the button was clicked. This allows you to copy information from the current row into the new row.
+
+For example, a button in an Orders table could create a new row in an Activity log table containing the order name, customer, and status.
+
+### Update a row
+
+The ‘Update a row’ action updates an existing row in a selected database and table.
+
+Select the database and table, then specify the Row ID of the row you want to update. You can use the Row ID from the row where the button was clicked or another value available from a previous action.
+
+Next, select the fields you want to update and provide their new values.
+
+For example, you could create a Mark as shipped button that changes the order's status to `Shipped`.
+
+### Delete a row
+
+The ‘Delete a row’ action deletes one or more rows from a selected table.
+
+Select the database and table, then provide one or more row IDs to delete. You can use the row ID from the clicked row or an array of row IDs.
+
+Up to 1,000 rows can be deleted in a single action.
+
+> *Deleted rows are moved to the trash and can be restored from there for a limited time.*
+> 
+
+### Start a workflow
+
+The ‘Start workflow’ action starts a published workflow from a button click.
+
+Only published workflows whose trigger can be started on demand, such as a manual or periodic trigger, can be started using this action.
+
+Select the workflow you want to run. The workflow must be in the same workspace and must not be paused or disabled. If the workflow has unpublished changes, the latest published version is used when the button is clicked.
+
+For example, you could create a Generate report button that starts a workflow that calculates order totals, adds a record to an activity log, and sends an email.
+
+### Send an HTTP request
+
+The ‘Send an HTTP request’ action sends a request to an external service or API.
+
+You can configure:
+
+- **HTTP method:** Choose the request method, such as `GET`, `POST`, `PUT`, or `DELETE`.
+- **Endpoint URL:** Enter the URL of the API endpoint.
+- **Query parameters:** Add parameters to the request URL.
+- **Headers:** Add HTTP headers such as authorization or content type.
+- **Body type:** Choose `None`, `JSON`, `Form multipart`, or `Raw`.
+- **Timeout:** Set how long Baserow should wait for the request to complete.
+
+The response from the HTTP request can be used by actions that run later in the same button. For example, you can send an HTTP request, use a value from the response to update a field, and then continue with another action.
+
+### Send an email
+
+The ‘Send email’ action lets you send an email directly from a button.
+
+To send emails, select or create an email integration and configure the email settings.
+
+You can configure:
+
+- **To emails:** Enter one or more recipient addresses. You can also use a value from the clicked row, such as a customer's email address.
+- **CC emails:** Optionally add CC recipients.
+- **BCC emails:** Optionally add BCC recipients.
+- **Subject:** Enter the email subject. You can include values from the clicked row.
+- **Body type:** Choose the format of the email, such as HTML.
+- **Body:** Write the email content. You can insert values from the clicked row to personalize the message.
+
+For example, in an ‘Orders’ table, you could create an ‘Email customer’ button that sends the customer an email containing their order status and amount.
+
+You can use dynamic values from the clicked row in the email. For example:
+
+> Your order {{ Order }} is now {{ Status }}.
+> 
+
+The exact fields available depend on the table and row where the button is clicked.
+
+> **Note:** The Send email action sends emails through your Baserow instance's SMTP server. On self-hosted instances without SMTP configured, or when `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS` is disabled, the action appears greyed out in the action list with a message explaining why.
+> 
+
+### Send a Slack message
+
+The ‘Send a Slack message’ action sends a message to a Slack channel.
+
+To use this action, you first need to configure a Slack integration. Once the integration is available, select it, enter the destination channel, and write the message you want to send.
+
+You can use values from the clicked row in the message.
+
+For example, a ‘Notify Slack’ button could send a message to your team's `#orders` channel whenever an order requires attention.
+
+### Open a URL
+
+The ‘Open URL’ action opens a specified URL when the button is clicked.
+
+Enter the URL and choose whether to open it in the Same tab or a New tab.
+
+You can use this to create buttons that take users to an external website, customer portal, document, or another page related to the current record.
+
+## Use values from the clicked row
+
+Button actions can use information from the row where the button was clicked.
+
+When configuring a field value, click the field and select a value from Clicked row.
+
+For example, if your table contains a Customer email field, you can use that value as the recipient of a Send email action.
+
+You can also switch to expert mode when you need to enter a more advanced value or expression.
+
+## Chain multiple actions
+
+You can add multiple actions to the same Button field.
+
+Actions run in the order they appear in the configuration, except the Open URL action, which always runs last and only if all other actions succeed. Information produced by an earlier action can also be used by later actions.
+
+**For example:**
+
+1. Send an HTTP request to an external service.
+2. Use a value from the response to update the current row.
+3. Send an email containing the updated information.
+
+This lets you create simple multi-step processes without requiring users to perform each step manually.
+
+---
+
+## Frequently asked questions
+
+### Can a Button field have multiple actions?
+
+Yes. You can add multiple actions to the same Button field and control their order.
+
+### Can button actions use values from the current row?
+
+Yes. Actions can use values from the Clicked row, including fields such as email addresses, names, statuses, and row IDs.
+
+### Can I use the result of one action in another action?
+
+Yes. Some actions can provide values that can be used by later actions. For example, you can use the response from an HTTP request in a subsequent action.
+
+### Can I send an email from a Button field?
+
+Yes. The Send email action lets you configure recipients, CC, BCC, subject, body type, and message. You can also use values from the clicked row to personalize the email.
+
+### Can I start a workflow from a Button field?
+
+Yes. You can start published workflows that support on-demand execution, such as workflows with a manual or periodic trigger.
+
+### What happens if I click a button more than once?
+
+While a button's actions are running for a row, clicking the button again on that row is blocked until the actions finish. Clicking it again afterwards runs the actions again, so keep this in mind when configuring actions that create rows or send messages.
+
+---
+
+## Related content
+
+- [Configure field types][2]
+- [Create a workflow][3]
+- [Send email][4]
+- [Slack integration][5]
+
+---
+
+Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+- [Ask the Baserow community][6]
+- [Contact support][7] for questions about Baserow or help with your account.
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/322295ea-e268-4cb0-b527-d59cfcfec4a4/Button%20field.png
+  [2]: https://baserow.io/user-docs/field-customization
+  [3]: https://baserow.io/user-docs/workflow-automation
+  [4]: https://baserow.io/user-docs/element-events#send-email-smtp
+  [5]: https://baserow.io/user-docs/automation-actions#send-a-slack-message
+  [6]: https://community.baserow.io/
+  [7]: https://baserow.io/contact",database,baserow_user_docs,https://baserow.io/user-docs/button-field
+923,Graph element,graph-element,Graph element,"# Graph element
+
+![Baserow Graph element for Application Builder][1]
+
+The Baserow **Graph element** lets you display data as a bar or line chart in your application.
+
+This guide explains how to add a Graph element, configure its labels and data series, and customize how your data is displayed.
+
+This feature is available on the Advanced or Enterprise plan.
+
+## Overview
+
+A Graph element is useful for visualizing data and making trends or comparisons easier to understand.
+
+**You can:**
+
+- Display data as a bar or line chart
+- Add multiple data series
+- Use formulas to define labels and values
+- Customize the color of each series
+
+## How to add a Graph element
+
+1. In the Application Builder, open the element picker.
+2. Under **Layout elements**, select **Graph**.
+
+## Customize the Graph element
+
+You can configure the Graph element from the ‘General’ tab.
+
+- **'Labels':** Define the labels displayed on the chart. The formula should return an array of labels.
+- **'Series':** Add one or more data series to the chart.
+- **'Series label':** Enter the name of the series.
+- **'Values':** Define the values displayed for each label. The formula should return an array of numeric values.
+- **'Chart type':** Choose between 'Bar' and 'Line'.
+- **'Color':** Choose the color for the series. You can use a theme color or a custom color.
+
+The number of values in each series should match the number of labels.
+
+You can use data from your application in the formulas for 'Labels' and 'Values', so the graph can update automatically as your data changes.
+
+### Example: Monthly spending
+
+You could create a graph showing monthly spending with:
+
+- **'Labels':** months such as January, February, and March
+- **'Series label':** `Monthly spending`
+- **'Values':** the corresponding spending amounts
+- **'Chart type':** `Bar`
+
+This displays each month's spending as a bar, making it easy to compare values.
+
+---
+
+## Frequently asked questions
+
+### Can I add multiple series to a Graph element?
+
+Yes. Click 'Add series' to add another series. Each series can have its own label, values, chart type, and color.
+
+### Which chart types are available?
+
+You can display a series as a bar or line chart.
+
+### Can I use formulas in a Graph element?
+
+Yes. The 'Labels' and 'Values' fields support formulas, allowing you to use data from your application.
+
+---
+
+## Related content
+
+- [Application Builder][2]
+- [Expert formulas][3]
+- [Configure field types][4]
+
+---
+
+Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+- [Ask the Baserow community][5]
+- [Contact support][6] for questions about Baserow or help with your account.
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d192a052-497b-4ac8-9376-012a7c91a323/Graph%20element.png
+  [2]: https://baserow.io/user-docs/application-builder-overview
+  [3]: https://baserow.io/user-docs/understanding-formulas#expert-formulas-in-workflows
+  [4]: https://baserow.io/user-docs/field-customization
+  [5]: https://community.baserow.io/
+  [6]: https://baserow.io/contact",application builder,baserow_user_docs,https://baserow.io/user-docs/graph-element
+924,Manage AI providers and models,manage-ai-providers-and-models,Manage AI providers and models,"# Manage AI providers and models
+
+![Manage AI providers and models in Baserow][1]
+
+Baserow lets admins manage the AI providers and models used by Baserow AI features from one place.
+
+You can add providers, configure API keys, add models, test connections, and control which AI features can use each model.
+
+## Overview
+
+An AI provider is configured with an API key and one or more models from that provider.
+
+Models can be made available for different Baserow AI features:
+
+- AI fields
+- Kuma
+- AI agent nodes
+
+This lets you use different models for different tasks. For example, you can use one model for AI fields and another for Kuma.
+
+## Manage AI providers at the instance level
+
+Instance admins can configure AI providers and models for the Baserow instance.
+
+1. Open **Admin tools**.
+2. Select **AI providers**.
+3. Click **Add provider**.
+4. Select a provider type and enter the provider's API key.
+5. Under **Models**, add the models you want to make available.
+6. Under **Available for**, select the AI features that can use each model.
+7. Save your changes.
+
+You can add multiple models to the same provider and configure each model for different AI features.
+
+When adding a model, you can select a model from the available options or enter a custom model identifier.
+
+### Manage a provider or model
+
+Use the menu next to a provider or model to manage its configuration.
+
+For a model, you can:
+
+- **Test model** to check whether the configured API key and model can be accessed.
+- **Edit** to change the model configuration.
+- **Disable** to prevent the model from being used while keeping its configuration.
+- **Delete** to remove the model.
+
+Disabled models are not available to the AI features they were configured for.
+
+### Existing environment variables
+
+If your instance was previously configured using AI provider environment variables, Baserow can continue using those settings for backward compatibility.
+
+These environment variables are deprecated. You can disable the inherited configuration and manage your AI providers through the AI providers settings instead.
+
+## Configure a model
+
+When adding a model, use ‘Available for’ to choose which AI features can use it.
+
+For example, you can make a model available for all three features:
+
+- AI fields
+- Kuma
+- AI agent nodes
+
+Or make it available only for AI fields.
+
+A model must be enabled for at least one AI feature to be available.
+
+### Test a model
+
+After configuring a model, use the ‘Test’ option to check the connection.
+
+The test checks whether the configured API key and model can be accessed. If the test fails, Baserow provides an error message to help troubleshoot the configuration.
+
+## Manage AI providers at the workspace level
+
+Workspace admins can control which AI providers and models are available in their workspace.
+
+Models configured at the instance level are inherited by workspaces by default. Workspace admins can disable inherited providers or models if they should not be available in their workspace.
+
+Workspace admins can also add their own AI providers and models.
+
+When a workspace overrides the instance configuration, only the models enabled for that workspace can be used by its AI features.
+
+### Instance and workspace configuration
+
+Instance-level configuration controls the providers and models available across the instance.
+
+Workspace-level configuration lets individual workspaces control which inherited providers and models they can use and add additional providers or models for their workspace.
+
+Workspace admins cannot access or change API keys configured at the instance level.
+
+## Choose a model for an AI feature
+
+Once a model has been configured and enabled for an AI feature, it becomes available when configuring that feature.
+
+For example, a model enabled for AI fields can be selected when creating an AI field. A model enabled for Kuma can be configured as the model used by Kuma.
+
+Kuma uses the configured model rather than allowing individual users to switch between available models from within the Kuma interface.
+
+---
+
+## Frequently asked questions
+
+### Can I use different AI models for different Baserow features?
+
+Yes. Each model can be configured for the AI features where you want it to be available.
+
+For example, one model can be available only for AI fields while another is available for AI fields and Kuma.
+
+### Can I add my own AI provider?
+
+Yes. You can add a supported AI provider and configure it with your own API key and models.
+
+### Can a workspace use a different model from the instance?
+
+Yes. Workspace admins can override the inherited instance configuration and add or enable different models for their workspace.
+
+### Can workspace admins see instance-level API keys?
+
+No. Workspace admins cannot see or change API keys configured at the instance level.
+
+### What happens if I disable an inherited model?
+
+The model is no longer available for the workspace's AI features.
+
+For example, if a workspace disables the only model available for AI fields, users in that workspace cannot create or use AI fields until another compatible model is available.
+
+### What does the model test do?
+
+The test checks whether the configured API key and model can be accessed. If the test fails, Baserow provides an error message with information about the problem.
+
+---
+
+### Related content
+
+- [Configure generative AI in Baserow][2]
+- [AI prompt field][3]
+- [Kuma AI assistant][4]
+
+---
+
+Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+- [Ask the Baserow community][5]
+- [Contact support][6] for questions about Baserow or help with your account.
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f171faf4-fa96-4b32-9dc9-4208b1c37414/AI%20providers.png
+  [2]: https://baserow.io/user-docs/configure-generative-ai
+  [3]: https://baserow.io/user-docs/ai-field
+  [4]: https://baserow.io/user-docs/ai-assistant
+  [5]: https://community.baserow.io/
+  [6]: https://baserow.io/contact",account management,baserow_user_docs,https://baserow.io/user-docs/manage-ai-providers-and-models
 1,What is Baserow?,faq,What is Baserow?,"What is Baserow?
 
 Baserow is an open-source no-code database. Our database platform enables both non-technical and technical teams to capture, organize and build logical relationships between data to trigger decisions and automate processes. We focus on openness, scalability, performance, and data security.",faq,faq,https://baserow.io/faq
