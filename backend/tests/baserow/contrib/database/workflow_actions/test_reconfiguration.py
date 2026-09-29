@@ -332,7 +332,14 @@ def test_an_action_missing_the_integration_it_needs_needs_reconfiguring(
     assert _requires_reconfiguration(button_field) is True
 
 
-def _email_action(data_fixture, button_field, *, use_instance, integration=None):
+def _email_action(
+    data_fixture,
+    button_field,
+    *,
+    use_instance,
+    integration=None,
+    from_email="'sender@example.com'",
+):
     action = data_fixture.create_database_workflow_action(
         CoreSMTPEmailWorkflowAction, field=button_field
     )
@@ -340,6 +347,7 @@ def _email_action(data_fixture, button_field, *, use_instance, integration=None)
     service.use_instance_smtp_settings = use_instance
     service.integration = integration
     service.to_emails = "'someone@example.com'"
+    service.from_email = from_email
     service.save()
     return action
 
@@ -390,6 +398,27 @@ def test_an_email_through_an_integration_does_not_need_reconfiguring(
     _email_action(data_fixture, button_field, use_instance=False, integration=smtp)
 
     assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_an_email_through_an_integration_with_no_sender_needs_reconfiguring(
+    data_fixture, setup, settings
+):
+    """Sending through an integration needs a From, which the dispatch refuses
+    without."""
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    _, database, _, _, button_field = setup
+    smtp = data_fixture.create_smtp_integration(application=database)
+    _email_action(
+        data_fixture,
+        button_field,
+        use_instance=False,
+        integration=smtp,
+        from_email="",
+    )
+
+    assert _requires_reconfiguration(button_field) is True
 
 
 @pytest.mark.django_db

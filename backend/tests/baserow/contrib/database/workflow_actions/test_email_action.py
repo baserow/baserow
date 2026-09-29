@@ -18,9 +18,24 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.core.exceptions import PermissionException
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.utils import is_hostname_safe
 
 SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 CONSOLE_BACKEND = "django.core.mail.backends.console.EmailBackend"
+HOSTNAME_CHECK = (
+    "baserow.contrib.database.workflow_actions.workflow_action_types.is_hostname_safe"
+)
+
+
+@pytest.fixture(autouse=True)
+def public_smtp_hosts():
+    """
+    The fixtures' SMTP hosts are made up, so resolving them would depend on
+    the network. The check itself is exercised where it is the subject.
+    """
+
+    with patch(HOSTNAME_CHECK, return_value=True):
+        yield
 
 
 def _instance_can_send(settings):
@@ -452,3 +467,154 @@ def test_a_click_on_an_action_with_a_blank_host_runs_nothing(data_fixture, setti
 
     assert "no SMTP integration" in str(raised.value)
     assert model.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_a_create_naming_only_an_integration_uses_it_where_the_instance_prints(
+    data_fixture, settings
+):
+    """
+    Where the instance only prints what it is given, it looks available to
+    the service type, which would otherwise default to it and drop the
+    integration the request named.
+    """
+
+    _instance_can_send(settings)
+    settings.CELERY_EMAIL_BACKEND = CONSOLE_BACKEND
+    settings.EMAIL_HOST = "localhost"
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user
+    )
+
+    action = _create(
+        user,
+        button_field,
+        use_instance_smtp_settings=True,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+    )
+
+    service = action.service.specific
+    assert service.use_instance_smtp_settings is False
+    assert service.integration_id == smtp.id
+
+
+@pytest.mark.django_db
+def test_saving_the_instance_choice_while_the_instance_is_off_keeps_it(
+    data_fixture, settings
+):
+    """
+    The editor sends the whole service, choice included. The service type
+    drops the instance while it is off; the choice is kept and the action
+    flagged, so it sends again once the instance is back.
+    """
+
+    _instance_can_send(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    action = _create(user, button_field, use_instance_smtp_settings=True)
+
+    _instance_turned_off(settings)
+    action = (
+        DatabaseWorkflowActionService()
+        .update_workflow_action(
+            user,
+            action,
+            service={
+                "use_instance_smtp_settings": True,
+                "integration_id": None,
+                "to_emails": "'to@example.com'",
+                "subject": "'Again'",
+            },
+        )
+        .workflow_action
+    )
+
+    service = action.service.specific
+    assert service.subject["formula"] == "'Again'"
+    assert service.use_instance_smtp_settings is True
+    assert service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_a_click_on_an_action_with_no_sender_runs_nothing(data_fixture, settings):
+    _instance_turned_off(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user
+    )
+    _row_creating_action(data_fixture, button_field)
+    _create(user, button_field, integration_id=smtp.id, from_email="")
+    model = button_field.table.get_model()
+    row = model.objects.create()
+
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert "no sender" in str(raised.value)
+    assert model.objects.count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("host", ["127.0.0.1", "10.0.0.5", "169.254.169.254"])
+def test_a_click_through_a_non_public_smtp_host_runs_nothing(
+    data_fixture, settings, host
+):
+    """
+    The HTTP request action refuses these through advocate. An SMTP
+    connection has no such guard, so the button checks the host itself.
+    """
+
+    _instance_turned_off(settings)
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = False
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user, host=host, port=6379
+    )
+    _row_creating_action(data_fixture, button_field)
+    _create(user, button_field, integration_id=smtp.id, from_email="'from@example.com'")
+    model = button_field.table.get_model()
+    row = model.objects.create()
+
+    with (
+        patch(HOSTNAME_CHECK, wraps=is_hostname_safe),
+        patch(
+            "baserow.contrib.integrations.core.service_types.get_connection"
+        ) as get_connection,
+    ):
+        with pytest.raises(WorkflowActionDispatchError) as raised:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert "may not send to" in str(raised.value)
+    assert host not in str(raised.value)
+    assert model.objects.count() == 1
+    get_connection.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_private_smtp_hosts_are_allowed_when_the_instance_allows_them(
+    data_fixture, settings
+):
+    _instance_turned_off(settings)
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user, host="10.0.0.5"
+    )
+    action = _create(
+        user, button_field, integration_id=smtp.id, from_email="'from@example.com'"
+    )
+
+    with patch(HOSTNAME_CHECK, wraps=is_hostname_safe) as check:
+        _email_type().raise_if_misconfigured(action)
+
+    check.assert_not_called()

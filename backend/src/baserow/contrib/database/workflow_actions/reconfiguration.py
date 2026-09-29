@@ -92,8 +92,9 @@ def _blank_formula(column: str) -> Q:
 def _email_cannot_send() -> Q:
     """
     An email that has nothing to send through: set to an integration it lacks
-    or whose host an import blanked, or set to the instance server where this
-    installation cannot deliver. The last is a setting, so it is read now.
+    or whose host an import blanked, or with no sender to send as through it,
+    or set to the instance server where this installation cannot deliver. The
+    last is a setting, so it is read now.
     """
 
     service_type = service_type_registry.get(CoreSMTPEmailServiceType.type)
@@ -101,6 +102,7 @@ def _email_cannot_send() -> Q:
         Q(integration__isnull=True)
         | Q(integration__trashed=True)
         | Q(integration__smtpintegration__host="")
+        | _blank_formula("from_email")
     )
     cannot_send = Q(use_instance_smtp_settings=False) & no_integration
     if service_type.instance_smtp_unavailable_reason() is not None:

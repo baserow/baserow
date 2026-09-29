@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import Manager, Prefetch, QuerySet
@@ -28,6 +29,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
+from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreSMTPEmailServiceType,
@@ -59,6 +61,7 @@ from baserow.core.services.mixins import ServiceBackedTypeMixin
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
+from baserow.core.utils import is_hostname_safe
 from baserow.core.workflow_actions.models import WorkflowAction
 
 if TYPE_CHECKING:
@@ -98,7 +101,8 @@ class DatabaseWorkflowServiceActionType(
             help_text="Whether a click on the action is sure to fail: it "
             "points at a table, field or integration that is in the trash or "
             "gone, it updates a row without saying which, or it sends an "
-            "email to nobody. The button field's own flag is whether any "
+            "email to nobody or through nothing that can send it. The button "
+            "field's own flag is whether any "
             "action has it.",
         ),
     }
@@ -729,44 +733,61 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         instance: Optional[WorkflowAction] = None,
     ) -> Dict[str, Any]:
         """
-        The service type drops the instance server while it cannot send. An
-        edit that does not make the choice keeps the one already stored, or
-        the action would be left with nothing to send through once sending is
-        back.
+        Settles where the email is sent through before the service sees it.
+        The service type decides by a looser rule, so left to it an
+        integration is dropped wherever the instance merely looks available,
+        and a stored instance choice is dropped while the instance is off.
+
+        - Where the instance cannot deliver, an integration given is kept and
+          used.
+        - Choosing the instance where it can be used clears the integration,
+          without looking it up: it may be trashed, or one the user can no
+          longer read, and neither should stop the switch.
+        - Choosing the instance on an existing action is kept while the
+          instance is off. The action is flagged until sending is back,
+          rather than left with nothing to send through afterwards. So is an
+          edit that makes no choice at all.
         """
 
         service_values = values.get("service") or {}
-        keeps_the_instance = (
-            instance is not None
-            and "use_instance_smtp_settings" not in service_values
-            and "integration_id" not in service_values
-            and instance.service.specific.use_instance_smtp_settings
-        )
         service_type = service_type_registry.get(self.service_type)
-        if (
-            service_values.get("use_instance_smtp_settings")
-            and service_type.instance_smtp_is_available()
-        ):
-            # Choosing the instance server clears the integration, so the one
-            # the form still sends is not looked up: it may be trashed, or one
-            # the user can no longer read, and neither should stop the switch.
+        can_deliver = service_type.instance_smtp_unavailable_reason() is None
+        wants_instance = service_values.get("use_instance_smtp_settings")
+
+        if not can_deliver and service_values.get("integration_id"):
+            service_values["use_instance_smtp_settings"] = False
+            wants_instance = False
+        elif wants_instance and service_type.instance_smtp_is_available():
             service_values["integration_id"] = None
+
+        keeps_the_instance = instance is not None and (
+            wants_instance is True
+            or (
+                wants_instance is None
+                and "integration_id" not in service_values
+                and instance.service.specific.use_instance_smtp_settings
+            )
+        )
         values = super().prepare_values(values, user, instance)
 
         service = values["service"]
         if keeps_the_instance and not service.use_instance_smtp_settings:
             service.use_instance_smtp_settings = True
-            service.save(update_fields=["use_instance_smtp_settings"])
+            service.integration = None
+            service.save(update_fields=["use_instance_smtp_settings", "integration"])
         return values
 
     def raise_if_misconfigured(self, workflow_action: WorkflowAction) -> None:
         """
-        Refuses an action set to the instance server when this installation
-        cannot deliver through it. The service's own check is looser: a
-        backend that only prints the message would report it as sent. An
-        action set to an integration is refused when it has none, when it is
-        trashed, or when it has no host, so the click stops before an earlier
-        action has run.
+        Refuses an email that cannot send before the click runs anything:
+
+        - set to the instance server where this installation cannot deliver.
+          The service's own check is looser: a backend that only prints the
+          message would report it as sent.
+        - set to an integration that is missing, trashed or has no host, or
+          with no sender to send as.
+        - set to an integration whose host is not a public address, unless
+          private addresses are allowed, the same as the HTTP request action.
 
         :param workflow_action: The action to check.
         :raises ServiceImproperlyConfiguredDispatchException: When it cannot
@@ -776,24 +797,41 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         super().raise_if_misconfigured(workflow_action)
 
         service = workflow_action.service.specific
-        if not service.use_instance_smtp_settings:
-            # A trashed row is still reached through the foreign key.
-            integration = service.integration
-            if (
-                integration is None
-                or integration.trashed
-                or not integration.specific.host
-            ):
+        if service.use_instance_smtp_settings:
+            service_type = service_type_registry.get(self.service_type)
+            reason = service_type.instance_smtp_unavailable_reason()
+            if reason is not None:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "This email has no SMTP integration it can send through. "
-                    "Choose one in the button's settings."
+                    self.INSTANCE_SMTP_UNAVAILABLE[reason]
                 )
             return
-        service_type = service_type_registry.get(self.service_type)
-        reason = service_type.instance_smtp_unavailable_reason()
-        if reason is not None:
+
+        # Read with the trash, in one query rather than the integration and
+        # then its specific row.
+        integration = (
+            SMTPIntegration.objects_and_trash.filter(pk=service.integration_id)
+            .values("host", "trashed")
+            .first()
+        )
+        if integration is None or integration["trashed"] or not integration["host"]:
             raise ServiceImproperlyConfiguredDispatchException(
-                self.INSTANCE_SMTP_UNAVAILABLE[reason]
+                "This email has no SMTP integration it can send through. "
+                "Choose one in the button's settings."
+            )
+        from_email = service.from_email
+        if isinstance(from_email, dict):
+            from_email = from_email.get("formula")
+        if not (from_email or "").strip():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This email has no sender. Fill in its From Email in the "
+                "button's settings."
+            )
+        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is not True and (
+            not is_hostname_safe(integration["host"])
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This email's SMTP integration points at an address buttons "
+                "may not send to. Choose a public SMTP server."
             )
 
 
