@@ -505,3 +505,43 @@ export class GroqModelType extends BuiltInGenerativeAIModelType {
     return 40
   }
 }
+
+export class XaiModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'xai'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.xai')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.xaiApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.xaiApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.xaiModelsLabel'),
+        i18n.t('generativeAIModelType.xaiModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.xaiModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 45
+  }
+}

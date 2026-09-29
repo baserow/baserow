@@ -1887,9 +1887,10 @@ class TestResolveAssistantModel:
         [
             ("google", "gemini-2.5-flash"),
             ("groq", "openai/gpt-oss-120b"),
+            ("xai", "grok-4.3"),
         ],
     )
-    def test_database_selected_google_and_groq_models_use_database_credentials(
+    def test_database_only_provider_models_use_database_credentials(
         self,
         data_fixture,
         monkeypatch,
@@ -1898,6 +1899,7 @@ class TestResolveAssistantModel:
     ):
         monkeypatch.setenv("GOOGLE_API_KEY", "legacy-kuma-key")
         monkeypatch.setenv("GROQ_API_KEY", "legacy-kuma-key")
+        monkeypatch.setenv("XAI_API_KEY", "legacy-kuma-key")
         workspace = data_fixture.create_workspace()
         provider = AIProviderConfig.objects.create(
             provider_type=provider_type, api_key="database-key"

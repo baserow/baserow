@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.stub import Stubber
 from pydantic_ai import BinaryContent, TextContent, UploadedFile
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.profiles.openai import OpenAIJsonSchemaTransformer
 
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.generative_ai.bedrock import create_bedrock_runtime_client
@@ -16,8 +18,10 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     OllamaGenerativeAIModelType,
     OpenAIGenerativeAIModelType,
     OpenRouterGenerativeAIModelType,
+    XaiGenerativeAIModelType,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.xai import XAI_BASE_URL, XaiChatProvider
 from baserow_premium.fields.ai_file import AIFile
 
 
@@ -537,6 +541,7 @@ def test_google_and_groq_do_not_fall_back_to_legacy_kuma_credentials(monkeypatch
             "bedrock",
             "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
         ),
+        (XaiGenerativeAIModelType(), "xai", "grok-4.3"),
     ],
 )
 def test_database_only_providers_ignore_legacy_workspace_settings(
@@ -553,6 +558,108 @@ def test_database_only_providers_ignore_legacy_workspace_settings(
 
     assert model_type.get_api_key(workspace) is None
     assert model_type.get_enabled_models(workspace) == []
+
+
+# --- xAI ---
+
+
+def test_xai_model_type_is_registered() -> None:
+    assert isinstance(
+        generative_ai_model_type_registry.get("xai"), XaiGenerativeAIModelType
+    )
+
+
+def test_xai_constructs_chat_completions_model_for_xai() -> None:
+    model = XaiGenerativeAIModelType().get_ai_model(
+        "grok-4.3", settings_override={"api_key": "xai-key", "models": ["grok-4.3"]}
+    )
+
+    assert isinstance(model, OpenAIChatModel)
+    assert isinstance(model.provider, XaiChatProvider)
+    assert model.model_name == "grok-4.3"
+    assert model.system == "xai"
+    assert XAI_BASE_URL == "https://api.x.ai/v1"
+    assert str(model.provider.client.base_url) == f"{XAI_BASE_URL}/"
+    assert model.provider.client.api_key == "xai-key"
+    assert model.profile["json_schema_transformer"] is OpenAIJsonSchemaTransformer
+    assert model.profile["grok_supports_builtin_tools"] is True
+    assert model.profile["supports_json_schema_output"] is True
+    assert model.profile["openai_chat_supports_document_input"] is False
+
+
+def test_xai_prepare_files_embeds_jpeg_and_png_images() -> None:
+    ai_model_type = XaiGenerativeAIModelType()
+    images = [
+        _make_ai_file("photo.jpg", 4, "image/jpeg", b"\xff\xd8\xff\xe0"),
+        _make_ai_file("photo.jpeg", 4, "image/jpeg", b"\xff\xd8\xff\xe0"),
+        _make_ai_file("photo.png", 8, "image/png", b"\x89PNG\r\n\x1a\n"),
+    ]
+
+    result = ai_model_type.prepare_files(images)
+
+    assert ai_model_type.supports_files is True
+    assert result == images
+    assert all(isinstance(image.content, BinaryContent) for image in images)
+
+
+def test_xai_prepare_files_skips_unsupported_images_and_documents() -> None:
+    ai_model_type = XaiGenerativeAIModelType()
+    size = ai_model_type.file_handler._INLINE_UPLOAD_THRESHOLD_BYTES + 1
+    files = [
+        _make_ai_file("animation.gif", 6, "image/gif", b"GIF89a"),
+        _make_ai_file("photo.webp", 4, "image/webp", b"RIFF"),
+        _make_ai_file("doc.pdf", 8, "application/pdf", b"%PDF-1.4"),
+        _make_ai_file("doc.docx", 4, "application/msword", b"PK\x03\x04"),
+        _make_ai_file("big.txt", size, "text/plain", b"x" * size),
+    ]
+
+    result = ai_model_type.prepare_files(files)
+
+    assert result == []
+    assert all(ai_file.content is None for ai_file in files)
+
+
+def test_xai_prepare_files_small_text_is_inlined() -> None:
+    ai_model_type = XaiGenerativeAIModelType()
+    data = b"some csv data"
+    ai_file = _make_ai_file("data.csv", len(data), "text/csv", data)
+
+    result = ai_model_type.prepare_files([ai_file])
+
+    assert result == [ai_file]
+    assert isinstance(ai_file.content, TextContent)
+    assert "some csv data" in ai_file.content.content
+
+
+def test_xai_prepare_files_applies_budget_across_multiple_files() -> None:
+    ai_model_type = XaiGenerativeAIModelType()
+    limit = ai_model_type.file_handler._MAX_EMBED_PAYLOAD_BYTES
+    over_limit = _make_ai_file("over-limit.png", limit + 1, "image/png", b"image")
+    first = _make_ai_file("first.jpg", limit // 2, "image/jpeg", b"image")
+    second = _make_ai_file("second.png", limit // 2, "image/png", b"image")
+    no_room = _make_ai_file("third.png", 1, "image/png", b"image")
+
+    result = ai_model_type.prepare_files([over_limit, first, second, no_room])
+
+    assert limit == 20 * 1024 * 1024
+    assert result == [first, second]
+    assert over_limit.content is None
+    assert no_room.content is None
+
+
+def test_xai_integration_override_needs_its_own_api_key() -> None:
+    model_type = XaiGenerativeAIModelType()
+
+    assert model_type.get_atomic_settings_override({"models": ["grok-4.3"]}) is None
+    assert (
+        model_type.get_atomic_settings_override(
+            {"api_key": " ", "models": ["grok-4.3"]}
+        )
+        is None
+    )
+    assert model_type.get_atomic_settings_override(
+        {"api_key": "xai-key", "models": ["grok-4.3"]}
+    ) == {"api_key": "xai-key", "models": ["grok-4.3"]}
 
 
 @pytest.mark.asyncio

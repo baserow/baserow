@@ -55,6 +55,11 @@ AI_PROVIDER_TYPES = {
         "uses_api_key": True,
         "extra_settings": (),
     },
+    "xai": {
+        "name": "xAI",
+        "uses_api_key": True,
+        "extra_settings": (),
+    },
     "mistral": {
         "name": "Mistral",
         "uses_api_key": True,

@@ -31,6 +31,7 @@ import {
   OpenRouterModelType,
   GoogleModelType,
   GroqModelType,
+  XaiModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
@@ -212,6 +213,7 @@ export default defineNuxtPlugin({
     registry.register('generativeAIModel', new BedrockModelType(context))
     registry.register('generativeAIModel', new GoogleModelType(context))
     registry.register('generativeAIModel', new GroqModelType(context))
+    registry.register('generativeAIModel', new XaiModelType(context))
     registry.register('generativeAIModel', new MistralModelType(context))
     registry.register('generativeAIModel', new OllamaModelType(context))
     registry.register('generativeAIModel', new OpenRouterModelType(context))

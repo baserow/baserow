@@ -19,6 +19,7 @@ describe('AI Agent integration model resolution', () => {
     'bedrock',
     'google',
     'groq',
+    'xai',
     'mistral',
     'ollama',
     'openrouter',

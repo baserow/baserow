@@ -814,6 +814,12 @@ def test_provider_type_metadata_marks_required_connection_settings(
             {"name": "access_key_id", "required": False, "allow_blank": True},
         ],
     }
+    assert provider_types["xai"] == {
+        "type": "xai",
+        "name": "xAI",
+        "uses_api_key": True,
+        "extra_fields": [],
+    }
     assert provider_types["ollama"]["uses_api_key"] is False
     assert provider_types["ollama"]["extra_fields"] == [
         {"name": "host", "required": True, "allow_blank": False}
@@ -1177,6 +1183,7 @@ def test_testing_an_unknown_saved_model_returns_not_found(api_client, staff_head
         ("google", "gemini-2.5-flash"),
         ("groq", "openai/gpt-oss-120b"),
         ("mistral", "mistral-large-latest"),
+        ("xai", "grok-4.3"),
     ],
 )
 def test_model_discovery_returns_pydantic_ai_known_models(
@@ -1231,6 +1238,87 @@ def test_groq_model_discovery_excludes_non_chat_models(api_client, staff_headers
     )
     assert "llama-3.1-8b-instant" not in response.json()["models"]
     assert "llama-3.3-70b-versatile" not in response.json()["models"]
+
+
+@pytest.mark.django_db
+def test_xai_model_discovery_keeps_only_current_grok_4_models(
+    api_client, staff_headers
+) -> None:
+    response = api_client.get(
+        reverse("api:ai_provider:discover_models"),
+        {"provider_type": "xai"},
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    models = response.json()["models"]
+    assert "grok-4.3" in models
+    assert "grok-4.20-non-reasoning" in models
+    assert all(model.startswith("grok-4.") for model in models)
+    assert not any("multi-agent" in model for model in models)
+    for retired_or_unverified in (
+        "grok-4",
+        "grok-4-latest",
+        "grok-4-0709",
+        "grok-4-1-fast-reasoning",
+        "grok-4-fast-non-reasoning",
+        "grok-3",
+        "grok-3-mini",
+        "grok-code-fast-1",
+    ):
+        assert retired_or_unverified not in models
+
+
+@pytest.mark.django_db
+def test_xai_provider_create_and_update_never_return_the_api_key(
+    api_client, staff_headers
+) -> None:
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "xai",
+            "api_key": "xai-secret",
+            "models": [
+                {"model_identifier": "grok-4.3"},
+                {"model_identifier": "grok-4.7"},
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["provider_type"] == "xai"
+    assert response.json()["extra_settings"] == {}
+    assert [model["model_identifier"] for model in response.json()["models"]] == [
+        "grok-4.3",
+        "grok-4.7",
+    ]
+    assert "xai-secret" not in response.content.decode()
+    provider = AIProviderConfig.objects.get(provider_type="xai")
+    assert provider.api_key == "xai-secret"
+
+    item_url = reverse("api:ai_provider:item", kwargs={"provider_id": provider.id})
+    response = api_client.patch(
+        item_url, {"api_key": "xai-rotated"}, format="json", **staff_headers
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "api_key" not in response.json()
+    assert "xai-rotated" not in response.content.decode()
+    provider.refresh_from_db()
+    assert provider.api_key == "xai-rotated"
+
+    response = api_client.patch(
+        item_url,
+        {"extra_settings": {"base_url": "https://attacker.example.com/v1"}},
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    provider.refresh_from_db()
+    assert provider.extra_settings == {}
 
 
 @pytest.mark.django_db

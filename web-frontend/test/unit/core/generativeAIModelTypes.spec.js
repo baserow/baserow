@@ -14,7 +14,7 @@ describe('Generative AI model types', () => {
     await testApp.afterEach()
   })
 
-  test('registers Google and Groq in the provider registry', () => {
+  test('registers the built-in providers in order', () => {
     const registry = testApp.getRegistry()
 
     expect(
@@ -27,6 +27,7 @@ describe('Generative AI model types', () => {
       'bedrock',
       'google',
       'groq',
+      'xai',
       'mistral',
       'ollama',
       'openrouter',
@@ -136,6 +137,11 @@ describe('Generative AI model types', () => {
       name: 'generativeAIModelType.groq',
       canPromptWithFiles: false,
     },
+    {
+      providerType: 'xai',
+      name: 'generativeAIModelType.xai',
+      canPromptWithFiles: true,
+    },
   ])(
     'provides form metadata for $providerType',
     ({ providerType, name, canPromptWithFiles }) => {
@@ -161,6 +167,7 @@ describe('Generative AI model types', () => {
       expect(modelType.getModelIdentifierDescription()).toBe(
         `generativeAIModelType.${providerType}ModelIdentifierDescription`
       )
+      expect(modelType.getRequiredIntegrationSettings()).toEqual(['api_key'])
       expect(modelType.canPromptWithFiles()).toBe(canPromptWithFiles)
     }
   )

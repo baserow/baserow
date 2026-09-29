@@ -13,7 +13,7 @@ providers. The architecture splits into two layers:
 ## Core: GenerativeAIModelType
 
 Each LLM provider (OpenAI, Anthropic, Amazon Bedrock, Google Gemini, Groq, Mistral,
-Ollama, OpenRouter) is a `GenerativeAIModelType` subclass registered in
+Ollama, OpenRouter, xAI) is a `GenerativeAIModelType` subclass registered in
 `generative_ai_model_type_registry`. A model type is responsible for:
 
 - **Configuration** — reading API keys and enabled models from workspace
@@ -101,6 +101,9 @@ image request limit. Amazon Bedrock sends images and documents as native Convers
 blocks, within Bedrock's per-kind limits (20 images of 3.75 MB, 5 documents of
 4.5 MB) set through `EmbedKindLimit`, and a 14 MiB total budget. Groq does not
 advertise provider-level file support because its capabilities vary by model.
+xAI embeds JPEG and PNG images within a 20 MiB cumulative raw-file budget and
+inlines small text files; its Chat Completions API has no document input, so
+other files are skipped.
 
 ## Job scheduling
 

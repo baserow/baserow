@@ -71,6 +71,8 @@ _BEDROCK_DISCOVERY_EXCLUDED_MODELS = {
     "cohere.command-r-v1:0",
     "cohere.command-text-v14",
 }
+# Only grok-4.<n>: most older slugs are retired and silently redirect to grok-4.3.
+_XAI_DISCOVERY_MODEL_PATTERN = re.compile(r"^grok-4\.\d+")
 
 
 def google_model_requires_default_sampling(model_name: str) -> bool:
@@ -133,6 +135,16 @@ class BedrockFileHandler(EmbedOnlyFileHandler):
     )
     # Converse documents no request limit; InvokeModel's 20 MB less base64 overhead.
     _MAX_EMBED_PAYLOAD_BYTES = 14 * 1024 * 1024
+
+
+class XaiFileHandler(FileHandler):
+    """Embed JPG/PNG images and inline small text; Chat Completions takes no
+    documents and xAI rejects other image formats."""
+
+    _EMBEDDABLE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+    _INLINEABLE_EXTENSIONS = _TEXT_EXTENSIONS
+    # Equals xAI's per-image limit, so every embedded image also stays within it.
+    _MAX_EMBED_PAYLOAD_BYTES = 20 * 1024 * 1024
 
 
 class OpenAIFileHandler(FileHandler):
@@ -702,6 +714,72 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
         from baserow.api.generative_ai.serializers import GroqSettingsSerializer
 
         return GroqSettingsSerializer
+
+
+class XaiGenerativeAIModelType(GenerativeAIModelType):
+    type = "xai"
+    supports_legacy_workspace_settings = False
+
+    @cached_property
+    def file_handler(self) -> XaiFileHandler:
+        return XaiFileHandler()
+
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "models", settings_override, feature_type, state
+        )
+        return value if configured else []
+
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        from .xai import XaiChatProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        if not api_key:
+            raise ValueError("An xAI API key is required.")
+        return OpenAIChatModel(model_name, provider=XaiChatProvider(api_key=api_key))
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models import KnownModelName
+
+        xai_models = [
+            name.removeprefix("xai:")
+            for name in get_known_model_names(KnownModelName)
+            if name.startswith("xai:")
+        ]
+        return [
+            name
+            for name in xai_models
+            if _XAI_DISCOVERY_MODEL_PATTERN.match(name) and "multi-agent" not in name
+        ]
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import XaiSettingsSerializer
+
+        return XaiSettingsSerializer
 
 
 class MistralGenerativeAIModelType(GenerativeAIModelType):

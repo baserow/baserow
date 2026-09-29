@@ -81,6 +81,14 @@ class GroqSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class XaiSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The xAI API key used to authenticate with the xAI API.",
+    )
+
+
 class MistralSettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,

@@ -50,6 +50,18 @@ Claude and Amazon Nova do, text-only models such as gpt-oss return an error.
 Bedrock ignores per-request timeouts. A request, including **Test model**, can take
 up to 5 minutes per attempt and is tried up to 3 times before it fails.
 
+## xAI
+
+Create an API key at [console.x.ai](https://console.x.ai), then add an **xAI**
+provider and paste the key. Add the model IDs you want, such as `grok-4.3`. xAI lists
+the current IDs in its [models documentation](https://docs.x.ai/developers/models).
+
+AI fields can send JPEG and PNG images, up to 20 MB in total per request, and small
+text files. Other files, such as PDFs, are not sent: xAI only receives their names.
+
+Baserow sends requests to xAI's global endpoint, `https://api.x.ai`, where xAI does
+not guarantee which region processes them. Regional endpoints are not supported.
+
 ## Upgrading to Baserow 2.4
 
 **From Baserow 2.4, the environment variables below are no longer read.** The upgrade
