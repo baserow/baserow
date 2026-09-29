@@ -742,6 +742,15 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
             and "integration_id" not in service_values
             and instance.service.specific.use_instance_smtp_settings
         )
+        service_type = service_type_registry.get(self.service_type)
+        if (
+            service_values.get("use_instance_smtp_settings")
+            and service_type.instance_smtp_is_available()
+        ):
+            # Choosing the instance server clears the integration, so the one
+            # the form still sends is not looked up: it may be trashed, or one
+            # the user can no longer read, and neither should stop the switch.
+            service_values["integration_id"] = None
         values = super().prepare_values(values, user, instance)
 
         service = values["service"]
@@ -754,7 +763,10 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         """
         Refuses an action set to the instance server when this installation
         cannot deliver through it. The service's own check is looser: a
-        backend that only prints the message would report it as sent.
+        backend that only prints the message would report it as sent. An
+        action set to an integration is refused when it has none, when it is
+        trashed, or when it has no host, so the click stops before an earlier
+        action has run.
 
         :param workflow_action: The action to check.
         :raises ServiceImproperlyConfiguredDispatchException: When it cannot
@@ -763,7 +775,19 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
 
         super().raise_if_misconfigured(workflow_action)
 
-        if not workflow_action.service.specific.use_instance_smtp_settings:
+        service = workflow_action.service.specific
+        if not service.use_instance_smtp_settings:
+            # A trashed row is still reached through the foreign key.
+            integration = service.integration
+            if (
+                integration is None
+                or integration.trashed
+                or not integration.specific.host
+            ):
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "This email has no SMTP integration it can send through. "
+                    "Choose one in the button's settings."
+                )
             return
         service_type = service_type_registry.get(self.service_type)
         reason = service_type.instance_smtp_unavailable_reason()

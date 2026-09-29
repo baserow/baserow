@@ -7,6 +7,9 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionInvalidIntegration,
 )
+from baserow.contrib.database.workflow_actions.models import (
+    LocalBaserowCreateRowWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -14,6 +17,7 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.core.exceptions import PermissionException
+from baserow.core.integrations.service import IntegrationService
 
 SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 CONSOLE_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -102,7 +106,14 @@ def test_an_email_action_refuses_an_smtp_integration_of_another_database(
     smtp = data_fixture.create_smtp_integration(application=other, user=user)
 
     with pytest.raises(WorkflowActionInvalidIntegration):
-        _create(user, button_field, integration_id=smtp.id)
+        _create(
+            user,
+            button_field,
+            integration_id=smtp.id,
+            from_email="'from@example.com'",
+            subject="'Hi'",
+            body="'Body'",
+        )
 
 
 @pytest.mark.django_db
@@ -172,6 +183,80 @@ def test_choosing_the_instance_drops_the_integration(data_fixture, settings):
     )
 
     service = action.service.specific
+    assert service.use_instance_smtp_settings is True
+    assert service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_choosing_the_instance_works_when_the_integration_is_trashed(
+    data_fixture, settings
+):
+    _instance_can_send(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user
+    )
+    action = _create(
+        user,
+        button_field,
+        use_instance_smtp_settings=False,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+    )
+    IntegrationService().delete_integration(user, smtp)
+
+    action = (
+        DatabaseWorkflowActionService()
+        .update_workflow_action(
+            user,
+            action,
+            service={"use_instance_smtp_settings": True, "integration_id": smtp.id},
+        )
+        .workflow_action
+    )
+
+    service = action.service.specific
+    assert service.use_instance_smtp_settings is True
+    assert service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_choosing_the_instance_works_when_the_integration_is_unreadable(
+    data_fixture, settings
+):
+    _instance_can_send(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user
+    )
+    action = _create(
+        user,
+        button_field,
+        use_instance_smtp_settings=False,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+    )
+
+    # Asked of the type directly, as in the read test above.
+    with patch(
+        "baserow.contrib.database.workflow_actions.workflow_action_types"
+        ".CoreHandler.check_permissions",
+        side_effect=PermissionException("cannot read"),
+    ):
+        values = _email_type().prepare_values(
+            {
+                "service": {
+                    "use_instance_smtp_settings": True,
+                    "integration_id": smtp.id,
+                }
+            },
+            user,
+            action,
+        )
+
+    service = values["service"]
     assert service.use_instance_smtp_settings is True
     assert service.integration_id is None
 
@@ -296,3 +381,74 @@ def test_a_backend_whose_path_merely_contains_a_local_one_still_sends(
     action = _create(user, button_field, use_instance_smtp_settings=True)
 
     _email_type().raise_if_misconfigured(action)
+
+
+def _row_creating_action(data_fixture, button_field):
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field, order=1
+    )
+    service = action.service.specific
+    service.table = button_field.table
+    service.save()
+    return action
+
+
+@pytest.mark.django_db
+def test_a_click_on_an_action_whose_integration_is_trashed_runs_nothing(
+    data_fixture, settings
+):
+    _instance_turned_off(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user
+    )
+    _row_creating_action(data_fixture, button_field)
+    _create(
+        user,
+        button_field,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+        subject="'Hi'",
+        body="'Body'",
+    )
+    IntegrationService().delete_integration(user, smtp)
+    model = button_field.table.get_model()
+    row = model.objects.create()
+
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert "no SMTP integration" in str(raised.value)
+    assert model.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_a_click_on_an_action_with_a_blank_host_runs_nothing(data_fixture, settings):
+    _instance_turned_off(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=button_field.table.database, user=user, host=""
+    )
+    _row_creating_action(data_fixture, button_field)
+    _create(
+        user,
+        button_field,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+        subject="'Hi'",
+        body="'Body'",
+    )
+    model = button_field.table.get_model()
+    row = model.objects.create()
+
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert "no SMTP integration" in str(raised.value)
+    assert model.objects.count() == 1
