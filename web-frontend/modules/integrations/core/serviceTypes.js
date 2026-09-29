@@ -116,7 +116,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
       return this.app.$i18n.t('serviceType.errorFromEmailMissing')
     }
 
-    if (service.to_emails !== undefined && !service.to_emails.formula) {
+    if (service.to_emails !== undefined && !service.to_emails.formula?.trim()) {
       return this.app.$i18n.t('serviceType.errorToEmailsMissing')
     }
 
