@@ -4,10 +4,12 @@ import {
   createFiltersTree,
   getOrderBy,
   matchSearchFilters,
+  reportRowsNotVisibleInView,
   serializeGroupBys,
 } from '@baserow/modules/database/utils/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import _ from 'lodash'
+import { vi } from 'vitest'
 
 describe('TreeGroupNode', () => {
   it('should initialize correctly', () => {
@@ -384,5 +386,62 @@ describe('serializeGroupBys', () => {
       group_bys: [{ field: 5, order: 'ASC', type: 'numeric' }],
     }
     expect(serializeGroupBys(view)).toBe('field_5[numeric]')
+  })
+})
+
+describe('reportRowsNotVisibleInView', () => {
+  const i18n = { t: (key, { count }) => `${key} - ${count}` }
+
+  it('returns the hidden row ids and shows one toast', () => {
+    const dispatch = vi.fn()
+    const data = {
+      items: [],
+      metadata: { row_ids_not_visible_in_view: [1, 2] },
+    }
+
+    const hidden = reportRowsNotVisibleInView(data, {
+      dispatch,
+      i18n,
+      created: true,
+    })
+
+    expect([...hidden]).toEqual([1, 2])
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith(
+      'toast/info',
+      {
+        title: 'rowsNotVisibleInView.title - 2',
+        message: 'rowsNotVisibleInView.createdMessage - 2',
+      },
+      { root: true }
+    )
+  })
+
+  it('uses the updated message for updated rows', () => {
+    const dispatch = vi.fn()
+    const data = { items: [], metadata: { row_ids_not_visible_in_view: [1] } }
+
+    reportRowsNotVisibleInView(data, { dispatch, i18n, created: false })
+
+    expect(dispatch).toHaveBeenCalledWith(
+      'toast/info',
+      {
+        title: 'rowsNotVisibleInView.title - 1',
+        message: 'rowsNotVisibleInView.updatedMessage - 1',
+      },
+      { root: true }
+    )
+  })
+
+  it('does nothing when the backend reports no hidden rows', () => {
+    const dispatch = vi.fn()
+
+    const hidden = reportRowsNotVisibleInView(
+      { items: [], metadata: {} },
+      { dispatch, i18n, created: false }
+    )
+
+    expect(hidden.size).toBe(0)
+    expect(dispatch).not.toHaveBeenCalled()
   })
 })

@@ -9,8 +9,7 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
-  getRowIdsNotVisibleInView,
-  notifyRowsNotVisibleInView,
+  reportRowsNotVisibleInView,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
@@ -449,8 +448,12 @@ export const actions = {
     )
     commit('SET_CREATING', false)
     const [createdRow] = data.items
-    if (getRowIdsNotVisibleInView(data).has(createdRow.id)) {
-      notifyRowsNotVisibleInView(dispatch, $i18n, 1, true)
+    const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+      dispatch,
+      i18n: $i18n,
+      created: true,
+    })
+    if (rowIdsNotVisible.has(createdRow.id)) {
       return
     }
     return await dispatch('createdNewRow', {
@@ -752,7 +755,7 @@ export const actions = {
     if (row === null) {
       return
     }
-    const { $client, $registry } = this
+    const { $client, $registry, $i18n } = this
     // Bundle the value update and the move into a single undo/redo step.
     const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     // When the view has one or more sortings the vertical position of cards is
@@ -814,14 +817,22 @@ export const actions = {
     // If the stack has changed, the value needs to be updated with the backend.
     if (originalStackId !== currentStackId) {
       try {
-        const { data } = await RowService($client).update(
+        const { data } = await RowService($client).batchUpdate(
           table.id,
-          row.id,
-          newValuesForUpdate,
-          getters.getLastKanbanId,
-          undoRedoActionGroupId
+          [{ id: row.id, ...newValuesForUpdate }],
+          undoRedoActionGroupId,
+          getters.getLastKanbanId
         )
-        commit('UPDATE_ROW', { row, values: data })
+        const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (rowIdsNotVisible.has(row.id)) {
+          await dispatch('deletedExistingRow', { view, row, fields })
+          return
+        }
+        commit('UPDATE_ROW', { row, values: data.items[0] })
       } catch (error) {
         // If for whatever reason updating the value fails, we need to undo the
         // things that have changed in the store.
@@ -992,8 +1003,12 @@ export const actions = {
           null,
           getters.getLastKanbanId
         )
-        if (getRowIdsNotVisibleInView(data).has(row.id)) {
-          notifyRowsNotVisibleInView(dispatch, $i18n, 1, false)
+        const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (rowIdsNotVisible.has(row.id)) {
           await dispatch('deletedExistingRow', { view, row, fields })
           return
         }

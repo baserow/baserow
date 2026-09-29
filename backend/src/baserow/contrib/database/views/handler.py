@@ -1911,6 +1911,42 @@ class ViewHandler:
         filter_builder = self.get_filter_builder(view, model)
         return filter_builder.apply_to_queryset(queryset)
 
+    def get_row_ids_not_visible_in_view(
+        self,
+        user: AbstractUser,
+        view: View,
+        model: Type[GeneratedTableModel],
+        row_ids: List[int],
+    ) -> Optional[List[int]]:
+        """
+        Returns which of the provided rows don't match the view filters, but only if
+        the filters are enforced for the user, like for an editor in a restricted
+        view. Such a user doesn't receive the filters, so it can't tell by itself
+        whether the rows it just created or updated are still visible in the view.
+
+        :param user: The user on whose behalf the rows were created or updated.
+        :param view: The view where to check the visibility of the rows.
+        :param model: The generated model of the table the rows belong to.
+        :param row_ids: The ids of the rows to check.
+        :return: The ids of the rows that are not visible in the view, in the order
+            of `row_ids`, or `None` if the view doesn't belong to the table of the
+            model or if the view filters are not enforced for the user.
+        """
+
+        if view.table_id != model.baserow_table_id:
+            return None
+
+        view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if not view_ownership_type.enforce_apply_filters(user, view):
+            return None
+
+        visible_row_ids = set(
+            self.apply_filters(view, model.objects.filter(id__in=row_ids)).values_list(
+                "id", flat=True
+            )
+        )
+        return [row_id for row_id in row_ids if row_id not in visible_row_ids]
+
     def list_filters(self, user: AbstractUser, view_id: int) -> QuerySet[ViewFilter]:
         """
         Returns the ViewFilter queryset for the provided view_id.

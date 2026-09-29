@@ -9,11 +9,7 @@ from baserow.contrib.database.api.rows.serializers import serialize_rows_for_res
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.registries import view_type_registry
-from baserow.contrib.database.views.row_checker import (
-    FilteredViewRows,
-    ViewHandler,
-    remember_views_where_rows_are_visible,
-)
+from baserow.contrib.database.views.row_checker import FilteredViewRows, ViewHandler
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
 from baserow.contrib.database.ws.rows.signals import serialize_rows_values
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
@@ -91,13 +87,11 @@ def views_rows_created(
     row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
-    views = row_checker.get_filtered_views_where_rows_are_visible(rows)
-    remember_views_where_rows_are_visible(rows, views)
     transaction.on_commit(
         lambda: _send_rows_created_event_to_views(
             serialize_rows_for_response(rows, model),
             before,
-            views,
+            row_checker.get_filtered_views_where_rows_are_visible(rows),
             user=user,
         ),
     )
@@ -174,7 +168,6 @@ def views_rows_updated(
     view_rows: List[FilteredViewRows] = (
         existing_checker.get_filtered_views_where_rows_are_visible(rows)
     )
-    remember_views_where_rows_are_visible(rows, view_rows)
 
     view_slug_to_updated_view_rows = {view.view.slug: view for view in view_rows}
 

@@ -2,6 +2,7 @@ import kanbanStore from '@baserow_premium/store/view/kanban'
 import fieldStore from '@baserow/modules/database/store/field'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { UNDO_REDO_ACTION_GROUP_HEADER } from '@baserow/modules/database/utils/action'
+import { vi } from 'vitest'
 
 const readActionGroupId = (config) => {
   const headers = config.headers || {}
@@ -455,10 +456,10 @@ describe('Kanban view store', () => {
     // The single-select update endpoint must be called once; the row move
     // endpoint must NOT be called when sortings are active.
     testApp.mock
-      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/`)
+      .onPatch(`/database/rows/table/${table.id}/batch/`)
       .reply((config) => {
         updatePatchHit = true
-        return [200, { id: draggingRow.id, ...JSON.parse(config.data) }]
+        return [200, { items: JSON.parse(config.data).items }]
       })
     testApp.mock
       .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/move/`)
@@ -515,10 +516,10 @@ describe('Kanban view store', () => {
     let updateGroupId = null
     let moveGroupId = null
     testApp.mock
-      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/`)
+      .onPatch(`/database/rows/table/${table.id}/batch/`)
       .reply((config) => {
         updateGroupId = readActionGroupId(config)
-        return [200, { id: draggingRow.id, ...JSON.parse(config.data) }]
+        return [200, { items: JSON.parse(config.data).items }]
       })
     testApp.mock
       .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/move/`)
@@ -536,6 +537,137 @@ describe('Kanban view store', () => {
     expect(updateGroupId).toBeTruthy()
     expect(moveGroupId).toBeTruthy()
     expect(updateGroupId).toBe(moveGroupId)
+  })
+
+  describe('stopRowDrag to another stack', () => {
+    const filteredView = {
+      filters: [],
+      filter_type: 'AND',
+      filter_groups: [],
+      filters_disabled: false,
+      sortings: [],
+    }
+    const fields = [
+      {
+        id: 1,
+        type: 'single_select',
+        select_options: [{ id: 1, value: 'A', color: 'blue' }],
+      },
+      { id: 2, type: 'formula' },
+    ]
+    const table = { id: 99 }
+
+    const dragRow5FromNullToStack1 = () => {
+      const draggingRow = {
+        id: 5,
+        order: '5.00',
+        field_1: null,
+        field_2: 'old',
+        _: { dragging: true },
+      }
+      const stacks = {
+        null: {
+          count: 1,
+          results: [{ id: 2, order: '2.00', field_1: null, field_2: 'x' }],
+        },
+        1: {
+          count: 2,
+          results: [
+            { id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'x' },
+            draggingRow,
+          ],
+        },
+      }
+      const state = Object.assign(kanbanStore.state(), {
+        lastKanbanId: 7,
+        singleSelectFieldId: 1,
+        stacks,
+        draggingRow,
+        draggingOriginalStackId: 'null',
+        draggingOriginalBefore: null,
+      })
+      store.replaceState({ ...store.state, kanban: state })
+    }
+
+    test('removes the card and skips the move when the backend hides the row', async () => {
+      dragRow5FromNullToStack1()
+      let movePatchHit = false
+      testApp.mock
+        .onPatch(`/database/rows/table/${table.id}/batch/`)
+        .reply(200, {
+          items: [{ id: 5, order: '5.00', field_1: { id: 1 }, field_2: 'new' }],
+          metadata: {
+            updated_field_ids: [1],
+            row_ids_not_visible_in_view: [5],
+          },
+        })
+      testApp.mock
+        .onPatch(`/database/rows/table/${table.id}/5/move/`)
+        .reply(() => {
+          movePatchHit = true
+          return [200, {}]
+        })
+      const dispatchSpy = vi.spyOn(store, 'dispatch')
+
+      await store.dispatch('kanban/stopRowDrag', {
+        table,
+        fields,
+        view: filteredView,
+      })
+
+      expect(movePatchHit).toBe(false)
+      expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+        10,
+      ])
+      expect(store.state.kanban.stacks['1'].count).toBe(1)
+      expect(store.state.kanban.stacks.null.results.map((r) => r.id)).toEqual([
+        2,
+      ])
+      expect(store.state.kanban.stacks.null.count).toBe(1)
+      expect(store.getters['kanban/getDraggingRow']).toBeNull()
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+        title: 'rowsNotVisibleInView.title - 1',
+        message: 'rowsNotVisibleInView.updatedMessage - 1',
+      })
+    })
+
+    test('updates the card from the batch response and moves it when it stays visible', async () => {
+      dragRow5FromNullToStack1()
+      let movePatchHit = false
+      testApp.mock
+        .onPatch(`/database/rows/table/${table.id}/batch/`)
+        .reply(200, {
+          items: [{ id: 5, order: '5.00', field_1: { id: 1 }, field_2: 'new' }],
+          metadata: { updated_field_ids: [1] },
+        })
+      testApp.mock
+        .onPatch(`/database/rows/table/${table.id}/5/move/`)
+        .reply(() => {
+          movePatchHit = true
+          return [200, { id: 5, order: '11.00' }]
+        })
+
+      await store.dispatch('kanban/stopRowDrag', {
+        table,
+        fields,
+        view: filteredView,
+      })
+
+      const [updateRequest] = testApp.mock.history.patch
+      expect(JSON.parse(updateRequest.data)).toEqual({
+        items: [{ id: 5, field_1: 1 }],
+      })
+      expect(updateRequest.params).toMatchObject({ view: 7 })
+      expect(movePatchHit).toBe(true)
+      expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+        10, 5,
+      ])
+      expect(store.state.kanban.stacks['1'].count).toBe(2)
+      expect(store.state.kanban.stacks['1'].results[1]).toMatchObject({
+        field_2: 'new',
+        order: '11.00',
+      })
+    })
   })
 
   test('updatedExistingRow with a skeleton before row', async () => {

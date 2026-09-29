@@ -10,8 +10,7 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
-  getRowIdsNotVisibleInView,
-  notifyRowsNotVisibleInView,
+  reportRowsNotVisibleInView,
 } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
@@ -717,8 +716,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       )
       commit('SET_CREATING', false)
       const [createdRow] = data.items
-      if (getRowIdsNotVisibleInView(data).has(createdRow.id)) {
-        notifyRowsNotVisibleInView(dispatch, $i18n, 1, true)
+      const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+        dispatch,
+        i18n: $i18n,
+        created: true,
+      })
+      if (rowIdsNotVisible.has(createdRow.id)) {
         return
       }
       return await dispatch('afterNewRowCreated', {
@@ -831,13 +834,11 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
               .concat(data.metadata?.cascade_update?.field_ids || [])
           )
 
-          const rowIdsNotVisible = getRowIdsNotVisibleInView(data)
-          notifyRowsNotVisibleInView(
+          const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
             dispatch,
-            $i18n,
-            rowIdsNotVisible.size,
-            false
-          )
+            i18n: $i18n,
+            created: false,
+          })
 
           for (const updatedRowData of updatedRows) {
             const rowToUpdate = getters.getRow(updatedRowData.id)

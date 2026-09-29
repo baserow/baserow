@@ -267,8 +267,8 @@ describe('Grid view store', () => {
     })
 
     mockServer.mock
-      .onPatch('/database/rows/table/1/10/')
-      .reply(200, { id: 10, order: '1.00', field_1: 'B' })
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(200, { items: [{ id: 10, order: '1.00', field_1: 'B' }] })
     mockServer.mock
       .onPatch('/database/rows/table/1/10/move/')
       .reply(200, { id: 10, order: '2.50', field_1: 'B' })
@@ -293,7 +293,9 @@ describe('Grid view store', () => {
 
     const updateRequest = mockServer.mock.history.patch[0]
     const moveRequest = mockServer.mock.history.patch[1]
-    expect(JSON.parse(updateRequest.data)).toEqual({ field_1: 'B' })
+    expect(JSON.parse(updateRequest.data)).toEqual({
+      items: [{ id: 10, field_1: 'B' }],
+    })
     expect(updateRequest.params).toMatchObject({ view: 1 })
     expect(JSON.parse(moveRequest.data)).toBeNull()
     expect(moveRequest.params).toMatchObject({ before_id: 12, view: 1 })
@@ -357,8 +359,8 @@ describe('Grid view store', () => {
     )
 
     mockServer.mock
-      .onPatch('/database/rows/table/1/11/')
-      .reply(200, { id: 11, order: '2.00', field_1: 'A' })
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(200, { items: [{ id: 11, order: '2.00', field_1: 'A' }] })
     mockServer.mock.onPatch('/database/rows/table/1/11/move/').reply(500)
     testApp.dontFailOnErrorResponses()
 
@@ -407,7 +409,7 @@ describe('Grid view store', () => {
     // no aggregation refresh follows. The rollback must finish before its loading
     // paths are cleared, otherwise it can leave the group banners spinning forever.
     store.commit('grid/SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
-    mockServer.mock.onPatch('/database/rows/table/1/12/').reply(500)
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(500)
 
     await expect(
       store.dispatch('grid/moveRow', {
@@ -547,17 +549,21 @@ describe('Grid view store', () => {
     })
 
     let finishUpdate
-    mockServer.mock.onPatch('/database/rows/table/1/10/').reply(
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(
       () =>
         new Promise((resolve) => {
           finishUpdate = () =>
             resolve([
               200,
               {
-                id: 10,
-                order: '1.00',
-                field_1: 'Alice',
-                field_2: optionB,
+                items: [
+                  {
+                    id: 10,
+                    order: '1.00',
+                    field_1: 'Alice',
+                    field_2: optionB,
+                  },
+                ],
               },
             ])
         })
@@ -595,7 +601,7 @@ describe('Grid view store', () => {
 
     expect(optimisticValue).toEqual(optionB)
     expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
-      field_2: optionB.id,
+      items: [{ id: 10, field_2: optionB.id }],
     })
   })
 
@@ -1169,8 +1175,7 @@ describe('Grid view store', () => {
   })
 
   describe('rows not visible in the view according to the backend', () => {
-    // A restricted view doesn't expose its filters, so the backend reports which
-    // rows are not visible anymore.
+    // A restricted view hides its filters, so the backend reports the hidden rows.
     const fields = [
       {
         id: 1,
@@ -1200,7 +1205,7 @@ describe('Grid view store', () => {
       fieldSearchMatches: [],
     }
 
-    const createRestrictedStore = () => {
+    const createRestrictedStore = (extraState = {}) => {
       const restrictedStore = testApp.createStore({
         modules: {
           grid: {
@@ -1232,9 +1237,18 @@ describe('Grid view store', () => {
             _: { ...rowMetadata, persistentId: 'r2' },
           },
         ],
+        ...extraState,
       })
       restrictedStore.replaceState({ ...restrictedStore.state, grid: state })
       return restrictedStore
+    }
+    const updatedToast = {
+      title: 'rowsNotVisibleInView.title - 1',
+      message: 'rowsNotVisibleInView.updatedMessage - 1',
+    }
+    const createdToast = {
+      title: 'rowsNotVisibleInView.title - 1',
+      message: 'rowsNotVisibleInView.createdMessage - 1',
     }
 
     test('updateRowValue removes the row', async () => {
@@ -1258,10 +1272,7 @@ describe('Grid view store', () => {
       expect(
         restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
       ).toEqual([2])
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        'toast/info',
-        expect.objectContaining({ title: expect.any(String) })
-      )
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
       expect(restrictedStore.getters['grid/getCount']).toBe(1)
     })
 
@@ -1290,10 +1301,7 @@ describe('Grid view store', () => {
       expect(
         restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
       ).toEqual([2])
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        'toast/info',
-        expect.objectContaining({ title: expect.any(String) })
-      )
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
       expect(restrictedStore.getters['grid/getCount']).toBe(1)
     })
 
@@ -1315,11 +1323,259 @@ describe('Grid view store', () => {
       expect(
         restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
       ).toEqual([1, 2])
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        'toast/info',
-        expect.objectContaining({ title: expect.any(String) })
-      )
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', createdToast)
       expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+
+    test('createNewRows removes the created row while a search is active', async () => {
+      const restrictedStore = createRestrictedStore({
+        activeSearchTerm: 'keep',
+      })
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 3, order: '3.00', field_1: '' }],
+        metadata: { updated_field_ids: [], row_ids_not_visible_in_view: [3] },
+      })
+
+      await restrictedStore.dispatch('grid/createNewRows', {
+        view,
+        table: { id: 1 },
+        fields,
+        rows: [{}],
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1, 2])
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+  })
+
+  describe('moveRow across groups when the backend hides the row', () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Group',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 1, order: 'ASC', type: 'default' }]
+    const grid = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: groupBys,
+    }
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+    }
+    let fetchByScrollTopDelayed = null
+    let fetchAllFieldAggregationData = null
+
+    const createGroupedStore = () => {
+      fetchByScrollTopDelayed = vi.fn()
+      fetchAllFieldAggregationData = vi.fn()
+      const groupedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed,
+              fetchAllFieldAggregationData,
+            },
+          },
+          field: {
+            namespaced: true,
+            getters: { getAll: () => fields },
+          },
+        },
+      })
+      const state = Object.assign(gridStore.state(), {
+        lastGridId: 1,
+        activeGroupBys: groupBys,
+        count: 3,
+        fieldOptions: { 1: { hidden: false, order: 0 } },
+        groupBy: {
+          ...gridStore.state().groupBy,
+          treeNodes: [
+            { path: { field_1: 'A' }, depth: 0, row_count: 1 },
+            { path: { field_1: 'B' }, depth: 0, row_count: 2 },
+          ],
+          collapse: { mode: 'expand', paths: [] },
+        },
+      })
+      groupedStore.replaceState({ ...groupedStore.state, grid: state })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'A'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r10' },
+          },
+        ],
+      })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'B'),
+        rows: [
+          {
+            id: 11,
+            order: '2.00',
+            field_1: 'B',
+            _: { ...rowMetadata, persistentId: 'r11' },
+          },
+          {
+            id: 12,
+            order: '3.00',
+            field_1: 'B',
+            _: { ...rowMetadata, persistentId: 'r12' },
+          },
+        ],
+      })
+      return groupedStore
+    }
+
+    const moveRow10ToGroupB = (groupedStore) =>
+      groupedStore.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid,
+        fields,
+        getScrollTop: () => 0,
+        row: groupedStore.getters['grid/getRow'](10),
+        before: groupedStore.getters['grid/getRow'](12),
+        sourceGroupPath: { field_1: 'A' },
+        targetGroupPath: { field_1: 'B' },
+      })
+
+    test('removes the row and skips the move', async () => {
+      const groupedStore = createGroupedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [10] },
+      })
+      const dispatchSpy = vi.spyOn(groupedStore, 'dispatch')
+
+      await moveRow10ToGroupB(groupedStore)
+
+      const [updateRequest] = mockServer.mock.history.patch
+      expect(mockServer.mock.history.patch).toHaveLength(1)
+      expect(JSON.parse(updateRequest.data)).toEqual({
+        items: [{ id: 10, field_1: 'B' }],
+      })
+      expect(updateRequest.params).toMatchObject({ view: 1 })
+      expect(groupedStore.getters['grid/getRow'](10)).toBeUndefined()
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'B')
+        ).map((row) => row.id)
+      ).toEqual([11, 12])
+      expect(groupedStore.getters['grid/getCount']).toBe(2)
+      expect(groupedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(0)
+      expect(groupedStore.state.grid.groupBy.treeNodes[1].row_count).toBe(2)
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+        title: 'rowsNotVisibleInView.title - 1',
+        message: 'rowsNotVisibleInView.updatedMessage - 1',
+      })
+      expect(fetchByScrollTopDelayed).toHaveBeenCalled()
+      expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
+      )
+    })
+
+    test('removes the row once when the search already hid it', async () => {
+      const groupedStore = createGroupedStore()
+      groupedStore.commit('grid/SET_SEARCH', {
+        activeSearchTerm: 'a',
+        hideRowsNotMatchingSearch: true,
+      })
+      groupedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(1, 'A'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r10' },
+          },
+          {
+            id: 13,
+            order: '4.00',
+            field_1: 'A',
+            _: { ...rowMetadata, persistentId: 'r13' },
+          },
+        ],
+      })
+      groupedStore.state.grid.count = 4
+      groupedStore.state.grid.groupBy.treeNodes[0].row_count = 2
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [10] },
+      })
+
+      await moveRow10ToGroupB(groupedStore)
+
+      expect(mockServer.mock.history.patch).toHaveLength(1)
+      expect(groupedStore.getters['grid/getCount']).toBe(3)
+      expect(groupedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(1)
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'A')
+        ).map((row) => row.id)
+      ).toEqual([13])
+      expect(
+        groupedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toContain(13)
+    })
+
+    test('still moves the row when it stays visible', async () => {
+      const groupedStore = createGroupedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 10, order: '1.00', field_1: 'B' }],
+        metadata: { updated_field_ids: [1] },
+      })
+      mockServer.mock
+        .onPatch('/database/rows/table/1/10/move/')
+        .reply(200, { id: 10, order: '2.50', field_1: 'B' })
+      const dispatchSpy = vi.spyOn(groupedStore, 'dispatch')
+
+      await moveRow10ToGroupB(groupedStore)
+
+      expect(mockServer.mock.history.patch).toHaveLength(2)
+      expect(mockServer.mock.history.patch[1].params).toMatchObject({
+        before_id: 12,
+        view: 1,
+      })
+      expect(
+        getDefinedRowsFromSectionRows(
+          groupedStore.state.grid.groupBy.sectionRows,
+          groupPathKey(1, 'B')
+        ).map((row) => row.id)
+      ).toEqual([11, 10, 12])
+      expect(groupedStore.getters['grid/getRow'](10)).toMatchObject({
+        field_1: 'B',
+        order: '2.50',
+      })
+      expect(groupedStore.getters['grid/getCount']).toBe(3)
+      expect(dispatchSpy).not.toHaveBeenCalledWith(
+        'toast/info',
+        expect.anything()
+      )
     })
   })
 

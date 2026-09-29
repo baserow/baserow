@@ -2084,10 +2084,10 @@ describe('Buffered rows view store helper', () => {
     })
 
     expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([1])
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      'toast/info',
-      expect.objectContaining({ title: expect.any(String) })
-    )
+    expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+      title: 'rowsNotVisibleInView.title - 1',
+      message: 'rowsNotVisibleInView.createdMessage - 1',
+    })
   })
 
   test('updated row not visible in view according to backend is removed', async () => {

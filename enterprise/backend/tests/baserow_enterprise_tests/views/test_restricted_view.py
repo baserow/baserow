@@ -15,6 +15,7 @@ from starlette.status import (
 
 from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import DateField
 from baserow.contrib.database.rows.actions import (
     CreateRowActionType,
@@ -3680,3 +3681,159 @@ def test_batch_update_response_excludes_rows_not_visible_in_view_if_not_enforced
     )
     assert response.status_code == HTTP_200_OK
     assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_update_reports_row_hidden_by_dependant_formula_filter(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    formula_field = FieldHandler().create_field(
+        admin, table, "formula", name="mirror", formula=f"field('{name_field.name}')"
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=formula_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "keep"})
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        {"items": [{"id": row.id, name_field.db_column: "drop"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"]["row_ids_not_visible_in_view"] == [row.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_batch_update_response_ignores_restricted_view_of_another_table(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    admin = enterprise_data_fixture.create_user()
+    editor = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="EDITOR"), scope=workspace
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    other_table = enterprise_data_fixture.create_database_table(database=database)
+    other_field = enterprise_data_fixture.create_text_field(
+        table=other_table, primary=True
+    )
+    other_view = enterprise_data_fixture.create_grid_view(
+        table=other_table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=other_view, field=other_field, type="equal", value="keep"
+    )
+    assert RestrictedViewOwnershipType().enforce_apply_filters(editor, other_view)
+    row = RowHandler().create_row(admin, table, values={field.db_column: "keep"})
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={other_view.id}",
+        {"items": [{"id": row.id, field.db_column: "drop"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_row_ids_not_visible_in_view_returns_hidden_ids_in_input_order(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    keep_1, drop_1, drop_2, keep_2 = (
+        RowHandler()
+        .create_rows(
+            admin,
+            table,
+            [
+                {name_field.db_column: value}
+                for value in ["keep", "drop", "drop", "keep"]
+            ],
+        )
+        .created_rows
+    )
+
+    row_ids_not_visible = ViewHandler().get_row_ids_not_visible_in_view(
+        editor,
+        view,
+        table.get_model(),
+        [drop_2.id, keep_1.id, drop_1.id, keep_2.id],
+    )
+
+    assert row_ids_not_visible == [drop_2.id, drop_1.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_row_ids_not_visible_in_view_returns_none_if_filters_not_enforced(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
+
+    assert (
+        ViewHandler().get_row_ids_not_visible_in_view(
+            admin, view, table.get_model(), [row.id]
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_row_ids_not_visible_in_view_returns_none_for_another_table(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    other_table = enterprise_data_fixture.create_database_table(database=table.database)
+    other_row = RowHandler().create_row(admin, other_table)
+
+    assert (
+        ViewHandler().get_row_ids_not_visible_in_view(
+            editor, view, other_table.get_model(), [other_row.id]
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_row_ids_not_visible_in_view_returns_empty_if_filters_disabled(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    view.filters_disabled = True
+    view.save()
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
+
+    assert (
+        ViewHandler().get_row_ids_not_visible_in_view(
+            editor, view, table.get_model(), [row.id]
+        )
+        == []
+    )

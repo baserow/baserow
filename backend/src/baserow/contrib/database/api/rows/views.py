@@ -135,8 +135,6 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     ReadAdjacentViewRowOperationType,
 )
-from baserow.contrib.database.views.registries import view_ownership_type_registry
-from baserow.contrib.database.views.row_checker import get_row_ids_not_visible_in_view
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -194,12 +192,10 @@ def build_response_with_metadata(
                 "rows": cascade_update.updated_rows,
                 "field_ids": cascade_update.field_ids,
             }
-        # A user whose view filters are enforced doesn't receive the filters, so it
-        # can't determine by itself whether the rows still match the view.
-        if view is not None and view_ownership_type_registry.get(
-            view.ownership_type
-        ).enforce_apply_filters(request.user, view):
-            row_ids_not_visible = get_row_ids_not_visible_in_view(rows, view)
+        if view is not None:
+            row_ids_not_visible = ViewHandler().get_row_ids_not_visible_in_view(
+                request.user, view, model, [row.id for row in rows]
+            )
             if row_ids_not_visible is not None:
                 data["metadata"]["row_ids_not_visible_in_view"] = row_ids_not_visible
     response_serializer = serializer_class(data)
