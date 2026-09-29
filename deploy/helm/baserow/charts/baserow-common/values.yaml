@@ -170,6 +170,10 @@ revisionHistoryLimit: 10
 ##
 strategy: {}
 
+## @param terminationGracePeriodSeconds Seconds the pod is given to shut down gracefully, uses the Kubernetes default when empty
+##
+terminationGracePeriodSeconds: ""
+
 ## @param resources Set container requests and limits for different resources like CPU or memory (essential for production workloads)
 ## Example:
 ## resources:

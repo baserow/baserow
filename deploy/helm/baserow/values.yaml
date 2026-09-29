@@ -218,6 +218,9 @@ migration:
 ## @param baserow-email-receiver.additionalServices.smtp.type SMTP service type
 ## @param baserow-email-receiver.additionalServices.smtp.port Externally exposed SMTP port
 ## @param baserow-email-receiver.additionalServices.smtp.annotations SMTP service annotations
+## @param baserow-email-receiver.additionalServices.smtp.externalTrafficPolicy SMTP service external traffic policy
+## @param baserow-email-receiver.persistence.annotations Persistent volume claim annotations
+## @param baserow-email-receiver.terminationGracePeriodSeconds Seconds mox is given to finish in-flight deliveries on shutdown
 baserow-email-receiver:
   enabled: false
   image:
@@ -228,6 +231,7 @@ baserow-email-receiver:
   replicaCount: 1
   strategy:
     type: Recreate
+  terminationGracePeriodSeconds: 60
   service:
     type: ClusterIP
     name: webapi
@@ -240,6 +244,9 @@ baserow-email-receiver:
       targetPort: 25
       protocol: TCP
       annotations: {}
+      # Preserves the client source IP so mox evaluates SPF and DMARC against
+      # the real sending mail server instead of a cluster node.
+      externalTrafficPolicy: Local
   persistence:
     enabled: true
     existingClaim: ""
@@ -248,7 +255,10 @@ baserow-email-receiver:
       - ReadWriteOnce
     size: 1Gi
     storageClass: ""
-    annotations: {}
+    # Holds mox's webhook retry queue, keep it on uninstall so undelivered
+    # emails are not lost.
+    annotations:
+      helm.sh/resource-policy: keep
   containerSecurityContext:
     enabled: true
     seLinuxOptions: {}
