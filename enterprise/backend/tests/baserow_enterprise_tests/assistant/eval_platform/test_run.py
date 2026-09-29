@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import OperationalError
 
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
@@ -12,13 +13,19 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 from opentelemetry.trace import StatusCode
-from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
+from pydantic_ai.exceptions import (
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+    UsageLimitExceeded,
+    UserError,
+)
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
 from baserow_enterprise.assistant.evals.control import RunControl
 from baserow_enterprise.assistant.evals.harness import (
     EvalCaseCleanupError,
+    EvalCaseModelError,
     EvalCaseTimeout,
 )
 from baserow_enterprise.assistant.evals.judge import JudgeVerdict
@@ -608,7 +615,7 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 5,
+            "harness_version": 6,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": "local-run",
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -652,7 +659,7 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 5,
+            "harness_version": 6,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -1104,7 +1111,7 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 5,
+            "harness_version": 6,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -2204,9 +2211,9 @@ class TestTimeoutIsRecordedNotRaised:
         assert len(client.experiments.log_run_calls) == 2
 
 
-class TestUsageLimitIsRecordedNotRaised:
+class TestModelFailureIsRecordedNotRaised:
     @pytest.mark.parametrize(
-        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior, RuntimeError]
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
     )
     def test_failure_is_scored_without_inventing_unavailable_counts(self, error_type):
         case = _make_case("docs/exhausted", requires_knowledge_base=True)
@@ -2214,7 +2221,7 @@ class TestUsageLimitIsRecordedNotRaised:
         reason = str(error)
         with patch(
             "baserow_enterprise.assistant.evals.run.run_case",
-            side_effect=error,
+            side_effect=EvalCaseModelError(error),
         ):
             result = run_case_for_experiment(case, "groq:test-model", True)
 
@@ -2240,7 +2247,7 @@ class TestUsageLimitIsRecordedNotRaised:
         assert "skipped" not in result
 
     @pytest.mark.parametrize(
-        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior, RuntimeError]
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
     )
     def test_subset_records_error_trace_and_continues_without_retrying(
         self, error_type
@@ -2255,7 +2262,9 @@ class TestUsageLimitIsRecordedNotRaised:
         def exhaust_first(case, *args, **kwargs):
             calls.append((case.id, case.max_iters))
             if len(calls) == 1:
-                raise error_type("request or tool retry limit exceeded")
+                raise EvalCaseModelError(
+                    error_type("request or tool retry limit exceeded")
+                )
             return _make_output(), []
 
         with (
@@ -2283,3 +2292,107 @@ class TestUsageLimitIsRecordedNotRaised:
         assert any(event.name == "exception" for event in failed_span.events)
         assert first["trace_id"] == format(failed_span.context.trace_id, "032x")
         assert spans["Task: db/case-2"].status.status_code == StatusCode.OK
+
+
+class TestExecutionErrorsRemainUngraded:
+    @pytest.mark.parametrize(
+        "error",
+        [
+            UserError("Missing API key"),
+            ModelHTTPError(404, "unknown-model"),
+            OperationalError("Database connection lost"),
+            RuntimeError("Unexpected tool failure"),
+            AttributeError("A case check failed"),
+            UsageLimitExceeded("Raised outside the agent run"),
+            UnexpectedModelBehavior("Raised outside the agent run"),
+        ],
+        ids=["config", "provider", "database", "tool", "check", "usage", "model"],
+    )
+    def test_unclassified_errors_propagate_instead_of_becoming_scores(self, error):
+        with (
+            patch("baserow_enterprise.assistant.evals.run.run_case", side_effect=error),
+            pytest.raises(type(error)) as raised,
+        ):
+            run_case_for_experiment(_make_case("db/error"), "groq:test-model", True)
+
+        assert raised.value is error
+
+    def test_full_dataset_task_leaves_error_recording_to_phoenix(self):
+        client = _two_case_client()
+        control = RunControl()
+        error = OperationalError("Database connection lost")
+
+        def phoenix_runs_task(**kwargs):
+            # The SDK must receive the exception, rather than a scored output.
+            return kwargs["task"](_ExampleStub("db/case-1"))
+
+        with (
+            _subset_env(client, run_case_side_effect=error),
+            patch.object(client.experiments, "run_experiment", phoenix_runs_task),
+            pytest.raises(OperationalError) as raised,
+        ):
+            run_experiment_for("kuma-database", "groq:test-model", control=control)
+
+        assert raised.value is error
+        assert control.completed == 0
+        assert client.experiments.log_evaluation_calls == []
+
+    def test_subset_records_an_error_run_without_scores_and_stops(self):
+        client = _two_case_client()
+        control = RunControl()
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        error = AttributeError("A case check failed")
+        calls = []
+
+        def fail_check(case, *args, **kwargs):
+            calls.append(case.id)
+            raise error
+
+        with (
+            _subset_env(client, run_case_side_effect=fail_check),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=provider,
+            ),
+            pytest.raises(AttributeError) as raised,
+        ):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                control=control,
+            )
+
+        assert raised.value is error
+        assert calls == ["db/case-1"]
+        assert control.completed == 0
+        assert client.experiments.log_evaluation_calls == []
+        (logged,) = client.experiments.log_run_calls
+        assert logged["output"] is None
+        assert logged["error"] == repr(error)
+        assert logged["repetition_number"] == 1
+        assert logged["end_time"] >= logged["start_time"]
+        (span,) = exporter.get_finished_spans()
+        assert span.status.status_code == StatusCode.ERROR
+        assert any(event.name == "exception" for event in span.events)
+        assert logged["trace_id"] == format(span.context.trace_id, "032x")
+
+    def test_error_recording_failure_does_not_replace_the_original_error(self):
+        client = _two_case_client()
+        error = AttributeError("A case check failed")
+
+        with (
+            _subset_env(client, run_case_side_effect=error),
+            patch.object(
+                client.experiments, "log_run", side_effect=RuntimeError("Phoenix down")
+            ),
+            pytest.raises(AttributeError) as raised,
+        ):
+            run_experiment_for(
+                "kuma-database", "groq:test-model", case_ids=["db/case-1"]
+            )
+
+        assert raised.value is error
+        assert client.experiments.log_evaluation_calls == []

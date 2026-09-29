@@ -19,6 +19,7 @@ from pydantic_ai._utils import (  # noqa: PLC2701
     run_until_complete,
     using_thread_executor,
 )
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.tool_manager import ToolManager
@@ -289,6 +290,14 @@ class EvalCaseTimeout(Exception):
     """A case outran its budget and its cancelled tools have finished."""
 
 
+class EvalCaseModelError(Exception):
+    """A known model failure from the agent run, rather than setup or checks."""
+
+    def __init__(self, error: UsageLimitExceeded | UnexpectedModelBehavior):
+        self.error = error
+        super().__init__(str(error))
+
+
 class EvalCaseCleanupError(RuntimeError):
     """A tool outlived bounded cleanup; the eval process must be restarted."""
 
@@ -449,6 +458,8 @@ def run_case(
         raise EvalCaseTimeout(
             f"{case.id} exceeded {timeout_s:g}s and was cancelled"
         ) from exc
+    except (UsageLimitExceeded, UnexpectedModelBehavior) as exc:
+        raise EvalCaseModelError(exc) from exc
     duration_s = time.monotonic() - start
 
     tool_error_count, tool_error_hint = count_tool_errors(result)

@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.rows.handler import RowHandler
@@ -70,6 +71,43 @@ def test_form_check_requires_a_form_that_collects_the_order_fields(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "mutation, enabled_fields, expected",
+    [
+        ("rename_customer", ("Price",), False),
+        ("rename_both", (), False),
+        ("rename_both", ("Customer", "Price"), True),
+        ("delete_price", ("Customer", "Price"), False),
+    ],
+)
+def test_form_check_keeps_original_field_requirements(
+    data_fixture, mutation, enabled_fields, expected
+):
+    scenario = _form_for_table_with_formula_field_scenario(data_fixture)
+    table = scenario.refs["table"]
+    fields = {field.name: field for field in table.field_set.all()}
+    form = data_fixture.create_form_view(table=table)
+    for name in enabled_fields:
+        data_fixture.create_form_view_field_option(form, fields[name], enabled=True)
+    if mutation == "delete_price":
+        FieldHandler().delete_field(scenario.user, fields["Price"])
+    else:
+        FieldHandler().update_field(
+            scenario.user, fields["Customer"].specific, name="Client"
+        )
+        if mutation == "rename_both":
+            FieldHandler().update_field(
+                scenario.user, fields["Price"].specific, name="Amount"
+            )
+
+    checks = _check_form_for_table_with_formula_field(None, scenario, _output())
+
+    assert _failed(checks) == (
+        set() if expected else {"form collects Customer and Price"}
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "inspected, failed", [(True, set()), (False, {"page elements inspected"})]
 )
 def test_page_inspection_check_requires_listing_the_elements(
@@ -131,6 +169,10 @@ def test_onboarding_check_requires_the_requested_tables_with_rows(
     [
         ("field", "field", True),
         ("alias_field", "alias_field", True),
+        ("composite_field", "field", True),
+        ("field", "composite_field", True),
+        ("composite_field", "target_date", True),
+        ("field", "start_date", False),
         ("missing", "field", False),
         ("field", "missing", False),
         ("missing", "missing", False),
@@ -161,15 +203,20 @@ def test_onboarding_check_requires_owner_and_deadline_representation(
     ):
         if representation == "missing":
             continue
-        if representation in {"field", "alias_field"}:
+        field_names = {
+            "field": name,
+            "alias_field": alias,
+            "composite_field": f"Project {name}",
+            "target_date": "Target Date",
+            "start_date": "Start Date",
+        }
+        if representation in field_names:
             factory = (
                 data_fixture.create_text_field
                 if name == "Owner"
                 else data_fixture.create_date_field
             )
-            factory(
-                table=tracker, name=alias if representation == "alias_field" else name
-            )
+            factory(table=tracker, name=field_names[representation])
             continue
         table = data_fixture.create_database_table(
             database=database,
@@ -229,6 +276,42 @@ def test_iso_week_check_compares_the_saved_week_numbers(data_fixture, formula, f
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("broken_first", [False, True])
+@pytest.mark.parametrize("kind", ["week", "signed"])
+def test_formula_checks_reject_broken_leftovers_in_either_order(
+    data_fixture, kind, broken_first
+):
+    if kind == "week":
+        scenario = _iso_week_number_formula_scenario(data_fixture)
+        good_name, broken_name = "ISO Week", "Week"
+        formula = "datetime_format(field('Shipped On'), 'IW')"
+        check = _check_iso_week_number_formula
+    else:
+        scenario = _signed_amount_formula_scenario(data_fixture)
+        good_name, broken_name = "Signed Amount", "Old Signed Amount"
+        formula = (
+            "if(totext(field('Transaction Type')) = 'Credit', field('Amount'), "
+            "field('Amount') * -1)"
+        )
+        check = _check_signed_amount_formula
+    for broken in (broken_first, not broken_first):
+        field = FieldHandler().create_field(
+            scenario.user,
+            scenario.refs["table"],
+            "formula",
+            name=broken_name if broken else good_name,
+            formula="1" if broken else formula,
+        )
+        if broken:
+            FormulaField.objects.filter(id=field.id).update(error="unsupported")
+
+    checks = check(None, scenario, _output())
+
+    # The selected formula's saved numeric values are correct in both orders.
+    assert _failed(checks) == {"formula is valid"}
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "broken, failed", [(False, set()), (True, {"no broken formula left behind"})]
 )
@@ -262,6 +345,8 @@ def test_impossible_formula_check_rejects_a_broken_formula(
         ("blank_start_date", {"every row has valid typed values"}),
         ("blank_notes", {"every row has valid typed values"}),
         ("blank_score", {"every row has valid typed values"}),
+        ("deleted_notes", {"every row has valid typed values"}),
+        ("removed_notes", {"every row has valid typed values"}),
     ],
 )
 def test_employee_rows_check_requires_valid_typed_values(data_fixture, defect, failed):
@@ -282,7 +367,7 @@ def test_employee_rows_check_requires_valid_typed_values(data_fixture, defect, f
     ]
     if defect == "fewer_rows":
         rows = rows[:29]
-    elif defect is not None:
+    elif defect is not None and defect not in {"deleted_notes", "removed_notes"}:
         omitted_field = {
             "blank_full_name": "Full Name",
             "blank_team": "Team",
@@ -294,6 +379,21 @@ def test_employee_rows_check_requires_valid_typed_values(data_fixture, defect, f
         }[defect]
         rows[3].pop(fields[omitted_field].db_column)
     RowHandler().force_create_rows(scenario.user, scenario.refs["table"], rows)
+    if defect in {"deleted_notes", "removed_notes"}:
+        # Keep the scenario's original field identity even after permanent removal.
+        notes = FieldHandler().get_field(fields["Notes"].id)
+        FieldHandler().delete_field(
+            scenario.user,
+            notes,
+            delete_strategy=(
+                DeleteFieldStrategyEnum.TRASH
+                if defect == "deleted_notes"
+                else DeleteFieldStrategyEnum.PERMANENTLY_DELETE
+            ),
+        )
+        if defect == "deleted_notes":
+            row = scenario.refs["table"].get_model().objects.first()
+            assert getattr(row, fields["Notes"].db_column) == "Sample employee"
 
     checks = _check_fake_rows_into_typed_fields(None, scenario, _output())
 

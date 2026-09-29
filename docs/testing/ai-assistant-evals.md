@@ -71,8 +71,11 @@ Each case also has an intentional request budget (`max_iters`). Exhausting it
 is recorded as a failed case rather than aborting the dataset, so a genuine
 agent loop stays visible while the remaining cases still run. Transient
 provider rate limits are retried at the individual request boundary, honoring
-`Retry-After` when the provider supplies it; completed tool work is never
-replayed as a whole-case retry.
+`Retry-After` when the provider supplies it.
+
+Unexpected setup, provider, tool-code, or check errors are recorded as ungraded
+Phoenix errors and keep the experiment incomplete. Phoenix may retry these
+errors during a full-dataset run. A subset run records the error and stops.
 
 **Stop** is cooperative and lands at the next case boundary, because the
 worker sits inside a blocking LLM call that Python cannot interrupt. Queued
@@ -106,6 +109,11 @@ the importer uses the current Phoenix dataset version, which cannot establish
 that the historical cases and checks match.
 To enable automatic deltas, run a fresh experiment named `baseline` with the same
 cases and checks as the candidate.
+
+Snapshots are imported as `baseline (imported)`, keeping live `baseline` runs
+separate. Startup replaces only imports, after the replacement's runs and scores
+are saved. Removed snapshot cases are skipped without repeating the import on
+every restart; interrupted imports are retried.
 
 Overall weights scores by each experiment's recorded case count (expected runs
 divided by repetitions), not today's registry. It includes only comparable

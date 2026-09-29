@@ -35,6 +35,7 @@ from baserow_enterprise.assistant.evals.gitinfo import (
 )
 from baserow_enterprise.assistant.evals.harness import (
     EvalCaseCleanupError,
+    EvalCaseModelError,
     EvalCaseTimeout,
     ensure_worker_safe,
     override_assistant_prompts,
@@ -75,7 +76,8 @@ UI_CASE_PREFIX = "ui:"
 # Version 3 excludes required mode redirects from the tool-error budget.
 # Version 4 checks saved Builder behavior and records request-budget failures.
 # Version 5 also records model/tool and other execution errors as failed cases.
-HARNESS_VERSION = 5
+# Version 6 leaves infrastructure, harness and check errors ungraded.
+HARNESS_VERSION = 6
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
 
@@ -335,14 +337,12 @@ def run_case_for_experiment(
     try:
         with override_assistant_prompts(prompt_texts or {}):
             output, checks = run_case(case, model)
-    except EvalCaseCleanupError:
-        # The process must restart; scoring this as one failed case would continue.
-        raise
-    except Exception as exc:
-        # Preserve the original failed attempt and trace, then continue the
-        # suite. There is no final result from which to infer tool counts.
-        logger.warning("FAILED EXECUTION {}: {}", case.id, exc)
-        return _failed_execution_result(case, exc, time.monotonic() - started)
+    except (EvalCaseTimeout, EvalCaseModelError) as exc:
+        # Only outcomes classified inside the agent run are model failures.
+        # Setup, infrastructure and check errors must reach Phoenix ungraded.
+        error = exc.error if isinstance(exc, EvalCaseModelError) else exc
+        logger.warning("FAILED EXECUTION {}: {}", case.id, error)
+        return _failed_execution_result(case, error, time.monotonic() - started)
     check_dicts = [asdict(c) for c in checks]
     partial = {"checks": check_dicts}
     score = _score_and_explanation(check_dicts)[0]
@@ -675,7 +675,35 @@ def _log_case_run(
                 SpanAttributes.INPUT_MIME_TYPE: "text/plain",
             },
         ) as span:
-            result = run_case_for_experiment(case, model, kb_available, prompt_texts)
+            try:
+                result = run_case_for_experiment(
+                    case, model, kb_available, prompt_texts
+                )
+            except EvalCaseCleanupError:
+                # Preserve the poisoned worker's immediate abort behavior.
+                raise
+            except Exception as exc:
+                # Unlike the full-dataset path, this loop owns Phoenix run
+                # logging. Record an ungraded error before aborting the subset.
+                span_context = span.get_span_context()
+                try:
+                    client.experiments.log_run(
+                        experiment_id=experiment["id"],
+                        dataset_example_id=example.get("node_id") or example["id"],
+                        output=None,
+                        error=repr(exc),
+                        start_time=start,
+                        end_time=datetime.now(timezone.utc),
+                        repetition_number=repetition,
+                        trace_id=(
+                            format(span_context.trace_id, "032x")
+                            if span_context and span_context.trace_id
+                            else None
+                        ),
+                    )
+                except Exception:
+                    logger.exception("Could not record failed eval case {}", case.id)
+                raise
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
             span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
             span.set_status(

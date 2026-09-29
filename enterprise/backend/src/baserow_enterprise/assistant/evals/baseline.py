@@ -1,7 +1,6 @@
 """Committed baseline snapshot: capture experiment results from Phoenix and
-import them into any (fresh) instance as a ``baseline`` experiment per
-dataset, so every later run has a stable comparison column without re-running
-the suite.
+import them into any (fresh) instance as a ``baseline (imported)`` experiment
+per dataset for historical inspection without re-running the suite.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from loguru import logger
 from baserow_enterprise.assistant.evals.registry import cases_by_dataset
 
 BASELINE_PATH = Path(__file__).with_name("baseline.json")
-BASELINE_EXPERIMENT_NAME = "baseline"
+BASELINE_EXPERIMENT_NAME = "baseline (imported)"
 
 _ANNOTATIONS_QUERY = """
 query ($runId: ID!) {
@@ -112,6 +111,44 @@ def _experiment_totals(experiment_id: str) -> dict[str, Any]:
 
 def _delete_experiments(experiment_ids: list[str]) -> None:
     _graphql(_DELETE_EXPERIMENTS_MUTATION, {"ids": experiment_ids})
+
+
+def _mark_import_complete(experiment_id: str, metadata: dict[str, Any]) -> None:
+    """Mark an import complete only after its runs and annotations were saved."""
+
+    response = httpx.patch(
+        f"{_api_base()}/v1/experiments/{experiment_id}",
+        json={"metadata": {**metadata, "baseline_import_complete": True}},
+        headers=_headers(),
+        timeout=30,
+    )
+    response.raise_for_status()
+
+
+def _delete_stale_imports(
+    experiments: list[dict[str, Any]], dataset_name: str, keep_id: str
+) -> None:
+    """Remove replaced imports, preserving live experiments regardless of name."""
+
+    stale_ids = [
+        experiment["id"]
+        for experiment in experiments
+        if experiment["id"] != keep_id
+        and (experiment.get("metadata") or {}).get("baseline_snapshot_hash")
+    ]
+    if not stale_ids:
+        return
+    try:
+        _delete_experiments(stale_ids)
+        logger.info(
+            "Superseded {} imported baseline experiment(s) for '{}'",
+            len(stale_ids),
+            dataset_name,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Could not delete stale baseline imports for '{}': {}", dataset_name, exc
+        )
 
 
 def _snapshot_hash(snapshot: dict[str, Any]) -> str:
@@ -211,11 +248,11 @@ def _dump_snapshot(snapshot: dict[str, Any]) -> str:
 
 
 def import_baseline(client: Any) -> dict[str, str]:
-    """Create a ``baseline`` experiment per dataset from ``baseline.json``.
+    """Create historical experiments from ``baseline.json``, separate from live runs.
 
-    Idempotent: a dataset already holding an experiment stamped with this
-    snapshot's content hash is left alone. Cases that no longer exist in the
-    live dataset are skipped with a count.
+    Completed imports for the same snapshot and dataset version are retained.
+    Removed cases are skipped. Interrupted and legacy imports are replaced only
+    after the new import has saved every applicable run and annotation.
     """
 
     if not BASELINE_PATH.exists():
@@ -231,64 +268,61 @@ def import_baseline(client: Any) -> dict[str, str]:
             results[dataset_name] = "dataset not found in Phoenix"
             continue
 
-        # Complete-only idempotency: a hash-stamped experiment that crashed
-        # mid-import (fewer runs than the snapshot) is superseded, not kept.
-        experiments = _get(f"/v1/datasets/{dataset.id}/experiments")
-        if any(
-            (e.get("metadata") or {}).get("baseline_snapshot_hash") == content_hash
-            and (e.get("successful_run_count") or 0) >= len(data["runs"])
-            for e in experiments
-        ):
-            results[dataset_name] = "already imported"
-            continue
-
-        stale_ids = [
-            e["id"] for e in experiments if e.get("name") == BASELINE_EXPERIMENT_NAME
-        ]
-        if stale_ids:
-            try:
-                _delete_experiments(stale_ids)
-                logger.info(
-                    "Superseded {} stale baseline experiment(s) for '{}'",
-                    len(stale_ids),
-                    dataset_name,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Could not delete stale baseline for '{}': {}", dataset_name, exc
-                )
-
         node_by_case_id = {
             example["metadata"]["case_id"]: example.get("node_id") or example["id"]
             for example in dataset.examples
             if example.get("metadata", {}).get("case_id")
         }
+        applicable_runs = [
+            run for run in data["runs"] if run["case_id"] in node_by_case_id
+        ]
+        skipped = len(data["runs"]) - len(applicable_runs)
+        if not applicable_runs:
+            results[dataset_name] = "no snapshot cases in the current dataset"
+            continue
 
+        experiments = _get(f"/v1/datasets/{dataset.id}/experiments")
+        completed_import = next(
+            (
+                experiment
+                for experiment in experiments
+                if experiment.get("name") == BASELINE_EXPERIMENT_NAME
+                and experiment.get("dataset_version_id") == dataset.version_id
+                and (experiment.get("metadata") or {}).get("baseline_snapshot_hash")
+                == content_hash
+                and (experiment.get("metadata") or {}).get("baseline_import_complete")
+                is True
+                and (experiment.get("successful_run_count") or 0)
+                >= len(applicable_runs)
+            ),
+            None,
+        )
+        if completed_import is not None:
+            # A previous import may have finished before its cleanup was interrupted.
+            _delete_stale_imports(experiments, dataset_name, completed_import["id"])
+            results[dataset_name] = "already imported"
+            continue
+
+        import_metadata = {
+            **data.get("metadata", {}),
+            "baseline": True,
+            "baseline_snapshot_hash": content_hash,
+            "baseline_import_complete": False,
+            "baseline_totals": data.get("totals") or {},
+            "captured_at": snapshot.get("captured_at"),
+        }
         experiment = client.experiments.create(
             dataset_id=dataset.id,
             dataset_version_id=dataset.version_id,
             experiment_name=BASELINE_EXPERIMENT_NAME,
-            experiment_metadata={
-                **data.get("metadata", {}),
-                "baseline": True,
-                "baseline_snapshot_hash": content_hash,
-                "baseline_totals": data.get("totals") or {},
-                "captured_at": snapshot.get("captured_at"),
-            },
-            repetitions=max(
-                (run["repetition_number"] for run in data["runs"]), default=1
-            ),
+            experiment_metadata=import_metadata,
+            repetitions=max(run["repetition_number"] for run in applicable_runs),
         )
 
-        imported = skipped = 0
-        for run in data["runs"]:
-            node_id = node_by_case_id.get(run["case_id"])
-            if node_id is None:
-                skipped += 1
-                continue
+        for run in applicable_runs:
             logged = client.experiments.log_run(
                 experiment_id=experiment["id"],
-                dataset_example_id=node_id,
+                dataset_example_id=node_by_case_id[run["case_id"]],
                 output=run["output"],
                 start_time=datetime.fromisoformat(run["start_time"]),
                 end_time=datetime.fromisoformat(run["end_time"]),
@@ -304,9 +338,10 @@ def import_baseline(client: Any) -> dict[str, str]:
                     label=annotation.get("label"),
                     explanation=annotation.get("explanation"),
                 )
-            imported += 1
+        _mark_import_complete(experiment["id"], import_metadata)
+        _delete_stale_imports(experiments, dataset_name, experiment["id"])
 
-        results[dataset_name] = f"imported {imported} runs" + (
+        results[dataset_name] = f"imported {len(applicable_runs)} runs" + (
             f" ({skipped} removed cases skipped)" if skipped else ""
         )
         logger.info("Baseline import for '{}': {}", dataset_name, results[dataset_name])

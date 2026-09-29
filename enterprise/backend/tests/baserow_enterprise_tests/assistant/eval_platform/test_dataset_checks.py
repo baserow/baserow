@@ -8,10 +8,14 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.assistant.evals.datasets.automation import (
+    _check_creates_email_notification_workflow,
+    _check_creates_router_workflow,
     _check_creates_row_with_field_values,
     _check_creates_update_row_workflow,
     _check_creates_weekly_slack_reminder,
     _check_creates_workflow,
+    _creates_email_notification_workflow_scenario,
+    _creates_router_workflow_scenario,
     _creates_row_with_field_values_scenario,
     _creates_update_row_workflow_scenario,
     _creates_weekly_slack_reminder_scenario,
@@ -236,6 +240,7 @@ def test_automation_row_check_uses_saved_configuration(data_fixture, defect, nod
 @pytest.mark.parametrize(
     "node_type", ["update_row", "local_baserow_update_row", "unsupported"]
 )
+@pytest.mark.parametrize("empty_row_id", [False, True])
 @pytest.mark.parametrize(
     "factory, check, trigger_type, status",
     [
@@ -254,7 +259,7 @@ def test_automation_row_check_uses_saved_configuration(data_fixture, defect, nod
     ],
 )
 def test_update_workflow_checks_accept_production_aliases(
-    data_fixture, node_type, factory, check, trigger_type, status
+    data_fixture, node_type, empty_row_id, factory, check, trigger_type, status
 ):
     scenario = factory(data_fixture)
     table = scenario.refs["table"]
@@ -264,7 +269,7 @@ def test_update_workflow_checks_accept_production_aliases(
         trigger_service_kwargs={"table": table},
     )
     trigger = workflow.get_trigger()
-    row_id = f"get('previous_node.{trigger.id}[0].id')"
+    row_id = "" if empty_row_id else f"get('previous_node.{trigger.id}[0].id')"
     node = data_fixture.create_automation_node(
         workflow=workflow,
         type="update_row",
@@ -291,6 +296,7 @@ def test_update_workflow_checks_accept_production_aliases(
                 "args": {
                     "workflows": [
                         {
+                            "name": workflow.name,
                             "trigger": {
                                 "type": "local_baserow_" + trigger_type,
                                 "rows_triggers_settings": {"table_id": table.id},
@@ -310,10 +316,97 @@ def test_update_workflow_checks_accept_production_aliases(
         ],
     )
     checks = check(None, scenario, output)
-    assert all(result.passed for result in checks) == (node_type != "unsupported"), (
-        checks
+    expected = node_type != "unsupported" and not (
+        empty_row_id and trigger_type == "rows_updated"
     )
+    assert all(result.passed for result in checks) == expected, checks
     assert output.messages[0]["args"]["workflows"][0]["nodes"][0]["type"] == node_type
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("requested", ["first", "second", "missing"])
+@pytest.mark.parametrize(
+    "factory, check, action_type, db_check",
+    [
+        (
+            _creates_workflow_scenario,
+            _check_creates_workflow,
+            "update_row",
+            "update_row action in DB",
+        ),
+        (
+            _creates_update_row_workflow_scenario,
+            _check_creates_update_row_workflow,
+            "update_row",
+            "update_row action in DB",
+        ),
+        (
+            _creates_router_workflow_scenario,
+            _check_creates_router_workflow,
+            "router",
+            "router node in DB",
+        ),
+        (
+            _creates_email_notification_workflow_scenario,
+            _check_creates_email_notification_workflow,
+            "smtp_email",
+            "smtp_email action in DB",
+        ),
+    ],
+)
+def test_automation_args_and_saved_nodes_use_the_same_workflow(
+    data_fixture, requested, factory, check, action_type, db_check
+):
+    scenario = factory(data_fixture)
+    for name in ("first", "second"):
+        workflow = data_fixture.create_automation_workflow(
+            automation=scenario.refs["automation"],
+            name=name,
+        )
+        if name == "second":
+            data_fixture.create_automation_node(workflow=workflow, type=action_type)
+    output = _output(
+        tool_calls=["create_workflows", "create_workflows"],
+        messages=[
+            {
+                "role": "assistant",
+                "tool_name": "create_workflows",
+                "args": {"workflows": [{"name": name, "trigger": None, "nodes": []}]},
+            }
+            for name in ("second" if requested == "first" else "first", requested)
+        ],
+    )
+    checks = {result.name: result.passed for result in check(None, scenario, output)}
+    assert checks[db_check] == (requested == "second")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "factory, check",
+    [
+        (_creates_workflow_scenario, _check_creates_workflow),
+        (_creates_update_row_workflow_scenario, _check_creates_update_row_workflow),
+        (_creates_row_with_field_values_scenario, _check_creates_row_with_field_values),
+        (_creates_weekly_slack_reminder_scenario, _check_creates_weekly_slack_reminder),
+    ],
+)
+def test_automation_missing_trigger_returns_failed_checks(data_fixture, factory, check):
+    scenario = factory(data_fixture)
+    workflow = data_fixture.create_automation_workflow(
+        automation=scenario.refs["automation"], create_trigger=False
+    )
+    output = _output(
+        tool_calls=["create_workflows"],
+        messages=[
+            {
+                "role": "assistant",
+                "tool_name": "create_workflows",
+                "args": {"workflows": [{"name": workflow.name, "trigger": None}]},
+            }
+        ],
+    )
+    checks = check(None, scenario, output)
+    assert any(not result.passed for result in checks)
 
 
 @pytest.mark.parametrize("space", [" ", "\u202f", "\u00a0", "\n", "\t"])

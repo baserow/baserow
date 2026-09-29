@@ -10,7 +10,7 @@ The baseline is a committed snapshot of a full-suite run (default model,
 current branch) at
 `enterprise/backend/src/baserow_enterprise/assistant/evals/baseline.json`.
 The eval runner imports it automatically on startup, so every Phoenix
-instance — a fresh dev stack or the team one — has a `baseline` experiment
+instance — a fresh dev stack or the team one — has a `baseline (imported)` experiment
 on each dataset without re-running anything. Manually: `just b eval-baseline
 import`.
 
@@ -27,8 +27,9 @@ Commit the regenerated `baseline.json` with the change that earned it.
 
 ## Comparing a run to the baseline
 
-Open the dataset in Phoenix → select the `baseline` experiment and yours →
-**Compare**. The three scores:
+Open the dataset in Phoenix → select your live `baseline` experiment and yours →
+**Compare**. Select `baseline (imported)` for historical inspection, checking its
+case and scoring compatibility before drawing conclusions. The three scores:
 
 - `checklist` — fraction of the case's checks that passed (the explanation
   lists exactly which failed, with hints).

@@ -97,7 +97,6 @@ PROMPT_SIGNED_AMOUNT_FORMULA = (
 )
 
 
-ORDER_FORM_FIELDS = ("Customer", "Price")
 REQUESTED_TRACKER_TABLES = ("Projects", "Milestones")
 SHIPMENT_ISO_WEEKS = {"2026-01-01": 1, "2026-06-15": 25, "2027-01-01": 53}
 REQUESTED_EMPLOYEE_COUNT = 30
@@ -165,7 +164,7 @@ def _form_for_table_with_formula_field_scenario(fx: Fixtures) -> EvalScenario:
     workspace = fx.create_workspace(user=user)
     database = fx.create_database_application(workspace=workspace, name="Orders DB")
     table = fx.create_database_table(database=database, name="Orders")
-    fx.create_text_field(table=table, name="Customer", primary=True)
+    customer = fx.create_text_field(table=table, name="Customer", primary=True)
     price = fx.create_number_field(table=table, name="Price")
     fx.create_formula_field(
         table=table, name="Price incl. VAT", formula=f"field('{price.name}') * 1.21"
@@ -174,7 +173,7 @@ def _form_for_table_with_formula_field_scenario(fx: Fixtures) -> EvalScenario:
         user=user,
         workspace=workspace,
         ui_context=build_database_ui_context(user, workspace, database, table),
-        refs={"table": table},
+        refs={"table": table, "order_field_ids": {customer.id, price.id}},
     )
 
 
@@ -186,8 +185,9 @@ def _check_form_for_table_with_formula_field(
     table = scenario.refs["table"]
     views = View.objects.filter(table=table)
     form_views = list(FormView.objects.filter(table=table))
-    order_field_ids = set(
-        table.field_set.filter(name__in=ORDER_FORM_FIELDS).values_list("id", flat=True)
+    order_field_ids = scenario.refs["order_field_ids"]
+    active_field_ids = set(
+        table.field_set.filter(id__in=order_field_ids).values_list("id", flat=True)
     )
     enabled_by_form = {
         form.id: set(
@@ -205,7 +205,8 @@ def _check_form_for_table_with_formula_field(
         ),
         CheckResult(
             "form collects Customer and Price",
-            any(order_field_ids <= enabled for enabled in enabled_by_form.values()),
+            order_field_ids <= active_field_ids
+            and any(order_field_ids <= enabled for enabled in enabled_by_form.values()),
             hint=f"enabled field ids per form: {enabled_by_form}",
         ),
     ]
@@ -345,6 +346,24 @@ def _check_project_tracker_onboarding(
         if table.id in related_ids
         for name in [table.name, *(field.name for field in table.field_set.all())]
     }
+    # Match whole words in composite labels, and only explicit deadline phrases:
+    # a generic date field (for example Start Date) is not a deadline.
+    name_words = [
+        tuple(
+            word.removesuffix("s")
+            for word in name.replace("_", " ").replace("-", " ").split()
+        )
+        for name in schema_names
+    ]
+    has_owner = any({"owner", "assignee"}.intersection(words) for words in name_words)
+    has_deadline = any(
+        "deadline" in words
+        or any(
+            pair in {("due", "date"), ("target", "date")}
+            for pair in zip(words, words[1:])
+        )
+        for words in name_words
+    )
     return [
         CheckResult(
             "Projects and Milestones tables created",
@@ -358,8 +377,7 @@ def _check_project_tracker_onboarding(
         ),
         CheckResult(
             "tracker represents owners and deadlines",
-            bool(schema_names & {"owner", "assignee"})
-            and bool(schema_names & {"deadline", "due date"}),
+            has_owner and has_deadline,
             hint=f"tracker schema names: {sorted(schema_names)}",
         ),
         CheckResult(
@@ -423,6 +441,8 @@ def _check_iso_week_number_formula(
     table = scenario.refs["table"]
     all_formula_fields = list(FormulaField.objects.filter(table=table))
     week_fields = [f for f in all_formula_fields if "week" in f.name.lower()]
+    # Recovery must not leave a broken candidate beside a working formula.
+    week_errors = {field.name: field.error for field in week_fields if field.error}
     week_field = _preferred_formula_field(table, "week")
     expected = {
         f"Shipment {day}": Decimal(week) for day, week in SHIPMENT_ISO_WEEKS.items()
@@ -436,8 +456,8 @@ def _check_iso_week_number_formula(
         ),
         CheckResult(
             "formula is valid",
-            bool(week_fields) and not week_fields[0].error,
-            hint=f"error: {week_fields[0].error if week_fields else 'no field'}",
+            bool(week_fields) and not week_errors,
+            hint=f"formula errors: {week_errors}" if week_fields else "no field",
         ),
         CheckResult(
             "week numbers match ISO 8601",
@@ -562,14 +582,22 @@ def _check_fake_rows_into_typed_fields(
 ) -> list[CheckResult]:
     """Regression: 'value must be a decimal number' / date format errors ended the turn."""
 
-    columns = [
-        scenario.refs["fields"][name].db_column for name in REQUIRED_EMPLOYEE_FIELDS
+    table = scenario.refs["table"]
+    required_fields = {
+        name: scenario.refs["fields"][name] for name in REQUIRED_EMPLOYEE_FIELDS
+    }
+    active_field_ids = set(table.field_set.values_list("id", flat=True))
+    missing_fields = [
+        name
+        for name, field in required_fields.items()
+        if field.id not in active_field_ids
     ]
-    rows = list(scenario.refs["table"].get_model().objects.all())
+    columns = [field.db_column for field in required_fields.values()]
+    rows = list(table.get_model().objects.all())
     incomplete_row_ids = [
         row.id
         for row in rows
-        if any(getattr(row, column) in (None, "") for column in columns)
+        if any(getattr(row, column, None) in (None, "") for column in columns)
     ]
     return [
         CheckResult(
@@ -579,8 +607,9 @@ def _check_fake_rows_into_typed_fields(
         ),
         CheckResult(
             "every row has valid typed values",
-            bool(rows) and not incomplete_row_ids,
+            bool(rows) and not missing_fields and not incomplete_row_ids,
             hint=(
+                f"missing fields: {missing_fields}; "
                 f"rows missing one of {REQUIRED_EMPLOYEE_FIELDS}: "
                 f"{incomplete_row_ids[:10]}"
             ),
@@ -652,6 +681,9 @@ def _check_signed_amount_formula(
     table = scenario.refs["table"]
     # The crash class is what this replay verifies; the exact field name is not.
     formula_fields = list(FormulaField.objects.filter(table=table))
+    formula_errors = {
+        field.name: field.error for field in formula_fields if field.error
+    }
     signed_field = _preferred_formula_field(table, "signed")
     expected = {
         ref: Decimal(value if kind == "Credit" else -value)
@@ -666,8 +698,8 @@ def _check_signed_amount_formula(
         ),
         CheckResult(
             "formula is valid",
-            bool(formula_fields) and not formula_fields[0].error,
-            hint=f"error: {formula_fields[0].error if formula_fields else 'no field'}",
+            bool(formula_fields) and not formula_errors,
+            hint=f"formula errors: {formula_errors}" if formula_fields else "no field",
         ),
         CheckResult(
             "signed amounts match the transaction type",

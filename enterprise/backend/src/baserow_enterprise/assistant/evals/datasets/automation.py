@@ -111,6 +111,8 @@ def _get_create_workflows_args(output: EvalRunOutput) -> list[dict]:
     for args in calls:
         for workflow in args.get("workflows", []):
             for node in [workflow.get("trigger", {}), *workflow.get("nodes", [])]:
+                if node is None:
+                    continue
                 node_type = node.get("type")
                 node["type"] = CANONICAL_TO_SHORT_TYPE.get(node_type, node_type)
     return calls
@@ -118,15 +120,23 @@ def _get_create_workflows_args(output: EvalRunOutput) -> list[dict]:
 
 def _get_workflow_nodes(
     automation: Automation,
+    *,
+    workflow_name: str | None = None,
 ) -> tuple[AutomationWorkflow | None, AutomationNode | None, list[AutomationNode]]:
-    """Return (workflow, trigger, action_nodes) for the first workflow, or Nones."""
+    """Read one saved workflow, optionally matched to a create_workflows request."""
 
-    workflow = AutomationWorkflow.objects.filter(automation=automation).first()
+    workflows = AutomationWorkflow.objects.filter(automation=automation)
+    if workflow_name is not None:
+        # The creation tool also identifies existing workflows by their exact name.
+        workflows = workflows.filter(name=workflow_name)
+    workflow = workflows.first()
     if workflow is None:
         return None, None, []
     trigger = workflow.get_trigger()
     action_nodes = list(
-        workflow.automation_workflow_nodes.exclude(id=trigger.id).order_by("id")
+        workflow.automation_workflow_nodes.exclude(
+            id=trigger.id if trigger else None
+        ).order_by("id")
     )
     return workflow, trigger, action_nodes
 
@@ -203,12 +213,10 @@ def _check_creates_workflow(
     automation = scenario.refs["automation"]
     table = scenario.refs["table"]
 
-    workflows = AutomationWorkflow.objects.filter(automation=automation)
-
     call_args_list = _get_create_workflows_args(output)
     args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger", {})
+    trigger_args = wf_args.get("trigger") or {}
     nodes_args = wf_args.get("nodes", [])
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
     update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
@@ -217,18 +225,16 @@ def _check_creates_workflow(
         "processing" in str(v.get("value", "")).lower() for v in ur_values
     )
 
-    db_ok = workflows.exists()
-    if db_ok:
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_trigger_type = trigger_node.service.get_type().type
-        db_update_actions = [
-            n
-            for n in action_nodes
-            if n.service.get_type().type == "local_baserow_upsert_row"
-        ]
-    else:
-        db_trigger_type = None
-        db_update_actions = []
+    workflow, trigger_node, action_nodes = _get_workflow_nodes(
+        automation, workflow_name=wf_args.get("name") or ""
+    )
+    db_ok = workflow is not None
+    db_trigger_type = trigger_node.service.get_type().type if trigger_node else None
+    db_update_actions = [
+        n
+        for n in action_nodes
+        if n.service.get_type().type == "local_baserow_upsert_row"
+    ]
 
     return [
         CheckResult(
@@ -416,22 +422,17 @@ def _check_creates_router_workflow(
         router_nodes_args[0].get("edges", []) if router_nodes_args else []
     )
 
-    db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
-    if db_ok:
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_router_actions = [
-            n for n in action_nodes if n.service.get_type().type == "router"
-        ]
-        db_edges_count = (
-            db_router_actions[0].service.specific.edges.count()
-            if db_router_actions
-            else 0
-        )
-    else:
-        db_router_actions = []
-        db_edges_count = 0
+    _, _, action_nodes = _get_workflow_nodes(
+        automation, workflow_name=wf_args.get("name") or ""
+    )
+    db_router_actions = [
+        n for n in action_nodes if n.service.get_type().type == "router"
+    ]
+    db_edges_count = (
+        db_router_actions[0].service.specific.edges.count() if db_router_actions else 0
+    )
 
-    trigger_args = wf_args.get("trigger", {})
+    trigger_args = wf_args.get("trigger") or {}
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
     slack_nodes_in_nodes = [
         n for n in nodes_args if _node_type(n) == "slack_write_message"
@@ -646,23 +647,20 @@ def _check_creates_update_row_workflow(
     call_args_list = _get_create_workflows_args(output)
     args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger", {})
+    trigger_args = wf_args.get("trigger") or {}
     nodes_args = wf_args.get("nodes", [])
     update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
     ur = update_nodes_args[0] if update_nodes_args else {}
 
-    db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
-    if db_ok:
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_trigger_type = trigger_node.service.get_type().type
-        db_update_actions = [
-            n
-            for n in action_nodes
-            if n.service.get_type().type == "local_baserow_upsert_row"
-        ]
-    else:
-        db_trigger_type = None
-        db_update_actions = []
+    _, trigger_node, action_nodes = _get_workflow_nodes(
+        automation, workflow_name=wf_args.get("name") or ""
+    )
+    db_trigger_type = trigger_node.service.get_type().type if trigger_node else None
+    db_update_actions = [
+        n
+        for n in action_nodes
+        if n.service.get_type().type == "local_baserow_upsert_row"
+    ]
 
     ur_values = ur.get("values", [])
     ur_has_reviewed = any(
@@ -695,7 +693,7 @@ def _check_creates_update_row_workflow(
         CheckResult("update_row has >=1 field value", len(ur_values) >= 1),
         CheckResult(
             "update_row names a row in DB",
-            any(bool(n.service.specific.row_id) for n in db_update_actions),
+            any(bool(n.service.specific.row_id["formula"]) for n in db_update_actions),
             hint=f"db row_ids: {[n.service.specific.row_id for n in db_update_actions]}",
         ),
         CheckResult(
@@ -763,7 +761,7 @@ def _check_creates_email_notification_workflow(
     call_args_list = _get_create_workflows_args(output)
     args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger", {})
+    trigger_args = wf_args.get("trigger") or {}
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
     nodes_args = wf_args.get("nodes", [])
     email_nodes_args = [n for n in nodes_args if _node_type(n) == "smtp_email"]
@@ -772,14 +770,13 @@ def _check_creates_email_notification_workflow(
     email_subject = email_node.get("subject", "")
     email_body = email_node.get("body", "")
 
-    db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
-    if db_ok:
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_email_actions = [
-            n for n in action_nodes if n.service.get_type().type == "smtp_email"
-        ]
-    else:
-        db_email_actions = []
+    workflow, _, action_nodes = _get_workflow_nodes(
+        automation, workflow_name=wf_args.get("name") or ""
+    )
+    db_ok = workflow is not None
+    db_email_actions = [
+        n for n in action_nodes if n.service.get_type().type == "smtp_email"
+    ]
 
     return [
         CheckResult("called create_workflows", len(call_args_list) >= 1),

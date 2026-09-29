@@ -4,10 +4,18 @@ import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from django.db import OperationalError
+
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.exceptions import (
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+    UsageLimitExceeded,
+    UserError,
+)
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -32,6 +40,7 @@ from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
     EvalCaseCleanupError,
+    EvalCaseModelError,
     EvalCaseTimeout,
     count_tool_errors,
     executed_tool_calls,
@@ -1090,3 +1099,81 @@ def test_an_empty_timeout_env_var_falls_back_to_the_default(monkeypatch, value):
     monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", value)
 
     assert get_case_timeout_s() == 120
+
+
+@pytest.mark.django_db
+class TestModelFailureBoundary:
+    @pytest.fixture
+    def case(self, data_fixture, monkeypatch):
+        user = data_fixture.create_user()
+        workspace = data_fixture.create_workspace(user=user)
+        registry.register_scenario("error-boundary")(
+            lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
+        )
+        monkeypatch.setattr(harness, "main_agent", Agent())
+        return EvalCase(
+            id="harness/error-boundary",
+            dataset="harness-test",
+            prompt="Say hello",
+            scenario="error-boundary",
+            checks=MagicMock(return_value=[]),
+        )
+
+    @pytest.mark.parametrize(
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+    )
+    def test_only_known_agent_failures_are_classified(
+        self, case, monkeypatch, error_type
+    ):
+        error = error_type("The model exhausted its budget")
+        monkeypatch.setattr(
+            harness, "run_agent_with_model", AsyncMock(side_effect=error)
+        )
+
+        with pytest.raises(EvalCaseModelError) as raised:
+            run_case(case, TestModel(call_tools=[]))
+
+        assert raised.value.error is error
+        assert raised.value.__cause__ is error
+        case.checks.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "phase, error",
+        [
+            ("setup", UsageLimitExceeded("Setup failed")),
+            ("setup", UnexpectedModelBehavior("Setup failed")),
+            ("setup", UserError("Missing API key")),
+            ("agent", UserError("Invalid model configuration")),
+            ("agent", ModelHTTPError(401, "test-model")),
+            ("agent", ModelHTTPError(404, "unknown-model")),
+            ("agent", OperationalError("Database connection lost")),
+            ("agent", RuntimeError("Unexpected tool failure")),
+            ("checks", UsageLimitExceeded("A check failed")),
+            ("checks", UnexpectedModelBehavior("A check failed")),
+            ("checks", TimeoutError("A check timed out")),
+            ("checks", AttributeError("A check failed")),
+            ("output", AttributeError("Output formatting failed")),
+        ],
+    )
+    def test_other_failures_escape_without_becoming_model_scores(
+        self, case, monkeypatch, phase, error
+    ):
+        if phase == "setup":
+            monkeypatch.setattr(
+                harness, "build_agent_run_context", MagicMock(side_effect=error)
+            )
+        elif phase == "agent":
+            monkeypatch.setattr(
+                harness, "run_agent_with_model", AsyncMock(side_effect=error)
+            )
+        elif phase == "checks":
+            case.checks.side_effect = error
+        else:
+            monkeypatch.setattr(
+                harness, "format_message_history", MagicMock(side_effect=error)
+            )
+
+        with pytest.raises(type(error)) as raised:
+            run_case(case, TestModel(custom_output_text="Hello", call_tools=[]))
+
+        assert raised.value is error

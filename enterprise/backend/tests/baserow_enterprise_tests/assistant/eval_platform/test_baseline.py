@@ -33,6 +33,12 @@ def _baseline_file(tmp_path, monkeypatch):
     monkeypatch.setattr(baseline, "BASELINE_PATH", tmp_path / "baseline.json")
 
 
+@pytest.fixture(autouse=True)
+def import_metadata_patch():
+    with patch.object(baseline.httpx, "patch") as request:
+        yield request
+
+
 class _FakeDataset:
     def __init__(self, examples):
         self.id = "ds-1"
@@ -45,13 +51,25 @@ class _FakeExperimentsAPI:
         self.create_calls: list[dict] = []
         self.log_run_calls: list[dict] = []
         self.log_evaluation_calls: list[dict] = []
+        self.records: list[dict] = []
 
     def create(self, **kwargs):
         self.create_calls.append(kwargs)
-        return {"id": "exp-baseline"}
+        record = {
+            "id": f"exp-baseline-{len(self.create_calls)}",
+            "name": kwargs["experiment_name"],
+            "dataset_version_id": kwargs["dataset_version_id"],
+            "metadata": dict(kwargs["experiment_metadata"]),
+            "successful_run_count": 0,
+        }
+        self.records.append(record)
+        return record
 
     def log_run(self, **kwargs):
         self.log_run_calls.append(kwargs)
+        next(
+            record for record in self.records if record["id"] == kwargs["experiment_id"]
+        )["successful_run_count"] += 1
         return {"id": f"run-{len(self.log_run_calls)}"}
 
     def log_evaluation(self, **kwargs):
@@ -180,13 +198,43 @@ def _snapshot_run(case_id="database/list-tables"):
     }
 
 
+def _persist_import_requests(monkeypatch, client, import_metadata_patch):
+    """Keep the fake Phoenix state across import attempts and restarts."""
+
+    deleted_ids = []
+
+    def update(url, *, json, **kwargs):
+        experiment_id = url.rsplit("/", 1)[-1]
+        next(
+            record
+            for record in client.experiments.records
+            if record["id"] == experiment_id
+        )["metadata"] = json["metadata"]
+        return import_metadata_patch.return_value
+
+    def delete(experiment_ids):
+        deleted_ids.extend(experiment_ids)
+        client.experiments.records[:] = [
+            record
+            for record in client.experiments.records
+            if record["id"] not in experiment_ids
+        ]
+
+    monkeypatch.setattr(baseline, "_get", lambda path: list(client.experiments.records))
+    monkeypatch.setattr(baseline, "_delete_experiments", delete)
+    import_metadata_patch.side_effect = update
+    return deleted_ids
+
+
 class TestImportBaseline:
     def test_no_snapshot_file(self):
         assert import_baseline(_FakeClient([])) == {
             "status": "no baseline snapshot committed"
         }
 
-    def test_imports_runs_and_evaluations_and_skips_removed_cases(self):
+    def test_imports_runs_and_evaluations_and_skips_removed_cases(
+        self, import_metadata_patch
+    ):
         baseline.BASELINE_PATH.write_text(
             json.dumps(_snapshot([_snapshot_run(), _snapshot_run("database/gone")]))
         )
@@ -197,8 +245,9 @@ class TestImportBaseline:
 
         assert results["kuma-database"] == "imported 1 runs (1 removed cases skipped)"
         create = client.experiments.create_calls[0]
-        assert create["experiment_name"] == "baseline"
+        assert create["experiment_name"] == "baseline (imported)"
         assert create["experiment_metadata"]["baseline"] is True
+        assert create["experiment_metadata"]["baseline_import_complete"] is False
         assert create["experiment_metadata"]["model"] == "m"
         assert create["experiment_metadata"]["baseline_totals"] == {
             "total_cost": 0.05,
@@ -206,8 +255,18 @@ class TestImportBaseline:
         }
         assert client.experiments.log_run_calls[0]["dataset_example_id"] == "node-1"
         assert client.experiments.log_evaluation_calls[0]["name"] == "passed"
+        assert import_metadata_patch.call_args.args[0].endswith(
+            "/v1/experiments/exp-baseline-1"
+        )
+        assert import_metadata_patch.call_args.kwargs["json"] == {
+            "metadata": {
+                **create["experiment_metadata"],
+                "baseline_import_complete": True,
+            }
+        }
+        import_metadata_patch.return_value.raise_for_status.assert_called_once_with()
 
-    def test_import_supersedes_stale_named_baseline_experiments(self):
+    def test_import_replaces_only_owned_experiments_regardless_of_name(self):
         baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
         client = _FakeClient([_CODE_EXAMPLE])
         existing = [
@@ -216,7 +275,18 @@ class TestImportBaseline:
                 "name": "baseline",
                 "metadata": {"baseline_snapshot_hash": "oldhash123456"},
                 "successful_run_count": 1,
-            }
+            },
+            {
+                "id": "renamed-import",
+                "name": "old saved import",
+                "metadata": {"baseline_snapshot_hash": "olderhash"},
+            },
+            {"id": "live-baseline", "name": "baseline", "metadata": {}},
+            {
+                "id": "live-import-name",
+                "name": "baseline (imported)",
+                "metadata": {},
+            },
         ]
 
         with (
@@ -225,7 +295,7 @@ class TestImportBaseline:
         ):
             results = import_baseline(client)
 
-        mock_delete.assert_called_once_with(["exp-old-baseline"])
+        mock_delete.assert_called_once_with(["exp-old-baseline", "renamed-import"])
         assert results["kuma-database"] == "imported 1 runs"
 
     def test_import_is_idempotent_by_snapshot_hash(self):
@@ -235,7 +305,13 @@ class TestImportBaseline:
         client = _FakeClient([_CODE_EXAMPLE])
         existing = [
             {
-                "metadata": {"baseline_snapshot_hash": content_hash},
+                "id": "current-import",
+                "name": "baseline (imported)",
+                "dataset_version_id": "v1",
+                "metadata": {
+                    "baseline_snapshot_hash": content_hash,
+                    "baseline_import_complete": True,
+                },
                 "successful_run_count": 1,
             }
         ]
@@ -253,16 +329,171 @@ class TestImportBaseline:
         client = _FakeClient([_CODE_EXAMPLE])
         existing = [
             {
-                "metadata": {"baseline_snapshot_hash": content_hash},
+                "id": "incomplete-import",
+                "name": "baseline (imported)",
+                "dataset_version_id": "v1",
+                "metadata": {
+                    "baseline_snapshot_hash": content_hash,
+                    "baseline_import_complete": False,
+                },
                 "successful_run_count": 0,
             }
         ]
 
-        with patch.object(baseline, "_get", return_value=existing):
+        with (
+            patch.object(baseline, "_get", return_value=existing),
+            patch.object(baseline, "_delete_experiments") as mock_delete,
+        ):
             results = import_baseline(client)
 
         assert results["kuma-database"] == "imported 1 runs"
         assert len(client.experiments.create_calls) == 1
+        mock_delete.assert_called_once_with(["incomplete-import"])
+
+    def test_removed_cases_do_not_repeat_import_or_replace_a_live_baseline(
+        self, monkeypatch, import_metadata_patch
+    ):
+        baseline.BASELINE_PATH.write_text(
+            json.dumps(_snapshot([_snapshot_run(), _snapshot_run("database/gone")]))
+        )
+        client = _FakeClient([_CODE_EXAMPLE])
+        live = {"id": "live-baseline", "name": "baseline", "metadata": {}}
+        client.experiments.records.append(live)
+        deleted = _persist_import_requests(monkeypatch, client, import_metadata_patch)
+
+        first = import_baseline(client)
+        second = import_baseline(client)
+
+        assert first["kuma-database"] == "imported 1 runs (1 removed cases skipped)"
+        assert second["kuma-database"] == "already imported"
+        assert len(client.experiments.create_calls) == 1
+        assert deleted == []
+        assert [record["name"] for record in client.experiments.records] == [
+            "baseline",
+            "baseline (imported)",
+        ]
+        assert client.experiments.records[0] == live
+
+    @pytest.mark.parametrize(
+        "name, version, complete",
+        [("baseline", "v1", None), ("baseline (imported)", "old-version", True)],
+        ids=("legacy-name", "changed-dataset-version"),
+    )
+    def test_replaces_legacy_or_outdated_import_even_with_matching_snapshot_hash(
+        self, monkeypatch, import_metadata_patch, name, version, complete
+    ):
+        snapshot = _snapshot([_snapshot_run()])
+        baseline.BASELINE_PATH.write_text(json.dumps(snapshot))
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments.records.append(
+            {
+                "id": "previous-import",
+                "name": name,
+                "dataset_version_id": version,
+                "metadata": {
+                    "baseline_snapshot_hash": baseline._snapshot_hash(snapshot),
+                    "baseline_import_complete": complete,
+                },
+                "successful_run_count": 1,
+            }
+        )
+        deleted = _persist_import_requests(monkeypatch, client, import_metadata_patch)
+
+        result = import_baseline(client)
+
+        assert result["kuma-database"] == "imported 1 runs"
+        assert deleted == ["previous-import"]
+        assert client.experiments.records[0]["name"] == "baseline (imported)"
+        assert client.experiments.records[0]["dataset_version_id"] == "v1"
+
+    def test_interrupted_annotations_preserve_old_results_and_retry_the_import(
+        self, monkeypatch, import_metadata_patch
+    ):
+        baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments.records.extend(
+            [
+                {"id": "live-baseline", "name": "baseline", "metadata": {}},
+                {
+                    "id": "previous-import",
+                    "name": "baseline (imported)",
+                    "metadata": {"baseline_snapshot_hash": "previous-snapshot"},
+                },
+            ]
+        )
+        deleted = _persist_import_requests(monkeypatch, client, import_metadata_patch)
+
+        with patch.object(
+            client.experiments,
+            "log_evaluation",
+            side_effect=RuntimeError("interrupted"),
+        ):
+            with pytest.raises(RuntimeError, match="interrupted"):
+                import_baseline(client)
+
+        assert deleted == []
+        incomplete = client.experiments.records[-1]
+        assert incomplete["successful_run_count"] == 1
+        assert incomplete["metadata"]["baseline_import_complete"] is False
+        import_metadata_patch.assert_not_called()
+
+        result = import_baseline(client)
+
+        assert result["kuma-database"] == "imported 1 runs"
+        assert deleted == ["previous-import", "exp-baseline-1"]
+        assert len(client.experiments.log_evaluation_calls) == 1
+        assert [record["id"] for record in client.experiments.records] == [
+            "live-baseline",
+            "exp-baseline-2",
+        ]
+        assert client.experiments.records[-1]["metadata"]["baseline_import_complete"]
+        assert import_baseline(client)["kuma-database"] == "already imported"
+        assert len(client.experiments.create_calls) == 2
+
+    def test_retries_cleanup_without_reimporting_completed_results(
+        self, monkeypatch, import_metadata_patch
+    ):
+        baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments.records.append(
+            {
+                "id": "previous-import",
+                "name": "baseline",
+                "metadata": {"baseline_snapshot_hash": "previous-snapshot"},
+            }
+        )
+        deleted = _persist_import_requests(monkeypatch, client, import_metadata_patch)
+
+        with patch.object(
+            baseline, "_delete_experiments", side_effect=RuntimeError("unavailable")
+        ):
+            first = import_baseline(client)
+        second = import_baseline(client)
+
+        assert first["kuma-database"] == "imported 1 runs"
+        assert second["kuma-database"] == "already imported"
+        assert len(client.experiments.create_calls) == 1
+        assert deleted == ["previous-import"]
+
+    def test_no_applicable_cases_preserve_existing_experiments(self):
+        baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
+        client = _FakeClient([])
+
+        with (
+            patch.object(baseline, "_get") as mock_get,
+            patch.object(baseline, "_delete_experiments") as mock_delete,
+        ):
+            first = import_baseline(client)
+            second = import_baseline(client)
+
+        assert (
+            first
+            == second
+            == {"kuma-database": "no snapshot cases in the current dataset"}
+        )
+        assert client.experiments.create_calls == []
+        mock_get.assert_not_called()
+        mock_delete.assert_not_called()
 
     def test_import_drops_no_result_annotations(self):
         run = _snapshot_run()
