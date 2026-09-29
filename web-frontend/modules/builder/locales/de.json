@@ -233,7 +233,9 @@
     "elementForms": {
         "textInputPlaceholder": "Text eingeben...",
         "urlInputPlaceholder": "URL eingeben...",
-        "invalidFormula": "Die Formel ist ungültig"
+        "invalidFormula": "Die Formel ist ungültig",
+        "formValidationTitle": "Formularvalidierung",
+        "formValidationHint": "Fügen Sie dieses Element in ein Formular ein, um Validierungsfehler vor dem Absenden der Daten anzuzeigen."
     },
     "headingElement": {
         "missingValue": "Titel fehlt...",
