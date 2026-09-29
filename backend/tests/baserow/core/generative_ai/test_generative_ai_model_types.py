@@ -820,6 +820,17 @@ def test_bedrock_factory_rejects_a_blank_region_even_with_a_default_region(
         create_bedrock_runtime_client(region, "stored-api-key")
 
 
+def test_bedrock_api_key_client_never_resolves_the_default_credential_chain():
+    # Off EC2 the chain probes instance metadata, adding ~2 s to every client.
+    with patch(
+        "botocore.credentials.create_credential_resolver",
+        side_effect=AssertionError("default credential chain resolved"),
+    ):
+        client = create_bedrock_runtime_client("eu-central-1", "stored-api-key")
+
+    assert client.meta.config.signature_version == "bearer"
+
+
 def test_bedrock_client_bounds_timeouts_and_retries():
     model = BedrockGenerativeAIModelType().get_ai_model(
         BEDROCK_MODEL, settings_override=_bedrock_settings()

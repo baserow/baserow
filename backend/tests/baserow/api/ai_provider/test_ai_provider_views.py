@@ -1402,6 +1402,7 @@ def test_bedrock_provider_rejects_an_api_key_with_an_embedded_newline(
     content = response.content.decode()
     assert "bedrock-secretA" not in content
     assert "bedrock-secretB" not in content
+    assert "api_key" in response.json()["detail"]
 
 
 @pytest.mark.django_db
