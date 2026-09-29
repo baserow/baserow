@@ -15,6 +15,7 @@ import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
 import {
   IMAGE_PLACEHOLDER,
   replaceImagesWithPlaceholder,
+  stripImageUrls,
   trimUnfinishedImageRef,
 } from '@baserow/modules/core/editor/richTextImageUtils'
 
@@ -48,6 +49,20 @@ function previewMarkdown(value) {
   return `${visible.slice(0, end).trimEnd()}...`
 }
 
+/**
+ * The start of the value as the cell shows it, each image as its markdown.
+ *
+ * @param {string} value The cell value, with resolved image URLs.
+ * @return {string} Markdown of at most PREVIEW_LENGTH chars plus an ellipsis.
+ */
+function literalPreviewMarkdown(value) {
+  const rawCut = value.length > RAW_PREVIEW_LENGTH
+  const visible = stripImageUrls(value.slice(0, RAW_PREVIEW_LENGTH))
+  return rawCut || visible.length > PREVIEW_LENGTH
+    ? `${visible.slice(0, PREVIEW_LENGTH).trimEnd()}...`
+    : visible
+}
+
 export default {
   name: 'FunctionalGridViewFieldRichText',
   props: {
@@ -59,20 +74,32 @@ export default {
       type: Number,
       required: true,
     },
+    enableMentions: {
+      type: Boolean,
+      default: true,
+    },
+    enableImages: {
+      type: Boolean,
+      default: true,
+    },
   },
   methods: {
     renderFormattedValue() {
-      const { value, workspaceId } = this
+      const { value, workspaceId, enableMentions, enableImages } = this
       const workspace = this.$store.getters['workspace/get'](workspaceId)
       const loggedUserId = this.$store.getters['auth/getUserId']
-
       // Until the rows refetch after a field is converted to rich text, the
       // cell can still hold a value of the previous type.
-      const markdown = typeof value === 'string' ? value : ''
-      return parseMarkdown(previewMarkdown(markdown), {
+      const textValue = typeof value === 'string' ? value : ''
+      // Replacing an image nested in an alt can complete the image around it.
+      const markdown = enableImages
+        ? replaceImagesWithPlaceholder(previewMarkdown(textValue))
+        : literalPreviewMarkdown(textValue)
+
+      return parseMarkdown(markdown, {
         openLinkOnClick: false,
         enableImages: false,
-        workspaceUsers: workspace ? workspace.users : null,
+        workspaceUsers: enableMentions && workspace ? workspace.users : null,
         loggedUserId,
       })
     },

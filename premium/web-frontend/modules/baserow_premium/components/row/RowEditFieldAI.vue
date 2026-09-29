@@ -3,8 +3,10 @@
     <component
       :is="outputRowEditFieldComponent"
       ref="field"
-      v-bind="$props"
+      v-bind="{ ...$props, ...richTextProps }"
       :read-only="generating || readOnly"
+      @update="(...args) => $emit('update', ...args)"
+      @touched="$emit('touched')"
     ></component>
     <div v-if="!readOnly" class="margin-top-2">
       <Button
@@ -44,6 +46,7 @@ import fieldAI from '@baserow_premium/mixins/fieldAI'
 export default {
   name: 'RowEditFieldAI',
   mixins: [rowEditField, fieldAI],
+  emits: ['update', 'touched'],
   computed: {
     fieldName() {
       return this.$registry.get('field', this.field.type).getName()
@@ -53,6 +56,13 @@ export default {
         .get('aiFieldOutputType', this.field.ai_output_type)
         .getBaserowFieldType()
         .getRowEditFieldComponent(this.field)
+    },
+    richTextProps() {
+      return this.$registry
+        .get('field', this.field.type)
+        .hasRichTextOutput(this.field)
+        ? { enableMentions: false, enableImages: false }
+        : {}
     },
   },
 }

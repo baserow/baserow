@@ -1474,5 +1474,5 @@ def test_sync_data_sync_table_description_with_reference_text_is_escaped(
     model = data_sync.table.get_model()
     assert (
         getattr(model.objects.get(), f"field_{description_field.id}")
-        == "Before !\\[before][shot_v2.png]"
+        == "Before ![before]\\[shot_v2.png]"
     )

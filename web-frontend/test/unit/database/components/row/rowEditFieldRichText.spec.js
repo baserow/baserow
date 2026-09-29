@@ -211,6 +211,51 @@ describe('RowEditFieldRichText component', () => {
     expect(wrapper.emitted('update')).toHaveLength(1)
   })
 
+  describe('mentions and images', () => {
+    beforeEach(async () => {
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 10,
+        name: 'Workspace',
+        users: [{ user_id: 5, name: 'Jane Doe' }],
+      })
+    })
+
+    test('offers workspace mentions and image uploads by default', async () => {
+      const wrapper = await mountComponent({ value: 'ping @5' })
+      const editor = wrapper.findComponent(RichTextEditor)
+
+      expect(wrapper.find('.tiptap .rich-text-editor__mention').exists()).toBe(
+        true
+      )
+      expect(editor.props('enableImages')).toBe(true)
+      expect(editor.props('uploadFile')).toBeInstanceOf(Function)
+    })
+
+    test('keeps mentions and images off when disabled', async () => {
+      testApp.mock
+        .onPost('/user-files/upload-file/')
+        .reply(200, uploadedUserFile)
+      const wrapper = await mountComponent({
+        value: 'ping @5',
+        enableMentions: false,
+        enableImages: false,
+      })
+      const editor = wrapper.findComponent(RichTextEditor)
+
+      expect(wrapper.find('.tiptap .rich-text-editor__mention').exists()).toBe(
+        false
+      )
+      expect(wrapper.find('.tiptap').text()).toBe('ping @5')
+      expect(editor.props('mentionableUsers')).toBeNull()
+      expect(editor.props('enableImages')).toBe(false)
+      expect(editor.props('uploadFile')).toBeNull()
+
+      await pasteImage(wrapper)
+
+      expect(testApp.mock.history.post).toHaveLength(0)
+    })
+  })
+
   test.each([{ readOnly: true }, { allowImageUpload: false }])(
     'does not upload a pasted image when %s',
     async (props) => {

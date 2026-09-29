@@ -4,7 +4,7 @@ import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { isTrustedImageUrl } from '@baserow/modules/core/editor/trustedImageUrls'
 
 // `![alt][name](url)`, the URL optional; same ASCII-only grammar as `rich_text_utils.py`.
-const IMAGE_REF_REGEX =
+export const IMAGE_REF_REGEX =
   /^!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*)\](?:\(([^() \t\n\r\f\v]+)\))?/
 
 const escapeAlt = (s) => s.replace(/[\\[\]]/g, '\\$&')
@@ -22,6 +22,10 @@ function imageMarkdown({ alt, src, title, userFileName }) {
     ? `![${escapedAlt}](${src || ''} "${title}")`
     : `![${escapedAlt}](${src || ''})`
 }
+
+/** Whether HTML copied from an editor holds an image, as `renderHTML` marks it. */
+export const hasCopiedImage = (html) =>
+  /\sdata-(?:external-src|user-file-name)=/.test(html)
 
 const isPendingImage = (node) =>
   node.type.name === 'image' && Boolean(node.attrs.uploadId)

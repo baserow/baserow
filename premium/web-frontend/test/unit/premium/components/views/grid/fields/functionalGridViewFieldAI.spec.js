@@ -1,5 +1,6 @@
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import FunctionalGridViewFieldAI from '@baserow_premium/components/views/grid/fields/FunctionalGridViewFieldAI'
+import FunctionalGridViewFieldRichText from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldRichText'
 
 describe('FunctionalGridViewFieldAI component', () => {
   let testApp = null
@@ -71,4 +72,65 @@ describe('FunctionalGridViewFieldAI component', () => {
 
     expect(wrapper.find('button').attributes('disabled')).toBeDefined()
   })
+
+  test('renders a rich text value with mentions and images left as text', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      users: [{ user_id: 5, name: 'Jane Doe' }],
+    })
+
+    const wrapper = await testApp.mount(FunctionalGridViewFieldAI, {
+      props: {
+        field: { ...aiField, long_text_enable_rich_text: true },
+        row: { id: 1 },
+        value: '**bold** @5 ![x](https://example.com/a.png)',
+        state: {},
+        readOnly: false,
+        storePrefix: '',
+        workspaceId: workspace.id,
+      },
+    })
+
+    expect(wrapper.find('strong').text()).toBe('bold')
+    expect(wrapper.find('.rich-text-editor__mention').exists()).toBe(false)
+    expect(wrapper.find('.iconoir-media-image').exists()).toBe(false)
+    expect(wrapper.text()).toBe('bold @5 ![x](https://example.com/a.png)')
+    const cell = wrapper.findComponent(FunctionalGridViewFieldRichText)
+    expect(cell.props('enableMentions')).toBe(false)
+    expect(cell.props('enableImages')).toBe(false)
+  })
+
+  test.each([
+    ['plain text', { ...aiField, long_text_enable_rich_text: false }, 'Yes'],
+    [
+      'choice',
+      {
+        ...aiField,
+        ai_output_type: 'choice',
+        long_text_enable_rich_text: true,
+        select_options: [{ id: 1, value: 'Yes', color: 'green' }],
+      },
+      { id: 1, value: 'Yes', color: 'green' },
+    ],
+  ])(
+    'passes no rich text props to the %s output cell',
+    async (outputName, field, value) => {
+      await testApp.getStore().dispatch('workspace/forceCreate', workspace)
+
+      const wrapper = await testApp.mount(FunctionalGridViewFieldAI, {
+        props: {
+          field,
+          row: { id: 1 },
+          value,
+          state: {},
+          readOnly: false,
+          storePrefix: '',
+          workspaceId: workspace.id,
+        },
+      })
+
+      expect(wrapper.text()).toContain('Yes')
+      expect(wrapper.html()).not.toMatch(/enable-?(mentions|images)/i)
+    }
+  )
 })

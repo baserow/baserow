@@ -35,6 +35,7 @@ import {
   LegacyNumericHtmlEntity,
   LiteralInlineMarkdownHtml,
   LiteralMarkdownHtml,
+  LiteralMarkdownImage,
   MarkdownDocumentCompatibility,
   MarkdownInputCapture,
 } from '@baserow/modules/core/editor/markdownCompatibility'
@@ -285,9 +286,7 @@ export const createRichTextContentExtensions = ({
     LegacyNumericHtmlEntity,
   ]
 
-  if (enableImages) {
-    extensions.push(ScalableImage)
-  }
+  extensions.push(enableImages ? ScalableImage : LiteralMarkdownImage)
 
   return extensions
 }

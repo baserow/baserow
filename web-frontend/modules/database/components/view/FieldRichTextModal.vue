@@ -22,7 +22,7 @@
           ref="editor"
           class="rich-text-modal__editor"
           :enable-rich-text-formatting="true"
-          :enable-images="true"
+          :enable-images="enableImages"
           :mentionable-users="mentionableUsers"
           :model-value="modelValue"
           :clipboard-markdown-resolver="resolveClipboardMarkdown"
@@ -56,6 +56,10 @@ export default {
     mentionableUsers: {
       type: [Array],
       default: () => [],
+    },
+    enableImages: {
+      type: Boolean,
+      default: true,
     },
     error: {
       type: String,

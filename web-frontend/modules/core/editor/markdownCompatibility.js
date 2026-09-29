@@ -1,6 +1,8 @@
 import { Extension } from '@tiptap/core'
 import { Fragment } from '@tiptap/pm/model'
 
+import { IMAGE_REF_REGEX } from '@baserow/modules/core/editor/image'
+
 // Marked can produce structurally incomplete JSON for valid but empty Markdown
 // constructs. Fit that JSON to the active ProseMirror schema before it reaches the
 // editor, and report any lossy recovery so the caller can retain the source as text.
@@ -393,6 +395,33 @@ export const LiteralMarkdownHtml = Extension.create({
   name: 'literalMarkdownHtml',
   markdownTokenName: 'html',
   parseMarkdown: parseLiteralMarkdownHtml,
+})
+
+// Without the image node an image would keep only its alt, and a save would drop its URL.
+export const LiteralMarkdownImage = Extension.create({
+  name: 'literalMarkdownImage',
+  markdownTokenName: 'image',
+  markdownTokenizer: {
+    name: 'literalImageReference',
+    level: 'inline',
+    start(source) {
+      return source.indexOf('![')
+    },
+    tokenize(source) {
+      const match = source.match(IMAGE_REF_REGEX)
+      if (!match) {
+        return undefined
+      }
+      // A resolved URL is the backend's, not text the user wrote.
+      return {
+        type: 'image',
+        raw: match[0],
+        literal: `![${match[1]}][${match[2]}]`,
+      }
+    },
+  },
+  parseMarkdown: (token, helpers) =>
+    helpers.createTextNode(token.literal ?? token.raw),
 })
 
 const INLINE_HTML_REGEXP =

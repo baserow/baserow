@@ -475,6 +475,7 @@ class FieldView(APIView):
                     "ERROR_INVALID_BASEROW_FIELD_NAME",
                     "ERROR_FIELD_SELF_REFERENCE",
                     "ERROR_FIELD_CIRCULAR_REFERENCE",
+                    "ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE",
                 ]
             ),
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
@@ -486,6 +487,7 @@ class FieldView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             CannotChangeFieldType: ERROR_CANNOT_CHANGE_FIELD_TYPE,
+            IncompatiblePrimaryFieldTypeError: ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
             FieldWithSameNameAlreadyExists: ERROR_FIELD_WITH_SAME_NAME_ALREADY_EXISTS,
             ReservedBaserowFieldNameException: ERROR_RESERVED_BASEROW_FIELD_NAME,
             InvalidBaserowFieldName: ERROR_INVALID_BASEROW_FIELD_NAME,

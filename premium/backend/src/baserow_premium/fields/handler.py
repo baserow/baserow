@@ -157,6 +157,10 @@ class AIFieldHandler:
                 "The resolved prompt is empty; nothing to send to the model."
             )
 
+        instructions = ai_output_type.get_prompt_instructions(ai_field)
+        if instructions:
+            message += f"\n\n{instructions}"
+
         # 2. Build prompt kwargs
         choices = ai_output_type.get_choices(ai_field)
         prompt_kwargs: dict[str, Any] = {

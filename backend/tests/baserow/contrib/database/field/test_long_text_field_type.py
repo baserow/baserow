@@ -733,7 +733,7 @@ def test_import_escapes_references_missing_from_zip_and_target(
             )
         stored.append(getattr(row, field.db_column))
 
-    escaped = f"Text !\\[img][{MISSING_NAME}] `![img][{MISSING_NAME}]` end"
+    escaped = f"Text ![img]\\[{MISSING_NAME}] `![img][{MISSING_NAME}]` end"
     assert stored == [escaped, escaped]
     assert field_type.prepare_value_for_db(field, escaped) == escaped
 
@@ -1349,7 +1349,7 @@ def test_enabling_rich_text_escapes_references_to_missing_user_files(data_fixtur
 
     field = FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
 
-    escaped = f"!\\[x][{MISSING_NAME}]"
+    escaped = f"![x]\\[{MISSING_NAME}]"
     model = table.get_model()
     values = [
         getattr(model.objects_and_trash.get(id=row.id), field.db_column) for row in rows
@@ -1363,6 +1363,28 @@ def test_enabling_rich_text_escapes_references_to_missing_user_files(data_fixtur
     field_type = field_type_registry.get_by_model(field)
     for value in values:
         assert field_type.prepare_value_for_db(field, value) == value
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_escapes_a_missing_reference_nested_in_an_alt(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    row = RowHandler().create_row(
+        user, table, {field.db_column: f"![foo ![x][{MISSING_NAME}]"}
+    )
+
+    field = FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    row.refresh_from_db()
+    value = getattr(row, field.db_column)
+    assert value == f"![foo ![x]\\[{MISSING_NAME}]"
+    field_type = field_type_registry.get_by_model(field)
+    assert field_type.prepare_value_for_db(field, value) == value
 
 
 @pytest.mark.django_db
@@ -1381,7 +1403,7 @@ def test_converting_text_to_rich_text_escapes_references_to_missing_user_files(
     )
 
     row.refresh_from_db()
-    assert getattr(row, field.db_column) == f"!\\[x][{MISSING_NAME}]"
+    assert getattr(row, field.db_column) == f"![x]\\[{MISSING_NAME}]"
 
 
 @pytest.mark.django_db
@@ -1408,7 +1430,7 @@ def test_undoing_enabling_rich_text_restores_escaped_references(data_fixture):
     ActionHandler.redo(user, scopes, session_id)
 
     row.refresh_from_db()
-    assert getattr(row, field.db_column) == f"!\\[x][{MISSING_NAME}]"
+    assert getattr(row, field.db_column) == f"![x]\\[{MISSING_NAME}]"
 
 
 @pytest.mark.django_db

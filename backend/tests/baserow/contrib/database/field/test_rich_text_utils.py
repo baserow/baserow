@@ -1,3 +1,4 @@
+import random
 import time
 from types import SimpleNamespace
 
@@ -296,7 +297,7 @@ class TestEscapeUserFileReferences:
         content = f"![a][{NAME}] ![b][{other}] `![c][{NAME}]` ![d][{NAME}](http://h/x)"
         escaped = escape_user_file_references(content, {NAME})
         assert escaped == (
-            f"!\\[a][{NAME}] ![b][{other}] `![c][{NAME}]` !\\[d][{NAME}](http://h/x)"
+            f"![a]\\[{NAME}] ![b][{other}] `![c][{NAME}]` ![d]\\[{NAME}](http://h/x)"
         )
         assert extract_user_file_names(escaped) == {other}
         assert escape_user_file_references(content, set()) == content
@@ -305,7 +306,7 @@ class TestEscapeUserFileReferences:
         content = "![a][abc_def.png] `![b][abc_def.png]` ![c][abc_def.png](http://h/x)"
         escaped = escape_user_file_references(content)
         assert escaped == (
-            "!\\[a][abc_def.png] `![b][abc_def.png]` !\\[c][abc_def.png](http://h/x)"
+            "![a]\\[abc_def.png] `![b][abc_def.png]` ![c]\\[abc_def.png](http://h/x)"
         )
         assert extract_user_file_names(escaped) == set()
         assert strip_user_file_urls(escaped) == escaped
@@ -315,6 +316,35 @@ class TestEscapeUserFileReferences:
         content = "![x](https://e.com/p.png) [link](x)"
         assert escape_user_file_references(content) == content
         assert escape_user_file_references(None) is None
+
+    @pytest.mark.parametrize("names", [None, {NAME}])
+    def test_leaves_no_reference_when_one_is_nested_in_another_alt(self, names):
+        content = f"![foo ![x][{NAME}] and ![a ![b ![c][{NAME}]"
+        escaped = escape_user_file_references(content, names)
+        assert escaped == f"![foo ![x]\\[{NAME}] and ![a ![b ![c]\\[{NAME}]"
+        assert extract_user_file_names(escaped) == set()
+        assert escape_user_file_references(escaped, names) == escaped
+
+    def test_keeps_the_legacy_escape_literal(self):
+        content = f"!\\[a][{NAME}]"
+        assert extract_user_file_names(content) == set()
+        assert escape_user_file_references(content) == content
+
+    def test_one_pass_leaves_no_reference_in_random_input(self):
+        rng = random.Random(0)
+        tokens = ["![", "![a ", "[", "]", "](", ")", "\\", "`", "\n", "][ab_cd.png]"]
+        for _ in range(20000):
+            content = "".join(rng.choice(tokens) for _ in range(rng.randint(1, 24)))
+            escaped = escape_user_file_references(content)
+            assert extract_user_file_names(escaped) == set(), content
+            assert escape_user_file_references(escaped) == escaped, content
+
+    def test_deep_nesting_is_linear(self):
+        content = "![a " * 30000 + f"![x][{NAME}]"
+        start = time.perf_counter()
+        escaped = escape_user_file_references(content)
+        assert time.perf_counter() - start < 0.5
+        assert extract_user_file_names(escaped) == set()
 
 
 class TestReplaceUserFileImagesWithAlt:
