@@ -48,7 +48,8 @@
         "integrationsName": "Інтеграції",
         "themeName": "Тема",
         "domainsName": "Домени",
-        "userSourcesName": "Користувачі"
+        "userSourcesName": "Користувачі",
+        "breakpointsName": "Точки зупинки"
     },
     "createPageModal": {
         "header": "Створити сторінку",
@@ -168,8 +169,9 @@
         "errorIframeUrlMissing": "Відсутня властивість URL IFrame",
         "errorIframeContentMissing": "Відсутній вміст IFrame",
         "errorNoMenuItem": "Елемент меню не налаштовано",
-        "errorMenuItemInError": "Принаймні одне меню налаштовано неправильно",
-        "errorSubMenuItemInError": "Принаймні одне підменю налаштовано неправильно"
+        "errorMenuItemInError": "Принаймні один пункт меню налаштовано неправильно",
+        "errorSubMenuItemInError": "Принаймні одне підменю налаштовано неправильно",
+        "errorOptionNameMissing": "В одному з варіантів відсутня назва"
     },
     "addElementButton": {
         "label": "Елемент"
@@ -212,12 +214,16 @@
     "pagePreview": {
         "emptyMessage": "Клацніть, щоб створити елемент",
         "header": "ЗАГОЛОВОК",
-        "footer": "ПІДВАЛ"
+        "footer": "ПІДВАЛ",
+        "fixedHeader": "ФІКСОВАНИЙ ЗАГОЛОВОК",
+        "fixedFooter": "ФІКСОВАНИЙ ФУТЕР"
     },
     "elementForms": {
         "textInputPlaceholder": "Введіть текст...",
         "urlInputPlaceholder": "Введіть URL...",
-        "invalidFormula": "Формула недійсна"
+        "invalidFormula": "Формула недійсна",
+        "formValidationTitle": "Валідація форми",
+        "formValidationHint": "Розмістіть цей елемент у формі, щоб показувати помилки валідації перед надсиланням даних."
     },
     "headingElement": {
         "missingValue": "Відсутній заголовок...",
@@ -342,7 +348,12 @@
         "embedLabel": "Вбудувати",
         "embedPlaceholder": "Необроблений HTML-вміст для вбудовування",
         "heightLabel": "Висота (px)",
-        "heightPlaceholder": "Висота в пікселях"
+        "heightPlaceholder": "Висота в пікселях",
+        "editorPreviewPlaceholder": "Цей iframe не відображається в редакторі.\nСкористайтеся попереднім переглядом, щоб перевірити, як він виглядає у вашому застосунку.",
+        "allowSameOriginLabel": "Дозволити iframe доступ до даних власного сайту",
+        "allowSameOriginHelp": "Вмикайте цю опцію лише для надійної зовнішньої URL-адреси. Вона дозволяє iframe використовувати файли cookie, сховище та інші функції того самого джерела в попередньому перегляді та опублікованих застосунках.",
+        "warningTitle": "Використовуйте лише надійний вміст",
+        "warningMessage": "Вміст iframe ізольовано в редакторі, де вбудований HTML може виконувати скрипти в ізольованому середовищі. У попередньому перегляді та опублікованих застосунках вбудований HTML може виконуватися без обмежень, а зовнішні URL-адреси можуть виконувати скрипти, надсилати форми та відкривати спливаючі вікна."
     },
     "columnElementForm": {
         "columnAmountTitle": "Макет",
@@ -518,7 +529,10 @@
         "loginToastTitle": "Автентифікацію виконано успішно",
         "loginToastMessage": "Ви успішно увійшли в систему.",
         "authorizedToastTitle": "Потрібна автентифікація",
-        "authorizedToastMessage": "Ви повинні увійти в систему, щоб отримати доступ до цієї сторінки. Будь ласка, увійдіть, щоб продовжити."
+        "authorizedToastMessage": "Ви повинні увійти в систему, щоб отримати доступ до цієї сторінки. Будь ласка, увійдіть, щоб продовжити.",
+        "previewSessionExpiredTitle": "Термін дії сеансу попереднього перегляду завершився",
+        "previewSessionExpiredDescription": "Закрийте цю вкладку та знову відкрийте попередній перегляд у Application Builder.",
+        "loginErrorToastTitle": "Помилка автентифікації"
     },
     "integrationSettings": {
         "title": "Інтеграції",
@@ -529,10 +543,12 @@
         "namePlaceholder": "Назва джерела",
         "nameLabel": "Назва",
         "actionLabel": "Дія",
-        "integrationLabel": "Інтеграція",
-        "servicePlaceholder": "Виберіть сервіс",
-        "integrationPlaceholder": "Виберіть інтеграцію",
-        "errorUniqueName": "Назва джерела даних має бути унікальною."
+        "integrationLabel": "Підключення",
+        "servicePlaceholder": "Виберіть дію…",
+        "integrationPlaceholder": "Виберіть підключення…",
+        "errorUniqueName": "Назва джерела даних має бути унікальною.",
+        "searchActionPlaceholder": "Пошук дій",
+        "noActionsFound": "Не знайдено жодної дії"
     },
     "dataSourceContext": {
         "addDataSource": "Додати нове джерело даних",
@@ -836,7 +852,12 @@
         "errorNavigateToPageMissing": "Відсутня властивість \"Перейти до\"",
         "errorPageParameterInError": "Принаймні один параметр сторінки налаштований неправильно",
         "errorNavigationUrlMissing": "Відсутня властивість URL-адреси навігації",
-        "errorDataSourceMissing": "Джерело даних не вибрано"
+        "errorDataSourceMissing": "Джерело даних не вибрано",
+        "notificationDescription": "Показувати користувачеві сповіщення.",
+        "errorNotificationContentMissing": "Для сповіщення потрібно вказати заголовок або опис",
+        "openPageDescription": "Перенаправити користувача на іншу сторінку або URL-адресу.",
+        "logoutDescription": "Вийти з облікового запису поточного користувача.",
+        "refreshDataSourceDescription": "Перезавантажити джерело даних і оновити елементи, які його використовують."
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Заголовок",
@@ -845,7 +866,9 @@
         "descriptionPlaceholder": "Введіть текст..."
     },
     "event": {
-        "addAction": "додати дію"
+        "addAction": "додати дію",
+        "searchActions": "Пошук дій",
+        "noActionsFound": "Не знайдено жодної дії"
     },
     "collectionFieldType": {
         "boolean": "Логічне",
@@ -923,7 +946,8 @@
         "optionType": "Тип параметрів",
         "manual": "Вручну",
         "dataSource": "Джерело даних",
-        "formulas": "Формули"
+        "formulas": "Формули",
+        "expressions": "Вирази"
     },
     "localBaserowServiceForm": {
         "integrationDropdownLabel": "Інтеграція",
@@ -980,7 +1004,7 @@
         "visibilityConditionPlaceholder": "Умова...",
         "warningMessage": "Перегляньте {link}, щоб дізнатися більше про те, як ми забезпечуємо безпеку даних.",
         "documentationLink": "документація",
-        "visibilityConditionHelper": "Якщо результат цієї формули істинний, і вибір відвідувача вище також істинний, елемент буде видимим. Ця умова впливає лише на видимість елемента. Щоб замість цього виключити дані з відповіді сервера, скористайтеся опцією фільтрації за роллю користувача вище."
+        "visibilityConditionHelper": "Якщо результат цього виразу — true, а вибір відвідувача вище також має значення true, елемент буде видимим. Ця умова впливає лише на видимість елемента. Щоб натомість виключити дані з відповіді сервера, скористайтеся опцією фільтрації за роллю користувача вище."
     },
     "userDataProviderType": {
         "isAuthenticated": "Автентифікований",
@@ -1102,5 +1126,32 @@
         "sampleDataModalTitle": "Дані для {actionLabel}",
         "sampleDataModalSubTitle": "JSON-дані",
         "testActionDescription": "Запустіть цю дію в режимі попереднього перегляду, щоб отримати її вихідні дані й зробити їх доступними для наступних дій."
+    },
+    "breakpointSettings": {
+        "titleOverview": "Точки зупинки",
+        "description": "Виберіть, коли ваш застосунок перемикатиметься між макетами для мобільних пристроїв, планшетів і комп’ютерів. Зміни одразу застосовуються в редакторі, а до опублікованого застосунку — після публікації.",
+        "mobileLabel": "Мобільна точка зупинки",
+        "tabletLabel": "Точка зупинки для планшета",
+        "desktopLabel": "Точка зупинки для комп’ютера",
+        "desktopDescription": "Понад {breakpoint}px",
+        "updatedTitle": "Точки зупинки збережено",
+        "updatedDescription": "Ваші нові точки зупинки активні в редакторі. Опублікуйте застосунок, щоб застосувати їх для відвідувачів.",
+        "mobileMustBeLessThanTablet": "Мобільна точка зупинки має бути меншою за точку зупинки для планшета.",
+        "tabletMustBeGreaterThanMobile": "Точка зупинки для планшета має бути більшою за мобільну точку зупинки."
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Недійсне посилання"
+    },
+    "trashType": {
+        "builder_page": "cторінка",
+        "builder_data_source": "джерело даних",
+        "builder_workflow_action": "дія робочого процесу"
+    },
+    "pageElementBehaviour": {
+        "normal": "Звичайний",
+        "fixed": "Фіксований"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Сторінка"
     }
 }
