@@ -1343,3 +1343,36 @@ def test_merge_non_default_next_edges_orders_outputs_and_drops_dangling_heads(
         str(e2.id): {"next": {"": [e3.id]}},
         str(e3.id): {},
     }
+
+
+@pytest.mark.django_db
+def test_merge_non_default_next_edges_drops_unkeyed_chain_tail(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+    e3 = ElementService().create_element(user, heading, page=page)
+
+    # The stray chain e2 -> 999999 ends in an id without a graph entry (an
+    # exported orphan), while e1 keeps a default successor that has to move
+    # behind the merged chain — the successors must land on e2, the last
+    # keyed point, not on the unkeyed id.
+    page.graph = {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e3.id], "0": [e2.id]}},
+        str(e2.id): {"next": {"": [999999]}},
+        str(e3.id): {},
+    }
+    page.save(update_fields=["graph"])
+
+    assert page.get_graph().merge_non_default_next_edges() == [(e1.id, "0")]
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+    }

@@ -77,6 +77,16 @@ class PageGraphHandler(BaseGraphHandler):
                     if str(head) not in self.graph:
                         continue
                     chain = self._walk_chain_ids(head, set())
+                    # The walk follows `next` ids whether or not they are keyed
+                    # (an exported orphan can be referenced without having an
+                    # entry). Only a keyed point can carry the successors, so
+                    # the last keyed one is the tail and its reference to the
+                    # unkeyed rest is dropped, like a dangling reference.
+                    tail = [cid for cid in chain if cid in self.graph][-1]
+                    tail_next = self.graph[tail].setdefault("next", {})
+                    tail_next[""] = [
+                        nid for nid in tail_next.get("", []) if str(nid) in self.graph
+                    ]
                     after_next = self.graph[insert_after].setdefault("next", {})
                     # Keep the previous default successors after the merged
                     # chain, minus anything already in it (a converging ref).
@@ -84,9 +94,12 @@ class PageGraphHandler(BaseGraphHandler):
                         nid for nid in after_next.get("", []) if str(nid) not in chain
                     ]
                     after_next[""] = [head]
-                    tail = chain[-1]
                     if successors:
-                        self.graph[tail].setdefault("next", {})[""] = successors
+                        tail_next[""] = successors
+                    elif not tail_next[""]:
+                        del tail_next[""]
+                    if not tail_next:
+                        del self.graph[tail]["next"]
                     insert_after = tail
             if not next_dict:
                 del self.graph[point_key]["next"]
