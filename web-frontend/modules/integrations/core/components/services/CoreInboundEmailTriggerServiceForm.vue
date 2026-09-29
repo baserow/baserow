@@ -25,7 +25,7 @@
     </a>
 
     <Alert type="info-primary" class="margin-top-1 margin-bottom-2">
-      {{ $t('inboundEmailTriggerServiceForm.infoDescription') }}
+      <p>{{ $t('inboundEmailTriggerServiceForm.infoDescription') }}</p>
     </Alert>
 
     <p class="margin-bottom-1">
