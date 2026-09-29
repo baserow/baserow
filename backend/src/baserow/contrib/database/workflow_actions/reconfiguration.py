@@ -24,6 +24,7 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.integrations.core.models import CoreSMTPEmailService
+from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowTableServiceFieldMapping,
@@ -45,8 +46,10 @@ def _unusable_integration_by_action_model() -> dict[
     """
     For each action model that can carry an integration, which of its services
     the dispatch refuses for their integration: a trashed one, and none when
-    the service type needs one. Every other type has an integration refused on
-    save, import and click (ADR 006 section 5).
+    the service type needs one. An email is left out of the second: it can send
+    through the instance instead, so `_email_cannot_send` decides per service.
+    Every other type has an integration refused on save, import and click (ADR
+    006 section 5).
     """
 
     unusable = {}
@@ -56,7 +59,7 @@ def _unusable_integration_by_action_model() -> dict[
         service_type = service_type_registry.get(action_type.service_type)
         condition = Q(integration__trashed=True)
         # Asked of a new service, as the query can't ask each one. The email
-        # action decides per service whether it needs one.
+        # action decides per service, in `_email_cannot_send`.
         if (
             action_type.model_class is not CoreSMTPEmailWorkflowAction
             and service_type.requires_integration(service_type.model_class())
@@ -84,6 +87,25 @@ def _blank_formula(column: str) -> Q:
         # the whitespace JSON escapes (`\n`, `\r`, `\t`).
         | Q(**{f"{column}__regex": r'"f":\s*(null|"(\s|\\[nrt])*")'})
     )
+
+
+def _email_cannot_send() -> Q:
+    """
+    An email that has nothing to send through: set to an integration it lacks
+    or whose host an import blanked, or set to the instance server where this
+    installation cannot deliver. The last is a setting, so it is read now.
+    """
+
+    service_type = service_type_registry.get(CoreSMTPEmailServiceType.type)
+    no_integration = (
+        Q(integration__isnull=True)
+        | Q(integration__trashed=True)
+        | Q(integration__smtpintegration__host="")
+    )
+    cannot_send = Q(use_instance_smtp_settings=False) & no_integration
+    if service_type.instance_smtp_unavailable_reason() is not None:
+        cannot_send |= Q(use_instance_smtp_settings=True)
+    return cannot_send
 
 
 def _blank_row_id() -> Q:
@@ -120,7 +142,8 @@ def _broken_services_by_action_model() -> dict[
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing. A trashed integration
     always counts, and so does none on an action whose service needs one, an
-    update row left without a row id and an email without recipients.
+    update row left without a row id, an email without recipients and an email
+    with nothing to send through.
     """
 
     mapping_on_trashed_field = Exists(
@@ -144,9 +167,10 @@ def _broken_services_by_action_model() -> dict[
         (LocalBaserowDeleteRow, _unusable_table())
     ]
     # A workspace export blanks the recipients, and an email with nobody to
-    # send it to is refused on every click.
+    # send it to is refused on every click, as is one with nothing to send
+    # through.
     broken[CoreSMTPEmailWorkflowAction] = [
-        (CoreSMTPEmailService, _blank_formula("to_emails"))
+        (CoreSMTPEmailService, _blank_formula("to_emails") | _email_cannot_send())
     ]
     for action_model, unusable in _unusable_integration_by_action_model().items():
         broken.setdefault(action_model, []).append((Service, unusable))

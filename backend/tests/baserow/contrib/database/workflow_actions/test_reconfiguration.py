@@ -332,21 +332,104 @@ def test_an_action_missing_the_integration_it_needs_needs_reconfiguring(
     assert _requires_reconfiguration(button_field) is True
 
 
-@pytest.mark.django_db
-def test_an_email_action_without_an_integration_does_not_need_reconfiguring(
-    data_fixture, setup
-):
-    """A button's email action always sends through the instance's server."""
-
-    *_, button_field = setup
+def _email_action(data_fixture, button_field, *, use_instance, integration=None):
     action = data_fixture.create_database_workflow_action(
         CoreSMTPEmailWorkflowAction, field=button_field
     )
     service = action.service.specific
-    service.use_instance_smtp_settings = True
+    service.use_instance_smtp_settings = use_instance
+    service.integration = integration
     service.to_emails = "'someone@example.com'"
     service.save()
+    return action
 
+
+def _instance_can_send(settings):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.EMAIL_HOST = "smtp.example.com"
+
+
+@pytest.mark.django_db
+def test_an_email_on_an_instance_that_can_send_does_not_need_reconfiguring(
+    data_fixture, setup, settings
+):
+    _instance_can_send(settings)
+    *_, button_field = setup
+    _email_action(data_fixture, button_field, use_instance=True)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "allowed,backend",
+    [
+        (False, "django.core.mail.backends.smtp.EmailBackend"),
+        (True, "django.core.mail.backends.console.EmailBackend"),
+    ],
+)
+def test_an_email_on_an_instance_that_cannot_send_needs_reconfiguring(
+    data_fixture, setup, settings, allowed, backend
+):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = allowed
+    settings.CELERY_EMAIL_BACKEND = backend
+    *_, button_field = setup
+    _email_action(data_fixture, button_field, use_instance=True)
+
+    assert _requires_reconfiguration(button_field) is True
+
+
+@pytest.mark.django_db
+def test_an_email_through_an_integration_does_not_need_reconfiguring(
+    data_fixture, setup, settings
+):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    _, database, _, _, button_field = setup
+    smtp = data_fixture.create_smtp_integration(application=database)
+    _email_action(data_fixture, button_field, use_instance=False, integration=smtp)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_an_email_with_neither_instance_nor_integration_needs_reconfiguring(
+    data_fixture, setup, settings
+):
+    _instance_can_send(settings)
+    *_, button_field = setup
+    _email_action(data_fixture, button_field, use_instance=False)
+
+    assert _requires_reconfiguration(button_field) is True
+
+
+@pytest.mark.django_db
+def test_an_email_through_an_integration_with_no_host_needs_reconfiguring(
+    data_fixture, setup, settings
+):
+    """What a workspace import leaves: the host is sensitive and not exported."""
+
+    _instance_can_send(settings)
+    _, database, _, _, button_field = setup
+    smtp = data_fixture.create_smtp_integration(application=database, host="")
+    _email_action(data_fixture, button_field, use_instance=False, integration=smtp)
+
+    assert _requires_reconfiguration(button_field) is True
+
+
+@pytest.mark.django_db
+def test_trashing_the_smtp_integration_flags_the_button_and_restoring_clears_it(
+    data_fixture, setup, settings
+):
+    _instance_can_send(settings)
+    user, database, _, _, button_field = setup
+    smtp = data_fixture.create_smtp_integration(application=database, user=user)
+    _email_action(data_fixture, button_field, use_instance=False, integration=smtp)
+
+    assert list(button_fields_depending_on(integration_ids=[smtp.id])) == [button_field]
+    IntegrationService().delete_integration(user, smtp)
+    assert _requires_reconfiguration(button_field) is True
+    TrashHandler.restore_item(user, "integration", smtp.id)
     assert _requires_reconfiguration(button_field) is False
 
 
