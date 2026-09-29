@@ -1695,6 +1695,29 @@ Converting a collaborative view to personal makes it visible only to you. Conver
 
 Learn more: [Collaborative views](/user-docs/collaborative-views) | [Personal views](/user-docs/personal-views)
 
+### Copy a view configuration
+
+You can copy selected configuration settings from another view in the same table to the current view. This lets you reuse filters, sorts, field visibility, grouping, and other settings without configuring them manually.
+
+To copy a view configuration:
+
+1. Click the **⋮** next to the view name.
+2. Select **Copy configuration from view**.
+3. Select the view you want to copy the configuration from.
+4. Select the configuration options you want to copy. You can choose from:
+   - **Field visibility**
+   - **Field order**
+   - **Field widths**
+   - **Settings**
+   - **Filters**
+   - **Sorts**
+   - **Groups**
+   - **Decorations**
+   - **Default row values**
+5. Click **Copy configuration**.
+
+The selected settings are applied to the current view. You can copy only the settings you need, rather than replacing the entire view configuration.
+
 ### Export a view (Grid view only)
 
 1. Click the **⋮** next to the view name
