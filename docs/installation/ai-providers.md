@@ -62,6 +62,22 @@ text files. Other files, such as PDFs, are not sent: xAI only receives their nam
 Baserow sends requests to xAI's global endpoint, `https://api.x.ai`, where xAI does
 not guarantee which region processes them. Regional endpoints are not supported.
 
+## Z.ai
+
+Create a pay-as-you-go API key at [z.ai](https://z.ai/manage-apikey/apikey-list),
+then add a **Z.ai** provider and paste the key. GLM Coding Plan subscriptions don't
+cover these requests. Add the model IDs you want, such as `glm-5.2`. Z.ai lists the
+current models on its [pricing page](https://docs.z.ai/guides/overview/pricing).
+
+AI fields can send JPG and PNG images, up to 3.75 MB each, 50 per request and 14 MB
+in total, but only Z.ai's vision models, such as `glm-4.6v` and `glm-5.3-flash`, read
+them. Other files are sent only when they are small text files. Documents, such as
+PDFs, are not sent: Z.ai only receives their names. Z.ai caps the temperature at 1,
+so Baserow lowers higher values to 1.
+
+Baserow sends requests to Z.ai's global endpoint, `https://api.z.ai`, where data is
+generally processed in Singapore. Z.ai does not offer an EU region.
+
 ## Upgrading to Baserow 2.4
 
 **From Baserow 2.4, the environment variables below are no longer read.** The upgrade

@@ -545,3 +545,47 @@ export class XaiModelType extends BuiltInGenerativeAIModelType {
     return 45
   }
 }
+
+export class ZaiModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'zai'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.zai')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.zaiApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.zaiApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.zaiModelsLabel'),
+        i18n.t('generativeAIModelType.zaiModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.zaiModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 47
+  }
+
+  getMaxTemperature() {
+    return 1
+  }
+}

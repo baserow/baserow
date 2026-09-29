@@ -89,6 +89,14 @@ class XaiSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class ZaiSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Z.ai API key used to authenticate with the Z.ai API.",
+    )
+
+
 class MistralSettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,

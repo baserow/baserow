@@ -55,7 +55,7 @@ def test_ai_integration_creation_with_settings(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("provider_type", ["google", "groq", "xai"])
+@pytest.mark.parametrize("provider_type", ["google", "groq", "xai", "zai"])
 def test_ai_integration_accepts_database_only_provider_overrides(
     data_fixture, provider_type
 ):
