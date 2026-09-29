@@ -25,7 +25,7 @@ from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.views.handler import ViewSubscriptionHandler
 from baserow.contrib.database.views.models import View, ViewSubscription
 from baserow.core.models import Workspace
-from baserow.core.psycopg import is_query_canceled_error
+from baserow.core.psycopg import is_query_canceled_error, tighten_statement_timeout
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
 tracer = trace.get_tracer(__name__)
@@ -49,14 +49,6 @@ RUN_LOCK_TTL = BATCH_UPDATE_HARD_TIME_LIMIT + 60
 # a running SQL statement, so statements get a Postgres statement_timeout that ends
 # them by this deadline instead.
 BATCH_UPDATE_DEADLINE_MARGIN_SECONDS = 10
-
-# Lowers statement_timeout for the rest of the transaction, but keeps a stricter one
-# that is already configured.
-_TIGHTEN_STATEMENT_TIMEOUT_SQL = """
-SELECT set_config('statement_timeout', %s, true)
-WHERE current_setting('statement_timeout')::interval = interval '0'
-   OR current_setting('statement_timeout')::interval > %s::interval
-""".strip()
 
 # Django runs these to end a nested atomic block. They must run even after the
 # deadline or a failed query, or the transaction can't be cleaned up.
@@ -100,11 +92,11 @@ def _statement_deadline(deadline: float):
         ):
             return execute(sql, params, many, context)
 
-        timeout = f"{_ensure_time_left(deadline)}ms"
+        time_left_ms = _ensure_time_left(deadline)
         # A separate cursor skips this wrapper, and works when the query uses a named
         # cursor, which can only execute once.
         with db.wrap_database_errors, db.connection.cursor() as cursor:
-            cursor.execute(_TIGHTEN_STATEMENT_TIMEOUT_SQL, [timeout, timeout])
+            tighten_statement_timeout(cursor, time_left_ms)
         try:
             return execute(sql, params, many, context)
         except OperationalError as exc:
@@ -281,7 +273,7 @@ def _run_periodic_field_type_update_per_workspace(
                 table__database__trashed=False,
                 table__trashed=False,
             )
-            .select_related("table")
+            .select_related("table__database")
             .order_by("table__database_id")
         )
         # Nothing due for this field type: skip before refreshing `now` so an idle
@@ -308,6 +300,11 @@ def _run_periodic_field_type_update_per_workspace(
                     skip_search_updates=True,
                     database_id=database_id,
                 )
+                # Schedules the tsv update on commit. Called inside the transaction so
+                # the table lookups it needs are covered by the batch deadline.
+                SearchHandler.all_fields_values_changed_or_created(
+                    database_updated_fields
+                )
         except SoftTimeLimitExceeded:
             # Let it propagate so the batch stops cleanly instead of being swallowed
             # and running until the hard limit SIGKILLs the task.
@@ -321,9 +318,7 @@ def _run_periodic_field_type_update_per_workspace(
                 tb=tb,
             )
         else:
-            # Update tsv columns and notify views of the changes.
-            SearchHandler.all_fields_values_changed_or_created(database_updated_fields)
-
+            # Notify views of the changes.
             updated_table_ids = list(
                 {field.table_id for field in database_updated_fields}
             )

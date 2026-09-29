@@ -1,4 +1,6 @@
+import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -28,6 +30,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
+from baserow.core.psycopg import psycopg
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -1300,3 +1303,154 @@ def test_update_workspaces_periodic_fields_runs_on_commit_hooks_near_deadline(
         )
 
     assert hook_results == [1]
+
+
+@contextmanager
+def _lock_table_from_another_connection(table_name, seconds):
+    """Holds an ACCESS EXCLUSIVE lock on the table for up to `seconds`."""
+
+    other = psycopg.connect(**connection.get_connection_params())
+    release_lock = threading.Lock()
+
+    def release():
+        with release_lock:
+            if not other.closed:
+                other.rollback()
+                other.close()
+
+    timer = threading.Timer(seconds, release)
+    try:
+        with other.cursor() as cursor:
+            cursor.execute(f"LOCK TABLE {table_name} IN ACCESS EXCLUSIVE MODE")
+        timer.start()
+        yield
+    finally:
+        timer.cancel()
+        release()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_workspaces_periodic_fields_stops_at_deadline_when_locked_after_update(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace_1 = _workspace_with_now_formula(data_fixture)
+    workspace_2 = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    lock = None
+
+    def update_then_lock(fields, **kwargs):
+        # Locked after the update, before its search updates are scheduled.
+        nonlocal lock
+        if lock is None:
+            lock = _lock_table_from_another_connection("core_application", 8)
+            lock.__enter__()
+        return list(fields)
+
+    # A 14s soft limit minus the 10s margin leaves the batch 4 seconds.
+    try:
+        with (
+            patch(
+                "baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 14
+            ),
+            patch.object(
+                FormulaFieldType, "run_periodic_update", side_effect=update_then_lock
+            ),
+        ):
+            started_at = time.monotonic()
+            update_workspaces_periodic_fields(
+                [workspace_1.id, workspace_2.id], True, batch_index=0, run_token="held"
+            )
+            elapsed = time.monotonic() - started_at
+    finally:
+        if lock is not None:
+            lock.__exit__(None, None, None)
+
+    assert elapsed < 5.5
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_workspaces_periodic_fields_stops_at_deadline_when_workspace_locked(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    # A 14s soft limit minus the 10s margin leaves the batch 4 seconds.
+    with (
+        patch("baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 14),
+        _lock_table_from_another_connection("core_workspace", 8),
+    ):
+        started_at = time.monotonic()
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+        elapsed = time.monotonic() - started_at
+
+    assert elapsed < 5.5
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_skips_workspace_with_under_a_second_left(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    now_before = workspace.now
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    # A 10.5s soft limit minus the 10s margin leaves the batch half a second.
+    with patch(
+        "baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 10.5
+    ):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+
+    workspace.refresh_from_db()
+    assert workspace.now == now_before
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_workspaces_periodic_fields_continues_after_stricter_timeout_cancel(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace_1 = _workspace_with_now_formula(data_fixture)
+    workspace_2 = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    started_workspace_ids = []
+
+    def update_slower_than_stricter_timeout(fields, **kwargs):
+        workspace_id = fields[0].table.database.workspace_id
+        started_workspace_ids.append(workspace_id)
+        if workspace_id == workspace_1.id:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_sleep(2)")
+        return []
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET statement_timeout = '500ms'")
+    try:
+        with (
+            patch.object(
+                FormulaFieldType,
+                "run_periodic_update",
+                side_effect=update_slower_than_stricter_timeout,
+            ),
+            patch("baserow.contrib.database.fields.tasks.logger") as mock_logger,
+        ):
+            update_workspaces_periodic_fields(
+                [workspace_1.id, workspace_2.id], True, batch_index=0, run_token="held"
+            )
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("RESET statement_timeout")
+
+    # A cancel with plenty of time left is an ordinary failure, not the deadline.
+    assert started_workspace_ids == [workspace_1.id, workspace_2.id]
+    mock_logger.error.assert_called_once()
+    mock_logger.warning.assert_not_called()
