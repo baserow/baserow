@@ -24,6 +24,7 @@
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
+        :allow-editing="editableFromHere"
       />
     </FormGroup>
 
@@ -228,6 +229,11 @@ export default {
         return false
       }
       return this.values.use_instance_smtp_settings
+    },
+    // A database has no integrations page of its own, so the dropdown is the
+    // only place to edit one, as with the Slack action.
+    editableFromHere() {
+      return this.application?.type === 'database'
     },
     integrations() {
       if (!this.application) {

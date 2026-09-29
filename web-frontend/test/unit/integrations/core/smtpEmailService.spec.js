@@ -65,6 +65,11 @@ const IntegrationDropdownStub = defineComponent({
       type: Object,
       required: true,
     },
+    allowEditing: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   template: `
     <div
@@ -296,6 +301,27 @@ describe('Core SMTP email service form', () => {
       wrapper
         .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
         .exists()
+    ).toBe(false)
+  })
+
+  test('an integration can be edited from a database but not a builder', async () => {
+    // A database has no integrations page, so the dropdown is the only place
+    // to edit one. The builder and automations keep their own pages.
+    const service = { instance_smtp_settings_enabled: false }
+    const inDatabase = await mountComponent({
+      service,
+      application: { id: 1, type: 'database' },
+    })
+    const inBuilder = await mountComponent({
+      service,
+      application: { id: 2, type: 'builder' },
+    })
+
+    expect(
+      inDatabase.findComponent(IntegrationDropdownStub).props('allowEditing')
+    ).toBe(true)
+    expect(
+      inBuilder.findComponent(IntegrationDropdownStub).props('allowEditing')
     ).toBe(false)
   })
 })
