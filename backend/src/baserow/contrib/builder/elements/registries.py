@@ -190,17 +190,6 @@ class ElementType(
         :raises ValidationError: if the element place is disallowed.
         """
 
-        if position != GraphPointPosition.CHILD and place_in_container:
-            # A place only exists inside a container. Carried by a `north`/`south`
-            # position it would be written as a non-default `next` output on the
-            # reference element, an edge no page renderer follows (the element
-            # would exist but never show), so reject it here, the boundary every
-            # entry point (API, actions, assistant tools) crosses.
-            raise ValidationError(
-                "place_in_container can only be provided together with the "
-                "'child' position."
-            )
-
         if position == GraphPointPosition.CHILD and reference_element is not None:
             reference_element.get_type().validate_position_as_child(
                 place_in_container, reference_element
