@@ -7,6 +7,7 @@ import {
   GROUP_BY_LAYOUT_COLUMN,
   buildLayout,
   pathKey,
+  pathFromKey,
   renderViewport,
   resolveGroupByRowMoveTarget,
   visibleGroupDepthPageInViewport,
@@ -1481,6 +1482,27 @@ describe('gridGroupByRender', () => {
       expect(section.items.map((i) => i.type)).toContain('header')
       expect(section.items.some((i) => i.type === 'groupSpan')).toBe(false)
     })
+  })
+})
+
+describe('pathFromKey', () => {
+  test('rebuilds the path a key was made from', () => {
+    const fields = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]
+    const path = {
+      field_1: 'a:b\x1fc',
+      field_2: null,
+      field_3: [3, 1],
+      field_4: false,
+    }
+
+    const rebuilt = pathFromKey(pathKey(path, fields))
+
+    expect(rebuilt).toEqual({ ...path, field_3: [1, 3] })
+    expect(pathKey(rebuilt, fields)).toBe(pathKey(path, fields))
+  })
+
+  test('returns the root path for an empty key', () => {
+    expect(pathFromKey('')).toEqual({})
   })
 })
 

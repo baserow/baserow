@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix grid view crashes when a cell value is missing or still has the value of the field's previous type",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-29"
+}

@@ -60,7 +60,8 @@ export default {
   watch: {
     value: {
       handler(value) {
-        this.richCopy = value || ''
+        // A value of the field's previous type would be taken for JSON content.
+        this.richCopy = typeof value === 'string' ? value : ''
       },
       immediate: true,
     },

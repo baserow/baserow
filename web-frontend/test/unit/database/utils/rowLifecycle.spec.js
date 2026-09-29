@@ -29,6 +29,7 @@ const stubRegistry = {
       getNewRowValue: () => '',
       getSupportedDefaultValueFunctions: () => [],
       parseDefaultRowValue: (_field, value) => value,
+      getEmptyValue: () => null,
       getSortTypes: () => ({
         default: {
           function: (fieldName, order) => (a, b) => {

@@ -156,6 +156,24 @@ export function pathKey(path, fields) {
 }
 
 /**
+ * The inverse of `pathKey`: rebuilds the group path a section key was made from,
+ * so a section can be resolved without it being part of the rendered layout.
+ */
+export function pathFromKey(key) {
+  const path = {}
+  if (!key) {
+    return path
+  }
+  for (const part of key.split(PATH_KEY_SEP)) {
+    const separatorIndex = part.indexOf(':')
+    path[part.slice(0, separatorIndex)] = JSON.parse(
+      part.slice(separatorIndex + 1)
+    )
+  }
+  return path
+}
+
+/**
  * Builds the set of pathKeys for the collapse exception list. Collapse-all mode
  * needs every prefix so expanded descendants can make their ancestors visible.
  * Expand-all mode must only match exact paths, otherwise collapsing a child also

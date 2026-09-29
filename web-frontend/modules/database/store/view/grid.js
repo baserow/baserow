@@ -41,6 +41,7 @@ import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/sea
 import {
   buildLayout,
   pathKey,
+  pathFromKey,
   renderViewport,
   visibleGroupPagesInViewport,
   visibleSectionsInViewport,
@@ -703,19 +704,14 @@ function isRowSelected(row) {
  * The group path whose tree count a buffered row contributes to. A row kept in
  * place with a move warning still occupies its pre-move section, so the located
  * section's path is authoritative over the row's current values; rows without a
- * location fall back to their value-derived path.
+ * location fall back to their value-derived path. The path is rebuilt from the
+ * section key rather than looked up in the layout, because a collapsed group's
+ * sections are not part of the layout while its loaded rows are.
  */
 function getGroupByRowTreePath(state, getters, row, groupByFields, registry) {
   const location = state.groupBy.rowLocations[row.id]
   if (location) {
-    const section = findGroupByRowSection(
-      getters.getGroupByLayout,
-      location.sectionKey,
-      groupByFields
-    )
-    if (section) {
-      return section.path
-    }
+    return pathFromKey(location.sectionKey)
   }
   return groupPathFromRow(row, groupByFields, registry)
 }
@@ -725,35 +721,38 @@ function getGroupByRowTreePath(state, getters, row, groupByFields, registry) {
  * inside the group derived from its current values, transferring the tree counts
  * when the group changed. With `onlyIfGroupChanged` a row already in its
  * value-derived group is left untouched (its within-group reposition stays
- * deferred). Returns whether the row was moved.
+ * deferred). Callers that don't refresh the aggregations afterwards pass
+ * `markAggregationsLoading: false` so the groups don't spin forever. Returns
+ * whether the row was moved.
  */
 function moveGroupByRowToValueGroup(
   { commit, getters, state },
-  { row, view, fields, registry, onlyIfGroupChanged = false }
+  {
+    row,
+    view,
+    fields,
+    registry,
+    onlyIfGroupChanged = false,
+    markAggregationsLoading = true,
+  }
 ) {
   const groupByFields = getGroupByFieldsFromActiveGroupBys(
     getters.getActiveGroupBys,
     fields
   )
   const oldLocation = state.groupBy.rowLocations[row.id]
-  const oldSection = oldLocation
-    ? findGroupByRowSection(
-        getters.getGroupByLayout,
-        oldLocation.sectionKey,
-        groupByFields
-      )
-    : null
+  const oldPath = oldLocation ? pathFromKey(oldLocation.sectionKey) : null
   const newPath = groupPathFromRow(row, groupByFields, registry)
   const groupChanged =
-    oldSection === null ||
-    pathKey(oldSection.path, groupByFields) !== pathKey(newPath, groupByFields)
+    !oldPath ||
+    pathKey(oldPath, groupByFields) !== pathKey(newPath, groupByFields)
   if (onlyIfGroupChanged && !groupChanged) {
     return false
   }
 
-  if (oldSection && groupChanged) {
+  if (oldPath && groupChanged && markAggregationsLoading) {
     markGroupAggregationPathsLoading({ commit, getters }, [
-      { path: oldSection.path, fields: groupByFields },
+      { path: oldPath, fields: groupByFields },
       { path: newPath, fields: groupByFields },
     ])
   }
@@ -781,9 +780,9 @@ function moveGroupByRowToValueGroup(
     row,
   })
 
-  if (oldSection && groupChanged) {
+  if (oldPath && groupChanged) {
     commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-      path: oldSection.path,
+      path: oldPath,
       fields: groupByFields,
       delta: -1,
       registry,
@@ -1464,12 +1463,26 @@ export const mutations = {
     // reactive and update immediately. If we don't do this, the value in the
     // field components of the grid and modal don't always have the correct value
     // binding.
-    state.rows = state.rows.map((row) => {
+    const withField = (row) => {
       if (!Object.prototype.hasOwnProperty.call(row, name)) {
-        row[`field_${field.id}`] = value
+        row[name] = value
       }
       return { ...row }
-    })
+    }
+    state.rows = state.rows.map(withField)
+    // In group-by mode the grid reads its rows from the sections instead.
+    state.groupBy.sectionRows = Object.fromEntries(
+      Object.entries(state.groupBy.sectionRows).map(([sectionKey, rows]) => [
+        sectionKey,
+        rows.map((row) => (row === undefined ? row : withField(row))),
+      ])
+    )
+    state.groupBy.absoluteRows = Object.fromEntries(
+      Object.entries(state.groupBy.absoluteRows).map(([offset, row]) => [
+        offset,
+        withField(row),
+      ])
+    )
   },
   DECREASE_ORDERS_IN_BUFFER_LOWER_THAN(state, existingOrder) {
     const min = new BigNumber(existingOrder).integerValue(BigNumber.ROUND_FLOOR)
@@ -5725,6 +5738,7 @@ export const actions = {
               fields,
               registry: $registry,
               onlyIfGroupChanged: true,
+              markAggregationsLoading: markGroupAggregationsLoading,
             }
           )
         }

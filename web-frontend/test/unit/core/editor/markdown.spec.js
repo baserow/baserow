@@ -856,3 +856,14 @@ describe('empty paragraph round trip with images', () => {
     expect(html).not.toContain('<img')
   })
 })
+
+describe('parseMarkdown with a non-string value', () => {
+  // A rich text cell can still hold a value of the field's previous type
+  // until the rows refetch after a field conversion.
+  test.each([[42], [true], [[{ id: 1, value: 'row' }]], [{ id: 1 }]])(
+    'renders %j as empty',
+    (value) => {
+      expect(parseMarkdown(value)).toBe('')
+    }
+  )
+})

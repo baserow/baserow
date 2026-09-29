@@ -7,7 +7,7 @@
       @click="toggleDropdown()"
     >
       <div
-        v-if="value !== null"
+        v-if="value"
         class="grid-field-single-select__option"
         :class="'background-color--' + value.color"
       >

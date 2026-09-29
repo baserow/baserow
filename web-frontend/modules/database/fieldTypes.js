@@ -1456,6 +1456,11 @@ export class LongTextFieldType extends FieldType {
   }
 
   getValidationError(field, value) {
+    // A cell can still hold a value of the field's previous type until the
+    // rows refetch; there is no text to measure yet.
+    if (typeof value !== 'string') {
+      return null
+    }
     if (field.long_text_enable_rich_text && value) {
       const stored = stripImageUrls(value)
       return (
@@ -3926,8 +3931,8 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
 
   getSort(name, order) {
     return (a, b) => {
-      const stringA = a[name] === null ? '' : '' + a[name].value
-      const stringB = b[name] === null ? '' : '' + b[name].value
+      const stringA = a[name] == null ? '' : '' + a[name].value
+      const stringB = b[name] == null ? '' : '' + b[name].value
       return collatedStringCompare(stringA, stringB, order)
     }
   }

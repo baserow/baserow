@@ -10,6 +10,18 @@ export const maxPossibleOrderValue = 32767
 export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
 /**
+ * Wraps a field sort function so a row without the cell, e.g. one created
+ * through a realtime event in a public grid view, sorts like an empty cell
+ * instead of making the field type's sort function throw.
+ */
+function sortMissingCellAsEmpty(sortFunction, fieldName, fieldType, field) {
+  const emptyValue = fieldType.getEmptyValue(field)
+  const withCell = (row) =>
+    fieldName in row ? row : { ...row, [fieldName]: emptyValue }
+  return (a, b) => sortFunction(withCell(a), withCell(b))
+}
+
+/**
  * Generates a sort function based on the provided sortings.
  */
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
@@ -39,7 +51,9 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
           field
         )
       }
-      sortFunction = sortFunction.thenBy(fieldSortFunction)
+      sortFunction = sortFunction.thenBy(
+        sortMissingCellAsEmpty(fieldSortFunction, fieldName, fieldType, field)
+      )
     }
   })
 
@@ -70,7 +84,9 @@ export function getGroupByRowSortFunction($registry, fields, groupBys) {
         field,
         sort.type
       )
-      sortFunction = sortFunction.thenBy(fieldSortFunction)
+      sortFunction = sortFunction.thenBy(
+        sortMissingCellAsEmpty(fieldSortFunction, fieldName, fieldType, field)
+      )
     }
   })
 

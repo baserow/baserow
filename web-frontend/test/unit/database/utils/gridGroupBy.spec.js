@@ -53,6 +53,7 @@ const makeRegistry = (overrides = {}) => ({
       canWriteFieldValues: () => true,
       getRowValueFromGroupValue: (_field, groupValue) => groupValue,
       getGroupValueFromRowValue: (_field, rowValue) => rowValue,
+      getEmptyValue: () => null,
       getSortTypes: defaultSortTypes,
       getGroupBySort(name, order, _field, sortType) {
         const types = this.getSortTypes()
