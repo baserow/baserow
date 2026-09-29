@@ -888,3 +888,40 @@ def test_duplicate_page_preserves_user_source_roles(data_fixture):
     assert duplicate.roles == [default_role, "editor"]
     assert duplicate.visibility == page.visibility
     assert duplicate.role_type == page.role_type
+
+
+@pytest.mark.django_db
+def test_import_elements_folds_non_default_next_output_into_default_chain(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_text_element(page=page)
+    second = data_fixture.create_builder_text_element(page=page)
+    serialized = [
+        element_type_registry.get_by_model(element).export_serialized(element)
+        for element in (first, second)
+    ]
+
+    # An export whose page graph stores the second element under a stray "0"
+    # output (a south move that carried place_in_container "0"). migrate_graph
+    # keeps the key; the import must fold it into the default chain so that
+    # the element renders in the copy (a published page is never healed).
+    new_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        graph={
+            "0": first.id,
+            str(first.id): {"next": {"0": [second.id]}},
+            str(second.id): {},
+        },
+    )
+
+    [imported_first, imported_second] = PageHandler().import_elements(
+        new_page, serialized, {}
+    )
+
+    new_page.refresh_from_db(fields=["graph"])
+    assert new_page.graph == {
+        "0": imported_first.id,
+        str(imported_first.id): {"next": {"": [imported_second.id]}},
+        str(imported_second.id): {},
+    }

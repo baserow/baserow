@@ -16,6 +16,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.database.views.models import View, ViewFilter
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.deps import AgentMode
@@ -1613,6 +1614,97 @@ register_case(
         ),
         scenario="builder-setup-user-source-existing-table",
         checks=_check_setup_user_source_existing_table,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Moves an element out of a column to the bottom of the page
+# ---------------------------------------------------------------------------
+
+PROMPT_MOVE_OUT_OF_COLUMN = (
+    "In builder '{builder_name}', on the page 'Home', move the heading "
+    "'Inside the column' out of the column so that it becomes the last element "
+    "at the bottom of the page."
+)
+
+
+@register_scenario("builder-moves-element-out-of-column")
+def _moves_element_out_of_column_scenario(fx: Fixtures) -> EvalScenario:
+    # Regression for BASEROW-SAAS-BACKEND-16Z: a root-level move that kept the
+    # column slot used to write the element under a `next["0"]` output that
+    # nothing renders. The move tool now refuses a slot without a parent.
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="Layout Lab"
+    )
+    page = fx.create_builder_page(builder=builder, name="Home", path="/")
+    column = fx.create_builder_column_element(page=page, column_amount=2)
+    inside = fx.create_builder_heading_element(
+        page=page,
+        value="'Inside the column'",
+        reference_element=column,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+    )
+    fx.create_builder_text_element(page=page, value="'Text below the column.'")
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"page": page, "column": column, "inside": inside},
+    )
+
+
+def _check_moves_element_out_of_column(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    page = scenario.refs["page"]
+    column = scenario.refs["column"]
+    inside = scenario.refs["inside"]
+    page.refresh_from_db(fields=["graph"])
+    graph_handler = page.get_graph()
+    stray_outputs = graph_handler.find_non_default_next_edge_pairs(page.graph)
+    last_root_element, _, _ = graph_handler.get_last_position()
+    element = Element.objects.filter(id=inside.id).first()
+
+    return [
+        CheckResult("called move_elements", tool_called(output, "move_elements") >= 1),
+        CheckResult(
+            "heading still exists (moved, not recreated)",
+            element is not None,
+            hint=f"element {inside.id} no longer exists",
+        ),
+        CheckResult(
+            "heading is at the root level",
+            element is not None and element.parent_element_id is None,
+            hint=f"parent: {element.parent_element_id if element else None}",
+        ),
+        CheckResult(
+            "heading is the last root element",
+            last_root_element is not None and last_root_element.id == inside.id,
+            hint=f"last root element: {last_root_element}",
+        ),
+        CheckResult(
+            "column still exists", Element.objects.filter(id=column.id).exists()
+        ),
+        CheckResult(
+            "page graph uses only the default next output",
+            not stray_outputs,
+            hint=f"stray outputs: {sorted(stray_outputs)}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/moves-element-out-of-column",
+        dataset="kuma-builder",
+        prompt=PROMPT_MOVE_OUT_OF_COLUMN.format(builder_name="Layout Lab"),
+        scenario="builder-moves-element-out-of-column",
+        checks=_check_moves_element_out_of_column,
         mode=AgentMode.APPLICATION,
         max_iters=15,
     )

@@ -170,6 +170,7 @@ EXPECTED_CASE_IDS = {
         "builder/creates-table-with-edit-button",
         "builder/filtered-data-source-via-view",
         "builder/lists-pages",
+        "builder/moves-element-out-of-column",
         "builder/page-specific-nav-on-page",
         "builder/setup-user-source-existing-table",
         "builder/setup-user-source-new-table",
@@ -212,7 +213,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 3
         assert len(grouped["kuma-database"]) == 21
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 16
+        assert len(grouped["kuma-builder"]) == 17
         assert len(grouped["kuma-automation"]) == 7
 
     def test_case_ids_match_inventory(self):

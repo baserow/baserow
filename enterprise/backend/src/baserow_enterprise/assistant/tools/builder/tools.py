@@ -989,7 +989,7 @@ def move_elements(
     - element_id: ID of the element to move (from list_elements).
     - before_id: Place before this element. null = move to end.
     - parent_element_id: New parent container. null = move to root level.
-    - place_in_container: Container slot (e.g. "0", "1" for columns). null = default.
+    - place_in_container: Slot inside parent_element_id (e.g. "0", "1" for columns). Only valid together with parent_element_id; null = default. When moving to the root level leave it null.
     """
 
     user = ctx.deps.user

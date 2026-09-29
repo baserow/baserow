@@ -24,6 +24,9 @@ accepts writes again. One section per corruption class:
 - invalid children edges: children stored under a place their element cannot
   have (an unknown container place, or any children on a non-container) —
   reachable and consistent-looking, but never rendered.
+- non-default next outputs: a `next` chain stored under an output other than
+  the default `""` (a place_in_container that reached the graph with a
+  south/north position) — reachable, but never rendered.
 - composites: several classes at once, including the anonymized real-world
   customer graph shape.
 
@@ -747,7 +750,8 @@ def test_heal_reattaches_live_children_of_pruned_stale_container(data_fixture):
         user,
         heading,
         page=page,
-        parent_element_id=container.id,
+        reference_element_id=container.id,
+        position=GraphPointPosition.CHILD,
         place_in_container="0",
     )
 
@@ -1237,3 +1241,105 @@ def test_heal_corrupted_graph_does_not_report_when_consistent(
     PageHandler().heal_corrupted_graph(page)
 
     capture_message_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Non-default next outputs
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_heal_merges_non_default_next_output_into_default_chain(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+
+    # The customer shape behind BASEROW-SAAS-BACKEND-16Z: a south move that
+    # carried place_in_container "0" wrote e2 under `next["0"]`. e2 is
+    # reachable, so no other detector flags it, but nothing renders it.
+    page.graph = {"0": e1.id, str(e1.id): {"next": {"0": [e2.id]}}, str(e2.id): {}}
+    page.save(update_fields=["graph"])
+
+    patch = PageHandler().heal_corrupted_graph(page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {},
+    }
+    assert patch == {str(e1.id): {"next": {"": [e2.id]}}}
+    # Healthy afterwards: the fast path finds nothing to do.
+    assert PageHandler().heal_corrupted_graph(page) == {}
+
+
+@pytest.mark.django_db
+def test_heal_merges_non_default_next_output_before_default_successors(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+    e3 = ElementService().create_element(user, heading, page=page)
+    e4 = ElementService().create_element(user, heading, page=page)
+
+    # e1's default chain continues with e4 while a stray "0" output holds the
+    # chain e2 -> e3. The chain is folded in where a south insert would land:
+    # right after e1, ahead of e1's previous default successor.
+    page.graph = {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e4.id], "0": [e2.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+        str(e4.id): {},
+    }
+    page.save(update_fields=["graph"])
+
+    PageHandler().heal_corrupted_graph(page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {"next": {"": [e4.id]}},
+        str(e4.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_merge_non_default_next_edges_orders_outputs_and_drops_dangling_heads(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+    e3 = ElementService().create_element(user, heading, page=page)
+
+    page.graph = {
+        "0": e1.id,
+        str(e1.id): {"next": {"1": [e3.id], "0": [e2.id], "2": [999999]}},
+        str(e2.id): {},
+        str(e3.id): {},
+    }
+    page.save(update_fields=["graph"])
+
+    merged = page.get_graph().merge_non_default_next_edges()
+
+    assert merged == [(e1.id, "0"), (e1.id, "1"), (e1.id, "2")]
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+    }
