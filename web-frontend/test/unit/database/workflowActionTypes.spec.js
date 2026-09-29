@@ -491,15 +491,28 @@ describe('external database workflow action types', () => {
     expect(typeFor('smtp_email').mapsFields).toBe(false)
   })
 
-  test('email keeps the integration branch out of its form', () => {
-    // A button's actions carry no integration, so the dropdown could never be
-    // filled and unchecking the box would build a service that fails on click.
+  test('email offers the integration and says whether the instance can send', () => {
+    testApp.store.commit('settings/SET_SETTINGS', {
+      instance_smtp: { available: false, unavailable_reason: 'turned_off' },
+    })
     expect(typeFor('smtp_email').serviceFormProps).toEqual({
-      allowIntegration: false,
+      instanceSmtpAvailable: false,
+    })
+    expect(typeFor('smtp_email').getNewActionValues()).toEqual({
+      service: { use_instance_smtp_settings: false },
+    })
+
+    testApp.store.commit('settings/SET_SETTINGS', {
+      instance_smtp: { available: true, unavailable_reason: null },
+    })
+    expect(typeFor('smtp_email').serviceFormProps).toEqual({
+      instanceSmtpAvailable: true,
     })
     expect(typeFor('smtp_email').getNewActionValues()).toEqual({
       service: { use_instance_smtp_settings: true },
     })
+
+    testApp.store.commit('settings/SET_SETTINGS', {})
   })
 
   test('http asks for no extra form props', () => {
@@ -529,7 +542,7 @@ describe('external database workflow action types', () => {
     // must offer the dropdown and the editor must fetch what it can list.
     expect(typeFor('slack_write_message').serviceFormProps).toEqual({})
     expect(typeFor('slack_write_message').needsIntegration).toBe(true)
-    expect(typeFor('smtp_email').needsIntegration).toBe(false)
+    expect(typeFor('smtp_email').needsIntegration).toBe(true)
     expect(typeFor('http_request').needsIntegration).toBe(false)
     expect(typeFor('local_baserow_create_row').needsIntegration).toBe(false)
   })
@@ -570,47 +583,77 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
   // when it knows the workspace.
   const context = { workspace: { id: 1 } }
 
-  test('an instance that cannot send is said so before the action is saved', () => {
+  test('an instance action where the instance cannot send says why', () => {
     withInstanceSmtp({ available: false, unavailable_reason: 'no_server' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: {
+        use_instance_smtp_settings: true,
+        to_emails: { formula: "'a'" },
+      },
+    }
 
-    // An action being configured has no service yet, so the reason cannot
-    // come from one.
-    const action = { id: 1, type: 'smtp_email' }
-
-    // `$t` returns the key in the test env, so the copy is pinned separately.
     expect(emailType().getErrorMessage(action, context)).toBe(
       'databaseWorkflowActionType.noInstanceSmtp'
     )
     expect(en.databaseWorkflowActionType.noInstanceSmtp).toContain(
-      'no SMTP server configured'
+      'Choose an SMTP integration'
     )
   })
 
   test('sending turned off by an administrator says that instead', () => {
     withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: {
+        use_instance_smtp_settings: true,
+        to_emails: { formula: "'a'" },
+      },
+    }
 
-    expect(
-      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
-    ).toBe('databaseWorkflowActionType.instanceSmtpTurnedOff')
+    expect(emailType().getErrorMessage(action, context)).toBe(
+      'databaseWorkflowActionType.instanceSmtpTurnedOff'
+    )
     expect(en.databaseWorkflowActionType.instanceSmtpTurnedOff).toContain(
       'turned off'
     )
   })
 
-  test('an instance that can send says nothing', () => {
-    withInstanceSmtp({ available: true, unavailable_reason: null })
+  test('an action on an integration is not told about the instance', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: {
+        use_instance_smtp_settings: false,
+        integration_id: 3,
+        from_email: { formula: "'f@example.com'" },
+        to_emails: { formula: "'a'" },
+      },
+    }
 
-    expect(
-      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
-    ).toBeNull()
+    expect(emailType().getErrorMessage(action, context)).toBeNull()
   })
 
-  test('an installation older than the flag is left to the click', () => {
-    testApp.store.commit('settings/SET_SETTINGS', {})
+  test('an action with no integration chosen says so', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: { use_instance_smtp_settings: false, integration_id: null },
+    }
 
-    expect(
-      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
-    ).toBeNull()
+    expect(emailType().getErrorMessage(action, context)).toBe(
+      'serviceType.errorNoIntegrationSelected'
+    )
+  })
+
+  test('the type itself is never offered disabled', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'no_server' })
+
+    expect(emailType().isDeactivatedReason({ workspace: { id: 1 } })).toBeNull()
   })
 })
 

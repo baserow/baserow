@@ -112,12 +112,14 @@ async function mountComponent({
   defaultValues = service,
   integrations = [],
   application = { id: 1 },
+  props = {},
 } = {}) {
   return await mountSuspended(CoreSMTPEmailServiceForm, {
     props: {
       application,
       service,
       defaultValues,
+      ...props,
     },
     global: {
       stubs: {
@@ -230,5 +232,27 @@ describe('Core SMTP email service form', () => {
     expect(
       wrapper.findComponent(IntegrationDropdownStub).props('integrations')
     ).toEqual([smtpIntegration])
+  })
+
+  test('an explicit instance flag wins over the service', async () => {
+    // A button action being added has no saved service to carry the flag.
+    const wrapper = await mountComponent({
+      service: { instance_smtp_settings_enabled: true },
+      props: { instanceSmtpAvailable: false },
+    })
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
+  })
+
+  test('with the instance available, the choice is offered', async () => {
+    const wrapper = await mountComponent({
+      service: {},
+      defaultValues: { use_instance_smtp_settings: true },
+      props: { instanceSmtpAvailable: true },
+    })
+
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(true)
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(false)
   })
 })
