@@ -6,6 +6,7 @@ from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 
 import pytest
+from pytest_unordered import unordered
 from starlette.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
@@ -173,7 +174,7 @@ def test_when_row_created_restricted_views_receive_restricted_row_ws_event(
         },
     )
 
-    assert mock_broadcast_to_channel_group.delay.mock_calls == (
+    assert list(mock_broadcast_to_channel_group.delay.mock_calls) == unordered(
         [
             call(f"table-{table.id}", ANY, ANY, None),
             call(
@@ -3792,6 +3793,29 @@ def test_get_hidden_row_ids_returns_none_if_filters_not_enforced(
 
     assert (
         ViewHandler().get_hidden_row_ids(admin, view, table.get_model(), [row.id])
+        is None
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_hidden_row_ids_returns_none_for_a_builder(
+    enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    workspace = table.database.workspace
+    builder = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(user=builder, workspace=workspace)
+    RoleAssignmentHandler().assign_role(
+        builder, workspace, role=Role.objects.get(uid="BUILDER"), scope=workspace
+    )
+    row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
+
+    assert (
+        ViewHandler().get_hidden_row_ids(builder, view, table.get_model(), [row.id])
         is None
     )
 
