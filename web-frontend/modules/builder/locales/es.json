@@ -251,7 +251,8 @@
     "elementForms": {
         "urlInputPlaceholder": "Introducir URL...",
         "textInputPlaceholder": "Introducir texto...",
-        "invalidFormula": "La fórmula es inválida"
+        "invalidFormula": "La fórmula es inválida",
+        "formValidationHint": "Coloca este elemento dentro de un formulario para mostrar errores de validación antes de enviar los datos."
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Colores",
