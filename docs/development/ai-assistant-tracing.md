@@ -103,7 +103,7 @@ authentication. Run it on any Docker host:
 ```yaml
 services:
   phoenix:
-    image: arizephoenix/phoenix:version-20.3.0
+    image: arizephoenix/phoenix:version-20.16.0
     environment:
       - PHOENIX_SQL_DATABASE_URL=postgresql://phoenix:${PHOENIX_DB_PASSWORD}@phoenix-db:5432/phoenix
       - PHOENIX_ENABLE_AUTH=true
