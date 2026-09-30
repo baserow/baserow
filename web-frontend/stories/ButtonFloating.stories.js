@@ -21,7 +21,7 @@ export default {
     },
     position: {
       control: 'select',
-      options: ['relative', 'fixed'],
+      options: ['relative', 'absolute'],
       description: 'Positioning strategy',
     },
     loading: {
