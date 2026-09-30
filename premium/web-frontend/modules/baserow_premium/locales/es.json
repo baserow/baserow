@@ -436,5 +436,9 @@
         "localBaserowGroupedAggregateRowsDescription": "Agrupa filas de una tabla de Baserow y calcula resúmenes.",
         "errorTrashedAggregationField": "Al menos un campo configurado ha sido enviado a la papelera.",
         "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "sourceFieldLabel": "Origen",
+        "data": "Datos"
     }
 }
