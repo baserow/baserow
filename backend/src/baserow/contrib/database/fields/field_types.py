@@ -3777,6 +3777,9 @@ class LinkRowFieldType(
             values.pop("link_row_table", None)
             values["link_row_table_id"] = field.link_row_table_id
 
+        # The View instance isn't JSON serializable; prepare_values restores it by id.
+        values.pop("link_row_limit_selection_view", None)
+
         # We don't want to serialize the related field as the update call will create
         # it again, but we need to save the field has a related field or not.
         values["has_related_field"] = bool(values.pop("link_row_related_field", None))
