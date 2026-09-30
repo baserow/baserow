@@ -626,20 +626,6 @@ describe('sorting rows with a missing cell value', () => {
       { id: 2, name: 'b' },
       { id: 1, name: 'a' },
     ],
-    [
-      'multiple_select formula',
-      'formula',
-      { formula_type: 'multiple_select' },
-      [{ id: 2, value: 'B' }],
-      [{ id: 1, value: 'A' }],
-    ],
-    [
-      'multiple_collaborators formula',
-      'formula',
-      { formula_type: 'multiple_collaborators' },
-      [{ id: 2, name: 'b' }],
-      [{ id: 1, name: 'a' }],
-    ],
   ]
   // A failed save can also write the old value back as a present but undefined
   // key.

@@ -78,13 +78,6 @@ import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 import ViewFilterTypeCollaborators from '@baserow/modules/database/components/view/ViewFilterTypeCollaborators'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
-  /**
-   * The value of an empty cell of this formula type.
-   */
-  getEmptyValue(field) {
-    return null
-  }
-
   getIconClass() {
     throw new Error(
       'Not implemented error. This method should return the types icon.'
@@ -1053,10 +1046,6 @@ export class BaserowFormulaMultipleSelectType extends mix(
     return 'multiple_select'
   }
 
-  getEmptyValue(field) {
-    return []
-  }
-
   getIconClass() {
     return 'baserow-icon-multiple-select'
   }
@@ -1107,10 +1096,6 @@ export class BaserowFormulaMultipleCollaboratorsType extends mix(
 
   getFieldType() {
     return 'multiple_collaborators'
-  }
-
-  getEmptyValue(field) {
-    return []
   }
 
   getIconClass() {

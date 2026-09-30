@@ -4687,10 +4687,6 @@ export class FormulaFieldType extends mix(
     return this.app.$registry.get('formula_type', field.formula_type)
   }
 
-  getEmptyValue(field) {
-    return this.getFormulaType(field)?.getEmptyValue(field) ?? null
-  }
-
   getGridViewFieldComponent() {
     return GridViewFieldFormula
   }
