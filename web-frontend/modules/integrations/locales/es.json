@@ -353,7 +353,8 @@
         "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y hora especificados",
         "deactivatedTitle": "Disparador periódico desactivado",
         "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos.",
-        "timezoneHelper": "La programación mantiene esta hora local cuando cambian los relojes"
+        "timezoneHelper": "La programación mantiene esta hora local cuando cambian los relojes",
+        "timezone": "Zona horaria"
     },
     "localBaserowUpsertRowServiceForm": {
         "noTableSelectedMessage": "Elige una tabla para comenzar a configurar tus campos.",
@@ -418,7 +419,8 @@
     "coreGotoServiceForm": {
         "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo.",
         "destinationDescription": "El nodo al que saltar cuando la condición es verdadera.",
-        "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino."
+        "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino.",
+        "conditionLabel": "Condición"
     },
     "aiProviderModelFeature": {
         "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones."
