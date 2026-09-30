@@ -844,14 +844,14 @@ class ZaiGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        from pydantic_ai.models.zai import ZaiModel, ZaiModelSettings
+        from pydantic_ai.models.zai import ZaiModelSettings
 
-        from .zai import ZaiChatProvider
+        from .zai import ZaiChatModel, ZaiChatProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         if not api_key:
             raise ValueError("A Z.ai API key is required.")
-        return ZaiModel(
+        return ZaiChatModel(
             model_name,
             provider=ZaiChatProvider(api_key=api_key),
             # Preserved thinking needs all past reasoning back; Kuma compacts history.

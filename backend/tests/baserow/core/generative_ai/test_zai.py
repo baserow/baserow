@@ -8,6 +8,10 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 
+from baserow.core.ai_provider.constants import AI_PROVIDER_TEST_MAX_TOKENS
+from baserow.core.generative_ai.capabilities import (
+    test_model_text_and_tool_calling as check_model_text_and_tool_calling,
+)
 from baserow.core.generative_ai.generative_ai_model_types import (
     ZaiGenerativeAIModelType,
 )
@@ -149,7 +153,7 @@ def test_zai_prompt_sends_chat_completion_with_png_to_zai(
     assert body["temperature"] == 1
     assert body["max_tokens"] == 64
     assert "max_completion_tokens" not in body
-    assert body["thinking"] == {"clear_thinking": True}
+    assert body["thinking"]["clear_thinking"] is True
     [message] = body["messages"]
     assert message["role"] == "user"
     text_part, image_part = message["content"]
@@ -173,6 +177,85 @@ def test_zai_prompt_without_max_tokens_sends_no_token_cap(
     body = zai_api.last_body()
     assert "max_tokens" not in body
     assert "max_completion_tokens" not in body
+
+
+@pytest.mark.parametrize(
+    ("model_name", "max_tokens", "thinking", "reasoning_effort"),
+    [
+        ("glm-5.2", 250, {"type": "disabled", "clear_thinking": True}, None),
+        ("glm-5.3", 250, {"type": "enabled", "clear_thinking": True}, "low"),
+        ("glm-5.2", 16384, {"clear_thinking": True}, None),
+    ],
+)
+def test_zai_lowers_thinking_only_for_short_capped_requests(
+    zai_api: FakeZaiApi,
+    model_name: str,
+    max_tokens: int,
+    thinking: dict,
+    reasoning_effort: str | None,
+) -> None:
+    zai_api.responses.append(_chat_completion({"content": "OK"}))
+
+    ZaiGenerativeAIModelType().prompt(
+        model_name,
+        "Say OK.",
+        settings_override={"api_key": "zai-key", "models": [model_name]},
+        model_settings_override={"max_tokens": max_tokens},
+    )
+
+    body = zai_api.last_body()
+    assert body["thinking"] == thinking
+    assert body.get("reasoning_effort") == reasoning_effort
+
+
+def test_zai_short_capped_request_keeps_the_callers_thinking_level(
+    zai_api: FakeZaiApi,
+) -> None:
+    zai_api.responses.append(_chat_completion({"content": "OK"}))
+
+    ZaiGenerativeAIModelType().prompt(
+        "glm-5.2",
+        "Say OK.",
+        settings_override=ZAI_SETTINGS,
+        model_settings_override={"max_tokens": 250, "thinking": "high"},
+    )
+
+    body = zai_api.last_body()
+    assert body["thinking"] == {"type": "enabled", "clear_thinking": True}
+    assert body["reasoning_effort"] == "high"
+
+
+def test_zai_compatibility_probe_asks_glm_5_3_for_low_reasoning_effort(
+    zai_api: FakeZaiApi,
+) -> None:
+    zai_api.responses += [
+        _chat_completion(
+            {
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "baserow_model_compatibility_test",
+                            "arguments": json.dumps({"value": "ok"}),
+                        },
+                    }
+                ],
+            },
+            finish_reason="tool_calls",
+        ),
+        _chat_completion({"content": "OK"}),
+    ]
+    model = ZaiGenerativeAIModelType().get_ai_model(
+        "glm-5.3", settings_override={"api_key": "zai-key", "models": ["glm-5.3"]}
+    )
+
+    check_model_text_and_tool_calling(model, max_tokens=AI_PROVIDER_TEST_MAX_TOKENS)
+
+    assert [
+        json.loads(request.content)["reasoning_effort"] for request in zai_api.requests
+    ] == ["low", "low"]
 
 
 def test_zai_output_tool_agent_sends_auto_tool_choice_without_strict(
