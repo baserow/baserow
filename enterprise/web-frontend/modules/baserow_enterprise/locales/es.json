@@ -598,7 +598,7 @@
         "series": "Series",
         "addSeries": "Añadir series",
         "data": "Datos",
-        "sourceFieldLabel": "Fuente",
+        "sourceFieldLabel": "Origen",
         "viewFieldLabel": "Vista",
         "notSelected": "No seleccionado"
     },
@@ -656,7 +656,7 @@
         "maxFileSize": "Tamaño máximo de archivo",
         "maxFileSizePlaceholder": "Introduce un número…",
         "addFileType": "Añadir tipo de archivo",
-        "fileTypesHelper": "Elige qué extensiones de archivo se permiten (una por línea) en la entrada de archivo (ej. jpg, png, svg, pdf). puedes especificar «image/*», «video/*» o «audio/*» para permitir todos los archivos de estos tipos. Déjalo vacío para permitir todos los tipos de archivo."
+        "fileTypesHelper": "Elige qué tipos de archivo están permitidos (uno por línea). Ingresa una extensión de archivo (ej. jpg, png, pdf), un tipo MIME completo (ej. image/jpeg, application/pdf) o un comodín MIME (ej. image/*, text/*, application/*) para permitir todos los archivos de ese tipo. Deja vacío para permitir todos los tipos de archivo."
     },
     "fileInputElement": {
         "defaultHelpText": "Arrastrar y soltar archivos aquí o hacer clic para seleccionar",
