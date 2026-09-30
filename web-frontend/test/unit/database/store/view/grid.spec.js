@@ -9770,7 +9770,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'c')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: baseView,
@@ -9780,8 +9782,8 @@ describe('Grid view store', () => {
       })
 
       const request = mockServer.mock.history.post[0]
-      expect(request.params).toEqual({ view: 5 })
-      expect(JSON.parse(request.data)).toEqual({ field_1: 'c' })
+      expect(request.params).toEqual({ view: 5, include_metadata: true })
+      expect(JSON.parse(request.data)).toEqual({ items: [{ field_1: 'c' }] })
       const rows = confirmedStore.getters['grid/getAllRows']
       expect(rows.map((r) => r.id)).toEqual([1, 2, 3])
       expect(rows[2]._.selected).toBe(false)
@@ -9800,7 +9802,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'c')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'b'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'b')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: {
@@ -9825,7 +9829,9 @@ describe('Grid view store', () => {
         count: 10,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(11, 'k'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(11, 'k')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: baseView,
@@ -9847,7 +9853,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'c')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: {
@@ -9900,8 +9908,8 @@ describe('Grid view store', () => {
         },
       })
       mockServer.mock
-        .onPost('/database/rows/table/1/')
-        .reply(200, { ...row(11, 'Dan'), field_2: 'B' })
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [{ ...row(11, 'Dan'), field_2: 'B' }] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: { ...baseView, group_bys: groupBys },
@@ -9920,6 +9928,39 @@ describe('Grid view store', () => {
       expect(confirmedStore.state.grid.count).toBe(1)
     })
 
+    test('does not show a confirmed row that the backend reports as hidden', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [row(3, 'c')],
+        metadata: { hidden_row_ids: [3] },
+      })
+      const dispatchSpy = vi.spyOn(confirmedStore, 'dispatch')
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: { ...baseView, ownership_type: 'restricted' },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      const request = mockServer.mock.history.post[0]
+      expect(request.params).toMatchObject({ view: 5, include_metadata: true })
+      expect(JSON.parse(request.data)).toEqual({ items: [{ field_1: 'c' }] })
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.createdMessage - 1',
+      })
+    })
+
     test('rejects and leaves the store untouched when the backend fails', async () => {
       const { confirmedStore, fetchByScrollTopDelayed } = createConfirmedStore({
         bufferStartIndex: 0,
@@ -9927,7 +9968,7 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(500)
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(500)
 
       await expect(
         confirmedStore.dispatch('grid/createNewRowConfirmed', {

@@ -4714,17 +4714,28 @@ export const actions = {
     { dispatch, getters },
     { view, table, fields, values }
   ) {
-    const { $client, $registry } = this
-    const { data } = await RowService($client).create(
+    const { $client, $registry, $i18n } = this
+    const { data } = await RowService($client).batchCreate(
       table.id,
-      prepareRowForRequest(values, fields, $registry),
+      [prepareRowForRequest(values, fields, $registry)],
+      null,
       null,
       view.id
     )
+    const [createdRow] = data.items
+    const hiddenRowIds = reportHiddenRows(data, {
+      dispatch,
+      i18n: $i18n,
+      tableId: table.id,
+      created: true,
+    })
+    if (hiddenRowIds.has(createdRow.id)) {
+      return
+    }
     await dispatch('createdNewRow', {
       view,
       fields,
-      values: data,
+      values: createdRow,
       metadata: {},
     })
     dispatch('fetchByScrollTopDelayed', {
