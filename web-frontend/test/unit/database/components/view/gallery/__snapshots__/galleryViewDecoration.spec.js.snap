@@ -5,7 +5,7 @@ exports[`GalleryView component with decoration > Default component with first_ce
   class="gallery-view"
 >
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular"
   >
     <i
       class="button-floating__icon iconoir-plus"
@@ -108,7 +108,7 @@ exports[`GalleryView component with decoration > Default component with row wrap
   class="gallery-view"
 >
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular"
   >
     <i
       class="button-floating__icon iconoir-plus"
@@ -213,7 +213,7 @@ exports[`GalleryView component with decoration > Default component with unavaila
   class="gallery-view"
 >
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular"
   >
     <i
       class="button-floating__icon iconoir-plus"
