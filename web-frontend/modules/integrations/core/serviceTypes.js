@@ -602,6 +602,11 @@ export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
 
   getErrorMessage(params) {
     const { service } = params
+    // The service is undefined while a node is being created optimistically
+    // and the API has not responded yet.
+    if (service === undefined) {
+      return super.getErrorMessage(params)
+    }
     const isNoContentResponse =
       service.status_code?.mode === 'raw' &&
       service.status_code.formula === '204'
