@@ -73,6 +73,13 @@ _BEDROCK_DISCOVERY_EXCLUDED_MODELS = {
 }
 # Only grok-4.<n>: most older slugs are retired and silently redirect to grok-4.3.
 _XAI_DISCOVERY_MODEL_PATTERN = re.compile(r"^grok-4\.\d+")
+# Phone agent, ids missing from Z.ai's pricing and API schema, or a 16K-output model.
+_ZAI_DISCOVERY_EXCLUDED_MODELS = {
+    "autoglm-phone-multilingual",
+    "glm-5-turbo",
+    "glm-5v-turbo",
+    "glm-4-32b-0414-128k",
+}
 
 
 def google_model_requires_default_sampling(model_name: str) -> bool:
@@ -145,6 +152,24 @@ class XaiFileHandler(FileHandler):
     _INLINEABLE_EXTENSIONS = _TEXT_EXTENSIONS
     # Equals xAI's per-image limit, so every embedded image also stays within it.
     _MAX_EMBED_PAYLOAD_BYTES = 20 * 1024 * 1024
+
+
+class ZaiFileHandler(FileHandler):
+    """Embed JPG/PNG images and inline small text; Z.ai rejects other image formats
+    and file parts cannot share a request with images."""
+
+    _EMBEDDABLE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+    _INLINEABLE_EXTENSIONS = _TEXT_EXTENSIONS
+    _EMBED_KIND_LIMITS = (
+        # Z.ai's "under 5M" doesn't say raw or base64, so 3.75 MB is safe either way.
+        EmbedKindLimit(
+            extensions=frozenset(_EMBEDDABLE_EXTENSIONS),
+            max_file_bytes=3_750_000,
+            max_files=50,
+        ),
+    )
+    # Z.ai documents no request limit; keeps the base64 body under 20 MB.
+    _MAX_EMBED_PAYLOAD_BYTES = 14 * 1024 * 1024
 
 
 class OpenAIFileHandler(FileHandler):
@@ -780,6 +805,80 @@ class XaiGenerativeAIModelType(GenerativeAIModelType):
         from baserow.api.generative_ai.serializers import XaiSettingsSerializer
 
         return XaiSettingsSerializer
+
+
+class ZaiGenerativeAIModelType(GenerativeAIModelType):
+    type = "zai"
+    supports_legacy_workspace_settings = False
+
+    @cached_property
+    def file_handler(self) -> ZaiFileHandler:
+        return ZaiFileHandler()
+
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "models", settings_override, feature_type, state
+        )
+        return value if configured else []
+
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.zai import ZaiModelSettings
+
+        from .zai import ZaiChatModel, ZaiChatProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        if not api_key:
+            raise ValueError("A Z.ai API key is required.")
+        return ZaiChatModel(
+            model_name,
+            provider=ZaiChatProvider(api_key=api_key),
+            # Preserved thinking needs all past reasoning back; Kuma compacts history.
+            settings=ZaiModelSettings(zai_clear_thinking=True),
+        )
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.zai import LatestZaiModelNames
+
+        return [
+            name
+            for name in get_known_model_names(LatestZaiModelNames)
+            if name not in _ZAI_DISCOVERY_EXCLUDED_MODELS
+        ]
+
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        model_settings: dict[str, Any] = {}
+        if temperature is not None:
+            model_settings["temperature"] = min(temperature, 1)
+        return model_settings
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import ZaiSettingsSerializer
+
+        return ZaiSettingsSerializer
 
 
 class MistralGenerativeAIModelType(GenerativeAIModelType):

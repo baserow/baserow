@@ -820,6 +820,12 @@ def test_provider_type_metadata_marks_required_connection_settings(
         "uses_api_key": True,
         "extra_fields": [],
     }
+    assert provider_types["zai"] == {
+        "type": "zai",
+        "name": "Z.ai",
+        "uses_api_key": True,
+        "extra_fields": [],
+    }
     assert provider_types["ollama"]["uses_api_key"] is False
     assert provider_types["ollama"]["extra_fields"] == [
         {"name": "host", "required": True, "allow_blank": False}
@@ -1184,6 +1190,7 @@ def test_testing_an_unknown_saved_model_returns_not_found(api_client, staff_head
         ("groq", "openai/gpt-oss-120b"),
         ("mistral", "mistral-large-latest"),
         ("xai", "grok-4.3"),
+        ("zai", "glm-5.2"),
     ],
 )
 def test_model_discovery_returns_pydantic_ai_known_models(
@@ -1312,6 +1319,81 @@ def test_xai_provider_create_and_update_never_return_the_api_key(
     response = api_client.patch(
         item_url,
         {"extra_settings": {"base_url": "https://attacker.example.com/v1"}},
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    provider.refresh_from_db()
+    assert provider.extra_settings == {}
+
+
+@pytest.mark.django_db
+def test_zai_model_discovery_excludes_unsuitable_models(
+    api_client, staff_headers
+) -> None:
+    response = api_client.get(
+        reverse("api:ai_provider:discover_models"),
+        {"provider_type": "zai"},
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    models = response.json()["models"]
+    assert "glm-5.3" in models
+    assert "glm-4.6v" in models
+    for excluded in (
+        "autoglm-phone-multilingual",
+        "glm-5-turbo",
+        "glm-5v-turbo",
+        "glm-4-32b-0414-128k",
+    ):
+        assert excluded not in models
+
+
+@pytest.mark.django_db
+def test_zai_provider_create_and_update_never_return_the_api_key(
+    api_client, staff_headers
+) -> None:
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "zai",
+            "api_key": "zai-id.zai-secret",
+            "models": [
+                {"model_identifier": "glm-5.2"},
+                {"model_identifier": "glm-4.6v"},
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["provider_type"] == "zai"
+    assert response.json()["extra_settings"] == {}
+    assert [model["model_identifier"] for model in response.json()["models"]] == [
+        "glm-5.2",
+        "glm-4.6v",
+    ]
+    assert "zai-secret" not in response.content.decode()
+    provider = AIProviderConfig.objects.get(provider_type="zai")
+    assert provider.api_key == "zai-id.zai-secret"
+
+    item_url = reverse("api:ai_provider:item", kwargs={"provider_id": provider.id})
+    response = api_client.patch(
+        item_url, {"api_key": "zai-id.zai-rotated"}, format="json", **staff_headers
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "api_key" not in response.json()
+    assert "zai-rotated" not in response.content.decode()
+    provider.refresh_from_db()
+    assert provider.api_key == "zai-id.zai-rotated"
+
+    response = api_client.patch(
+        item_url,
+        {"extra_settings": {"base_url": "https://attacker.example.com/v4"}},
         format="json",
         **staff_headers,
     )

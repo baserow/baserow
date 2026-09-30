@@ -60,6 +60,11 @@ AI_PROVIDER_TYPES = {
         "uses_api_key": True,
         "extra_settings": (),
     },
+    "zai": {
+        "name": "Z.ai",
+        "uses_api_key": True,
+        "extra_settings": (),
+    },
     "mistral": {
         "name": "Mistral",
         "uses_api_key": True,

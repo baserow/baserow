@@ -28,6 +28,7 @@ describe('Generative AI model types', () => {
       'google',
       'groq',
       'xai',
+      'zai',
       'mistral',
       'ollama',
       'openrouter',
@@ -131,20 +132,29 @@ describe('Generative AI model types', () => {
       providerType: 'google',
       name: 'generativeAIModelType.google',
       canPromptWithFiles: true,
+      maxTemperature: 2,
     },
     {
       providerType: 'groq',
       name: 'generativeAIModelType.groq',
       canPromptWithFiles: false,
+      maxTemperature: 2,
     },
     {
       providerType: 'xai',
       name: 'generativeAIModelType.xai',
       canPromptWithFiles: true,
+      maxTemperature: 2,
+    },
+    {
+      providerType: 'zai',
+      name: 'generativeAIModelType.zai',
+      canPromptWithFiles: true,
+      maxTemperature: 1,
     },
   ])(
     'provides form metadata for $providerType',
-    ({ providerType, name, canPromptWithFiles }) => {
+    ({ providerType, name, canPromptWithFiles, maxTemperature }) => {
       const modelType = testApp
         .getRegistry()
         .get('generativeAIModel', providerType)
@@ -169,6 +179,7 @@ describe('Generative AI model types', () => {
       )
       expect(modelType.getRequiredIntegrationSettings()).toEqual(['api_key'])
       expect(modelType.canPromptWithFiles()).toBe(canPromptWithFiles)
+      expect(modelType.getMaxTemperature()).toBe(maxTemperature)
     }
   )
 })

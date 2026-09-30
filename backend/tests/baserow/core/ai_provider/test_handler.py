@@ -51,6 +51,7 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     GroqGenerativeAIModelType,
     MistralGenerativeAIModelType,
     XaiGenerativeAIModelType,
+    ZaiGenerativeAIModelType,
 )
 
 
@@ -584,6 +585,7 @@ def test_model_test_treats_an_unregistered_persisted_feature_as_text_only(
         ("google", "gemini-2.5-flash", GoogleGenerativeAIModelType),
         ("groq", "openai/gpt-oss-120b", GroqGenerativeAIModelType),
         ("xai", "grok-4.3", XaiGenerativeAIModelType),
+        ("zai", "glm-5.2", ZaiGenerativeAIModelType),
     ],
 )
 def test_database_only_provider_models_run_the_kuma_tool_compatibility_probe(

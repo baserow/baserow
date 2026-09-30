@@ -448,7 +448,13 @@
     "xaiApiKeyDescription": "Enter an xAI API key. [Create or view an API key](https://console.x.ai).",
     "xaiModelsLabel": "Enabled Models",
     "xaiModelsDescription": "Provide a comma-separated list of [xAI model identifiers](https://docs.x.ai/developers/models) that can be used in Baserow. For example: `grok-4.3,grok-4.20-non-reasoning`.",
-    "xaiModelIdentifierDescription": "Enter an [xAI model identifier](https://docs.x.ai/developers/models). For example: `grok-4.3` or `grok-4.20-non-reasoning`."
+    "xaiModelIdentifierDescription": "Enter an [xAI model identifier](https://docs.x.ai/developers/models). For example: `grok-4.3` or `grok-4.20-non-reasoning`.",
+    "zai": "Z.ai",
+    "zaiApiKeyLabel": "API Key",
+    "zaiApiKeyDescription": "Enter a Z.ai API key. [Create or view an API key](https://z.ai/manage-apikey/apikey-list).",
+    "zaiModelsLabel": "Enabled Models",
+    "zaiModelsDescription": "Provide a comma-separated list of [Z.ai model identifiers](https://docs.z.ai/guides/overview/pricing) that can be used in Baserow. For example: `glm-5.2,glm-4.6v`.",
+    "zaiModelIdentifierDescription": "Enter a [Z.ai model identifier](https://docs.z.ai/guides/overview/pricing). For example: `glm-5.2` or `glm-4.6v`."
   },
   "generativeAIWorkspaceSettings": {
     "providerTitle": "AI providers",
