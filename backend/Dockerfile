@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-ARG PYTHON_BASE_IMAGE="python:3.14.6-slim-trixie"
+ARG PYTHON_BASE_IMAGE="python:3.14.7-slim-trixie"
 ARG UID="9999"
 ARG GID="9999"
 
@@ -56,7 +56,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # Builder for mox (inbound SMTP receiver for the email trigger feature)
 # =============================================================================
-FROM golang:1.25-bookworm AS mox-builder
+FROM golang:1.27-trixie AS mox-builder
 ARG MOX_VERSION=v0.0.17
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

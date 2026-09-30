@@ -275,7 +275,7 @@ services:
       local:
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2
+    image: quay.io/keycloak/keycloak:26.7
     profiles: ["authentication"]
     command: ["start-dev", "--import-realm"]
     environment:
@@ -312,7 +312,7 @@ services:
       local:
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.153.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     command:
       - "--config=/etc/otel-collector-config.yaml"
       - "--feature-gates=processor.tailsamplingprocessor.recordpolicy"
@@ -371,7 +371,7 @@ services:
 
   phoenix:
     profiles: ["ai-evals"]
-    image: arizephoenix/phoenix:version-20.3.0
+    image: arizephoenix/phoenix:version-20.16.0
     environment:
       - PHOENIX_SQL_DATABASE_URL=postgresql://${DATABASE_USER:-baserow}:${DATABASE_PASSWORD:?}@db:5432/phoenix
       # Provider keys for the Phoenix prompt playground (same vars the evals use).
