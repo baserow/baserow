@@ -1,5 +1,6 @@
 import axios from 'axios'
 import _ from 'lodash'
+import { toRaw } from 'vue'
 import BigNumber from 'bignumber.js'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 import {
@@ -1465,12 +1466,21 @@ export const mutations = {
     // reactive and update immediately. If we don't do this, the value in the
     // field components of the grid and modal don't always have the correct value
     // binding.
+    // A loaded grouped row is the same object in `sectionRows` and `absoluteRows`,
+    // so reuse one copy per row to keep later edits visible in both caches.
+    const copies = new Map()
     const withField = (row) => {
+      const raw = toRaw(row)
+      if (copies.has(raw)) {
+        return copies.get(raw)
+      }
       if (!Object.prototype.hasOwnProperty.call(row, name)) {
         // Each row gets its own copy so an array default is not shared.
         row[name] = _.cloneDeep(value)
       }
-      return { ...row }
+      const copy = { ...row }
+      copies.set(raw, copy)
+      return copy
     }
     state.rows = state.rows.map(withField)
     // In group-by mode the grid reads its rows from the sections instead.

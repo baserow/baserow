@@ -446,4 +446,15 @@ describe('GridViewFieldRichText component', () => {
       ''
     )
   })
+
+  test('cancelling an edit of a value of the previous field type keeps the editor empty', async () => {
+    const wrapper = await mountComponent({ value: [{ id: 1, value: 'row' }] })
+    wrapper.vm.edit()
+    await wrapper.vm.$nextTick()
+
+    wrapper.vm.cancel()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.richCopy).toBe('')
+  })
 })

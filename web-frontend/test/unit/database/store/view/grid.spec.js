@@ -2127,6 +2127,76 @@ describe('Grid view store', () => {
     )
   })
 
+  test('addField keeps a row shared by the section and absolute caches', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 1 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    // Loaded rows are the same object in both caches, as commitLoadedGroupByRows
+    // leaves them.
+    const row = {
+      id: 10,
+      order: '1.00',
+      field_1: 'old',
+      field_2: 'A',
+      _: { selectedBy: [] },
+    }
+    store.commit('grid/SET_GROUP_BY_ABSOLUTE_ROWS', { 0: row })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [row],
+      startPosition: 0,
+    })
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: null })
+    store.commit('grid/UPDATE_ROW_FIELD_VALUE', {
+      row: store.getters['grid/getRow'](10),
+      field: { id: 1 },
+      value: 'new',
+    })
+
+    // An evicted section is restored from absoluteRows, so the edit must be
+    // there too.
+    expect(store.state.grid.groupBy.absoluteRows[0].field_1).toBe('new')
+  })
+
+  test('addField skips the gaps of a partly loaded section', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 4 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    // Filling a section in several ranges leaves a gap, which the next range
+    // turns into an explicit undefined entry when it copies the array.
+    for (const [id, startPosition] of [
+      [10, 0],
+      [12, 2],
+      [13, 3],
+    ]) {
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(2, 'A'),
+        rows: [{ id, order: `${id}.00`, field_2: 'A', _: { selectedBy: [] } }],
+        startPosition,
+      })
+    }
+    const rows = store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')]
+    expect(1 in rows).toBe(true)
+    expect(rows[1]).toBeUndefined()
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: null })
+
+    expect(store.getters['grid/getRow'](12)).toHaveProperty('field_5', null)
+  })
+
   test('addField gives each grouped row its own copy of an array value', () => {
     const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
     const state = Object.assign(gridStore.state(), {

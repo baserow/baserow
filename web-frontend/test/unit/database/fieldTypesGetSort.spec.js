@@ -9,7 +9,10 @@ import {
 } from '@baserow/modules/database/fieldTypes'
 import { firstBy } from 'thenby'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { getRowSortFunction } from '@baserow/modules/database/utils/view'
+import {
+  getGroupByRowSortFunction,
+  getRowSortFunction,
+} from '@baserow/modules/database/utils/view'
 
 const testTableData = [
   {
@@ -650,6 +653,8 @@ describe('sorting rows with a missing cell value', () => {
   describe.each([
     ['missing', {}],
     ['undefined', { field_1: undefined }],
+    // A converted field can leave null in the buffer until the rows refetch.
+    ['null', { field_1: null }],
   ])('with a %s cell', (_, missingCell) => {
     test.each(cases)(
       'getRowSortFunction sorts a %s cell like an empty one',
@@ -679,4 +684,34 @@ describe('sorting rows with a missing cell value', () => {
       }
     )
   })
+
+  test.each([
+    ['missing', {}],
+    ['null', { field_1: null }],
+  ])(
+    'getGroupByRowSortFunction sorts a %s link row cell like an empty one',
+    (_, emptyCell) => {
+      const registry = testApp.store.$registry
+      const field = {
+        id: 1,
+        type: 'link_row',
+        link_row_table_primary_field: { id: 9, type: 'text', primary: true },
+      }
+      const rows = [
+        { id: 1, field_1: [{ id: 2, value: 'b' }] },
+        { id: 2, ...emptyCell },
+        { id: 3, field_1: [{ id: 1, value: 'a' }] },
+      ]
+
+      rows.sort(
+        getGroupByRowSortFunction(
+          registry,
+          [field],
+          [{ field: 1, order: 'ASC', type: 'default' }]
+        )
+      )
+
+      expect(rows.map((row) => row.id)).toEqual([2, 3, 1])
+    }
+  )
 })

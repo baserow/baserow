@@ -11,13 +11,14 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 
 /**
  * Wraps a field sort function so a row without the cell, e.g. one created
- * through a realtime event in a public grid view, sorts like an empty cell
- * instead of making the field type's sort function throw.
+ * through a realtime event in a public grid view, or with a null cell left by a
+ * field conversion, sorts like an empty cell instead of making the field type's
+ * sort function throw.
  */
 function sortMissingCellAsEmpty(sortFunction, fieldName, fieldType, field) {
   const emptyValue = fieldType.getEmptyValue(field)
   const withCell = (row) =>
-    row[fieldName] === undefined ? { [fieldName]: emptyValue } : row
+    row[fieldName] == null ? { [fieldName]: emptyValue } : row
   return (a, b) => sortFunction(withCell(a), withCell(b))
 }
 
