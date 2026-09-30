@@ -41,4 +41,11 @@ describe('CoreResponseServiceType', () => {
       expect(serviceType.isInError({ service })).toBe(Boolean(message))
     }
   )
+
+  test('is not in error while the node has no service yet', () => {
+    // An optimistically created node has no `service` until the API responds,
+    // but the workflow header already evaluates whether it is in error.
+    expect(serviceType.getErrorMessage({ service: undefined })).toBe(null)
+    expect(serviceType.isInError({ service: undefined })).toBe(false)
+  })
 })
