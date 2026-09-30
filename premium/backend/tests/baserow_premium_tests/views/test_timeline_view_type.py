@@ -11,19 +11,26 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleField,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.actions import UpdateViewActionType
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.registries import ImportExportConfig
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
 from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
 from baserow_premium.views.handler import get_timeline_view_filtered_queryset
-from baserow_premium.views.models import TimelineViewFieldOptions
+from baserow_premium.views.models import (
+    OWNERSHIP_TYPE_PERSONAL,
+    TimelineView,
+    TimelineViewFieldOptions,
+)
 
 
 @pytest.mark.django_db
@@ -697,3 +704,44 @@ def test_timeline_after_delete_field_set_date_field_to_none(
     view.refresh_from_db()
 
     assert view.end_date_field is None
+
+
+@pytest.mark.django_db
+@pytest.mark.view_timeline
+def test_snapshot_skips_personal_timeline_view_of_user_outside_workspace(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    user_outside_workspace = premium_data_fixture.create_user()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(workspace=workspace)
+    table = premium_data_fixture.create_database_table(database=database)
+    kept_view = premium_data_fixture.create_timeline_view(
+        table=table,
+        name="kept",
+        ownership_type=OWNERSHIP_TYPE_PERSONAL,
+        owned_by=user,
+    )
+    premium_data_fixture.create_timeline_view(
+        table=table,
+        name="skipped",
+        ownership_type=OWNERSHIP_TYPE_PERSONAL,
+        owned_by=user_outside_workspace,
+    )
+    snapshot = premium_data_fixture.create_snapshot(
+        snapshot_from_application=database, name="snapshot", created_by=user
+    )
+
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+
+    snapshot.refresh_from_db()
+    snapshotted_table = Table.objects.get(database=snapshot.snapshot_to_application)
+    snapshotted_views = TimelineView.objects.filter(table=snapshotted_table)
+    assert [view.name for view in snapshotted_views] == ["kept"]
+    assert snapshotted_views[0].owned_by_id == user.id
+    assert (
+        TimelineViewFieldOptions.objects.filter(
+            timeline_view=snapshotted_views[0]
+        ).count()
+        == TimelineViewFieldOptions.objects.filter(timeline_view=kept_view).count()
+    )

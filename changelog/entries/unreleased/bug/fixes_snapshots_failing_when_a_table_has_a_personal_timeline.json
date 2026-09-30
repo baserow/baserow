@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes snapshots failing when a table has a personal timeline view of a user who left the workspace",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-30"
+}
