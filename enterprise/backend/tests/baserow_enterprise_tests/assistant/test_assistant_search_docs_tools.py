@@ -1,9 +1,9 @@
 import json
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from asgiref.sync import async_to_sync
 from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.providers.groq import GroqProvider
 
@@ -20,9 +20,20 @@ from baserow_enterprise.assistant.tools.search_user_docs.tools import (
 
 from .utils import make_test_ctx
 
-# search_user_docs is async, so we need this to allow sync ORM calls from
-# data_fixture inside async tests.
-os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+
+@pytest.fixture(autouse=True)
+def enforce_async_db_safety(monkeypatch):
+    # Other test modules enable this globally. Keep Django's guard active here
+    # so ORM writes cannot escape pytest's rollback through an async connection.
+    monkeypatch.delenv("DJANGO_ALLOW_ASYNC_UNSAFE", raising=False)
+
+
+@pytest.fixture
+def docs_user_workspace(data_fixture):
+    # Create records inside pytest's synchronous rollback transaction.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    return user, workspace
 
 
 @pytest.mark.django_db
@@ -38,11 +49,10 @@ os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
     ],
 )
 async def test_docs_synthesis_uses_supported_output_protocol(
-    data_fixture, model_name, native, first_error
+    docs_user_workspace, model_name, native, first_error
 ):
     """Exercise the real agent and Groq wire format, including typed validation."""
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    user, workspace = docs_user_workspace
     source = "https://example.com/tokens"
     answer = "Create a database token in Settings."
     requests = []
@@ -156,9 +166,8 @@ class TestToolQueryGuard:
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_rejects_tool_introspection(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+async def test_search_user_docs_rejects_tool_introspection(docs_user_workspace):
+    user, workspace = docs_user_workspace
     ctx = make_test_ctx(user, workspace)
 
     result = await search_user_docs(
@@ -172,9 +181,8 @@ async def test_search_user_docs_rejects_tool_introspection(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_handles_empty_results(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+async def test_search_user_docs_handles_empty_results(docs_user_workspace):
+    user, workspace = docs_user_workspace
     ctx = make_test_ctx(user, workspace)
 
     with patch(
@@ -201,11 +209,10 @@ async def test_search_user_docs_handles_empty_results(data_fixture):
     ],
 )
 async def test_search_user_docs_does_not_add_sources_for_nothing_found_prediction(
-    data_fixture,
+    docs_user_workspace,
     answer,
 ):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    user, workspace = docs_user_workspace
     model_profile = MagicMock()
     ctx = make_test_ctx(user, workspace, model_profile=model_profile)
     chunk = MagicMock(content="Some unrelated documentation.")
@@ -246,9 +253,8 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_handles_error(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+async def test_search_user_docs_handles_error(docs_user_workspace):
+    user, workspace = docs_user_workspace
     ctx = make_test_ctx(user, workspace)
 
     with patch(
@@ -268,10 +274,9 @@ async def test_search_user_docs_handles_error(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("sources", [[], ["https://example.com/invented"]])
 async def test_search_user_docs_does_not_invent_source_attribution(
-    data_fixture, sources
+    docs_user_workspace, sources
 ):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    user, workspace = docs_user_workspace
     profile = MagicMock()
     ctx = make_test_ctx(user, workspace, model_profile=profile)
     chunk = MagicMock(content="The rows guide describes editing rows.")
@@ -318,9 +323,10 @@ async def test_search_user_docs_does_not_invent_source_attribution(
         "Nothing found in the documentation about cropping. You can choose the cover field.",
     ],
 )
-async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, answer):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+async def test_search_user_docs_preserves_cited_partial_answer(
+    docs_user_workspace, answer
+):
+    user, workspace = docs_user_workspace
     profile = MagicMock(spec=ResolvedAssistantModelProfile)
     profile.get_settings.return_value = {"temperature": 0.3}
     profile.get_output_type.return_value = SearchDocsResult
@@ -368,9 +374,10 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_recovers_supported_partial_facts_once(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+async def test_search_user_docs_recovers_supported_partial_facts_once(
+    docs_user_workspace,
+):
+    user, workspace = docs_user_workspace
     profile = MagicMock()
     profile.get_settings.return_value = {"temperature": 0.3}
     ctx = make_test_ctx(user, workspace, model_profile=profile)
@@ -417,8 +424,7 @@ async def test_search_user_docs_recovers_supported_partial_facts_once(data_fixtu
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
+def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
     import json
 
     from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS
@@ -467,7 +473,7 @@ async def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
                 reliability=1.0,
             )
         )
-        result = await search_user_docs(
+        result = async_to_sync(search_user_docs)(
             ctx, question="How do I use reference phrase?", thought="user asks"
         )
     passages = json.loads(
@@ -482,11 +488,10 @@ async def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_searches_with_the_users_own_words(data_fixture):
+async def test_search_user_docs_searches_with_the_users_own_words(docs_user_workspace):
     """A rewritten question can drop the concern that decides the relevant page."""
 
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    user, workspace = docs_user_workspace
     ctx = make_test_ctx(user, workspace)
     ctx.prompt = "Where is the save button? I don't want to lose my work."
     chunk = MagicMock(content="Baserow saves every change automatically.")
