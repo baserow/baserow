@@ -3,6 +3,7 @@ import fieldStore from '@baserow/modules/database/store/field'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { UNDO_REDO_ACTION_GROUP_HEADER } from '@baserow/modules/database/utils/action'
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 
 const readActionGroupId = (config) => {
   const headers = config.headers || {}
@@ -209,13 +210,13 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(11)
   })
 
-  test('updateRowValue removes the row hidden by the backend', async () => {
+  test('updateRowValue removes the row hidden by the backend and closes its row modal', async () => {
     const stacks = {}
     stacks['1'] = {
       count: 2,
       results: [
-        { id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'keep' },
-        { id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'keep' },
+        { id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'keep', _: {} },
+        { id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'keep', _: {} },
       ],
     }
     const state = Object.assign(kanbanStore.state(), {
@@ -232,6 +233,7 @@ describe('Kanban view store', () => {
       items: [{ id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'drop' }],
       metadata: { updated_field_ids: [2], hidden_row_ids: [10] },
     })
+    const dispatchSpy = vi.spyOn(store, 'dispatch')
 
     await store.dispatch('kanban/updateRowValue', {
       view,
@@ -243,6 +245,81 @@ describe('Kanban view store', () => {
       oldValue: 'keep',
     })
 
+    expect(store.state.kanban.stacks['1'].count).toBe(1)
+    expect(store.state.kanban.stacks['1'].results.map((row) => row.id)).toEqual(
+      [11]
+    )
+    expect(dispatchSpy).toHaveBeenCalledWith('rowModal/rowsHiddenByBackend', {
+      tableId: 1,
+      rowIds: [10],
+    })
+  })
+
+  test('updateRowValue does not send an edit queued behind the edit that hid the row', async () => {
+    const stacks = {}
+    stacks['1'] = {
+      count: 2,
+      results: [
+        { id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'keep', _: {} },
+        { id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'keep', _: {} },
+      ],
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      lastKanbanId: 1,
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+    const fields = [
+      { id: 1, name: 'Stack', type: 'single_select', select_options: [] },
+      { id: 2, name: 'Name', type: 'text' },
+    ]
+    let releaseFirstEdit = null
+    testApp.mock
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirstEdit = () =>
+              resolve([
+                200,
+                {
+                  items: [
+                    {
+                      id: 10,
+                      order: '10.00',
+                      field_1: { id: 1 },
+                      field_2: 'drop',
+                    },
+                  ],
+                  metadata: { updated_field_ids: [2], hidden_row_ids: [10] },
+                },
+              ])
+          })
+      )
+      .onPatch('/database/rows/table/1/batch/')
+      .reply(401, { error: 'ERROR_PERMISSION_DENIED' })
+    const row = store.state.kanban.stacks['1'].results[0]
+    const edit = (value, oldValue) =>
+      store.dispatch('kanban/updateRowValue', {
+        view,
+        table: { id: 1 },
+        row,
+        field: fields[1],
+        fields,
+        value,
+        oldValue,
+      })
+
+    const firstEdit = edit('drop', 'keep')
+    await flushPromises()
+    const secondEdit = edit('again', 'drop')
+    await flushPromises()
+    releaseFirstEdit()
+    await firstEdit
+    await secondEdit
+
+    expect(testApp.mock.history.patch).toHaveLength(1)
     expect(store.state.kanban.stacks['1'].count).toBe(1)
     expect(store.state.kanban.stacks['1'].results.map((row) => row.id)).toEqual(
       [11]

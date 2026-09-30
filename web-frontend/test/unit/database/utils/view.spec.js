@@ -392,7 +392,7 @@ describe('serializeGroupBys', () => {
 describe('reportHiddenRows', () => {
   const i18n = { t: (key, { count }) => `${key} - ${count}` }
 
-  it('returns the hidden row ids and shows one toast', () => {
+  it('returns the hidden row ids, shows one toast and closes their row modal', () => {
     const dispatch = vi.fn()
     const data = {
       items: [],
@@ -402,26 +402,33 @@ describe('reportHiddenRows', () => {
     const hidden = reportHiddenRows(data, {
       dispatch,
       i18n,
+      tableId: 10,
       created: true,
     })
 
     expect([...hidden]).toEqual([1, 2])
-    expect(dispatch).toHaveBeenCalledTimes(1)
-    expect(dispatch).toHaveBeenCalledWith(
-      'toast/info',
-      {
-        title: 'hiddenRows.title - 2',
-        message: 'hiddenRows.createdMessage - 2',
-      },
-      { root: true }
-    )
+    expect(dispatch.mock.calls).toEqual([
+      [
+        'toast/info',
+        {
+          title: 'hiddenRows.title - 2',
+          message: 'hiddenRows.createdMessage - 2',
+        },
+        { root: true },
+      ],
+      [
+        'rowModal/rowsHiddenByBackend',
+        { tableId: 10, rowIds: [1, 2] },
+        { root: true },
+      ],
+    ])
   })
 
   it('uses the updated message for updated rows', () => {
     const dispatch = vi.fn()
     const data = { items: [], metadata: { hidden_row_ids: [1] } }
 
-    reportHiddenRows(data, { dispatch, i18n, created: false })
+    reportHiddenRows(data, { dispatch, i18n, tableId: 10, created: false })
 
     expect(dispatch).toHaveBeenCalledWith(
       'toast/info',
@@ -438,7 +445,7 @@ describe('reportHiddenRows', () => {
 
     const hidden = reportHiddenRows(
       { items: [], metadata: {} },
-      { dispatch, i18n, created: false }
+      { dispatch, i18n, tableId: 10, created: false }
     )
 
     expect(hidden.size).toBe(0)

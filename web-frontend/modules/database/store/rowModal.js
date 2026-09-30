@@ -17,6 +17,8 @@ export const state = () => ({
   //   id: -1,
   //   // Indicates whether the row exists in the `rows` property in the row edit modal.
   //   exists: true,
+  //   // Set when the backend hid the row from the view, which closes the modal.
+  //   hiddenByBackend: true,
   //   // The values of the row.
   //   row: {}
   // }
@@ -54,6 +56,13 @@ export const mutations = {
   },
   UPDATE_ROW(state, { componentId, row }) {
     Object.assign(state.rows[componentId].row, row)
+  },
+  SET_HIDDEN_BY_BACKEND(state, { tableId, rowIds }) {
+    Object.values(state.rows)
+      .filter((data) => data.tableId === tableId && rowIds.includes(data.id))
+      .forEach((data) => {
+        data.hiddenByBackend = true
+      })
   },
   UPDATE_ROW_METADATA(state, { rowId, rowMetadataType, updateFunction }) {
     Object.values(state.rows)
@@ -110,6 +119,10 @@ export const actions = {
         commit('UPDATE_ROW', { componentId: key, row: values })
       }
     })
+  },
+  /** Flags the modals of rows the backend hid from the view so they close. */
+  rowsHiddenByBackend({ commit }, { tableId, rowIds }) {
+    commit('SET_HIDDEN_BY_BACKEND', { tableId, rowIds })
   },
   /**
    * If a row is open in the modal but it's not present in the buffer, we need to
