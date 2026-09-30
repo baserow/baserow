@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes snapshots failing when a table has a personal timeline view of a user who left the workspace",
+    "message": "Fixes snapshots, duplicates and imports failing on personal timeline views of removed users",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",

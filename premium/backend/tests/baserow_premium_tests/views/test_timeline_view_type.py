@@ -739,9 +739,15 @@ def test_snapshot_skips_personal_timeline_view_of_user_outside_workspace(
     snapshotted_views = TimelineView.objects.filter(table=snapshotted_table)
     assert [view.name for view in snapshotted_views] == ["kept"]
     assert snapshotted_views[0].owned_by_id == user.id
-    assert (
-        TimelineViewFieldOptions.objects.filter(
+    snapshotted_option_fields = {
+        (option.field.table_id, option.field.name)
+        for option in TimelineViewFieldOptions.objects.filter(
             timeline_view=snapshotted_views[0]
-        ).count()
-        == TimelineViewFieldOptions.objects.filter(timeline_view=kept_view).count()
-    )
+        ).select_related("field")
+    }
+    assert snapshotted_option_fields == {
+        (snapshotted_table.id, option.field.name)
+        for option in TimelineViewFieldOptions.objects.filter(
+            timeline_view=kept_view
+        ).select_related("field")
+    }

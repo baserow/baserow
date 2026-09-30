@@ -769,7 +769,7 @@ class TimelineViewType(ViewType):
         cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
-    ) -> View:
+    ) -> Optional[View]:
         """
         Imports the serialized timeline view field options.
         """
