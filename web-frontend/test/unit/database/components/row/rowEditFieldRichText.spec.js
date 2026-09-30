@@ -225,4 +225,9 @@ describe('RowEditFieldRichText component', () => {
       expect(wrapper.find('.tiptap img').exists()).toBe(false)
     }
   )
+  test('opens an empty editor for a value of the previous field type', async () => {
+    const wrapper = await mountComponent({ value: [{ id: 1, value: 'row' }] })
+
+    expect(wrapper.findComponent(RichTextEditor).props('modelValue')).toBe('')
+  })
 })

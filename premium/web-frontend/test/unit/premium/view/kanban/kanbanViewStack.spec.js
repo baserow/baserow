@@ -120,6 +120,7 @@ describe('KanbanViewStack drag behaviour', () => {
         get: (registry, type) => {
           if (registry === 'field' && type === 'text') {
             return {
+              getEmptyValue: () => '',
               getSortTypes: () => ({
                 default: {
                   function: (fieldName, order) => (a, b) => {

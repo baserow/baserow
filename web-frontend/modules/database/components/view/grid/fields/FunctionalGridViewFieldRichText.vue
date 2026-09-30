@@ -66,7 +66,10 @@ export default {
       const workspace = this.$store.getters['workspace/get'](workspaceId)
       const loggedUserId = this.$store.getters['auth/getUserId']
 
-      return parseMarkdown(previewMarkdown(value || ''), {
+      // Until the rows refetch after a field is converted to rich text, the
+      // cell can still hold a value of the previous type.
+      const markdown = typeof value === 'string' ? value : ''
+      return parseMarkdown(previewMarkdown(markdown), {
         openLinkOnClick: false,
         enableImages: false,
         workspaceUsers: workspace ? workspace.users : null,

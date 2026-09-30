@@ -779,18 +779,20 @@ export class BaserowFormulaArrayType extends mix(
     const subType = this.getSubType(field)
 
     const innerSortFunction = subType.getSort(name, order, field)
+    const toArray = (value) =>
+      Array.isArray(value) ? value : value == null ? [] : [value]
+    const mapToSortable = subType.mapToSortableArray.bind(subType)
+    const isDefined = (value) => value || value === '' || value === 0
 
     return (a, b) => {
-      const valA = Array.isArray(a[name]) ? a[name] : [a[name]]
-      const valB = Array.isArray(b[name]) ? b[name] : [b[name]]
-      const valuesA = valA.map(subType.mapToSortableArray.bind(subType))
-      const valuesB = valB.map(subType.mapToSortableArray.bind(subType))
+      const valuesA = toArray(a[name]).map(mapToSortable)
+      const valuesB = toArray(b[name]).map(mapToSortable)
 
       for (let i = 0; i < Math.max(valuesA.length, valuesB.length); i++) {
         let compared = 0
 
-        const isAdefined = valuesA[i] || valuesA[i] === ''
-        const isBdefined = valuesB[i] || valuesB[i] === ''
+        const isAdefined = isDefined(valuesA[i])
+        const isBdefined = isDefined(valuesB[i])
 
         if (isAdefined && isBdefined) {
           compared = innerSortFunction(

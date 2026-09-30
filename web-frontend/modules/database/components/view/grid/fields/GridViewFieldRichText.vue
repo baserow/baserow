@@ -99,7 +99,10 @@ export default {
         // the cell dirty, and `beforeSave` would then serialize the editor
         // over the value that just arrived.
         this.applyingExternalValue = true
-        this.richCopy = value || ''
+        // Until the rows refetch after a field is converted to rich text, the
+        // cell can still hold a value of the previous type, which the editor
+        // would take for its JSON content.
+        this.richCopy = typeof value === 'string' ? value : ''
         this.$nextTick(() => {
           this.applyingExternalValue = false
         })
@@ -109,7 +112,7 @@ export default {
     editing(editing) {
       this.hasEdits = false
       if (!editing) {
-        this.richCopy = this.value || ''
+        this.richCopy = typeof this.value === 'string' ? this.value : ''
       }
     },
     richCopy() {

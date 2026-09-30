@@ -67,7 +67,9 @@ export const parseMarkdown = (
   } = {}
 ) => {
   // Round trip first: after `preprocessRichTextImages` a reference has lost its file name.
-  const original = value || ''
+  // A non-string, e.g. a cell still holding a value of the field's previous
+  // type, would make markdown-it throw.
+  const original = typeof value === 'string' ? value : ''
   let content = prepareMarkdownForPreview(original)
 
   const md = new Markdown({ html: false })

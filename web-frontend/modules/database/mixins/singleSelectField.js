@@ -16,10 +16,10 @@ export default {
     updateValue(newId, oldValue) {
       const newValue =
         this.field.select_options.find((option) => option.id === newId) || null
-      const oldId = oldValue !== null ? oldValue.id : null
+      const oldId = oldValue ? oldValue.id : null
 
       if (newId !== oldId) {
-        this.$emit('update', newValue, oldValue)
+        this.$emit('update', newValue, oldValue ?? null)
       }
     },
   },

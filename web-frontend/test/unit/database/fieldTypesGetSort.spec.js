@@ -9,6 +9,10 @@ import {
 } from '@baserow/modules/database/fieldTypes'
 import { firstBy } from 'thenby'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import {
+  getGroupByRowSortFunction,
+  getRowSortFunction,
+} from '@baserow/modules/database/utils/view'
 
 const testTableData = [
   {
@@ -529,4 +533,185 @@ describe('LinkRowFieldType sorting with other primary fields', () => {
     // Nulls first, then sorted by the highest number value in the linked rows
     expect(ids).toEqual([4, 3, 1, 7, 5, 2, 6])
   })
+})
+
+// A row inserted by a realtime event may not carry every field yet, so the
+// sort functions must accept a missing or null cell.
+describe('sorting rows with a missing cell value', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test('SingleSelectFieldType sorts a missing value first', () => {
+    const rows = [
+      { id: 1, f: { id: 2, value: 'B' } },
+      { id: 2 },
+      { id: 3, f: null },
+      { id: 4, f: { id: 1, value: 'A' } },
+    ]
+
+    rows.sort(new SingleSelectFieldType().getSort('f', 'ASC'))
+
+    expect(rows.map((row) => row.id)).toEqual([2, 3, 4, 1])
+  })
+
+  test.each([
+    ['text', 'b', 'a'],
+    ['date', '2026-02-01', '2026-01-01'],
+  ])(
+    'an array formula of %s sorts a null or missing value first',
+    (arrayFormulaType, later, earlier) => {
+      const registry = testApp.store.$registry
+      const field = {
+        formula_type: 'array',
+        array_formula_type: arrayFormulaType,
+        date_format: 'ISO',
+        date_include_time: false,
+      }
+      const rows = [
+        { id: 1, f: [{ id: 1, value: later }] },
+        { id: 2, f: null },
+        { id: 3 },
+        { id: 4, f: [{ id: 2, value: earlier }] },
+      ]
+
+      rows.sort(
+        registry.get('formula_type', 'array').getSort('f', 'ASC', field)
+      )
+
+      expect(rows.map((row) => row.id)).toEqual([2, 3, 4, 1])
+    }
+  )
+
+  test('an array formula of numbers sorts zero after an empty cell', () => {
+    const registry = testApp.store.$registry
+    const field = {
+      formula_type: 'array',
+      array_formula_type: 'number',
+      number_decimal_places: 0,
+    }
+    const rows = [
+      { id: 1, f: [{ id: 1, value: 5 }] },
+      { id: 2, f: [{ id: 2, value: 0 }] },
+      { id: 3 },
+    ]
+
+    rows.sort(registry.get('formula_type', 'array').getSort('f', 'ASC', field))
+
+    expect(rows.map((row) => row.id)).toEqual([3, 2, 1])
+  })
+
+  const primaryField = { id: 9, type: 'text', primary: true }
+  const cases = [
+    ['text', 'text', {}, 'b', 'a'],
+    ['number', 'number', { number_decimal_places: 0 }, '2', '1'],
+    ['rating', 'rating', {}, 2, 1],
+    [
+      'multiple_select',
+      'multiple_select',
+      {},
+      [{ id: 2, value: 'B' }],
+      [{ id: 1, value: 'A' }],
+    ],
+    [
+      'link_row',
+      'link_row',
+      { link_row_table_primary_field: primaryField },
+      [{ id: 2, value: 'b' }],
+      [{ id: 1, value: 'a' }],
+    ],
+    [
+      'multiple_collaborators',
+      'multiple_collaborators',
+      {},
+      [{ id: 2, name: 'b' }],
+      [{ id: 1, name: 'a' }],
+    ],
+    [
+      'created_by',
+      'created_by',
+      {},
+      { id: 2, name: 'b' },
+      { id: 1, name: 'a' },
+    ],
+    [
+      'last_modified_by',
+      'last_modified_by',
+      {},
+      { id: 2, name: 'b' },
+      { id: 1, name: 'a' },
+    ],
+  ]
+  // A failed save can also write the old value back as a present but undefined
+  // key.
+  describe.each([
+    ['missing', {}],
+    ['undefined', { field_1: undefined }],
+    // A converted field can leave null in the buffer until the rows refetch.
+    ['null', { field_1: null }],
+  ])('with a %s cell', (_, missingCell) => {
+    test.each(cases)(
+      'getRowSortFunction sorts a %s cell like an empty one',
+      (_label, type, fieldProps, later, earlier) => {
+        const registry = testApp.store.$registry
+        const field = { id: 1, type, ...fieldProps }
+        const rows = [
+          { id: 1, order: '1', field_1: later },
+          { id: 2, order: '2', ...missingCell },
+          { id: 3, order: '3', field_1: earlier },
+          {
+            id: 4,
+            order: '4',
+            field_1: registry.get('field', type).getEmptyValue(field),
+          },
+        ]
+
+        rows.sort(
+          getRowSortFunction(
+            registry,
+            [{ field: 1, order: 'ASC', type: 'default' }],
+            [field]
+          )
+        )
+
+        expect(rows.map((row) => row.id)).toEqual([2, 4, 3, 1])
+      }
+    )
+  })
+
+  test.each([
+    ['missing', {}],
+    ['null', { field_1: null }],
+  ])(
+    'getGroupByRowSortFunction sorts a %s link row cell like an empty one',
+    (_, emptyCell) => {
+      const registry = testApp.store.$registry
+      const field = {
+        id: 1,
+        type: 'link_row',
+        link_row_table_primary_field: { id: 9, type: 'text', primary: true },
+      }
+      const rows = [
+        { id: 1, field_1: [{ id: 2, value: 'b' }] },
+        { id: 2, ...emptyCell },
+        { id: 3, field_1: [{ id: 1, value: 'a' }] },
+      ]
+
+      rows.sort(
+        getGroupByRowSortFunction(
+          registry,
+          [field],
+          [{ field: 1, order: 'ASC', type: 'default' }]
+        )
+      )
+
+      expect(rows.map((row) => row.id)).toEqual([2, 3, 1])
+    }
+  )
 })

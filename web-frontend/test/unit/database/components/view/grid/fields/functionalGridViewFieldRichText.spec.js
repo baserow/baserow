@@ -187,6 +187,19 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(Math.max(...lengths)).toBeLessThanOrEqual(5000)
   })
 
+  // The cell can briefly render with the value of the field's previous type,
+  // e.g. while the rows refetch after a field is converted to rich text.
+  test.each([[42], [true], [[{ id: 1, value: 'row' }]], [{ id: 1 }]])(
+    'renders an empty preview for the non-string value %j',
+    async (value) => {
+      const wrapper = await mountComponent(value)
+
+      expect(wrapper.find('.grid-field-rich-text__cell-content').text()).toBe(
+        ''
+      )
+    }
+  )
+
   test('keeps raw HTML in cell values inert', async () => {
     const wrapper = await mountComponent(
       '<script>window.hacked = true</script><img src="x" onerror="window.hacked = true">'
