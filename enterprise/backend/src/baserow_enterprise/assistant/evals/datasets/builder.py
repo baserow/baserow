@@ -46,6 +46,7 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
+from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files
@@ -142,31 +143,16 @@ def _filter_tool_calls(
 ) -> list[dict]:
     """Return assistant-side tool call entries, optionally filtered by name(s)."""
 
-    calls = [e for e in output.messages if e["role"] == "assistant" and "args" in e]
+    # Original arguments can remain malformed after successful tool-side repair.
+    calls = [
+        e
+        for e in output.messages
+        if e["role"] == "assistant" and isinstance(e.get("args"), dict)
+    ]
     if tool_names is None:
         return calls
     names = {tool_names} if isinstance(tool_names, str) else set(tool_names)
     return [e for e in calls if e.get("tool_name") in names]
-
-
-_ELEMENT_CREATION_TOOLS = {
-    "create_display_elements",
-    "create_layout_elements",
-    "create_form_elements",
-    "create_collection_elements",
-}
-
-
-def _collect_element_args(
-    output: EvalRunOutput, tool_names: set[str] | None = None
-) -> list[dict]:
-    """Flatten all element dicts from element-creation tool calls."""
-
-    calls = _filter_tool_calls(output, tool_names or _ELEMENT_CREATION_TOOLS)
-    elements: list[dict] = []
-    for call in calls:
-        elements.extend(call["args"].get("elements", []))
-    return elements
 
 
 def _get_theme_primary_color(builder: Builder) -> str:
@@ -557,12 +543,8 @@ def _check_creates_data_source_with_repeat(
     builder = scenario.refs["builder"]
     table = scenario.refs["table"]
 
-    pages = Page.objects.filter(builder=builder, shared=False)
-    page = pages.first()
-
-    ds_calls = _filter_tool_calls(output, "create_data_sources")
-    setup_calls = _filter_tool_calls(output, "setup_page")
-    if setup_calls:
+    page = Page.objects.filter(builder=builder, shared=False, path="/products").first()
+    if tool_called(output, "setup_page"):
         order_ok = tool_call_order_ok(output, ["create_pages", "setup_page"])
     else:
         order_ok = tool_call_order_ok(
@@ -570,21 +552,21 @@ def _check_creates_data_source_with_repeat(
             ["create_pages", "create_data_sources", "create_collection_elements"],
         )
 
-    if ds_calls:
-        data_sources = ds_calls[0]["args"].get("data_sources", [])
-    elif setup_calls:
-        data_sources = setup_calls[0]["args"].get("data_sources", []) or []
-    else:
-        data_sources = []
-    first_ds = data_sources[0] if data_sources else {}
-    ds_name = first_ds.get("name", "")
-    ds_table_id = first_ds.get("table_id")
-    ds_type = (first_ds.get("type") or "").removeprefix("local_baserow_")
-
-    all_el_args = _collect_element_args(output)
-    for call in setup_calls:
-        all_el_args.extend(call["args"].get("elements", []) or [])
-    repeat_elements = [e for e in all_el_args if e.get("type") == "repeat"]
+    sources = list(DataSource.objects.filter(page=page)) if page else []
+    matching_sources = {
+        source.id
+        for source in sources
+        if source.name.casefold() == "all products"
+        and source.service_id is not None
+        and isinstance(source.service.specific, LocalBaserowListRows)
+        and source.service.specific.table_id == table.id
+    }
+    repeats = [
+        element
+        for element in (Element.objects.filter(page=page) if page else [])
+        if element.get_type().type == "repeat"
+        and element.specific.data_source_id in matching_sources
+    ]
 
     return [
         CheckResult(
@@ -592,41 +574,28 @@ def _check_creates_data_source_with_repeat(
             "create_data_sources+create_collection_elements",
             order_ok,
         ),
-        CheckResult("page created", pages.exists(), hint="no pages found in DB"),
+        CheckResult("page created at '/products'", page is not None),
         CheckResult(
             "page name is 'Products'",
             page is not None and "product" in page.name.lower(),
             hint=f"page name: {page.name if page else None}",
         ),
         CheckResult(
-            "page path is '/products'",
-            page is not None and page.path == "/products",
-            hint=f"page path: {page.path if page else None}",
+            "saved All Products data source lists the Products table",
+            bool(matching_sources),
+            hint=f"saved data sources: {[source.name for source in sources]}",
         ),
         CheckResult(
-            "data source created",
-            len(data_sources) >= 1,
-            hint=f"ds_calls: {len(ds_calls)}, setup_calls: {len(setup_calls)}",
+            "repeat uses the All Products data source",
+            bool(repeats),
         ),
         CheckResult(
-            "data source type is list_rows",
-            ds_type == "list_rows",
-            hint=f"got type: {ds_type}",
-        ),
-        CheckResult(
-            "data source named 'All Products'",
-            "all products" in ds_name.lower(),
-            hint=f"got name: '{ds_name}'",
-        ),
-        CheckResult(
-            "data source table_id matches Products table",
-            ds_table_id == table.id,
-            hint=f"got table_id={ds_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "repeat element in args",
-            len(repeat_elements) >= 1,
-            hint=f"element types: {[e.get('type') for e in all_el_args]}",
+            "heading is inside the Products repeat",
+            any(
+                child.get_type().type == "heading"
+                for repeat in repeats
+                for child in page.get_graph().get_descendants(repeat)
+            ),
         ),
     ]
 
@@ -1031,19 +1000,11 @@ def _check_changes_theme(
     builder = scenario.refs["builder"]
     initial_color = scenario.pre_state["initial_color"]
 
-    set_theme_calls = _filter_tool_calls(output, "set_theme")
-    theme_arg = (
-        set_theme_calls[0]["args"].get("theme_name") if set_theme_calls else None
-    )
     new_color = _get_theme_primary_color(builder)
 
     return [
-        CheckResult("called set_theme", len(set_theme_calls) >= 1),
-        CheckResult(
-            "theme_name is 'midnight'",
-            theme_arg == "midnight",
-            hint=f"got theme_name='{theme_arg}'",
-        ),
+        CheckResult("called set_theme", bool(tool_called(output, "set_theme"))),
+        CheckResult("saved theme is midnight", builder_uses_theme(builder, "midnight")),
         CheckResult(
             "theme color changed",
             new_color != initial_color,

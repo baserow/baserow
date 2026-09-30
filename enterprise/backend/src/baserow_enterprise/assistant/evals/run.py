@@ -15,7 +15,6 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from collections import Counter
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
@@ -77,7 +76,8 @@ UI_CASE_PREFIX = "ui:"
 # Version 4 checks saved Builder behavior and records request-budget failures.
 # Version 5 also records model/tool and other execution errors as failed cases.
 # Version 6 leaves infrastructure, harness and check errors ungraded.
-HARNESS_VERSION = 6
+# Version 7 checks saved state and records execution errors without replaying cases.
+HARNESS_VERSION = 7
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
 
@@ -248,30 +248,30 @@ def _score_and_explanation(checks: list[dict[str, Any]]) -> tuple[float, str]:
     return passed_count / total, explanation
 
 
-def checklist(output: dict[str, Any]) -> dict[str, Any]:
+def checklist(output: dict[str, Any] | None) -> dict[str, Any]:
     """Evaluator: fraction of checks that passed, plus failure detail.
 
-    Skipped outputs (no ``checks`` were ever run) score an empty result — the
+    Missing or skipped outputs score an empty result — the
     Phoenix-valid way to record "no score" — so they don't count as 0.0 in
-    aggregates. ``None`` is not an option: the installed phoenix-client
+    aggregates. Returning ``None`` is not an option: the installed phoenix-client
     scorer (``_default_eval_scorer``) raises ``ValueError`` on it.
     """
 
-    if "skipped" in output:
+    if output is None or "skipped" in output:
         return {}
     score, explanation = _score_and_explanation(output.get("checks", []))
     # 2-tuples map position 1 to the LABEL in the phoenix client; 3-tuples don't.
     return {"score": score, "explanation": explanation or None}
 
 
-def passed(output: dict[str, Any]) -> bool | dict[str, Any]:
+def passed(output: dict[str, Any] | None) -> bool | dict[str, Any]:
     """Evaluator: whether every check (incl. the tool-error budget) passed.
 
-    Skipped outputs score an empty result instead of the vacuous ``all([])
+    Missing or skipped outputs score an empty result instead of the vacuous ``all([])
     is True``, so they don't count as passing in aggregates.
     """
 
-    if "skipped" in output:
+    if output is None or "skipped" in output:
         return {}
     return all(c["passed"] for c in output.get("checks", []))
 
@@ -372,7 +372,7 @@ def run_case_for_experiment(
 
 
 def answer_quality(
-    output: dict[str, Any],
+    output: dict[str, Any] | None,
     metadata: dict[str, Any],
     expected: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -388,7 +388,7 @@ def answer_quality(
     binder passes it by that name (an alias, ``reference``, also exists).
     """
 
-    if "skipped" in output or not output.get("judge_docs"):
+    if output is None or "skipped" in output or not output.get("judge_docs"):
         return {}
 
     reference_answer = (expected or {}).get("reference_answer") or None
@@ -508,8 +508,6 @@ def run_experiment_for(
             runner_run_id,
         )
 
-    # Phoenix re-enters the task on retry, so cap each example at its repetitions.
-    counted: Counter[str] = Counter()
     cleanup_error: EvalCaseCleanupError | None = None
 
     def task(example: Any) -> dict[str, Any]:
@@ -528,15 +526,16 @@ def run_experiment_for(
                     case, model, kb_available, prompt_texts
                 )
             except EvalCaseCleanupError as exc:
-                # Phoenix catches task exceptions and may retry them. Stop its
-                # remaining work, then propagate this failure to the runner.
+                # Phoenix catches task exceptions. Stop its remaining work,
+                # then propagate this failure to the runner.
                 cleanup_error = exc
                 control.stop()
                 raise
-        example_id = str(example.id)
-        if counted[example_id] < runs:
-            counted[example_id] += 1
-            control.case_finished()
+            except Exception:
+                # Phoenix prints task errors; the runner captures Loguru instead.
+                logger.exception("Ungraded eval error in {}", case.id)
+                raise
+        control.case_finished()
         return result
 
     dataset = client.datasets.get_dataset(dataset=dataset_name)
@@ -553,6 +552,8 @@ def run_experiment_for(
             runner_run_id=runner_run_id,
         ),
         repetitions=runs,
+        # Retrying a check/provider error would repeat the entire agent run.
+        retries=0,
     )
     if cleanup_error is not None:
         raise cleanup_error

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from unittest.mock import patch
 
+import httpx
 import pytest
+from phoenix.client import Client
 
 from baserow_enterprise.assistant.evals import baseline, registry
 from baserow_enterprise.assistant.evals.baseline import (
@@ -53,6 +56,9 @@ class _FakeExperimentsAPI:
         self.log_evaluation_calls: list[dict] = []
         self.records: list[dict] = []
 
+    def list(self, **kwargs):
+        return list(self.records)
+
     def create(self, **kwargs):
         self.create_calls.append(kwargs)
         record = {
@@ -84,6 +90,23 @@ class _FakeClient:
 
     def get_dataset(self, dataset):
         return self._dataset
+
+
+@contextmanager
+def _sdk_client(handler):
+    """Exercise Phoenix's real SDK and the direct requests at their HTTP boundary."""
+
+    with (
+        httpx.Client(
+            base_url="http://phoenix.test", transport=httpx.MockTransport(handler)
+        ) as http,
+        patch.object(baseline.httpx, "get", side_effect=http.get),
+        patch.object(baseline.httpx, "post", side_effect=http.post),
+        patch.object(baseline.httpx, "patch", side_effect=http.patch),
+    ):
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments = Client(http_client=http).experiments
+        yield client
 
 
 _CODE_EXAMPLE = {
@@ -132,6 +155,7 @@ class TestCaptureBaseline:
             "total_cost": 0.05,
             "total_tokens": 120000,
         }
+        client.experiments.records = rest["/v1/datasets/ds-1/experiments"]
         with (
             patch.object(baseline, "_get", side_effect=lambda path: rest[path]),
             patch.object(
@@ -159,18 +183,52 @@ class TestCaptureBaseline:
 
     def test_experiment_name_filter_and_missing_experiment(self):
         client = _FakeClient([_CODE_EXAMPLE])
-        rest = {
-            "/v1/datasets/ds-1/experiments": [
-                {"id": "exp-2", "name": "other", "metadata": {}},
-            ],
-        }
-
-        with patch.object(baseline, "_get", side_effect=lambda path: rest[path]):
-            results = capture_baseline(client, experiment_name="baseline-candidate")
+        client.experiments.records = [
+            {"id": "exp-2", "name": "other", "metadata": {}},
+        ]
+        results = capture_baseline(client, experiment_name="baseline-candidate")
 
         assert results["kuma-database"] == "no matching experiment"
         snapshot = json.loads(baseline.BASELINE_PATH.read_text())
         assert snapshot["datasets"] == {}
+
+    @pytest.mark.parametrize("error", ["Provider unavailable", ""])
+    def test_errored_run_does_not_replace_snapshot(self, error):
+        original = json.dumps(_snapshot([_snapshot_run()]))
+        baseline.BASELINE_PATH.write_text(original)
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments.records = [{"id": "exp-1", "name": "candidate"}]
+        failed_run = {**_run_payload(), "output": None, "error": error}
+
+        with patch.object(baseline, "_get", return_value=[failed_run]):
+            with pytest.raises(ValueError, match="exp-1.*database/list-tables"):
+                capture_baseline(client)
+
+        assert baseline.BASELINE_PATH.read_text() == original
+
+    def test_scored_model_failure_can_be_captured(self):
+        client = _FakeClient([_CODE_EXAMPLE])
+        client.experiments.records = [{"id": "exp-1", "name": "candidate"}]
+        failed_model_run = {
+            **_run_payload(),
+            "output": {"passed": False, "score": 0.0},
+            "error": None,
+        }
+        with (
+            patch.object(baseline, "_get", return_value=[failed_model_run]),
+            patch.object(
+                baseline,
+                "_run_annotations",
+                return_value=[{"name": "passed", "score": 0.0}],
+            ),
+            patch.object(baseline, "_experiment_totals", return_value={}),
+        ):
+            capture_baseline(client)
+
+        saved = json.loads(baseline.BASELINE_PATH.read_text())
+        run = saved["datasets"]["kuma-database"]["runs"][0]
+        assert run["output"] == failed_model_run["output"]
+        assert run["annotations"] == [{"name": "passed", "score": 0.0}]
 
 
 def _snapshot(runs):
@@ -220,10 +278,75 @@ def _persist_import_requests(monkeypatch, client, import_metadata_patch):
             if record["id"] not in experiment_ids
         ]
 
-    monkeypatch.setattr(baseline, "_get", lambda path: list(client.experiments.records))
     monkeypatch.setattr(baseline, "_delete_experiments", delete)
     import_metadata_patch.side_effect = update
     return deleted_ids
+
+
+@pytest.mark.parametrize("action", ["capture", "import"])
+def test_baseline_finds_experiments_beyond_first_page(action):
+    snapshot = _snapshot([_snapshot_run()])
+    baseline.BASELINE_PATH.write_text(json.dumps(snapshot))
+    recent = [
+        {"id": f"live-{i}", "name": f"candidate-{i}", "metadata": {}} for i in range(50)
+    ]
+    older = [
+        {
+            "id": "current-import",
+            "name": "baseline (imported)",
+            "dataset_version_id": "v1",
+            "metadata": {
+                "baseline_snapshot_hash": baseline._snapshot_hash(snapshot),
+                "baseline_import_complete": True,
+            },
+            "successful_run_count": 1,
+        },
+        {
+            "id": "obsolete-import",
+            "name": "baseline (imported)",
+            "metadata": {"baseline_snapshot_hash": "previous"},
+        },
+    ]
+    cursors = []
+    deleted = []
+
+    def respond(request):
+        if request.url.path == "/v1/datasets/ds-1/experiments":
+            assert request.method == "GET"
+            cursor = request.url.params.get("cursor")
+            cursors.append(cursor)
+            return httpx.Response(
+                200,
+                json={
+                    "data": older if cursor else recent,
+                    "next_cursor": None if cursor else "older",
+                },
+            )
+        if request.url.path == "/v1/experiments/current-import/runs":
+            return httpx.Response(200, json={"data": [_run_payload()]})
+        if request.url.path == "/graphql":
+            body = json.loads(request.content)
+            deleted.extend(body["variables"]["ids"])
+            return httpx.Response(200, json={"data": {}})
+        raise AssertionError((request.method, request.url.path))
+
+    with (
+        _sdk_client(respond) as client,
+        patch.object(baseline, "_run_annotations", return_value=[]),
+        patch.object(baseline, "_experiment_totals", return_value={}),
+    ):
+        if action == "capture":
+            result = capture_baseline(client, experiment_name="baseline (imported)")
+            assert (
+                result["kuma-database"] == "captured 1 runs from 'baseline (imported)'"
+            )
+            saved = json.loads(baseline.BASELINE_PATH.read_text())
+            assert len(saved["datasets"]["kuma-database"]["runs"]) == 1
+            assert deleted == []
+        else:
+            assert import_baseline(client)["kuma-database"] == "already imported"
+            assert deleted == ["obsolete-import"]
+    assert cursors == [None, "older"]
 
 
 class TestImportBaseline:
@@ -240,8 +363,7 @@ class TestImportBaseline:
         )
         client = _FakeClient([_CODE_EXAMPLE])
 
-        with patch.object(baseline, "_get", return_value=[]):
-            results = import_baseline(client)
+        results = import_baseline(client)
 
         assert results["kuma-database"] == "imported 1 runs (1 removed cases skipped)"
         create = client.experiments.create_calls[0]
@@ -290,7 +412,7 @@ class TestImportBaseline:
         ]
 
         with (
-            patch.object(baseline, "_get", return_value=existing),
+            patch.object(client.experiments, "list", return_value=existing),
             patch.object(baseline, "_delete_experiments") as mock_delete,
         ):
             results = import_baseline(client)
@@ -316,7 +438,7 @@ class TestImportBaseline:
             }
         ]
 
-        with patch.object(baseline, "_get", return_value=existing):
+        with patch.object(client.experiments, "list", return_value=existing):
             results = import_baseline(client)
 
         assert results["kuma-database"] == "already imported"
@@ -341,7 +463,7 @@ class TestImportBaseline:
         ]
 
         with (
-            patch.object(baseline, "_get", return_value=existing),
+            patch.object(client.experiments, "list", return_value=existing),
             patch.object(baseline, "_delete_experiments") as mock_delete,
         ):
             results = import_baseline(client)
@@ -406,49 +528,104 @@ class TestImportBaseline:
         assert client.experiments.records[0]["name"] == "baseline (imported)"
         assert client.experiments.records[0]["dataset_version_id"] == "v1"
 
-    def test_interrupted_annotations_preserve_old_results_and_retry_the_import(
-        self, monkeypatch, import_metadata_patch
+    @pytest.mark.parametrize(
+        "failure_path, status, cleanup_fails",
+        [
+            ("/runs", 409, False),
+            ("/v1/experiment_evaluations", 503, False),
+            ("completion", 503, False),
+            ("completion", 503, True),
+        ],
+        ids=("run-conflict", "annotation", "completion", "cleanup-also-fails"),
+    )
+    def test_failed_import_preserves_old_results_and_can_retry(
+        self, failure_path, status, cleanup_fails
     ):
         baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
-        client = _FakeClient([_CODE_EXAMPLE])
-        client.experiments.records.extend(
-            [
-                {"id": "live-baseline", "name": "baseline", "metadata": {}},
-                {
-                    "id": "previous-import",
-                    "name": "baseline (imported)",
-                    "metadata": {"baseline_snapshot_hash": "previous-snapshot"},
-                },
-            ]
-        )
-        deleted = _persist_import_requests(monkeypatch, client, import_metadata_patch)
+        previous = {
+            "live-baseline": {
+                "id": "live-baseline",
+                "name": "baseline",
+                "metadata": {},
+            },
+            "previous-import": {
+                "id": "previous-import",
+                "name": "baseline (imported)",
+                "metadata": {"baseline_snapshot_hash": "previous-snapshot"},
+            },
+        }
+        records = dict(previous)
+        created = 0
+        fail = True
 
-        with patch.object(
-            client.experiments,
-            "log_evaluation",
-            side_effect=RuntimeError("interrupted"),
+        def respond(request):
+            nonlocal created
+            path = request.url.path
+            body = json.loads(request.content) if request.content else {}
+            if path == "/v1/datasets/ds-1/experiments":
+                if request.method == "GET":
+                    return httpx.Response(200, json={"data": list(records.values())})
+                created += 1
+                record = {
+                    "id": f"new-{created}",
+                    "name": body["name"],
+                    "dataset_version_id": body["version_id"],
+                    "metadata": body["metadata"],
+                    "successful_run_count": 0,
+                }
+                records[record["id"]] = record
+                return httpx.Response(200, json={"data": record})
+            if request.method == "DELETE":
+                experiment_id = path.rsplit("/", 1)[-1]
+                assert experiment_id.startswith("new-")
+                if cleanup_fails:
+                    return httpx.Response(502, json={"detail": "cleanup unavailable"})
+                del records[experiment_id]
+                return httpx.Response(204)
+            if fail and (
+                path.endswith(failure_path)
+                or (failure_path == "completion" and request.method == "PATCH")
+            ):
+                return httpx.Response(status, json={"detail": "original failure"})
+            if path.endswith("/runs"):
+                records[path.split("/")[3]]["successful_run_count"] += 1
+                return httpx.Response(200, json={"data": {"id": "run-1"}})
+            if path == "/v1/experiment_evaluations":
+                return httpx.Response(200, json={"data": {"id": "evaluation-1"}})
+            if request.method == "PATCH":
+                records[path.rsplit("/", 1)[-1]]["metadata"] = body["metadata"]
+                return httpx.Response(200, json={"data": {}})
+            if path == "/graphql":
+                for experiment_id in body["variables"]["ids"]:
+                    del records[experiment_id]
+                return httpx.Response(200, json={"data": {}})
+            raise AssertionError((request.method, path))
+
+        with (
+            _sdk_client(respond) as client,
+            patch.object(baseline.logger, "warning") as warning,
         ):
-            with pytest.raises(RuntimeError, match="interrupted"):
-                import_baseline(client)
+            for _ in range(1 if cleanup_fails else 2):
+                with pytest.raises(httpx.HTTPStatusError) as caught:
+                    import_baseline(client)
+                assert caught.value.response.status_code == status
+                assert caught.value.response.json()["detail"] == "original failure"
+                assert {key: records[key] for key in previous} == previous
+                if not cleanup_fails:
+                    assert records == previous
+            if cleanup_fails:
+                warning.assert_called_once()
+                assert (
+                    "Could not delete failed baseline import"
+                    in warning.call_args.args[0]
+                )
 
-        assert deleted == []
-        incomplete = client.experiments.records[-1]
-        assert incomplete["successful_run_count"] == 1
-        assert incomplete["metadata"]["baseline_import_complete"] is False
-        import_metadata_patch.assert_not_called()
-
-        result = import_baseline(client)
-
-        assert result["kuma-database"] == "imported 1 runs"
-        assert deleted == ["previous-import", "exp-baseline-1"]
-        assert len(client.experiments.log_evaluation_calls) == 1
-        assert [record["id"] for record in client.experiments.records] == [
-            "live-baseline",
-            "exp-baseline-2",
-        ]
-        assert client.experiments.records[-1]["metadata"]["baseline_import_complete"]
-        assert import_baseline(client)["kuma-database"] == "already imported"
-        assert len(client.experiments.create_calls) == 2
+            fail = False
+            cleanup_fails = False
+            assert import_baseline(client)["kuma-database"] == "imported 1 runs"
+            assert set(records) == {"live-baseline", f"new-{created}"}
+            assert records[f"new-{created}"]["metadata"]["baseline_import_complete"]
+            assert import_baseline(client)["kuma-database"] == "already imported"
 
     def test_retries_cleanup_without_reimporting_completed_results(
         self, monkeypatch, import_metadata_patch
@@ -480,7 +657,7 @@ class TestImportBaseline:
         client = _FakeClient([])
 
         with (
-            patch.object(baseline, "_get") as mock_get,
+            patch.object(client.experiments, "list") as mock_list,
             patch.object(baseline, "_delete_experiments") as mock_delete,
         ):
             first = import_baseline(client)
@@ -492,7 +669,7 @@ class TestImportBaseline:
             == {"kuma-database": "no snapshot cases in the current dataset"}
         )
         assert client.experiments.create_calls == []
-        mock_get.assert_not_called()
+        mock_list.assert_not_called()
         mock_delete.assert_not_called()
 
     def test_import_drops_no_result_annotations(self):
@@ -503,8 +680,7 @@ class TestImportBaseline:
         baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([run])))
         client = _FakeClient([_CODE_EXAMPLE])
 
-        with patch.object(baseline, "_get", return_value=[]):
-            import_baseline(client)
+        import_baseline(client)
 
         logged = [call["name"] for call in client.experiments.log_evaluation_calls]
         assert logged == ["passed"]

@@ -161,7 +161,8 @@ def capture_baseline(client: Any, experiment_name: str | None = None) -> dict[st
 
     ``experiment_name`` restricts the pick to experiments with that name —
     use it to capture a deliberate baseline run rather than whatever ran
-    last. Registry must be loaded (``load_all``) before calling.
+    last. Errored code runs abort capture without replacing the snapshot.
+    Registry must be loaded (``load_all``) before calling.
     """
 
     snapshot: dict[str, Any] = {
@@ -172,7 +173,7 @@ def capture_baseline(client: Any, experiment_name: str | None = None) -> dict[st
 
     for dataset_name in cases_by_dataset():
         dataset = client.datasets.get_dataset(dataset=dataset_name)
-        experiments = _get(f"/v1/datasets/{dataset.id}/experiments")
+        experiments = client.experiments.list(dataset_id=dataset.id)
         if experiment_name:
             experiments = [e for e in experiments if e.get("name") == experiment_name]
         if not experiments:
@@ -193,6 +194,12 @@ def capture_baseline(client: Any, experiment_name: str | None = None) -> dict[st
             if not case_id:
                 skipped += 1
                 continue
+            if run.get("error") is not None:
+                raise ValueError(
+                    f"Cannot capture baseline for '{dataset_name}': experiment "
+                    f"'{experiment['id']}' has an errored run for '{case_id}': "
+                    f"{run['error']}"
+                )
             runs.append(
                 {
                     "case_id": case_id,
@@ -253,6 +260,7 @@ def import_baseline(client: Any) -> dict[str, str]:
     Completed imports for the same snapshot and dataset version are retained.
     Removed cases are skipped. Interrupted and legacy imports are replaced only
     after the new import has saved every applicable run and annotation.
+    A failed attempt deletes only its own newly created experiment.
     """
 
     if not BASELINE_PATH.exists():
@@ -281,7 +289,7 @@ def import_baseline(client: Any) -> dict[str, str]:
             results[dataset_name] = "no snapshot cases in the current dataset"
             continue
 
-        experiments = _get(f"/v1/datasets/{dataset.id}/experiments")
+        experiments = client.experiments.list(dataset_id=dataset.id)
         completed_import = next(
             (
                 experiment
@@ -319,26 +327,38 @@ def import_baseline(client: Any) -> dict[str, str]:
             repetitions=max(run["repetition_number"] for run in applicable_runs),
         )
 
-        for run in applicable_runs:
-            logged = client.experiments.log_run(
-                experiment_id=experiment["id"],
-                dataset_example_id=node_by_case_id[run["case_id"]],
-                output=run["output"],
-                start_time=datetime.fromisoformat(run["start_time"]),
-                end_time=datetime.fromisoformat(run["end_time"]),
-                repetition_number=run["repetition_number"],
-            )
-            for annotation in run.get("annotations", []):
-                if not _has_result(annotation):
-                    continue
-                client.experiments.log_evaluation(
-                    experiment_run_id=logged["id"],
-                    name=annotation["name"],
-                    score=annotation.get("score"),
-                    label=annotation.get("label"),
-                    explanation=annotation.get("explanation"),
+        try:
+            for run in applicable_runs:
+                logged = client.experiments.log_run(
+                    experiment_id=experiment["id"],
+                    dataset_example_id=node_by_case_id[run["case_id"]],
+                    output=run["output"],
+                    start_time=datetime.fromisoformat(run["start_time"]),
+                    end_time=datetime.fromisoformat(run["end_time"]),
+                    repetition_number=run["repetition_number"],
                 )
-        _mark_import_complete(experiment["id"], import_metadata)
+                for annotation in run.get("annotations", []):
+                    if not _has_result(annotation):
+                        continue
+                    client.experiments.log_evaluation(
+                        experiment_run_id=logged["id"],
+                        name=annotation["name"],
+                        score=annotation.get("score"),
+                        label=annotation.get("label"),
+                        explanation=annotation.get("explanation"),
+                    )
+            _mark_import_complete(experiment["id"], import_metadata)
+        except Exception:
+            try:
+                client.experiments.delete(experiment_id=experiment["id"])
+            except Exception as exc:
+                logger.warning(
+                    "Could not delete failed baseline import '{}' for '{}': {}",
+                    experiment["id"],
+                    dataset_name,
+                    exc,
+                )
+            raise
         _delete_stale_imports(experiments, dataset_name, experiment["id"])
 
         results[dataset_name] = f"imported {len(applicable_runs)} runs" + (

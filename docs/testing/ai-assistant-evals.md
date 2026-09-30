@@ -73,9 +73,15 @@ agent loop stays visible while the remaining cases still run. Transient
 provider rate limits are retried at the individual request boundary, honoring
 `Retry-After` when the provider supplies it.
 
-Unexpected setup, provider, tool-code, or check errors are recorded as ungraded
-Phoenix errors and keep the experiment incomplete. Phoenix may retry these
-errors during a full-dataset run. A subset run records the error and stops.
+Unexpected setup, tool-code, check and explicit provider errors are recorded as
+ungraded Phoenix errors and keep the experiment incomplete. A full-dataset run
+logs the error and continues without retrying the whole case. A subset run
+records the error and stops. Provider request retries remain separate.
+
+Pydantic AI's `UnexpectedModelBehavior` remains a scored failure: it includes
+exhausted model validation, but also some malformed provider responses. The
+library does not reliably distinguish these cases; finer classification is
+deferred rather than inferred from provider error messages.
 
 **Stop** is cooperative and lands at the next case boundary, because the
 worker sits inside a blocking LLM call that Python cannot interrupt. Queued
@@ -114,6 +120,9 @@ Snapshots are imported as `baseline (imported)`, keeping live `baseline` runs
 separate. Startup replaces only imports, after the replacement's runs and scores
 are saved. Removed snapshot cases are skipped without repeating the import on
 every restart; interrupted imports are retried.
+Failed imports remove only their new partial experiment, preserving the previous
+baseline. Capturing a baseline rejects experiments with execution errors before
+replacing the snapshot; scored model failures remain valid baseline results.
 
 Overall weights scores by each experiment's recorded case count (expected runs
 divided by repetitions), not today's registry. It includes only comparable

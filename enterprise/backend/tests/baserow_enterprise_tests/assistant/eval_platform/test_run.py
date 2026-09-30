@@ -1,3 +1,4 @@
+import json
 import subprocess
 from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
@@ -6,13 +7,18 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import OperationalError
 
+import httpx
 import pytest
+from loguru import logger
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 from opentelemetry.trace import StatusCode
+from phoenix.client.resources.datasets import Dataset
+from phoenix.client.resources.experiments import Experiments
 from pydantic_ai.exceptions import (
     ModelHTTPError,
     UnexpectedModelBehavior,
@@ -615,7 +621,7 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 6,
+            "harness_version": 7,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": "local-run",
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -659,7 +665,7 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 6,
+            "harness_version": 7,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -1111,7 +1117,7 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 6,
+            "harness_version": 7,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -2029,32 +2035,6 @@ class TestFullDatasetProgressAndStop:
 
         assert control.total == 12
 
-    def test_a_phoenix_retry_cannot_push_the_counter_past_the_total(self):
-        """SyncExecutor re-enters the task on failure, so counting every call
-        would report more finished cases than the dataset has."""
-
-        registry.register_case(_make_case("db/case-1"))
-        client = _FakeClient(_FakeDataset([object()]))
-        control = RunControl()
-        task = self._task_for(client, control, [], runs=1)
-
-        example = _ExampleStub("db/case-1", example_id="ex-retried")
-        with (
-            patch(
-                "baserow_enterprise.assistant.evals.run.run_case",
-                return_value=(_make_output(), []),
-            ),
-            patch(
-                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
-            ) as mock_kb_cls,
-        ):
-            mock_kb_cls.return_value.can_search.return_value = True
-            for _attempt in range(4):
-                task(example)
-
-        assert control.total == 1
-        assert control.completed == 1
-
     def test_repetitions_of_one_example_each_count_once(self):
         registry.register_case(_make_case("db/case-1"))
         client = _FakeClient(_FakeDataset([object()]))
@@ -2072,11 +2052,11 @@ class TestFullDatasetProgressAndStop:
             ) as mock_kb_cls,
         ):
             mock_kb_cls.return_value.can_search.return_value = True
-            for _repetition in range(5):
+            for _repetition in range(3):
                 task(example)
 
         assert control.total == 3
-        assert control.completed == 3, "capped at the repetition count"
+        assert control.completed == 3
 
     def test_a_stopped_run_skips_the_case_without_calling_the_agent(self):
         registry.register_case(_make_case("db/case-1"))
@@ -2116,7 +2096,7 @@ class TestTimeoutIsRecordedNotRaised:
         assert control.completed == 0
         assert client.experiments.log_run_calls == []
 
-    def test_cleanup_failure_stops_phoenix_retries_and_reaches_the_runner(self):
+    def test_cleanup_failure_skips_remaining_cases_and_reaches_the_runner(self):
         client = _two_case_client()
         control = RunControl()
         calls = []
@@ -2125,17 +2105,16 @@ class TestTimeoutIsRecordedNotRaised:
             calls.append(case.id)
             raise EvalCaseCleanupError("Restart the eval runner")
 
-        def retry_task(**kwargs):
+        def process_cases(**kwargs):
             task = kwargs["task"]
             with pytest.raises(EvalCaseCleanupError):
                 task(_ExampleStub("db/case-1"))
-            assert task(_ExampleStub("db/case-1")) == {"skipped": "run stopped"}
             assert task(_ExampleStub("db/case-2")) == {"skipped": "run stopped"}
             return {"experiment_id": "exp-1", "dataset_id": "ds-1"}
 
         with (
             _subset_env(client, run_case_side_effect=fail_cleanup),
-            patch.object(client.experiments, "run_experiment", retry_task),
+            patch.object(client.experiments, "run_experiment", process_cases),
             pytest.raises(EvalCaseCleanupError, match="Restart the eval runner"),
         ):
             run_experiment_for("kuma-database", "groq:test-model", control=control)
@@ -2317,25 +2296,100 @@ class TestExecutionErrorsRemainUngraded:
 
         assert raised.value is error
 
-    def test_full_dataset_task_leaves_error_recording_to_phoenix(self):
+    def test_real_phoenix_records_errors_once_without_scoring_them(self):
         client = _two_case_client()
+        dataset_info = {"id": "ds-1", "name": "kuma-database"}
+        examples_data = {
+            "version_id": "v1",
+            "examples": client.datasets._dataset.examples,
+        }
+        client.datasets._dataset = Dataset(dataset_info, examples_data)
+        experiment = {
+            "id": "exp-1",
+            "dataset_id": "ds-1",
+            "dataset_version_id": "v1",
+            "project_name": None,
+            "metadata": {},
+        }
+        saved_runs, evaluations, calls, log_records = {}, [], [], []
         control = RunControl()
         error = OperationalError("Database connection lost")
 
-        def phoenix_runs_task(**kwargs):
-            # The SDK must receive the exception, rather than a scored output.
-            return kwargs["task"](_ExampleStub("db/case-1"))
+        def respond(request):
+            path = request.url.path
+            if request.method == "POST":
+                body = json.loads(request.content)
+                if path.endswith("/runs"):
+                    node_id = body["dataset_example_id"]
+                    data = saved_runs[node_id] = {**body, "id": f"run-{node_id}"}
+                elif path.endswith("/experiment_evaluations"):
+                    evaluations.append(body)
+                    data = {"id": f"evaluation-{len(evaluations)}"}
+                elif path.endswith("/experiments"):
+                    data = experiment
+                else:
+                    raise AssertionError(f"Unexpected request: {request.method} {path}")
+            elif path.endswith("/runs"):
+                data = list(saved_runs.values())
+            elif path.endswith("/examples"):
+                data = examples_data
+            elif path.endswith("/datasets/ds-1"):
+                data = dataset_info
+            elif path.endswith("/experiments/exp-1"):
+                data = experiment
+            else:
+                raise AssertionError(f"Unexpected request: {request.method} {path}")
+            return httpx.Response(200, json={"data": data})
+
+        def fail_first(case, *args, **kwargs):
+            calls.append(case.id)
+            if case.id == "db/case-1":
+                raise error
+            return _make_output(), [CheckResult("saved state is correct", True)]
 
         with (
-            _subset_env(client, run_case_side_effect=error),
-            patch.object(client.experiments, "run_experiment", phoenix_runs_task),
-            pytest.raises(OperationalError) as raised,
+            httpx.Client(
+                base_url="http://phoenix.test/",
+                transport=httpx.MockTransport(respond),
+            ) as http_client,
+            _subset_env(client, run_case_side_effect=fail_first),
+            patch(
+                "phoenix.client.resources.experiments._get_tracer",
+                return_value=(TracerProvider().get_tracer("test"), Resource.create({})),
+            ),
+            ExitStack() as stack,
         ):
-            run_experiment_for("kuma-database", "groq:test-model", control=control)
+            client.experiments = Experiments(http_client)
+            sink = logger.add(lambda message: log_records.append(message.record))
+            stack.callback(logger.remove, sink)
+            result = run_experiment_for(
+                "kuma-database", "groq:test-model", control=control
+            )
 
-        assert raised.value is error
-        assert control.completed == 0
-        assert client.experiments.log_evaluation_calls == []
+        assert calls == ["db/case-1", "db/case-2"]
+        assert control.total == 2
+        assert control.completed == 1
+        assert result["task_runs"] == list(saved_runs.values())
+        assert saved_runs["node-1"]["output"] is None
+        assert saved_runs["node-1"]["error"] == repr(error)
+        failed_annotations = [
+            annotation
+            for annotation in evaluations
+            if annotation["experiment_run_id"] == "run-node-1"
+        ]
+        assert {annotation["name"] for annotation in failed_annotations} == {
+            "checklist",
+            "passed",
+            "answer_quality",
+        }
+        assert all(
+            annotation["error"] is None and annotation["result"] == {}
+            for annotation in failed_annotations
+        )
+        assert saved_runs["node-2"]["output"]["passed"] is True
+        (logged_error,) = [record for record in log_records if record["exception"]]
+        assert "db/case-1" in logged_error["message"]
+        assert logged_error["exception"].value is error
 
     def test_subset_records_an_error_run_without_scores_and_stops(self):
         client = _two_case_client()

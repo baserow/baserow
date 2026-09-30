@@ -9,15 +9,17 @@ and invalidate any existing baseline.
 
 from __future__ import annotations
 
-from copy import deepcopy
+from collections.abc import Callable
 
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.validator import ensure_boolean
 from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.evals.harness import executed_tool_calls, tool_called
+from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
     register_case,
     register_scenario,
@@ -30,26 +32,6 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
-from baserow_enterprise.assistant.tools.automation.types.node import (
-    CANONICAL_TO_SHORT_TYPE,
-)
-
-# Registered node type names fold to the short vocabulary the checks use, so a
-# model echoing list_nodes output is not scored as a miss.
-_CANONICAL_TO_SHORT_TYPE = {
-    "local_baserow_rows_created": "rows_created",
-    "local_baserow_rows_updated": "rows_updated",
-    "local_baserow_rows_deleted": "rows_deleted",
-    "local_baserow_create_row": "create_row",
-    "local_baserow_update_row": "update_row",
-    "local_baserow_delete_row": "delete_row",
-}
-
-
-def _node_type(node: dict) -> str:
-    node_type = node.get("type", "")
-    return _CANONICAL_TO_SHORT_TYPE.get(node_type, node_type)
-
 
 # Names the automation instead of a live DB id, since prompts are fixed before creation.
 PROMPT_LISTS_WORKFLOWS = "List the workflows in automation '{automation_name}'."
@@ -96,49 +78,117 @@ PROMPT_CREATES_EMAIL_NOTIFICATION_WORKFLOW = (
 )
 
 # ---------------------------------------------------------------------------
-# Local helpers — args inspection over output.messages (assistant-side entries)
+# Local helpers — inspect saved configuration, including repaired tool calls.
 # ---------------------------------------------------------------------------
 
 
-def _get_create_workflows_args(output: EvalRunOutput) -> list[dict]:
-    """Return the parsed ``args`` dicts of every executed ``create_workflows`` call."""
-
-    calls = [
-        deepcopy(e["args"]) for e in executed_tool_calls(output, "create_workflows")
-    ]
-    # Match the same registered aliases accepted by the production tool schema.
-    # Preserve the original trace and every other argument for the checks.
-    for args in calls:
-        for workflow in args.get("workflows", []):
-            for node in [workflow.get("trigger", {}), *workflow.get("nodes", [])]:
-                if node is None:
-                    continue
-                node_type = node.get("type")
-                node["type"] = CANONICAL_TO_SHORT_TYPE.get(node_type, node_type)
-    return calls
-
-
-def _get_workflow_nodes(
+def _check_saved_workflows(
     automation: Automation,
-    *,
-    workflow_name: str | None = None,
-) -> tuple[AutomationWorkflow | None, AutomationNode | None, list[AutomationNode]]:
-    """Read one saved workflow, optionally matched to a create_workflows request."""
+    output: EvalRunOutput,
+    check: Callable[[AutomationNode | None, list[AutomationNode]], list[CheckResult]],
+) -> list[CheckResult]:
+    """Score one whole workflow, allowing an earlier incomplete draft to remain."""
 
-    workflows = AutomationWorkflow.objects.filter(automation=automation)
-    if workflow_name is not None:
-        # The creation tool also identifies existing workflows by their exact name.
-        workflows = workflows.filter(name=workflow_name)
-    workflow = workflows.first()
-    if workflow is None:
-        return None, None, []
-    trigger = workflow.get_trigger()
-    action_nodes = list(
-        workflow.automation_workflow_nodes.exclude(
-            id=trigger.id if trigger else None
-        ).order_by("id")
+    candidates = []
+    # Read graph relationships fresh after the agent's mutations.
+    with local_cache.context():
+        for workflow in AutomationWorkflow.objects.filter(automation=automation):
+            trigger = workflow.get_trigger()
+            actions = list(
+                workflow.automation_workflow_nodes.exclude(
+                    id=trigger.id if trigger else None
+                )
+            )
+            candidates.append(check(trigger, actions))
+    # Keep useful partial-failure details, but never combine checks from different
+    # workflows into a passing result.
+    best = (
+        max(candidates, key=lambda checks: sum(c.passed for c in checks))
+        if candidates
+        else check(None, [])
     )
-    return workflow, trigger, action_nodes
+    return [
+        CheckResult(
+            "called create_workflows", bool(tool_called(output, "create_workflows"))
+        ),
+        CheckResult("workflow created in DB", bool(candidates)),
+        *best,
+    ]
+
+
+_UNRESOLVED = object()
+
+
+def _resolve_saved_formula(formula, trigger=None, row=None):
+    context = AssistantFormulaContext()
+    if trigger is not None and row is not None:
+        context.add_node_context(trigger.id, [row])
+    try:
+        return resolve_formula(formula, formula_runtime_function_registry, context)
+    except Exception:
+        return _UNRESOLVED
+
+
+def _row_values_match(service, trigger, samples, *, update: bool) -> bool:
+    """Check row identity and named mappings against two different trigger rows."""
+
+    if trigger is None:
+        return False
+    mappings = {
+        mapping.field_id: mapping.value
+        for mapping in service.field_mappings.filter(enabled=True)
+    }
+    for row, expected in samples:
+        row_id = _resolve_saved_formula(service.row_id, trigger, row)
+        if row_id not in ((row["id"], str(row["id"])) if update else (None, "")):
+            return False
+        if any(
+            field_id not in mappings
+            or _resolve_saved_formula(mappings[field_id], trigger, row) != value
+            for field_id, value in expected.items()
+        ):
+            return False
+    return True
+
+
+def _check_updates_trigger_row(scenario, output, trigger_type, values):
+    table = scenario.refs["table"]
+    expected = {
+        table.field_set.get(name=name).id: value for name, value in values.items()
+    }
+    samples = [({"id": row_id}, expected) for row_id in (101, 202)]
+
+    def check(trigger, actions):
+        service = trigger.service.specific if trigger else None
+        updates = [
+            node.service.specific
+            for node in actions
+            if node.get_type().type == "local_baserow_update_row"
+        ]
+        targets = [service for service in updates if service.table_id == table.id]
+        return [
+            CheckResult(
+                f"DB trigger is {trigger_type}",
+                service is not None
+                and service.get_type().type == f"local_baserow_{trigger_type}",
+            ),
+            CheckResult(
+                f"trigger table is {table.name}",
+                service is not None and getattr(service, "table_id", None) == table.id,
+            ),
+            CheckResult("update_row action in DB", bool(updates)),
+            CheckResult(f"update_row targets {table.name} table", bool(targets)),
+            CheckResult(
+                "saved update targets the trigger row with the requested field values",
+                any(
+                    _row_values_match(service, trigger, samples, update=True)
+                    for service in targets
+                ),
+                hint=f"expected field values: {values}",
+            ),
+        ]
+
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
 
 
 # ---------------------------------------------------------------------------
@@ -210,64 +260,9 @@ def _creates_workflow_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_workflow(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
-    table = scenario.refs["table"]
-
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[-1] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger") or {}
-    nodes_args = wf_args.get("nodes", [])
-    trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-    update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
-    ur_values = update_nodes_args[0].get("values", []) if update_nodes_args else []
-    ur_has_processing = any(
-        "processing" in str(v.get("value", "")).lower() for v in ur_values
+    return _check_updates_trigger_row(
+        scenario, output, "rows_created", {"Status": "Processing"}
     )
-
-    workflow, trigger_node, action_nodes = _get_workflow_nodes(
-        automation, workflow_name=wf_args.get("name") or ""
-    )
-    db_ok = workflow is not None
-    db_trigger_type = trigger_node.service.get_type().type if trigger_node else None
-    db_update_actions = [
-        n
-        for n in action_nodes
-        if n.service.get_type().type == "local_baserow_upsert_row"
-    ]
-
-    return [
-        CheckResult(
-            "called create_workflows", tool_called(output, "create_workflows") >= 1
-        ),
-        CheckResult("workflow created in DB", db_ok),
-        CheckResult(
-            "trigger is rows_created",
-            _node_type(trigger_args) == "rows_created",
-            hint=f"got {trigger_args.get('type')}",
-        ),
-        CheckResult(
-            "trigger table is Orders",
-            trigger_table_id == table.id,
-            hint=f"got table_id={trigger_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "update_row node in args",
-            len(update_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "update_row sets field to 'Processing'",
-            ur_has_processing,
-            hint=f"values: {ur_values}",
-        ),
-        CheckResult(
-            "DB trigger is rows_created",
-            db_trigger_type == "local_baserow_rows_created",
-            hint=f"got {db_trigger_type}",
-        ),
-        CheckResult("update_row action in DB", len(db_update_actions) >= 1),
-    ]
 
 
 register_case(
@@ -307,65 +302,51 @@ def _creates_weekly_slack_reminder_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_weekly_slack_reminder(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    _, trigger, action_nodes = _get_workflow_nodes(scenario.refs["automation"])
-    trigger_type = trigger.get_type().type if trigger else None
-    periodic = trigger.service.specific if trigger_type == "periodic" else None
-    slack_services = [
-        node.service.specific
-        for node in action_nodes
-        if node.service.get_type().type == "slack_write_message"
-    ]
-    target_services = [
-        service
-        for service in slack_services
-        if service.channel.lstrip("#") == "general"
-    ]
-
-    def message_matches(service):
-        try:
-            text = resolve_formula(
-                service.text,
-                formula_runtime_function_registry,
-                AssistantFormulaContext(),
-            )
-        except Exception:
-            return False
-        return text == "Is there anything to demo this week?"
-
-    # The tool's argument fixer can repair a payload before saving it. Inspect
-    # the saved schedule/message, not the original uncorrected model arguments.
-    checks = [
-        CheckResult(
-            "called create_workflows", bool(tool_called(output, "create_workflows"))
-        ),
-        CheckResult("workflow created with periodic trigger", periodic is not None),
-        CheckResult("Slack action exists in DB", bool(slack_services)),
-        CheckResult(
-            "Slack channel is #general",
-            bool(target_services),
-            hint=f"saved channels: {[service.channel for service in slack_services]}",
-        ),
-        CheckResult(
-            "Slack action sends the exact requested message to #general",
-            any(message_matches(service) for service in target_services),
-        ),
-    ]
-    for name, expected in (
-        ("interval", "WEEK"),
-        ("day_of_week", 1),
-        ("hour", 9),
-        ("minute", 0),
-        ("timezone", "UTC"),
-    ):
-        actual = getattr(periodic, name, None)
-        checks.append(
-            CheckResult(
-                f"saved {name} is {expected}",
-                actual == expected,
-                hint=f"got {actual}",
-            )
+    def check(trigger, actions):
+        periodic = (
+            trigger.service.specific
+            if trigger and trigger.get_type().type == "periodic"
+            else None
         )
-    return checks
+        slack = [
+            node.service.specific
+            for node in actions
+            if node.service.get_type().type == "slack_write_message"
+        ]
+        targets = [
+            service for service in slack if service.channel.lstrip("#") == "general"
+        ]
+        checks = [
+            CheckResult("workflow created with periodic trigger", periodic is not None),
+            CheckResult("Slack action exists in DB", bool(slack)),
+            CheckResult("Slack channel is #general", bool(targets)),
+            CheckResult(
+                "Slack action sends the exact requested message to #general",
+                any(
+                    _resolve_saved_formula(service.text)
+                    == "Is there anything to demo this week?"
+                    for service in targets
+                ),
+            ),
+        ]
+        for name, expected in (
+            ("interval", "WEEK"),
+            ("day_of_week", 1),
+            ("hour", 9),
+            ("minute", 0),
+            ("timezone", "UTC"),
+        ):
+            actual = getattr(periodic, name, None)
+            checks.append(
+                CheckResult(
+                    f"saved {name} is {expected}",
+                    actual == expected,
+                    hint=f"got {actual}",
+                )
+            )
+        return checks
+
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
 
 
 register_case(
@@ -410,76 +391,67 @@ def _creates_router_workflow_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_router_workflow(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
     table = scenario.refs["table"]
+    priority = table.field_set.get(name="Priority")
+    options = {
+        option.value: {"id": option.id, "value": option.value, "color": option.color}
+        for option in priority.select_options.all()
+    }
 
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[-1] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    nodes_args = wf_args.get("nodes", [])
-    router_nodes_args = [n for n in nodes_args if _node_type(n) == "router"]
-    router_edges_args = (
-        router_nodes_args[0].get("edges", []) if router_nodes_args else []
-    )
+    def branches_match(router, trigger):
+        if trigger is None:
+            return False
+        edges = list(router.service.specific.edges.all())
+        selected = {}
+        for value in ("High", "Low"):
+            row = {priority.db_column: options[value]}
+            # Runtime resolves every condition before choosing the first match.
+            resolved = [
+                _resolve_saved_formula(edge.condition, trigger, row) for edge in edges
+            ]
+            if any(result is _UNRESOLVED for result in resolved):
+                return False
+            selected[value] = next(
+                (
+                    str(edge.uid)
+                    for edge, result in zip(edges, resolved)
+                    if ensure_boolean(result, False)
+                ),
+                "",
+            )
+        if selected["High"] == selected["Low"]:
+            return False
+        high_nodes = router.get_next_points(selected["High"])
+        low_nodes = router.get_next_points(selected["Low"])
+        return not low_nodes and any(
+            node.service.get_type().type == "slack_write_message"
+            and node.service.specific.channel.lstrip("#") == "urgent"
+            and _resolve_saved_formula(node.service.specific.text)
+            == "High priority ticket created"
+            for node in high_nodes
+        )
 
-    _, _, action_nodes = _get_workflow_nodes(
-        automation, workflow_name=wf_args.get("name") or ""
-    )
-    db_router_actions = [
-        n for n in action_nodes if n.service.get_type().type == "router"
-    ]
-    db_edges_count = (
-        db_router_actions[0].service.specific.edges.count() if db_router_actions else 0
-    )
+    def check(trigger, actions):
+        service = trigger.service.specific if trigger else None
+        routers = [node for node in actions if node.service.get_type().type == "router"]
+        return [
+            CheckResult(
+                "trigger is rows_created",
+                service is not None
+                and service.get_type().type == "local_baserow_rows_created",
+            ),
+            CheckResult(
+                "trigger table is Tickets",
+                service is not None and getattr(service, "table_id", None) == table.id,
+            ),
+            CheckResult("router node in DB", bool(routers)),
+            CheckResult(
+                "saved High branch sends the requested Slack message; Low does nothing",
+                any(branches_match(router, trigger) for router in routers),
+            ),
+        ]
 
-    trigger_args = wf_args.get("trigger") or {}
-    trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-    slack_nodes_in_nodes = [
-        n for n in nodes_args if _node_type(n) == "slack_write_message"
-    ]
-    slack_channel = (
-        slack_nodes_in_nodes[0].get("channel", "") if slack_nodes_in_nodes else ""
-    )
-
-    return [
-        CheckResult("called create_workflows", len(call_args_list) >= 1),
-        CheckResult(
-            "trigger is rows_created",
-            _node_type(trigger_args) == "rows_created",
-            hint=f"got {trigger_args.get('type')}",
-        ),
-        CheckResult(
-            "trigger table is Tickets",
-            trigger_table_id == table.id,
-            hint=f"got table_id={trigger_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "router node in args",
-            len(router_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "router has >=2 edges in args",
-            len(router_edges_args) >= 2,
-            hint=f"got {len(router_edges_args)}",
-        ),
-        CheckResult("router node in DB", len(db_router_actions) >= 1),
-        CheckResult(
-            "router has >=2 edges in DB",
-            db_edges_count >= 2,
-            hint=f"got {db_edges_count}",
-        ),
-        CheckResult(
-            "Slack node exists for High branch",
-            len(slack_nodes_in_nodes) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "Slack channel is #urgent",
-            "urgent" in slack_channel.lower(),
-            hint=f"got channel: '{slack_channel}'",
-        ),
-    ]
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
 
 
 register_case(
@@ -529,72 +501,50 @@ def _creates_row_with_field_values_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_row_with_field_values(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
     source_table = scenario.refs["source_table"]
     log_table = scenario.refs["log_table"]
-
-    _, trigger, action_nodes = _get_workflow_nodes(automation)
-    trigger_service = trigger.service.specific if trigger else None
-    create_services = [
-        node.service.specific
-        for node in action_nodes
-        if node.get_type().type == "local_baserow_create_row"
-    ]
-    target_services = [s for s in create_services if s.table_id == log_table.id]
     name_field = source_table.field_set.get(name="Name")
     entry_field = log_table.field_set.get(name="Entry")
     source_field = log_table.field_set.get(name="Source")
-
-    def mappings_match(service):
-        mappings = {
-            mapping.field_id: mapping.value
-            for mapping in service.field_mappings.filter(enabled=True)
-        }
-        if not trigger or not {entry_field.id, source_field.id} <= mappings.keys():
-            return False
-        # Resolve against two different trigger rows, so a literal name or a
-        # reference to an unrelated field cannot masquerade as a dynamic binding.
-        for name in ("Ada Lovelace", "Grace Hopper"):
-            context = AssistantFormulaContext()
-            context.add_node_context(trigger.id, [{name_field.db_column: name}])
-
-            def resolve(formula):
-                return resolve_formula(
-                    formula, formula_runtime_function_registry, context
-                )
-
-            try:
-                if (
-                    resolve(service.row_id) not in (None, "")
-                    or resolve(mappings[entry_field.id]) != name
-                    or resolve(mappings[source_field.id]) != "automation"
-                ):
-                    return False
-            except Exception:
-                return False
-        return True
-
-    return [
-        CheckResult(
-            "called create_workflows", bool(tool_called(output, "create_workflows"))
-        ),
-        CheckResult(
-            "DB trigger is rows_created",
-            trigger_service is not None
-            and trigger_service.get_type().type == "local_baserow_rows_created",
-        ),
-        CheckResult(
-            "DB trigger table is Contacts",
-            trigger_service is not None
-            and getattr(trigger_service, "table_id", None) == source_table.id,
-        ),
-        CheckResult("create_row action in DB", bool(create_services)),
-        CheckResult("create_row targets Log table", bool(target_services)),
-        CheckResult(
-            "saved Entry follows trigger Name and Source is automation",
-            any(mappings_match(service) for service in target_services),
-        ),
+    samples = [
+        (
+            {"id": row_id, name_field.db_column: name},
+            {entry_field.id: name, source_field.id: "automation"},
+        )
+        for row_id, name in ((101, "Ada Lovelace"), (202, "Grace Hopper"))
     ]
+
+    def check(trigger, actions):
+        service = trigger.service.specific if trigger else None
+        creates = [
+            node.service.specific
+            for node in actions
+            if node.get_type().type == "local_baserow_create_row"
+        ]
+        targets = [service for service in creates if service.table_id == log_table.id]
+        return [
+            CheckResult(
+                "DB trigger is rows_created",
+                service is not None
+                and service.get_type().type == "local_baserow_rows_created",
+            ),
+            CheckResult(
+                "DB trigger table is Contacts",
+                service is not None
+                and getattr(service, "table_id", None) == source_table.id,
+            ),
+            CheckResult("create_row action in DB", bool(creates)),
+            CheckResult("create_row targets Log table", bool(targets)),
+            CheckResult(
+                "saved Entry follows trigger Name and Source is automation",
+                any(
+                    _row_values_match(service, trigger, samples, update=False)
+                    for service in targets
+                ),
+            ),
+        ]
+
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
 
 
 register_case(
@@ -641,78 +591,12 @@ def _creates_update_row_workflow_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_update_row_workflow(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
-    table = scenario.refs["table"]
-
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[-1] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger") or {}
-    nodes_args = wf_args.get("nodes", [])
-    update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
-    ur = update_nodes_args[0] if update_nodes_args else {}
-
-    _, trigger_node, action_nodes = _get_workflow_nodes(
-        automation, workflow_name=wf_args.get("name") or ""
+    return _check_updates_trigger_row(
+        scenario,
+        output,
+        "rows_updated",
+        {"Status": "Reviewed", "Notes": "Automatically reviewed by automation"},
     )
-    db_trigger_type = trigger_node.service.get_type().type if trigger_node else None
-    db_update_actions = [
-        n
-        for n in action_nodes
-        if n.service.get_type().type == "local_baserow_upsert_row"
-    ]
-
-    ur_values = ur.get("values", [])
-    ur_has_reviewed = any(
-        "reviewed" in str(v.get("value", "")).lower() for v in ur_values
-    )
-    ur_has_notes = any(
-        "automation" in str(v.get("value", "")).lower()
-        or "review" in str(v.get("value", "")).lower()
-        for v in ur_values
-    )
-    trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-
-    return [
-        CheckResult("called create_workflows", len(call_args_list) >= 1),
-        CheckResult(
-            "trigger is rows_updated",
-            _node_type(trigger_args) == "rows_updated",
-            hint=f"got {trigger_args.get('type')}",
-        ),
-        CheckResult(
-            "trigger table is Tasks",
-            trigger_table_id == table.id,
-            hint=f"got table_id={trigger_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "update_row node in args",
-            len(update_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult("update_row has >=1 field value", len(ur_values) >= 1),
-        CheckResult(
-            "update_row names a row in DB",
-            any(bool(n.service.specific.row_id["formula"]) for n in db_update_actions),
-            hint=f"db row_ids: {[n.service.specific.row_id for n in db_update_actions]}",
-        ),
-        CheckResult(
-            "update_row sets Status to 'Reviewed'",
-            ur_has_reviewed,
-            hint=f"values: {ur_values}",
-        ),
-        CheckResult(
-            "update_row sets Notes (automation/reviewed text)",
-            ur_has_notes,
-            hint=f"values: {ur_values}",
-        ),
-        CheckResult(
-            "DB trigger is rows_updated",
-            db_trigger_type == "local_baserow_rows_updated",
-            hint=f"got {db_trigger_type}",
-        ),
-        CheckResult("update_row action in DB", len(db_update_actions) >= 1),
-    ]
 
 
 register_case(
@@ -755,64 +639,39 @@ def _creates_email_notification_workflow_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_email_notification_workflow(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
     table = scenario.refs["table"]
 
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[-1] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger") or {}
-    trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-    nodes_args = wf_args.get("nodes", [])
-    email_nodes_args = [n for n in nodes_args if _node_type(n) == "smtp_email"]
-    email_node = email_nodes_args[0] if email_nodes_args else {}
-    email_to = email_node.get("to_emails", "")
-    email_subject = email_node.get("subject", "")
-    email_body = email_node.get("body", "")
+    def check(trigger, actions):
+        service = trigger.service.specific if trigger else None
+        emails = [
+            node.service.specific
+            for node in actions
+            if node.service.get_type().type == "smtp_email"
+        ]
+        return [
+            CheckResult(
+                "trigger is rows_created",
+                service is not None
+                and service.get_type().type == "local_baserow_rows_created",
+            ),
+            CheckResult(
+                "trigger table is Orders",
+                service is not None and getattr(service, "table_id", None) == table.id,
+            ),
+            CheckResult("smtp_email action in DB", bool(emails)),
+            CheckResult(
+                "saved email has the requested recipient, subject and body",
+                any(
+                    _resolve_saved_formula(email.to_emails) == "admin@example.com"
+                    and _resolve_saved_formula(email.subject) == "New Order"
+                    and _resolve_saved_formula(email.body)
+                    == "A new order has been placed"
+                    for email in emails
+                ),
+            ),
+        ]
 
-    workflow, _, action_nodes = _get_workflow_nodes(
-        automation, workflow_name=wf_args.get("name") or ""
-    )
-    db_ok = workflow is not None
-    db_email_actions = [
-        n for n in action_nodes if n.service.get_type().type == "smtp_email"
-    ]
-
-    return [
-        CheckResult("called create_workflows", len(call_args_list) >= 1),
-        CheckResult(
-            "trigger is rows_created",
-            _node_type(trigger_args) == "rows_created",
-            hint=f"got {trigger_args.get('type')}",
-        ),
-        CheckResult(
-            "trigger table is Orders",
-            trigger_table_id == table.id,
-            hint=f"got table_id={trigger_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "smtp_email node in args",
-            len(email_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "email to admin@example.com",
-            "admin@example.com" in email_to,
-            hint=f"got to: '{email_to}'",
-        ),
-        CheckResult(
-            "email subject mentions 'Order'",
-            "order" in email_subject.lower(),
-            hint=f"got subject: '{email_subject}'",
-        ),
-        CheckResult(
-            "email body mentions order being placed",
-            "order" in email_body.lower() or "placed" in email_body.lower(),
-            hint=f"got body: '{email_body}'",
-        ),
-        CheckResult("workflow created in DB", db_ok),
-        CheckResult("smtp_email action in DB", len(db_email_actions) >= 1),
-    ]
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
 
 
 register_case(
