@@ -586,6 +586,24 @@ describe('sorting rows with a missing cell value', () => {
     }
   )
 
+  test('an array formula of numbers sorts zero after an empty cell', () => {
+    const registry = testApp.store.$registry
+    const field = {
+      formula_type: 'array',
+      array_formula_type: 'number',
+      number_decimal_places: 0,
+    }
+    const rows = [
+      { id: 1, f: [{ id: 1, value: 5 }] },
+      { id: 2, f: [{ id: 2, value: 0 }] },
+      { id: 3 },
+    ]
+
+    rows.sort(registry.get('formula_type', 'array').getSort('f', 'ASC', field))
+
+    expect(rows.map((row) => row.id)).toEqual([3, 2, 1])
+  })
+
   const primaryField = { id: 9, type: 'text', primary: true }
   const cases = [
     ['text', 'text', {}, 'b', 'a'],

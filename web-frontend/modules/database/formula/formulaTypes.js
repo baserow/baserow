@@ -782,6 +782,7 @@ export class BaserowFormulaArrayType extends mix(
     const toArray = (value) =>
       Array.isArray(value) ? value : value == null ? [] : [value]
     const mapToSortable = subType.mapToSortableArray.bind(subType)
+    const isDefined = (value) => value || value === '' || value === 0
 
     return (a, b) => {
       const valuesA = toArray(a[name]).map(mapToSortable)
@@ -790,8 +791,8 @@ export class BaserowFormulaArrayType extends mix(
       for (let i = 0; i < Math.max(valuesA.length, valuesB.length); i++) {
         let compared = 0
 
-        const isAdefined = valuesA[i] || valuesA[i] === ''
-        const isBdefined = valuesB[i] || valuesB[i] === ''
+        const isAdefined = isDefined(valuesA[i])
+        const isBdefined = isDefined(valuesB[i])
 
         if (isAdefined && isBdefined) {
           compared = innerSortFunction(
