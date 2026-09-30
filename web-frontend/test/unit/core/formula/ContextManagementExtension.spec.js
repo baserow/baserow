@@ -80,4 +80,23 @@ describe('ContextManagementExtension', () => {
 
     expect(hideContextMenu).toHaveBeenCalledOnce()
   })
+
+  it(
+    'does not use commands when a stale click-outside callback runs after destruction',
+    () => {
+      const hideContextMenu = vi.fn()
+      editor = createEditor(rootEl, contextEl, { hideContextMenu })
+
+      editor.commands.showContext()
+      Object.defineProperty(editor, 'isDestroyed', {
+        configurable: true,
+        value: true,
+      })
+
+      outsideEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+      outsideEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+      expect(hideContextMenu).not.toHaveBeenCalled()
+    }
+  )
 })
