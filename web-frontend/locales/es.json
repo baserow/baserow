@@ -177,7 +177,8 @@
         "multipleCollaboratorsCheckboxes": "Casillas de selección",
         "formViewEditRow": "Editar enlace de fila",
         "defaultValueFunctionNow": "Fecha actual",
-        "formViewEditRowShareWarning": "Cualquiera con el enlace compartido puede editar filas mediante el formulario {formNames} a través de los campos de enlace de edición de filas visible públicamente.|Cualquiera con el enlace compartido puede editar filas mediante los formularios {formNames} a través de los campos de enlace de edición de filas visible públicamente."
+        "formViewEditRowShareWarning": "Cualquiera con el enlace compartido puede editar filas mediante el formulario {formNames} a través de los campos de enlace de edición de filas visible públicamente.|Cualquiera con el enlace compartido puede editar filas mediante los formularios {formNames} a través de los campos de enlace de edición de filas visible públicamente.",
+        "button": "Botón"
     },
     "fieldErrors": {
         "invalidNumber": "Número invalido",
@@ -228,7 +229,8 @@
         "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {format} o como un número que representa el número total de segundos.",
         "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
         "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada.",
-        "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas."
+        "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas.",
+        "longTextRichText": "Acepta texto multilínea formateado con markdown. Para incrustar una imagen, súbelo con el punto final de carga de archivo y referencia su nombre devuelto como ![alt][nombre]. Las respuestas agregan una URL temporal, ![alt][nombre](url), la cual se omite al devolver el valor. Un valor puede hacer referencia hasta 100 imágenes, y cada nombre debe ser una imagen subida."
     },
     "viewFilter": {
         "contains": "contiene",
@@ -470,7 +472,8 @@
         "fieldConstraintTitle": "Violación de restricción de campo",
         "fieldConstraintDescription": "No se puede aplicar la restricción.",
         "fieldDataConstraintTitle": "Violación de restricción de datos del campo",
-        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes."
+        "fieldDataConstraintDescription": "No se pudo completar la operación debido a violaciones de restricciones existentes.",
+        "userFileDoesNotExistDescription": "El valor hace referencia a una imagen que ya no existe. Elimínala e inténtalo de nuevo."
     },
     "importerType": {
         "csv": "Importar un archivo CSV",
