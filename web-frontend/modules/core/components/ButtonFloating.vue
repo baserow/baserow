@@ -64,7 +64,7 @@ export default {
       type: String,
       default: 'relative',
       validator: function (value) {
-        return ['relative', 'fixed'].includes(value)
+        return ['relative', 'absolute'].includes(value)
       },
     },
   },
@@ -72,7 +72,7 @@ export default {
     classes() {
       const classObj = {
         'button-floating--loading': this.loading,
-        'button-floating--fixed': this.position === 'fixed',
+        'button-floating--absolute': this.position === 'absolute',
         [`button-floating--${this.type}`]: this.type,
         [`button-floating--${this.size}`]: this.size,
         disabled: this.disabled,
