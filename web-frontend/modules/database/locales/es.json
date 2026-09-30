@@ -65,7 +65,8 @@
     },
     "sidebar": {
         "viewAPI": "Ver documentos API",
-        "createTable": "Nueva mesa"
+        "createTable": "Nueva mesa",
+        "adminContentCategory": "Contenido"
     },
     "sidebarItem": {
         "exportTable": "Exportar tabla",
@@ -1290,7 +1291,9 @@
         "noInstanceSmtp": "Esta instancia de Baserow no tiene un servidor SMTP configurado, por lo que un botón no puede enviar correo electrónico.",
         "startWorkflowNotLive": "Este flujo de trabajo está pausado o deshabilitado. Reactívalo antes de que el botón pueda iniciarlo.",
         "staleReference": "Esta acción usa un resultado de una acción que ya no se ejecuta antes que ella.",
-        "unreadableReference": "Esta acción usa un resultado de una acción que ya no devuelve uno."
+        "unreadableReference": "Esta acción usa un resultado de una acción que ya no devuelve uno.",
+        "slackOk": "OK",
+        "slackChannel": "Canal"
     },
     "databaseWorkflowActionWithService": {
         "nothingCapturedYet": "Haz clic en este botón en una fila para capturar lo que el punto final (endpoint) responde, de modo que las acciones posteriores puedan usar sus campos. Las demás acciones del botón también se ejecutan."
@@ -1311,10 +1314,15 @@
         "createRowBefore": "Las acciones se pueden ejecutar después de que se haya creado la fila."
     },
     "viewsAdminTable": {
-        "workspace": "Espacio de trabajo"
+        "workspace": "Espacio de trabajo",
+        "name": "Vista",
+        "type": "Tipo"
     },
     "buttonFieldActionList": {
         "moveAction": "Mover acción, usa las teclas de flecha para reordenar",
         "misconfigured": "Al menos una acción está mal configurada"
+    },
+    "adminType": {
+        "databaseViews": "Vistas"
     }
 }
