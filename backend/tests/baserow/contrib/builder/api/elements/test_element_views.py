@@ -1639,3 +1639,142 @@ def test_graph_patch_header_is_cors_exposed(settings):
     # the editor needs a second reload to see a healed graph.
     assert settings.BUILDER_GRAPH_PATCH_HEADER == "X-Baserow-Builder-Graph-Patch"
     assert settings.BUILDER_GRAPH_PATCH_HEADER in settings.CORS_EXPOSE_HEADERS
+
+
+@pytest.mark.django_db
+def test_create_element_rejects_place_in_container_with_non_child_position(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    existing = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": "south",
+            "reference_element_id": existing.id,
+            # A place only exists inside a container: with a south position it
+            # used to be written as a `next["0"]` edge that nothing renders.
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container can only be provided together with the 'child' position."
+    ]
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {"0": existing.id, str(existing.id): {}}
+    assert page.element_set.count() == 1
+
+
+@pytest.mark.django_db
+def test_move_element_rejects_place_in_container_with_non_child_position(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    first = data_fixture.create_builder_heading_element(page=page)
+    second = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": first.id})
+    response = api_client.patch(
+        url,
+        {
+            "reference_element_id": second.id,
+            "position": "south",
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container can only be provided together with the 'child' position."
+    ]
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": first.id,
+        str(first.id): {"next": {"": [second.id]}},
+        str(second.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_create_element_rejects_place_in_container_with_non_child_position_on_shared_page(
+    api_client, data_fixture
+):
+    # Header and footer use MultiPageElementTypeMixin, whose validate_position
+    # replaces the base one, so the rule must hold in the service itself.
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": shared_page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "footer",
+            "position": "south",
+            "reference_element_id": header.id,
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container can only be provided together with the 'child' position."
+    ]
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph == {"0": header.id, str(header.id): {}}
+
+
+@pytest.mark.django_db
+def test_move_element_rejects_place_in_container_with_non_child_position_on_shared_page(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+    footer = ElementService().create_element(
+        user, element_type_registry.get("footer"), page=shared_page
+    )
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": header.id})
+    response = api_client.patch(
+        url,
+        {
+            "reference_element_id": footer.id,
+            "position": "south",
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container can only be provided together with the 'child' position."
+    ]
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph == {
+        "0": header.id,
+        str(header.id): {"next": {"": [footer.id]}},
+        str(footer.id): {},
+    }

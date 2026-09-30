@@ -888,3 +888,116 @@ def test_duplicate_page_preserves_user_source_roles(data_fixture):
     assert duplicate.roles == [default_role, "editor"]
     assert duplicate.visibility == page.visibility
     assert duplicate.role_type == page.role_type
+
+
+@pytest.mark.django_db
+def test_import_elements_folds_non_default_next_output_into_default_chain(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_text_element(page=page)
+    second = data_fixture.create_builder_text_element(page=page)
+    serialized = [
+        element_type_registry.get_by_model(element).export_serialized(element)
+        for element in (first, second)
+    ]
+
+    # An export whose page graph stores the second element under a stray "0"
+    # output (a south move that carried place_in_container "0"). migrate_graph
+    # keeps the key; the import must fold it into the default chain so that
+    # the element renders in the copy (a published page is never healed).
+    new_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        graph={
+            "0": first.id,
+            str(first.id): {"next": {"0": [second.id]}},
+            str(second.id): {},
+        },
+    )
+
+    [imported_first, imported_second] = PageHandler().import_elements(
+        new_page, serialized, {}
+    )
+
+    new_page.refresh_from_db(fields=["graph"])
+    assert new_page.graph == {
+        "0": imported_first.id,
+        str(imported_first.id): {"next": {"": [imported_second.id]}},
+        str(imported_second.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_import_elements_survives_unkeyed_element_in_non_default_output_chain(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first, second, third, fourth = [
+        data_fixture.create_builder_text_element(page=page) for _ in range(4)
+    ]
+    serialized = [
+        element_type_registry.get_by_model(element).export_serialized(element)
+        for element in (first, second, third, fourth)
+    ]
+
+    # A doubly damaged export: `second` hangs off a stray "0" output of `first`
+    # (which also has the default successor `third`), and `fourth` is exported
+    # but has no graph entry of its own — it is only referenced by `second`.
+    new_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        graph={
+            "0": first.id,
+            str(first.id): {"next": {"": [third.id], "0": [second.id]}},
+            str(second.id): {"next": {"": [fourth.id]}},
+            str(third.id): {},
+        },
+    )
+
+    imported = PageHandler().import_elements(new_page, serialized, {})
+    i1, i2, i3, i4 = [element.id for element in imported]
+
+    new_page.refresh_from_db(fields=["graph"])
+    # The stray chain is folded in after `first`, ahead of `third`, and the
+    # unkeyed `fourth` is appended at the end like any other orphan.
+    assert new_page.graph == {
+        "0": i1,
+        str(i1): {"next": {"": [i2]}},
+        str(i2): {"next": {"": [i3]}},
+        str(i3): {"next": {"": [i4]}},
+        str(i4): {},
+    }
+
+
+@pytest.mark.django_db
+def test_import_elements_folds_two_non_default_outputs_sharing_a_head(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_text_element(page=page)
+    second = data_fixture.create_builder_text_element(page=page)
+    serialized = [
+        element_type_registry.get_by_model(element).export_serialized(element)
+        for element in (first, second)
+    ]
+
+    # Both stray outputs of `first` reference `second`; folding the second
+    # one must not point `second` at itself.
+    new_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        graph={
+            "0": first.id,
+            str(first.id): {"next": {"0": [second.id], "1": [second.id]}},
+            str(second.id): {},
+        },
+    )
+
+    [imported_first, imported_second] = PageHandler().import_elements(
+        new_page, serialized, {}
+    )
+
+    new_page.refresh_from_db(fields=["graph"])
+    assert new_page.graph == {
+        "0": imported_first.id,
+        str(imported_first.id): {"next": {"": [imported_second.id]}},
+        str(imported_second.id): {},
+    }

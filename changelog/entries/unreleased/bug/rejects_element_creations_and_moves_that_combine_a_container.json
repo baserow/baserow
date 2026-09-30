@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved an issue which caused the AI assistant to move builder elements incorrectly.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}

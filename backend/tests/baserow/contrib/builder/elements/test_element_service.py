@@ -737,11 +737,13 @@ def test_moving_elements_inside_container(data_fixture):
         str(root_element.id): {},
     }
 
+    # A place only accompanies a `child` position; a sibling move inside the
+    # same slot sends the default "" output.
     ElementService().move_element(
         user,
         page,
         element_inside_container_two,
-        element_inside_container_two.place_in_container,
+        "",
         element_inside_container_one.id,
         GraphPointPosition.NORTH,
     )

@@ -956,11 +956,20 @@ class PageHandler:
         # Graph now has new IDs, so parent_element_id works.
         page.get_graph().migrate_graph(id_mapping)
 
+        # A page graph only ever uses the default `next` output, but an export
+        # can still carry a chain under another output (e.g. "0", written by a
+        # place_in_container on a south position before that was rejected).
+        # migrate_graph preserves such keys; fold the chains back into the
+        # default chain now, otherwise the elements would exist but never
+        # render, and a published page is never opened in the editor, so the
+        # heal would not get a chance to repair it.
+        graph = page.get_graph()
+        graph.merge_non_default_next_edges()
+
         # If any imported element is still absent from the graph (e.g. when
         # import_elements is called directly on a page whose graph was not
         # pre-populated from serialized data), append it so that graph
         # traversals like parent_element_id work correctly in Phase 3.
-        graph = page.get_graph()
         for element in imported_elements:
             if str(element.id) not in graph.graph:
                 graph.append(element)

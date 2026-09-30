@@ -2,9 +2,13 @@
 Unit tests for the builder assistant move_elements tool.
 """
 
+from django.db import transaction
+
 import pytest
+from pydantic import ValidationError
 
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow_enterprise.assistant.tools.builder import helpers
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_display_elements,
     create_layout_elements,
@@ -225,5 +229,88 @@ def test_move_element_to_root(data_fixture):
             "0": "column-0",
             "column-0": {"next": {"": ["Inside-1"]}},
             "Inside-1": {},
+        }
+    )
+
+
+def test_element_move_rejects_place_in_container_without_parent():
+    # The customer corruption behind BASEROW-SAAS-BACKEND-16Z: a root-level move
+    # that kept the column slot. The schema now refuses it so the model gets an
+    # actionable message before the tool runs.
+    with pytest.raises(ValidationError) as exc_info:
+        ElementMove(element_id=1, parent_element_id=None, place_in_container="0")
+
+    assert "parent_element_id" in str(exc_info.value)
+
+    # A slot together with a parent is still fine.
+    ElementMove(element_id=1, parent_element_id=2, place_in_container="0")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_element_helper_drops_place_in_container_without_parent(
+    data_fixture,
+):
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+    h1_id, h2_id = ref_to_id_map["h1"], ref_to_id_map["h2"]
+
+    # Bypass the schema validator, like a direct caller would, and move h1 to
+    # the end of the page while keeping a slot.
+    move = ElementMove.model_construct(
+        element_id=h1_id,
+        before_id=None,
+        parent_element_id=None,
+        place_in_container="0",
+    )
+
+    # The tool wraps each move in a transaction (the helper locks the row).
+    with transaction.atomic():
+        helpers.move_element(ctx.deps.user, move)
+
+    page.refresh_from_db()
+    # h1 is last, on the default output; no stray `next["0"]` edge.
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_display_element_without_parent_ignores_place_in_container(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    ctx = make_test_ctx(user, workspace, create_fake_tool_helpers())
+
+    # A root-level element that carries a slot (no parent): the slot is
+    # dropped instead of being forwarded as a south/north output.
+    create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="First", level=1),
+            DisplayElementCreate(
+                ref="h2",
+                type="heading",
+                value="Second",
+                level=1,
+                place_in_container="0",
+            ),
+        ],
+        thought="test",
+    )
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "First-0",
+            "First-0": {"next": {"": ["Second-1"]}},
+            "Second-1": {},
         }
     )

@@ -878,7 +878,11 @@ class ElementItemCreate(BaseModel):
         description="Parent container: int ID (existing) or string ref (same batch).",
     )
     place_in_container: str | None = Field(
-        default=None, description="Position in parent container (e.g. '0', '1')."
+        default=None,
+        description=(
+            "Slot inside parent_element (e.g. '0', '1' for columns). Only used "
+            "together with parent_element; ignored for root-level elements."
+        ),
     )
     visibility: Literal["all", "logged-in", "not-logged"] = Field(default="all")
     role_type: Literal["allow_all", "allow_all_except", "disallow_all_except"] = Field(
@@ -1152,7 +1156,11 @@ class _ElementBase(BaseModel):
         description="Parent container: int ID (existing) or string ref (same batch).",
     )
     place_in_container: str | None = Field(
-        default=None, description="Position in parent container (e.g. '0', '1')."
+        default=None,
+        description=(
+            "Slot inside parent_element (e.g. '0', '1' for columns). Only used "
+            "together with parent_element; ignored for root-level elements."
+        ),
     )
 
 
@@ -2382,9 +2390,28 @@ class ElementMove(BaseModel):
     )
     parent_element_id: int | None = Field(
         default=None,
-        description="New parent element ID. None = move to root level.",
+        description=(
+            "New parent element ID. None = move to root level (then leave "
+            "place_in_container null)."
+        ),
     )
     place_in_container: str | None = Field(
         default=None,
-        description='Container slot (e.g. "0", "1" for columns). None = default.',
+        description=(
+            'Slot inside parent_element_id (e.g. "0", "1" for columns). Only '
+            "valid together with parent_element_id. None = default slot."
+        ),
     )
+
+    @model_validator(mode="after")
+    def _validate_place_requires_parent(self) -> "ElementMove":
+        # A slot is meaningless without a container: forwarded to a root-level
+        # move it would be rejected by the element position validation (and
+        # used to silently hide the element). Failing here gives the model a
+        # message it can act on before the tool runs.
+        if self.place_in_container and self.parent_element_id is None:
+            raise ValueError(
+                "place_in_container is a slot inside parent_element_id; to move "
+                "the element to the root level set place_in_container to null."
+            )
+        return self

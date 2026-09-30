@@ -395,15 +395,23 @@ def create_element(
             )
         kwargs["parent_element_id"] = ref_to_id_map[parent]
 
-    if element_create.place_in_container:
-        kwargs["place_in_container"] = element_create.place_in_container
-    elif "parent_element_id" in kwargs:
-        try:
-            parent = ElementHandler().get_element(kwargs["parent_element_id"])
-            if parent.get_type().type == "column":
-                kwargs["place_in_container"] = "0"
-        except Exception:
-            pass
+    # A place only exists inside a container. Without a parent the element is
+    # appended (or inserted north of `before`) on the default output, where a
+    # slot is rejected by `validate_position` (and used to be written as a
+    # stray `next` output that nothing renders), so it is only forwarded
+    # together with a parent.
+    if "parent_element_id" in kwargs:
+        if element_create.place_in_container:
+            kwargs["place_in_container"] = element_create.place_in_container
+        else:
+            try:
+                parent = ElementHandler().get_element(kwargs["parent_element_id"])
+                if parent.get_type().type == "column":
+                    kwargs["place_in_container"] = "0"
+            except Exception:
+                pass
+    else:
+        kwargs.pop("place_in_container", None)
 
     # Set data_source_id in kwargs (may already be set by to_orm_kwargs)
     if isinstance(element_create.data_source, int):
@@ -483,7 +491,12 @@ def move_element(
                 f"Before element with ID {element_move.before_id} not found."
             )
 
-    place = element_move.place_in_container or ""
+    # A place only exists inside a container. Without a parent the element
+    # lands north/south of a sibling on the default output, where a slot is
+    # rejected by `validate_position` (and used to be written as a stray
+    # `next` output that nothing renders). The `ElementMove` schema already
+    # refuses that combination; this keeps direct callers safe too.
+    place = (element_move.place_in_container or "") if parent is not None else ""
 
     if parent is not None:
         position = "child"

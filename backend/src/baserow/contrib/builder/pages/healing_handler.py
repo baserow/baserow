@@ -34,6 +34,8 @@ class GraphDrift:
     converging_ref_pairs: set
     # (element_id, edge) children edges the element cannot have.
     invalid_children_pairs: set
+    # (element_id, output) `next` edges stored under a non-default output.
+    non_default_next_pairs: set
     # Live points keyed in the graph but unreachable from the root.
     detached_ids: set
 
@@ -48,6 +50,7 @@ class GraphDrift:
                 self.cycle_ref_pairs,
                 self.converging_ref_pairs,
                 self.invalid_children_pairs,
+                self.non_default_next_pairs,
                 self.detached_ids,
             )
         )
@@ -58,8 +61,8 @@ class PageHealingHandler:
     Owns the reconciliation of a page's graph with the element rows that
     actually exist — every corruption class `heal_corrupted_graph` repairs
     (orphans, stale points, self-references, dangling references, cycles,
-    converging references, invalid children edges and detached points) and its
-    Sentry reporting.
+    converging references, invalid children edges, non-default next outputs
+    and detached points) and its Sentry reporting.
 
     Kept separate from `PageHandler` and `ElementHandler` so the day-to-day
     CRUD surfaces stay readable; `PageHandler.heal_corrupted_graph` is the
@@ -184,7 +187,7 @@ class PageHealingHandler:
         graph the single source of truth means downstream operations (move, delete,
         …) never have to special-case a missing or dangling graph entry.
 
-        Eight kinds of inconsistency are reconciled:
+        Nine kinds of inconsistency are reconciled:
 
         - "orphans": rows present in the DB but absent from the graph (e.g. created
           by old code). They are inserted where a newly added element would land:
@@ -239,6 +242,15 @@ class PageHealingHandler:
           surviving place, non-container children edges are stripped and
           their subtrees re-attached.
 
+        - "non-default next outputs": `next` chains stored under an output
+          other than the default `""` (e.g. `"0"`, written when a
+          `place_in_container` was sent with a `south`/`north` position before
+          that combination was rejected). A page only ever renders the default
+          output, so the chain's elements exist but never show, and every
+          other detector considers the graph healthy. The chains are folded
+          back into the default chain right after their reference element via
+          `merge_non_default_next_edges`.
+
         - "detached points": live elements keyed in the graph but unreachable
           from the root (no incoming reference) — invisible in the editor and
           undeletable (`get_position` raises). They are re-attached at the
@@ -257,7 +269,8 @@ class PageHealingHandler:
             client drops it on the next full graph sync.
         """
 
-        root_key = page.get_graph().GRAPH_ROOT_KEY
+        page_graph = page.get_graph()
+        root_key = page_graph.GRAPH_ROOT_KEY
 
         def compute_drift(graph) -> GraphDrift:
             graph_ids = {int(k) for k in graph if k != root_key}
@@ -276,6 +289,9 @@ class PageHealingHandler:
                 ),
                 invalid_children_pairs=self.find_invalid_children_edge_pairs(
                     page, graph
+                ),
+                non_default_next_pairs=page_graph.find_non_default_next_edge_pairs(
+                    graph
                 ),
                 detached_ids=BaseGraphHandler.find_unreachable_point_ids(graph)
                 & db_ids,
@@ -332,6 +348,13 @@ class PageHealingHandler:
             # point part-way through.
             if drift.stale_ids:
                 graph_handler.prune_points(drift.stale_ids)
+
+            # Fold `next` chains stored under a non-default output back into
+            # the default chain, right after their reference element, so the
+            # elements render again. Re-detected internally: the strips above
+            # may have changed the graph since drift time.
+            if drift.non_default_next_pairs:
+                graph_handler.merge_non_default_next_edges()
 
             # Repair children stored under a place their element cannot have:
             # merge them into a surviving place (containers) or strip the edge
@@ -429,6 +452,12 @@ class PageHealingHandler:
                     "repaired_invalid_children_edges": sorted(
                         drift.invalid_children_pairs
                     ),
+                    "merged_non_default_next_edge_count": len(
+                        drift.non_default_next_pairs
+                    ),
+                    "merged_non_default_next_edges": sorted(
+                        drift.non_default_next_pairs
+                    ),
                     "reattached_detached_count": len(reattached_ids),
                     "reattached_detached_ids": sorted(reattached_ids),
                     "graph_patch": graph_patch,
@@ -441,7 +470,8 @@ class PageHealingHandler:
                 f"{len(drift.dangling_ids)} dangling reference(s), stripped "
                 f"{len(drift.cycle_ref_pairs)} cycle reference(s), stripped "
                 f"{len(drift.converging_ref_pairs)} converging reference(s), repaired "
-                f"{len(drift.invalid_children_pairs)} invalid children edge(s) and "
+                f"{len(drift.invalid_children_pairs)} invalid children edge(s), merged "
+                f"{len(drift.non_default_next_pairs)} non-default next output(s) and "
                 f"re-attached {len(reattached_ids)} detached point(s) in the graph "
                 f"of builder page {page.id}.",
                 level="warning",

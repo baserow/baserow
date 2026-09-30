@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, List
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
+from rest_framework.exceptions import ValidationError
+
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementMoveNotAllowed,
@@ -114,6 +116,28 @@ class ElementService:
 
         return self.handler.get_builder_elements(builder, base_queryset=user_elements)
 
+    def _validate_place_in_container(
+        self, position: GraphPointPositionType, place_in_container: str
+    ):
+        """
+        A place only exists inside a container. Carried by a `north`/`south`
+        position it would be written as a non-default `next` output on the
+        reference element, an edge no page renderer follows (the element would
+        exist but never show). Enforced here, ahead of the type's
+        `validate_position`, so that an override of that method (e.g. the
+        multi-page mixin's) cannot skip it for any entry point.
+
+        :param position: The position relative to the reference element.
+        :param place_in_container: The place in container that was requested.
+        :raises ValidationError: if a place accompanies a non-child position.
+        """
+
+        if position != GraphPointPosition.CHILD and place_in_container:
+            raise ValidationError(
+                "place_in_container can only be provided together with the "
+                "'child' position."
+            )
+
     def create_element(
         self,
         user: AbstractUser,
@@ -169,6 +193,7 @@ class ElementService:
                 f"The reference element {reference_element.id} doesn't exist"
             )
 
+        self._validate_place_in_container(position, output)
         element_type.validate_position(page, reference_element, output, position)
 
         with translation.override(user.profile.language):
@@ -358,6 +383,7 @@ class ElementService:
                 f"The reference element {reference_element.id} doesn't exist"
             )
 
+        self._validate_place_in_container(position, place_in_container)
         element_type.validate_position(
             target_page, reference_element, place_in_container, position
         )
