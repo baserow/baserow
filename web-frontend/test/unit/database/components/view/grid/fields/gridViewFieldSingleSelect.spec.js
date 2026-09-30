@@ -62,6 +62,6 @@ describe('GridViewFieldSingleSelect component', () => {
 
     wrapper.findComponent(FieldSelectOptionsDropdown).vm.$emit('input', 1)
 
-    expect(wrapper.emitted('update')).toEqual([[option, undefined]])
+    expect(wrapper.emitted('update')).toEqual([[option, null]])
   })
 })

@@ -17,7 +17,7 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 function sortMissingCellAsEmpty(sortFunction, fieldName, fieldType, field) {
   const emptyValue = fieldType.getEmptyValue(field)
   const withCell = (row) =>
-    fieldName in row ? row : { ...row, [fieldName]: emptyValue }
+    row[fieldName] === undefined ? { [fieldName]: emptyValue } : row
   return (a, b) => sortFunction(withCell(a), withCell(b))
 }
 

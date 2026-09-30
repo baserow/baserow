@@ -709,7 +709,7 @@ function isRowSelected(row) {
  * section key rather than looked up in the layout, because a collapsed group's
  * sections are not part of the layout while its loaded rows are.
  */
-function getGroupByRowTreePath(state, getters, row, groupByFields, registry) {
+function getGroupByRowTreePath(state, row, groupByFields, registry) {
   const location = state.groupBy.rowLocations[row.id]
   if (location) {
     return pathFromKey(location.sectionKey)
@@ -796,8 +796,9 @@ function moveGroupByRowToValueGroup(
       display: groupDisplayFromRow(row, groupByFields),
     })
   }
-  // Whether the row crossed into a different group, which is exactly when the
-  // affected groups' aggregations were marked loading and now need a refresh.
+  // Whether the row crossed into a different group. Unless the caller passed
+  // `markAggregationsLoading: false`, the affected groups' aggregations were
+  // marked loading and now need a refresh.
   return groupChanged
 }
 
@@ -1466,7 +1467,8 @@ export const mutations = {
     // binding.
     const withField = (row) => {
       if (!Object.prototype.hasOwnProperty.call(row, name)) {
-        row[name] = value
+        // Each row gets its own copy so an array default is not shared.
+        row[name] = _.cloneDeep(value)
       }
       return { ...row }
     }
@@ -5167,7 +5169,6 @@ export const actions = {
               const rowInStore = getters.getRow(row.id)
               const occupiedPath = getGroupByRowTreePath(
                 state,
-                getters,
                 rowInStore,
                 groupByFields,
                 $registry
@@ -5746,13 +5747,7 @@ export const actions = {
       : []
     const oldGroupByPath =
       groupByFields.length > 0
-        ? getGroupByRowTreePath(
-            state,
-            getters,
-            oldRow,
-            groupByFields,
-            $registry
-          )
+        ? getGroupByRowTreePath(state, oldRow, groupByFields, $registry)
         : null
     const newGroupByPath =
       groupByFields.length > 0
@@ -6236,7 +6231,6 @@ export const actions = {
             )
             const treePath = getGroupByRowTreePath(
               state,
-              getters,
               row,
               groupByFields,
               $registry
@@ -6257,9 +6251,13 @@ export const actions = {
             })
           }
 
+          // In group-by mode a loaded row can be outside `getAllRows`, e.g. in a
+          // collapsed group, so find it by its location instead.
           const allRows = getters.getAllRows
-          const idx = allRows.findIndex((r) => r.id === rowId)
-          if (idx >= 0) {
+          const isLoaded = getters.isGroupByMode
+            ? state.groupBy.rowLocations[rowId] !== undefined
+            : allRows.some((r) => r.id === rowId)
+          if (isLoaded) {
             commit('DELETE_ROW_IN_BUFFER', row)
             dispatch('correctMultiSelect')
             return
@@ -6443,13 +6441,7 @@ export const actions = {
           fields
         )
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-          path: getGroupByRowTreePath(
-            state,
-            getters,
-            row,
-            groupByFields,
-            $registry
-          ),
+          path: getGroupByRowTreePath(state, row, groupByFields, $registry),
           fields: groupByFields,
           delta: -1,
           registry: $registry,

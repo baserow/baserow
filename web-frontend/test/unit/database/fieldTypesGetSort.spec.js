@@ -587,12 +587,19 @@ describe('sorting rows with a missing cell value', () => {
   )
 
   const primaryField = { id: 9, type: 'text', primary: true }
-  test.each([
-    ['text', {}, 'b', 'a'],
-    ['number', { number_decimal_places: 0 }, '2', '1'],
-    ['rating', {}, 2, 1],
-    ['multiple_select', {}, [{ id: 2, value: 'B' }], [{ id: 1, value: 'A' }]],
+  const cases = [
+    ['text', 'text', {}, 'b', 'a'],
+    ['number', 'number', { number_decimal_places: 0 }, '2', '1'],
+    ['rating', 'rating', {}, 2, 1],
     [
+      'multiple_select',
+      'multiple_select',
+      {},
+      [{ id: 2, value: 'B' }],
+      [{ id: 1, value: 'A' }],
+    ],
+    [
+      'link_row',
       'link_row',
       { link_row_table_primary_field: primaryField },
       [{ id: 2, value: 'b' }],
@@ -600,37 +607,72 @@ describe('sorting rows with a missing cell value', () => {
     ],
     [
       'multiple_collaborators',
+      'multiple_collaborators',
       {},
       [{ id: 2, name: 'b' }],
       [{ id: 1, name: 'a' }],
     ],
-    ['created_by', {}, { id: 2, name: 'b' }, { id: 1, name: 'a' }],
-    ['last_modified_by', {}, { id: 2, name: 'b' }, { id: 1, name: 'a' }],
-  ])(
-    'getRowSortFunction sorts a missing %s cell like an empty one',
-    (type, fieldProps, later, earlier) => {
-      const registry = testApp.store.$registry
-      const field = { id: 1, type, ...fieldProps }
-      const rows = [
-        { id: 1, order: '1', field_1: later },
-        { id: 2, order: '2' },
-        { id: 3, order: '3', field_1: earlier },
-        {
-          id: 4,
-          order: '4',
-          field_1: registry.get('field', type).getEmptyValue(field),
-        },
-      ]
+    [
+      'created_by',
+      'created_by',
+      {},
+      { id: 2, name: 'b' },
+      { id: 1, name: 'a' },
+    ],
+    [
+      'last_modified_by',
+      'last_modified_by',
+      {},
+      { id: 2, name: 'b' },
+      { id: 1, name: 'a' },
+    ],
+    [
+      'multiple_select formula',
+      'formula',
+      { formula_type: 'multiple_select' },
+      [{ id: 2, value: 'B' }],
+      [{ id: 1, value: 'A' }],
+    ],
+    [
+      'multiple_collaborators formula',
+      'formula',
+      { formula_type: 'multiple_collaborators' },
+      [{ id: 2, name: 'b' }],
+      [{ id: 1, name: 'a' }],
+    ],
+  ]
+  // A failed save can also write the old value back as a present but undefined
+  // key.
+  describe.each([
+    ['missing', {}],
+    ['undefined', { field_1: undefined }],
+  ])('with a %s cell', (_, missingCell) => {
+    test.each(cases)(
+      'getRowSortFunction sorts a %s cell like an empty one',
+      (_label, type, fieldProps, later, earlier) => {
+        const registry = testApp.store.$registry
+        const field = { id: 1, type, ...fieldProps }
+        const rows = [
+          { id: 1, order: '1', field_1: later },
+          { id: 2, order: '2', ...missingCell },
+          { id: 3, order: '3', field_1: earlier },
+          {
+            id: 4,
+            order: '4',
+            field_1: registry.get('field', type).getEmptyValue(field),
+          },
+        ]
 
-      rows.sort(
-        getRowSortFunction(
-          registry,
-          [{ field: 1, order: 'ASC', type: 'default' }],
-          [field]
+        rows.sort(
+          getRowSortFunction(
+            registry,
+            [{ field: 1, order: 'ASC', type: 'default' }],
+            [field]
+          )
         )
-      )
 
-      expect(rows.map((row) => row.id)).toEqual([2, 4, 3, 1])
-    }
-  )
+        expect(rows.map((row) => row.id)).toEqual([2, 4, 3, 1])
+      }
+    )
+  })
 })

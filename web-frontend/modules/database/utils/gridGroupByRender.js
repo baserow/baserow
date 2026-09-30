@@ -144,9 +144,11 @@ export function pathKey(path, fields) {
     if (!(key in path)) {
       break
     }
+    // An undefined value (a row missing the cell) is keyed like the empty group so
+    // the key can be parsed back by `pathFromKey`.
+    const value = path[key] ?? null
     // Numeric-sort m2m id arrays so a group is keyed by its set of ids, not their order,
     // regardless of how the source (server- or row-derived) ordered them.
-    const value = path[key]
     const canonical = Array.isArray(value)
       ? [...value].sort((a, b) => a - b)
       : value

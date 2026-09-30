@@ -1501,6 +1501,17 @@ describe('pathFromKey', () => {
     expect(pathKey(rebuilt, fields)).toBe(pathKey(path, fields))
   })
 
+  test('keys an undefined group value like null so it can be rebuilt', () => {
+    const fields = [{ id: 1 }]
+
+    expect(pathKey({ field_1: undefined }, fields)).toBe(
+      pathKey({ field_1: null }, fields)
+    )
+    expect(pathFromKey(pathKey({ field_1: undefined }, fields))).toEqual({
+      field_1: null,
+    })
+  })
+
   test('returns the root path for an empty key', () => {
     expect(pathFromKey('')).toEqual({})
   })

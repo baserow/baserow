@@ -2127,6 +2127,33 @@ describe('Grid view store', () => {
     )
   })
 
+  test('addField gives each grouped row its own copy of an array value', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [
+        { id: 10, order: '1.00', field_2: 'A', _: { selectedBy: [] } },
+        { id: 11, order: '2.00', field_2: 'A', _: { selectedBy: [] } },
+      ],
+      startPosition: 0,
+    })
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: [] })
+
+    expect(store.getters['grid/getRow'](10).field_5).toEqual([])
+    expect(store.getters['grid/getRow'](10).field_5).not.toBe(
+      store.getters['grid/getRow'](11).field_5
+    )
+  })
+
   describe('rows in a collapsed parent group with two group-by levels', () => {
     const fields = [
       { id: 1, name: 'Name', type: 'text', primary: true },
@@ -2306,6 +2333,12 @@ describe('Grid view store', () => {
       expect(leafCount('B', 'Done')).toBe(1)
       expect(topCount('A')).toBe(0)
       expect(topCount('B')).toBe(1)
+      expect(
+        store.state.grid.groupBy.sectionRows[leafKey('A', 'Open')].filter(
+          Boolean
+        )
+      ).toEqual([])
+      expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
     })
   })
 

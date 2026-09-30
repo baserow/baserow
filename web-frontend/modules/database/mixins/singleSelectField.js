@@ -19,7 +19,7 @@ export default {
       const oldId = oldValue ? oldValue.id : null
 
       if (newId !== oldId) {
-        this.$emit('update', newValue, oldValue)
+        this.$emit('update', newValue, oldValue ?? null)
       }
     },
   },
