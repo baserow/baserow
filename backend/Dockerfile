@@ -136,9 +136,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    libpq-dev \
-    # uv needs the git CLI to fetch git-sourced dependencies (pysaml2 fork)
-    git
+    libpq-dev
 
 ENV UV_PYTHON_DOWNLOADS=0 \
     UV_COMPILE_BYTECODE=1 \
@@ -347,8 +345,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     gettext \
     xmlsec1 \
     curl \
-    # uv needs the git CLI to fetch git-sourced dependencies (pysaml2 fork)
-    git \
     graphviz \
     procps \
     tmux \

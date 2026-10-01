@@ -437,7 +437,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = "==2.9.11" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "groq", "mistral", "openai"], specifier = "==2.50.0" },
     { name = "pyotp", specifier = "==2.9.0" },
-    { name = "pysaml2", git = "https://github.com/baserow/pysaml2?rev=f6c745d585c458bcb54bd648054fdf5123fe665c" },
+    { name = "pysaml2", specifier = "==7.5.5" },
     { name = "qrcode", specifier = "==8.2" },
     { name = "redis", specifier = "==6.4.0" },
     { name = "regex", specifier = "==2026.6.28" },
@@ -3263,8 +3263,8 @@ wheels = [
 
 [[package]]
 name = "pysaml2"
-version = "7.5.4+deps.upgrade"
-source = { git = "https://github.com/baserow/pysaml2?rev=f6c745d585c458bcb54bd648054fdf5123fe665c#f6c745d585c458bcb54bd648054fdf5123fe665c" }
+version = "7.5.5"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "defusedxml" },
@@ -3272,6 +3272,10 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "requests" },
     { name = "xmlschema" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3c/38/3f26d8b6e211dfe95dedb8c0c1072ad7781f1c33176a32b4f11c97268d79/pysaml2-7.5.5.tar.gz", hash = "sha256:bd1c3f3667807de61d70d8e5cf32618719d9dc1b91a6d16a291ef7a1eaa52fff", size = 334463, upload-time = "2026-09-17T16:09:55.004Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/1a/a0ec7b91ca71dd2c8baf5f48a1f590040f7e62c115c875e906f506c75f31/pysaml2-7.5.5-py3-none-any.whl", hash = "sha256:c64cfd6c0348c53da1768538733c55ec15b23d1cc0e942564ea546515b45a199", size = 420791, upload-time = "2026-09-17T16:09:53.161Z" },
 ]
 
 [[package]]

@@ -52,7 +52,7 @@ dependencies = [
     "dj-database-url==3.1.2",
     "redis==6.4.0",
     "pgvector==0.4.2",
-    "pysaml2==7.5.4",
+    "pysaml2==7.5.5",
     "validators==0.35.0",
     "requests-oauthlib==2.0.0",
     "opentelemetry-api==1.39.1",
@@ -216,13 +216,6 @@ django = ["django"]
 [tool.uv]
 package = true
 environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
-
-# Baserow fork of pysaml2 7.5.4 with IdentityPython/pysaml2#1021 cherry-picked:
-# lifts the pyopenssl<24.3.0 cap so cryptography can be upgraded past the
-# CVE-2026-26007 fix (>=46.0.5). Pinned to the immutable merge commit, also
-# tagged v7.5.4+deps-upgrade. Drop this source once upstream releases the fix.
-[tool.uv.sources]
-pysaml2 = { git = "https://github.com/baserow/pysaml2", rev = "f6c745d585c458bcb54bd648054fdf5123fe665c" }
 
 [tool.uv.workspace]
 members = ["../premium/backend", "../enterprise/backend"]
