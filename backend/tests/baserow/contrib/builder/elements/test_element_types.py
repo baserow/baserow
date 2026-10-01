@@ -854,18 +854,24 @@ def test_iframe_element_import_export_formula(data_fixture):
 
 
 @pytest.mark.django_db
-def test_iframe_element_import_export_same_origin_permission(data_fixture):
+@pytest.mark.parametrize("option", ["allow_same_origin", "auto_height"])
+def test_iframe_element_import_export_options(data_fixture, option):
     page = data_fixture.create_builder_page()
     exported_element = data_fixture.create_builder_iframe_element(
         page=page,
-        allow_same_origin=True,
+        **{option: True},
     )
 
     serialized = IFrameElementType().export_serialized(exported_element)
-    assert serialized["allow_same_origin"] is True
+    assert serialized[option] is True
 
     [imported_element] = PageHandler().import_elements(page, [serialized], {})
-    assert imported_element.allow_same_origin is True
+    assert getattr(imported_element, option) is True
+
+    # Older exports do not contain the opt-in setting.
+    del serialized[option]
+    [legacy_element] = PageHandler().import_elements(page, [serialized], {})
+    assert getattr(legacy_element, option) is False
 
 
 @pytest.mark.django_db
