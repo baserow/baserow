@@ -445,6 +445,68 @@ def test_renumber_rows_according_to_views_filters_and_sorts(data_fixture):
 
 @pytest.mark.field_autonumber
 @pytest.mark.django_db
+@pytest.mark.parametrize("sort_by", ["link_row", "lookup"])
+def test_renumber_rows_according_to_view_sorted_by_link_row_or_lookup_field(
+    data_fixture, sort_by
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    linked_table = data_fixture.create_database_table(database=database)
+    linked_primary = data_fixture.create_text_field(table=linked_table, primary=True)
+    link_field = FieldHandler().create_field(
+        user, table, "link_row", name="Link", link_row_table=linked_table
+    )
+    lookup_field = FieldHandler().create_field(
+        user,
+        table,
+        "lookup",
+        name="Lookup",
+        through_field_id=link_field.id,
+        target_field_id=linked_primary.id,
+    )
+    sort_field = link_field if sort_by == "link_row" else lookup_field
+
+    linked_model = linked_table.get_model()
+    linked_a, linked_b, linked_c = [
+        linked_model.objects.create(**{f"field_{linked_primary.id}": value})
+        for value in ["a", "b", "c"]
+    ]
+    model = table.get_model()
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            [
+                {f"field_{link_field.id}": [linked_c.id]},
+                {f"field_{link_field.id}": [linked_a.id]},
+                {f"field_{link_field.id}": [linked_b.id]},
+            ],
+            model=model,
+        )
+        .created_rows
+    )
+
+    view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_sort(view=view, field=sort_field, order="ASC")
+
+    autonumber_field = FieldHandler().create_field(
+        user, table, "autonumber", name="Number", view=view
+    )
+
+    model = table.get_model()
+    values = model.objects.order_by("id").values_list(
+        f"field_{autonumber_field.id}", flat=True
+    )
+    assert [row.id for row in rows] == list(
+        model.objects.order_by("id").values_list("id", flat=True)
+    )
+    assert list(values) == [3, 1, 2]
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
 def test_autonumber_field_values_cannot_be_updated_manually(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

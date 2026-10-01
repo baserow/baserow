@@ -8426,20 +8426,28 @@ class AutonumberFieldType(ReadOnlyFieldType):
         not_trashed_first = Case(When(Q(trashed=False), then=Value(0)), default=1).asc()
         order_bys = (not_trashed_first, "order", "id")
 
+        table_model = field.table.get_model()
+        qs = table_model.objects_and_trash.all()
+
         if view is not None:
-            queryset = ViewHandler().get_queryset(None, view).values("id")
+            view_handler = ViewHandler()
+            queryset = view_handler.get_queryset(
+                None, view, model=table_model, apply_sorts=False
+            ).values("id")
 
             filters = queryset.query.where
             filtered_first = Case(When(filters, then=Value(0)), default=1).asc()
 
+            # Sorts on fields like link rows and lookups order by an annotation, so
+            # the annotations must be added to the queryset that is numbered.
+            view_order_bys, qs = view_handler.get_view_order_bys(view, table_model, qs)
             # The last two order bys are the default order bys of the table
-            if custom_order_bys := queryset.query.order_by[:-2]:
+            if custom_order_bys := view_order_bys[:-2]:
                 order_bys = (*custom_order_bys, *order_bys)
 
             order_bys = (filtered_first, *order_bys)
 
-        table_model = field.table.get_model()
-        qs = table_model.objects_and_trash.annotate(
+        qs = qs.annotate(
             row_nr=Window(expression=RowNumber(), order_by=order_bys),
         ).values("id", "row_nr")
         sql, params = qs.query.get_compiler(connection=connection).as_sql()

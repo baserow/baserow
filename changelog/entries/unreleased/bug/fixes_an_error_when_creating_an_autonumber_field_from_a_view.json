@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes an error when creating an autonumber field from a view sorted by a link or lookup field",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-01"
+}
