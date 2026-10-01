@@ -1,5 +1,6 @@
 import dataclasses
 from collections import defaultdict
+from contextlib import nullcontext
 from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 from django.conf import settings
@@ -138,6 +139,11 @@ class PathBasedUpdateStatementCollector:
         self.connection_here: Optional[LinkRowField] = connection_here
         self.connection_is_broken = connection_is_broken
         self.update_changes_only = update_changes_only
+
+    def has_update_statements(self) -> bool:
+        return bool(self.update_statements) or any(
+            sub_path.has_update_statements() for sub_path in self.sub_paths.values()
+        )
 
     def add_update_statement(
         self,
@@ -552,13 +558,12 @@ class PathBasedUpdateStatementCollector:
 
             # Recalculating a row twice is idempotent, so overlapping filters
             # (e.g. a starting row linking to another starting row) are fine.
-            with jit_disabled():
-                for qs in querysets:
-                    updated_row_ids += (
-                        qs.annotate(**annotations)
-                        .filter(filters)
-                        .update_returning_ids(**self.update_statements)
-                    )
+            for qs in querysets:
+                updated_row_ids += (
+                    qs.annotate(**annotations)
+                    .filter(filters)
+                    .update_returning_ids(**self.update_statements)
+                )
         return updated_row_ids
 
     def _include_rows_connected_to_deleted_m2m_relationships(
@@ -765,14 +770,20 @@ class FieldUpdateCollector:
         updated row ids per table id.
         """
 
-        updated_rows_per_table = self._update_statement_collector.execute_all(
-            field_cache,
-            self._starting_row_ids,
-            deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
-            overflowed_table_ids=self._overflowed_table_ids,
-            collect_dependant_rows=self.collect_dependant_rows,
-            before_rows_result=self._before_rows_per_table,
-        )
+        # Turned off once for all the UPDATEs below, only when there are any.
+        with (
+            jit_disabled()
+            if self._update_statement_collector.has_update_statements()
+            else nullcontext()
+        ):
+            updated_rows_per_table = self._update_statement_collector.execute_all(
+                field_cache,
+                self._starting_row_ids,
+                deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
+                overflowed_table_ids=self._overflowed_table_ids,
+                collect_dependant_rows=self.collect_dependant_rows,
+                before_rows_result=self._before_rows_per_table,
+            )
         self._accumulate_updated_rows(updated_rows_per_table)
         return updated_rows_per_table
 

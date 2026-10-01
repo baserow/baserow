@@ -1458,19 +1458,42 @@ def test_update_workspaces_periodic_fields_continues_after_stricter_timeout_canc
 
 @pytest.mark.django_db
 def test_update_workspaces_periodic_fields_stops_on_soft_time_limit_in_heartbeat():
-    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
-
     with (
         patch.object(
             SingletonAutoRescheduleFlag,
             "extend_if",
             side_effect=SoftTimeLimitExceeded(),
         ),
+        patch.object(SingletonAutoRescheduleFlag, "clear_if") as clear_if,
         patch(
             "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
         ) as inner,
+        patch("baserow.contrib.database.fields.tasks.logger") as mock_logger,
     ):
-        # Returns instead of raising, so the chord callback still releases the lock.
+        # Returns instead of raising, so the chord callback releases the lock.
         update_workspaces_periodic_fields([1, 2], True, batch_index=0, run_token="held")
 
     inner.assert_not_called()
+    clear_if.assert_not_called()
+    assert mock_logger.warning.call_args.kwargs["workspace_id"] == 1
+    assert mock_logger.warning.call_args.kwargs["skipped"] == 2
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_stops_on_soft_time_limit_while_logging():
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields",
+            side_effect=RuntimeError("boom"),
+        ) as inner,
+        patch("baserow.contrib.database.fields.tasks.logger") as mock_logger,
+    ):
+        # The soft limit fires while the failure of the first workspace is logged.
+        mock_logger.exception.side_effect = SoftTimeLimitExceeded()
+        update_workspaces_periodic_fields([1, 2], True, batch_index=0, run_token="held")
+
+    assert inner.call_count == 1
+    assert mock_logger.warning.call_args.kwargs["workspace_id"] == 1
+    assert mock_logger.warning.call_args.kwargs["skipped"] == 2

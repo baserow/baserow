@@ -20,6 +20,7 @@ from baserow.contrib.database.formula.migrations.migrations import (
     FormulaMigrations,
     FormulaMigrationSelector,
 )
+from baserow.core.db import jit_disabled
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 if typing.TYPE_CHECKING:
@@ -77,7 +78,10 @@ def _recalculate_formula_metadata_dependencies_first_order(
                     field_cache,
                     force_recreate_column=force_recreate_columns,
                 )
-                model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+                with jit_disabled():
+                    model.objects_and_trash.all().update(
+                        **{f"{field.db_column}": expr}
+                    )
                 fields_type_changed.send(
                     _recalculate_formula_metadata_dependencies_first_order,
                     fields=[field]

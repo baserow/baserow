@@ -229,8 +229,8 @@ def test_can_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m_and_b
         field_cache.cache_model(first_table.get_model())
         field_cache.cache_model(second_table.get_model())
         # Two fields were updated with an update statement for each table
-        # Each update statement is preceded by the query that turns JIT off.
-        with django_assert_num_queries(4):
+        # Two update statements and one query that turns JIT off for both.
+        with django_assert_num_queries(3):
             updated_fields = update_collector.apply_updates_and_get_updated_fields(
                 field_cache
             )
@@ -330,8 +330,8 @@ def test_update_statements_at_the_same_path_node_are_grouped_into_one(
         field_cache.cache_model(second_table.get_model())
         # Three fields were updated but two are in the same path node (same table) and
         # so only one update per table expected
-        # Each update statement is preceded by the query that turns JIT off.
-        with django_assert_num_queries(4):
+        # Two update statements and one query that turns JIT off for both.
+        with django_assert_num_queries(3):
             updated_fields = update_collector.apply_updates_and_get_updated_fields(
                 field_cache
             )
