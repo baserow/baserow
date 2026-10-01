@@ -68,7 +68,6 @@ from baserow_enterprise.assistant.models import (
 from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import (
     AGENT_SYSTEM_PROMPT,
-    MISSING_RECORDS_QUESTION,
 )
 from baserow_enterprise.assistant.types import (
     AiMessage,
@@ -1047,7 +1046,20 @@ class TestAssistantLicenseTier:
             "A request to display existing data does not authorize"
             in AGENT_SYSTEM_PROMPT
         )
-        assert MISSING_RECORDS_QUESTION in AGENT_SYSTEM_PROMPT
+        assert "create nothing — no database, table, page, or sample rows" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "one question in the user's language" in AGENT_SYSTEM_PROMPT
+        assert "offering three options: create a table with sample data" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "agree on its fields first" in AGENT_SYSTEM_PROMPT
+        assert "use data the user points you to" in AGENT_SYSTEM_PROMPT
+        assert "using existing fields" in AGENT_SYSTEM_PROMPT
+        assert "fields the user has authorized creating" in AGENT_SYSTEM_PROMPT
+        assert "the user has not authorized creating it, call ask_user" in (
+            AGENT_SYSTEM_PROMPT
+        )
 
     def test_agent_system_prompt_covers_production_regressions(self):
         assert "Cross-mode routing is automatic" in AGENT_SYSTEM_PROMPT
@@ -2215,17 +2227,6 @@ class TestFinalAnswerValidation:
             "Done.",
             "Applied the requested configuration.",
             "Updated rows have been saved.",
-            "The Projects table was created with Name and Status fields.",
-            "Your Projects table has been created successfully with 3 fields.",
-            "The rows were added to Orders.",
-            "Your automation has been set up to send an email on new rows.",
-            "Created Orders table with 3 fields.",
-            "Added rows to Orders.",
-            "Done! Your table is ready.",
-            "The rows were added in Orders.",
-            "The table was created automatically.",
-            "Your changes were applied automatically.",
-            "The rows were added in table 2024.",
         ],
     )
     def test_common_completion_phrases_require_successful_tool_evidence(self, claim):
@@ -2288,6 +2289,20 @@ class TestFinalAnswerValidation:
             "Your changes were applied automatically after each edit.",
             "Your changes were applied automatically after each edit, so there is no save button.",
             "Done! Click Save to finish.",
+            "The row was created by a form submission on June 3.",
+            "Your workspace was created in March.",
+            "The Projects table was created earlier, so I reused it.",
+            "The Status field has these options:\n1. To do\n2. In progress\n3. Done",
+            "Your Kanban view has three stacks: To do. In progress. Done.",
+            "Select the fields and click Create. Done!",
+            "Added rows to a filtered view may disappear if they don't match the filter.",
+            "Applied filters to a view are saved for all collaborators.",
+            "Done! Click Save to apply.",
+            "Created by field in a table shows who created each row.",
+            "Created on field for sorting rows by creation date.",
+            "The table was created automatically when you imported the CSV.",
+            "Your database was created from a template.",
+            "The Projects table was already created, so I reused it.",
             "Applied filters only affect your view.",
             "Updated cells highlight briefly.",
             "Updated values sync in real time.",
@@ -2561,8 +2576,7 @@ class TestFinalAnswerValidation:
     def test_passive_partial_completion_requires_actual_changes(self, apostrophe):
         ctx = MagicMock()
         answer = (
-            "The Tasks table was created, but the Status field "
-            f"wasn{apostrophe}t added."
+            f"The Tasks table was created. The Status field wasn{apostrophe}t added."
         )
         ctx.messages = []
         with pytest.raises(ModelRetry, match="without a verified"):
