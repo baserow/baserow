@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
@@ -263,6 +263,12 @@ class Field(
 
     def invalidate_table_model_cache(self):
         invalidate_table_in_model_cache(self.table_id)
+        if self.primary:
+            # Tables linking to this one cache a copy of their related primary field.
+            # They're invalidated after the commit because updating their version
+            # inside the transaction can deadlock with a change to those tables.
+            table_id = self.table_id
+            transaction.on_commit(lambda: invalidate_tables_linking_to_table(table_id))
 
     def dependant_fields_with_types(
         self,
@@ -288,6 +294,18 @@ class Field(
         save = super().save(*args, **kwargs)
         self.invalidate_table_model_cache()
         return save
+
+
+def invalidate_tables_linking_to_table(table_id: int):
+    linking_table_ids = (
+        LinkRowField.objects_and_trash.filter(link_row_table_id=table_id)
+        .exclude(table_id=table_id)
+        .order_by()
+        .values_list("table_id", flat=True)
+        .distinct()
+    )
+    for linking_table_id in linking_table_ids:
+        invalidate_table_in_model_cache(linking_table_id)
 
 
 class AbstractSelectOption(

@@ -1,5 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, local
+
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
+from django.db import close_old_connections, connections
 from django.shortcuts import reverse
 
 import pytest
@@ -12,9 +16,12 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
+from rest_framework.test import APIClient
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, NumberField, TextField
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.contrib.database.views.handler import ViewIndexingHandler
 from baserow.contrib.database.views.models import ViewSort
@@ -1749,3 +1756,58 @@ def test_password_field_authentication_database_token_no_read_permissions(
     )
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json()["error"] == "ERROR_NO_PERMISSION_TO_TABLE"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_primary_switches_on_linked_tables(data_fixture, mocker):
+    user, token = data_fixture.create_user_and_token()
+    table_a = data_fixture.create_database_table(user=user)
+    table_b = data_fixture.create_database_table(database=table_a.database)
+    replacements = []
+    for table in (table_a, table_b):
+        data_fixture.create_text_field(table=table, name="old", primary=True)
+        replacements.append(data_fixture.create_text_field(table=table, name="new"))
+    FieldHandler().create_field(
+        user, table_a, "link_row", name="link", link_row_table=table_b
+    )
+
+    barrier, thread_state = Barrier(2), local()
+    original = TableHandler.get_table_for_update
+
+    def synchronize_first_lock(handler, *args, **kwargs):
+        table = original(handler, *args, **kwargs)
+        if not getattr(thread_state, "synchronized", False):
+            thread_state.synchronized = True
+            barrier.wait(timeout=20)
+        return table
+
+    mocker.patch.object(TableHandler, "get_table_for_update", synchronize_first_lock)
+
+    def switch_primary(field):
+        close_old_connections()
+        try:
+            # Each request needs its own client and database connection.
+            client = APIClient(raise_request_exception=False)
+            return client.post(
+                reverse(
+                    "api:database:fields:change_primary_field",
+                    kwargs={"table_id": field.table_id},
+                ),
+                {"new_primary_field_id": field.id},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            ).status_code
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        statuses = list(executor.map(switch_primary, replacements))
+    new_primary_ids = set(
+        Field.objects.filter(
+            id__in=[field.id for field in replacements], primary=True
+        ).values_list("id", flat=True)
+    )
+    assert {"statuses": statuses, "primary_ids": new_primary_ids} == {
+        "statuses": [200, 200],
+        "primary_ids": {field.id for field in replacements},
+    }
