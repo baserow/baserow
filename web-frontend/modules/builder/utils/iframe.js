@@ -3,7 +3,9 @@ export const EMBED_HEIGHT_MESSAGE = 'baserow:embed-height'
 /**
  * Runs inside srcdoc, including an opaque editor sandbox. Keep this function
  * self-contained: it is serialized, not invoked in the application document.
+ * Coverage counters would reference closures unavailable inside the iframe.
  */
+/* istanbul ignore next -- @preserve */
 function observeEmbedHeight(messageType) {
   let frame = null
   let lastHeight = null
