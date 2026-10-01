@@ -137,11 +137,37 @@ class BaserowWorkspaceAgentToolType(AgentToolType):
         config["tool_rules"][to_catalog_name(tool_name)] = RULE_ALLOW
         return config
 
+    def _load_tool_identities(self, workspace, config: dict) -> dict:
+        """
+        The workspace agents the configured tools run as, fetched once per
+        run. Identities that left the workspace fall back to the agent's own.
+        """
+
+        from baserow.core.models import Agent
+
+        wanted = config.get("tool_identities") or {}
+        if not wanted:
+            return {}
+        agents = {
+            agent.id: agent
+            for agent in Agent.objects.filter(
+                workspace=workspace, id__in=set(wanted.values())
+            )
+        }
+        return {
+            name: agents[agent_id]
+            for name, agent_id in wanted.items()
+            if agent_id in agents
+        }
+
     def build_toolsets(self, tool: "AgentTool", deps: "AgentRunDeps") -> list:
         from .gating import wrap_workspace_toolset
         from .rules import describe_workspace_access, normalize_workspace_config
 
         deps.workspace_tool_config = normalize_workspace_config(tool.config)
+        deps.workspace_tool_identities = self._load_tool_identities(
+            deps.workspace, deps.workspace_tool_config
+        )
         # The model must reason from the current permissions, not from what
         # it concluded earlier in the conversation when they may have differed.
         deps.system_notes.append(describe_workspace_access(deps.workspace_tool_config))

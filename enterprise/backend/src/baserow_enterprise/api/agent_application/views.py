@@ -3,6 +3,7 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from loguru import logger
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
@@ -125,12 +126,28 @@ from .serializers import (
 
 
 def _serialize_trigger(trigger) -> dict:
+    from baserow_enterprise.agent_application.triggers.registries import (
+        agent_trigger_type_registry,
+    )
+
     service = trigger.service.specific
+    service_type = service.get_type().type
+    tokens = []
+    sample_payload = None
+    try:
+        trigger_type = agent_trigger_type_registry.get_by_service_type(service_type)
+        tokens = trigger_type.get_tokens(trigger)
+        sample_payload = trigger_type.get_sample_payload(trigger)
+    except Exception:
+        # The example is a convenience; a trigger must still list without it.
+        logger.exception("Failed to build the trigger example for {}", trigger.id)
     return {
         "id": trigger.id,
         "enabled": trigger.enabled,
-        "service_type": service.get_type().type,
+        "service_type": service_type,
         "service": service_type_registry.get_serializer(service).data,
+        "tokens": tokens,
+        "sample_payload": sample_payload,
     }
 
 
@@ -962,6 +979,7 @@ def _serialize_tool(tool) -> dict:
         "name": tool.name,
         "config": tool.config,
         "order": tool.order,
+        "identity_id": tool.identity_id,
         "service_type": service_type,
         "service": service_data,
     }
@@ -1094,6 +1112,11 @@ class AgentToolView(APIView):
                 name=data.get("name"),
                 config=data.get("config"),
                 service_values=data.get("service"),
+                **(
+                    {"identity_id": data["identity_id"]}
+                    if "identity_id" in data
+                    else {}
+                ),
             )
 
         broadcast_configuration_updated(application.specific)

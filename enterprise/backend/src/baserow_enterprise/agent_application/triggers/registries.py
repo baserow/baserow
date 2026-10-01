@@ -1,5 +1,6 @@
 import json
-from typing import Callable, Dict, Iterable, Optional
+import re
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -39,6 +40,55 @@ class AgentTriggerType(Instance):
 
     def get_opening_headline(self, trigger: AgentTrigger) -> str:
         return f"Trigger: {self.type} event occurred."
+
+    def get_tokens(self, trigger: AgentTrigger) -> list[dict]:
+        """
+        The `{{trigger.…}}` tokens the instructions may use for this trigger,
+        as `{token, description}` dicts. Resolution goes through
+        `get_token_aliases`.
+        """
+
+        return []
+
+    def get_token_aliases(self, trigger_payload: Any) -> dict[str, list]:
+        """
+        Maps the first segment(s) of a token path onto a path inside the event
+        payload, e.g. `{"row": ["results", 0]}` so that `trigger.row.Name`
+        reads `payload["results"][0]["Name"]`.
+        """
+
+        return {}
+
+    def get_sample_payload(self, trigger: AgentTrigger) -> Optional[dict]:
+        """
+        What "Run once" hands the agent, and what the configuration shows as
+        the example payload.
+        """
+
+        return None
+
+    def resolve_token(self, path: str, event_payload: Any) -> Optional[str]:
+        """
+        Resolves a token path (without the `trigger.` prefix) against the
+        event payload. Returns None when the path doesn't exist.
+        """
+
+        segments = path.split(".")
+        aliases = self.get_token_aliases(event_payload)
+        value = event_payload
+        # The longest alias wins, so `comment.message` beats `comment`.
+        for length in range(len(segments), 0, -1):
+            alias = ".".join(segments[:length])
+            if alias in aliases:
+                value = _dig(event_payload, aliases[alias])
+                segments = segments[length:]
+                break
+        value = _dig(value, segments)
+        if value is None:
+            return None
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, default=str)
+        return str(value)
 
     def get_opening_prompt(self, trigger: AgentTrigger, event_payload) -> str:
         """
@@ -136,3 +186,45 @@ class AgentTriggerTypeRegistry(Registry[AgentTriggerType]):
 
 
 agent_trigger_type_registry = AgentTriggerTypeRegistry()
+
+
+def _dig(value: Any, path: list) -> Any:
+    for key in path:
+        if isinstance(value, dict):
+            value = value.get(key)
+        elif isinstance(value, list) and isinstance(key, int) and key < len(value):
+            value = value[key]
+        elif isinstance(value, list) and isinstance(key, str) and key.isdigit():
+            index = int(key)
+            value = value[index] if index < len(value) else None
+        else:
+            return None
+        if value is None:
+            return None
+    return value
+
+
+_TOKEN_PATTERN = re.compile(r"\{\{\s*trigger\.([^{}]+?)\s*\}\}")
+
+
+def substitute_trigger_tokens(text: str, trigger_type_str: str, event_payload) -> str:
+    """
+    Replaces `{{trigger.…}}` tokens in the instructions with values of the
+    event that started the conversation. Unknown tokens are left untouched so
+    the model still sees what was meant.
+    """
+
+    if not text or "{{" not in text:
+        return text
+    try:
+        trigger_type = agent_trigger_type_registry.get(trigger_type_str)
+    except agent_trigger_type_registry.does_not_exist_exception_class:
+        return text
+    if event_payload is None:
+        return text
+
+    def replace(match):
+        resolved = trigger_type.resolve_token(match.group(1).strip(), event_payload)
+        return match.group(0) if resolved is None else resolved
+
+    return _TOKEN_PATTERN.sub(replace, text)

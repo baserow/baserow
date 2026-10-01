@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-editor__trigger-selector" @scroll.stop>
+  <div class="agent-add-menu" @scroll.stop>
     <GroupedMenu
       ref="groupedMenu"
       :items="items"
@@ -15,9 +15,9 @@
 import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 
 /**
- * The agent equivalent of the automation node picker: the same visual box and
- * grouped menu, but fed plain menu items so it doesn't depend on the
- * automation editor's injected context.
+ * The agent equivalent of the automation node picker: the same grouped menu,
+ * but fed plain menu items so it doesn't depend on the automation editor's
+ * injected context. It lives inside a `Context`, which draws the box.
  */
 export default {
   name: 'AgentGroupedAddMenu',

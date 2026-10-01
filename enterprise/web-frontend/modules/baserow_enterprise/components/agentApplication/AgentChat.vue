@@ -34,7 +34,9 @@
           <AgentChatTriggerRow
             v-if="block.type === 'trigger'"
             :label="triggerLabel"
-            :payload="triggerPayload(block.event)"
+            :trigger-type="triggerType"
+            :payload="eventPayload"
+            :fallback="formatToolPayload(block.event.content)"
           />
           <AgentChatMessage
             v-else-if="block.type === 'message' || block.type === 'system'"
@@ -52,6 +54,7 @@
             :block="block"
             :tool-label="toolLabel"
             :applications="applications"
+            :running-message="block.live ? runningMessage : ''"
           />
           <AgentToolApprovals
             v-else-if="block.type === 'approval_set'"
@@ -60,6 +63,7 @@
             :disabled="decidingApprovals"
             :agent-name="agent?.name || application.name"
             :tool-label="toolLabel"
+            :runs-as="runsAs"
             :can-change-tools="canUpdateTools"
             @decide="decideApprovals"
           />
@@ -252,6 +256,7 @@ import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
 import {
   groupChatEvents,
   formatToolPayload,
+  slugifyToolName,
 } from '@baserow_enterprise/utils/agentChatEvents'
 import AgentToolApprovals from '@baserow_enterprise/components/agentApplication/AgentToolApprovals'
 import AgentChatEmptyState from '@baserow_enterprise/components/agentApplication/AgentChatEmptyState'
@@ -355,12 +360,36 @@ export default defineComponent({
         triggerNodeLabel(store.getters['agentChat/getTriggerType']) ||
         t('agentChat.startedByTrigger')
     )
-    const triggerPayload = (event) => {
-      const payload = store.getters['agentChat/getEventPayload']
-      return payload !== null && payload !== undefined
-        ? formatToolPayload(payload)
-        : formatToolPayload(event.content)
+    // The identity name a tool runs as when it differs from the agent's own,
+    // shown under email previews so the sender is clear.
+    const runsAs = (toolName) => {
+      const tools = store.getters['agentApplication/getTools']
+      const identities = store.getters['agent/getAllInWorkspace'](
+        props.application.workspace.id
+      )
+      const catalogName = String(toolName).replace(
+        /^(create|update|delete)_rows_in_table_\d+$/,
+        '$1_rows'
+      )
+      const workspaceTool = tools.find((tool) => tool.type === 'workspace')
+      let identityId = workspaceTool?.config?.tool_identities?.[catalogName]
+      if (identityId === undefined) {
+        identityId = tools.find(
+          (tool) =>
+            ['service', 'mcp'].includes(tool.type) &&
+            slugifyToolName(tool.name || '') === toolName
+        )?.identity_id
+      }
+      return (
+        identities.find((identity) => identity.id === identityId)?.name || ''
+      )
     }
+    const triggerType = computed(
+      () => store.getters['agentChat/getTriggerType']
+    )
+    const eventPayload = computed(
+      () => store.getters['agentChat/getEventPayload'] ?? null
+    )
     const firstTriggerLabel = computed(() => {
       const trigger = triggers.value.find((item) => item.enabled)
       return trigger ? triggerNodeLabel(trigger.service?.type) : ''
@@ -730,7 +759,10 @@ export default defineComponent({
       toolLabel,
       identityName,
       triggerLabel,
-      triggerPayload,
+      triggerType,
+      eventPayload,
+      runsAs,
+      formatToolPayload,
       firstTriggerLabel,
       canRunOnce,
       sendPrompt,

@@ -91,11 +91,23 @@ class LastRunOnField(serializers.DateTimeField):
 SETUP_FIELDS = [
     "instructions",
     "run_mode",
+    "trigger_table_id",
+    "actions",
     "permissions",
     "web_search",
     "create_identity",
 ]
-RUN_MODES = ["chat", "daily", "weekly"]
+RUN_MODES = [
+    "chat",
+    "daily",
+    "weekly",
+    "rows_created",
+    "rows_updated",
+    "rows_deleted",
+    "row_comment_created",
+]
+# Action tools a template may add; the service is created unconfigured.
+SETUP_ACTIONS = ["smtp_email", "slack_write_message"]
 PERMISSION_PRESETS = ["read_only", "ask_first", "free"]
 
 
@@ -137,7 +149,19 @@ class AgentApplicationType(ApplicationType):
         "run_mode": serializers.ChoiceField(
             choices=RUN_MODES,
             required=False,
-            help_text="Adds a periodic trigger when not `chat` (create only).",
+            help_text=(
+                "Adds a periodic or table trigger when not `chat` (create only)."
+            ),
+        ),
+        "trigger_table_id": serializers.IntegerField(
+            required=False,
+            allow_null=True,
+            help_text="The table of a table trigger `run_mode` (create only).",
+        ),
+        "actions": serializers.ListField(
+            child=serializers.ChoiceField(choices=SETUP_ACTIONS),
+            required=False,
+            help_text="Action tools to add, by service type (create only).",
         ),
         "permissions": serializers.ChoiceField(
             choices=PERMISSION_PRESETS,

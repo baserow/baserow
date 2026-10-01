@@ -178,6 +178,13 @@ class LocalBaserowServiceType(ServiceType):
         :return: The acting subject.
         """
 
+        if (
+            getattr(dispatch_context, "actor_overrides_integration", False)
+            and dispatch_context.actor is not None
+        ):
+            # An agent tool configured to run as a specific workspace agent.
+            return dispatch_context.actor
+
         if service.integration_id:
             authorized_subject = service.integration.specific.authorized_subject
             # Nullable, and an import leaves it null when the exported username

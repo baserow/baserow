@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AGENT_BUILDER
 from baserow.core.models import Agent
+from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import extract_allowed
 
 from .exceptions import (
@@ -214,7 +215,32 @@ class AgentApplicationHandler:
         if setup.get("web_search"):
             AgentToolHandler().create_tool(user, agent, "web_search")
 
+        for service_type_str in setup.get("actions") or []:
+            # Validates the type; the tool keeps the type's display name until
+            # the user renames it in Action tools.
+            service_type_registry.get(service_type_str)
+            AgentToolHandler().create_tool(
+                user, agent, "service", service_type_str=service_type_str
+            )
+
         run_mode = setup.get("run_mode")
+        table_trigger_types = {
+            "rows_created": "local_baserow_rows_created",
+            "rows_updated": "local_baserow_rows_updated",
+            "rows_deleted": "local_baserow_rows_deleted",
+            "row_comment_created": "local_baserow_row_comment_created",
+        }
+        if run_mode in table_trigger_types:
+            service_values = {}
+            table_id = setup.get("trigger_table_id")
+            if table_id:
+                service_values["table_id"] = table_id
+            AgentTriggerHandler().create_trigger(
+                user,
+                application,
+                table_trigger_types[run_mode],
+                service_values=service_values,
+            )
         if run_mode in ("daily", "weekly"):
             service_values = {
                 "interval": PERIODIC_INTERVAL_DAY
@@ -377,12 +403,17 @@ class AgentChatHandler:
         trigger_type = agent_trigger_type_registry.get_by_service_type(
             trigger.service.specific.get_type().type
         )
+        # The example payload lets the user try the instructions (and their
+        # tokens) without waiting for the real event.
+        sample_payload = trigger_type.get_sample_payload(trigger)
         agent = AgentApplicationHandler().get_main_agent(application)
-        chat = self.create_triggered_chat(agent, trigger_type.type, user=user)
+        chat = self.create_triggered_chat(
+            agent, trigger_type.type, event_payload=sample_payload, user=user
+        )
         message = self.create_message(
             chat,
             AgentChatMessage.Role.SYSTEM,
-            trigger_type.get_opening_prompt(trigger, None),
+            trigger_type.get_opening_prompt(trigger, sample_payload),
         )
         self.start_chat_run(chat, message)
         return chat

@@ -40,14 +40,34 @@ describe('groupChatEvents', () => {
     expect(group.hasError).toBe(false)
   })
 
-  test('trailing reasoning after the last tool call is its own block', () => {
+  test('finished reasoning after the last tool call is its own block', () => {
     const events = [tool('a'), { type: 'ai/reasoning', content: 'thinking' }]
-    const blocks = groupChatEvents(events, { running: true })
+    const blocks = groupChatEvents(events, { running: false })
     expect(blocks.map((block) => block.type)).toEqual([
       'tool_group',
       'reasoning',
     ])
-    expect(blocks[1].live).toBe(true)
+    expect(blocks[1].live).toBe(false)
+  })
+
+  test('streaming reasoning stays inside the live group as its current step', () => {
+    const events = [tool('a'), { type: 'ai/reasoning', content: 'thinking' }]
+    const [group] = groupChatEvents(events, { running: true })
+    expect(group.type).toBe('tool_group')
+    expect(group.live).toBe(true)
+    expect(group.steps.map((step) => step.kind)).toEqual(['tool', 'reasoning'])
+    expect(group.steps[1].live).toBe(true)
+  })
+
+  test('reasoning before the first tool call opens a live group', () => {
+    const blocks = groupChatEvents(
+      [{ type: 'ai/reasoning', content: 'thinking' }],
+      { running: true }
+    )
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].type).toBe('tool_group')
+    expect(blocks[0].live).toBe(true)
+    expect(blocks[0].toolCount).toBe(0)
   })
 
   test('a live group and errors are flagged', () => {

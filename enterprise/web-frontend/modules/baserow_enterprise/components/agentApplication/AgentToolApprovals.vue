@@ -83,11 +83,27 @@
             approval.tool_name
           }}</code>
         </div>
-        <pre
-          v-if="expandedArgs[approval.id]"
-          class="agent-tool-approvals__args"
-          >{{ formatArgs(approval) }}</pre
-        >
+        <template v-if="expandedArgs[approval.id]">
+          <template v-if="approval.preview">
+            <SegmentControl
+              class="agent-chat-segment agent-tool-approvals__segment"
+              :segments="detailSegments"
+              :active-index="rawShown[approval.id] ? 1 : 0"
+              @update:active-index="rawShown[approval.id] = $event === 1"
+            ></SegmentControl>
+            <AgentApprovalPreview
+              v-if="!rawShown[approval.id]"
+              :preview="approval.preview"
+              :footnote="footnote(approval)"
+            />
+            <pre v-else class="agent-tool-approvals__args">{{
+              formatArgs(approval)
+            }}</pre>
+          </template>
+          <pre v-else class="agent-tool-approvals__args">{{
+            formatArgs(approval)
+          }}</pre>
+        </template>
       </div>
       <div class="agent-tool-approvals__item-side">
         <template v-if="approval.status === 'pending'">
@@ -149,10 +165,11 @@ import { defineComponent, ref, reactive, computed, watch } from 'vue'
 import { useI18n } from '#imports'
 import { summarizeToolArgs } from '@baserow_enterprise/utils/agentChatEvents'
 import AgentRejectApprovalModal from '@baserow_enterprise/components/agentApplication/AgentRejectApprovalModal'
+import AgentApprovalPreview from '@baserow_enterprise/components/agentApplication/AgentApprovalPreview'
 
 export default defineComponent({
   name: 'AgentToolApprovals',
-  components: { AgentRejectApprovalModal },
+  components: { AgentRejectApprovalModal, AgentApprovalPreview },
   props: {
     approvals: {
       type: Array,
@@ -182,6 +199,12 @@ export default defineComponent({
       required: false,
       default: (name) => name,
     },
+    // Runtime tool name -> the identity name the step runs as, if any.
+    runsAs: {
+      type: Function,
+      required: false,
+      default: () => '',
+    },
   },
   emits: ['decide'],
   setup(props, { emit }) {
@@ -189,6 +212,11 @@ export default defineComponent({
     const rejectModal = ref(null)
     const dontAskAgain = ref(false)
     const expandedArgs = reactive({})
+    const rawShown = reactive({})
+    const detailSegments = computed(() => [
+      { label: t('agentToolApprovals.preview') },
+      { label: t('agentToolApprovals.rawData') },
+    ])
 
     const pendingApprovals = computed(() =>
       props.approvals.filter((approval) => approval.status === 'pending')
@@ -212,7 +240,23 @@ export default defineComponent({
       return parts.join(' · ')
     })
 
-    const summary = (approval) => summarizeToolArgs(approval.tool_args)
+    const summary = (approval) => {
+      const preview = approval.preview
+      if (preview?.kind === 'email' && (preview.to || preview.subject)) {
+        return t('agentToolApprovals.emailSummary', {
+          to: preview.to || '',
+          cc: preview.cc
+            ? t('agentToolApprovals.emailSummaryCc', { cc: preview.cc })
+            : '',
+          subject: preview.subject || '',
+        })
+      }
+      return summarizeToolArgs(approval.tool_args)
+    }
+    const footnote = (approval) => {
+      const identity = props.runsAs(approval.tool_name)
+      return identity ? t('agentToolApprovals.runsAs', { name: identity }) : ''
+    }
     const formatArgs = (approval) =>
       JSON.stringify(approval.tool_args ?? {}, null, 2)
     const toggleDetails = (approval) => {
@@ -270,6 +314,9 @@ export default defineComponent({
       rejectModal,
       dontAskAgain,
       expandedArgs,
+      rawShown,
+      detailSegments,
+      footnote,
       hasPending,
       decidedSummary,
       summary,

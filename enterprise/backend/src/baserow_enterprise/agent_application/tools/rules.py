@@ -41,6 +41,14 @@ def normalize_workspace_config(config: dict | None) -> dict:
         for name, rule in (config.get("tool_rules") or {}).items()
         if rule in RULES
     }
+    # Tools running as another workspace agent than the application's
+    # identity, by catalog name.
+    tool_identities = {
+        name: int(agent_id)
+        for name, agent_id in (config.get("tool_identities") or {}).items()
+        if isinstance(agent_id, int)
+        or (isinstance(agent_id, str) and agent_id.isdigit())
+    }
 
     enabled_tools = config.get("enabled_tools")
     if access != ACCESS_CUSTOM and isinstance(enabled_tools, list):
@@ -57,6 +65,7 @@ def normalize_workspace_config(config: dict | None) -> dict:
         "access": access,
         "require_write_approval": require_write_approval,
         "tool_rules": tool_rules,
+        "tool_identities": tool_identities,
     }
 
 

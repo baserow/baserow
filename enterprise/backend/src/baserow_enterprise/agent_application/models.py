@@ -159,6 +159,19 @@ class AgentTool(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         on_delete=models.SET_NULL,
         related_name="agent_tool",
     )
+    identity = models.ForeignKey(
+        Agent,
+        null=True,
+        blank=True,
+        default=None,
+        db_default=None,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text=(
+            "The workspace agent this tool acts as instead of the application's "
+            "identity."
+        ),
+    )
     order = models.PositiveIntegerField(default=1, db_default=1)
 
     class Meta:
@@ -400,6 +413,15 @@ class AgentChatToolApproval(
     tool_call_id = models.CharField(max_length=255)
     tool_name = models.CharField(max_length=255)
     tool_args = models.JSONField(null=True, blank=True, db_default=None)
+    preview = models.JSONField(
+        null=True,
+        blank=True,
+        db_default=None,
+        help_text=(
+            "A human-readable rendering of what the call will do (resolved "
+            "service fields, rows to write), built when the approval is recorded."
+        ),
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

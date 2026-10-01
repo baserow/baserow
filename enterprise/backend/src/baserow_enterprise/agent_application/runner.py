@@ -14,7 +14,10 @@ from pydantic_ai.messages import (
     FunctionToolResultEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    NativeToolCallPart,
+    NativeToolReturnPart,
     PartDeltaEvent,
+    PartEndEvent,
     PartStartEvent,
     RetryPromptPart,
     TextPart,
@@ -114,9 +117,55 @@ def _get_typed_content_delta(event: Any) -> tuple[str | None, bool]:
     return None, False
 
 
+def _native_tool_message(event: Any) -> ToolCallMessage | ToolResultMessage | None:
+    """
+    Provider-native tools (web search) run inside the model request, so they
+    never raise function tool events; their parts appear in the response
+    stream instead. The call is emitted once its arguments are complete and
+    the return as soon as it starts, so the conversation shows the search
+    while it is still running.
+    """
+
+    if isinstance(event, PartEndEvent) and isinstance(event.part, NativeToolCallPart):
+        part = event.part
+        try:
+            args = part.args_as_dict()
+        except Exception:
+            args = None
+        return ToolCallMessage(
+            id=part.tool_call_id or f"native-{part.id}",
+            tool_name=part.tool_name,
+            args=_jsonable(args) if args else None,
+        )
+    if isinstance(event, PartStartEvent) and isinstance(
+        event.part, NativeToolReturnPart
+    ):
+        part = event.part
+        return ToolResultMessage(
+            id=part.tool_call_id or f"native-{part.id}",
+            tool_name=part.tool_name,
+            status="ok",
+            content=_jsonable(part.content),
+        )
+    return None
+
+
 def _is_unsupported_native_tool_error(exc: Exception) -> bool:
     text = str(exc).lower()
     return "web_search" in text and ("not supported" in text or "unsupported" in text)
+
+
+def _is_error_payload(content: Any) -> bool:
+    """
+    The workspace toolset hands failures back to the model as `{"error": …}`
+    instead of raising, so the step must be flagged from the payload.
+    """
+
+    return (
+        isinstance(content, dict)
+        and set(content.keys()) == {"error"}
+        and isinstance(content["error"], str)
+    )
 
 
 def _jsonable(content: Any, limit: int = _TOOL_RESULT_CONTENT_LIMIT) -> Any:
@@ -358,6 +407,7 @@ class AgentRunner:
                             result_content = result_part.model_response()
                         else:
                             result_content = getattr(result_part, "content", None)
+                            is_error = _is_error_payload(result_content)
                         queue.put_nowait(
                             QueueEvent(
                                 kind=QueueEventKind.STREAM,
@@ -374,6 +424,18 @@ class AgentRunner:
                             "Failed to emit tool result event for agent {}",
                             self.agent.id,
                         )
+                    continue
+
+                native_message = _native_tool_message(event)
+                if native_message is not None:
+                    if isinstance(native_message, ToolResultMessage):
+                        # Reasoning after a search is a new segment, like
+                        # after a function tool result.
+                        thinking_so_far = ""
+                        text_so_far = ""
+                    queue.put_nowait(
+                        QueueEvent(kind=QueueEventKind.STREAM, message=native_message)
+                    )
                     continue
 
                 delta, is_thinking = _get_typed_content_delta(event)
@@ -765,12 +827,26 @@ class AgentRunner:
         from .models import AgentChatToolApproval
 
         def create_approvals():
+            from .approval_preview import build_approval_preview
+            from .tools.handler import AgentToolHandler
+
+            tool_handler = AgentToolHandler()
+            tools = list(tool_handler.list_tools(self.agent))
             approvals = []
             for part in deferred.approvals:
                 try:
                     args = part.args_as_dict()
                 except Exception:
                     args = None
+                tool = tool_handler.find_tool_for_tool_name(
+                    self.agent, part.tool_name, tools=tools
+                )
+                preview = build_approval_preview(
+                    self.chat,
+                    tool if tool is not None and tool.service_id else None,
+                    part.tool_name,
+                    args,
+                )
                 approvals.append(
                     AgentChatToolApproval.objects.create(
                         chat=self.chat,
@@ -782,6 +858,9 @@ class AgentRunner:
                             if args is not None
                             else None
                         ),
+                        preview=_jsonable(preview, limit=_APPROVAL_ARGS_CONTENT_LIMIT)
+                        if preview
+                        else None,
                     )
                 )
             return approvals
@@ -793,6 +872,7 @@ class AgentRunner:
                 "tool_call_id": approval.tool_call_id,
                 "tool_name": approval.tool_name,
                 "tool_args": approval.tool_args,
+                "preview": approval.preview,
                 "status": approval.status,
             }
             for approval in approvals

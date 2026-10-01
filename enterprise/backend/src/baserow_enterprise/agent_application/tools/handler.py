@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -13,10 +13,56 @@ from ..exceptions import AgentToolDoesNotExist
 from ..models import AgentDefinition, AgentTool
 from .registries import agent_tool_type_registry
 
+_NOT_PROVIDED = object()
+
 
 class AgentToolHandler:
     def list_tools(self, agent: AgentDefinition):
-        return agent.tools.select_related("service").all()
+        return agent.tools.select_related("service", "identity").all()
+
+    def _get_workspace_identity(self, agent: AgentDefinition, identity_id: int):
+        from baserow.core.models import Agent
+
+        identity = Agent.objects.filter(
+            id=identity_id, workspace_id=agent.application.workspace_id
+        ).first()
+        if identity is None:
+            raise DRFValidationError(
+                detail=f"The agent with ID {identity_id} does not exist in the "
+                "application's workspace.",
+                code="invalid_agent",
+            )
+        return identity
+
+    def _validate_tool_identities(self, agent: AgentDefinition, config: dict) -> dict:
+        """
+        Keeps only `tool_identities` entries that name a workspace agent of the
+        application's workspace.
+        """
+
+        from baserow.core.models import Agent
+
+        wanted = config.get("tool_identities") or {}
+        if not wanted:
+            return config
+        ids = {
+            int(value)
+            for value in wanted.values()
+            if isinstance(value, int) or (isinstance(value, str) and value.isdigit())
+        }
+        existing = set(
+            Agent.objects.filter(
+                workspace_id=agent.application.workspace_id, id__in=ids
+            ).values_list("id", flat=True)
+        )
+        return {
+            **config,
+            "tool_identities": {
+                name: int(value)
+                for name, value in wanted.items()
+                if str(value).isdigit() and int(value) in existing
+            },
+        }
 
     def find_tool_for_tool_name(
         self,
@@ -145,15 +191,31 @@ class AgentToolHandler:
         name: Optional[str] = None,
         config: Optional[dict] = None,
         service_values: Optional[dict] = None,
+        identity_id: Any = _NOT_PROVIDED,
     ) -> AgentTool:
+        """
+        :param identity_id: The workspace agent the tool runs as, or None for
+            the application's identity. Omitted when unchanged.
+        :raises DRFValidationError: When the identity is not in the workspace.
+        """
+
         update_fields = ["updated_on"]
 
         if name is not None:
             tool.name = name
             update_fields.append("name")
         if config is not None:
+            if tool.type == "workspace":
+                config = self._validate_tool_identities(tool.agent, config)
             tool.config = config
             update_fields.append("config")
+        if identity_id is not _NOT_PROVIDED:
+            tool.identity = (
+                None
+                if identity_id is None
+                else self._get_workspace_identity(tool.agent, identity_id)
+            )
+            update_fields.append("identity")
 
         tool.save(update_fields=update_fields)
 

@@ -230,6 +230,7 @@
   padding: 8px;
   color: $palette-neutral-700;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .agent-conversation-list__load-more {
@@ -362,6 +363,7 @@
 .agent-chat-welcome__subtitle {
   margin: 0 0 24px;
   font-size: 13px;
+  line-height: 20px;
   color: $palette-neutral-900;
 }
 
@@ -640,6 +642,7 @@
   background-color: $palette-cyan-50;
   color: $palette-cyan-900;
   font-size: 12px;
+  line-height: 18px;
 
   @include rounded($rounded-xl);
 
@@ -711,14 +714,33 @@
   }
 }
 
-.agent-chat-trigger__header,
+// Shared card of the event row (what started the conversation) and the
+// activity group (what the agent did): bordered, with a flattened bottom-left
+// corner like the agent's own messages.
+%agent-chat-card {
+  align-self: flex-start;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $white;
+
+  @include rounded($rounded-xl $rounded-xl $rounded-xl $rounded-md);
+}
+
+.agent-chat-card,
+.agent-chat-tool-group {
+  @extend %agent-chat-card;
+}
+
+.agent-chat-card__header,
 .agent-chat-tool-group__header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  min-height: 20px;
   color: $palette-neutral-900;
   font-size: 13px;
+  line-height: 20px;
 
   &:hover {
     color: $palette-neutral-1200;
@@ -726,20 +748,21 @@
   }
 }
 
-.agent-chat-trigger__icon {
+.agent-chat-card__icon {
   flex-shrink: 0;
   font-size: 16px;
   color: $palette-neutral-700;
 }
 
-.agent-chat-trigger__title,
+.agent-chat-card__title,
 .agent-chat-tool-group__title {
   @extend %ellipsis;
 
   min-width: 0;
+  font-weight: 500;
 }
 
-.agent-chat-trigger__chevron,
+.agent-chat-card__chevron,
 .agent-chat-tool-group__chevron {
   flex-shrink: 0;
   margin-left: auto;
@@ -752,10 +775,227 @@
   }
 }
 
+.agent-chat-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
 .agent-chat-trigger__payload {
   @extend %agent-mono-box;
+}
 
-  margin-top: 4px;
+// Preview / Raw data switch inside event and approval cards.
+.agent-chat-segment {
+  width: 100%;
+
+  .segment-control__button {
+    flex: 1;
+  }
+}
+
+// A quoted row comment with its author.
+.agent-chat-quote {
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+
+  @include rounded($rounded-md);
+}
+
+.agent-chat-quote__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.agent-chat-quote__author {
+  @extend %ellipsis;
+
+  min-width: 0;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-chat-quote__time {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: $palette-neutral-700;
+}
+
+.agent-chat-quote__text {
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
+.agent-chat-preview-body {
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: pre-wrap;
+
+  @include rounded($rounded-md);
+}
+
+// Label / value rows of a preview.
+.agent-key-value {
+  border: 1px solid $palette-neutral-200;
+  overflow: hidden;
+
+  @include rounded($rounded-md);
+}
+
+.agent-key-value__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-top: 1px solid $palette-neutral-200;
+  font-size: 12px;
+  line-height: 20px;
+
+  &:first-child {
+    border-top: 0;
+  }
+}
+
+.agent-key-value__key {
+  flex-shrink: 0;
+  width: 104px;
+  color: $palette-neutral-700;
+}
+
+.agent-key-value__value {
+  @extend %ellipsis;
+
+  min-width: 0;
+  color: $palette-neutral-1200;
+}
+
+.agent-key-value__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 8px 2px 6px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  line-height: 16px;
+
+  @include rounded($rounded);
+
+  i {
+    color: $palette-neutral-700;
+  }
+}
+
+// Rows delivered by a trigger or about to be written by a step.
+.agent-preview-table {
+  max-width: 100%;
+  border: 1px solid $palette-neutral-200;
+  overflow-x: auto;
+
+  @include rounded($rounded-md);
+}
+
+.agent-preview-table__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.agent-preview-table__cell {
+  max-width: 280px;
+  padding: 6px 12px;
+  border-bottom: 1px solid $palette-neutral-200;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--head {
+    background-color: $palette-neutral-25;
+    color: $palette-neutral-700;
+    font-weight: 500;
+  }
+
+  .agent-preview-table__row:last-child & {
+    border-bottom: 0;
+  }
+}
+
+// The email an action would send.
+.agent-mail-card {
+  border: 1px solid $palette-neutral-200;
+  overflow: hidden;
+
+  @include rounded($rounded-md);
+}
+
+.agent-mail-card__head {
+  padding: 8px 12px;
+  background-color: $palette-neutral-25;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-mail-card__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.agent-mail-card__key {
+  flex-shrink: 0;
+  width: 52px;
+  color: $palette-neutral-700;
+}
+
+.agent-mail-card__value {
+  @extend %ellipsis;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: $palette-neutral-1200;
+}
+
+.agent-mail-card__body {
+  padding: 12px;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
+.agent-approval-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-approval-preview__footnote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: $palette-neutral-700;
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .agent-chat-tool-group__status,
@@ -807,9 +1047,9 @@
 .agent-chat-tool-group__steps {
   display: flex;
   flex-direction: column;
-  margin: 2px 0 0 7px;
+  margin: 12px 0 8px 7px;
   padding-left: 16px;
-  border-left: 2px solid $palette-neutral-200;
+  border-left: 1px solid $palette-neutral-200;
 }
 
 .agent-chat-tool-group__step-row {
@@ -857,11 +1097,48 @@
   overflow-x: auto;
 }
 
+.agent-chat-tool-group__step-row--muted {
+  color: $palette-neutral-700;
+}
+
+.agent-chat-tool-group__step-status--muted {
+  color: $palette-neutral-500;
+}
+
+// Reasoning is shown, but quietly: small, grey and clamped to a few lines
+// until the reader asks for more.
+.agent-chat-tool-group__step-reasoning {
+  margin: -2px 0 6px 22px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+  overflow-wrap: break-word;
+
+  p {
+    margin: 0 0 4px;
+  }
+
+  &--clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
 .agent-chat-tool-group__step-summary {
   margin: -4px 0 4px 22px;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-700;
+}
+
+.agent-chat-tool-group__step-error {
+  margin: -2px 0 6px 22px;
+  color: $palette-red-800;
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
 }
 
 .agent-chat-tool-group__step-actions {
@@ -881,14 +1158,12 @@
 .agent-tool-approvals {
   align-self: flex-start;
   width: 100%;
-  border: 1px solid $palette-neutral-200;
+  border: 1px solid $palette-neutral-400;
   background-color: $white;
 
   @include rounded($rounded-xl);
 
   &--pending {
-    border-color: $palette-neutral-400;
-
     @include elevation($elevation-low);
   }
 }
@@ -903,7 +1178,8 @@
   background-color: $palette-neutral-25;
   color: $palette-neutral-1200;
   font-size: 13px;
-  font-weight: 600;
+  line-height: 20px;
+  font-weight: 500;
 
   @include rounded($rounded-xl $rounded-xl 0 0);
 }
@@ -940,7 +1216,7 @@
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 12px 16px 14px;
   border-top: 1px solid $palette-neutral-200;
 
   &:first-of-type {
@@ -963,7 +1239,7 @@
 .agent-tool-approvals__tool-name {
   color: $palette-neutral-1200;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 20px;
 }
 
@@ -1009,6 +1285,10 @@
   @extend %agent-mono-chip;
 }
 
+.agent-tool-approvals__segment {
+  margin-top: 10px;
+}
+
 .agent-tool-approvals__args {
   @extend %agent-mono-box;
 
@@ -1032,9 +1312,10 @@
   min-width: 0;
   max-width: 260px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   font-size: 12px;
+  line-height: 18px;
 
   &--approved {
     color: $palette-green-800;
@@ -1049,6 +1330,9 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
+
+  // Centered on the first text line, so a wrapped reason keeps it top-left.
+  height: 18px;
   font-size: 14px;
   line-height: 1;
 }
@@ -1306,8 +1590,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 52px;
-  padding: 0 16px;
+  min-height: 56px;
+  padding: 0 12px 0 16px;
   border-bottom: 1px solid $palette-neutral-200;
   flex-shrink: 0;
 }
@@ -1333,7 +1617,9 @@
 
   flex: 1;
   min-width: 0;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
   color: $palette-neutral-1200;
 }
 
@@ -1349,32 +1635,65 @@
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+
+  .control__label {
+    color: $palette-neutral-1200;
+    line-height: 20px;
+  }
+
+  .control--horizontal .control__label {
+    flex-shrink: 0;
+    color: $palette-neutral-900;
+  }
 }
 
 .agent-configuration__rows {
   display: flex;
   flex-direction: column;
 
+  &--root {
+    // The design lists the sections with an 8px inset instead of the 16px
+    // page padding.
+    margin: -8px;
+  }
+
   &--nested {
     margin-top: 8px;
     border: 1px solid $palette-neutral-200;
 
-    @include rounded($rounded-lg);
+    @include rounded($rounded-md);
   }
 }
 
 .agent-configuration-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 8px;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 13px 12px 16px;
   color: $palette-neutral-1200;
 
-  @include rounded($rounded-lg);
+  @include rounded($rounded-md);
 
   &:hover {
     background-color: $palette-neutral-50;
     text-decoration: none;
+  }
+
+  // Separator between rows, starting where the text starts.
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 48px;
+    height: 1px;
+    background-color: $palette-neutral-200;
+  }
+
+  &:last-child::after {
+    display: none;
   }
 }
 
@@ -1400,7 +1719,7 @@
   @extend %ellipsis;
 
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 20px;
 }
 
@@ -1409,13 +1728,14 @@
 
   font-size: 12px;
   line-height: 16px;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
 }
 
 .agent-configuration-row__right {
   flex-shrink: 0;
   font-size: 12px;
-  color: $palette-neutral-700;
+  line-height: 20px;
+  color: $palette-neutral-900;
 }
 
 .agent-configuration-row__chevron {
@@ -1425,12 +1745,18 @@
 }
 
 .agent-configuration__rows--nested .agent-configuration-row {
-  padding: 8px 12px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px 0 12px;
   border-radius: 0;
   border-bottom: 1px solid $palette-neutral-200;
 
   &:last-child {
     border-bottom: 0;
+  }
+
+  &::after {
+    display: none;
   }
 }
 
@@ -1444,13 +1770,14 @@
 
 .agent-configuration__subsection-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 20px;
   color: $palette-neutral-1200;
 }
 
 .agent-configuration__intro,
 .agent-configuration__hint {
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
   font-size: 12px;
   line-height: 18px;
 }
@@ -1473,8 +1800,9 @@
 
 .agent-configuration__counter {
   margin-left: auto;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
   font-size: 12px;
+  line-height: 18px;
 }
 
 // Sub-cards shared by the trigger, action tool and channel lists.
@@ -1486,8 +1814,7 @@
 }
 
 .agent-configuration__card {
-  border: 1px solid $palette-neutral-200;
-  background-color: $white;
+  background-color: $palette-neutral-25;
 
   @include rounded($rounded-lg);
 }
@@ -1496,7 +1823,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 8px 12px;
 }
 
 .agent-configuration__card-summary {
@@ -1526,7 +1854,8 @@
 
   min-width: 0;
   font-size: 12px;
-  color: $palette-neutral-700;
+  line-height: 20px;
+  color: $palette-neutral-900;
 }
 
 .agent-configuration__card-chevron {
@@ -1558,8 +1887,8 @@
 }
 
 .agent-configuration__card-footer {
-  margin-top: 12px;
-  padding-top: 10px;
+  margin: 12px -12px -12px;
+  padding: 14px 12px;
   border-top: 1px solid $palette-neutral-200;
 }
 
@@ -1576,6 +1905,69 @@
   }
 }
 
+.agent-configuration__trigger-data {
+  margin-top: 16px;
+  padding: 16px 0 8px;
+  border-top: 1px solid $palette-neutral-200;
+
+  .agent-configuration__expand-link {
+    color: $palette-neutral-900;
+  }
+}
+
+.agent-configuration__expand-count {
+  margin-left: auto;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.agent-configuration__token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.agent-configuration__token-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 24px;
+}
+
+.agent-configuration__token-description {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.agent-configuration__token {
+  position: relative;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-1200;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 16px;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $palette-neutral-200;
+    text-decoration: none;
+  }
+}
+
+.agent-configuration__payload {
+  @extend %agent-mono-box;
+
+  max-height: 160px;
+}
+
 .agent-configuration__expand-body {
   margin-top: 12px;
 }
@@ -1584,10 +1976,9 @@
 // switch or web search.
 .agent-configuration__switch-card {
   padding: 12px;
-  margin-bottom: 12px;
-  border: 1px solid $palette-neutral-200;
-
-  @include rounded($rounded-lg);
+  margin: 0 -16px 4px;
+  border-top: 1px solid $palette-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
 }
 
 .agent-configuration__switch-row {
@@ -1598,17 +1989,27 @@
   &--nested {
     margin-top: 12px;
     padding: 10px 12px;
-    background-color: $palette-neutral-25;
+    background-color: $palette-neutral-50;
 
-    @include rounded($rounded-lg);
+    @include rounded($rounded-md);
   }
 
   &--plain {
-    padding: 12px 4px;
-    border-bottom: 1px solid $palette-neutral-200;
+    position: relative;
+    padding: 12px 0;
 
-    &:last-child {
-      border-bottom: 0;
+    &::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 28px;
+      height: 1px;
+      background-color: $palette-neutral-200;
+    }
+
+    &:last-child::after {
+      display: none;
     }
   }
 
@@ -1630,7 +2031,7 @@
 
 .agent-configuration__switch-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 20px;
   color: $palette-neutral-1200;
 }
@@ -1638,7 +2039,7 @@
 .agent-configuration__switch-description {
   font-size: 12px;
   line-height: 16px;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
 }
 
 .agent-configuration__segment {
@@ -1663,6 +2064,64 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.agent-configuration__identity-description {
+  @extend %ellipsis;
+
+  color: $palette-neutral-700;
+  font-size: 12px;
+
+  &::before {
+    content: '•';
+    margin-right: 6px;
+  }
+}
+
+.agent-configuration__exceptions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: -12px 0 20px;
+  padding: 0 10px 0 12px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  line-height: 20px;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    background-color: $palette-neutral-25;
+    text-decoration: none;
+  }
+}
+
+.agent-configuration__exceptions-count {
+  flex-shrink: 0;
+  font-weight: 500;
+
+  &::after {
+    content: '•';
+    margin-left: 8px;
+    color: $palette-neutral-500;
+  }
+}
+
+.agent-configuration__exceptions-summary {
+  @extend %ellipsis;
+
+  flex: 1;
+  min-width: 0;
+  color: $palette-neutral-900;
+}
+
+.agent-configuration__exceptions-chevron {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: $palette-neutral-700;
 }
 
 .agent-configuration__identity-name {
@@ -1721,6 +2180,7 @@
   background-color: $palette-neutral-50;
   color: $palette-neutral-1200;
   font-size: 12px;
+  line-height: 18px;
   word-break: break-all;
 }
 
@@ -1741,17 +2201,18 @@
 }
 
 .agent-configuration__placeholder {
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .agent-configuration__paused-hint {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
   font-size: 12px;
-  line-height: 16px;
+  line-height: 18px;
 
   i {
     flex-shrink: 0;
@@ -1795,6 +2256,7 @@
   padding: 16px;
   color: $palette-neutral-700;
   font-size: 13px;
+  line-height: 20px;
   text-align: center;
 }
 
@@ -1867,6 +2329,7 @@
   margin-top: 6px;
   color: $palette-neutral-700;
   font-size: 12px;
+  line-height: 18px;
 }
 
 .agent-tool-permissions__table {
@@ -1913,6 +2376,7 @@
 
 .agent-tool-permissions__row-title {
   font-size: 13px;
+  line-height: 20px;
   font-weight: 500;
   color: $palette-neutral-1200;
 }
@@ -1920,12 +2384,116 @@
 .agent-tool-permissions__row-description {
   margin-top: 2px;
   font-size: 12px;
+  line-height: 18px;
   color: $palette-neutral-700;
 }
 
 .agent-tool-permissions__cell {
   display: flex;
   justify-content: center;
+}
+
+.agent-tool-permissions__table--identities {
+  .agent-tool-permissions__group-title,
+  .agent-tool-permissions__row {
+    grid-template-columns: 1fr 72px 72px 32px;
+  }
+}
+
+.agent-tool-permissions__identity-context {
+  min-width: 320px;
+}
+
+.agent-tool-permissions__identity-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 24px;
+}
+
+.agent-tool-permissions__identity-description {
+  @extend %ellipsis;
+
+  color: $palette-neutral-700;
+  font-size: 12px;
+
+  &::before {
+    content: '•';
+    margin-right: 6px;
+  }
+
+  &--warning {
+    color: $palette-yellow-800;
+  }
+}
+
+.agent-tool-permissions__exceptions {
+  margin-top: 20px;
+}
+
+.agent-tool-permissions__exceptions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.agent-tool-permissions__exceptions-count {
+  color: $palette-neutral-700;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.agent-tool-permissions__exceptions-list {
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-lg);
+}
+
+.agent-tool-permissions__exception {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid $palette-neutral-200;
+
+  &:first-child {
+    border-top: 0;
+  }
+}
+
+.agent-tool-permissions__exception-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-tool-permissions__exception-title {
+  @extend %ellipsis;
+
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.agent-tool-permissions__exception-summary {
+  @extend %ellipsis;
+
+  color: $palette-neutral-700;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.agent-tool-permissions__exceptions-note {
+  margin-top: 8px;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .agent-create__label-row {
@@ -2030,7 +2598,7 @@
 .agent-create__extra-description {
   display: block;
   font-size: 12px;
-  line-height: 16px;
+  line-height: 18px;
   color: $palette-neutral-700;
 }
 
@@ -2045,8 +2613,29 @@
   margin-right: auto;
   color: $palette-neutral-700;
   font-size: 12px;
+  line-height: 18px;
 }
 
 .agent-chat__model-notice {
   margin-bottom: 12px;
+}
+
+// The prototype labels nothing as optional; required fields show an asterisk
+// elsewhere already, so the badge only adds noise in these forms.
+.agent-create,
+.agent-configuration,
+.agent-tool-permissions {
+  .control__required {
+    display: none;
+  }
+}
+
+// The add trigger/action/channel pickers: the context draws the box, like
+// the builder's add-action context, so the menu itself has no border.
+.agent-configuration__add-context {
+  overflow: hidden;
+}
+
+.agent-add-menu {
+  cursor: default;
 }

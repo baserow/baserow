@@ -9,7 +9,7 @@
       :title="$t('agentConfiguration.title')"
       @close="$emit('close')"
     >
-      <div class="agent-configuration__rows">
+      <div class="agent-configuration__rows agent-configuration__rows--root">
         <AgentConfigurationSectionRow
           v-for="row in rows"
           :key="row.key"

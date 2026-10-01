@@ -191,6 +191,7 @@
     <template v-if="canUpdateChannel">
       <Context
         ref="addChannelContext"
+        class="agent-configuration__add-context"
         max-height-if-outside-viewport
         @shown="$refs.addChannelMenu.focus()"
       >
