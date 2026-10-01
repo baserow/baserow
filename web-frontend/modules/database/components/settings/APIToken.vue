@@ -101,7 +101,7 @@
         </div>
         <div class="api-token__details">
           <div class="api-token__group">{{ workspace.name }}</div>
-          <a class="api-token__expand" @click.prevent="open = !open">
+          <a class="api-token__expand" @click.prevent="toggleOpen">
             {{ $t('apiToken.showDatabases') }}
             <i
               :class="{
@@ -127,11 +127,20 @@
         </div>
       </div>
     </div>
-    <div class="api-token__body" :class="{ 'api-token__body--open': open }">
+    <div
+      class="api-token__body"
+      :class="{
+        'api-token__body--open': open,
+        skeleton: permissionsLoading,
+      }"
+      :aria-busy="permissionsLoading ? 'true' : null"
+    >
       <div v-for="database in databases" :key="database.id">
         <div class="api-token__row">
           <div class="api-token__database">
-            {{ database.name }} {{ database.id }}
+            <span v-skeleton="permissionsLoading"
+              >{{ database.name }} {{ database.id }}</span
+            >
           </div>
           <div class="api-token__permissions">
             <div
@@ -139,7 +148,13 @@
               :key="operation"
               class="api-token__permission"
             >
+              <SkeletonBlock
+                v-if="permissionsLoading"
+                width="24px"
+                height="16px"
+              ></SkeletonBlock>
               <SwitchInput
+                v-else
                 :value="isDatabaseActive(database, operation)"
                 small
                 @input="toggleDatabase(database, databases, operation, $event)"
@@ -153,7 +168,9 @@
           class="api-token__row"
         >
           <div class="api-token__table">
-            {{ table.name }} <small>(id: {{ table.id }})</small>
+            <span v-skeleton="permissionsLoading"
+              >{{ table.name }} <small>(id: {{ table.id }})</small></span
+            >
           </div>
           <div class="api-token__permissions">
             <div
@@ -161,8 +178,14 @@
               :key="operation"
               class="api-token__permission"
             >
+              <SkeletonBlock
+                v-if="permissionsLoading"
+                width="16px"
+                height="16px"
+                shape="square"
+              ></SkeletonBlock>
               <Checkbox
-                v-if="
+                v-else-if="
                   $hasPermission(
                     `database.table.${operation}_row`,
                     table,
@@ -200,6 +223,7 @@ export default {
   data() {
     return {
       open: false,
+      permissionsLoading: false,
       deleteLoading: false,
       rotateLoading: false,
       tokenVisible: false,
@@ -234,6 +258,31 @@ export default {
     },
   },
   methods: {
+    async toggleOpen() {
+      this.open = !this.open
+
+      if (
+        !this.open ||
+        this.permissionsLoading ||
+        this.$store.getters['workspace/haveWorkspacePermissionsBeenLoaded'](
+          this.workspace.id
+        )
+      ) {
+        return
+      }
+
+      // The table checkboxes depend on the workspace permissions, which are only
+      // fetched when the workspace is selected.
+      this.permissionsLoading = true
+      try {
+        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+      } catch (error) {
+        this.open = false
+        notifyIf(error, 'workspace')
+      } finally {
+        this.permissionsLoading = false
+      }
+    },
     copyTokenToClipboard() {
       copyToClipboard(this.token.key)
     },

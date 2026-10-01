@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Shows the table checkboxes of an expanded database token before its workspace has been opened",
+    "issue_origin": "github",
+    "issue_number": 2288,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-01"
+}
