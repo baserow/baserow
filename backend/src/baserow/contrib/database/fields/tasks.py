@@ -355,7 +355,12 @@ def update_workspaces_periodic_fields(
     flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
     with connection.execute_wrapper(_statement_deadline(deadline)):
         for index, workspace_id in enumerate(workspace_ids):
-            if not flag.extend_if(run_token):
+            try:
+                lock_held = flag.extend_if(run_token)
+            except SoftTimeLimitExceeded:
+                _warn_out_of_time(batch_index, workspace_id, len(workspace_ids) - index)
+                return
+            if not lock_held:
                 # Warn (not info): this drops the rest of the batch's work for the
                 # cycle, so operators should see it. A newer cycle owns the lock or it
                 # expired.
@@ -377,14 +382,7 @@ def update_workspaces_periodic_fields(
                 # releases the lock. Continuing would run until the hard limit SIGKILLs
                 # the batch, stranding the lock until its TTL. The unprocessed
                 # workspaces keep their stale `now` and are picked up next cycle.
-                logger.warning(
-                    "update_workspaces_periodic_fields batch {batch_index} ran out of "
-                    "time at workspace {workspace_id}; stopping so the lock is "
-                    "released. {skipped} workspace(s) are skipped this cycle.",
-                    batch_index=batch_index,
-                    workspace_id=workspace_id,
-                    skipped=len(workspace_ids) - index,
-                )
+                _warn_out_of_time(batch_index, workspace_id, len(workspace_ids) - index)
                 return
             except Exception:
                 # Keep going so one failing workspace can't fail the whole batch. A
@@ -394,6 +392,17 @@ def update_workspaces_periodic_fields(
                     "Periodic field update failed for workspace {workspace_id}.",
                     workspace_id=workspace_id,
                 )
+
+
+def _warn_out_of_time(batch_index: int, workspace_id: int, skipped: int) -> None:
+    logger.warning(
+        "update_workspaces_periodic_fields batch {batch_index} ran out of time at "
+        "workspace {workspace_id}; stopping so the lock is released. {skipped} "
+        "workspace(s) are skipped this cycle.",
+        batch_index=batch_index,
+        workspace_id=workspace_id,
+        skipped=skipped,
+    )
 
 
 @app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)

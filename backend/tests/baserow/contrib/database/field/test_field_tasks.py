@@ -1454,3 +1454,23 @@ def test_update_workspaces_periodic_fields_continues_after_stricter_timeout_canc
     assert started_workspace_ids == [workspace_1.id, workspace_2.id]
     mock_logger.error.assert_called_once()
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_stops_on_soft_time_limit_in_heartbeat():
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with (
+        patch.object(
+            SingletonAutoRescheduleFlag,
+            "extend_if",
+            side_effect=SoftTimeLimitExceeded(),
+        ),
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
+        ) as inner,
+    ):
+        # Returns instead of raising, so the chord callback still releases the lock.
+        update_workspaces_periodic_fields([1, 2], True, batch_index=0, run_token="held")
+
+    inner.assert_not_called()
