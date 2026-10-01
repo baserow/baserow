@@ -276,7 +276,7 @@ class FormulaTypingVisitor(
             return expression
 
     def _create_lookup_reference(self, target_field, referenced_field, field_reference):
-        from baserow.contrib.database.fields.models import LinkRowField
+        from baserow.contrib.database.fields.models import Field, LinkRowField
         from baserow.contrib.database.fields.registries import field_type_registry
 
         if isinstance(target_field, LinkRowField):
@@ -288,18 +288,29 @@ class FormulaTypingVisitor(
                     "references itself via a link field causing a circular dependency"
                 )
             # If we are looking up a link row field we need to do an
-            # extra relational jump to that primary field.
-            related_primary_field = target_field.link_row_table_primary_field
+            # extra relational jump to that primary field. The primary field cached
+            # on the link field can be outdated while the linked table changes, so
+            # the current one is fetched.
+            related_primary_field = (
+                Field.objects.filter(
+                    table_id=target_field.link_row_table_id, primary=True
+                )
+                .select_related("content_type")
+                .first()
+            )
             if related_primary_field is None:
                 return field_reference.with_invalid_type(
                     "references a deleted or unknown table"
                 )
+            related_primary_field = related_primary_field.specific
             sub_ref = "__" + related_primary_field.db_column
+            formula_type = field_type_registry.get_by_model(
+                related_primary_field
+            ).to_baserow_formula_type(related_primary_field)
         else:
             sub_ref = ""
-
-        lookup_field_type = field_type_registry.get_by_model(target_field)
-        formula_type = lookup_field_type.to_baserow_formula_type(target_field)
+            lookup_field_type = field_type_registry.get_by_model(target_field)
+            formula_type = lookup_field_type.to_baserow_formula_type(target_field)
 
         return BaserowFieldReference(
             referenced_field.db_column,

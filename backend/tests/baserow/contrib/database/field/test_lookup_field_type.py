@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.urls import reverse
 
@@ -2645,3 +2646,44 @@ def test_lookup_of_link_field_follows_change_of_primary_field(data_fixture):
     lookup.refresh_from_db()
     assert f"{to_b.db_column}__{name.db_column}" in lookup.internal_formula
     assert _lookup_values(row_d, lookup) == ["b"]
+
+
+@pytest.mark.django_db
+def test_saving_primary_field_invalidates_linking_tables_once_after_commit(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    table_a = data_fixture.create_database_table(user=user)
+    database = table_a.database
+    table_b = data_fixture.create_database_table(database=database)
+    table_c = data_fixture.create_database_table(database=database)
+    primary = data_fixture.create_text_field(table=table_a, primary=True)
+    for table in (table_b, table_c):
+        data_fixture.create_text_field(table=table, primary=True)
+    handler = FieldHandler()
+    for name in ("first", "second"):
+        handler.create_field(
+            user,
+            table_b,
+            "link_row",
+            name=name,
+            link_row_table=table_a,
+            has_related_field=False,
+        )
+    handler.create_field(user, table_c, "link_row", name="link", link_row_table=table_a)
+
+    with patch(
+        "baserow.contrib.database.fields.models.invalidate_table_in_model_cache"
+    ) as invalidate:
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.update_field(user, primary, name="renamed")
+            invalidated_before_commit = [
+                call.args[0] for call in invalidate.call_args_list
+            ]
+        invalidated_after_commit = [call.args[0] for call in invalidate.call_args_list][
+            len(invalidated_before_commit) :
+        ]
+
+    assert table_b.id not in invalidated_before_commit
+    assert table_c.id not in invalidated_before_commit
+    assert sorted(invalidated_after_commit) == sorted([table_b.id, table_c.id])
