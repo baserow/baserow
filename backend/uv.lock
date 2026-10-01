@@ -503,7 +503,7 @@ dev = [
     { name = "responses", specifier = "==0.25.8" },
     { name = "ruff", specifier = ">=0.16.7" },
     { name = "rust-just", specifier = ">=1.46.0" },
-    { name = "snoop", specifier = "==0.6.0" },
+    { name = "snoop", specifier = "==0.6.1" },
     { name = "syrupy", specifier = "==5.1.0" },
     { name = "watchdog", specifier = "==6.0.0" },
 ]
@@ -3834,7 +3834,7 @@ wheels = [
 
 [[package]]
 name = "snoop"
-version = "0.6.0"
+version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asttokens" },
@@ -3842,9 +3842,9 @@ dependencies = [
     { name = "executing" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/67/70/8479d19ec0441279e773521928ad7cad91901c1a3eaf1fc3a0eb92e3cf6e/snoop-0.6.0.tar.gz", hash = "sha256:c615eddf84d8907f893dec7fde38768aa4b1d88d92d63055b6cfc07e5cde37ec", size = 95968, upload-time = "2024-10-06T20:31:03.935Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/3f/683fbf2f5df753f390c288b911f94f04a31c71030c2a2b6d7337fa60738e/snoop-0.6.1.tar.gz", hash = "sha256:fb2ad19b99c5076889f58f002f22d811841b3066ef65ca2c75579fe100c39bb2", size = 107417, upload-time = "2026-07-18T11:47:47.513Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/93/84a16940c44f6ec62cf334f25aed3128a514dffc361397eee09421a1c7f2/snoop-0.6.0-py3-none-any.whl", hash = "sha256:f5ea9060e65594bf404e6841086b4a964cc27bc30569109c91a470f948b0f729", size = 27461, upload-time = "2024-10-06T20:31:02.199Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/55/294987b73579f9d6b09904c5757782891eb7bbc788d207bb5f2d0fc58f4e/snoop-0.6.1-py3-none-any.whl", hash = "sha256:fa6f3d7b8d01aa7bf09273547eb04b24c2d62e762d52dc43f0c7dc59f34bcc77", size = 29545, upload-time = "2026-07-18T11:47:45.744Z" },
 ]
 
 [[package]]
