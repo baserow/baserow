@@ -372,6 +372,26 @@ def transaction_atomic(
         yield a
 
 
+@contextlib.contextmanager
+def jit_disabled():
+    """
+    Runs the block in a transaction with Postgres JIT compilation turned off. When
+    already in a transaction, JIT stays off until that transaction ends. JIT
+    compiles every expression of a statement before running it. For the large
+    statements that formulas generate this can take minutes, can't be cancelled and
+    saves next to nothing, because those statements only touch a few rows.
+    """
+
+    with contextlib.ExitStack() as stack:
+        # A savepoint would cost two extra queries and isn't needed: the setting
+        # lasts until the transaction ends either way.
+        if not connection.in_atomic_block:
+            stack.enter_context(transaction.atomic())
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL jit = off")
+        yield
+
+
 def get_unique_orders_before_item(
     before: Model,
     queryset: QuerySet,

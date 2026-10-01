@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import TextField
 from django.urls import reverse
 
@@ -885,8 +885,9 @@ def test_row_dependency_update_functions_do_one_row_updates_for_same_table(
     formula_field_type.row_of_dependency_deleted(
         formula_field, row, update_collector, field_cache, [], dependency_context
     )
-    # Does one update to update the last_system_or_user_row_update_on column
-    with django_assert_num_queries(1):
+    # Does one update to update the last_system_or_user_row_update_on column, plus
+    # the query that turns JIT off for it.
+    with django_assert_num_queries(2):
         update_collector.apply_updates_and_get_updated_fields(field_cache)
 
 
@@ -2535,3 +2536,51 @@ def test_periodic_update_does_not_crash_on_outer_if_after_inner_invalidated(
         f"became invalid. formula_type={outer_icon_after.formula_type!r}, "
         f"internal_formula={outer_icon_after.internal_formula!r}"
     )
+
+
+def _turn_jit_on():
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL jit = on")
+
+
+def _jit_per_update(recorded):
+    """Records the jit setting each UPDATE of a user table runs with."""
+
+    def wrapper(execute, sql, params, many, context):
+        if isinstance(sql, str) and sql.startswith('UPDATE "database_table_'):
+            with context["connection"].connection.cursor() as cursor:
+                cursor.execute("SHOW jit")
+                recorded.append((sql, cursor.fetchone()[0]))
+        return execute(sql, params, many, context)
+
+    return wrapper
+
+
+@pytest.mark.django_db
+def test_formula_value_updates_run_without_jit(data_fixture):
+    # JIT compiles the large statements formulas generate for minutes, which also
+    # can't be cancelled, while those statements touch few rows.
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    number = data_fixture.create_number_field(table=table, name="n")
+    row = RowHandler().create_row(user, table, {number.db_column: 1})
+    recorded = []
+
+    with connection.execute_wrapper(_jit_per_update(recorded)):
+        _turn_jit_on()
+        formula = FieldHandler().create_field(
+            user, table, "formula", name="f", formula="field('n') + 1"
+        )
+        _turn_jit_on()
+        formula = FieldHandler().update_field(user, formula, formula="field('n') + 2")
+        _turn_jit_on()
+        RowHandler().update_row_by_id(user, table, row.id, {number.db_column: 5})
+
+    formula_updates = [
+        jit
+        for sql, jit in recorded
+        if f'"{formula.db_column}" =' in sql.split("WHERE")[0]
+    ]
+    # One UPDATE each for the create, the update and the row change.
+    assert len(formula_updates) >= 3
+    assert set(formula_updates) == {"off"}

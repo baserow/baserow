@@ -30,6 +30,7 @@ from baserow.core.db import (
     MultiFieldPrefetchQuerysetMixin,
     QuerySet,
     get_approximate_row_count,
+    jit_disabled,
     parse_int_field_value,
     specific_iterator,
     specific_queryset,
@@ -875,3 +876,34 @@ def test_parse_int_field_value():
         "9" * 400,
     ]:
         assert parse_int_field_value(value) is None, value
+
+
+def _show_jit():
+    with connection.cursor() as cursor:
+        cursor.execute("SHOW jit")
+        return cursor.fetchone()[0]
+
+
+@pytest.mark.django_db
+def test_jit_disabled_keeps_jit_off_until_the_surrounding_transaction_ends():
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL jit = on")
+
+    with jit_disabled():
+        assert _show_jit() == "off"
+
+    assert _show_jit() == "off"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_jit_disabled_outside_a_transaction_only_affects_the_block():
+    with connection.cursor() as cursor:
+        cursor.execute("SET jit = on")
+    try:
+        with jit_disabled():
+            assert _show_jit() == "off"
+
+        assert _show_jit() == "on"
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("RESET jit")

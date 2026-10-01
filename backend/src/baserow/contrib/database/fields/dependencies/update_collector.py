@@ -14,6 +14,7 @@ from baserow.contrib.database.table.constants import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
+from baserow.core.db import jit_disabled
 
 StartingRowIdsType = Optional[List[int]]
 
@@ -551,12 +552,13 @@ class PathBasedUpdateStatementCollector:
 
             # Recalculating a row twice is idempotent, so overlapping filters
             # (e.g. a starting row linking to another starting row) are fine.
-            for qs in querysets:
-                updated_row_ids += (
-                    qs.annotate(**annotations)
-                    .filter(filters)
-                    .update_returning_ids(**self.update_statements)
-                )
+            with jit_disabled():
+                for qs in querysets:
+                    updated_row_ids += (
+                        qs.annotate(**annotations)
+                        .filter(filters)
+                        .update_returning_ids(**self.update_statements)
+                    )
         return updated_row_ids
 
     def _include_rows_connected_to_deleted_m2m_relationships(
