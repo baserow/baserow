@@ -263,6 +263,16 @@ class Field(
 
     def invalidate_table_model_cache(self):
         invalidate_table_in_model_cache(self.table_id)
+        if self.primary:
+            # Tables linking to this one cache a copy of their related primary field.
+            linking_table_ids = (
+                LinkRowField.objects_and_trash.filter(link_row_table_id=self.table_id)
+                .exclude(table_id=self.table_id)
+                .values_list("table_id", flat=True)
+                .distinct()
+            )
+            for table_id in linking_table_ids:
+                invalidate_table_in_model_cache(table_id)
 
     def dependant_fields_with_types(
         self,
