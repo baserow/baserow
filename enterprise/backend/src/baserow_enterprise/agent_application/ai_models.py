@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AGENT_BUILDER
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow_enterprise.assistant.retrying_model import RetryingModel
@@ -61,7 +62,9 @@ def resolve_agent_model(agent: AgentDefinition) -> tuple[RetryingModel, dict[str
 
     settings_override = model_type.get_model_settings_override(model_name, workspace)
 
-    if model_name not in model_type.get_enabled_models(workspace, settings_override):
+    if model_name not in model_type.get_enabled_models(
+        workspace, settings_override, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
+    ):
         raise AgentModelNotConfigured(
             f"The model {model_name} is not enabled for workspace {workspace.id}."
         )

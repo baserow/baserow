@@ -16,7 +16,8 @@ from .classification import is_write_tool
 # Tool groups that only make sense in the interactive assistant.
 EXCLUDED_GROUPS = {"navigation"}
 # Mode switching only exists for the assistant's mode-filtered toolset.
-EXCLUDED_TOOLS = {"switch_mode"}
+# Kuma-only conversation controls; an agent run has no live user to route to.
+EXCLUDED_TOOLS = {"switch_mode", "ask_user"}
 
 ROW_TOOL_LOADER = "load_row_tools"
 SYNTHETIC_ROW_TOOLS = ("create_rows", "update_rows", "delete_rows")

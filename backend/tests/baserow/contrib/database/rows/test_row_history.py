@@ -9,6 +9,7 @@ from freezegun import freeze_time
 
 from baserow.api.sessions import get_untrusted_client_session_id
 from baserow.contrib.database.action.scopes import TableActionScopeType
+from baserow.contrib.database.api.rows.serializers import RowHistorySerializer
 from baserow.contrib.database.fields.registries import FieldType
 from baserow.contrib.database.rows.actions import (
     CreateRowActionType,
@@ -28,6 +29,9 @@ from baserow.contrib.database.rows.registries import (
 from baserow.contrib.database.trash.trash_types import RowTrashableItemType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import ActionType, action_type_registry
+from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.models import Agent
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.actions import RestoreFromTrashActionType
 from baserow.test_utils.helpers import setup_interesting_test_table
 
@@ -61,8 +65,8 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
     assert RowHistory.objects.count() == 2
 
     history_entries = RowHistory.objects.order_by("row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -74,8 +78,8 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row_one.id,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -90,8 +94,8 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row_two.id,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -106,6 +110,65 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
             },
         },
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.row_history
+def test_agent_is_stored_as_typed_row_history_actor(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    field = data_fixture.create_text_field(table=table, name="Name")
+    agent = Agent.objects.create(
+        workspace=database.workspace,
+        name="Row writer",
+        role_uid="ADMIN",
+    )
+    row = RowHandler().force_create_row(user, table, {field.id: "Before"})
+
+    UpdateRowsActionType.do(
+        agent,
+        table,
+        [{"id": row.id, f"field_{field.id}": "After"}],
+    )
+
+    entry = RowHistory.objects.get()
+    assert entry.actor_id == agent.id
+    assert entry.actor_type == AgentSubjectType.type
+    assert entry.actor_name == agent.name
+    assert RowHistorySerializer(entry).data["actor"] == {
+        "id": agent.id,
+        "type": AgentSubjectType.type,
+        "name": agent.name,
+    }
+    assert RowHistorySerializer(entry).data["user"] == {
+        "id": agent.id,
+        "name": agent.name,
+    }
+
+
+@pytest.mark.django_db
+def test_existing_row_history_columns_are_reused_for_user_actors(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    entry = RowHistory.objects.create(
+        actor_id=user.id,
+        actor_name=user.first_name,
+        table=table,
+        row_id=1,
+        field_names=[],
+        fields_metadata={},
+        action_uuid="00000000-0000-0000-0000-000000000000",
+        action_type="update_row",
+        action_timestamp=datetime.now(timezone.utc),
+        before_values={},
+        after_values={},
+    )
+    entry.refresh_from_db()
+
+    assert RowHistory._meta.get_field("actor_id").column == "user_id"
+    assert RowHistory._meta.get_field("actor_name").column == "user_name"
+    assert entry.actor_type == UserSubjectType.type
 
 
 @pytest.mark.django_db
@@ -143,8 +206,8 @@ def test_history_handler_only_save_changed_fields(data_fixture):
     assert RowHistory.objects.count() == 1
 
     history_entries = RowHistory.objects.values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -156,8 +219,8 @@ def test_history_handler_only_save_changed_fields(data_fixture):
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -214,8 +277,8 @@ def test_update_rows_action_doesnt_insert_entries_if_row_doesnt_change(data_fixt
 
     assert RowHistory.objects.count() == 1
     history_entries = RowHistory.objects.order_by("row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -226,8 +289,8 @@ def test_update_rows_action_doesnt_insert_entries_if_row_doesnt_change(data_fixt
     )
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row_one.id,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -255,7 +318,7 @@ def test_row_history_handler_list_history_filters_with_registry(data_fixture):
         type = "row_history_op_stub"
 
         def apply_to_list_queryset(self, queryset, workspace, table_id, row_id):
-            return queryset.filter(user_id__lt=2)
+            return queryset.filter(actor_id__lt=2)
 
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
@@ -274,7 +337,7 @@ def test_row_history_handler_list_history_filters_with_registry(data_fixture):
         "after_values": {},
         "action_timestamp": datetime(2021, 1, 3, 23, 59, tzinfo=timezone.utc),
     }
-    entries = [RowHistory(**common_params, user_id=i) for i in range(0, 10)]
+    entries = [RowHistory(**common_params, actor_id=i) for i in range(0, 10)]
     RowHistory.objects.bulk_create(entries)
     assert (
         len(
@@ -412,8 +475,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
     assert RowHistory.objects.count() == 3
 
     history_entries = RowHistory.objects.order_by("table_id", "row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -426,8 +489,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
 
     expected_entries = [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -447,8 +510,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -465,8 +528,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -500,8 +563,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
     history_entries = RowHistory.objects.order_by(
         "-action_timestamp", "table_id", "row_id"
     ).values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -516,8 +579,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
     last_entries = list(history_entries)[:2]
     expected_entries = [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 30, tzinfo=timezone.utc),
@@ -537,8 +600,8 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 30, tzinfo=timezone.utc),
@@ -590,8 +653,8 @@ def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_
     assert RowHistory.objects.count() == 1
 
     history_entries = RowHistory.objects.values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -604,8 +667,8 @@ def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_
 
     expected_entries = [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -685,8 +748,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
     assert RowHistory.objects.count() == 6
 
     history_entries = RowHistory.objects.order_by("table_id", "row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -724,8 +787,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
 
     expected_entries = [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -756,8 +819,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -788,8 +851,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -806,8 +869,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -824,8 +887,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_c.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -842,8 +905,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_c.id,
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -894,8 +957,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixt
     assert RowHistory.objects.count() == 3
 
     history_entries = RowHistory.objects.order_by("table_id", "row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -907,8 +970,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixt
 
     expected_entries = [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_a.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -927,8 +990,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixt
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 1,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -944,8 +1007,8 @@ def test_update_rows_insert_entries_in_linked_rows_history_with_values(data_fixt
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table_b.id,
             "row_id": 2,
             "action_timestamp": datetime(2021, 1, 1, 12, 0, tzinfo=timezone.utc),
@@ -999,8 +1062,8 @@ def test_create_rows_action_row_history_with_undo_redo(
     assert RowHistory.objects.count() == 1
 
     history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1013,8 +1076,8 @@ def test_create_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_do,
@@ -1041,8 +1104,8 @@ def test_create_rows_action_row_history_with_undo_redo(
         assert undone
 
     history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1055,8 +1118,8 @@ def test_create_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_do,
@@ -1072,8 +1135,8 @@ def test_create_rows_action_row_history_with_undo_redo(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_undo,
@@ -1095,8 +1158,8 @@ def test_create_rows_action_row_history_with_undo_redo(
         assert redone
 
     history_entries = RowHistory.objects.order_by("row_id", "action_timestamp").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1109,8 +1172,8 @@ def test_create_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_do,
@@ -1126,8 +1189,8 @@ def test_create_rows_action_row_history_with_undo_redo(
             },
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_undo,
@@ -1138,8 +1201,8 @@ def test_create_rows_action_row_history_with_undo_redo(
             "fields_metadata": {},
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp_redo,
@@ -1193,8 +1256,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
     assert RowHistory.objects.count() == 1
 
     history_entries = RowHistory.objects.order_by("row_id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1207,8 +1270,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1229,8 +1292,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
         assert undone
 
     history_entries = RowHistory.objects.order_by("row_id", "id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1243,8 +1306,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1255,8 +1318,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "fields_metadata": {},
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1277,8 +1340,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
         assert redone
 
     history_entries = RowHistory.objects.order_by("row_id", "id").values(
-        "user_id",
-        "user_name",
+        "actor_id",
+        "actor_name",
         "table_id",
         "row_id",
         "action_timestamp",
@@ -1291,8 +1354,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
 
     assert list(history_entries) == [
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1303,8 +1366,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "fields_metadata": {},
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1315,8 +1378,8 @@ def test_delete_rows_action_row_history_with_undo_redo(
             "fields_metadata": {},
         },
         {
-            "user_id": user.id,
-            "user_name": user.first_name,
+            "actor_id": user.id,
+            "actor_name": user.first_name,
             "table_id": table.id,
             "row_id": row.id,
             "action_timestamp": freezed_timestamp,
@@ -1429,8 +1492,8 @@ def test_create_rows_action_row_history_with_undo_redo_related_tables(
             RowHistory.objects.filter(**kwargs)
             .order_by("row_id")
             .values(
-                "user_id",
-                "user_name",
+                "actor_id",
+                "actor_name",
                 "table_id",
                 "row_id",
                 "action_timestamp",
@@ -1452,8 +1515,8 @@ def test_create_rows_action_row_history_with_undo_redo_related_tables(
         f["name"]: None if f["type"].type != "password" else False for f in fields
     }
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1494,8 +1557,8 @@ def test_create_rows_action_row_history_with_undo_redo_related_tables(
 
     history = get_row_history_entries(table_id=table.id, row_id=row.id)
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1533,8 +1596,8 @@ def test_create_rows_action_row_history_with_undo_redo_related_tables(
 
     history = get_row_history_entries(table_id=table.id, row_id=row.id)
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1638,8 +1701,8 @@ def test_delete_rows_action_row_history_with_undo_redo_related_tables(
             RowHistory.objects.filter(**kwargs)
             .order_by("row_id")
             .values(
-                "user_id",
-                "user_name",
+                "actor_id",
+                "actor_name",
                 "table_id",
                 "row_id",
                 "action_timestamp",
@@ -1658,8 +1721,8 @@ def test_delete_rows_action_row_history_with_undo_redo_related_tables(
     metadata.pop("id", None)
     # delete actions don't produce values diff
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1700,8 +1763,8 @@ def test_delete_rows_action_row_history_with_undo_redo_related_tables(
 
     history = get_row_history_entries(table_id=table.id, row_id=row.id)
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1739,8 +1802,8 @@ def test_delete_rows_action_row_history_with_undo_redo_related_tables(
 
     history = get_row_history_entries(table_id=table.id, row_id=row.id)
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,
@@ -1836,8 +1899,8 @@ def test_restore_rows_action_with_related_tables(
             RowHistory.objects.filter(**kwargs)
             .order_by("row_id")
             .values(
-                "user_id",
-                "user_name",
+                "actor_id",
+                "actor_name",
                 "table_id",
                 "row_id",
                 "action_timestamp",
@@ -1855,8 +1918,8 @@ def test_restore_rows_action_with_related_tables(
     )
     metadata.pop("id", None)
     expected = {
-        "user_id": user.id,
-        "user_name": user.first_name,
+        "actor_id": user.id,
+        "actor_name": user.first_name,
         "table_id": table.id,
         "row_id": row.id,
         "action_timestamp": freezed_timestamp,

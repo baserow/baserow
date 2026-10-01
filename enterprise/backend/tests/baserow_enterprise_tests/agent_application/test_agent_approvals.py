@@ -83,7 +83,9 @@ class AgentApprovalTestModelType(GenerativeAIModelType):
     def is_enabled(self, workspace=None):
         return True
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self, workspace=None, settings_override=None, feature_type=None, state=None
+    ):
         return ["test-model"]
 
     def get_ai_model(self, model_name, workspace=None, settings_override=None):

@@ -107,6 +107,7 @@ import { defineComponent, ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useI18n } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import ApplicationService from '@baserow/modules/core/services/application'
 import AgentConfigurationSectionRow from '@baserow_enterprise/components/agentApplication/AgentConfigurationSectionRow'
 import { useSeededAgentField } from '@baserow_enterprise/composables/useSeededAgentField'
@@ -145,8 +146,8 @@ export default defineComponent({
     const workspace = computed(() =>
       store.getters['workspace/get'](props.application.workspace.id)
     )
-    const enabledModels = computed(
-      () => workspace.value?.generative_ai_models_enabled || {}
+    const enabledModels = computed(() =>
+      getEnabledModelsForAIProviderFeature(workspace.value, 'agent_builder')
     )
     const aiTypes = computed(() =>
       Object.keys(enabledModels.value)

@@ -120,7 +120,10 @@ import {
   CoreCodeNodeType,
   CoreXLSFileReaderNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
-import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
+import {
+  AgentBuilderAIProviderModelFeatureType,
+  KumaAIProviderModelFeatureType,
+} from '@baserow_enterprise/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -152,6 +155,10 @@ export default defineNuxtPlugin({
     $store.registerModuleNuxtSafe('agentHistory', agentHistoryStore)
 
     $registry.register('application', new AgentApplicationType(context))
+    $registry.register(
+      'aiProviderModelFeature',
+      new AgentBuilderAIProviderModelFeatureType(context)
+    )
 
     $registry.register('admin', new AuthProvidersType(context))
     $registry.unregister(

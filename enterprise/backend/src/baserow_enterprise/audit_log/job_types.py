@@ -23,6 +23,7 @@ from baserow.contrib.database.export.handler import (
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.jobs.registries import JobType
+from baserow.core.registries import subject_type_registry
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import ChildProgressBuilder
 
@@ -32,11 +33,11 @@ from .utils import check_for_license_and_permissions_or_raise
 AUDIT_LOG_CSV_COLUMN_NAMES = OrderedDict(
     {
         "user_email": {
-            "field": "user_email",
+            "field": "actor_name",
             "descr": _("User Email"),
         },
         "user_id": {
-            "field": "user_id",
+            "field": "actor_id",
             "descr": _("User ID"),
         },
         "workspace_name": {
@@ -62,6 +63,18 @@ AUDIT_LOG_CSV_COLUMN_NAMES = OrderedDict(
         "ip_address": {
             "field": "ip_address",
             "descr": _("IP Address"),
+        },
+        "actor_type": {
+            "field": "actor_type",
+            "descr": _("Actor Type"),
+        },
+        "actor_name": {
+            "field": "actor_name",
+            "descr": _("Actor Name"),
+        },
+        "actor_id": {
+            "field": "actor_id",
+            "descr": _("Actor ID"),
         },
     }
 )
@@ -95,7 +108,8 @@ class AuditLogExportJobType(JobType):
         "csv_column_separator",
         "csv_first_row_header",
         "export_charset",
-        "filter_user_id",
+        "filter_actor_id",
+        "filter_actor_type",
         "filter_workspace_id",
         "filter_action_type",
         "filter_from_timestamp",
@@ -128,10 +142,15 @@ class AuditLogExportJobType(JobType):
             default=True,
             help_text="Whether or not to generate a header row at the top of the csv file.",
         ),
-        "filter_user_id": serializers.IntegerField(
+        "filter_actor_id": serializers.IntegerField(
             min_value=0,
             required=False,
-            help_text="Optional: The user to filter the audit log by.",
+            help_text="Optional: The actor to filter the audit log by.",
+        ),
+        "filter_actor_type": serializers.ChoiceField(
+            choices=lazy(subject_type_registry.get_types, list)(),
+            required=False,
+            help_text="Optional: The actor type to filter the audit log by.",
         ),
         "filter_workspace_id": serializers.IntegerField(
             min_value=0,
@@ -160,9 +179,7 @@ class AuditLogExportJobType(JobType):
             ),
         ),
     }
-    request_serializer_field_overrides = {
-        **base_serializer_field_overrides,
-    }
+    request_serializer_field_overrides = base_serializer_field_overrides
     serializer_field_overrides = {
         # Map to the python encoding aliases at the same time by using a
         # DisplayChoiceField
@@ -244,7 +261,6 @@ class AuditLogExportJobType(JobType):
     def get_filtered_queryset(self, job):
         queryset = AuditLogEntry.objects.order_by("-action_timestamp")
         filters_field_mapping: Dict[str, str] = {
-            "filter_user_id": "user_id",
             "filter_workspace_id": "workspace_id",
             "filter_action_type": "action_type",
             "filter_from_timestamp": "action_timestamp__gte",
@@ -254,6 +270,12 @@ class AuditLogExportJobType(JobType):
         for field, qs_filter in filters_field_mapping.items():
             if (value := getattr(job, field)) is not None:
                 queryset = queryset.filter(**{qs_filter: value})
+
+        if job.filter_actor_id is not None:
+            queryset = queryset.filter(
+                actor_type=job.filter_actor_type,
+                actor_id=job.filter_actor_id,
+            )
 
         return queryset
 

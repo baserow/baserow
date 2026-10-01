@@ -1357,6 +1357,31 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
+    # Interactive users can persist undoable actions and emit product analytics;
+    # other subjects (agents, tokens) act through them but never undo.
+    is_interactive_user = False
+
+    def get_display_name(self, subject: Subject) -> str:
+        """Return the snapshot-friendly name used to identify a subject."""
+
+        if self.display_name_field:
+            return str(getattr(subject, self.display_name_field, "") or "")
+        return str(subject)
+
+    def get_type_display_name(self) -> str:
+        """Return the human-readable name of this subject type."""
+
+        return self.type
+
+    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
+        """Return subjects matching the workspace scope, if listable."""
+
+        return None
+
+    def get_label(self, subject: Subject) -> str:
+        """Return the label shown when this subject is presented as an option."""
+
+        return self.get_display_name(subject)
 
     def supports_lookup_field(self, field_name: str) -> bool:
         """Return whether this subject type supports lookup by the given field."""

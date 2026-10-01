@@ -1111,7 +1111,9 @@
   },
   "aiProviderModelFeature": {
     "kuma": "Kuma",
-    "kumaDescription": "Power the Kuma AI assistant."
+    "kumaDescription": "Power the Kuma AI assistant.",
+    "agentBuilder": "Agent builder",
+    "agentBuilderDescription": "Run agent applications. Needs a model that supports tools."
   },
   "agentInstructions": {
     "placeholder": "Tell the agent what it is for and how to behave",

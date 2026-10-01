@@ -8,8 +8,8 @@ class Migration(migrations.Migration):
     dependencies = [
         ("automation", "0035_coregotoactionnode"),
         ("baserow_premium", "0031_ai_field_scheduled_update"),
-        ("core", "0120_agent"),
-        ("database", "0220_rowhistory_actor"),
+        ("core", "0121_agent"),
+        ("database", "0226_rowhistory_actor"),
     ]
 
     operations = [

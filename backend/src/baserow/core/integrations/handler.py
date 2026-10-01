@@ -267,6 +267,7 @@ class IntegrationHandler:
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
+        import_export_config=None,
     ) -> Optional[Integration]:
         """
         Imports a serialized integration into an application.
@@ -312,6 +313,7 @@ class IntegrationHandler:
             application,
             serialized_integration,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

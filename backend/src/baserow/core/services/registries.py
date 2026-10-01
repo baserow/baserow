@@ -482,6 +482,13 @@ class ServiceType(
 
         return False
 
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Hook called immediately before a service executes."""
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -507,6 +514,8 @@ class ServiceType(
             is not None
         ):
             return DispatchResult(**sample_data)
+
+        self.before_dispatch(service, dispatch_context)
 
         # Formula resolution always runs inside this savepoint. `dispatch_data`
         # and `dispatch_transform` run inside it too, unless the service is

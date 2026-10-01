@@ -1,6 +1,9 @@
 import { PremiumPlugin } from '@baserow_premium/plugins'
 import { LocalBaserowRowCommentCreatedTriggerNodeType } from '@baserow_premium/automation/nodeTypes'
-import { LocalBaserowRowCommentCreatedTriggerServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
+import {
+  LocalBaserowRowCommentCreatedTriggerServiceType,
+  LocalBaserowGroupedAggregateRowsServiceType,
+} from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import {
   JSONTableExporter,
   XMLTableExporter,
@@ -67,7 +70,6 @@ import {
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
-import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'

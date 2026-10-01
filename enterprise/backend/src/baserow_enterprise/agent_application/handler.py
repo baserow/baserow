@@ -7,6 +7,7 @@ from django.db.models import QuerySet, Sum
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AGENT_BUILDER
 from baserow.core.models import Agent
 from baserow.core.utils import extract_allowed
 
@@ -111,7 +112,7 @@ class AgentApplicationHandler:
         )
 
         enabled_models = generative_ai_model_type_registry.get_enabled_models_per_type(
-            workspace
+            workspace, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
         )
         return next(
             (
@@ -143,7 +144,7 @@ class AgentApplicationHandler:
         )
         from baserow.core.agents.exceptions import AgentDoesNotExist
         from baserow.core.agents.handler import AgentHandler
-        from baserow.core.agents.registries import agent_extension_registry
+        from baserow.core.agents.registries import agent_extension_type_registry
         from baserow.core.agents.service import AgentService
 
         from .tools.handler import AgentToolHandler
@@ -185,8 +186,8 @@ class AgentApplicationHandler:
         elif setup.get("create_identity"):
             role_uid = (
                 "BUILDER"
-                if agent_extension_registry.role_uid_exists("BUILDER", workspace)
-                else agent_extension_registry.get_default_role_uid(workspace)
+                if agent_extension_type_registry.role_uid_exists("BUILDER", workspace)
+                else agent_extension_type_registry.get_default_role_uid(workspace)
             )
             identity = AgentService().create_agent(
                 user, workspace, name=application.name, role_uid=role_uid

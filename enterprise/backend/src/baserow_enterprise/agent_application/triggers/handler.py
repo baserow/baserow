@@ -5,7 +5,10 @@ from django.db.models import QuerySet
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
+from baserow.contrib.integrations.core.models import (
+    CoreHTTPTriggerService,
+    CoreInboundEmailTriggerService,
+)
 from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -99,10 +102,16 @@ class AgentTriggerHandler:
         switch and the trigger's enabled flag gate the runs), unlike
         automation triggers that only listen once their workflow is
         published. The core webhook endpoint only resolves published HTTP
+        trigger services and the inbound email address only published email
         trigger services, so mark them published right away.
         """
 
-        if isinstance(service, CoreHTTPTriggerService) and not service.is_public:
+        if (
+            isinstance(
+                service, (CoreHTTPTriggerService, CoreInboundEmailTriggerService)
+            )
+            and not service.is_public
+        ):
             service.is_public = True
             service.save(update_fields=["is_public"])
 

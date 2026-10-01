@@ -187,7 +187,6 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
   }
 }
 
-
 export class LocalBaserowRowCommentCreatedTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {

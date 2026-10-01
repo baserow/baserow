@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -276,12 +276,10 @@ def test_send_response_posts_to_slack_thread(channel_setup):
         channel_session_key="C42|111.222",
     )
 
-    request_mock = MagicMock()
-    request_mock.return_value.json.return_value = {"ok": True}
     with patch(
-        "baserow_enterprise.agent_application.channels.slack.get_http_request_function",
-        return_value=request_mock,
-    ):
+        "baserow_enterprise.agent_application.channels.slack.send_http_request"
+    ) as request_mock:
+        request_mock.return_value.json.return_value = {"ok": True}
         SlackAgentChatChannelType().send_response(channel, chat, "The answer")
 
     kwargs = request_mock.call_args.kwargs
@@ -300,18 +298,15 @@ def test_channel_chat_run_posts_answer_back(channel_setup):
 
     user, application, agent, channel = channel_setup
 
-    request_mock = MagicMock()
-    request_mock.return_value.json.return_value = {"ok": True}
     with (
         patch(
-            "baserow_enterprise.agent_application.channels.slack"
-            ".get_http_request_function",
-            return_value=request_mock,
-        ),
+            "baserow_enterprise.agent_application.channels.slack.send_http_request"
+        ) as request_mock,
         patch(
             "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
         ),
     ):
+        request_mock.return_value.json.return_value = {"ok": True}
         process_agent_channel_message(channel.id, "D123|", "Hello agent", "")
 
     chat = AgentChat.objects.get(channel=channel)

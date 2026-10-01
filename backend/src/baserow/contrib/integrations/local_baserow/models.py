@@ -31,6 +31,20 @@ class LocalBaserowIntegration(Integration):
     """
 
     authorized_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    authorized_agent = models.ForeignKey(
+        "core.Agent",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        default=None,
+        db_default=None,
+    )
+
+    @property
+    def authorized_subject(self):
+        """Return the subject whose permissions are used by this integration."""
+
+        return self.authorized_agent or self.authorized_user
 
 
 class LocalBaserowTableService(Service):

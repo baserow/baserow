@@ -5,6 +5,7 @@ from pydantic import Field
 from pydantic_ai import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AGENT_BUILDER
 from baserow.core.exceptions import PermissionException
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -75,7 +76,7 @@ async def list_available_models(
 
     def list_models():
         return generative_ai_model_type_registry.get_enabled_models_per_type(
-            ctx.deps.workspace
+            ctx.deps.workspace, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
         )
 
     return {"models": await sync_to_async(list_models)()}
@@ -100,7 +101,7 @@ async def update_own_model(
 
     def update():
         enabled = generative_ai_model_type_registry.get_enabled_models_per_type(
-            ctx.deps.workspace
+            ctx.deps.workspace, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
         )
         if ai_generative_ai_model not in enabled.get(ai_generative_ai_type, []):
             return {

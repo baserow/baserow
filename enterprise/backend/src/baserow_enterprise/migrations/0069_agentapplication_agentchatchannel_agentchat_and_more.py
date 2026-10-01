@@ -11,8 +11,8 @@ import baserow.core.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0065_auditlogentry_agent"),
-        ("core", "0120_agent"),
+        ("baserow_enterprise", "0068_auditlogentry_agent"),
+        ("core", "0121_agent"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -461,14 +461,18 @@ def test_workspace_listing_annotates_counters_instead_of_querying_per_app(
         chat=chat, tool_call_id="c1", tool_name="create_rows", tool_args={}
     )
 
+    # A mock return value would be serialized endlessly; failing loudly is
+    # what the test wants anyway.
     with (
         patch(
             "baserow_enterprise.agent_application.handler.AgentChatHandler"
-            ".get_last_run_on"
+            ".get_last_run_on",
+            side_effect=AssertionError("per-application fallback used"),
         ) as last_run_on,
         patch(
             "baserow_enterprise.agent_application.handler.AgentChatHandler"
-            ".get_pending_approvals_count"
+            ".get_pending_approvals_count",
+            side_effect=AssertionError("per-application fallback used"),
         ) as pending_count,
     ):
         response = api_client.get(
@@ -482,6 +486,55 @@ def test_workspace_listing_annotates_counters_instead_of_querying_per_app(
     # The per-application fallbacks would be N+1 on the workspace listing.
     last_run_on.assert_not_called()
     pending_count.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_inbound_email_trigger_starts_agent_chat(agent_with_table):
+    from baserow.contrib.integrations.core.inbound_email import (
+        InboundEmail,
+        InboundEmailAddress,
+    )
+    from baserow.core.services.registries import service_type_registry
+
+    user, token, workspace, application, agent, table, field = agent_with_table
+    trigger = AgentTriggerHandler().create_trigger(user, application, "email_trigger")
+    application.active = True
+    application.save()
+
+    # Only published email trigger services receive mail at the bare address.
+    service = trigger.service.specific
+    assert service.is_public is True
+
+    email = InboundEmail(
+        from_=InboundEmailAddress(name="Ada", address="ada@example.com"),
+        to=[InboundEmailAddress(address=service.email_address or "")],
+        rcpt_to=service.email_address or "",
+        subject="New lead",
+        body_text="Please add Globex to the leads.",
+        body_html="",
+        message_id="<1@example.com>",
+        received_at="2026-01-01T10:00:00Z",
+    )
+    with (
+        patch(
+            "baserow_enterprise.agent_application.tasks.run_agent_chat.delay"
+        ) as delay_mock,
+        patch(
+            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+        ),
+    ):
+        # Listeners live on the registered instance, which is what the
+        # inbound email webhook uses.
+        service_type_registry.get("email_trigger").process_inbound_email(
+            service.token, email
+        )
+
+    chat = AgentChat.objects.get(agent=agent)
+    assert chat.trigger_type == "email_trigger"
+    system_message = chat.messages.get(role=AgentChatMessage.Role.SYSTEM)
+    assert "email" in system_message.content
+    assert "Globex" in system_message.content
+    delay_mock.assert_called_once()
 
 
 @pytest.mark.django_db(transaction=True)

@@ -184,6 +184,17 @@ class BaserowEnterpriseConfig(AppConfig):
         if feature_flag_is_enabled(FF_AGENTS):
             application_type_registry.register(AgentApplicationType())
 
+            from baserow.core.ai_provider.registries import (
+                ai_provider_model_feature_type_registry,
+            )
+            from baserow_enterprise.agent_application.ai_provider_feature_types import (
+                AgentBuilderAIProviderModelFeatureType,
+            )
+
+            ai_provider_model_feature_type_registry.register(
+                AgentBuilderAIProviderModelFeatureType()
+            )
+
             from baserow.core.permission_manager import (
                 AllowIfTemplatePermissionManagerType,
             )
@@ -210,6 +221,7 @@ class BaserowEnterpriseConfig(AppConfig):
             from baserow_enterprise.agent_application.triggers.trigger_types import (
                 FieldsUpdatedAgentTriggerType,
                 HttpAgentTriggerType,
+                InboundEmailAgentTriggerType,
                 PeriodicAgentTriggerType,
                 RowCommentCreatedAgentTriggerType,
                 RowsCreatedAgentTriggerType,
@@ -223,6 +235,7 @@ class BaserowEnterpriseConfig(AppConfig):
             agent_trigger_type_registry.register(FieldsUpdatedAgentTriggerType())
             agent_trigger_type_registry.register(PeriodicAgentTriggerType())
             agent_trigger_type_registry.register(HttpAgentTriggerType())
+            agent_trigger_type_registry.register(InboundEmailAgentTriggerType())
             agent_trigger_type_registry.register(RowCommentCreatedAgentTriggerType())
 
             from baserow_enterprise.agent_application.tools.registries import (

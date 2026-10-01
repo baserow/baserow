@@ -533,7 +533,7 @@ class AgentApplicationType(ApplicationType):
             last_run_on=Subquery(last_run),
         )
 
-    def enhance_and_filter_queryset(self, queryset, user, workspace):
+    def enhance_and_filter_queryset_for_workspaces(self, queryset, user, workspaces):
         # The workspace application listing goes through this hook, not
         # `enhance_queryset`; without it every agent application costs two
         # aggregate queries at serialization time.

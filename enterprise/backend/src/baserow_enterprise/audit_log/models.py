@@ -14,6 +14,7 @@ from baserow.core.action.registries import (
 from baserow.core.encoders import JSONEncoderSupportingDataClasses
 from baserow.core.jobs.models import Job
 from baserow.core.mixins import CreatedAndUpdatedOnMixin
+from baserow.core.subjects import UserSubjectType
 
 
 class IgnoreMissingKeyDict(dict):
@@ -31,8 +32,16 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
         UNDO = ActionCommandType.REDO.name, _("UNDONE")
         REDO = ActionCommandType.UNDO.name, _("REDONE")
 
-    user_id = models.PositiveIntegerField(null=True)
-    user_email = models.EmailField(null=True, blank=True)
+    # Reuse the former user columns so existing entries are immediately available
+    # through the actor fields and old application versions remain ZDM-compatible.
+    # This is safe only while actor_type is always used with actor_id (User and Agent
+    # primary keys can overlap), auth.User remains the database default for writes
+    # made by an old version, and actor names fit the existing user_email column.
+    actor_id = models.PositiveIntegerField(db_column="user_id", null=True)
+    actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_name = models.CharField(
+        db_column="user_email", max_length=254, null=True, blank=True
+    )
 
     workspace_id = models.PositiveIntegerField(null=True)
     workspace_name = models.CharField(max_length=165, null=True, blank=True)
@@ -57,6 +66,12 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
     original_action_context_descr = models.TextField(null=True, blank=True)
 
     ip_address = models.GenericIPAddressField(null=True)
+
+    @property
+    def actor_display(self):
+        if not self.actor_id:
+            return ""
+        return f"{self.actor_name} ({self.actor_id})"
 
     @property
     def type(self):
@@ -98,14 +113,14 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
         #
         # A single leading equality column is enough to bound a query that combines
         # several filters: the scan can never be larger than the number of entries
-        # for that user, workspace or action type.
+        # for that actor, workspace or action type.
         indexes = [
             models.Index(
                 fields=["-action_timestamp"],
                 name="auditlogentry_ts_idx",
             ),
             models.Index(
-                fields=["user_id", "-action_timestamp"],
+                fields=["actor_id", "-action_timestamp"],
                 name="auditlogentry_user_ts_idx",
             ),
             models.Index(
@@ -115,6 +130,10 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
             models.Index(
                 fields=["action_type", "-action_timestamp"],
                 name="auditlogentry_type_ts_idx",
+            ),
+            models.Index(
+                fields=["actor_type", "actor_id", "-action_timestamp"],
+                name="baserow_ent_actor_ts_idx",
             ),
         ]
 
@@ -140,9 +159,15 @@ class AuditLogExportJob(Job):
         default=True,
         help_text="Whether or not to generate a header row at the top of the csv file.",
     )
-    filter_user_id = models.PositiveIntegerField(
+    filter_actor_id = models.PositiveIntegerField(
+        db_column="filter_user_id",
         null=True,
-        help_text="Optional: The user to filter the audit log by.",
+        help_text="Optional: The actor to filter the audit log by.",
+    )
+    filter_actor_type = models.CharField(
+        max_length=255,
+        db_default=UserSubjectType.type,
+        help_text="Optional: The actor type to filter the audit log by.",
     )
     filter_workspace_id = models.PositiveIntegerField(
         null=True,

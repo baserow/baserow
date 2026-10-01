@@ -112,6 +112,15 @@ def capture_event_action_done(
     session,
     **kwargs,
 ):
+    from baserow.core.registries import subject_type_registry
+
+    # Agents and other non-interactive subjects have no analytics identity.
+    subject_type = (
+        subject_type_registry.get_by_model(user) if user is not None else None
+    )
+    if subject_type is not None and not subject_type.is_interactive_user:
+        return
+
     # Only capture do commands for now because the undo might make it more difficult
     # to do analytics on the data.
     if (

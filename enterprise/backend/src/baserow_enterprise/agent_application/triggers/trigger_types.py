@@ -59,3 +59,11 @@ class HttpAgentTriggerType(AgentTriggerType):
 
     def get_opening_headline(self, trigger: AgentTrigger) -> str:
         return "Trigger: a webhook request was received."
+
+
+class InboundEmailAgentTriggerType(AgentTriggerType):
+    type = "email_trigger"
+    service_type = "email_trigger"
+
+    def get_opening_headline(self, trigger: AgentTrigger) -> str:
+        return "Trigger: an email was received at the agent's inbound address."

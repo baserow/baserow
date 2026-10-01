@@ -12,7 +12,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from loguru import logger
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.contrib.integrations.utils import send_http_request
 
 from .registries import AgentChatChannelType
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 # Slack rejects requests older than 5 minutes to prevent replay attacks; we
 # mirror that window when verifying inbound events.
 _SIGNATURE_MAX_AGE_SECONDS = 300
+_SLACK_REQUEST_TIMEOUT_SECONDS = 10
 _SLACK_TEXT_LIMIT = 40000
 _MENTION_PATTERN = re.compile(r"<@[A-Z0-9]+>")
 
@@ -189,12 +190,12 @@ class SlackAgentChatChannelType(AgentChatChannelType):
         if thread_ts:
             params["thread_ts"] = thread_ts
 
-        response = get_http_request_function()(
+        response = send_http_request(
             method="POST",
             url="https://slack.com/api/chat.postMessage",
+            deadline=time.monotonic() + _SLACK_REQUEST_TIMEOUT_SECONDS,
             headers={"Authorization": f"Bearer {token}"},
             params=params,
-            timeout=10,
         )
         response_data = response.json()
         if not response_data.get("ok"):
