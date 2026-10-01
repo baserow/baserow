@@ -42,7 +42,7 @@ dependencies = [
     "service-identity==24.2.0",
     "regex==2026.6.28",
     "antlr4-python3-runtime==4.9.3",
-    "tqdm==4.67.1",
+    "tqdm==4.70.1",
     "boto3==1.42.63",
     "django-storages==1.14.6",
     "django-storages[azure]==1.14.6",
