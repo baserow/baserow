@@ -106,7 +106,7 @@
     "markdown-it-task-lists": "^2.1.1",
     "marked": "17.0.6",
     "mitt": "^3.0.1",
-    "moment": "^2.30.1",
+    "moment": "^2.31.0",
     "moment-guess": "^1.2.4",
     "moment-timezone": "0.5.43",
     "normalize.css": "^8.0.1",
