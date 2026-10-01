@@ -3944,10 +3944,10 @@
   resolved "https://registry.yarnpkg.com/@tiptap/extension-code/-/extension-code-3.27.4.tgz#0b019db8855aca88e6c6469ac2888ea4098f5113"
   integrity sha512-aPc7opCR1ylK4m4c2lsjLsGpEBD1fLQQKWd5PbZiJvrTF8gkdGZlYLt9A6VukpxeJyHhb22Jaj4fxgKmGMeTtw==
 
-"@tiptap/extension-document@3.27.4":
-  version "3.27.4"
-  resolved "https://registry.yarnpkg.com/@tiptap/extension-document/-/extension-document-3.27.4.tgz#3c2ccf597e5c1a1f103343bd175bcdf20944ac46"
-  integrity sha512-7nAqgfkgb9HADBeCTnOHuTiyZuxfxvMPT3nH4OZeY+cmtkI1On3QffqlmtcUPvNbkhT3o9ehA1hVfCnQ1Ye4LQ==
+"@tiptap/extension-document@3.31.3":
+  version "3.31.3"
+  resolved "https://registry.yarnpkg.com/@tiptap/extension-document/-/extension-document-3.31.3.tgz#6074ac73ad06b8913e88441ecc7b4c68b64c1eee"
+  integrity sha512-EexgmqnyDNyGlISxo7SMrp5MygpJYmqD+0cY5jB6L1U6L4CpKKRWUt8OO1sWzEHDE1+TTvwt+WIFoIWAziOtEA==
 
 "@tiptap/extension-dropcursor@3.27.4":
   version "3.27.4"
