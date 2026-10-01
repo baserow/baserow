@@ -87,4 +87,57 @@ describe('AgentToolApprovals', () => {
       dontAskAgain: false,
     })
   })
+
+  test('a stored preview renders as fields with a raw data switch', async () => {
+    const wrapper = await mount([
+      approval(1, {
+        tool_name: 'send_intro_email',
+        tool_args: { email: 'darko@superplane.com' },
+        preview: {
+          kind: 'email',
+          to: 'darko@superplane.com',
+          cc: 'bram@baserow.io',
+          subject: 'Interesting company',
+          body: 'Hi Darko',
+        },
+      }),
+    ])
+    expect(wrapper.text()).toContain('agentToolApprovals.emailSummary')
+    await wrapper.find('.agent-tool-approvals__details-toggle').trigger('click')
+
+    expect(wrapper.find('.agent-mail-card').exists()).toBe(true)
+    expect(wrapper.find('.agent-mail-card__body').text()).toBe('Hi Darko')
+    expect(wrapper.find('.agent-tool-approvals__args').exists()).toBe(false)
+
+    await wrapper.findAll('.agent-chat-segment button').at(1).trigger('click')
+    expect(wrapper.find('.agent-mail-card').exists()).toBe(false)
+    expect(wrapper.find('.agent-tool-approvals__args').text()).toContain(
+      'darko@superplane.com'
+    )
+  })
+
+  test('a table preview renders the rows to write', async () => {
+    const wrapper = await mount([
+      approval(1, {
+        preview: {
+          kind: 'table',
+          columns: ['Name', 'Stage'],
+          rows: [
+            ['Acme', 'New'],
+            ['Globex', null],
+          ],
+        },
+      }),
+    ])
+    await wrapper.find('.agent-tool-approvals__details-toggle').trigger('click')
+    const cells = wrapper.findAll('.agent-preview-table__cell')
+    expect(cells.map((cell) => cell.text())).toEqual([
+      'Name',
+      'Stage',
+      'Acme',
+      'New',
+      'Globex',
+      '',
+    ])
+  })
 })

@@ -26,9 +26,16 @@ def base_instructions(ctx: RunContext[AgentRunDeps]) -> str:
 
 @agent_run_agent.instructions
 def user_instructions(ctx: RunContext[AgentRunDeps]) -> str:
+    from .triggers.registries import substitute_trigger_tokens
+
     instructions = ctx.deps.agent.instructions.strip()
     if not instructions:
         return ""
+    chat = ctx.deps.chat
+    if chat is not None and chat.trigger_type:
+        instructions = substitute_trigger_tokens(
+            instructions, chat.trigger_type, chat.event_payload
+        )
     return AGENT_INSTRUCTIONS_PROMPT.format(instructions=instructions)
 
 

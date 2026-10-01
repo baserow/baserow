@@ -13,8 +13,10 @@ from baserow_enterprise.assistant.tools.registries import assistant_tool_registr
 
 from .classification import is_write_tool
 
-# Tool groups that only make sense in the interactive assistant.
-EXCLUDED_GROUPS = {"navigation"}
+# Tool groups that only make sense in the interactive assistant: navigating
+# the UI, and authoring Application Builder pages, which is design work the
+# user wants to watch in the editor rather than approve from a background run.
+EXCLUDED_GROUPS = {"navigation", "builder"}
 # Mode switching only exists for the assistant's mode-filtered toolset.
 # Kuma-only conversation controls; an agent run has no live user to route to.
 EXCLUDED_TOOLS = {"switch_mode", "ask_user"}
@@ -31,7 +33,6 @@ GROUP_LABELS = {
     "core": "Workspace",
     "database": "Databases",
     "automation": "Automations",
-    "builder": "Applications",
     "search_user_docs": "Search",
 }
 
@@ -71,48 +72,6 @@ TOOL_METADATA: dict[str, tuple[str, str]] = {
     "add_nodes": ("Add steps", "Add triggers or actions to a workflow"),
     "update_nodes": ("Edit steps", "Change the settings of a step"),
     "delete_nodes": ("Delete steps", "Remove steps from a workflow"),
-    # builder
-    "list_pages": ("List pages", "See the pages of an application"),
-    "create_pages": ("Create pages", "Add pages to an application"),
-    "update_page": ("Edit pages", "Rename pages or change their path"),
-    "list_data_sources": ("List data sources", "Data connected to a page"),
-    "create_data_sources": ("Add data sources", "Connect tables to a page"),
-    "update_data_source": ("Edit data sources", "Change what a data source loads"),
-    "list_elements": ("Read page elements", "Elements and their settings"),
-    "create_display_elements": (
-        "Add display elements",
-        "Headings, text, buttons, links and images",
-    ),
-    "create_layout_elements": (
-        "Add layout elements",
-        "Columns, containers, headers, footers and menus",
-    ),
-    "create_form_elements": ("Add form elements", "Forms and their input fields"),
-    "create_collection_elements": (
-        "Add collection elements",
-        "Tables and repeat elements",
-    ),
-    "update_element": ("Edit elements", "Change content or settings"),
-    "update_element_style": (
-        "Style elements",
-        "Change spacing, colors and theme overrides",
-    ),
-    "move_elements": ("Move elements", "Reorder elements on a page"),
-    "list_actions": ("List actions", "See the workflow actions on a page"),
-    "create_actions": ("Add actions", "Attach actions to buttons and forms"),
-    "add_action_field_mapping": (
-        "Map action fields",
-        "Connect form values to row fields",
-    ),
-    "setup_page": (
-        "Set up pages",
-        "Create data sources, elements and actions in one go",
-    ),
-    "setup_user_source": (
-        "Set up user sources",
-        "Let the application have logged-in users",
-    ),
-    "set_theme": ("Change the theme", "Update colors and fonts of an application"),
     # docs
     "search_user_docs": ("Search Baserow docs", "Look up feature guides"),
 }

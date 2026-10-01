@@ -13,6 +13,17 @@ export function humanizeToolName(name) {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/**
+ * The runtime tool name of an action/MCP tool: what the backend derives from
+ * the configured name.
+ */
+export function slugifyToolName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
 function eventKey(event, index, prefix) {
   return event.id !== undefined ? `${prefix}-${event.id}` : `${prefix}-${index}`
 }
@@ -33,18 +44,29 @@ export function groupChatEvents(events, { running = false, chatSource } = {}) {
     if (group === null) {
       return
     }
-    // Reasoning after the last tool call belongs to the answer, not the
-    // group.
-    while (group.steps.length > 0 && group.steps.at(-1).kind !== 'tool') {
+    // Finished reasoning after the last tool call belongs to the answer, not
+    // the group; reasoning that is still streaming stays inside it so the
+    // group shows what the agent is working on right now.
+    const trailing = []
+    while (
+      group.steps.length > 0 &&
+      group.steps.at(-1).kind !== 'tool' &&
+      !group.steps.at(-1).live
+    ) {
       const step = group.steps.pop()
-      blocks.push({ type: 'reasoning', key: step.key, event: step.event })
+      trailing.unshift({
+        type: 'reasoning',
+        key: step.key,
+        event: step.event,
+        live: false,
+      })
     }
     group.toolCount = group.steps.filter((step) => step.kind === 'tool').length
     group.live = false
     group.hasError = group.steps.some(
       (step) => step.kind === 'tool' && step.event.result?.status === 'error'
     )
-    blocks.push(group)
+    blocks.push(group, ...trailing)
     group = null
   }
 
@@ -67,11 +89,22 @@ export function groupChatEvents(events, { running = false, chatSource } = {}) {
     }
     if (event.type === 'ai/reasoning') {
       const key = eventKey(event, index, 'reasoning')
-      if (group !== null && !isLive) {
+      if (isLive) {
+        // Streaming reasoning is the current activity: it joins the open
+        // group, or opens one when the agent is thinking before its first
+        // tool call.
+        if (group === null) {
+          group = {
+            type: 'tool_group',
+            key: eventKey(event, index, 'tools'),
+            steps: [],
+          }
+        }
+        group.steps.push({ kind: 'reasoning', key, event, live: true })
+      } else if (group !== null) {
         group.steps.push({ kind: 'reasoning', key, event })
       } else {
-        closeGroup()
-        blocks.push({ type: 'reasoning', key, event, live: isLive })
+        blocks.push({ type: 'reasoning', key, event, live: false })
       }
       return
     }
@@ -110,15 +143,8 @@ export function groupChatEvents(events, { running = false, chatSource } = {}) {
   // between two calls when no call is pending.
   if (running) {
     const last = blocks.at(-1)
-    const beforeLast = blocks.at(-2)
     if (last?.type === 'tool_group') {
       last.live = true
-    } else if (
-      last?.type === 'reasoning' &&
-      last.live &&
-      beforeLast?.type === 'tool_group'
-    ) {
-      beforeLast.live = true
     }
   }
   return blocks

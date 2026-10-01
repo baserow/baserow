@@ -89,7 +89,7 @@
       <div>
         <h2 class="box__title">{{ $t('agentSettings.deleteTitle') }}</h2>
         <p>{{ $t('agentSettings.deleteText', { name: application.name }) }}</p>
-        <div class="actions actions--right actions--gap">
+        <div class="actions actions--right actions--gap margin-bottom-0">
           <Button type="secondary" @click="$refs.deleteModal.hide()">
             {{ $t('agentSettings.cancel') }}
           </Button>

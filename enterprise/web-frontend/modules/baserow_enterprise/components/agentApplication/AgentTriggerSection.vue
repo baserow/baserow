@@ -67,6 +67,60 @@
         <div class="agent-configuration__hint">
           {{ $t('agentTrigger.hint') }}
         </div>
+        <Expandable
+          v-if="(trigger.tokens || []).length > 0"
+          class="agent-configuration__trigger-data"
+        >
+          <template #header="{ toggle, expanded }">
+            <a class="agent-configuration__expand-link" @click.prevent="toggle">
+              <span>{{ $t('agentTrigger.dataItProvides') }}</span>
+              <span class="agent-configuration__expand-count">
+                {{
+                  $t('agentTrigger.valuesCount', {
+                    count: trigger.tokens.length,
+                  })
+                }}
+              </span>
+              <i
+                class="agent-configuration__card-chevron iconoir-nav-arrow-down"
+                :class="{
+                  'agent-configuration__card-chevron--expanded': expanded,
+                }"
+              ></i>
+            </a>
+          </template>
+          <div class="agent-configuration__expand-body">
+            <div class="agent-configuration__token-list">
+              <div
+                v-for="token in trigger.tokens"
+                :key="token.token"
+                class="agent-configuration__token-row"
+              >
+                <span class="agent-configuration__token-description">
+                  {{ token.description }}
+                </span>
+                <a
+                  class="agent-configuration__token"
+                  :title="$t('agentTrigger.copyToken')"
+                  @click.prevent="copyToken(trigger, token)"
+                >
+                  <code>{{ token.token }}</code>
+                  <Copied :ref="`copied-${trigger.id}-${token.token}`"></Copied>
+                </a>
+              </div>
+            </div>
+            <FormGroup
+              v-if="trigger.sample_payload"
+              small-label
+              :label="$t('agentTrigger.examplePayload')"
+              :helper-text="$t('agentTrigger.examplePayloadHelper')"
+            >
+              <pre class="agent-configuration__payload">{{
+                formatPayload(trigger.sample_payload)
+              }}</pre>
+            </FormGroup>
+          </div>
+        </Expandable>
         <template v-if="!readOnly" #footer>
           <ButtonText
             icon="iconoir-bin"
@@ -81,6 +135,7 @@
     <Context
       v-if="!readOnly"
       ref="addTriggerContext"
+      class="agent-configuration__add-context"
       max-height-if-outside-viewport
       @shown="$refs.addTriggerMenu.focus()"
     >
@@ -104,6 +159,8 @@ import AgentServiceForm from '@baserow_enterprise/components/agentApplication/Ag
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
 import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { formatToolPayload } from '@baserow_enterprise/utils/agentChatEvents'
 
 export default {
   name: 'AgentTriggerSection',
@@ -200,6 +257,13 @@ export default {
     },
     triggerNodeTypeName(trigger) {
       return this.triggerNodeType(trigger)?.name || trigger.service_type
+    },
+    formatPayload(payload) {
+      return formatToolPayload(payload)
+    },
+    copyToken(trigger, token) {
+      copyToClipboard(token.token)
+      this.$refs[`copied-${trigger.id}-${token.token}`]?.[0]?.show()
     },
     async addTrigger(nodeType) {
       this.$refs.addTriggerContext.hide()

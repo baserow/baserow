@@ -122,6 +122,7 @@
             <div class="agent-configuration__hint">
               {{ $t('agentChannels.activeHint') }}
             </div>
+            <AgentSlackSetupSteps v-if="channel.type === 'slack'" created />
           </ReadOnlyForm>
         </template>
         <template v-if="canUpdateChannel" #footer>
@@ -171,6 +172,7 @@
             :placeholder="$t('agentChannels.signingSecretPlaceholder')"
           ></FormInput>
         </FormGroup>
+        <AgentSlackSetupSteps v-if="draft.type === 'slack'" />
         <div class="agent-configuration__channel-draft-actions">
           <Button
             type="primary"
@@ -191,6 +193,7 @@
     <template v-if="canUpdateChannel">
       <Context
         ref="addChannelContext"
+        class="agent-configuration__add-context"
         max-height-if-outside-viewport
         @shown="$refs.addChannelMenu.focus()"
       >
@@ -212,13 +215,19 @@ import debounce from 'lodash/debounce'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
 import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
+import AgentSlackSetupSteps from '@baserow_enterprise/components/agentApplication/AgentSlackSetupSteps'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import slackImage from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
 export default {
   name: 'AgentChatChannelsSection',
-  components: { AgentConfigurationCard, AgentGroupedAddMenu, ReadOnlyForm },
+  components: {
+    AgentConfigurationCard,
+    AgentGroupedAddMenu,
+    AgentSlackSetupSteps,
+    ReadOnlyForm,
+  },
   props: {
     application: {
       type: Object,

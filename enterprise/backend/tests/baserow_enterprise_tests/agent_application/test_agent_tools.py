@@ -218,6 +218,7 @@ def test_service_tool_dispatches_service(data_fixture, workspace_tool_setup):
     class FakeCtx:
         class deps:
             chat = None
+            user = None
 
             class tool_helpers:
                 @staticmethod

@@ -412,7 +412,8 @@ def test_run_once_starts_triggered_chat(api_client, data_fixture, agent_with_tab
     assert chat.source == AgentChat.Source.TRIGGER
     assert chat.trigger_type == "periodic"
     assert chat.user_id == user.id
-    assert chat.event_payload is None
+    # "Run once" hands the agent the trigger's example payload.
+    assert "triggered_at" in chat.event_payload
     system_message = chat.messages.get(role=AgentChatMessage.Role.SYSTEM)
     assert "scheduled periodic run" in system_message.content
     delay_mock.assert_called_once()

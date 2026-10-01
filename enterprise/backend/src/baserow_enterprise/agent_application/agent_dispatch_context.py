@@ -13,16 +13,24 @@ class AgentDispatchContext(DispatchContext):
     formulas via the agent data providers.
     """
 
-    own_properties = ["chat", "runtime_inputs", "event_payload"]
+    own_properties = [
+        "chat",
+        "runtime_inputs",
+        "event_payload",
+        "actor_overrides_integration",
+    ]
 
     def __init__(
         self,
         chat: Optional["AgentChat"] = None,
         runtime_inputs: Optional[dict] = None,
+        actor_overrides_integration: bool = False,
         **kwargs,
     ):
         self.chat = chat
         self.runtime_inputs = runtime_inputs or {}
+        # Per-tool identities: the actor wins over the integration's subject.
+        self.actor_overrides_integration = actor_overrides_integration
         if "event_payload" not in kwargs and chat is not None:
             kwargs["event_payload"] = chat.event_payload
         super().__init__(**kwargs)

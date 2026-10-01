@@ -75,7 +75,12 @@ def build_service_tool(tool: "AgentTool", deps: "AgentRunDeps") -> Tool:
     async def run_service_tool(ctx: RunContext["AgentRunDeps"], **kwargs):
         ctx.deps.tool_helpers.raise_if_cancelled()
         dispatch_context = AgentDispatchContext(
-            chat=ctx.deps.chat, runtime_inputs=kwargs
+            chat=ctx.deps.chat,
+            runtime_inputs=kwargs,
+            # A tool with its own identity acts as that workspace agent even
+            # though the service's integration names the application's.
+            actor=tool.identity or ctx.deps.user,
+            actor_overrides_integration=tool.identity is not None,
         )
 
         def dispatch():

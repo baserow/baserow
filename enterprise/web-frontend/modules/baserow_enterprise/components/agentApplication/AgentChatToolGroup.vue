@@ -20,7 +20,7 @@
       <span class="agent-chat-tool-group__title">
         {{ block.live ? $t('agentChat.workingOn') : $t('agentChat.workedOn') }}
       </span>
-      <span class="agent-chat-tool-group__count">
+      <span v-if="block.toolCount > 0" class="agent-chat-tool-group__count">
         · {{ $t('agentChat.steps', { count: block.toolCount }) }}
       </span>
       <i
@@ -48,7 +48,7 @@
               <i v-else :class="stepIcon(step.event)"></i>
             </span>
             <span class="agent-chat-tool-group__step-label">
-              {{ toolLabel(step.event.tool_name) }}
+              {{ stepLabel(step.event) }}
             </span>
             <code class="agent-chat-tool-group__step-id">{{
               step.event.tool_name
@@ -70,6 +70,12 @@
             class="agent-chat-tool-group__step-summary"
           >
             {{ summary(step.event) }}
+          </div>
+          <div
+            v-if="errorMessage(step.event)"
+            class="agent-chat-tool-group__step-error"
+          >
+            {{ errorMessage(step.event) }}
           </div>
           <pre
             v-if="expandedResults[step.key] && step.event.result"
@@ -93,25 +99,81 @@
             </Button>
           </div>
         </template>
-        <AgentChatReasoning v-else :event="step.event" />
+        <template v-else>
+          <div
+            class="agent-chat-tool-group__step-row agent-chat-tool-group__step-row--muted"
+          >
+            <span
+              class="agent-chat-tool-group__step-status agent-chat-tool-group__step-status--muted"
+            >
+              <span
+                v-if="step.live"
+                class="agent-chat-tool-group__spinner"
+              ></span>
+              <i v-else class="iconoir-light-bulb"></i>
+            </span>
+            <span class="agent-chat-tool-group__step-label">
+              {{
+                step.live ? $t('agentChat.thinking') : $t('agentChat.reasoning')
+              }}
+            </span>
+            <a
+              v-if="!step.live"
+              class="agent-chat-tool-group__step-toggle"
+              @click.prevent="toggleResult(step.key)"
+            >
+              {{
+                expandedResults[step.key]
+                  ? $t('agentChat.hideReasoning')
+                  : $t('agentChat.showReasoning')
+              }}
+            </a>
+          </div>
+          <!-- eslint-disable vue/no-v-html -->
+          <div
+            class="agent-chat-tool-group__step-reasoning"
+            :class="{
+              'agent-chat-tool-group__step-reasoning--clamped':
+                !expandedResults[step.key],
+            }"
+            v-html="renderMarkdown(step.event.content)"
+          ></div>
+          <!-- eslint-enable vue/no-v-html -->
+        </template>
+      </div>
+      <div
+        v-if="block.live && !hasLiveStep"
+        class="agent-chat-tool-group__step agent-chat-tool-group__step--status"
+      >
+        <div
+          class="agent-chat-tool-group__step-row agent-chat-tool-group__step-row--muted"
+        >
+          <span
+            class="agent-chat-tool-group__step-status agent-chat-tool-group__step-status--muted"
+          >
+            <span class="agent-chat-tool-group__spinner"></span>
+          </span>
+          <span class="agent-chat-tool-group__step-label">
+            {{ runningMessage || $t('agentChat.thinking') }}
+          </span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { defineComponent, ref, reactive, watch } from 'vue'
+import { defineComponent, ref, reactive, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   formatToolPayload,
   summarizeToolArgs,
 } from '@baserow_enterprise/utils/agentChatEvents'
 import { getToolActions } from '@baserow_enterprise/utils/agentToolActions'
-import AgentChatReasoning from '@baserow_enterprise/components/agentApplication/AgentChatReasoning'
+import { renderMarkdown } from '@baserow_enterprise/utils/agentMarkdown'
 
 export default defineComponent({
   name: 'AgentChatToolGroup',
-  components: { AgentChatReasoning },
   props: {
     block: {
       type: Object,
@@ -125,6 +187,13 @@ export default defineComponent({
       type: Array,
       required: false,
       default: () => [],
+    },
+    // The ephemeral status the run reports (e.g. "Creating table…"), shown
+    // as the current activity when no step is pending.
+    runningMessage: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   setup(props) {
@@ -163,9 +232,48 @@ export default defineComponent({
         ? 'agent-chat-tool-group__step-status--error'
         : 'agent-chat-tool-group__step-status--ok'
     }
-    // The model's `thought` argument explains the step in plain words.
-    const summary = (event) =>
-      typeof event.args?.thought === 'string' ? event.args.thought.trim() : ''
+    // Provider-native web search has no catalog entry and reads better as
+    // an activity than as a tool name.
+    const isWebSearch = (event) => event.tool_name === 'web_search'
+    const stepLabel = (event) => {
+      if (isWebSearch(event)) {
+        return event.result
+          ? t('agentChat.searchedWeb')
+          : t('agentChat.searchingWeb')
+      }
+      return props.toolLabel(event.tool_name)
+    }
+    // The current activity is a pending tool call or streaming reasoning;
+    // without one the run is between steps and only its status is known.
+    const hasLiveStep = computed(() =>
+      props.block.steps.some(
+        (step) =>
+          (step.kind === 'tool' && !step.event.result) ||
+          (step.kind === 'reasoning' && step.live)
+      )
+    )
+    // The model's `thought` argument explains the step in plain words; a
+    // web search is described by its query.
+    const summary = (event) => {
+      if (isWebSearch(event) && typeof event.args?.query === 'string') {
+        return event.args.query
+      }
+      return typeof event.args?.thought === 'string'
+        ? event.args.thought.trim()
+        : ''
+    }
+    // A failed step shows why inline; the raw payload stays behind the
+    // result toggle.
+    const errorMessage = (event) => {
+      if (event.result?.status !== 'error') {
+        return ''
+      }
+      const content = event.result.content
+      if (typeof content === 'string') {
+        return content
+      }
+      return typeof content?.error === 'string' ? content.error : ''
+    }
     const actions = (event) =>
       getToolActions({
         toolName: event.tool_name,
@@ -176,6 +284,10 @@ export default defineComponent({
       })
     return {
       summary,
+      errorMessage,
+      stepLabel,
+      hasLiveStep,
+      renderMarkdown,
       actions,
       expanded,
       toggle,

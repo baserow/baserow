@@ -96,6 +96,14 @@ class CreateAgentToolSerializer(serializers.Serializer):
 
 
 class UpdateAgentToolSerializer(serializers.Serializer):
+    identity_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "The workspace agent this tool acts as, or null for the application's "
+            "identity."
+        ),
+    )
     name = serializers.CharField(required=False, allow_blank=True, max_length=160)
     config = serializers.DictField(required=False)
     service = serializers.DictField(required=False)
@@ -164,6 +172,7 @@ class AgentChatToolApprovalSerializer(serializers.ModelSerializer):
             "tool_call_id",
             "tool_name",
             "tool_args",
+            "preview",
             "status",
             "reason",
             "decided_by_id",

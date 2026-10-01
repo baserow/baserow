@@ -67,6 +67,21 @@
       </template>
       <template v-else>{{ $t('agentAccess.noIdentityHint') }}</template>
     </div>
+    <a
+      v-if="exceptions.length > 0"
+      class="agent-configuration__exceptions-row"
+      @click.prevent="openPermissions()"
+    >
+      <span class="agent-configuration__exceptions-count">
+        {{ $t('agentAccess.exceptionsCount', { count: exceptions.length }) }}
+      </span>
+      <span class="agent-configuration__exceptions-summary">
+        {{ exceptionsSummary }}
+      </span>
+      <i
+        class="iconoir-nav-arrow-right agent-configuration__exceptions-chevron"
+      ></i>
+    </a>
 
     <div class="agent-configuration__switch-card">
       <div class="agent-configuration__switch-row">
@@ -180,6 +195,7 @@ import ManageAgentModal from '@baserow/modules/core/components/settings/agents/M
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentConfigurationSectionRow from '@baserow_enterprise/components/agentApplication/AgentConfigurationSectionRow'
 import AgentToolPermissionsModal from '@baserow_enterprise/components/agentApplication/AgentToolPermissionsModal'
+import { listToolIdentityExceptions } from '@baserow_enterprise/utils/agentToolIdentities'
 import {
   normalizeWorkspaceConfig,
   effectiveRules,
@@ -196,7 +212,6 @@ const ACCESS_ORDER = [ACCESS_EVERYTHING, ACCESS_READ_ONLY, ACCESS_CUSTOM]
 const GROUP_ICONS = {
   database: 'iconoir-db',
   automation: 'baserow-icon-automation',
-  builder: 'iconoir-app-window',
   core: 'iconoir-settings',
   search_user_docs: 'iconoir-search',
 }
@@ -301,6 +316,26 @@ export default {
     },
     config() {
       return normalizeWorkspaceConfig(this.workspaceTool?.config)
+    },
+    exceptions() {
+      return listToolIdentityExceptions({
+        workspaceTool: this.workspaceTool,
+        actionTools: this.tools.filter((tool) =>
+          ['service', 'mcp'].includes(tool.type)
+        ),
+        catalog: this.catalog,
+        identities: this.identities,
+      })
+    },
+    exceptionsSummary() {
+      return this.exceptions
+        .map((exception) =>
+          this.$t('agentAccess.exceptionItem', {
+            tool: exception.label,
+            name: exception.identity.name,
+          })
+        )
+        .join(' · ')
     },
     accessSegments() {
       return [

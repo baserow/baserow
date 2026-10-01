@@ -13,7 +13,7 @@
           @keydown.enter="confirm"
         ></FormInput>
       </FormGroup>
-      <div class="actions actions--right actions--gap">
+      <div class="actions actions--right actions--gap margin-bottom-0">
         <Button type="secondary" @click="hide()">
           {{ $t('agentToolApprovals.cancel') }}
         </Button>

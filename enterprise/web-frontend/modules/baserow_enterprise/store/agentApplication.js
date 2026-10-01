@@ -1,5 +1,8 @@
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
-import { humanizeToolName } from '@baserow_enterprise/utils/agentChatEvents'
+import {
+  humanizeToolName,
+  slugifyToolName,
+} from '@baserow_enterprise/utils/agentChatEvents'
 
 // The current values of the keys about to be overwritten, to restore them
 // when an optimistic update fails.
@@ -363,13 +366,6 @@ export const getters = {
     }
     return humanizeToolName(name)
   },
-}
-
-function slugifyToolName(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '')
 }
 
 export default {

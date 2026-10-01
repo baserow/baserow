@@ -41,6 +41,7 @@
           <ReadOnlyForm :read-only="!canUpdateTool">
             <FormGroup
               small-label
+              horizontal
               :label="$t('agentActionTools.nameLabel')"
               :helper-text="
                 tool.type === 'mcp'
@@ -198,6 +199,7 @@
             </template>
             <FormGroup
               small-label
+              horizontal
               :label="$t('agentActionTools.beforeRunning')"
               class="margin-bottom-2"
             >
@@ -208,6 +210,74 @@
                   onRequireApprovalChanged(tool, $event === 0)
                 "
               ></SegmentControl>
+            </FormGroup>
+            <FormGroup
+              v-if="tool.type === 'service' && identities.length > 0"
+              small-label
+              horizontal
+              :label="$t('agentActionTools.runsAs')"
+              class="margin-bottom-2"
+            >
+              <Dropdown
+                :model-value="tool.identity_id || null"
+                :show-search="false"
+                :fixed-items="true"
+                :disabled="
+                  !canUpdateTool || savingIdentityIds.includes(tool.id)
+                "
+                @update:model-value="onIdentityChanged(tool, $event)"
+              >
+                <DropdownItem
+                  :name="
+                    agentIdentity
+                      ? agentIdentity.name
+                      : $t('agentActionTools.noIdentity')
+                  "
+                  :value="null"
+                >
+                  <span class="agent-configuration__identity-option">
+                    <Avatar
+                      v-if="agentIdentity"
+                      :initials="agentIdentity.name.slice(0, 1).toUpperCase()"
+                      color="purple"
+                      size="small"
+                      rounded
+                    />
+                    <i v-else class="iconoir-prohibition"></i>
+                    <span class="agent-configuration__identity-name">
+                      {{
+                        agentIdentity
+                          ? agentIdentity.name
+                          : $t('agentActionTools.noIdentity')
+                      }}
+                    </span>
+                    <span class="agent-configuration__identity-description">
+                      {{ $t('agentActionTools.agentsIdentity') }}
+                    </span>
+                  </span>
+                </DropdownItem>
+                <DropdownItem
+                  v-for="identity in otherIdentities"
+                  :key="identity.id"
+                  :name="identity.name"
+                  :value="identity.id"
+                >
+                  <span class="agent-configuration__identity-option">
+                    <Avatar
+                      :initials="identity.name.slice(0, 1).toUpperCase()"
+                      color="green"
+                      size="small"
+                      rounded
+                    />
+                    <span class="agent-configuration__identity-name">{{
+                      identity.name
+                    }}</span>
+                    <span class="agent-configuration__identity-description">
+                      {{ roleName(identity) }}
+                    </span>
+                  </span>
+                </DropdownItem>
+              </Dropdown>
             </FormGroup>
             <Expandable v-if="serviceType(tool)" class="margin-bottom-2">
               <template #header="{ toggle, expanded }">
@@ -255,6 +325,7 @@
     <template v-if="canCreateTool">
       <Context
         ref="addToolContext"
+        class="agent-configuration__add-context"
         max-height-if-outside-viewport
         @shown="$refs.addToolMenu.focus()"
       >
@@ -319,6 +390,7 @@ export default {
       toolDrafts: {},
       // Unsaved values per tool id, flushed by a per-tool debounced save.
       pendingToolValues: {},
+      savingIdentityIds: [],
       inputTypes: INPUT_TYPES,
     }
   },
@@ -349,6 +421,24 @@ export default {
     },
     actionTools() {
       return this.tools.filter((tool) => ['service', 'mcp'].includes(tool.type))
+    },
+    workspace() {
+      return this.$store.getters['workspace/get'](this.application.workspace.id)
+    },
+    identities() {
+      return this.$store.getters['agent/getAllInWorkspace'](
+        this.application.workspace.id
+      )
+    },
+    agentIdentity() {
+      return this.$store.getters['agent/get'](
+        this.application.agent_identity_id
+      )
+    },
+    otherIdentities() {
+      return this.identities.filter(
+        (identity) => identity.id !== this.application.agent_identity_id
+      )
     },
     beforeRunningSegments() {
       return [
@@ -552,6 +642,28 @@ export default {
     removeHeader(tool, index) {
       this.toolDrafts[tool.id].headers.splice(index, 1)
       this.onConfigChanged(tool)
+    },
+    roleName(identity) {
+      const roles = this.workspace?._?.roles || []
+      return roles.find((role) => role.uid === identity.role_uid)?.name || ''
+    },
+    async onIdentityChanged(tool, identityId) {
+      if (!this.canUpdateTool || (tool.identity_id || null) === identityId) {
+        return
+      }
+      this.savingIdentityIds = [...this.savingIdentityIds, tool.id]
+      try {
+        await this.$store.dispatch('agentApplication/updateTool', {
+          toolId: tool.id,
+          values: { identity_id: identityId },
+        })
+      } catch (error) {
+        notifyIf(error, 'application')
+      } finally {
+        this.savingIdentityIds = this.savingIdentityIds.filter(
+          (id) => id !== tool.id
+        )
+      }
     },
     onRequireApprovalChanged(tool, enabled) {
       if (!this.canUpdateTool) {

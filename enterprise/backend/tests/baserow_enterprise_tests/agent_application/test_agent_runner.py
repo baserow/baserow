@@ -389,3 +389,68 @@ def test_oversized_tool_args_do_not_crash_the_run(agent_chat_setup):
 
     message = ToolCallMessage(id="call_1", tool_name="create_rows", args=serialized)
     assert message.args == serialized
+
+
+def test_native_tool_parts_become_tool_events():
+    from pydantic_ai.messages import (
+        NativeToolCallPart,
+        NativeToolReturnPart,
+        PartEndEvent,
+        PartStartEvent,
+        TextPart,
+    )
+
+    from baserow_enterprise.agent_application.runner import _native_tool_message
+
+    call = _native_tool_message(
+        PartEndEvent(
+            index=0,
+            part=NativeToolCallPart(
+                tool_name="web_search",
+                args={"query": "baserow"},
+                tool_call_id="ws-1",
+                provider_name="openai",
+            ),
+        )
+    )
+    assert call.type == "tool_call"
+    assert call.id == "ws-1"
+    assert call.tool_name == "web_search"
+    assert call.args == {"query": "baserow"}
+
+    result = _native_tool_message(
+        PartStartEvent(
+            index=1,
+            part=NativeToolReturnPart(
+                tool_name="web_search",
+                content={"status": "completed"},
+                tool_call_id="ws-1",
+                provider_name="openai",
+            ),
+        )
+    )
+    assert result.type == "tool"
+    assert result.id == "ws-1"
+    assert result.status == "ok"
+    assert result.content == {"status": "completed"}
+
+    # The call is only emitted once its arguments are complete.
+    assert (
+        _native_tool_message(
+            PartStartEvent(
+                index=0,
+                part=NativeToolCallPart(tool_name="web_search", args={}),
+            )
+        )
+        is None
+    )
+    assert _native_tool_message(PartStartEvent(index=0, part=TextPart("hi"))) is None
+
+
+def test_error_payloads_are_flagged_as_failed_steps():
+    from baserow_enterprise.agent_application.runner import _is_error_payload
+
+    assert _is_error_payload({"error": "The tool load_row_tools failed: boom"})
+    assert not _is_error_payload({"error": "x", "tables": []})
+    assert not _is_error_payload({"tables": []})
+    assert not _is_error_payload("error")

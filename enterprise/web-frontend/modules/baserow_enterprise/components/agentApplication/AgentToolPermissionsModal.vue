@@ -37,7 +37,12 @@
             {{ summaryFor(group) }}
           </div>
         </div>
-        <div class="agent-tool-permissions__table">
+        <div
+          class="agent-tool-permissions__table"
+          :class="{
+            'agent-tool-permissions__table--identities': canPickIdentity,
+          }"
+        >
           <template v-for="section in sectionsFor(group)" :key="section.key">
             <div class="agent-tool-permissions__group-title">
               <span>{{ section.label }}</span>
@@ -47,6 +52,7 @@
               <span class="agent-tool-permissions__cell-header">{{
                 $t('agentToolPermissions.askFirst')
               }}</span>
+              <span v-if="canPickIdentity"></span>
             </div>
             <div
               v-for="catalogTool in section.tools"
@@ -76,12 +82,124 @@
                   @input="setAsk(catalogTool, $event)"
                 ></Checkbox>
               </div>
+              <div v-if="canPickIdentity" class="agent-tool-permissions__cell">
+                <ButtonIcon
+                  icon="iconoir-more-vert"
+                  size="small"
+                  type="secondary"
+                  class="agent-tool-permissions__more"
+                  :title="$t('agentToolPermissions.runAs')"
+                  @click="openIdentityMenu(catalogTool, $event.currentTarget)"
+                ></ButtonIcon>
+              </div>
             </div>
           </template>
         </div>
       </Tab>
     </Tabs>
-    <div class="actions actions--right actions--gap">
+    <div
+      v-if="exceptions.length > 0"
+      class="agent-tool-permissions__exceptions"
+    >
+      <div class="agent-tool-permissions__exceptions-head">
+        <span>{{ $t('agentToolPermissions.exceptions') }}</span>
+        <span class="agent-tool-permissions__exceptions-count">
+          {{
+            $t('agentToolPermissions.exceptionsCount', {
+              count: exceptions.length,
+            })
+          }}
+        </span>
+      </div>
+      <div class="agent-tool-permissions__exceptions-list">
+        <div
+          v-for="exception in exceptions"
+          :key="exception.key"
+          class="agent-tool-permissions__exception"
+        >
+          <Avatar
+            :initials="exception.identity.name.slice(0, 1).toUpperCase()"
+            color="green"
+            size="small"
+            rounded
+          />
+          <div class="agent-tool-permissions__exception-text">
+            <div class="agent-tool-permissions__exception-title">
+              {{ exception.label }}
+            </div>
+            <div class="agent-tool-permissions__exception-summary">
+              {{
+                $t('agentToolPermissions.runsAsSummary', {
+                  name: exception.identity.name,
+                  role: roleName(exception.identity),
+                })
+              }}
+            </div>
+          </div>
+          <ButtonIcon
+            v-if="canUpdate"
+            icon="iconoir-bin"
+            size="small"
+            type="secondary"
+            :loading="removingKeys.includes(exception.key)"
+            :title="$t('agentToolPermissions.removeException')"
+            @click="removeException(exception)"
+          ></ButtonIcon>
+        </div>
+      </div>
+      <div class="agent-tool-permissions__exceptions-note">
+        {{ $t('agentToolPermissions.exceptionsNote') }}
+      </div>
+    </div>
+    <Context
+      ref="identityContext"
+      class="agent-tool-permissions__identity-context"
+      max-height-if-outside-viewport
+    >
+      <div v-if="identityTool" class="context__menu-title">
+        {{ $t('agentToolPermissions.runToolAs', { name: identityTool.label }) }}
+      </div>
+      <ul class="context__menu">
+        <li
+          v-for="option in identityOptions"
+          :key="option.key"
+          class="context__menu-item"
+        >
+          <a
+            class="context__menu-item-link context__menu-item-link--with-desc"
+            :class="{ active: option.selected }"
+            @click.prevent="pickIdentity(option.value)"
+          >
+            <span class="agent-tool-permissions__identity-option">
+              <Avatar
+                v-if="option.identity"
+                :initials="option.identity.name.slice(0, 1).toUpperCase()"
+                :color="option.value === null ? 'purple' : 'green'"
+                size="small"
+                rounded
+              />
+              <i v-else class="iconoir-prohibition"></i>
+              <span class="context__menu-item-title-text">{{
+                option.name
+              }}</span>
+              <span
+                class="agent-tool-permissions__identity-description"
+                :class="{
+                  'agent-tool-permissions__identity-description--warning':
+                    option.warning,
+                }"
+                >{{ option.description }}</span
+              >
+            </span>
+            <i
+              v-if="option.selected"
+              class="context__menu-active-icon iconoir-check"
+            ></i>
+          </a>
+        </li>
+      </ul>
+    </Context>
+    <div class="actions actions--right actions--gap margin-bottom-0">
       <Button type="secondary" @click="hide()">
         {{ $t('agentToolPermissions.cancel') }}
       </Button>
@@ -109,11 +227,15 @@ import {
   RULE_ASK,
   RULE_OFF,
 } from '@baserow_enterprise/utils/agentToolPermissions'
+import {
+  workspaceToolIdentities,
+  listToolIdentityExceptions,
+  hasMoreAccess,
+} from '@baserow_enterprise/utils/agentToolIdentities'
 
 const GROUP_ICONS = {
   database: 'iconoir-db',
   automation: 'baserow-icon-automation',
-  builder: 'iconoir-app-window',
   core: 'iconoir-settings',
   search_user_docs: 'iconoir-search',
 }
@@ -138,6 +260,10 @@ export default {
   data() {
     return {
       rules: {},
+      // Catalog tool name -> workspace agent id, saved with the rules.
+      identities: {},
+      identityTool: null,
+      removingKeys: [],
       selectedIndex: 0,
       tabsKey: 0,
       saving: false,
@@ -152,6 +278,74 @@ export default {
     },
     catalog() {
       return this.$store.getters['agentApplication/getWorkspaceToolCatalog']
+    },
+    workspace() {
+      return this.$store.getters['workspace/get'](this.application.workspace.id)
+    },
+    workspaceIdentities() {
+      return this.$store.getters['agent/getAllInWorkspace'](
+        this.application.workspace.id
+      )
+    },
+    agentIdentity() {
+      return this.$store.getters['agent/get'](
+        this.application.agent_identity_id
+      )
+    },
+    canPickIdentity() {
+      return this.canUpdate
+    },
+    actionTools() {
+      return this.$store.getters['agentApplication/getTools'].filter((tool) =>
+        ['service', 'mcp'].includes(tool.type)
+      )
+    },
+    exceptions() {
+      return listToolIdentityExceptions({
+        workspaceTool: this.tool,
+        actionTools: this.actionTools,
+        catalog: this.catalog,
+        identities: this.workspaceIdentities,
+        overrides: this.identities,
+      })
+    },
+    identityOptions() {
+      if (!this.identityTool) {
+        return []
+      }
+      const selected = this.identities[this.identityTool.name] ?? null
+      const own = this.agentIdentity
+      const options = [
+        {
+          key: 'own',
+          value: null,
+          identity: own,
+          name: own ? own.name : this.$t('agentToolPermissions.noIdentity'),
+          description: own
+            ? this.$t('agentToolPermissions.agentsIdentity')
+            : this.$t('agentToolPermissions.noIdentityDescription'),
+          selected: selected === null,
+          warning: false,
+        },
+      ]
+      for (const identity of this.workspaceIdentities) {
+        if (identity.id === own?.id) {
+          continue
+        }
+        const moreAccess = hasMoreAccess(identity, own)
+        options.push({
+          key: identity.id,
+          value: identity.id,
+          identity,
+          name: identity.name,
+          description: moreAccess
+            ? this.$t('agentToolPermissions.moreAccess')
+            : this.roleName(identity),
+          selected: selected === identity.id,
+          warning: moreAccess,
+        })
+      }
+      return options
     },
     groups() {
       const groups = new Map()
@@ -181,6 +375,7 @@ export default {
       // Start from the effective rules so unlisted tools keep their
       // defaults when the config becomes custom.
       this.rules = effectiveRules(this.tool.config, this.catalog)
+      this.identities = workspaceToolIdentities(this.tool.config)
       const index = this.groups.findIndex((item) => item.key === group)
       this.selectedIndex = index === -1 ? 0 : index
       this.tabsKey += 1
@@ -235,17 +430,62 @@ export default {
     setAsk(tool, ask) {
       this.rules = { ...this.rules, [tool.name]: ask ? RULE_ASK : RULE_ALLOW }
     },
+    roleName(identity) {
+      const roles = this.workspace?._?.roles || []
+      return roles.find((role) => role.uid === identity.role_uid)?.name || ''
+    },
+    openIdentityMenu(catalogTool, target) {
+      this.identityTool = catalogTool
+      this.$refs.identityContext.toggle(target, 'bottom', 'right', 4)
+    },
+    pickIdentity(identityId) {
+      const name = this.identityTool.name
+      const identities = { ...this.identities }
+      if (identityId === null) {
+        delete identities[name]
+      } else {
+        identities[name] = identityId
+      }
+      this.identities = identities
+      this.$refs.identityContext.hide()
+    },
+    async removeException(exception) {
+      if (exception.kind === 'workspace') {
+        const identities = { ...this.identities }
+        delete identities[exception.toolName]
+        this.identities = identities
+        return
+      }
+      // Action tool identities live on the tool itself, so the removal saves
+      // right away instead of waiting for Done.
+      this.removingKeys = [...this.removingKeys, exception.key]
+      try {
+        await this.$store.dispatch('agentApplication/updateTool', {
+          toolId: exception.tool.id,
+          values: { identity_id: null },
+        })
+      } catch (error) {
+        notifyIf(error, 'application')
+      } finally {
+        this.removingKeys = this.removingKeys.filter(
+          (key) => key !== exception.key
+        )
+      }
+    },
     async save() {
       this.saving = true
       try {
         await this.$store.dispatch('agentApplication/updateTool', {
           toolId: this.tool.id,
           values: {
-            config: buildPermissionsPayload(
-              this.tool.config,
-              this.rules,
-              this.catalog
-            ),
+            config: {
+              ...buildPermissionsPayload(
+                this.tool.config,
+                this.rules,
+                this.catalog
+              ),
+              tool_identities: this.identities,
+            },
           },
         })
         this.hide()

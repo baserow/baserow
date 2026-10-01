@@ -589,6 +589,12 @@
     "startedByTrigger": "a trigger",
     "workedOn": "Worked on it",
     "workingOn": "Working on it…",
+    "thinking": "Thinking…",
+    "reasoning": "Reasoning",
+    "showReasoning": "Show reasoning",
+    "hideReasoning": "Hide reasoning",
+    "searchingWeb": "Searching the web…",
+    "searchedWeb": "Searched the web",
     "steps": "{count} step | {count} steps",
     "showResult": "Show result",
     "hideResult": "Hide result",
@@ -596,6 +602,26 @@
     "modelMissingTitle": "No AI model configured",
     "modelMissing": "Pick the provider and model this agent runs on before starting a conversation.",
     "configureModel": "Configure model"
+  },
+  "agentChatTrigger": {
+    "preview": "Preview",
+    "rawData": "Raw data",
+    "row": "Row",
+    "table": "Table",
+    "posted": "Posted",
+    "mentioned": "Mentioned",
+    "started": "Started",
+    "nextRun": "Next run",
+    "method": "Method",
+    "query": "Query",
+    "headers": "Headers",
+    "body": "Body",
+    "from": "From",
+    "to": "To",
+    "cc": "Cc",
+    "subject": "Subject",
+    "rowId": "Row {id}",
+    "tableId": "Table {id}"
   },
   "agentToolActions": {
     "viewRow": "View row",
@@ -623,7 +649,17 @@
     "rejectTitle": "Reject this step",
     "rejectText": "“{step}” will not run. Tell the agent why, so it can take it into account next time. Optional.",
     "reasonPlaceholder": "e.g. Wait until the founder replies",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "preview": "Preview",
+    "rawData": "Raw data",
+    "emailSummary": "To {to}{cc}. Subject “{subject}”.",
+    "emailSummaryCc": ", cc {cc}",
+    "email_from": "From",
+    "email_to": "To",
+    "email_cc": "Cc",
+    "email_bcc": "Bcc",
+    "email_subject": "Subject",
+    "runsAs": "Sent as {name}"
   },
   "agentConversationList": {
     "pinned": "Pinned",
@@ -677,7 +713,12 @@
     "enabledLabel": "Enabled",
     "hint": "Each event starts a new conversation with the event data as context.",
     "remove": "Delete trigger",
-    "pausedHint": "The agent is turned off, so triggers are paused. Turn it on in the header."
+    "pausedHint": "The agent is turned off, so triggers are paused. Turn it on in the header.",
+    "dataItProvides": "Data it provides",
+    "valuesCount": "{count} value | {count} values",
+    "copyToken": "Copy for the instructions",
+    "examplePayload": "Example payload",
+    "examplePayloadHelper": "What “Run once” hands the agent, so you can try it without waiting for the real event."
   },
   "agentChannels": {
     "empty": "No chat channels yet. Connect a chat app to talk to the agent from there.",
@@ -704,6 +745,17 @@
     "cancel": "Cancel",
     "channels": "Channels",
     "intro": "Connect a chat app and people can talk to {name} from there. Every thread becomes a conversation here, with the same tools and approvals."
+  },
+  "agentSlackSetup": {
+    "title": "How to connect Slack",
+    "createApp": "Go to {link}, click “Create New App” → “From scratch”, give it a name and pick the Slack workspace.",
+    "scopes": "Under “OAuth & Permissions” add the bot token scopes {scopes}.",
+    "messagesTab": "Under “App Home” enable the Messages Tab and allow users to send messages from it, so people can message the agent directly.",
+    "install": "Click “Install to Workspace”, then copy the Bot User OAuth Token (it starts with {prefix}) into the Bot token field.",
+    "signingSecret": "Under “Basic Information” → “App Credentials” copy the Signing Secret into the Signing secret field.",
+    "eventsDraft": "Create the channel here, then under “Event Subscriptions” enable events, paste the Events request URL shown on the channel as the Request URL and subscribe to the bot events {events}. Save, and reinstall the app if Slack asks.",
+    "eventsCreated": "Under “Event Subscriptions” enable events, paste the Events request URL above as the Request URL and subscribe to the bot events {events}. Save, and reinstall the app if Slack asks.",
+    "talk": "Turn the agent on in the header. Then send the bot a direct message, or invite it to a channel and {'@'}mention it."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -1131,7 +1183,7 @@
     "noIdentityHint": "Without an identity the agent can only use web search and action tools.",
     "identityWarning": "Select an identity to act as first; the workspace tools stay off until then.",
     "workspaceTools": "Workspace tools",
-    "workspaceToolsDescription": "Everything Kuma can do: read and change tables, automations, applications and dashboards.",
+    "workspaceToolsDescription": "Everything Kuma can do: read and change tables and automations.",
     "accessEverything": "Everything",
     "accessReadOnly": "Read only",
     "accessCustom": "Custom",
@@ -1145,7 +1197,9 @@
     "webSearch": "Web search",
     "webSearchDescription": "Look things up on the web and read pages.",
     "workspaceSearch": "Workspace search",
-    "workspaceSearchDescription": "Search across all tables the identity can see."
+    "workspaceSearchDescription": "Search across all tables the identity can see.",
+    "exceptionsCount": "{count} exception | {count} exceptions",
+    "exceptionItem": "{tool} as {name}"
   },
   "agentToolPermissions": {
     "title": "Tool permissions",
@@ -1170,7 +1224,18 @@
     "allow": "Allow",
     "askFirst": "Ask first",
     "cancel": "Cancel",
-    "done": "Done"
+    "done": "Done",
+    "runAs": "Run as another identity",
+    "runToolAs": "Run “{name}” as",
+    "agentsIdentity": "the agent’s identity",
+    "noIdentity": "No identity",
+    "noIdentityDescription": "the agent has no workspace access",
+    "moreAccess": "More access than the agent itself",
+    "exceptions": "Exceptions",
+    "exceptionsCount": "{count} tool runs as someone else | {count} tools run as someone else",
+    "runsAsSummary": "Runs as {name} · {role}",
+    "removeException": "Run as the agent’s identity again",
+    "exceptionsNote": "Row history and the audit log show these steps as the identity above, not as the agent’s own."
   },
   "agentActionTools": {
     "actions": "Actions",
@@ -1212,7 +1277,10 @@
     "mcpHeaderNamePlaceholder": "Name",
     "mcpHeaderValuePlaceholder": "Value",
     "removeHeader": "Remove header",
-    "addHeader": "Add header"
+    "addHeader": "Add header",
+    "runsAs": "Runs as",
+    "agentsIdentity": "the agent’s identity",
+    "noIdentity": "No identity"
   },
   "agentMemory": {
     "placeholder": "Nothing remembered yet. Try “Remember to …” in a chat, or write a note here.",

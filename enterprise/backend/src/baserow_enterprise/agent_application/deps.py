@@ -7,6 +7,7 @@ from baserow_enterprise.assistant.deps import (  # noqa: F401
     EventBus,
     QueueEvent,
     QueueEventKind,
+    ResourceChanges,
     ToolHelpers,
 )
 
@@ -41,6 +42,10 @@ class AgentRunDeps:
     # The workspace AgentTool config (see `tools/rules.py`); it also governs
     # the dynamically loaded per-table row tools.
     workspace_tool_config: dict = field(default_factory=dict)
+    # Catalog tool name -> `core.Agent` to run that workspace tool as.
+    workspace_tool_identities: dict = field(default_factory=dict)
+    # Successful row writes of this run, shared with the assistant's row tools.
+    resource_changes: ResourceChanges = field(default_factory=ResourceChanges)
 
     def extend_sources(self, new_sources: list[str]):
         self.sources.extend(s for s in new_sources if s not in self.sources)

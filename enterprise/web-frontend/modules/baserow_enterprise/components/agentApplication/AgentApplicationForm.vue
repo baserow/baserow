@@ -177,7 +177,7 @@
           <SwitchInput v-model="values.web_search" small></SwitchInput>
         </div>
       </FormGroup>
-      <div class="actions agent-create__actions">
+      <div class="actions agent-create__actions margin-bottom-0">
         <span class="agent-create__note">{{ $t('agentCreate.note') }}</span>
         <Button tag="a" type="secondary" size="large" @click="$emit('hidden')">
           {{ $t('agentCreate.cancel') }}

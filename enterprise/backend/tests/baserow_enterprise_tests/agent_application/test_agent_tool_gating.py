@@ -80,6 +80,7 @@ def test_normalize_defaults_and_legacy_keys():
         "access": ACCESS_EVERYTHING,
         "require_write_approval": True,
         "tool_rules": {},
+        "tool_identities": {},
     }
     assert _config(mode="read_only")["access"] == ACCESS_READ_ONLY
     assert _config(require_write_approval=False)["require_write_approval"] is False
@@ -87,6 +88,7 @@ def test_normalize_defaults_and_legacy_keys():
         "access": ACCESS_CUSTOM,
         "require_write_approval": True,
         "tool_rules": {},
+        "tool_identities": {},
     }
 
     legacy = _config(enabled_tools=["list_rows", "load_row_tools"])
@@ -355,3 +357,14 @@ def test_workspace_tool_type_adds_access_note(data_fixture):
         AgentTool(type="workspace", config={"access": "read_only"}), deps
     )
     assert any("read only" in note for note in deps.system_notes)
+
+
+def test_catalog_excludes_application_builder_tools():
+    from baserow_enterprise.agent_application.tools.catalog import (
+        list_workspace_tools,
+    )
+
+    groups = {tool["group"] for tool in list_workspace_tools()}
+    assert "builder" not in groups
+    assert "navigation" not in groups
+    assert {"core", "database", "automation", "search_user_docs"} <= groups
