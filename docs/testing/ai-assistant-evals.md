@@ -13,7 +13,8 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
    [AI assistant tracing](../development/ai-assistant-tracing.md) for the
    Phoenix side.
 2. `just dc-dev up -d` — the `assistant-eval-runner` service migrates its own
-   `baserow_evals` database, syncs the datasets into Phoenix, and serves
+   `baserow_evals` database, seeds its knowledge base when embeddings are
+   configured, syncs the datasets into Phoenix, and serves
    `http://localhost:8090`.
 3. Pick a whole dataset or individual cases, a model (pick **Custom…** to
    type any pydantic-ai model string), a repeat count, optional notes, and Run.
@@ -48,8 +49,8 @@ chatter (httpx, pydantic-ai retries) still goes to
 ### Timeouts
 
 Every case has a wall-clock budget — `BASEROW_EVAL_CASE_TIMEOUT`, default
-120s. For scale: across the committed baseline's 111 runs the slowest case
-takes 16.4s and the median 5.8s, so the budget only ever fires on a genuine
+120s. For scale: across the committed baseline's 366 runs the slowest
+case takes 44s and the median 6s, so the budget only ever fires on a genuine
 hang. Without it a single stuck case blocks the one worker indefinitely, and
 the per-request timeouts don't bound it: `max_iters` requests times the
 per-request timeout, plus retries, runs into several minutes.
@@ -66,6 +67,22 @@ and the runner refuses further cases. In-flight threads cannot safely be
 stopped, so prompt overrides remain in place. Restart the eval runner before
 running another experiment (`just dc-dev restart assistant-eval-runner`).
 
+Each case also has an intentional request budget (`max_iters`). Exhausting it
+is recorded as a failed case rather than aborting the dataset, so a genuine
+agent loop stays visible while the remaining cases still run. Transient
+provider rate limits are retried at the individual request boundary, honoring
+`Retry-After` when the provider supplies it.
+
+Unexpected setup, tool-code, check and explicit provider errors are recorded as
+ungraded Phoenix errors and keep the experiment incomplete. A full-dataset run
+logs the error and continues without retrying the whole case. A subset run
+records the error and stops. Provider request retries remain separate.
+
+Pydantic AI's `UnexpectedModelBehavior` remains a scored failure: it includes
+exhausted model validation, but also some malformed provider responses. The
+library does not reliably distinguish these cases; finer classification is
+deferred rather than inferred from provider error messages.
+
 **Stop** is cooperative and lands at the next case boundary, because the
 worker sits inside a blocking LLM call that Python cannot interrupt. Queued
 runs stop immediately; a running one finishes its current case first and ends
@@ -78,12 +95,44 @@ all** when an error is going to sink every remaining case anyway.
 A selection spanning several datasets fans out to one experiment per dataset,
 and the Results tab groups experiments by name. Leaving **Experiment name**
 blank generates one shared `run-<timestamp>-<id>` name for the whole fan-out,
-so the Results tab compares every dataset against the baseline in one view.
+so the Results tab shows every dataset in one view.
 Type a name instead to group runs yourself — reusing a name across separate
 submissions merges them into one group.
 
 Experiments created before this grouping existed each carry their own
 Phoenix-generated name, so they stay ungrouped.
+
+The Results tab marks a dataset incomplete unless every expected run has both
+mandatory scores. Incomplete datasets show no baseline deltas and are excluded
+from the overall row; that prevents a stopped, skipped, or partially logged run
+from looking like a quality, latency, or cost improvement.
+
+Automatic baseline comparisons require complete live experiments with matching
+dataset versions, recorded case counts, and check implementation hashes
+(`evaluator_source_hash`). Imported baseline snapshots remain available for
+individual inspection, but show no automatic deltas or Overall comparisons:
+the importer uses the current Phoenix dataset version, which cannot establish
+that the historical cases and checks match.
+To enable automatic deltas, run a fresh experiment named `baseline` with the same
+cases and checks as the candidate.
+
+Snapshots are imported as `baseline (imported)`, keeping live `baseline` runs
+separate. Startup replaces only imports, after the replacement's runs and scores
+are saved. Removed snapshot cases are skipped without repeating the import on
+every restart; interrupted imports are retried.
+Failed imports remove only their new partial experiment, preserving the previous
+baseline. Capturing a baseline rejects experiments with execution errors before
+replacing the snapshot; scored model failures remain valid baseline results.
+
+Overall weights scores by each experiment's recorded case count (expected runs
+divided by repetitions), not today's registry. It includes only comparable
+datasets and the cases covered by each metric.
+
+Repetition counts may differ between the run and the baseline. Scores are means,
+so a `--runs 3` experiment can compare with a compatible single-pass baseline; time
+and cost are totals, so both sides are divided by their repetitions and shown
+per pass over the dataset. The model cell notes the two counts whenever they are
+not both 1.
 
 ### Recording why a run differed
 
@@ -93,6 +142,11 @@ prompt hashes, and git branch/commit — so a score is traceable to the
 configuration that produced it without writing anything down. The **Notes**
 field adds free text for whatever that does not cover; both the settings and
 the note show under the model in the Results tab.
+
+The Docker runner receives the branch and commit label when its container is
+created. After changing commits, wait for active runs to finish, then run
+`just dc-dev up -d --no-deps assistant-eval-runner` to refresh that label before
+starting another experiment.
 
 > **Warning:** the runner hot-reloads on any mounted `.py` change (including
 > a lint/format pass), which kills queued and running experiments — don't
@@ -134,8 +188,9 @@ hashes, so branch/model comparisons are filterable in Phoenix.
 |---------|-------|--------|
 | `kuma-core` | 3 | creating/listing databases and automations |
 | `kuma-database` | 21 | tables, fields, views, filters, rows |
-| `kuma-builder` | 16 | pages, elements, data sources, themes, user sources |
+| `kuma-builder` | 21 | pages, elements, data sources, themes, user sources |
 | `kuma-automation` | 7 | workflows, triggers, nodes |
+| `kuma-prod-replay` | 7 | invented prompts for failure classes that used to end the turn |
 | `kuma-docs` | 64 | docs Q&A via `search_user_docs`, incl. cannot-do guardrail cases |
 
 `kuma-docs` needs the `embeddings` service (`ai` profile) and a knowledge base
@@ -152,8 +207,10 @@ just dc-dev exec assistant-eval-runner just b manage sync_knowledge_base
 The command indexes the repository's `enterprise/backend/website_export.csv`.
 Wait for it to finish before running docs cases. If it reports unavailable
 embeddings or pgvector, fix that prerequisite and run it again. When the knowledge
-base is unavailable, docs cases are skipped: a finished executor does not mean
-the evals passed. Check the run log and per-case Phoenix results.
+base is unavailable, a docs run fails before creating an experiment and its log
+shows the setup command. Historical runs may contain skipped cases: a finished
+executor does not mean the evals passed. Check the run log and per-case Phoenix
+results.
 
 ## Writing a new eval
 

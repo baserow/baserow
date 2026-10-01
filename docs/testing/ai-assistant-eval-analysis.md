@@ -10,7 +10,7 @@ The baseline is a committed snapshot of a full-suite run (default model,
 current branch) at
 `enterprise/backend/src/baserow_enterprise/assistant/evals/baseline.json`.
 The eval runner imports it automatically on startup, so every Phoenix
-instance — a fresh dev stack or the team one — has a `baseline` experiment
+instance — a fresh dev stack or the team one — has a `baseline (imported)` experiment
 on each dataset without re-running anything. Manually: `just b eval-baseline
 import`.
 
@@ -27,8 +27,9 @@ Commit the regenerated `baseline.json` with the change that earned it.
 
 ## Comparing a run to the baseline
 
-Open the dataset in Phoenix → select the `baseline` experiment and yours →
-**Compare**. The three scores:
+Open the dataset in Phoenix → select your live `baseline` experiment and yours →
+**Compare**. Select `baseline (imported)` for historical inspection, checking its
+case and scoring compatibility before drawing conclusions. The three scores:
 
 - `checklist` — fraction of the case's checks that passed (the explanation
   lists exactly which failed, with hints).
@@ -41,14 +42,18 @@ Phoenix compares within one dataset. For **all datasets in one view**, use
 the runner page's **Results** tab: pick an experiment name (a run started
 from the page lands under the same name in every dataset it touched) and see
 each dataset's mean scores, execution status, and recorded run count. Baseline
-deltas and the overall aggregate are deferred; use Phoenix for per-case
-comparisons. Skipped and ungraded cases are excluded from scores, so check their
-coverage in Phoenix even when the selected cases match.
+deltas require complete live experiments with matching dataset versions,
+recorded case counts, and check implementation hashes (`evaluator_source_hash`).
+Imported snapshots remain available for individual inspection, but are excluded
+from automatic deltas and Overall comparisons: the importer assigns the current
+Phoenix dataset version, so matching version IDs cannot prove that historical
+cases and checks match. Use Phoenix to inspect the per-case evidence before
+drawing conclusions from an imported baseline.
 
-The committed snapshot predates the fix that applies production orchestrator
-settings and retries in evals. Its settings are unverified. A fresh baseline is
-part of the comparison follow-up; the old snapshot remains useful as historical
-per-case output.
+The committed snapshot holds three repetitions of every case, with the source
+commit, model settings, and harness version in its metadata. Recapture it from a
+clean commit whenever cases, checks, or prompts change. Automatic deltas require
+a compatible live baseline experiment, even after importing a refreshed snapshot.
 
 The tab also shows **time and cost** per dataset: time is the
 sum of run latencies (the runner executes sequentially, so it approximates
@@ -57,10 +62,15 @@ wall clock), cost and tokens come from Phoenix's per-model token prices
 cost or latency is a win too — and a score improvement that triples cost is
 a trade-off to state explicitly. The baseline's time/cost are frozen into
 the snapshot at capture time, since imported baselines carry no traces to
-price. Note
-that whole-dataset experiments include UI-added examples in their mean while
-the baseline holds code cases only, so a small delta on such datasets can be
-composition, not regression — the per-case compare settles it.
+price. Partial and all-skipped experiments are marked incomplete and excluded
+from deltas and the Overall row, which only compares compatible complete datasets.
+Overall uses each experiment's recorded case count (expected runs divided by
+repetitions), not today's registry, and includes only cases covered by each metric.
+Skipped and ungraded cases do not contribute to scores; inspect their coverage
+in Phoenix. Compatible runs may use different `--runs` counts: scores are means,
+and time/cost are normalised per pass over the dataset. Whole-dataset experiments include
+UI-added examples while the committed baseline holds code cases only; check
+their per-case coverage before making a manual comparison.
 
 Look at **per-case deltas, not the aggregate**: a +0.02 mean can hide one
 real regression cancelled by two flaky recoveries. Suspected flakiness?

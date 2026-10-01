@@ -20,6 +20,20 @@ from baserow_enterprise.assistant.evals.runner import (
 )
 from baserow_enterprise.assistant.evals.sync import sync_datasets
 from baserow_enterprise.assistant.telemetry import setup_instrumentation
+from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+    KnowledgeBaseHandler,
+)
+
+
+def sync_knowledge_base_if_needed() -> None:
+    """Populate a usable but empty knowledge base before evals can run."""
+
+    try:
+        handler = KnowledgeBaseHandler()
+        if handler.can_have_knowledge_base() and not handler.can_search():
+            handler.sync_knowledge_base()
+    except Exception:
+        logger.exception("Failed to sync the assistant knowledge base on startup")
 
 
 class Command(BaseCommand):
@@ -45,6 +59,7 @@ class Command(BaseCommand):
 
         setup_instrumentation()
         load_all()
+        sync_knowledge_base_if_needed()
 
         try:
             sync_datasets(get_phoenix_client())

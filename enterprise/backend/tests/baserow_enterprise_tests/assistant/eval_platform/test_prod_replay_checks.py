@@ -1,0 +1,427 @@
+"""Prod-replay checks score saved values, without calling a model."""
+
+from typing import Any
+
+import pytest
+
+from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow_enterprise.assistant.evals.datasets.prod_replay import (
+    _check_fake_rows_into_typed_fields,
+    _check_form_for_table_with_formula_field,
+    _check_impossible_formula_request,
+    _check_iso_week_number_formula,
+    _check_page_inspection_existing_elements,
+    _check_project_tracker_onboarding,
+    _check_signed_amount_formula,
+    _fake_rows_into_typed_fields_scenario,
+    _form_for_table_with_formula_field_scenario,
+    _impossible_formula_request_scenario,
+    _iso_week_number_formula_scenario,
+    _page_inspection_existing_elements_scenario,
+    _project_tracker_onboarding_scenario,
+    _signed_amount_formula_scenario,
+)
+from baserow_enterprise.assistant.evals.types import CheckResult, EvalRunOutput
+
+
+def _output(**overrides: Any) -> EvalRunOutput:
+    values = {
+        "answer": "Done.",
+        "messages": [],
+        "tool_calls": [],
+        "tool_error_count": 0,
+        "tool_error_hint": "",
+        "sources": [],
+        "request_count": 1,
+        "duration_s": 0,
+    }
+    return EvalRunOutput(**(values | overrides))
+
+
+def _failed(checks: list[CheckResult]) -> set[str]:
+    return {check.name for check in checks if not check.passed}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "enabled_fields, failed",
+    [
+        (("Customer", "Price"), set()),
+        (("Customer",), {"form collects Customer and Price"}),
+        (None, {"form view created", "form collects Customer and Price"}),
+    ],
+)
+def test_form_check_requires_a_form_that_collects_the_order_fields(
+    data_fixture, enabled_fields, failed
+):
+    scenario = _form_for_table_with_formula_field_scenario(data_fixture)
+    table = scenario.refs["table"]
+    if enabled_fields is not None:
+        form = data_fixture.create_form_view(table=table)
+        for field in table.field_set.filter(name__in=enabled_fields):
+            data_fixture.create_form_view_field_option(form, field, enabled=True)
+
+    checks = _check_form_for_table_with_formula_field(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "mutation, enabled_fields, expected",
+    [
+        ("rename_customer", ("Price",), False),
+        ("rename_both", (), False),
+        ("rename_both", ("Customer", "Price"), True),
+        ("delete_price", ("Customer", "Price"), False),
+    ],
+)
+def test_form_check_keeps_original_field_requirements(
+    data_fixture, mutation, enabled_fields, expected
+):
+    scenario = _form_for_table_with_formula_field_scenario(data_fixture)
+    table = scenario.refs["table"]
+    fields = {field.name: field for field in table.field_set.all()}
+    form = data_fixture.create_form_view(table=table)
+    for name in enabled_fields:
+        data_fixture.create_form_view_field_option(form, fields[name], enabled=True)
+    if mutation == "delete_price":
+        FieldHandler().delete_field(scenario.user, fields["Price"])
+    else:
+        FieldHandler().update_field(
+            scenario.user, fields["Customer"].specific, name="Client"
+        )
+        if mutation == "rename_both":
+            FieldHandler().update_field(
+                scenario.user, fields["Price"].specific, name="Amount"
+            )
+
+    checks = _check_form_for_table_with_formula_field(None, scenario, _output())
+
+    assert _failed(checks) == (
+        set() if expected else {"form collects Customer and Price"}
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "inspected, failed", [(True, set()), (False, {"page elements inspected"})]
+)
+def test_page_inspection_check_requires_listing_the_elements(
+    data_fixture, inspected, failed
+):
+    scenario = _page_inspection_existing_elements_scenario(data_fixture)
+    messages = [
+        {
+            "role": "assistant",
+            "type": "ToolCallPart",
+            "tool_name": "list_elements",
+            "tool_call_id": "inspect",
+            "args": {},
+        }
+    ]
+
+    checks = _check_page_inspection_existing_elements(
+        None, scenario, _output(messages=messages if inspected else [])
+    )
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "row_counts, failed",
+    [
+        ({"Projects": 2, "Milestones": 3}, set()),
+        ({"Projects": 2, "Milestones": 0}, {"every table has example rows"}),
+        ({"Projects": 2}, {"Projects and Milestones tables created"}),
+    ],
+)
+def test_onboarding_check_requires_the_requested_tables_with_rows(
+    data_fixture, row_counts, failed
+):
+    scenario = _project_tracker_onboarding_scenario(data_fixture)
+    for name, row_count in row_counts.items():
+        table = data_fixture.create_database_table(
+            database=scenario.refs["database"], name=name
+        )
+        primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        data_fixture.create_text_field(table=table, name="Owner")
+        data_fixture.create_date_field(table=table, name="Deadline")
+        if row_count:
+            RowHandler().force_create_rows(
+                scenario.user,
+                table,
+                [{primary.db_column: f"{name} {i}"} for i in range(row_count)],
+            )
+
+    checks = _check_project_tracker_onboarding(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "owner, deadline, expected",
+    [
+        ("field", "field", True),
+        ("alias_field", "alias_field", True),
+        ("composite_field", "field", True),
+        ("field", "composite_field", True),
+        ("composite_field", "target_date", True),
+        ("field", "start_date", False),
+        ("missing", "field", False),
+        ("field", "missing", False),
+        ("missing", "missing", False),
+        ("linked_table", "linked_table", True),
+        ("unlinked_table", "field", False),
+        ("field", "unlinked_table", False),
+        ("unrelated_field", "field", False),
+        ("field", "unrelated_field", False),
+    ],
+)
+def test_onboarding_check_requires_owner_and_deadline_representation(
+    data_fixture, owner, deadline, expected
+):
+    scenario = _project_tracker_onboarding_scenario(data_fixture)
+    database = scenario.refs["database"]
+    tracker_tables = []
+    for name in ("Projects", "Milestones"):
+        table = data_fixture.create_database_table(database=database, name=name)
+        primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        RowHandler().force_create_rows(
+            scenario.user, table, [{primary.db_column: f"Example {name}"}]
+        )
+        tracker_tables.append(table)
+
+    for tracker, name, alias, representation in (
+        (tracker_tables[0], "Owner", "Assignee", owner),
+        (tracker_tables[1], "Deadline", "Due Date", deadline),
+    ):
+        if representation == "missing":
+            continue
+        field_names = {
+            "field": name,
+            "alias_field": alias,
+            "composite_field": f"Project {name}",
+            "target_date": "Target Date",
+            "start_date": "Start Date",
+        }
+        if representation in field_names:
+            factory = (
+                data_fixture.create_text_field
+                if name == "Owner"
+                else data_fixture.create_date_field
+            )
+            factory(table=tracker, name=field_names[representation])
+            continue
+        table = data_fixture.create_database_table(
+            database=database,
+            name="Unrelated" if representation == "unrelated_field" else name + "s",
+        )
+        primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        RowHandler().force_create_rows(
+            scenario.user, table, [{primary.db_column: "Example"}]
+        )
+        if representation == "linked_table":
+            data_fixture.create_link_row_field(
+                table=tracker, link_row_table=table, name="Related records"
+            )
+        elif representation == "unrelated_field":
+            data_fixture.create_text_field(table=table, name=name)
+
+    checks = _check_project_tracker_onboarding(None, scenario, _output())
+
+    assert _failed(checks) == (
+        set() if expected else {"tracker represents owners and deadlines"}
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula, failed",
+    [
+        ("datetime_format(field('Shipped On'), 'IW')", set()),
+        (
+            "datetime_format(field('Shipped On'), 'WW')",
+            {"week numbers match ISO 8601"},
+        ),
+        (
+            None,
+            {
+                "week number formula field created",
+                "formula is valid",
+                "week numbers match ISO 8601",
+            },
+        ),
+    ],
+)
+def test_iso_week_check_compares_the_saved_week_numbers(data_fixture, formula, failed):
+    scenario = _iso_week_number_formula_scenario(data_fixture)
+    if formula is not None:
+        FieldHandler().create_field(
+            scenario.user,
+            scenario.refs["table"],
+            "formula",
+            name="Week",
+            formula=formula,
+        )
+
+    checks = _check_iso_week_number_formula(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("broken_first", [False, True])
+@pytest.mark.parametrize("kind", ["week", "signed"])
+def test_formula_checks_reject_broken_leftovers_in_either_order(
+    data_fixture, kind, broken_first
+):
+    if kind == "week":
+        scenario = _iso_week_number_formula_scenario(data_fixture)
+        good_name, broken_name = "ISO Week", "Week"
+        formula = "datetime_format(field('Shipped On'), 'IW')"
+        check = _check_iso_week_number_formula
+    else:
+        scenario = _signed_amount_formula_scenario(data_fixture)
+        good_name, broken_name = "Signed Amount", "Old Signed Amount"
+        formula = (
+            "if(totext(field('Transaction Type')) = 'Credit', field('Amount'), "
+            "field('Amount') * -1)"
+        )
+        check = _check_signed_amount_formula
+    for broken in (broken_first, not broken_first):
+        field = FieldHandler().create_field(
+            scenario.user,
+            scenario.refs["table"],
+            "formula",
+            name=broken_name if broken else good_name,
+            formula="1" if broken else formula,
+        )
+        if broken:
+            FormulaField.objects.filter(id=field.id).update(error="unsupported")
+
+    checks = check(None, scenario, _output())
+
+    # The selected formula's saved numeric values are correct in both orders.
+    assert _failed(checks) == {"formula is valid"}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "broken, failed", [(False, set()), (True, {"no broken formula left behind"})]
+)
+def test_impossible_formula_check_rejects_a_broken_formula(
+    data_fixture, broken, failed
+):
+    scenario = _impossible_formula_request_scenario(data_fixture)
+    if broken:
+        field = FieldHandler().create_field(
+            scenario.user, scenario.refs["table"], "formula", name="Pages", formula="1"
+        )
+        FormulaField.objects.filter(id=field.id).update(error="unsupported")
+
+    checks = _check_impossible_formula_request(
+        None, scenario, _output(answer="Formulas cannot download files.")
+    )
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "defect, failed",
+    [
+        (None, set()),
+        ("fewer_rows", {"30 employees created"}),
+        ("blank_full_name", {"every row has valid typed values"}),
+        ("blank_team", {"every row has valid typed values"}),
+        ("blank_phone", {"every row has valid typed values"}),
+        ("blank_level", {"every row has valid typed values"}),
+        ("blank_start_date", {"every row has valid typed values"}),
+        ("blank_notes", {"every row has valid typed values"}),
+        ("blank_score", {"every row has valid typed values"}),
+        ("deleted_notes", {"every row has valid typed values"}),
+        ("removed_notes", {"every row has valid typed values"}),
+    ],
+)
+def test_employee_rows_check_requires_valid_typed_values(data_fixture, defect, failed):
+    scenario = _fake_rows_into_typed_fields_scenario(data_fixture)
+    fields = scenario.refs["fields"]
+    level = fields["Level"].select_options.first()
+    rows = [
+        {
+            fields["Full Name"].db_column: f"Employee {i}",
+            fields["Team"].db_column: "Operations",
+            fields["Phone"].db_column: "555-0100",
+            fields["Level"].db_column: level.id,
+            fields["Start Date"].db_column: "2025-01-15",
+            fields["Notes"].db_column: "Sample employee",
+            fields["Performance Score"].db_column: 4,
+        }
+        for i in range(30)
+    ]
+    if defect == "fewer_rows":
+        rows = rows[:29]
+    elif defect is not None and defect not in {"deleted_notes", "removed_notes"}:
+        omitted_field = {
+            "blank_full_name": "Full Name",
+            "blank_team": "Team",
+            "blank_phone": "Phone",
+            "blank_level": "Level",
+            "blank_start_date": "Start Date",
+            "blank_notes": "Notes",
+            "blank_score": "Performance Score",
+        }[defect]
+        rows[3].pop(fields[omitted_field].db_column)
+    RowHandler().force_create_rows(scenario.user, scenario.refs["table"], rows)
+    if defect in {"deleted_notes", "removed_notes"}:
+        # Keep the scenario's original field identity even after permanent removal.
+        notes = FieldHandler().get_field(fields["Notes"].id)
+        FieldHandler().delete_field(
+            scenario.user,
+            notes,
+            delete_strategy=(
+                DeleteFieldStrategyEnum.TRASH
+                if defect == "deleted_notes"
+                else DeleteFieldStrategyEnum.PERMANENTLY_DELETE
+            ),
+        )
+        if defect == "deleted_notes":
+            row = scenario.refs["table"].get_model().objects.first()
+            assert getattr(row, fields["Notes"].db_column) == "Sample employee"
+
+    checks = _check_fake_rows_into_typed_fields(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula, failed",
+    [
+        (
+            "if(totext(field('Transaction Type')) = 'Credit', field('Amount'), "
+            "field('Amount') * -1)",
+            set(),
+        ),
+        ("field('Amount')", {"signed amounts match the transaction type"}),
+    ],
+)
+def test_signed_amount_check_compares_the_saved_values(data_fixture, formula, failed):
+    scenario = _signed_amount_formula_scenario(data_fixture)
+    FieldHandler().create_field(
+        scenario.user,
+        scenario.refs["table"],
+        "formula",
+        name="Signed Amount",
+        formula=formula,
+    )
+
+    checks = _check_signed_amount_formula(None, scenario, _output())
+
+    assert _failed(checks) == failed

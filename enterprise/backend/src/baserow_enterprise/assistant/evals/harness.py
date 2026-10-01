@@ -19,6 +19,7 @@ from pydantic_ai._utils import (  # noqa: PLC2701
     run_until_complete,
     using_thread_executor,
 )
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.tool_manager import ToolManager
@@ -208,6 +209,10 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
                         or is_mode_redirect(content)
                     ):
                         continue
+                    # pydantic-ai's nudge after an empty model response, which it
+                    # recovers from on its own — not a tool failure.
+                    if part.tool_name is None and content.startswith("Please "):
+                        continue
                     retry_errors.append(
                         {
                             "tool_name": getattr(part, "tool_name", None),
@@ -216,6 +221,34 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
                     )
     hint = "\n".join(f"  - {e['tool_name']}: {e['content']}" for e in retry_errors)
     return len(retry_errors), hint
+
+
+def executed_tool_calls(output: EvalRunOutput, name: str) -> list[dict]:
+    """
+    Return the calls to a tool that the mode router did not send back.
+
+    An incomplete call to a tool owned by another mode is answered with a
+    re-call redirect instead of running. Scoring that call reads the model's
+    first guess instead of the arguments that ran.
+
+    :param output: The recorded run output.
+    :param name: The tool function name.
+    :return: The surviving assistant call entries, in call order.
+    """
+
+    redirected = {
+        entry.get("tool_call_id")
+        for entry in output.messages
+        if entry["role"] == "user" and is_mode_redirect(entry.get("content"))
+    }
+    return [
+        entry
+        for entry in output.messages
+        if entry["role"] == "assistant"
+        and entry.get("tool_name") == name
+        and "args" in entry
+        and entry.get("tool_call_id") not in redirected
+    ]
 
 
 def tool_called(output: EvalRunOutput, name: str) -> int:
@@ -255,6 +288,14 @@ def get_case_timeout_s() -> float:
 
 class EvalCaseTimeout(Exception):
     """A case outran its budget and its cancelled tools have finished."""
+
+
+class EvalCaseModelError(Exception):
+    """A known model failure from the agent run, rather than setup or checks."""
+
+    def __init__(self, error: UsageLimitExceeded | UnexpectedModelBehavior):
+        self.error = error
+        super().__init__(str(error))
 
 
 class EvalCaseCleanupError(RuntimeError):
@@ -417,6 +458,8 @@ def run_case(
         raise EvalCaseTimeout(
             f"{case.id} exceeded {timeout_s:g}s and was cancelled"
         ) from exc
+    except (UsageLimitExceeded, UnexpectedModelBehavior) as exc:
+        raise EvalCaseModelError(exc) from exc
     duration_s = time.monotonic() - start
 
     tool_error_count, tool_error_hint = count_tool_errors(result)
