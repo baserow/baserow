@@ -102,11 +102,8 @@
                   $t('sidebar.members')
                 }}</span>
               </span>
-              <span
-                v-if="selectedWorkspace.users.length"
-                class="sidebar__item-count"
-              >
-                {{ selectedWorkspace.users.length }}</span
+              <span v-if="membersCount" class="sidebar__item-count">
+                {{ membersCount }}</span
               >
             </a>
           </div>
@@ -167,6 +164,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
 
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
@@ -196,6 +194,16 @@ export default {
   },
   emits: ['open-workspace-search'],
   computed: {
+    membersCount() {
+      return getWorkspaceMembersCount(
+        this.selectedWorkspace,
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.selectedWorkspace,
+          this.selectedWorkspace.id
+        )
+      )
+    },
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .flatMap((plugin) =>

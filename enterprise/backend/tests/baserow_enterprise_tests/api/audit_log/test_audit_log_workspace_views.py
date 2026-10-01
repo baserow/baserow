@@ -12,11 +12,14 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.models import Agent
+from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.license_types import EnterpriseLicenseType
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 @override_settings(DEBUG=True)
 def test_workspace_admins_cannot_access_workspace_audit_log_endpoints_without_an_enterprise_license(
     api_client, enterprise_data_fixture, url_name
@@ -51,7 +54,7 @@ def test_workspace_admins_cannot_export_workspace_audit_log_without_an_enterpris
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 @override_settings(DEBUG=True)
 def test_non_admins_cannot_access_workspace_audit_log_endpoints(
     api_client, enterprise_data_fixture, synced_roles, url_name
@@ -96,7 +99,7 @@ def test_non_admins_cannot_export_workspace_audit_log_to_csv(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 @override_settings(DEBUG=True)
 def test_workspace_audit_log_endpoints_raise_404_if_workspace_doesnt_exist(
     api_client, enterprise_data_fixture, url_name
@@ -135,71 +138,43 @@ def test_workspace_audit_log_export_raise_404_if_workspace_doesnt_exist(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_workspace_audit_log_user_filter_returns_only_workspace_users(
+def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
     api_client, enterprise_data_fixture
 ):
     enterprise_data_fixture.enable_enterprise()
-
     admin, token = enterprise_data_fixture.create_user_and_token(email="admin@test.com")
-    user_wp1 = enterprise_data_fixture.create_user(email="user_wp1@test.com")
-    user_wp2 = enterprise_data_fixture.create_user(email="user_wp2@test.com")
+    other_user = enterprise_data_fixture.create_user(email="other@test.com")
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    other_workspace = enterprise_data_fixture.create_workspace(user=other_user)
+    agent = Agent.objects.create(workspace=workspace, name="Workspace robot")
+    Agent.objects.create(workspace=other_workspace, name="Other robot")
 
-    workspace_1 = enterprise_data_fixture.create_workspace(users=[admin, user_wp1])
-    workspace_2 = enterprise_data_fixture.create_workspace(users=[admin, user_wp2])
-
-    # no search query should return all users for worspace 1
     response = api_client.get(
-        reverse("api:enterprise:audit_log:users") + f"?workspace_id={workspace_1.id}",
+        reverse("api:enterprise:audit_log:actors") + f"?workspace_id={workspace.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 2,
-        "next": None,
-        "previous": None,
-        "results": [
-            {"id": admin.id, "value": admin.email},
-            {"id": user_wp1.id, "value": user_wp1.email},
-        ],
-    }
 
-    # no search query should return all users for worspace 2
-    response = api_client.get(
-        reverse("api:enterprise:audit_log:users") + f"?workspace_id={workspace_2.id}",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 2,
-        "next": None,
-        "previous": None,
-        "results": [
-            {"id": admin.id, "value": admin.email},
-            {"id": user_wp2.id, "value": user_wp2.email},
-        ],
-    }
-
-    # searching by email should return only the correct user
-    response = api_client.get(
-        reverse("api:enterprise:audit_log:users")
-        + f"?workspace_id={workspace_1.id}&search=user",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 1,
-        "next": None,
-        "previous": None,
-        "results": [{"id": user_wp1.id, "value": "user_wp1@test.com"}],
-    }
+    assert response.json()["results"] == [
+        {
+            "id": f"{UserSubjectType.type}:{admin.id}",
+            "actor_id": admin.id,
+            "actor_type": UserSubjectType.type,
+            "value": admin.email,
+        },
+        {
+            "id": f"{AgentSubjectType.type}:{agent.id}",
+            "actor_id": agent.id,
+            "actor_type": AgentSubjectType.type,
+            "value": agent.name,
+        },
+    ]
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 def test_staff_member_can_access_audit_log_for_their_own_workspace(
     api_client,
     enterprise_data_fixture,
@@ -224,7 +199,7 @@ def test_staff_member_can_access_audit_log_for_their_own_workspace(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 def test_staff_member_can_access_audit_log_for_any_workspace(
     api_client,
     enterprise_data_fixture,
@@ -247,7 +222,7 @@ def test_staff_member_can_access_audit_log_for_any_workspace(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 def test_staff_member_cant_access_audit_log_for_own_workspace_without_license(
     api_client,
     enterprise_data_fixture,
@@ -288,7 +263,8 @@ def test_workspace_audit_log_can_export_to_csv_filtered_entries(
         "export_charset": "utf-8",
     }
     filters = {
-        "filter_user_id": admin_user.id,
+        "filter_actor_id": admin_user.id,
+        "filter_actor_type": UserSubjectType.type,
         "filter_action_type": "create_application",
         "filter_from_timestamp": "2023-01-01T00:00:00Z",
         "filter_to_timestamp": "2023-01-03T00:00:00Z",
@@ -346,7 +322,8 @@ def test_workspace_audit_log_can_export_to_csv_filtered_entries(
     for key, value in csv_settings.items():
         assert job[key] == value
     for key in [
-        "filter_user_id",
+        "filter_actor_id",
+        "filter_actor_type",
         "filter_action_type",
         "filter_from_timestamp",
         "filter_to_timestamp",

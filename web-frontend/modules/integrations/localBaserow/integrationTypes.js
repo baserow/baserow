@@ -20,6 +20,13 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   getSummary(integration) {
+    if (integration.authorized_agent) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowAgentSummary',
+        { name: integration.authorized_agent.name }
+      )
+    }
+
     if (!integration.authorized_user) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
@@ -42,7 +49,16 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     const user = this.app.$store.getters['auth/getUserObject']
     return {
       authorized_user: { username: user.username, first_name: user.first_name },
+      authorized_agent: null,
+      authorized_agent_id: null,
     }
+  }
+
+  getErrorMessage(integration) {
+    if (integration.authorized_agent?.trashed) {
+      return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
+    }
+    return super.getErrorMessage(integration)
   }
 
   getOrder() {

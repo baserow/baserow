@@ -96,6 +96,7 @@ def test_automation_export_serialized(data_fixture):
                 "name": integration.name,
                 "order": str(integration.order),
                 "type": "local_baserow",
+                "authorized_agent": None,
                 "authorized_user": None,
             }
         ],

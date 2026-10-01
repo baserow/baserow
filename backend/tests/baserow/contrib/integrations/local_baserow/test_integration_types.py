@@ -11,6 +11,7 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
 )
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.models import Agent
 
 
 @pytest.mark.django_db
@@ -35,6 +36,25 @@ def test_get_local_baserow_databases_no_databases(data_fixture):
     databases = LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     assert len(databases) == 0
+
+
+@pytest.mark.django_db
+def test_get_local_baserow_databases_with_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Reader", role_uid="ADMIN")
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user,
+        authorized_agent=agent,
+        application=builder,
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    data_fixture.create_database_table(database=database)
+
+    databases = LocalBaserowIntegrationType.get_local_baserow_databases(integration)
+
+    assert [item.id for item in databases] == [database.id]
 
 
 @pytest.mark.django_db

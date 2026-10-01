@@ -2,16 +2,19 @@ import baseService from '@baserow/modules/core/crudTable/baseService'
 import jobService from '@baserow/modules/core/services/job'
 import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
 
-export default (client) => {
-  return Object.assign(baseService(client, `/audit-log/`), {
-    fetchUsers(page, search, workspaceId = null) {
-      const usersUrl = `/audit-log/users/`
-      const userPaginatedService = baseService(client, usersUrl)
-      const filters = {}
-      if (workspaceId) {
-        filters.workspace_id = workspaceId
+export default (client) =>
+  Object.assign(baseService(client, `/audit-log/`), {
+    fetchActors(page, search, workspaceId = null) {
+      const actorsUrl = `/subjects/`
+      const params = {
+        page,
+        search,
+        subject_types: 'auth.User,core.Agent',
       }
-      return userPaginatedService.fetch(usersUrl, page, search, [], filters)
+      if (workspaceId) {
+        params.workspace_id = workspaceId
+      }
+      return client.get(actorsUrl, { params })
     },
     fetchWorkspaces(page, search) {
       return fetchWorkspaceOptions(client, page, search)
@@ -47,4 +50,3 @@ export default (client) => {
         .slice(0, maxCount)
     },
   })
-}
