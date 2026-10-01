@@ -427,13 +427,14 @@ describe('external database workflow action types', () => {
   test('an action nothing has clicked yet still offers what never changes', () => {
     const actionType = typeFor('http_request')
 
-    // A request always answers with a status code, a raw body and headers,
-    // whatever the endpoint replies. Offering nothing at all would leave a
+    // A request always answers with a status code, a raw body, whether that
+    // body was kept, and headers, whatever the endpoint replies. Offering nothing at all would leave a
     // freshly added action out of the explorer until the field is saved and
     // opened again, so the action after it could point at nothing.
     for (const workflowAction of [{ service: {} }, {}]) {
       const schema = actionType.getDataSchema({}, workflowAction)
       expect(Object.keys(schema.properties).sort()).toEqual([
+        'body_omitted',
         'headers',
         'raw_body',
         'status_code',

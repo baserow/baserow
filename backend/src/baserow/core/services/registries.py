@@ -551,8 +551,20 @@ class ServiceType(
                     value = getattr(serialized_data, field.name)
                     sample_data[field.name] = value
 
+                # The save gets a savepoint of its own, for the same reason as
+                # the dispatch above: should the database reject the sample
+                # data (PostgreSQL refuses a NUL character in a json column,
+                # for one), the caller's transaction must stay usable so it can
+                # record the failure, and the sentinel is stored the same way
+                # it is for a failed dispatch.
                 service.sample_data = sample_data
-                service.save()
+                try:
+                    with transaction.atomic():
+                        service.save()
+                except Exception as e:
+                    service.sample_data = {"_error": str(e)}
+                    service.save()
+                    raise
             return serialized_data
 
     def remove_unused_field_names(

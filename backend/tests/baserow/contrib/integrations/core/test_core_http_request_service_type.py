@@ -91,6 +91,7 @@ def test_core_http_request_basic(
             "raw_body": "body",
         },
         "raw_body": '{"raw_body": "body"}',
+        "body_omitted": False,
         "headers": {"test": "header"},
         "status_code": 204,
     }
@@ -189,6 +190,7 @@ def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
     assert dispatch_data.data == {
         "raw_body": "",
         "body": "",
+        "body_omitted": False,
         "headers": {},
         "status_code": 504,
     }
@@ -689,12 +691,18 @@ def test_core_http_request_generate_schema():
     }
 
     assert service_type.generate_schema(
-        service, ["raw_body", "headers", "status_code"]
+        service, ["raw_body", "body_omitted", "headers", "status_code"]
     ) == {
         "title": schema_name,
         "type": "object",
         "properties": {
             "raw_body": {"type": "string", "title": "Raw body"},
+            "body_omitted": {
+                "type": "boolean",
+                "title": "Body omitted",
+                "description": "True when the response was not text (a PDF, an "
+                "image) and its body was not kept.",
+            },
             "headers": {
                 "properties": {
                     "Content-Length": {
@@ -732,7 +740,7 @@ def test_core_http_request_generate_schema():
         },
     }
     assert service_type.generate_schema(
-        service, ["raw_body", "headers", "status_code"]
+        service, ["raw_body", "body_omitted", "headers", "status_code"]
     ) == service_type.generate_schema(service, None)
 
 
@@ -849,6 +857,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
+        "body_omitted": False,
         "headers": {
             "Content-Type": content_type,
             "content-type": content_type,
@@ -907,12 +916,137 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": "Hello world!",
         "raw_body": "Hello world!",
+        "body_omitted": False,
         "headers": {
             "Content-Type": content_type,
             "content-type": content_type,
         },
         "status_code": 204,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/pdf",
+        "image/png",
+        "application/octet-stream",
+        "application/zip; name=export.zip",
+        "multipart/form-data; boundary=xyz",
+    ],
+)
+def test_core_http_request_keeps_no_body_for_a_binary_response(
+    data_fixture, content_type
+):
+    """
+    A response that isn't text (a PDF, an image, an archive) is of no use to a
+    later node, and decoding it would store garbage, NUL characters included,
+    in every node result and in the sample data of a test run. Its body is left
+    empty and flagged as omitted; the status code and the headers still say
+    what came back.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/invoice.pdf'", timeout=15
+    )
+    service_type = service.get_type()
+
+    with mock_advocate_request(
+        "%PDF-1.4\x00\ufffd\x00obj",
+        headers={"Content-Type": content_type, "Content-Length": "84213"},
+    ):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data == {
+        "body": "",
+        "raw_body": "",
+        "body_omitted": True,
+        "headers": {
+            "Content-Type": content_type,
+            "content-type": content_type,
+            "Content-Length": "84213",
+            "content-length": "84213",
+        },
+        "status_code": 200,
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/problem+json",
+        "application/vnd.api+json; charset=utf-8",
+        "application/xml",
+        "image/svg+xml",
+        "application/javascript",
+    ],
+)
+def test_core_http_request_keeps_the_body_of_a_structured_text_response(
+    data_fixture, content_type
+):
+    """
+    JSON and XML media types, with or without a structured syntax suffix, are
+    text and keep their body like `text/*` does, and say so.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15
+    )
+    service_type = service.get_type()
+
+    with mock_advocate_request("<a>body</a>", headers={"Content-Type": content_type}):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data["body"] == "<a>body</a>"
+    assert dispatch_data.data["raw_body"] == "<a>body</a>"
+    assert dispatch_data.data["body_omitted"] is False
+
+
+@pytest.mark.django_db
+def test_core_http_request_removes_null_characters_from_a_text_body(data_fixture):
+    """
+    A text body can carry raw NUL bytes, which PostgreSQL refuses in the json
+    and text columns the body ends up in, so they are removed from the body.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15
+    )
+    service_type = service.get_type()
+
+    with mock_advocate_request(
+        "Hello\x00 world\x00", headers={"Content-Type": "text/plain"}
+    ):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data["body"] == "Hello world"
+    assert dispatch_data.data["raw_body"] == "Hello world"
+
+
+@pytest.mark.django_db
+def test_core_http_request_removes_null_characters_from_a_json_body(data_fixture):
+    """
+    A JSON body can carry a NUL character as the `\\u0000` escape sequence, in
+    a value or in a key. It is removed wherever it is in the structure.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15
+    )
+    service_type = service.get_type()
+
+    body = {"name": "a\x00b", "items": [{"k\x00ey": "v\x00"}], "count": 1}
+    with mock_advocate_request(body):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data["body"] == {
+        "name": "ab",
+        "items": [{"key": "v"}],
+        "count": 1,
+    }
+    assert "\x00" not in dispatch_data.data["raw_body"]
 
 
 @pytest.mark.django_db

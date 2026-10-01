@@ -9,7 +9,10 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_MINUTE,
     PERIODIC_INTERVAL_WEEK,
 )
-from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.contrib.integrations.core.utils import (
+    calculate_next_periodic_run,
+    is_text_media_type,
+)
 
 from .cases.core_periodic_service_type import PERIODIC_SERVICE_CALCULATE_NEXT_RUN_CASES
 
@@ -215,3 +218,39 @@ def test_calculate_next_periodic_run_without_an_interval_has_no_next_run():
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        None,
+        "",
+        "text/plain",
+        "text/html; charset=UTF-8",
+        "TEXT/CSV",
+        "application/json",
+        "application/problem+json",
+        "application/vnd.api+json; charset=utf-8",
+        "application/xml",
+        "image/svg+xml",
+        "application/javascript",
+        "application/x-www-form-urlencoded",
+    ],
+)
+def test_is_text_media_type_for_text(content_type):
+    assert is_text_media_type(content_type) is True
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/pdf",
+        "application/octet-stream",
+        "image/png",
+        "audio/mpeg",
+        "application/zip; name=export.zip",
+        "multipart/form-data; boundary=xyz",
+    ],
+)
+def test_is_text_media_type_for_binary(content_type):
+    assert is_text_media_type(content_type) is False
