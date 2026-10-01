@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes an error when creating an autonumber field from a view sorted by a link or lookup field",
+    "message": "Fixes errors when creating an autonumber field from a view sorted or filtered by related fields",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",

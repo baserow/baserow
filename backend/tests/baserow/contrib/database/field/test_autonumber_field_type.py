@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
@@ -443,66 +444,201 @@ def test_renumber_rows_according_to_views_filters_and_sorts(data_fixture):
     assert getattr(row, f"field_{autonumber_field_3.id}") == 5
 
 
-@pytest.mark.field_autonumber
-@pytest.mark.django_db
-@pytest.mark.parametrize("sort_by", ["link_row", "lookup"])
-def test_renumber_rows_according_to_view_sorted_by_link_row_or_lookup_field(
-    data_fixture, sort_by
-):
+def _create_table_with_related_fields(data_fixture):
+    """
+    Creates a table with three rows and fields whose sorts and filters rely on
+    joins or annotations. In row order, the link row and multiple select values
+    are "c", "a" and "b", and the single select values are "cherry", "apple" and
+    "berry". The multiple select of the second row is empty instead of "a".
+    """
+
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(database=database)
     linked_table = data_fixture.create_database_table(database=database)
     linked_primary = data_fixture.create_text_field(table=linked_table, primary=True)
-    link_field = FieldHandler().create_field(
-        user, table, "link_row", name="Link", link_row_table=linked_table
-    )
-    lookup_field = FieldHandler().create_field(
+    handler = FieldHandler()
+    fields = {
+        "link_row": handler.create_field(
+            user, table, "link_row", name="Link", link_row_table=linked_table
+        )
+    }
+    fields["lookup"] = handler.create_field(
         user,
         table,
         "lookup",
         name="Lookup",
-        through_field_id=link_field.id,
+        through_field_id=fields["link_row"].id,
         target_field_id=linked_primary.id,
     )
-    sort_field = link_field if sort_by == "link_row" else lookup_field
+    fields["single_select"] = data_fixture.create_single_select_field(table=table)
+    fields["multiple_select"] = data_fixture.create_multiple_select_field(table=table)
+    single_options = [
+        data_fixture.create_select_option(field=fields["single_select"], value=value)
+        for value in ["cherry", "apple", "berry"]
+    ]
+    multiple_options = {
+        value: data_fixture.create_select_option(
+            field=fields["multiple_select"], value=value
+        )
+        for value in ["a", "b", "c"]
+    }
 
     linked_model = linked_table.get_model()
-    linked_a, linked_b, linked_c = [
-        linked_model.objects.create(**{f"field_{linked_primary.id}": value})
+    linked_rows = {
+        value: linked_model.objects.create(**{f"field_{linked_primary.id}": value})
         for value in ["a", "b", "c"]
-    ]
-    model = table.get_model()
-    rows = (
-        RowHandler()
-        .create_rows(
-            user,
-            table,
-            [
-                {f"field_{link_field.id}": [linked_c.id]},
-                {f"field_{link_field.id}": [linked_a.id]},
-                {f"field_{link_field.id}": [linked_b.id]},
-            ],
-            model=model,
-        )
-        .created_rows
+    }
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {
+                fields["link_row"].db_column: [linked_rows[link].id],
+                fields["single_select"].db_column: single_option.id,
+                fields["multiple_select"].db_column: multiple,
+            }
+            for link, single_option, multiple in zip(
+                ["c", "a", "b"],
+                single_options,
+                [[multiple_options["c"].id], [], [multiple_options["b"].id]],
+            )
+        ],
+    )
+    return user, table, fields
+
+
+def _autonumber_values(table, autonumber_field):
+    return list(
+        table.get_model()
+        .objects.order_by("id")
+        .values_list(autonumber_field.db_column, flat=True)
     )
 
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "ordering,field_name,expected",
+    [
+        ("sort", "link_row", [3, 1, 2]),
+        ("sort", "lookup", [3, 1, 2]),
+        ("sort", "multiple_select", [3, 1, 2]),
+        ("group_by", "link_row", [3, 1, 2]),
+    ],
+)
+def test_renumber_rows_according_to_view_ordered_by_related_field(
+    data_fixture, ordering, field_name, expected
+):
+    user, table, fields = _create_table_with_related_fields(data_fixture)
     view = data_fixture.create_grid_view(table=table)
-    data_fixture.create_view_sort(view=view, field=sort_field, order="ASC")
+    if ordering == "sort":
+        data_fixture.create_view_sort(view=view, field=fields[field_name], order="ASC")
+    else:
+        data_fixture.create_view_group_by(
+            view=view, field=fields[field_name], order="ASC"
+        )
 
     autonumber_field = FieldHandler().create_field(
-        user, table, "autonumber", name="Number", view=view
+        user, table, "autonumber", name="Number", view_id=view.id
     )
 
+    assert _autonumber_values(table, autonumber_field) == expected
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_name,filter_type,value,expected",
+    [
+        ("single_select", "contains", "rr", [1, 3, 2]),
+        ("multiple_select", "contains", "b", [2, 3, 1]),
+        ("multiple_select", "empty", "", [2, 1, 3]),
+    ],
+)
+def test_renumber_rows_according_to_view_filtered_by_related_field(
+    data_fixture, field_name, filter_type, value, expected
+):
+    user, table, fields = _create_table_with_related_fields(data_fixture)
+    view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_filter(
+        view=view, field=fields[field_name], type=filter_type, value=value
+    )
+
+    autonumber_field = FieldHandler().create_field(
+        user, table, "autonumber", name="Number", view_id=view.id
+    )
+
+    assert _autonumber_values(table, autonumber_field) == expected
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_convert_to_autonumber_numbers_rows_according_to_view_sorted_by_lookup(
+    data_fixture,
+):
+    user, table, fields = _create_table_with_related_fields(data_fixture)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_sort(view=view, field=fields["lookup"], order="ASC")
+
+    autonumber_field = FieldHandler().update_field(
+        user, text_field, "autonumber", view_id=view.id
+    )
+
+    assert _autonumber_values(table, autonumber_field) == [3, 1, 2]
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_renumber_rows_gives_trashed_rows_the_highest_numbers(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
     model = table.get_model()
-    values = model.objects.order_by("id").values_list(
-        f"field_{autonumber_field.id}", flat=True
+    rows = [
+        model.objects.create(**{text_field.db_column: value})
+        for value in ["rb", "ra", "x", "rc"]
+    ]
+    model.objects.filter(id=rows[1].id).update(trashed=True)
+
+    view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_filter(
+        view=view, field=text_field, type="contains", value="r"
     )
-    assert [row.id for row in rows] == list(
-        model.objects.order_by("id").values_list("id", flat=True)
+    data_fixture.create_view_sort(view=view, field=text_field, order="ASC")
+
+    autonumber_field = FieldHandler().create_field(
+        user, table, "autonumber", name="Number", view_id=view.id
     )
-    assert list(values) == [3, 1, 2]
+
+    values = (
+        table.get_model()
+        .objects_and_trash.order_by("id")
+        .values_list(autonumber_field.db_column, flat=True)
+    )
+    assert list(values) == [1, 4, 3, 2]
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_autonumber_field_rejects_view_of_another_table(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    other_table = data_fixture.create_database_table(database=database)
+    other_view = data_fixture.create_grid_view(table=other_table)
+    text_field = data_fixture.create_text_field(table=table)
+
+    with pytest.raises(ViewDoesNotExist):
+        FieldHandler().create_field(
+            user, table, "autonumber", name="Number", view_id=other_view.id
+        )
+
+    with pytest.raises(ViewDoesNotExist):
+        FieldHandler().update_field(
+            user, text_field, "autonumber", view_id=other_view.id
+        )
 
 
 @pytest.mark.field_autonumber
