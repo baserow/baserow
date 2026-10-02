@@ -2505,6 +2505,423 @@ describe('Grid view store', () => {
     ])
   })
 
+  describe('updatedExistingRow on a filtered-out row in a collapsed group', () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const view = {
+      filters: [
+        {
+          id: 1,
+          view: 1,
+          field: 1,
+          type: 'equal',
+          value: 'nomatch',
+          preload_values: {},
+          group: null,
+        },
+      ],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: groupBys,
+    }
+
+    beforeEach(() => {
+      const state = Object.assign(gridStore.state(), {
+        activeGroupBys: groupBys,
+        count: 1,
+        fieldOptions: {
+          1: { hidden: false, order: 0 },
+          2: { hidden: false, order: 1 },
+        },
+        groupBy: {
+          treeNodes: [
+            { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+            { path: { field_2: 'B' }, depth: 0, row_count: 0 },
+          ],
+          truncated: false,
+          // Collapsing A drops its row section from the layout, but its loaded
+          // rows stay in sectionRows.
+          collapse: { mode: 'expand', paths: [{ field_2: 'A' }] },
+          sectionRows: {},
+          rowLocations: {},
+        },
+      })
+      store.replaceState({ ...store.state, grid: state })
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(2, 'A'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'Alice',
+            field_2: 'A',
+            _: {
+              selected: false,
+              selectedFieldId: -1,
+              matchFilters: false,
+              persistentId: 'r10',
+            },
+          },
+        ],
+        startPosition: 0,
+      })
+    })
+
+    const sectionRowIds = (value) =>
+      (store.state.grid.groupBy.sectionRows[groupPathKey(2, value)] || [])
+        .filter(Boolean)
+        .map((row) => row.id)
+
+    test('moves the row and its count to the new group', async () => {
+      await store.dispatch('grid/updatedExistingRow', {
+        view,
+        fields,
+        row: store.getters['grid/getRow'](10),
+        values: { field_2: 'B' },
+      })
+
+      expect(sectionRowIds('A')).toEqual([])
+      expect(sectionRowIds('B')).toEqual([10])
+      expect(store.state.grid.groupBy.treeNodes).toEqual([
+        { path: { field_2: 'A' }, depth: 0, row_count: 0 },
+        { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+      ])
+    })
+
+    test('leaves the row in place when its group does not change', async () => {
+      await store.dispatch('grid/updatedExistingRow', {
+        view,
+        fields,
+        row: store.getters['grid/getRow'](10),
+        values: { field_1: 'Alicia' },
+      })
+
+      expect(sectionRowIds('A')).toEqual([10])
+      expect(store.getters['grid/getRow'](10).field_1).toBe('Alicia')
+      expect(store.state.grid.groupBy.treeNodes).toEqual([
+        { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+        { path: { field_2: 'B' }, depth: 0, row_count: 0 },
+      ])
+    })
+  })
+
+  test('addField gives grouped rows the new field', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 1 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    const row = { id: 10, order: '1.00', field_2: 'A', _: { selectedBy: [] } }
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [row],
+      startPosition: 0,
+    })
+    store.commit('grid/SET_GROUP_BY_ABSOLUTE_ROWS', { 0: { ...row } })
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: null })
+
+    expect(store.getters['grid/getRow'](10)).toHaveProperty('field_5', null)
+    expect(store.state.grid.groupBy.absoluteRows[0]).toHaveProperty(
+      'field_5',
+      null
+    )
+  })
+
+  test('addField keeps a row shared by the section and absolute caches', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 1 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    // Loaded rows are the same object in both caches, as commitLoadedGroupByRows
+    // leaves them.
+    const row = {
+      id: 10,
+      order: '1.00',
+      field_1: 'old',
+      field_2: 'A',
+      _: { selectedBy: [] },
+    }
+    store.commit('grid/SET_GROUP_BY_ABSOLUTE_ROWS', { 0: row })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [row],
+      startPosition: 0,
+    })
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: null })
+    store.commit('grid/UPDATE_ROW_FIELD_VALUE', {
+      row: store.getters['grid/getRow'](10),
+      field: { id: 1 },
+      value: 'new',
+    })
+
+    // An evicted section is restored from absoluteRows, so the edit must be
+    // there too.
+    expect(store.state.grid.groupBy.absoluteRows[0].field_1).toBe('new')
+  })
+
+  test('addField skips the gaps of a partly loaded section', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 4 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    // Filling a section in several ranges leaves a gap, which the next range
+    // turns into an explicit undefined entry when it copies the array.
+    for (const [id, startPosition] of [
+      [10, 0],
+      [12, 2],
+      [13, 3],
+    ]) {
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(2, 'A'),
+        rows: [{ id, order: `${id}.00`, field_2: 'A', _: { selectedBy: [] } }],
+        startPosition,
+      })
+    }
+    const rows = store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')]
+    expect(1 in rows).toBe(true)
+    expect(rows[1]).toBeUndefined()
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: null })
+
+    expect(store.getters['grid/getRow'](12)).toHaveProperty('field_5', null)
+  })
+
+  test('addField gives each grouped row its own copy of an array value', () => {
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [
+        { id: 10, order: '1.00', field_2: 'A', _: { selectedBy: [] } },
+        { id: 11, order: '2.00', field_2: 'A', _: { selectedBy: [] } },
+      ],
+      startPosition: 0,
+    })
+
+    store.dispatch('grid/addField', { field: { id: 5 }, value: [] })
+
+    expect(store.getters['grid/getRow'](10).field_5).toEqual([])
+    expect(store.getters['grid/getRow'](10).field_5).not.toBe(
+      store.getters['grid/getRow'](11).field_5
+    )
+  })
+
+  describe('rows in a collapsed parent group with two group-by levels', () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Status', type: 'text' },
+    ]
+    const groupBys = [
+      { field: 2, order: 'ASC', type: 'default' },
+      { field: 3, order: 'ASC', type: 'default' },
+    ]
+    const groupByFields = [{ id: 2 }, { id: 3 }]
+    const baseView = {
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: groupBys,
+    }
+    const leafKey = (team, status) =>
+      pathKey({ field_2: team, field_3: status }, groupByFields)
+
+    beforeEach(() => {
+      const top = (team, siblingIndex, rowOffset) => ({
+        path: { field_2: team },
+        depth: 0,
+        row_count: 1,
+        children_count: 1,
+        sibling_index: siblingIndex,
+        row_offset: rowOffset,
+      })
+      const leaf = (team, status) => ({
+        path: { field_2: team, field_3: status },
+        depth: 1,
+        row_count: 1,
+        sibling_index: 0,
+        row_offset: 0,
+      })
+      const topNodes = [top('A', 0, 0), top('B', 1, 1)]
+      const state = Object.assign(gridStore.state(), {
+        activeGroupBys: groupBys,
+        count: 2,
+        fieldOptions: {
+          1: { hidden: false, order: 0 },
+          2: { hidden: false, order: 1 },
+          3: { hidden: false, order: 2 },
+        },
+        groupBy: {
+          ...gridStore.state().groupBy,
+          treeNodes: topNodes,
+          pages: {
+            '': {
+              parentPath: {},
+              totalSiblingCount: 2,
+              nodes: { 0: topNodes[0], 1: topNodes[1] },
+            },
+            [groupPathKey(2, 'A')]: {
+              parentPath: { field_2: 'A' },
+              totalSiblingCount: 1,
+              nodes: { 0: leaf('A', 'Open') },
+            },
+            [groupPathKey(2, 'B')]: {
+              parentPath: { field_2: 'B' },
+              totalSiblingCount: 1,
+              nodes: { 0: leaf('B', 'Done') },
+            },
+          },
+          // Collapsing A drops A/Open from the layout, but its loaded rows stay.
+          collapse: { mode: 'expand', paths: [{ field_2: 'A' }] },
+        },
+      })
+      store.replaceState({ ...store.state, grid: state })
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: leafKey('A', 'Open'),
+        rows: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'Alice',
+            field_2: 'A',
+            field_3: 'Open',
+            _: {
+              selected: false,
+              selectedFieldId: -1,
+              selectedBy: [],
+              matchFilters: true,
+              persistentId: 'r10',
+            },
+          },
+        ],
+        startPosition: 0,
+      })
+    })
+
+    const leafCount = (team, status) =>
+      Object.values(
+        store.state.grid.groupBy.pages[groupPathKey(2, team)].nodes
+      ).find((node) => node.path.field_3 === status)?.row_count
+    const topCount = (team) =>
+      store.state.grid.groupBy.treeNodes.find(
+        (node) => node.path.field_2 === team
+      ).row_count
+
+    test('updatedExistingRow moves a filtered-out row and its counts', async () => {
+      const view = {
+        ...baseView,
+        filters: [
+          {
+            id: 1,
+            view: 1,
+            field: 1,
+            type: 'equal',
+            value: 'nomatch',
+            preload_values: {},
+            group: null,
+          },
+        ],
+      }
+      await store.dispatch('grid/updatedExistingRow', {
+        view,
+        fields,
+        row: store.getters['grid/getRow'](10),
+        values: { field_2: 'B', field_3: 'Done' },
+      })
+
+      expect(
+        store.state.grid.groupBy.sectionRows[leafKey('B', 'Done')]
+          .filter(Boolean)
+          .map((row) => row.id)
+      ).toEqual([10])
+      expect(leafCount('A', 'Open')).toBe(0)
+      expect(leafCount('B', 'Done')).toBe(2)
+      expect(topCount('A')).toBe(0)
+      expect(topCount('B')).toBe(2)
+    })
+
+    test('a realtime move of a filtered-out row leaves no group aggregation spinning', async () => {
+      store.state.grid.fieldOptions[1].aggregation_raw_type = 'count'
+      const view = {
+        ...baseView,
+        filters: [
+          {
+            id: 1,
+            view: 1,
+            field: 1,
+            type: 'equal',
+            value: 'nomatch',
+            preload_values: {},
+            group: null,
+          },
+        ],
+      }
+      await store.dispatch('grid/updatedExistingRow', {
+        view,
+        fields,
+        row: store.getters['grid/getRow'](10),
+        values: { field_2: 'B', field_3: 'Done' },
+      })
+
+      expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+    })
+
+    test('deletedExistingRow takes the count from the group the row occupies', async () => {
+      // A row kept in place with a warning sits in A/Open while its values say B.
+      store.commit('grid/UPDATE_ROW_IN_BUFFER', {
+        row: { id: 10 },
+        values: { field_2: 'B', field_3: 'Done' },
+      })
+
+      await store.dispatch('grid/deletedExistingRow', {
+        view: baseView,
+        fields,
+        row: store.getters['grid/getRow'](10),
+      })
+
+      expect(leafCount('A', 'Open')).toBe(0)
+      expect(leafCount('B', 'Done')).toBe(1)
+      expect(topCount('A')).toBe(0)
+      expect(topCount('B')).toBe(1)
+      expect(
+        store.state.grid.groupBy.sectionRows[leafKey('A', 'Open')].filter(
+          Boolean
+        )
+      ).toEqual([])
+      expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
+    })
+  })
+
   test('updatedExistingRow keeps a selected group-by change in place with a warning', async () => {
     const fields = [
       { id: 1, name: 'Name', type: 'text', primary: true },

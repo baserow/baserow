@@ -1080,13 +1080,13 @@ def create_actions(
 
     WHEN to use: User wants buttons/forms to perform actions (navigate, create/update rows, show notifications).
     WHAT it does: Creates workflow actions with formula support for dynamic values.
-    RETURNS: Created actions with id, type, element_ref, event.
+    RETURNS: Created actions with id, type, element, event.
     REQUIRED: `page_id` and `actions` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Attaching Actions
-    - element_ref: attach to newly created element (auto-tracked)
-    - element_id: attach to existing element (from list_elements)
+    - element: a ref from the same batch, or an existing element ID (from list_elements)
     - event: "click" for buttons/links, "submit" for form containers
+    - Per-row buttons: add columns with type "button" to the table element, then attach each action to the table element with event "<column name>_click" (e.g. "View_click", "Delete_click"). Use the column name, not its button label. Bare "click" works only for a table with one button column; duplicate names require the exact "<uid>_click" event listed in validation errors. Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: get('current_record.id')"}.
 
     ## Action Types
     - notification: Show a message (title/description are formulas)

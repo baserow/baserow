@@ -343,8 +343,8 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 
 class ActionCreate(BaseModel):
     """
-    One workflow action, attached to an element (event "click") or to a form
-    container (event "submit").
+    One workflow action, attached to an element (event "click"), a table button
+    column (event "<column name>_click"), or a form container (event "submit").
 
     ``type`` and ``element`` are always required. Each type also needs:
     - notification: title
@@ -376,7 +376,13 @@ class ActionCreate(BaseModel):
     )
     event: str = Field(
         default="click",
-        description="Event that triggers the action: click, submit, after_login.",
+        description=(
+            "Event that triggers the action: click for standalone buttons/links, "
+            "submit for forms, after_login for login forms. Table button columns: "
+            "use '<column name>_click' (e.g. 'Edit_click') or the exact '<uid>_click' "
+            "if known. Bare click is valid only with one button column; "
+            "duplicate column names require the UID event."
+        ),
     )
 
     # notification

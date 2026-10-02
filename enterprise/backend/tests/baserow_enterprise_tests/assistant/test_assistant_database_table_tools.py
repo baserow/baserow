@@ -466,6 +466,13 @@ def test_list_tables_tool(data_fixture):
         ),
     )
     assert "unrelated tables exist" in response["next_steps"]
+    steps = response["next_steps"]
+    assert "create nothing" in steps
+    assert "Call ask_user with one question in the user's language" in steps
+    assert "offering three options: create a table with sample data" in steps
+    assert "agree on its fields first" in steps
+    assert "use data the user points you to" in steps
+    assert "example, demo, or sample app, or for new data storage" in steps
     info = response["_info"]
     assert "no tables matching" in info or "No tables found" in info
 

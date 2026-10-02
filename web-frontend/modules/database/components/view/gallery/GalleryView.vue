@@ -17,7 +17,7 @@
           ))
       "
       icon="iconoir-plus"
-      position="fixed"
+      position="absolute"
       @click="$refs.rowCreateModal.show()"
     >
     </ButtonFloating>

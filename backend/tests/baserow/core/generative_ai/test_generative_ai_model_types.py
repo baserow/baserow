@@ -5,6 +5,7 @@ import pytest
 from botocore.stub import Stubber
 from pydantic_ai import BinaryContent, TextContent, UploadedFile
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models.zai import ZaiModel
 from pydantic_ai.profiles.openai import OpenAIJsonSchemaTransformer
 
 from baserow.core.ai_provider.handler import AIProviderHandler
@@ -19,9 +20,11 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     OpenAIGenerativeAIModelType,
     OpenRouterGenerativeAIModelType,
     XaiGenerativeAIModelType,
+    ZaiGenerativeAIModelType,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.generative_ai.xai import XAI_BASE_URL, XaiChatProvider
+from baserow.core.generative_ai.zai import ZaiChatProvider
 from baserow_premium.fields.ai_file import AIFile
 
 
@@ -542,6 +545,7 @@ def test_google_and_groq_do_not_fall_back_to_legacy_kuma_credentials(monkeypatch
             "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
         ),
         (XaiGenerativeAIModelType(), "xai", "grok-4.3"),
+        (ZaiGenerativeAIModelType(), "zai", "glm-5.2"),
     ],
 )
 def test_database_only_providers_ignore_legacy_workspace_settings(
@@ -660,6 +664,152 @@ def test_xai_integration_override_needs_its_own_api_key() -> None:
     assert model_type.get_atomic_settings_override(
         {"api_key": "xai-key", "models": ["grok-4.3"]}
     ) == {"api_key": "xai-key", "models": ["grok-4.3"]}
+
+
+# --- Z.ai ---
+
+
+def test_zai_model_type_is_registered() -> None:
+    assert isinstance(
+        generative_ai_model_type_registry.get("zai"), ZaiGenerativeAIModelType
+    )
+
+
+def test_zai_constructs_zai_model_with_request_shape_fixes() -> None:
+    model = ZaiGenerativeAIModelType().get_ai_model(
+        "glm-5.2", settings_override={"api_key": "zai-key", "models": ["glm-5.2"]}
+    )
+
+    assert isinstance(model, ZaiModel)
+    assert isinstance(model.provider, ZaiChatProvider)
+    assert model.model_name == "glm-5.2"
+    assert model.system == "zai"
+    assert model.settings == {"zai_clear_thinking": True}
+    assert model.provider.base_url == "https://api.z.ai/api/paas/v4"
+    assert str(model.provider.client.base_url) == "https://api.z.ai/api/paas/v4/"
+    assert model.provider.client.api_key == "zai-key"
+    assert model.profile["supports_thinking"] is True
+    assert model.profile["supports_json_object_output"] is True
+    assert model.profile["openai_chat_thinking_field"] == "reasoning_content"
+    assert model.profile["openai_supports_tool_choice_required"] is False
+    assert model.profile["openai_chat_supports_max_completion_tokens"] is False
+    assert model.profile["openai_supports_strict_tool_definition"] is False
+    assert model.profile["openai_chat_supports_document_input"] is False
+
+
+def test_zai_prepare_files_embeds_jpeg_and_png_images() -> None:
+    ai_model_type = ZaiGenerativeAIModelType()
+    images = [
+        _make_ai_file("photo.jpg", 4, "image/jpeg", b"\xff\xd8\xff\xe0"),
+        _make_ai_file("photo.jpeg", 4, "image/jpeg", b"\xff\xd8\xff\xe0"),
+        _make_ai_file("photo.png", 8, "image/png", b"\x89PNG\r\n\x1a\n"),
+    ]
+
+    result = ai_model_type.prepare_files(images)
+
+    assert ai_model_type.supports_files is True
+    assert result == images
+    assert all(isinstance(image.content, BinaryContent) for image in images)
+
+
+def test_zai_prepare_files_skips_unsupported_images_and_documents() -> None:
+    ai_model_type = ZaiGenerativeAIModelType()
+    size = ai_model_type.file_handler._INLINE_UPLOAD_THRESHOLD_BYTES + 1
+    files = [
+        _make_ai_file("animation.gif", 6, "image/gif", b"GIF89a"),
+        _make_ai_file("photo.webp", 4, "image/webp", b"RIFF"),
+        _make_ai_file("doc.pdf", 8, "application/pdf", b"%PDF-1.4"),
+        _make_ai_file("doc.docx", 4, "application/msword", b"PK\x03\x04"),
+        _make_ai_file("big.txt", size, "text/plain", b"x" * size),
+    ]
+
+    result = ai_model_type.prepare_files(files)
+
+    assert result == []
+    assert all(ai_file.content is None for ai_file in files)
+
+
+def test_zai_prepare_files_small_text_is_inlined() -> None:
+    ai_model_type = ZaiGenerativeAIModelType()
+    data = b"some csv data"
+    ai_file = _make_ai_file("data.csv", len(data), "text/csv", data)
+
+    result = ai_model_type.prepare_files([ai_file])
+
+    assert result == [ai_file]
+    assert isinstance(ai_file.content, TextContent)
+    assert "some csv data" in ai_file.content.content
+
+
+def test_zai_prepare_files_caps_each_image_at_3_75_mb() -> None:
+    at_limit = _make_ai_file("at-limit.png", 3_750_000, "image/png", b"png")
+    over_limit = _make_ai_file("over-limit.jpg", 3_750_001, "image/jpeg", b"jpg")
+
+    result = ZaiGenerativeAIModelType().prepare_files([over_limit, at_limit])
+
+    assert result == [at_limit]
+    assert over_limit.content is None
+
+
+def test_zai_prepare_files_embeds_at_most_50_images() -> None:
+    images = [
+        _make_ai_file(f"{index}.png", 10, "image/png", b"png") for index in range(26)
+    ] + [_make_ai_file(f"{index}.jpg", 10, "image/jpeg", b"jpg") for index in range(25)]
+
+    result = ZaiGenerativeAIModelType().prepare_files(images)
+
+    assert result == images[:50]
+    assert images[50].content is None
+
+
+def test_zai_prepare_files_applies_budget_across_multiple_files() -> None:
+    ai_model_type = ZaiGenerativeAIModelType()
+    images = [
+        _make_ai_file(f"{index}.png", 3_750_000, "image/png", b"png")
+        for index in range(6)
+    ]
+
+    result = ai_model_type.prepare_files(images)
+
+    assert ai_model_type.file_handler._MAX_EMBED_PAYLOAD_BYTES == 14 * 1024 * 1024
+    assert result == images[:3]
+    assert all(image.content is None for image in images[3:])
+
+
+def test_zai_known_models_exclude_unsuitable_models() -> None:
+    models = ZaiGenerativeAIModelType().get_known_models()
+
+    assert "glm-5.3" in models
+    assert "glm-5.2" in models
+    assert "glm-4.6v" in models
+    for excluded in (
+        "autoglm-phone-multilingual",
+        "glm-5-turbo",
+        "glm-5v-turbo",
+        "glm-4-32b-0414-128k",
+    ):
+        assert excluded not in models
+
+
+def test_zai_caps_temperature_at_one() -> None:
+    model_type = ZaiGenerativeAIModelType()
+
+    assert model_type.prepare_model_settings("glm-5.2", 1.7) == {"temperature": 1}
+    assert model_type.prepare_model_settings("glm-5.2", 0.4) == {"temperature": 0.4}
+    assert model_type.prepare_model_settings("glm-5.2") == {}
+
+
+def test_zai_integration_override_needs_its_own_api_key() -> None:
+    model_type = ZaiGenerativeAIModelType()
+
+    assert model_type.get_atomic_settings_override({"models": ["glm-5.2"]}) is None
+    assert (
+        model_type.get_atomic_settings_override({"api_key": " ", "models": ["glm-5.2"]})
+        is None
+    )
+    assert model_type.get_atomic_settings_override(
+        {"api_key": "zai-key", "models": ["glm-5.2"]}
+    ) == {"api_key": "zai-key", "models": ["glm-5.2"]}
 
 
 @pytest.mark.asyncio

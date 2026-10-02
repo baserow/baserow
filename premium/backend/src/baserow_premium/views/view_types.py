@@ -769,7 +769,7 @@ class TimelineViewType(ViewType):
         cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
-    ) -> View:
+    ) -> Optional[View]:
         """
         Imports the serialized timeline view field options.
         """
@@ -795,21 +795,22 @@ class TimelineViewType(ViewType):
             storage,
         )
 
-        if "database_timeline_view_field_options" not in id_mapping:
-            id_mapping["database_timeline_view_field_options"] = {}
+        if timeline_view is not None:
+            if "database_timeline_view_field_options" not in id_mapping:
+                id_mapping["database_timeline_view_field_options"] = {}
 
-        for field_option in field_options:
-            field_option_copy = field_option.copy()
-            field_option_id = field_option_copy.pop("id")
-            field_option_copy["field_id"] = id_mapping["database_fields"][
-                field_option["field_id"]
-            ]
-            field_option_object = TimelineViewFieldOptions.objects.create(
-                timeline_view=timeline_view, **field_option_copy
-            )
-            id_mapping["database_timeline_view_field_options"][field_option_id] = (
-                field_option_object.id
-            )
+            for field_option in field_options:
+                field_option_copy = field_option.copy()
+                field_option_id = field_option_copy.pop("id")
+                field_option_copy["field_id"] = id_mapping["database_fields"][
+                    field_option["field_id"]
+                ]
+                field_option_object = TimelineViewFieldOptions.objects.create(
+                    timeline_view=timeline_view, **field_option_copy
+                )
+                id_mapping["database_timeline_view_field_options"][field_option_id] = (
+                    field_option_object.id
+                )
 
         return timeline_view
 

@@ -144,15 +144,35 @@ export function pathKey(path, fields) {
     if (!(key in path)) {
       break
     }
+    // An undefined value (a row missing the cell) is keyed like the empty group so
+    // the key can be parsed back by `pathFromKey`.
+    const value = path[key] ?? null
     // Numeric-sort m2m id arrays so a group is keyed by its set of ids, not their order,
     // regardless of how the source (server- or row-derived) ordered them.
-    const value = path[key]
     const canonical = Array.isArray(value)
       ? [...value].sort((a, b) => a - b)
       : value
     parts.push(`${key}:${JSON.stringify(canonical)}`)
   }
   return parts.join(PATH_KEY_SEP)
+}
+
+/**
+ * The inverse of `pathKey`: rebuilds the group path a section key was made from,
+ * so a section can be resolved without it being part of the rendered layout.
+ */
+export function pathFromKey(key) {
+  const path = {}
+  if (!key) {
+    return path
+  }
+  for (const part of key.split(PATH_KEY_SEP)) {
+    const separatorIndex = part.indexOf(':')
+    path[part.slice(0, separatorIndex)] = JSON.parse(
+      part.slice(separatorIndex + 1)
+    )
+  }
+  return path
 }
 
 /**

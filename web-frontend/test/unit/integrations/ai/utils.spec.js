@@ -20,6 +20,7 @@ describe('AI Agent integration model resolution', () => {
     'google',
     'groq',
     'xai',
+    'zai',
     'mistral',
     'ollama',
     'openrouter',

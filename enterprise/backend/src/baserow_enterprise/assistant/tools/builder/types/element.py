@@ -140,7 +140,8 @@ class TableFieldConfig(BaseModel):
     - type="text" (default): ``value`` is the cell content — a literal or
       "$formula: <intent>". Omit ``value`` to show the data source field
       whose name matches ``name``.
-    - type="button": ``label`` is the button caption.
+    - type="button": ``label`` is the button caption. Its click actions attach
+      to the table element (see create_actions).
 
     These are the only column types, and ``name``, ``type``, ``value``,
     ``label`` are the only accepted keys; any other key is rejected. Column

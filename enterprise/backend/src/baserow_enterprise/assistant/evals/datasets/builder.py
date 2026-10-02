@@ -9,15 +9,26 @@ from __future__ import annotations
 
 import re
 
+from django.db.models import BooleanField, IntegerField, Q, Value
+from django.db.models.functions import Coalesce
+
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element, MenuItemElement
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View, ViewFilter
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRows
+from baserow.core.cache import local_cache
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.types import FormulaContext
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.utils import get_value_at_path
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.harness import tool_call_order_ok, tool_called
@@ -35,6 +46,7 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
+from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files
@@ -131,31 +143,16 @@ def _filter_tool_calls(
 ) -> list[dict]:
     """Return assistant-side tool call entries, optionally filtered by name(s)."""
 
-    calls = [e for e in output.messages if e["role"] == "assistant" and "args" in e]
+    # Original arguments can remain malformed after successful tool-side repair.
+    calls = [
+        e
+        for e in output.messages
+        if e["role"] == "assistant" and isinstance(e.get("args"), dict)
+    ]
     if tool_names is None:
         return calls
     names = {tool_names} if isinstance(tool_names, str) else set(tool_names)
     return [e for e in calls if e.get("tool_name") in names]
-
-
-_ELEMENT_CREATION_TOOLS = {
-    "create_display_elements",
-    "create_layout_elements",
-    "create_form_elements",
-    "create_collection_elements",
-}
-
-
-def _collect_element_args(
-    output: EvalRunOutput, tool_names: set[str] | None = None
-) -> list[dict]:
-    """Flatten all element dicts from element-creation tool calls."""
-
-    calls = _filter_tool_calls(output, tool_names or _ELEMENT_CREATION_TOOLS)
-    elements: list[dict] = []
-    for call in calls:
-        elements.extend(call["args"].get("elements", []))
-    return elements
 
 
 def _get_theme_primary_color(builder: Builder) -> str:
@@ -239,56 +236,119 @@ def _creates_landing_page_scenario(fx: Fixtures) -> EvalScenario:
     )
 
 
+class _SavedFormulaContext(FormulaContext):
+    """Resolve saved formulas against explicit client data without generating formulas."""
+
+    def __init__(self, values):
+        super().__init__()
+        self.values = values
+
+    def __getitem__(self, key):
+        missing = object()
+        value = get_value_at_path(self.values, key, default=missing)
+        if value is missing:
+            raise KeyError(key)
+        return value
+
+
+def _render_saved_formula(formula, values=None) -> str | None:
+    try:
+        return str(
+            resolve_formula(
+                formula,
+                formula_runtime_function_registry,
+                _SavedFormulaContext(values or {}),
+            )
+        )
+    except Exception:
+        # An invalid or unsupported saved expression is a failed behavior check.
+        return None
+
+
+def _asked_user(output: EvalRunOutput) -> bool:
+    """Whether the run ended by asking the user, through ask_user or plain text."""
+
+    return bool(tool_called(output, "ask_user")) or "?" in output.answer
+
+
+def _navigates_to_path(navigation, builder, path) -> bool:
+    if navigation.navigation_type == "page":
+        target = navigation.navigate_to_page
+        return bool(
+            target
+            and not target.trashed
+            and target.builder_id == builder.id
+            and target.path == path
+        )
+    return (
+        navigation.navigation_type == "custom"
+        and _render_saved_formula(navigation.navigate_to_url) == path
+    )
+
+
 def _check_creates_landing_page(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     builder = scenario.refs["builder"]
-    pages = Page.objects.filter(builder=builder, shared=False)
-    page = pages.first()
-    elements = Element.objects.filter(page=page) if page else Element.objects.none()
-
-    all_el_args = _collect_element_args(output)
-    heading_texts = [
-        str(e.get("value", "")).lower()
-        for e in all_el_args
-        if e.get("type") == "heading"
+    page = Page.objects.filter(builder=builder, shared=False, path="/").first()
+    elements = list(Element.objects.filter(page=page)) if page else []
+    rendered = [
+        (element, _render_saved_formula(getattr(element.specific, "value", "")))
+        for element in elements
     ]
-    button_texts = [
-        str(e.get("value", "") or e.get("label", "")).lower()
-        for e in all_el_args
-        if e.get("type") == "button"
+    headings = [
+        text for element, text in rendered if element.get_type().type == "heading"
     ]
-
+    descriptions = [
+        text for element, text in rendered if element.get_type().type == "text"
+    ]
+    buttons = [
+        element
+        for element, text in rendered
+        if (
+            element.get_type().type == "button"
+            or (
+                element.get_type().type == "link"
+                and element.specific.variant == "button"
+            )
+        )
+        and text
+        and "get started" in text.casefold()
+    ]
+    navigation = [
+        _navigates_to_path(element.specific, builder, "/contact")
+        for element in buttons
+        if element.get_type().type == "link"
+    ]
+    for action in BuilderWorkflowAction.objects.filter(
+        page=page,
+        element__in=buttons,
+        event="click",
+        content_type__model="openpageworkflowaction",
+    ):
+        navigation.append(_navigates_to_path(action.specific, builder, "/contact"))
     return [
         CheckResult(
-            "create_pages before create_display_elements",
-            tool_call_order_ok(output, ["create_pages", "create_display_elements"]),
-        ),
-        CheckResult("page created", pages.exists(), hint="no pages found in DB"),
-        CheckResult(
-            "page name is 'Home'",
-            page is not None and "home" in page.name.lower(),
-            hint=f"page name: {page.name if page else None}",
-        ),
-        CheckResult(
-            "page path is '/'",
-            page is not None and page.path == "/",
-            hint=f"page path: {page.path if page else None}",
-        ),
-        CheckResult(
-            ">=3 elements (heading, text, button)",
-            elements.count() >= 3,
-            hint=f"got {elements.count()} elements",
+            "Home page exists at '/'", bool(page and "home" in page.name.casefold())
         ),
         CheckResult(
             "heading element with 'Welcome'",
-            any("welcome" in t for t in heading_texts),
-            hint=f"heading texts from args: {heading_texts}",
+            any(text and "welcome" in text.casefold() for text in headings),
+            hint=f"saved headings: {headings}",
         ),
         CheckResult(
-            "button labeled 'Get Started'",
-            any("get started" in t for t in button_texts),
-            hint=f"button texts from args: {button_texts}",
+            "landing description is displayed",
+            any(
+                text and "this is our landing page" in text.casefold()
+                for text in descriptions
+            ),
+            hint=f"saved descriptions: {descriptions}",
+        ),
+        CheckResult("button labeled 'Get Started'", bool(buttons)),
+        CheckResult(
+            "Get Started click navigates to /contact",
+            any(navigation),
+            hint="Requires a saved button click action or a LinkElement with button styling and working navigation.",
         ),
     ]
 
@@ -345,7 +405,7 @@ def _check_creates_contact_form(
     email_field = scenario.refs["email_field"]
 
     pages = Page.objects.filter(builder=builder, shared=False)
-    page = pages.first()
+    page = pages.filter(path="/contact").first()
     elements = Element.objects.filter(page=page) if page else Element.objects.none()
 
     actions = (
@@ -354,7 +414,9 @@ def _check_creates_contact_form(
         else BuilderWorkflowAction.objects.none()
     )
     create_row_action = actions.filter(
-        content_type__model="localbaserowcreaterowworkflowaction"
+        content_type__model="localbaserowcreaterowworkflowaction",
+        element__content_type__model="formcontainerelement",
+        event="submit",
     ).first()
 
     service = None
@@ -382,7 +444,6 @@ def _check_creates_contact_form(
     )
 
     return [
-        CheckResult("called setup_page", tool_called(output, "setup_page") >= 1),
         CheckResult("page created", pages.exists(), hint="no pages found in DB"),
         CheckResult(
             "page name is 'Contact'",
@@ -400,7 +461,7 @@ def _check_creates_contact_form(
             hint=f"got {elements.count()} elements",
         ),
         CheckResult(
-            "create_row workflow action exists",
+            "form submit create_row action exists",
             create_row_action is not None,
             hint=f"action types: {list(actions.values_list('content_type__model', flat=True))}",
         ),
@@ -482,12 +543,8 @@ def _check_creates_data_source_with_repeat(
     builder = scenario.refs["builder"]
     table = scenario.refs["table"]
 
-    pages = Page.objects.filter(builder=builder, shared=False)
-    page = pages.first()
-
-    ds_calls = _filter_tool_calls(output, "create_data_sources")
-    setup_calls = _filter_tool_calls(output, "setup_page")
-    if setup_calls:
+    page = Page.objects.filter(builder=builder, shared=False, path="/products").first()
+    if tool_called(output, "setup_page"):
         order_ok = tool_call_order_ok(output, ["create_pages", "setup_page"])
     else:
         order_ok = tool_call_order_ok(
@@ -495,21 +552,21 @@ def _check_creates_data_source_with_repeat(
             ["create_pages", "create_data_sources", "create_collection_elements"],
         )
 
-    if ds_calls:
-        data_sources = ds_calls[0]["args"].get("data_sources", [])
-    elif setup_calls:
-        data_sources = setup_calls[0]["args"].get("data_sources", []) or []
-    else:
-        data_sources = []
-    first_ds = data_sources[0] if data_sources else {}
-    ds_name = first_ds.get("name", "")
-    ds_table_id = first_ds.get("table_id")
-    ds_type = first_ds.get("type")
-
-    all_el_args = _collect_element_args(output)
-    for call in setup_calls:
-        all_el_args.extend(call["args"].get("elements", []) or [])
-    repeat_elements = [e for e in all_el_args if e.get("type") == "repeat"]
+    sources = list(DataSource.objects.filter(page=page)) if page else []
+    matching_sources = {
+        source.id
+        for source in sources
+        if source.name.casefold() == "all products"
+        and source.service_id is not None
+        and isinstance(source.service.specific, LocalBaserowListRows)
+        and source.service.specific.table_id == table.id
+    }
+    repeats = [
+        element
+        for element in (Element.objects.filter(page=page) if page else [])
+        if element.get_type().type == "repeat"
+        and element.specific.data_source_id in matching_sources
+    ]
 
     return [
         CheckResult(
@@ -517,41 +574,28 @@ def _check_creates_data_source_with_repeat(
             "create_data_sources+create_collection_elements",
             order_ok,
         ),
-        CheckResult("page created", pages.exists(), hint="no pages found in DB"),
+        CheckResult("page created at '/products'", page is not None),
         CheckResult(
             "page name is 'Products'",
             page is not None and "product" in page.name.lower(),
             hint=f"page name: {page.name if page else None}",
         ),
         CheckResult(
-            "page path is '/products'",
-            page is not None and page.path == "/products",
-            hint=f"page path: {page.path if page else None}",
+            "saved All Products data source lists the Products table",
+            bool(matching_sources),
+            hint=f"saved data sources: {[source.name for source in sources]}",
         ),
         CheckResult(
-            "data source created",
-            len(data_sources) >= 1,
-            hint=f"ds_calls: {len(ds_calls)}, setup_calls: {len(setup_calls)}",
+            "repeat uses the All Products data source",
+            bool(repeats),
         ),
         CheckResult(
-            "data source type is list_rows",
-            ds_type == "list_rows",
-            hint=f"got type: {ds_type}",
-        ),
-        CheckResult(
-            "data source named 'All Products'",
-            "all products" in ds_name.lower(),
-            hint=f"got name: '{ds_name}'",
-        ),
-        CheckResult(
-            "data source table_id matches Products table",
-            ds_table_id == table.id,
-            hint=f"got table_id={ds_table_id}, expected={table.id}",
-        ),
-        CheckResult(
-            "repeat element in args",
-            len(repeat_elements) >= 1,
-            hint=f"element types: {[e.get('type') for e in all_el_args]}",
+            "heading is inside the Products repeat",
+            any(
+                child.get_type().type == "heading"
+                for repeat in repeats
+                for child in page.get_graph().get_descendants(repeat)
+            ),
         ),
     ]
 
@@ -703,11 +747,33 @@ def _check_back_button_on_page_not_header(
     detail_elements = Element.objects.filter(page=detail_page)
     shared_elements = Element.objects.filter(page=builder.shared_page)
 
-    button_texts = [
-        str(e.get("value", "") or e.get("label", "")).lower()
-        for e in _collect_element_args(output)
-        if e.get("type") == "button"
+    buttons = [
+        element
+        for element in detail_elements
+        if (
+            element.get_type().type == "button"
+            or (
+                element.get_type().type == "link"
+                and element.specific.variant == "button"
+            )
+        )
+        and (_render_saved_formula(element.specific.value) or "").casefold()
+        == "back to list"
     ]
+    navigation = [
+        _navigates_to_path(element.specific, builder, "/list")
+        for element in buttons
+        if element.get_type().type == "link"
+    ]
+    navigation.extend(
+        _navigates_to_path(action.specific, builder, "/list")
+        for action in BuilderWorkflowAction.objects.filter(
+            page=detail_page,
+            element__in=buttons,
+            event="click",
+            content_type__model="openpageworkflowaction",
+        )
+    )
 
     return [
         CheckResult(
@@ -719,11 +785,8 @@ def _check_back_button_on_page_not_header(
             detail_elements.exists(),
             hint="no elements on Detail page",
         ),
-        CheckResult(
-            "button labeled 'Back to List'",
-            any("back" in t for t in button_texts),
-            hint=f"button texts: {button_texts}",
-        ),
+        CheckResult("saved button labeled 'Back to List'", bool(buttons)),
+        CheckResult("back button navigates to List", any(navigation)),
         CheckResult(
             "no elements added to shared page",
             not shared_elements.exists(),
@@ -937,19 +1000,11 @@ def _check_changes_theme(
     builder = scenario.refs["builder"]
     initial_color = scenario.pre_state["initial_color"]
 
-    set_theme_calls = _filter_tool_calls(output, "set_theme")
-    theme_arg = (
-        set_theme_calls[0]["args"].get("theme_name") if set_theme_calls else None
-    )
     new_color = _get_theme_primary_color(builder)
 
     return [
-        CheckResult("called set_theme", len(set_theme_calls) >= 1),
-        CheckResult(
-            "theme_name is 'midnight'",
-            theme_arg == "midnight",
-            hint=f"got theme_name='{theme_arg}'",
-        ),
+        CheckResult("called set_theme", bool(tool_called(output, "set_theme"))),
+        CheckResult("saved theme is midnight", builder_uses_theme(builder, "midnight")),
         CheckResult(
             "theme color changed",
             new_color != initial_color,
@@ -1153,54 +1208,59 @@ def _check_filtered_data_source_via_view(
     builder = scenario.refs["builder"]
     table = scenario.refs["table"]
     status_field = scenario.refs["status_field"]
-
-    switch_mode_calls = _filter_tool_calls(output, "switch_mode")
-    switched_to_db = any(c["args"].get("mode") == "database" for c in switch_mode_calls)
-    switched_back_to_app = any(
-        c["args"].get("mode") == "application" for c in switch_mode_calls
-    )
-
-    views = View.objects.filter(table=table)
-    view_filters = ViewFilter.objects.filter(view__table=table, field=status_field)
-
-    pages = Page.objects.filter(builder=builder, shared=False)
-    data_sources = DataSource.objects.filter(page__builder=builder, page__shared=False)
-    ds_view_ids = []
-    for ds in data_sources:
-        service = ds.service.specific if ds.service else None
-        if service and hasattr(service, "view_id") and service.view_id:
-            ds_view_ids.append(service.view_id)
-
+    options = dict(status_field.select_options.values_list("id", "value"))
+    model = table.get_model()
+    matching_view_ids = set()
+    for view in View.objects.filter(table=table):
+        filters = list(ViewFilter.objects.filter(view=view))
+        # This case requests only a Status predicate. Use the same grouped
+        # expression as the data source, probing every Status and the empty value
+        # without inserting rows. Data sources apply it even if the view UI has
+        # filters_disabled, unlike ViewHandler.apply_filters.
+        if not filters or any(
+            item.field_id != status_field.id
+            or item.type not in {"single_select_equal", "single_select_is_any_of"}
+            for item in filters
+        ):
+            continue
+        predicate, annotations = (
+            ViewHandler().get_filter_builder(view, model).get_filters_and_annotations()
+        )
+        if annotations:
+            continue
+        # SQL WHERE excludes NULL, whereas Q.check defaults unknown to true.
+        predicate = Q(Coalesce(predicate, False, output_field=BooleanField()))
+        if "Pending" in options.values() and all(
+            predicate.check(
+                {f"{status_field.db_column}_id": Value(option_id, IntegerField())}
+            )
+            == (label == "Pending")
+            for option_id, label in [*options.items(), (None, None)]
+        ):
+            matching_view_ids.add(view.id)
+    sources = DataSource.objects.filter(page__builder=builder, page__shared=False)
+    matching_sources = []
+    for source in sources:
+        service = source.service.specific if source.service else None
+        if (
+            isinstance(service, LocalBaserowListRows)
+            and service.table_id == table.id
+            and service.view_id in matching_view_ids
+        ):
+            matching_sources.append(source.id)
     return [
         CheckResult(
-            "switched to database mode",
-            switched_to_db,
-            hint=f"switch_mode calls: {[c['args'] for c in switch_mode_calls]}",
+            "view restricts Tasks to Pending Status",
+            bool(matching_view_ids),
+            hint=f"matching view IDs: {sorted(matching_view_ids)}",
         ),
         CheckResult(
-            "view created on Tasks table",
-            views.exists(),
-            hint=f"views for table: {list(views.values_list('name', flat=True))}",
+            "page created", Page.objects.filter(builder=builder, shared=False).exists()
         ),
         CheckResult(
-            "view filter on Status field",
-            view_filters.exists(),
-            hint=f"view_filters: {list(view_filters.values_list('field__name', 'value'))}",
-        ),
-        CheckResult(
-            "switched back to application mode",
-            switched_back_to_app,
-            hint=f"switch_mode calls: {[c['args'] for c in switch_mode_calls]}",
-        ),
-        CheckResult(
-            "page created",
-            pages.exists(),
-            hint=f"pages: {list(pages.values_list('name', flat=True))}",
-        ),
-        CheckResult(
-            "data source in DB has view set",
-            len(ds_view_ids) >= 1,
-            hint=f"data source view_ids in DB: {ds_view_ids}",
+            "saved data source uses the filtered Tasks view",
+            bool(matching_sources),
+            hint=f"matching source IDs: {matching_sources}",
         ),
     ]
 
@@ -1315,12 +1375,12 @@ register_case(
 )
 
 # ---------------------------------------------------------------------------
-# Proactive: asks when implied table is missing
+# Data-backed app: asks where the projects come from when no table holds them
 # ---------------------------------------------------------------------------
 
 
-@register_scenario("builder-asks-when-implied-table-missing")
-def _asks_when_implied_table_missing_scenario(fx: Fixtures) -> EvalScenario:
+@register_scenario("builder-projects-table-missing")
+def _projects_table_missing_scenario(fx: Fixtures) -> EvalScenario:
     user = fx.create_user()
     workspace = fx.create_workspace(user=user)
     database = fx.create_database_application(
@@ -1338,47 +1398,73 @@ def _asks_when_implied_table_missing_scenario(fx: Fixtures) -> EvalScenario:
     )
 
 
-def _check_asks_when_implied_table_missing(
+def _check_builds_projects_app_without_asking(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    assistant_entries = [e for e in output.messages if e["role"] == "assistant"]
-    last_assistant = assistant_entries[-1] if assistant_entries else {}
-    final_text = last_assistant.get("content", "") or ""
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
 
     return [
         CheckResult(
-            "called list_tables to search for 'projects'",
+            "created the scaffolding it needed",
+            tool_called(output, "create_tables") >= 1,
+        ),
+        CheckResult(
+            "built the app pages",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            >= 1,
+        ),
+        CheckResult(
+            "page exists in DB",
+            pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        ),
+        CheckResult(
+            "created at least one element",
+            Element.objects.filter(
+                page__builder__workspace=scenario.workspace
+            ).exists(),
+        ),
+        CheckResult(
+            "did NOT call ask_user",
+            tool_called(output, "ask_user") == 0,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+def _check_asks_when_implied_table_missing(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
+
+    return [
+        CheckResult(
+            "looked the table up first",
             tool_called(output, "list_tables") >= 1,
         ),
         CheckResult(
-            "did NOT call create_tables", tool_called(output, "create_tables") == 0
+            "did NOT invent a Projects table",
+            tool_called(output, "create_tables") == 0,
         ),
         CheckResult(
-            "did NOT create app pages (no matching table found)",
+            "did NOT build the app pages",
             tool_called(output, "create_pages") + tool_called(output, "setup_page")
             == 0,
         ),
         CheckResult(
-            "agent ended with a text response (asked the user)",
-            last_assistant.get("type") == "TextPart",
-            hint=f"last assistant entry type: {last_assistant.get('type')}",
+            "no page created in DB",
+            not pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
         ),
         CheckResult(
-            "response asks about projects or requests clarification",
-            any(
-                kw in final_text.lower()
-                for kw in (
-                    "project",
-                    "which table",
-                    "clarif",
-                    "don't see",
-                    "no table",
-                    "exist",
-                    "could you",
-                    "please",
-                )
-            ),
-            hint=f"response: {final_text[:300]}",
+            "asked the user about the missing records",
+            _asked_user(output),
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "offers to create a table with sample data",
+            "sample" in output.answer.casefold(),
+            hint=f"answer: {output.answer[:300]}",
         ),
     ]
 
@@ -1387,8 +1473,9 @@ register_case(
     EvalCase(
         id="builder/asks-when-implied-table-missing",
         dataset="kuma-builder",
+        # Showing records needs real data: no matching table means ask, not invent.
         prompt=PROMPT_CREATE_PROJECTS_APP,
-        scenario="builder-asks-when-implied-table-missing",
+        scenario="builder-projects-table-missing",
         checks=_check_asks_when_implied_table_missing,
         mode=AgentMode.APPLICATION,
         max_iters=15,
@@ -1419,56 +1506,123 @@ def _creates_app_when_table_exists_scenario(fx: Fixtures) -> EvalScenario:
         user=user,
         workspace=workspace,
         ui_context=build_builder_ui_context(user, workspace, builder),
-        refs={"builder": builder, "projects_table": projects_table},
+        refs={
+            "builder": builder,
+            "projects_table": projects_table,
+            "initial_builder_ids": list(
+                Builder.objects.filter(workspace=workspace).values_list("id", flat=True)
+            ),
+        },
     )
+
+
+def _project_card_values(repeat, source, table) -> tuple[bool, str]:
+    fields = {
+        field.name: field
+        for field in table.field_set.filter(name__in=["Name", "Status"])
+    }
+    if set(fields) != {"Name", "Status"}:
+        return False, "Projects must have Name and Status fields."
+    records = [
+        {
+            "id": 101,
+            fields["Name"].db_column: "First project",
+            fields["Status"].db_column: "Open",
+        },
+        {
+            "id": 202,
+            fields["Name"].db_column: "Second project",
+            fields["Status"].db_column: "Closed",
+        },
+    ]
+    # Read graph relationships and model values fresh, independently of caches
+    # populated while the agent was mutating the page.
+    with local_cache.context():
+        if any(
+            parent.content_type.model == "repeatelement"
+            for parent in repeat.get_parent_points()
+        ):
+            return False, "Project cards must not repeat inside another repeat."
+        descendant_ids = [
+            element.id
+            for element in repeat.page.get_graph().get_descendants(repeat)
+            if not any(
+                parent.id != repeat.id and parent.content_type.model == "repeatelement"
+                for parent in element.get_parent_points()
+            )
+        ]
+    elements = [
+        element.specific
+        for element in Element.objects.filter(
+            id__in=descendant_ids,
+            content_type__model__in=["headingelement", "textelement"],
+        )
+    ]
+    rendered_records = []
+    for current in records:
+        values = {"current_record": current, "data_source": {str(source.id): records}}
+        rendered_records.append(
+            [_render_saved_formula(element.value, values) for element in elements]
+        )
+    for index, rendered in enumerate(rendered_records):
+        text = " ".join(value for value in rendered if value is not None).casefold()
+        own = records[index]
+        other = records[1 - index]
+        if any(
+            own[field.db_column].casefold() not in text for field in fields.values()
+        ) or any(
+            other[field.db_column].casefold() in text for field in fields.values()
+        ):
+            return False, f"Saved card values for two records: {rendered_records}"
+    return True, f"Saved card values for two records: {rendered_records}"
 
 
 def _check_creates_app_when_table_exists(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     builder = scenario.refs["builder"]
-    projects_table = scenario.refs["projects_table"]
-
-    ds_calls = _filter_tool_calls(output, "create_data_sources")
-    pages = Page.objects.filter(builder=builder, shared=False)
-
-    ds_table_ids = []
-    for call in ds_calls:
-        for ds in call.get("args", {}).get("data_sources", []):
-            if ds.get("table_id"):
-                ds_table_ids.append(ds["table_id"])
-
-    el_calls = _filter_tool_calls(output, _ELEMENT_CREATION_TOOLS)
-    all_element_types = []
-    for call in el_calls:
-        all_element_types.extend(
-            e.get("type") for e in call.get("args", {}).get("elements", [])
-        )
-
+    table = scenario.refs["projects_table"]
+    # The request says "Create an app" without naming a target. Both completing
+    # the current empty app and creating a new app in this workspace satisfy it.
+    # Existing unrelated apps and apps in other workspaces must not satisfy it.
+    unrelated_ids = set(scenario.refs["initial_builder_ids"]) - {builder.id}
+    builders = Builder.objects.filter(workspace=scenario.workspace).exclude(
+        id__in=unrelated_ids
+    )
+    pages = Page.objects.filter(builder__in=builders, shared=False)
+    sources = []
+    for source in DataSource.objects.filter(page__in=pages):
+        service = source.service.specific if source.service else None
+        if isinstance(service, LocalBaserowListRows) and service.table_id == table.id:
+            sources.append(source)
+    repeats = Element.objects.filter(
+        page__in=pages, content_type__model="repeatelement"
+    )
+    card_checks = []
+    for repeat in repeats:
+        specific = repeat.specific
+        for source in sources:
+            if (
+                specific.data_source_id == source.id
+                and specific.page_id == source.page_id
+            ):
+                card_checks.append(_project_card_values(specific, source, table))
     return [
         CheckResult(
-            "did NOT call create_tables (used existing Projects table)",
-            tool_called(output, "create_tables") == 0,
+            "Projects table reused without a duplicate",
+            Table.objects.filter(
+                database__workspace=scenario.workspace, name__iexact="Projects"
+            ).count()
+            == 1,
         ),
+        CheckResult("page exists in DB", pages.exists()),
+        CheckResult("saved list_rows data source targets Projects", bool(sources)),
+        CheckResult("repeat is bound to the Projects data source", bool(card_checks)),
         CheckResult(
-            "created at least one page",
-            tool_called(output, "create_pages") + tool_called(output, "setup_page")
-            >= 1,
-        ),
-        CheckResult(
-            "page exists in DB",
-            pages.exists(),
-            hint=f"pages: {list(pages.values_list('name', flat=True))}",
-        ),
-        CheckResult(
-            "data source targets Projects table",
-            projects_table.id in ds_table_ids,
-            hint=f"data source table_ids: {ds_table_ids}, expected: {projects_table.id}",
-        ),
-        CheckResult(
-            "at least one element created",
-            len(all_element_types) >= 1,
-            hint=f"element tools called: {[c.get('tool_name') for c in el_calls]}",
+            "cards show each project's Name and Status",
+            any(passed for passed, _ in card_checks),
+            hint="; ".join(hint for _, hint in card_checks)
+            or "No matching repeat/card configuration.",
         ),
     ]
 
@@ -1705,6 +1859,209 @@ register_case(
         prompt=PROMPT_MOVE_OUT_OF_COLUMN.format(builder_name="Layout Lab"),
         scenario="builder-moves-element-out-of-column",
         checks=_check_moves_element_out_of_column,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Intent: missing data or an unclear goal asks once; examples and demos build
+# ---------------------------------------------------------------------------
+
+PROMPT_CUSTOMERS_PAGE = (
+    "In builder 'My App', create a page listing our Customers with their "
+    "name and email."
+)
+
+PROMPT_EXAMPLE_PROJECTS_APP = (
+    "Create a simple example app showing projects in a list with cards "
+    "showing project name and status."
+)
+
+PROMPT_DEMO_PAGE = (
+    "In builder 'My App', add a quick demo page at '/demo' with a heading "
+    "saying 'Demo' and a sign-up button."
+)
+
+PROMPT_TEAM_APP = "Create an app for my team."
+
+
+def _check_asks_when_named_table_missing(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+
+    return [
+        CheckResult(
+            "looked the table up first",
+            tool_called(output, "list_tables") >= 1,
+        ),
+        CheckResult(
+            "did NOT invent a Customers table",
+            tool_called(output, "create_tables") == 0,
+        ),
+        CheckResult(
+            "did NOT build the page",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            == 0,
+        ),
+        CheckResult(
+            "no page created in DB",
+            not Page.objects.filter(builder=builder, shared=False).exists(),
+        ),
+        CheckResult(
+            "asked the user about the missing table",
+            _asked_user(output),
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+def _check_builds_demo_page_without_asking(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+    pages = Page.objects.filter(builder=builder, shared=False)
+    elements = Element.objects.filter(page__in=pages)
+
+    return [
+        CheckResult(
+            "built the page",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            >= 1,
+        ),
+        CheckResult(
+            "page exists at /demo",
+            pages.filter(path="/demo").exists(),
+            hint=f"paths: {list(pages.values_list('path', flat=True))}",
+        ),
+        CheckResult(
+            "created at least two elements (heading and button)",
+            elements.count() >= 2,
+            hint=f"elements: {elements.count()}",
+        ),
+        CheckResult(
+            "did NOT ask before building",
+            tool_called(output, "ask_user") == 0,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+@register_scenario("builder-asks-when-named-table-missing")
+def _asks_when_named_table_missing_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Ops"
+    )
+    table = fx.create_database_table(user=user, database=database, name="Suppliers")
+    fx.create_text_field(table=table, name="Supplier", primary=True)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="My App"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder},
+    )
+
+
+@register_scenario("builder-blank-app")
+def _blank_app_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="My App"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder},
+    )
+
+
+register_case(
+    EvalCase(
+        id="builder/asks-when-named-table-missing",
+        dataset="kuma-builder",
+        prompt=PROMPT_CUSTOMERS_PAGE,
+        scenario="builder-asks-when-named-table-missing",
+        checks=_check_asks_when_named_table_missing,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/builds-example-app-without-asking",
+        dataset="kuma-builder",
+        prompt=PROMPT_EXAMPLE_PROJECTS_APP,
+        # Same state as asks-when-implied-table-missing: an example authorizes samples.
+        scenario="builder-projects-table-missing",
+        checks=_check_builds_projects_app_without_asking,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/builds-demo-page-without-asking",
+        dataset="kuma-builder",
+        prompt=PROMPT_DEMO_PAGE,
+        scenario="builder-blank-app",
+        checks=_check_builds_demo_page_without_asking,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+def _check_asks_once_when_goal_unclear(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
+    build_calls = (
+        tool_called(output, "create_tables")
+        + tool_called(output, "create_pages")
+        + tool_called(output, "setup_page")
+        + tool_called(output, "create_builders")
+    )
+
+    return [
+        CheckResult(
+            "asked exactly one question",
+            tool_called(output, "ask_user") <= 1 and _asked_user(output),
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "did NOT build anything",
+            build_calls == 0,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "no page created in DB",
+            not pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/asks-once-when-goal-unclear",
+        dataset="kuma-builder",
+        # Nothing pins what the app is for: one question first, not a guess.
+        prompt=PROMPT_TEAM_APP,
+        scenario="builder-blank-app",
+        checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
         max_iters=15,
     )

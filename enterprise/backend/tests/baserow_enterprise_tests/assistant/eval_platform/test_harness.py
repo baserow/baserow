@@ -4,10 +4,18 @@ import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from django.db import OperationalError
+
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.exceptions import (
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+    UsageLimitExceeded,
+    UserError,
+)
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -32,15 +40,22 @@ from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
     EvalCaseCleanupError,
+    EvalCaseModelError,
     EvalCaseTimeout,
     count_tool_errors,
+    executed_tool_calls,
     get_case_timeout_s,
     override_assistant_prompts,
     run_case,
 )
 from baserow_enterprise.assistant.evals.prompt_sync import SYNCED_PROMPTS
 from baserow_enterprise.assistant.evals.scenarios import make_fixtures
-from baserow_enterprise.assistant.evals.types import CheckResult, EvalCase, EvalScenario
+from baserow_enterprise.assistant.evals.types import (
+    CheckResult,
+    EvalCase,
+    EvalRunOutput,
+    EvalScenario,
+)
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     ResolvedAssistantModelProfile,
@@ -308,6 +323,215 @@ class TestBuildAgentRunContext:
         model.__aexit__.assert_awaited_once()
 
 
+class TestAskUserTool:
+    def test_records_the_question_and_tells_the_agent_to_stop(self):
+        """Asking must be an action the agent can take, not the absence of
+        one — otherwise it competes with the prompt's bias toward acting."""
+
+        from baserow_enterprise.assistant.tools.core.tools import ask_user
+
+        deps = SimpleNamespace(pending_question=None)
+        result = ask_user(
+            SimpleNamespace(deps=deps),
+            question="Which table holds your customers?",
+            thought="No Customers table found.",
+        )
+
+        assert deps.pending_question == "Which table holds your customers?"
+        assert "restate this question verbatim" in result
+
+    def test_is_reachable_from_every_mode(self):
+        from baserow_enterprise.assistant.deps import AgentMode
+        from baserow_enterprise.assistant.tools.routing import is_tool_active
+
+        assert all(is_tool_active("ask_user", mode) for mode in AgentMode)
+
+
+class TestCountToolErrors:
+    def test_empty_response_retry_is_not_a_tool_error(self):
+        """pydantic-ai nudges the model after an empty response with a
+        tool_name-less RetryPromptPart; it recovers on its own, so it must not
+        spend the case's tool-error budget."""
+
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(content="Please return text or call a tool.")
+                    ]
+                )
+            ]
+        )
+
+        assert count_tool_errors(result) == (0, "")
+
+    def test_real_tool_validation_error_still_counts(self):
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(
+                            content="update_row requires row_id",
+                            tool_name="create_workflows",
+                        )
+                    ]
+                )
+            ]
+        )
+
+        count, hint = count_tool_errors(result)
+        assert count == 1
+        assert "create_workflows" in hint
+
+    def test_router_redirect_is_recognised_from_the_router_itself(self):
+        """The harness must not carry its own copy of the redirect wording."""
+
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+        from baserow_enterprise.assistant.tools.routing import mode_redirect_message
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(
+                            content=mode_redirect_message(
+                                "create_workflows", AgentMode.AUTOMATION
+                            ),
+                            tool_name="create_workflows",
+                        )
+                    ]
+                )
+            ]
+        )
+
+        assert count_tool_errors(result) == (0, "")
+
+
+class TestExecutedToolCalls:
+    """A routed call is rejected and re-issued; only the re-issue ran."""
+
+    def _output(self, messages):
+        return EvalRunOutput(
+            answer="",
+            messages=messages,
+            tool_calls=[],
+            tool_error_count=0,
+            tool_error_hint="",
+            sources=[],
+            request_count=0,
+            duration_s=0.0,
+        )
+
+    def test_the_call_the_router_sent_back_is_not_scored(self):
+        from baserow_enterprise.assistant.evals.harness import executed_tool_calls
+        from baserow_enterprise.assistant.tools.routing import mode_redirect_message
+
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "args": {"workflows": [{"name": "first guess"}]},
+                },
+                {
+                    "role": "user",
+                    "type": "RetryPromptPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "content": mode_redirect_message(
+                        "create_workflows", AgentMode.AUTOMATION
+                    ),
+                },
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "executed",
+                    "args": {"workflows": [{"name": "real request"}]},
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["executed"]
+
+    def test_a_real_validation_retry_leaves_the_call_scored(self):
+        from baserow_enterprise.assistant.evals.harness import executed_tool_calls
+
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "only",
+                    "args": {"workflows": []},
+                },
+                {
+                    "role": "user",
+                    "type": "RetryPromptPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "only",
+                    "content": "workflows must not be empty",
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["only"]
+
+    def test_a_call_answered_with_a_redirect_result_is_not_scored(self):
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "args": {"workflows": [{"name": "first guess"}]},
+                },
+                {
+                    "role": "user",
+                    "type": "ToolReturnPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "content": {
+                        "changed": False,
+                        "mode": AgentMode.AUTOMATION.value,
+                        "next_steps": mode_redirect_message(
+                            "create_workflows", AgentMode.AUTOMATION
+                        ),
+                    },
+                },
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "executed",
+                    "args": {"workflows": [{"name": "real request"}]},
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["executed"]
+
+
 @pytest.mark.django_db
 class TestRunCase:
     def _register_scenario(self, user, workspace):
@@ -357,6 +581,38 @@ class TestRunCase:
         assert test_model.entered
         assert test_model.closed
 
+    def test_ask_user_is_exposed_to_the_agent_and_recorded_as_a_tool_call(self):
+        """End-to-end guard for the intent eval checks.
+
+        They assert ``tool_called(output, "ask_user")``, so the tool must be
+        reachable through the real toolset AND land in ``output.tool_calls``
+        under exactly that name. If either breaks, the ask cases would fail
+        forever and the act cases would pass trivially — silently.
+        """
+
+        from baserow_enterprise.assistant.evals.harness import tool_called
+
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+        self._register_scenario(user, workspace)
+
+        ctx = build_agent_run_context(user, workspace, _noop_tool_helpers(workspace))
+        assert "ask_user" in ctx.deps.tool_catalog
+
+        case = EvalCase(
+            id="harness-test/ask-user",
+            dataset="harness-test",
+            prompt="build me a page for our Customers",
+            scenario="harness-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+
+        output, _checks = run_case(case, TestModel(call_tools=["ask_user"]))
+
+        assert "ask_user" in output.tool_calls
+        assert tool_called(output, "ask_user") == 1
+
     def test_returns_output_and_prepends_budget_check(self):
         fixtures = make_fixtures()
         user = fixtures.create_user()
@@ -391,7 +647,11 @@ class TestRunCase:
         assert results[1].name == "has-no-tool-calls"
         assert results[1].passed is True
 
-    def test_scenario_receives_case_mode_and_ui_context(self):
+    def test_scenario_receives_case_mode_and_ui_context(self, monkeypatch):
+        """The case's mode and the scenario's ui_context must reach the run's
+        deps — otherwise every case silently runs in DATABASE mode with no
+        UI context and the whole baseline measures the wrong agent."""
+
         from baserow_enterprise.assistant.deps import AgentMode
 
         fixtures = make_fixtures()
@@ -416,11 +676,59 @@ class TestRunCase:
             mode=AgentMode.APPLICATION,
         )
 
+        captured = {}
+        real_build_context = build_agent_run_context
+
+        def build_context_spy(*args, **kwargs):
+            ctx = real_build_context(*args, **kwargs)
+            captured["ctx"] = ctx
+            return ctx
+
+        monkeypatch.setattr(harness, "build_agent_run_context", build_context_spy)
+
         output, results = run_case(
             case, TestModel(custom_output_text="hi", call_tools=[])
         )
 
         assert output.answer == "hi"
+        deps = captured["ctx"].deps
+        assert deps.mode is AgentMode.APPLICATION
+        request_context = deps.tool_helpers.request_context
+        assert request_context["ui_context"] == '{"foo": "bar"}'
+
+    def test_runs_the_agent_in_sequential_tool_execution_mode(self, monkeypatch):
+        """Production serializes multi-tool-call responses (assistant.py);
+        evals must measure the same execution mode, not pydantic-ai's
+        parallel default."""
+
+        from pydantic_ai.tool_manager import _parallel_execution_mode_ctx_var
+
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+        self._register_scenario(user, workspace)
+        case = EvalCase(
+            id="harness-test/sequential-mode",
+            dataset="harness-test",
+            prompt="say hi",
+            scenario="harness-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+        seen = {}
+
+        async def run_spy(*args, **kwargs):
+            seen["mode"] = _parallel_execution_mode_ctx_var.get()
+            return SimpleNamespace(
+                output="hello",
+                usage=SimpleNamespace(requests=1),
+                all_messages=lambda: [],
+            )
+
+        monkeypatch.setattr(harness.main_agent, "run", run_spy)
+
+        run_case(case, TestModel(call_tools=[]))
+
+        assert seen["mode"] == "sequential"
 
 
 class _InstructionSpyModel(TestModel):
@@ -666,6 +974,8 @@ class TestCaseToolCleanup:
 
         def blocked_tool(ctx: RunContext[AssistantDeps]) -> str:
             started.set()
+            # Timing from here keeps a slow case setup from releasing the tool early.
+            timer.start()
             try:
                 # Model an operation already in progress between checkpoints.
                 release.wait(3)
@@ -682,7 +992,6 @@ class TestCaseToolCleanup:
 
         case = isolated_case(async_tool if async_wrapper else blocked_tool)
         timer = threading.Timer(0.4, release.set)
-        timer.start()
         try:
             with pytest.raises(EvalCaseTimeout):
                 with override_assistant_prompts(
@@ -791,3 +1100,81 @@ def test_an_empty_timeout_env_var_falls_back_to_the_default(monkeypatch, value):
     monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", value)
 
     assert get_case_timeout_s() == 120
+
+
+@pytest.mark.django_db
+class TestModelFailureBoundary:
+    @pytest.fixture
+    def case(self, data_fixture, monkeypatch):
+        user = data_fixture.create_user()
+        workspace = data_fixture.create_workspace(user=user)
+        registry.register_scenario("error-boundary")(
+            lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
+        )
+        monkeypatch.setattr(harness, "main_agent", Agent())
+        return EvalCase(
+            id="harness/error-boundary",
+            dataset="harness-test",
+            prompt="Say hello",
+            scenario="error-boundary",
+            checks=MagicMock(return_value=[]),
+        )
+
+    @pytest.mark.parametrize(
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+    )
+    def test_only_known_agent_failures_are_classified(
+        self, case, monkeypatch, error_type
+    ):
+        error = error_type("The model exhausted its budget")
+        monkeypatch.setattr(
+            harness, "run_agent_with_model", AsyncMock(side_effect=error)
+        )
+
+        with pytest.raises(EvalCaseModelError) as raised:
+            run_case(case, TestModel(call_tools=[]))
+
+        assert raised.value.error is error
+        assert raised.value.__cause__ is error
+        case.checks.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "phase, error",
+        [
+            ("setup", UsageLimitExceeded("Setup failed")),
+            ("setup", UnexpectedModelBehavior("Setup failed")),
+            ("setup", UserError("Missing API key")),
+            ("agent", UserError("Invalid model configuration")),
+            ("agent", ModelHTTPError(401, "test-model")),
+            ("agent", ModelHTTPError(404, "unknown-model")),
+            ("agent", OperationalError("Database connection lost")),
+            ("agent", RuntimeError("Unexpected tool failure")),
+            ("checks", UsageLimitExceeded("A check failed")),
+            ("checks", UnexpectedModelBehavior("A check failed")),
+            ("checks", TimeoutError("A check timed out")),
+            ("checks", AttributeError("A check failed")),
+            ("output", AttributeError("Output formatting failed")),
+        ],
+    )
+    def test_other_failures_escape_without_becoming_model_scores(
+        self, case, monkeypatch, phase, error
+    ):
+        if phase == "setup":
+            monkeypatch.setattr(
+                harness, "build_agent_run_context", MagicMock(side_effect=error)
+            )
+        elif phase == "agent":
+            monkeypatch.setattr(
+                harness, "run_agent_with_model", AsyncMock(side_effect=error)
+            )
+        elif phase == "checks":
+            case.checks.side_effect = error
+        else:
+            monkeypatch.setattr(
+                harness, "format_message_history", MagicMock(side_effect=error)
+            )
+
+        with pytest.raises(type(error)) as raised:
+            run_case(case, TestModel(custom_output_text="Hello", call_tools=[]))
+
+        assert raised.value is error

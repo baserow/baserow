@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes lookup errors after a primary field formula switches between a list and a single value",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-01"
+}

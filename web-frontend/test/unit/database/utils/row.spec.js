@@ -672,6 +672,7 @@ describe('Row utilities', () => {
           return order === 'DESC' ? -cmp : cmp
         }
         return {
+          getEmptyValue: () => null,
           getSortTypes: () => ({
             default: { function: sortFn },
           }),

@@ -7,6 +7,8 @@ keywords) triple varies per case.
 
 from __future__ import annotations
 
+import re
+
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
@@ -35,14 +37,26 @@ def _docs_question_scenario(fx: Fixtures) -> EvalScenario:
     )
 
 
+def _normalize_keyword_text(text: str) -> str:
+    """Compare wording independently of spacing and equivalent typography."""
+
+    text = text.casefold().replace("\u2018", "'").replace("\u2019", "'")
+    text = text.replace("\u2010", "-").replace("\u2011", "-")
+    text = re.sub(r"[*_`]+", "", text)
+    return " ".join(text.split())
+
+
 def _make_docs_checks(
     expected_source_patterns: list[str], expected_keywords: list[str]
 ) -> CheckSuite:
     def _checks(
         case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
     ) -> list[CheckResult]:
-        answer = output.answer.lower()
-        keyword_match = any(kw.lower() in answer for kw in expected_keywords)
+        # Typography is equivalent; values, wording and negation still matter.
+        answer = _normalize_keyword_text(output.answer)
+        keyword_match = any(
+            _normalize_keyword_text(keyword) in answer for keyword in expected_keywords
+        )
 
         # Source-URL matching is non-fatal — URLs change and retrieval may
         # return valid alternative sources — so this always passes; a
@@ -150,12 +164,14 @@ _register_docs_case(
         "but it says 'Invalid Syntax'. What am I doing wrong?"
     ),
     ["formula", "understanding-formulas"],
-    ["date_diff", "date diff", "datediff"],
+    # Subtracting the dates is also correct: it returns a duration, not a number.
+    ["date_diff", "date diff", "datediff", "subtract"],
     reference_answer=(
         "Baserow formulas don't start with '=' and there is no DAYS() "
         "function — use date_diff with the unit as the first argument: "
         "date_diff('day', field('Start'), field('End')). Other units include "
-        "'hour', 'week', 'month', and 'year'."
+        "'hour', 'week', 'month', and 'year'. Subtracting the dates, "
+        "field('End') - field('Start'), returns the difference as a duration."
     ),
 )
 
@@ -1056,7 +1072,7 @@ _register_docs_case(
         "full of scanned invoices and I want to pull the text out of them."
     ),
     ["ai-field", "file-field"],
-    ["ai field", "file field"],
+    ["ai field", "ai prompt", "file field"],
     reference_answer=(
         "Yes, via the AI field (a paid feature): point it at your file "
         "field and it can read the attachments — including images and PDFs "
@@ -1090,7 +1106,7 @@ _register_docs_case(
         "suggests addresses while I type?"
     ),
     ["single-line-text-field"],
-    ["doesn't", "text field"],
+    ["doesn't", "does not", "text field"],
     reference_answer=(
         "Baserow doesn't have an address field type or any address "
         "autocomplete. Store addresses in a single line text field, or "
@@ -1139,7 +1155,7 @@ _register_docs_case(
         "views of a table, so resizing once applies everywhere?"
     ),
     ["guide-to-grid-view"],
-    ["doesn't", "each view", "duplicat"],
+    ["doesn't", "each view", "duplicat", "per view", "per-view"],
     reference_answer=(
         "Baserow doesn't have a way to sync column widths across views — "
         "width is saved per view, so each view keeps its own. The closest "

@@ -22,6 +22,7 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     OpenAIGenerativeAIModelType,
     OpenRouterGenerativeAIModelType,
     XaiGenerativeAIModelType,
+    ZaiGenerativeAIModelType,
 )
 
 
@@ -44,7 +45,12 @@ def test_database_provider_takes_precedence_over_environment_settings(settings):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "model_type_class",
-    [GoogleGenerativeAIModelType, GroqGenerativeAIModelType, XaiGenerativeAIModelType],
+    [
+        GoogleGenerativeAIModelType,
+        GroqGenerativeAIModelType,
+        XaiGenerativeAIModelType,
+        ZaiGenerativeAIModelType,
+    ],
 )
 def test_database_only_providers_have_no_environment_fallbacks(model_type_class):
     model_type = model_type_class()

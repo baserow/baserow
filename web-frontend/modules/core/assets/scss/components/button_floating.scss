@@ -40,11 +40,11 @@
   height: 32px;
 }
 
-.button-floating--fixed {
-  position: fixed;
+.button-floating--absolute {
+  position: absolute;
   bottom: 20px;
   right: 20px;
-  z-index: 1000;
+  z-index: 10;
 }
 
 .button-floating--loading {

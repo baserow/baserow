@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.urls import reverse
 
@@ -2509,3 +2510,180 @@ def test_formula_lookup_same_table_relationship_different_row(
     )
     assert getattr(row_2, table_1_formula.db_column) == "Row 1"
     assert getattr(row_3, table_1_formula.db_column) == "Row 1"
+
+
+LIST_FORMULA = "concat('a', lookup('link', 'text'))"
+TEXT_FORMULA = "concat('a', join(lookup('link', 'text'), ''))"
+
+
+def _setup_lookup_of_link_to_formula_primary(data_fixture, formula):
+    """
+    Table b has a formula primary field that looks up table a. Table c links to b
+    and table d looks up c's link to b, so it reads b's primary field.
+    """
+
+    user = data_fixture.create_user()
+    table_a = data_fixture.create_database_table(user=user, name="a")
+    database = table_a.database
+    table_b = data_fixture.create_database_table(database=database, name="b")
+    table_c = data_fixture.create_database_table(database=database, name="c")
+    table_d = data_fixture.create_database_table(database=database, name="d")
+    text = data_fixture.create_text_field(table=table_a, name="text", primary=True)
+    name = data_fixture.create_text_field(table=table_b, name="name", primary=True)
+    for table in (table_c, table_d):
+        data_fixture.create_text_field(table=table, name="name", primary=True)
+    handler = FieldHandler()
+    link = handler.create_field(
+        user, table_b, "link_row", name="link", link_row_table=table_a
+    )
+    primary = handler.create_field(
+        user, table_b, "formula", name="primary", formula=formula
+    )
+    handler.change_primary_field(user, table_b, primary)
+    to_b = handler.create_field(
+        user, table_c, "link_row", name="to_b", link_row_table=table_b
+    )
+    to_c = handler.create_field(
+        user, table_d, "link_row", name="to_c", link_row_table=table_c
+    )
+    lookup = handler.create_field(
+        user, table_d, "formula", name="lookup", formula="lookup('to_c', 'to_b')"
+    )
+
+    rows = RowHandler()
+    row_a = rows.create_row(user, table_a, {text.db_column: "a"})
+    row_b = rows.create_row(
+        user, table_b, {link.db_column: [row_a.id], name.db_column: "b"}
+    )
+    row_c = rows.create_row(user, table_c, {to_b.db_column: [row_b.id]})
+
+    def create_row_in_d():
+        return rows.create_row(user, table_d, {to_c.db_column: [row_c.id]})
+
+    return user, table_b, name, primary, to_b, lookup, create_row_in_d
+
+
+def _lookup_values(row, lookup):
+    return [item["value"] for item in getattr(row, lookup.db_column)]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "old_formula,new_formula",
+    [(LIST_FORMULA, TEXT_FORMULA), (TEXT_FORMULA, LIST_FORMULA)],
+)
+@pytest.mark.parametrize("rename", ["none", "same_update", "earlier_update"])
+def test_lookup_of_link_field_follows_primary_field_type_change(
+    data_fixture, old_formula, new_formula, rename
+):
+    (
+        user,
+        table_b,
+        name,
+        primary,
+        to_b,
+        lookup,
+        create_row_in_d,
+    ) = _setup_lookup_of_link_to_formula_primary(data_fixture, old_formula)
+    handler = FieldHandler()
+
+    kwargs = {"formula": new_formula}
+    if rename == "same_update":
+        kwargs["name"] = "renamed"
+    elif rename == "earlier_update":
+        primary = handler.update_field(user, primary, name="renamed")
+    handler.update_field(user, primary, **kwargs)
+    row_d = create_row_in_d()
+
+    lookup.refresh_from_db()
+    assert f"{to_b.db_column}__{primary.db_column}" in lookup.internal_formula
+    assert _lookup_values(row_d, lookup) == ["aa"]
+
+
+@pytest.mark.django_db
+def test_lookup_of_link_field_ignores_new_field_with_old_primary_name(data_fixture):
+    (
+        user,
+        table_b,
+        name,
+        primary,
+        to_b,
+        lookup,
+        create_row_in_d,
+    ) = _setup_lookup_of_link_to_formula_primary(data_fixture, LIST_FORMULA)
+    handler = FieldHandler()
+
+    primary = handler.update_field(user, primary, name="renamed")
+    impostor = handler.create_field(user, table_b, "text", name="primary")
+    RowHandler().update_rows(
+        user,
+        table_b,
+        [{"id": 1, impostor.db_column: "impostor"}],
+    )
+    handler.update_field(user, primary, formula=TEXT_FORMULA)
+    row_d = create_row_in_d()
+
+    lookup.refresh_from_db()
+    assert f"{to_b.db_column}__{primary.db_column}" in lookup.internal_formula
+    assert _lookup_values(row_d, lookup) == ["aa"]
+
+
+@pytest.mark.django_db
+def test_lookup_of_link_field_follows_change_of_primary_field(data_fixture):
+    (
+        user,
+        table_b,
+        name,
+        primary,
+        to_b,
+        lookup,
+        create_row_in_d,
+    ) = _setup_lookup_of_link_to_formula_primary(data_fixture, TEXT_FORMULA)
+
+    FieldHandler().change_primary_field(user, table_b, name)
+    row_d = create_row_in_d()
+
+    lookup.refresh_from_db()
+    assert f"{to_b.db_column}__{name.db_column}" in lookup.internal_formula
+    assert _lookup_values(row_d, lookup) == ["b"]
+
+
+@pytest.mark.django_db
+def test_saving_primary_field_invalidates_linking_tables_once_after_commit(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    table_a = data_fixture.create_database_table(user=user)
+    database = table_a.database
+    table_b = data_fixture.create_database_table(database=database)
+    table_c = data_fixture.create_database_table(database=database)
+    primary = data_fixture.create_text_field(table=table_a, primary=True)
+    for table in (table_b, table_c):
+        data_fixture.create_text_field(table=table, primary=True)
+    handler = FieldHandler()
+    for name in ("first", "second"):
+        handler.create_field(
+            user,
+            table_b,
+            "link_row",
+            name=name,
+            link_row_table=table_a,
+            has_related_field=False,
+        )
+    handler.create_field(user, table_c, "link_row", name="link", link_row_table=table_a)
+
+    with patch(
+        "baserow.contrib.database.fields.models.invalidate_table_in_model_cache"
+    ) as invalidate:
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.update_field(user, primary, name="renamed")
+            invalidated_before_commit = [
+                call.args[0] for call in invalidate.call_args_list
+            ]
+        invalidated_after_commit = [call.args[0] for call in invalidate.call_args_list][
+            len(invalidated_before_commit) :
+        ]
+
+    assert table_b.id not in invalidated_before_commit
+    assert table_c.id not in invalidated_before_commit
+    assert sorted(invalidated_after_commit) == sorted([table_b.id, table_c.id])

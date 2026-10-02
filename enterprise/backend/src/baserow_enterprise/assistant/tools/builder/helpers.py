@@ -5,9 +5,11 @@ Contains permission-checked accessors, listing functions, and the element/data
 source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 """
 
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -18,6 +20,8 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.operations import ReadElementOperationType
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
@@ -673,15 +677,15 @@ def update_element_style(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_event(element_id: int, event: str) -> str:
+def _resolve_event(user: AbstractUser, page: Page, element_id: int, event: str) -> str:
     """
     Resolve a human-friendly event name to the actual event string for
     any element type.
 
-    For elements with button collection fields (e.g. ``TableElement``),
-    the LLM typically sends ``"click"`` or ``"<button_name>_click"``
-    which must be resolved to ``"{uid}_click"`` where ``uid`` is the
-    ``CollectionField.uid``.
+    Button collection fields store ``"{uid}_click"`` events. A unique
+    ``"<column name>_click"`` selects a column by name, and ``"click"``
+    is accepted only when there is exactly one button column. Ambiguous
+    or invalid events must not attach an action to a guessed column.
 
     For all other elements (``ButtonElement``, ``FormContainerElement``,
     etc.) the event is returned unchanged since they use static event
@@ -689,9 +693,25 @@ def _resolve_event(element_id: int, event: str) -> str:
     """
 
     try:
-        element = ElementHandler().get_element(element_id).specific
-    except Exception:
-        return event
+        element = ElementHandler().get_element(
+            element_id,
+            base_queryset=Element.objects.filter(
+                Q(page=page) | Q(page__builder=page.builder, page__shared=True)
+            ),
+        )
+    except ElementDoesNotExist:
+        raise ToolInputError(
+            f"Element with ID {element_id} not found on this page. "
+            "Use list_elements to find valid element IDs."
+        )
+
+    # Check access before exposing column names or event UIDs in a retry error.
+    CoreHandler().check_permissions(
+        user,
+        ReadElementOperationType.type,
+        workspace=element.page.builder.workspace,
+        context=element,
+    )
 
     # Check if the element has a `fields` relation to CollectionField
     # (currently TableElement; works for any future collection element).
@@ -702,28 +722,32 @@ def _resolve_event(element_id: int, event: str) -> str:
     if not button_fields:
         return event
 
-    # Already a UUID-prefixed event — no resolution needed
-    if "_" in event:
-        prefix = event.rsplit("_", 1)[0]
-        button_uids = {str(bf.uid) for bf in button_fields}
-        if prefix in button_uids:
-            return event
+    if event in {f"{field.uid}_click" for field in button_fields}:
+        return event
 
-    # "click" → match to the first (or only) button column
-    if event == "click":
+    if event == "click" and len(button_fields) == 1:
         return f"{button_fields[0].uid}_click"
 
-    # "<button_name>_click" → match by name (case-insensitive)
     if event.endswith("_click"):
-        name = event[: -len("_click")].strip().lower()
-        for bf in button_fields:
-            if bf.name.strip().lower() == name:
-                return f"{bf.uid}_click"
+        name = event.removesuffix("_click").strip().casefold()
+        matching_fields = [
+            field for field in button_fields if field.name.strip().casefold() == name
+        ]
+        if len(matching_fields) == 1:
+            return f"{matching_fields[0].uid}_click"
 
-    # Fallback: use the first button column when no name matches.
-    # This is intentional — the LLM may send an unrecognised event name
-    # (e.g. a typo) and we prefer a working action over an error.
-    return f"{button_fields[0].uid}_click"
+    name_counts = Counter(field.name.strip().casefold() for field in button_fields)
+    valid_events = ", ".join(
+        f"'{field.name}_click' ({field.uid}_click)"
+        if name_counts[field.name.strip().casefold()] == 1
+        else f"'{field.uid}_click' (column '{field.name}')"
+        for field in button_fields
+    )
+    raise ToolInputError(
+        f"Event '{event}' does not identify one button column of element {element_id}. "
+        f"Use a unique column name or an exact UID event: {valid_events}. "
+        "This action was not created."
+    )
 
 
 def create_workflow_action(
@@ -753,7 +777,7 @@ def create_workflow_action(
 
     # Resolve human-friendly event names (e.g. "click" → "{uid}_click"
     # for collection elements with button fields).
-    event = _resolve_event(element_id, action_create.event)
+    event = _resolve_event(user, page, element_id, action_create.event)
 
     kwargs: dict[str, Any] = {
         "page": page,

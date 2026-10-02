@@ -125,8 +125,12 @@ def test_snapshot_creation_with_multiple_view_scoped_role_assignments(
     workspace = enterprise_data_fixture.create_workspace(user=user)
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(user=user, database=database)
-    grid_view_1 = enterprise_data_fixture.create_grid_view(user=user, table=table)
-    grid_view_2 = enterprise_data_fixture.create_grid_view(user=user, table=table)
+    grid_view_1 = enterprise_data_fixture.create_grid_view(
+        user=user, table=table, name="Editors"
+    )
+    grid_view_2 = enterprise_data_fixture.create_grid_view(
+        user=user, table=table, name="Viewers"
+    )
     team = enterprise_data_fixture.create_team(workspace=workspace)
 
     editor_role = Role.objects.get(uid="EDITOR")
@@ -150,13 +154,15 @@ def test_snapshot_creation_with_multiple_view_scoped_role_assignments(
     snapshot.refresh_from_db()
     snapshot_app = snapshot.snapshot_to_application.specific
     snapshot_table = snapshot_app.table_set.get()
-    snapshot_views = list(snapshot_table.view_set.all().order_by("pk"))
-    assert len(snapshot_views) == 2
+    # Both views share order=0, so the snapshot's creation (and pk) order is undefined.
+    snapshot_views = {view.name: view for view in snapshot_table.view_set.all()}
+    expected_roles = {"Editors": editor_role, "Viewers": viewer_role}
+    assert snapshot_views.keys() == expected_roles.keys()
 
-    view_content_type = ContentType.objects.get_for_model(snapshot_views[0])
-    for snapshot_view, expected_role in zip(snapshot_views, [editor_role, viewer_role]):
+    view_content_type = ContentType.objects.get_for_model(snapshot_views["Editors"])
+    for view_name, expected_role in expected_roles.items():
         assignment = RoleAssignment.objects.get(
-            scope_id=snapshot_view.id,
+            scope_id=snapshot_views[view_name].id,
             scope_type=view_content_type,
             role=expected_role,
             workspace=workspace,

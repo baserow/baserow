@@ -520,7 +520,7 @@ exports[`GridView component with decoration > Default component with first_cell 
     </div>
   </teleport-stub>
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
   >
     <i
       class="button-floating__icon iconoir-plus"
@@ -1069,7 +1069,7 @@ exports[`GridView component with decoration > Default component with row wrapper
     </div>
   </teleport-stub>
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
   >
     <i
       class="button-floating__icon iconoir-plus"
@@ -1602,7 +1602,7 @@ exports[`GridView component with decoration > Default component with unavailable
     </div>
   </teleport-stub>
   <button
-    class="button-floating button-floating--fixed button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
+    class="button-floating button-floating--absolute button-floating--primary button-floating--regular grid-view__add-row-button grid-view__add-row-button"
   >
     <i
       class="button-floating__icon iconoir-plus"

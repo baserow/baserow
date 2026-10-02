@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Keeps the add row button inside the view when a side panel makes it narrower",
+    "issue_origin": "github",
+    "issue_number": 6197,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-30"
+}
