@@ -2,9 +2,15 @@ from __future__ import annotations
 
 import json
 import mimetypes
+from copy import copy
 from typing import TYPE_CHECKING, Any, Optional
 
+from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+from django.db.models import Subquery
+
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
@@ -31,6 +37,73 @@ if TYPE_CHECKING:
 
 
 class AIFieldHandler:
+    @classmethod
+    def update_generated_value(
+        cls,
+        user: AbstractUser,
+        ai_field: AIField,
+        row_id: int,
+        value: Any,
+        model: type[GeneratedTableModel],
+    ) -> bool:
+        """
+        Save a generated value using the field's current rich text setting.
+
+        The row read also retrieves the setting, avoiding a separate field query
+        for every result. A missing setting means the field was trashed, converted,
+        or changed output type, so the prepared result must not be written.
+
+        :param user: The user on whose behalf the value is saved.
+        :param ai_field: The field configuration used to generate the value.
+        :param row_id: The row receiving the value.
+        :param value: The prepared AI output.
+        :param model: The generated table model used by the job.
+        :return: Whether the field still accepts this generation's output.
+        :raises RowDoesNotExist: If the row was trashed during generation.
+        """
+
+        # Import here because field types also use this handler.
+        from .models import AIField
+
+        current_setting = AIField.objects.filter(
+            pk=ai_field.pk, ai_output_type=ai_field.ai_output_type
+        ).values("long_text_enable_rich_text")[:1]
+        queryset = model.objects.annotate(
+            _ai_generation_rich_text=Subquery(current_setting)
+        ).enhance_by_fields()
+        row_handler = RowHandler()
+        with transaction.atomic():
+            row = row_handler.get_row_for_update(
+                user,
+                ai_field.table,
+                row_id,
+                model=model,
+                base_queryset=queryset.clear_multi_field_prefetch(),
+            )
+            if row._ai_generation_rich_text is None:
+                return False
+
+            # A converted choice column can hold text instead of option IDs.
+            # Resolve relations only after checking that its output type matches,
+            # retaining the usual combined prefetch for an unchanged field.
+            for prefetch in queryset.get_multi_field_prefetches():
+                prefetch(queryset, [row])
+
+            # Generation threads keep their original prompt configuration.
+            current_field = copy(ai_field)
+            current_field.long_text_enable_rich_text = row._ai_generation_rich_text
+            output_type = ai_field_output_registry.get(ai_field.ai_output_type)
+            value = output_type.sanitize_value(current_field, value)
+            row_handler.update_row(
+                user,
+                ai_field.table,
+                row,
+                {ai_field.db_column: value},
+                model=model,
+                values_already_prepared=True,
+            )
+        return True
+
     @classmethod
     def get_valid_model_type_or_raise(
         cls, ai_field: AIField, state: ScopedAIProviderState | None = None

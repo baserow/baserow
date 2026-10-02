@@ -3,7 +3,9 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 from django.core.files.storage import FileSystemStorage
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
@@ -21,6 +23,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.notifications.models import Notification
@@ -33,7 +36,7 @@ from baserow_premium.fields.ai_field_output_types import (
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import AIValueGenerator
-from baserow_premium.fields.models import AIField
+from baserow_premium.fields.models import AIField, GenerateAIValuesJob
 
 MISSING_IMAGE_VALUE = "![chart][abc_chart.png]"
 ESCAPED_IMAGE_VALUE = "![chart]\\[abc_chart.png]"
@@ -572,22 +575,25 @@ def test_generated_image_references_are_escaped_only_in_rich_text(
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-def test_generation_escapes_references_when_rich_text_is_enabled_mid_job(
-    premium_data_fixture,
+@pytest.mark.parametrize("rich_text", [False, True])
+def test_generation_uses_rich_text_setting_changed_mid_job(
+    premium_data_fixture, rich_text
 ):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
-    field = premium_data_fixture.create_ai_field(table=table)
+    field = premium_data_fixture.create_ai_field(
+        table=table, long_text_enable_rich_text=not rich_text
+    )
     row = RowHandler().create_row(user, table, {})
     model_type = generative_ai_model_type_registry.get("test_generative_ai")
     prepare = AIValueGenerator.prepare
 
-    def prepare_then_enable_rich_text(generator: AIValueGenerator) -> None:
+    def prepare_then_change_rich_text(generator: AIValueGenerator) -> None:
         prepare(generator)
-        FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+        FieldHandler().update_field(user, field, long_text_enable_rich_text=rich_text)
 
     with (
-        patch.object(AIValueGenerator, "prepare", prepare_then_enable_rich_text),
+        patch.object(AIValueGenerator, "prepare", prepare_then_change_rich_text),
         patch.object(model_type, "prompt", return_value=MISSING_IMAGE_VALUE),
     ):
         job = JobHandler().create_and_start_job(
@@ -596,7 +602,266 @@ def test_generation_escapes_references_when_rich_text_is_enabled_mid_job(
 
     assert job.state == "finished"
     row.refresh_from_db()
-    assert getattr(row, field.db_column) == ESCAPED_IMAGE_VALUE
+    expected = ESCAPED_IMAGE_VALUE if rich_text else MISSING_IMAGE_VALUE
+    assert getattr(row, field.db_column) == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize("change", ["convert", "trash", "output_type"])
+@pytest.mark.parametrize("output_type", ["text", "choice"])
+def test_generation_stops_writing_when_field_no_longer_accepts_results(
+    premium_data_fixture, change, output_type
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table, ai_output_type=output_type
+    )
+    existing = "Existing value"
+    if output_type == "choice":
+        existing = premium_data_fixture.create_select_option(
+            field=field, value=existing, color="red"
+        ).id
+        premium_data_fixture.create_select_option(
+            field=field, value="Generated value", color="blue"
+        )
+    RowHandler().create_rows(
+        user, table, [{field.db_column: existing}, {field.db_column: existing}]
+    )
+    model = table.get_model()
+    expected = []
+    model_type = generative_ai_model_type_registry.get("test_generative_ai")
+    prepare = AIValueGenerator.prepare
+
+    def prepare_then_change_field(generator: AIValueGenerator) -> None:
+        prepare(generator)
+        if change == "convert":
+            FieldHandler().update_field(user, field, new_type_name="long_text")
+        elif change == "trash":
+            FieldHandler().delete_field(user, field)
+        else:
+            FieldHandler().update_field(
+                user,
+                field,
+                ai_output_type="choice" if output_type == "text" else "text",
+            )
+        expected.extend(model.objects.values_list(field.db_column, flat=True))
+
+    with (
+        patch.object(AIValueGenerator, "prepare", prepare_then_change_field),
+        patch.object(model_type, "prompt", return_value="Generated value"),
+    ):
+        job = JobHandler().create_and_start_job(
+            user, "generate_ai_values", sync=True, field_id=field.id
+        )
+
+    assert job.state == "finished"
+    assert job.error == ""
+    assert list(model.objects.values_list(field.db_column, flat=True)) == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize("rich_text", [False, True])
+@pytest.mark.parametrize("row_count", [1, 100])
+def test_generation_has_no_separate_field_query_per_row(
+    premium_data_fixture, rich_text, row_count
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table, long_text_enable_rich_text=rich_text
+    )
+    RowHandler().create_rows(user, table, [{} for _ in range(row_count)])
+    model_type = generative_ai_model_type_registry.get("test_generative_ai")
+
+    with (
+        patch.object(model_type, "prompt", return_value=MISSING_IMAGE_VALUE),
+        CaptureQueriesContext(connection) as queries,
+    ):
+        job = JobHandler().create_and_start_job(
+            user, "generate_ai_values", sync=True, field_id=field.id
+        )
+
+    assert job.state == "finished"
+    # Field retrieval during job creation/start is constant. The current setting
+    # travels with the row SELECT instead of adding a field SELECT for every row.
+    field_reads = [
+        query["sql"]
+        for query in queries
+        if query["sql"].startswith('SELECT "database_field".')
+        and '"baserow_premium_aifield"' in query["sql"]
+    ]
+    assert len(field_reads) == 2
+    expected = ESCAPED_IMAGE_VALUE if rich_text else MISSING_IMAGE_VALUE
+    assert (
+        list(table.get_model().objects.values_list(field.db_column, flat=True))
+        == [expected] * row_count
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize("output", ["plain", "rich", "choice"])
+def test_generated_write_uses_same_query_count_as_ordinary_row_write(
+    premium_data_fixture, output
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_output_type="choice" if output == "choice" else "text",
+        long_text_enable_rich_text=output == "rich",
+    )
+    ordinary = "Ordinary value"
+    generated = MISSING_IMAGE_VALUE
+    if output == "choice":
+        ordinary = premium_data_fixture.create_select_option(
+            field=field, value=ordinary, color="red"
+        )
+        generated = premium_data_fixture.create_select_option(
+            field=field, value="Generated value", color="blue"
+        )
+    neighbor = premium_data_fixture.create_single_select_field(table=table)
+    neighbor_option = premium_data_fixture.create_select_option(
+        field=neighbor, value="Neighbor", color="red"
+    )
+    row = RowHandler().create_row(user, table, {neighbor.db_column: neighbor_option.id})
+    model = table.get_model()
+
+    # Warm permission caches before comparing the two write paths.
+    RowHandler().update_row_by_id(
+        user,
+        table,
+        row.id,
+        {field.db_column: ordinary},
+        model=model,
+        values_already_prepared=True,
+    )
+    with CaptureQueriesContext(connection) as ordinary_queries:
+        RowHandler().update_row_by_id(
+            user,
+            table,
+            row.id,
+            {field.db_column: ordinary},
+            model=model,
+            values_already_prepared=True,
+        )
+    with CaptureQueriesContext(connection) as generated_queries:
+        assert AIFieldHandler.update_generated_value(
+            user, field, row.id, generated, model
+        )
+
+    assert len(generated_queries) == len(ordinary_queries)
+    row.refresh_from_db()
+    if output == "choice":
+        assert getattr(row, field.db_column).id == generated.id
+    else:
+        expected = ESCAPED_IMAGE_VALUE if output == "rich" else MISSING_IMAGE_VALUE
+        assert getattr(row, field.db_column) == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize("change", ["convert", "enable_rich_text"])
+def test_generation_handles_field_changes_after_a_saved_result(
+    premium_data_fixture, settings, change
+):
+    settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS = 1
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(table=table)
+    RowHandler().create_rows(user, table, [{}, {}])
+    model_type = generative_ai_model_type_registry.get("test_generative_ai")
+    handle_result = AIValueGenerator.handle_result
+
+    def handle_result_then_change_field(generator, result):
+        handle_result(generator, result)
+        if generator.finished == 1:
+            if change == "convert":
+                FieldHandler().update_field(user, field, new_type_name="long_text")
+            else:
+                FieldHandler().update_field(
+                    user, field, long_text_enable_rich_text=True
+                )
+
+    with (
+        patch.object(
+            AIValueGenerator, "handle_result", handle_result_then_change_field
+        ),
+        patch.object(
+            model_type, "prompt", return_value=MISSING_IMAGE_VALUE
+        ) as mock_prompt,
+    ):
+        job = JobHandler().create_and_start_job(
+            user, "generate_ai_values", sync=True, field_id=field.id
+        )
+
+    assert job.state == "finished"
+    expected = (
+        [MISSING_IMAGE_VALUE, None]
+        if change == "convert"
+        else [ESCAPED_IMAGE_VALUE, ESCAPED_IMAGE_VALUE]
+    )
+    assert (
+        list(
+            table.get_model()
+            .objects.order_by("id")
+            .values_list(field.db_column, flat=True)
+        )
+        == expected
+    )
+    if change == "enable_rich_text":
+        # Only saved values adopt the new setting; the generation threads retain
+        # the prompt configuration with which the job started.
+        assert all(
+            RICH_TEXT_PROMPT_INSTRUCTIONS not in call.args[1]
+            for call in mock_prompt.call_args_list
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_mid_job_rich_text_escaping_survives_partial_generation_failure(
+    premium_data_fixture, settings
+):
+    settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS = 1
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(table=table)
+    RowHandler().create_rows(user, table, [{}, {}, {}])
+    model_type = generative_ai_model_type_registry.get("test_generative_ai")
+    handle_result = AIValueGenerator.handle_result
+
+    def handle_result_then_enable_rich_text(generator, result):
+        handle_result(generator, result)
+        if generator.finished == 1:
+            FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    with (
+        patch.object(
+            AIValueGenerator, "handle_result", handle_result_then_enable_rich_text
+        ),
+        patch.object(
+            model_type,
+            "prompt",
+            side_effect=[
+                MISSING_IMAGE_VALUE,
+                MISSING_IMAGE_VALUE,
+                GenerativeAIPromptError("Provider unavailable"),
+            ],
+        ),
+        pytest.raises(GenerativeAIPromptError, match="Provider unavailable"),
+    ):
+        JobHandler().create_and_start_job(
+            user, "generate_ai_values", sync=True, field_id=field.id
+        )
+
+    assert GenerateAIValuesJob.objects.latest("id").state == "failed"
+    assert list(
+        table.get_model().objects.order_by("id").values_list(field.db_column, flat=True)
+    ) == [ESCAPED_IMAGE_VALUE, ESCAPED_IMAGE_VALUE, None]
 
 
 @pytest.mark.django_db
