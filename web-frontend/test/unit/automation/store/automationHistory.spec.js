@@ -66,7 +66,7 @@ describe('automation history store', () => {
     })
 
   describe('fetchWorkflowHistory', () => {
-    test('commits responses that land in the order they were started', async () => {
+    test('ignores a superseded navigation even if its response arrives first', async () => {
       const first = deferredReply()
       const second = deferredReply()
       testApp.mock.onGet(HISTORY_URL).replyOnce(first.reply)
@@ -77,7 +77,7 @@ describe('automation history store', () => {
 
       first.resolve(200, page([history()]))
       await firstFetch
-      expect(getHistory()).toEqual(page([history()]))
+      expect(getHistory()).toEqual({})
 
       second.resolve(200, page([history({ status: 'success' })]))
       await secondFetch
@@ -104,6 +104,39 @@ describe('automation history store', () => {
   })
 
   describe('cancelWorkflowRun', () => {
+    test('keeps the current page when cancelling a run on an older page', async () => {
+      const currentPage = { ...page([history()]), count: 45 }
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, currentPage)
+      await store.dispatch('automationHistory/fetchWorkflowHistory', {
+        workflowId: WORKFLOW_ID,
+        page: 2,
+      })
+      const cancelling = history({ cancellation_requested_on: REQUESTED_ON })
+      testApp.mock.onPost(CANCEL_URL).reply(200, cancelling)
+      testApp.mock
+        .onGet(HISTORY_URL)
+        .replyOnce(200, { ...currentPage, results: [cancelling] })
+      await cancelRun()
+      expect(testApp.mock.history.get.at(-1).params.page).toBe(2)
+      expect(getHistory().results).toEqual([cancelling])
+    })
+
+    test('does not reopen history when a cancellation finishes after closing the panel', async () => {
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([history()]))
+      await fetchHistory()
+      const cancellation = deferredReply()
+      testApp.mock.onPost(CANCEL_URL).reply(cancellation.reply)
+      const cancel = cancelRun()
+      await store.dispatch('automationHistory/reset')
+      cancellation.resolve(
+        200,
+        history({ cancellation_requested_on: REQUESTED_ON })
+      )
+      await cancel
+      expect(testApp.mock.history.get).toHaveLength(1)
+      expect(getHistory()).toEqual({})
+    })
+
     test('applies the cancellation response right away, then the refetch', async () => {
       testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([history()]))
       await fetchHistory()
@@ -153,6 +186,8 @@ describe('automation history store', () => {
     })
 
     test('refetches even when the run is not in the loaded page', async () => {
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([]))
+      await fetchHistory()
       const cancelling = history({ cancellation_requested_on: REQUESTED_ON })
       testApp.mock
         .onPost(CANCEL_URL)
