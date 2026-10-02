@@ -1,6 +1,14 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import NodeSidePanel from '@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel'
-import HistorySidePanel from '@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel'
+
+const NodeSidePanel = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel'),
+})
+const HistorySidePanel = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel'),
+})
 
 export class editorSidePanelType extends Registerable {
   get component() {

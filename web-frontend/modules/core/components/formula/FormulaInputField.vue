@@ -94,6 +94,7 @@
 
 <script>
 import { Editor, EditorContent, Node } from '@tiptap/vue-3'
+import { createRuntimeFormulaNode } from '@baserow/modules/core/formula/tiptap/runtimeFormulaNode'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
@@ -325,7 +326,7 @@ export default {
     },
     formulaComponents() {
       return Object.values(this.$registry.getAll('runtimeFormulaFunction'))
-        .map((type) => type.formulaComponent)
+        .map((type) => createRuntimeFormulaNode(type))
         .filter((component) => component !== null)
     },
     wrapperNode() {

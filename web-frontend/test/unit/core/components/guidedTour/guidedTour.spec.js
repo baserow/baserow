@@ -169,6 +169,26 @@ describe('GuidedTour component', () => {
     expect(wrapper.find('.guided-tour-step').exists()).toBe(false)
   })
 
+  test('starts a tour registered after the layout was already mounted', async () => {
+    authenticate(['test_main', 'test_first_time_only'])
+    const wrapper = await testApp.mount(GuidedTour, {})
+    expect(wrapper.find('.guided-tour-step').exists()).toBe(false)
+
+    class LateGuidedTourType extends MainTestGuidedTourType {
+      static getType() {
+        return 'test_late'
+      }
+    }
+
+    testApp
+      .getRegistry()
+      .register('guidedTour', new LateGuidedTourType({ app: testApp.getApp() }))
+    await flushPromises()
+
+    expect(wrapper.find('.guided-tour-step').exists()).toBe(true)
+    expect(visibleStepContent(wrapper)).toBe('main step 1')
+  })
+
   test(
     'replaying includes completed tours, skips first time only tours and ' +
       'steps, and does not save',

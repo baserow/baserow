@@ -71,6 +71,7 @@ import AssistantMessageList from '@baserow_enterprise/components/assistant/Assis
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'AssistantPanel',
@@ -90,6 +91,7 @@ export default {
   data() {
     return {
       loading: false,
+      navigationRequestId: 0,
     }
   },
   computed: {
@@ -122,6 +124,7 @@ export default {
   watch: {
     workspace: {
       handler(newWorkspace) {
+        this.navigationRequestId += 1
         this.resetStore()
         this.fetchChats(newWorkspace.id)
       },
@@ -147,10 +150,26 @@ export default {
       }
     },
     uiLocation: {
-      handler(newLocation) {
+      async handler(newLocation) {
+        const requestId = ++this.navigationRequestId
         if (!newLocation) return
 
+        const workspaceId = this.workspace.id
+        const chatId = this.currentChatId
+        const isCurrentLocation = () =>
+          requestId === this.navigationRequestId &&
+          this.workspace.id === workspaceId &&
+          this.currentChatId === chatId
+
         if (newLocation.type === 'database-view') {
+          // View types register with the database domain, not eagerly.
+          try {
+            await this.$registry.loadDomain('database')
+          } catch (error) {
+            if (isCurrentLocation()) notifyIf(error)
+            return
+          }
+          if (!isCurrentLocation()) return
           // Don't navigate to deactivated views
           const viewType = this.$registry.get('view', newLocation.view_type)
           if (!viewType || viewType.isDeactivated(this.workspace.id)) {
@@ -165,6 +184,7 @@ export default {
           newLocation.type === 'database-view'
         ) {
           waitFor(() => {
+            if (!isCurrentLocation()) return true
             const database = store.getters['application/get'](
               newLocation.database_id
             )
@@ -183,6 +203,7 @@ export default {
               (!isCurrentlyOnTable || !newLocation.view_id || viewLoaded)
             )
           }).then(() => {
+            if (!isCurrentLocation()) return
             router.push({
               name: 'database-table',
               params: {
@@ -202,6 +223,7 @@ export default {
           })
         } else if (newLocation.type === 'builder-page') {
           waitFor(() => {
+            if (!isCurrentLocation()) return true
             const builder = store.getters['application/get'](
               newLocation.application_id
             )
@@ -210,6 +232,7 @@ export default {
               builder.pages.find((page) => page.id === newLocation.page_id)
             )
           }).then(() => {
+            if (!isCurrentLocation()) return
             router.push({
               name: 'builder-page',
               params: {
@@ -220,6 +243,7 @@ export default {
           })
         } else if (newLocation.type === 'automation-workflow') {
           waitFor(() => {
+            if (!isCurrentLocation()) return true
             const automation = store.getters['application/get'](
               newLocation.automation_id
             )
@@ -231,6 +255,7 @@ export default {
               )
             )
           }).then(() => {
+            if (!isCurrentLocation()) return
             this.$router.push({
               name: 'automation-workflow',
               params: {
@@ -272,6 +297,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.navigationRequestId += 1
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
     }

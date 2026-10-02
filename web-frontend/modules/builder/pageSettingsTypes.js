@@ -1,10 +1,18 @@
-import { markRaw } from 'vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import PageSettingsComponent from '@baserow/modules/builder/components/page/settings/PageSettings'
-import PageVisibilitySettingsComponent from '@baserow/modules/builder/components/page/settings/PageVisibilitySettings'
 
-const PageSettings = markRaw(PageSettingsComponent)
-const PageVisibilitySettings = markRaw(PageVisibilitySettingsComponent)
+const PageSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/page/settings/PageSettings.vue'),
+  })
+)
+const PageVisibilitySettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/page/settings/PageVisibilitySettings.vue'),
+  })
+)
 
 export class PageSettingType extends Registerable {
   static getType() {

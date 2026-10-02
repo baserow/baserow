@@ -3,6 +3,7 @@ import flushPromises from 'flush-promises'
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import RowComment from '@baserow_premium/components/row_comments/RowComment'
 import RowCommentContext from '@baserow_premium/components/row_comments/RowCommentContext'
+import { loadRichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 
 describe('RowComment component', () => {
   let testApp = null
@@ -71,6 +72,7 @@ describe('RowComment component', () => {
       .mockResolvedValue()
 
     wrapper.findComponent(RowCommentContext).vm.$emit('edit')
+    await loadRichTextEditor()
     await flushPromises()
 
     expect(wrapper.find('.tiptap').attributes('contenteditable')).toBe('true')
@@ -98,6 +100,7 @@ describe('RowComment component', () => {
       .mockResolvedValue()
 
     wrapper.findComponent(RowCommentContext).vm.$emit('edit')
+    await loadRichTextEditor()
     await flushPromises()
 
     wrapper

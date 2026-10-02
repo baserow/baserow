@@ -15,7 +15,6 @@ import {
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
-import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
   FacebookAuthProviderType,
   GitHubAuthProviderType,
@@ -43,11 +42,6 @@ import {
   SamlAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import {
-  AuthFormElementType,
-  FileInputElementType,
-  GraphElementType,
-} from '@baserow_enterprise/builder/elementTypes'
-import {
   EnterpriseAdminRoleType,
   EnterpriseBuilderRoleType,
   EnterpriseCommenterRoleType,
@@ -58,22 +52,12 @@ import {
   NoRoleLowPriorityRoleType,
 } from '@baserow_enterprise/roleTypes'
 import {
-  GitHubIssuesDataSyncType,
-  GitLabIssuesDataSyncType,
-  HubspotContactsDataSyncType,
-  PostgreSQLDataSyncType,
-  JiraIssuesDataSyncType,
-  LocalBaserowTableDataSyncType,
-} from '@baserow_enterprise/dataSyncTypes'
-import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import {
   ApplicationUserLimitNotificationType,
   DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
   TwoWayDataSyncUpdateFiledNotificationType,
   TwoWaySyncDeactivatedNotificationType,
 } from '@baserow_enterprise/notificationTypes'
-import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   AdvancedWebhooksPaidFeature,
   AuditLogPaidFeature,
@@ -92,28 +76,12 @@ import {
   SupportPaidFeature,
   XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
-import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
-import {
-  DateDependencyContextItemType,
-  DateDependencyTimelineComponent,
-} from '@baserow_enterprise/dateDependencyTypes'
-import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
-import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
 import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
-import {
-  CoreCodeWorkflowActionType,
-  CoreXLSFileReaderWorkflowActionType,
-} from '@baserow_enterprise/builder/workflowActionTypes'
-import {
-  CoreCodeNodeType,
-  CoreXLSFileReaderNodeType,
-} from '@baserow_enterprise/automation/nodeTypes'
 import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
@@ -192,20 +160,29 @@ export default defineNuxtPlugin({
     $registry.register('license', new EnterpriseLicenseType(context))
 
     $registry.register('userSource', new LocalBaserowUserSourceType(context))
+
     if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
       $registry.register('service', new CoreCodeServiceType(context))
-      $registry.register(
-        'workflowAction',
-        new CoreCodeWorkflowActionType(context)
-      )
-      $registry.register('node', new CoreCodeNodeType(context))
     }
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
-    $registry.register(
-      'workflowAction',
-      new CoreXLSFileReaderWorkflowActionType(context)
-    )
-    $registry.register('node', new CoreXLSFileReaderNodeType(context))
+
+    $registry.registerDomainLoader('builder', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/builderLazyRegistrations')
+      register(nuxtApp)
+    })
+
+    $registry.registerDomainLoader('automation', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/automationLazyRegistrations')
+      register(nuxtApp)
+    })
+
+    $registry.registerDomainLoader('database', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/databaseLazyRegistrations')
+      register(nuxtApp)
+    })
 
     $registry.register(
       'appAuthProvider',
@@ -227,18 +204,6 @@ export default defineNuxtPlugin({
     $registry.register('roles', new NoAccessRoleType(context))
     $registry.register('roles', new NoRoleLowPriorityRoleType(context))
 
-    $registry.register('element', new AuthFormElementType(context))
-    $registry.register('element', new FileInputElementType(context))
-    $registry.register('element', new GraphElementType(context))
-
-    $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
-    $registry.register('dataSync', new PostgreSQLDataSyncType(context))
-    $registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
-    $registry.register('dataSync', new JiraIssuesDataSyncType(context))
-    $registry.register('dataSync', new GitHubIssuesDataSyncType(context))
-    $registry.register('dataSync', new GitLabIssuesDataSyncType(context))
-    $registry.register('dataSync', new HubspotContactsDataSyncType(context))
-
     $registry.register(
       'notification',
       new PeriodicDataSyncDeactivatedNotificationType(context)
@@ -258,16 +223,6 @@ export default defineNuxtPlugin({
     $registry.register(
       'notification',
       new ApplicationUserLimitNotificationType(context)
-    )
-
-    $registry.register(
-      'configureDataSync',
-      new PeriodicIntervalFieldsConfigureDataSyncType(context)
-    )
-
-    $registry.register(
-      'webhookEvent',
-      new RowsEnterViewWebhookEventType(context)
     )
 
     $registry.register('paidFeature', new SSOPaidFeature(context))
@@ -296,45 +251,12 @@ export default defineNuxtPlugin({
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))
-    $registry.register(
-      'timelineFieldRules',
-      new DateDependencyTimelineComponent(context)
-    )
-    $registry.register(
-      'fieldContextItem',
-      new DateDependencyContextItemType(context)
-    )
 
-    // Register builder page decorator namespace and types
-    $registry.register(
-      'builderPageDecorator',
-      new MadeWithBaserowBuilderPageDecoratorType(context)
-    )
-
+    // Eager: kept alongside core's databaseOnboardingStep types for the onboarding flow.
     $registry.register(
       'databaseOnboardingStep',
       new AIDatabaseOnboardingStepType(context)
     )
     $registry.register('onboarding', new AIPromptOnboardingType(context))
-
-    $registry.register(
-      'fieldContextItem',
-      new FieldPermissionsContextItemType(context)
-    )
-
-    $registry.register(
-      'builderSettings',
-      new CustomCodeBuilderSettingType(context)
-    )
-
-    $registry.register(
-      'twoWaySyncStrategy',
-      new RealtimePushTwoWaySyncStrategyType(context)
-    )
-
-    $registry.register(
-      'viewOwnershipType',
-      new RestrictedViewOwnershipType(context)
-    )
   },
 })

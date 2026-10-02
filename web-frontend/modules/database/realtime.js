@@ -85,9 +85,9 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('field_created', ({ store, app }, data) => {
     const table = store.getters['table/getSelected']
-    const registry = app.$registry
-    const fieldType = registry.get('field', data.field.type)
     if (table !== undefined && table.id === data.field.table_id) {
+      const registry = app.$registry
+      const fieldType = registry.get('field', data.field.type)
       const relatedFields = data.related_fields
       const callback = async () => {
         await store.dispatch('field/forceCreate', {

@@ -79,6 +79,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 import suggestion from '@baserow/modules/core/editor/suggestion'
 
 export default {
+  name: 'RichTextEditor',
   components: {
     EditorContent,
     RichTextEditorBubbleMenu,

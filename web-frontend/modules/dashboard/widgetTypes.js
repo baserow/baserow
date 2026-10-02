@@ -1,7 +1,15 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
-import SummaryWidget from '@baserow/modules/dashboard/components/widget/SummaryWidget'
-import SummaryWidgetSettings from '@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'
+
+const SummaryWidget = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/dashboard/components/widget/SummaryWidget'),
+})
+const SummaryWidgetSettings = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'),
+})
 
 export class WidgetType extends Registerable {
   constructor(...args) {

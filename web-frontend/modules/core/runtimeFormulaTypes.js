@@ -21,7 +21,7 @@ import {
   InvalidFormulaArgument,
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
-} from '@baserow/modules/core/formula/parser/errors'
+} from '@baserow/modules/core/formula/errors'
 import { reverseString, generateUUID } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
@@ -35,9 +35,6 @@ import {
   formatValueWithDurationFormat,
   parseValueWithDurationFormat,
 } from '@baserow/modules/core/utils/duration'
-import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
-import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
-import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
@@ -181,10 +178,8 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   /**
-   * The component configuration that should be used to render the formula in the
-   * editor.
-   *
-   * @returns {null}
+   * A TipTap node supplied by a formula extension, or null without a visual node.
+   * Built-in editor UI is registered separately from runtime evaluation.
    */
   get formulaComponent() {
     return null
@@ -302,6 +297,14 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
 }
 
 export class RuntimeGet extends RuntimeFormulaFunction {
+  // The formula editor installs its synchronous UI factory when it loads. Keep
+  // runtime evaluation independent from TipTap and its Vue components.
+  static formulaComponentFactory = null
+
+  static registerFormulaComponentFactory(factory) {
+    RuntimeGet.formulaComponentFactory = factory
+  }
+
   static getType() {
     return 'get'
   }
@@ -323,37 +326,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   get formulaComponent() {
-    const formulaComponentType = this.formulaComponentType
-    return Node.create({
-      name: formulaComponentType,
-      group: 'inline',
-      inline: true,
-      selectable: false,
-      atom: true,
-      addNodeView() {
-        return VueNodeViewRenderer(GetFormulaComponent)
-      },
-      addAttributes() {
-        return {
-          path: {
-            default: '',
-          },
-          isSelected: {
-            default: false,
-          },
-        }
-      },
-      parseHTML() {
-        return [
-          {
-            tag: formulaComponentType,
-          },
-        ]
-      },
-      renderHTML({ HTMLAttributes }) {
-        return [formulaComponentType, mergeAttributes(HTMLAttributes)]
-      },
-    })
+    return RuntimeGet.formulaComponentFactory?.(this) ?? null
   }
 
   execute(context, args) {

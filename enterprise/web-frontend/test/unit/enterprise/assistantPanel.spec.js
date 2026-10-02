@@ -46,6 +46,7 @@ describe('AssistantPanel', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -89,4 +90,63 @@ describe('AssistantPanel', () => {
 
     expect(service.sendMessage).not.toHaveBeenCalled()
   })
+
+  test.each(['location', 'workspace', 'chat', 'unmount'])(
+    'drops old database navigation when the %s changes while loading types',
+    async (change) => {
+      const wrapper = await testApp.mount(AssistantPanel, {
+        props: { workspace },
+      })
+      await store.dispatch('assistant/createChat', workspace.id)
+      await store.dispatch('application/forceCreate', {
+        id: 3,
+        name: 'Database',
+        type: 'database',
+        workspace,
+        tables: [{ id: 4, name: 'Table', order: 1 }],
+      })
+      let resolveDomain
+      const loading = new Promise((resolve) => {
+        resolveDomain = resolve
+      })
+      const loadDomain = vi
+        .spyOn(testApp.getRegistry(), 'loadDomain')
+        .mockReturnValue(loading)
+      const push = vi
+        .spyOn(testApp.getApp().$router, 'push')
+        .mockResolvedValue(undefined)
+
+      store.commit('assistant/SET_UI_LOCATION', {
+        type: 'database-view',
+        database_id: 3,
+        table_id: 4,
+        view_id: 5,
+        view_type: 'grid',
+      })
+      await flushPromises()
+      expect(loadDomain).toHaveBeenCalledWith('database')
+      expect(push).not.toHaveBeenCalled()
+
+      if (change === 'location') {
+        store.commit('assistant/SET_UI_LOCATION', { type: 'workspace' })
+        await flushPromises()
+        expect(push).toHaveBeenCalledWith({
+          name: 'workspace',
+          params: { workspaceId: workspace.id },
+        })
+      } else if (change === 'workspace') {
+        await wrapper.setProps({ workspace: otherWorkspace })
+      } else if (change === 'chat') {
+        await store.dispatch('assistant/clearChat')
+      } else {
+        wrapper.unmount()
+      }
+
+      resolveDomain()
+      await flushPromises()
+      expect(
+        push.mock.calls.some(([route]) => route.name === 'database-table')
+      ).toBe(false)
+    }
+  )
 })

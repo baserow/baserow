@@ -1,18 +1,5 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import BooleanField from '@baserow/modules/builder/components/elements/components/collectionField/BooleanField'
-import TextField from '@baserow/modules/builder/components/elements/components/collectionField/TextField'
-import LinkField from '@baserow/modules/builder/components/elements/components/collectionField/LinkField'
-import ButtonField from '@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue'
-import ButtonFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue'
-import BooleanFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm'
-import TagsField from '@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue'
-import TextFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm'
-import TagsFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue'
-import LinkFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'
-import ImageField from '@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'
-import ImageFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'
-import RatingField from '@baserow/modules/builder/components/elements/components/collectionField/RatingField'
-import RatingFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'
 import {
   ensureArray,
   ensureBoolean,
@@ -24,6 +11,63 @@ import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { ClickEvent } from '@baserow/modules/builder/eventTypes'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
+
+const BooleanField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/BooleanField'),
+})
+const TextField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/TextField'),
+})
+const LinkField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/LinkField'),
+})
+const ButtonField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue'),
+})
+const ButtonFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue'),
+})
+const BooleanFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm'),
+})
+const TagsField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue'),
+})
+const TextFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm'),
+})
+const TagsFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue'),
+})
+const LinkFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'),
+})
+const ImageField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'),
+})
+const ImageFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'),
+})
+const RatingField = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/RatingField'),
+})
+const RatingFieldForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'),
+})
 
 export class CollectionFieldType extends Registerable {
   get name() {

@@ -99,9 +99,7 @@
 </template>
 
 <script>
-import { useHead } from '#imports'
-import { useNuxtApp } from '#app'
-
+import { useHead, useNuxtApp } from '#imports'
 import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
 import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
@@ -122,16 +120,6 @@ export default {
     AIProviderModelFormModal,
   },
   mixins: [aiProviderModelUsage],
-  setup() {
-    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
-    // `layout` and `middleware` component options.
-    definePageMeta({
-      layout: 'app',
-      middleware: ['staff'],
-    })
-    const { $i18n } = useNuxtApp()
-    useHead({ title: $i18n.t('aiProviderAdmin.title') })
-  },
   data() {
     return {
       providerFormOpen: false,
@@ -373,4 +361,14 @@ export default {
     },
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  layout: 'app',
+  middleware: ['staff'],
+})
+
+const { $i18n } = useNuxtApp()
+useHead({ title: $i18n.t('aiProviderAdmin.title') })
 </script>

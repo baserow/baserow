@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+// ThemeConfigBlock exposes synchronous reset and validation methods to its parents.
 import ColorThemeConfigBlock from '@baserow/modules/builder/components/theme/ColorThemeConfigBlock'
 import TypographyThemeConfigBlock from '@baserow/modules/builder/components/theme/TypographyThemeConfigBlock'
 import ButtonThemeConfigBlock from '@baserow/modules/builder/components/theme/ButtonThemeConfigBlock'

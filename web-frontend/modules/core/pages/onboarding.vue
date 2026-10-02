@@ -128,6 +128,7 @@
 </template>
 
 <script>
+import { useHead, useI18n } from '#imports'
 import { markRaw } from 'vue'
 import CircleProgressBar from '@baserow/modules/core/components/CircleProgressBar.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -140,16 +141,6 @@ import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 export default {
   components: { Toasts, CircleProgressBar },
   mixins: [error, jobProgress],
-  setup() {
-    const { t } = useI18n()
-    useHead({
-      title: t('onboarding.title'),
-    })
-
-    definePageMeta({
-      middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
-    })
-  },
   data() {
     return {
       stepIndex: 0,
@@ -458,4 +449,18 @@ export default {
     },
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  middleware: [
+    'settings',
+    'authenticated',
+    'databaseDomain',
+    'redirectCompletedOnboarding',
+  ],
+})
+
+const { t } = useI18n()
+useHead({ title: t('onboarding.title') })
 </script>

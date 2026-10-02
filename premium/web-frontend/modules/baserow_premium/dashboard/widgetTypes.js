@@ -1,14 +1,22 @@
+import { defineAsyncComponent } from 'vue'
 import { DataSourceWidgetType } from '@baserow/modules/dashboard/widgetTypes'
-import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
-import ChartWidgetSettings from '@baserow_premium/dashboard/components/widget/ChartWidgetSettings'
 import ChartBarWidgetSvg from '@baserow_premium/assets/images/chart_bar.svg?url'
 import ChartLineWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_line.svg?url'
 import ChartPieWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_pie.svg?url'
 import ChartDonutWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_donut.svg?url'
 import PremiumFeatures from '@baserow_premium/features'
-import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
+// CreateWidgetCard opens this component through its ref on the first click.
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
+const ChartWidget = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/dashboard/components/widget/ChartWidget'),
+})
+const ChartWidgetSettings = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/dashboard/components/widget/ChartWidgetSettings'),
+})
 export class ChartWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'chart'

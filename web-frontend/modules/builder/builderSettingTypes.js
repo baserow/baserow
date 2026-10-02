@@ -1,18 +1,39 @@
-import { markRaw } from 'vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
-import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
-import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
-import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
-import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
 import BreakpointsSettingsComponent from '@baserow/modules/builder/components/settings/BreakpointsSettings'
 
-const GeneralSettings = markRaw(GeneralSettingsComponent)
-const IntegrationSettings = markRaw(IntegrationSettingsComponent)
-const ThemeSettings = markRaw(ThemeSettingsComponent)
-const DomainsSettings = markRaw(DomainsSettingsComponent)
-const UserSourcesSettings = markRaw(UserSourcesSettingsComponent)
 const BreakpointsSettings = markRaw(BreakpointsSettingsComponent)
+
+const GeneralSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/GeneralSettings.vue'),
+  })
+)
+const IntegrationSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/IntegrationSettings.vue'),
+  })
+)
+const ThemeSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/ThemeSettings.vue'),
+  })
+)
+const DomainsSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/DomainsSettings.vue'),
+  })
+)
+const UserSourcesSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/UserSourcesSettings.vue'),
+  })
+)
 
 export class BuilderSettingType extends Registerable {
   static getType() {

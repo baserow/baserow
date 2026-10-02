@@ -15,28 +15,18 @@ const dsn =
 const isDev = import.meta.dev && config.public.sentryDsn === 'fake'
 
 if (dsn && dsn !== '') {
+  const tracesSampleRate = parseFloat(config.public.sentryTracesSampleRate) || 0
+  const replaysOnErrorSampleRate =
+    parseFloat(config.public.sentryReplaysOnErrorSampleRate) || 0
+
   const defaultConfig = {
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
     ignoreErrors: SILENCED_ERROR_PATTERNS,
-    integrations: [
-      Sentry.browserTracingIntegration({
-        router: useRouter(),
-      }),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
-    // Sample rate for performance tracing, configurable via the
-    // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
-    tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
+    tracesSampleRate,
     replaysSessionSampleRate: 0,
-    // Sample rate for saving a session replay on error, configurable via the
-    // SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE env var to cap replay volume.
-    replaysOnErrorSampleRate:
-      parseFloat(config.public.sentryReplaysOnErrorSampleRate) || 0,
+    replaysOnErrorSampleRate,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
@@ -70,20 +60,40 @@ if (dsn && dsn !== '') {
   // Merge with user-provided configuration from app config
   // appConfig.sentry.config can be used to extend or override defaults
   const userConfig = appConfig.sentry?.config || {}
-  let finalIntegrations = defaultConfig.integrations
-  if (userConfig.integrations) {
-    finalIntegrations = [
-      ...defaultConfig.integrations,
-      ...userConfig.integrations,
-    ]
-    delete userConfig.integrations
-  }
-
   const finalConfig = {
     ...defaultConfig,
     ...userConfig,
-    integrations: finalIntegrations,
   }
+
+  // Decide after overrides so custom sampling still has the integrations it
+  // needs. Replay buffers sessions even at sample rate 0; skip it when neither
+  // session sampling nor on-error sampling can save a replay.
+  const integrations = []
+  if (
+    finalConfig.tracesSampleRate > 0 ||
+    typeof finalConfig.tracesSampler === 'function'
+  ) {
+    integrations.push(
+      Sentry.browserTracingIntegration({
+        router: useRouter(),
+      })
+    )
+  }
+  if (
+    finalConfig.replaysSessionSampleRate > 0 ||
+    finalConfig.replaysOnErrorSampleRate > 0
+  ) {
+    integrations.push(
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      })
+    )
+  }
+  finalConfig.integrations = [
+    ...integrations,
+    ...(userConfig.integrations || []),
+  ]
 
   Sentry.init(finalConfig)
 }

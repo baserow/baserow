@@ -1,6 +1,11 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
-import MadeWithBaserowBuilderDecorator from '@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator'
+
+const MadeWithBaserowBuilderDecorator = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator'),
+})
 
 /**
  * The BuilderPageDecorator type serves as a wrapper component that can be

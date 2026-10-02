@@ -1,5 +1,10 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import RowHistorySidebar from '@baserow/modules/database/components/row/RowHistorySidebar.vue'
+
+const RowHistorySidebar = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistorySidebar.vue'),
+})
 
 export class RowModalSidebarType extends Registerable {
   /**

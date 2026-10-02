@@ -237,8 +237,9 @@ RUN mkdir -p /baserow/web-frontend/.nuxt /baserow/web-frontend/.cache /baserow/w
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
     yarn install --pure-lockfile --cache-folder $YARN_CACHE_FOLDER
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
-HEALTHCHECK --interval=60s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
+# Forward termination to the full yarn/Nuxt process group so dev containers stop promptly.
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
+HEALTHCHECK --interval=5s --timeout=2s --start-period=5s CMD wget -q -O /dev/null http://localhost:3000/_health/ || exit 1
 CMD ["nuxt-dev"]
 
 

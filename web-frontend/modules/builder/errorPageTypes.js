@@ -1,5 +1,10 @@
+import { defineAsyncComponent } from 'vue'
 import { ErrorPageType } from '@baserow/modules/core/errorPageTypes'
-import PublicSiteErrorPage from '@baserow/modules/builder/components/PublicSiteErrorPage'
+
+const PublicSiteErrorPage = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/PublicSiteErrorPage'),
+})
 
 export class PublicSiteErrorPageType extends ErrorPageType {
   getComponent() {

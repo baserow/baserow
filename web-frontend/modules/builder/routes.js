@@ -7,18 +7,12 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/pageEditor.vue'),
   },
   {
-    name: 'builder-health-check',
-    path: '/_health',
-    file: path.resolve(__dirname, '../core/pages/_health.vue'),
-    meta: { publishedBuilderRoute: true, previewBuilderRoute: true },
-  },
-  {
     name: 'application-builder-preview',
     path: '/builder/preview/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     meta: {
       previewBuilderRoute: true,
-      middleware: ['exchangePreviewToken'],
+      middleware: ['exchangePreviewToken', 'builderDomain'],
       builderPageMode: 'preview',
     },
   },
@@ -26,6 +20,7 @@ export const routes = [
     name: 'application-builder-published',
     path: '/builder/published/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
+    meta: { middleware: ['builderDomain'] },
   },
   {
     name: 'application-builder-page',
@@ -33,6 +28,6 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     // If publishedBuilderRoute is true, then that route will only be used on a
     // different subdomain.
-    meta: { publishedBuilderRoute: true },
+    meta: { publishedBuilderRoute: true, middleware: ['builderDomain'] },
   },
 ]

@@ -4,7 +4,7 @@
     :application="application"
     @selected="selected"
   >
-    <template v-if="isAppSelected(application)" #body>
+    <template v-if="isSelected && databaseDomainLoaded" #body>
       <ul class="tree__subs">
         <SidebarItem
           v-for="table in orderedTables"
@@ -77,6 +77,12 @@ export default {
     },
   },
   computed: {
+    isSelected() {
+      return this.isAppSelected(this.application)
+    },
+    databaseDomainLoaded() {
+      return this.$registry.isDomainLoaded('database')
+    },
     orderedTables() {
       return this.application.tables
         .map((table) => table)
@@ -90,6 +96,20 @@ export default {
       )
     },
     ...mapGetters({ isAppSelected: 'application/isSelected' }),
+  },
+  watch: {
+    isSelected: {
+      async handler(selected) {
+        if (selected) {
+          try {
+            await this.$registry.loadDomain('database')
+          } catch (error) {
+            notifyIf(error, 'database')
+          }
+        }
+      },
+      immediate: true,
+    },
   },
   methods: {
     async selected(application) {

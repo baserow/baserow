@@ -25,6 +25,12 @@ export default defineNuxtModule({
     })
     addPlugin({
       src: resolve('./plugin/realtime.js'),
+      mode: 'client',
+    })
+
+    addRouteMiddleware({
+      name: 'databaseDomain',
+      path: resolve('./middleware/databaseDomain.js'),
     })
 
     addRouteMiddleware({

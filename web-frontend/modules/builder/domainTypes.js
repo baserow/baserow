@@ -1,8 +1,17 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import CustomDomainDetails from '@baserow/modules/builder/components/domain/CustomDomainDetails'
+// DomainForm submits and resets these through refs while switching domain types.
 import CustomDomainForm from '@baserow/modules/builder/components/domain/CustomDomainForm'
 import SubDomainForm from '@baserow/modules/builder/components/domain/SubDomainForm'
-import SubDomainDetails from '@baserow/modules/builder/components/domain/SubDomainDetails'
+
+const CustomDomainDetails = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/CustomDomainDetails'),
+})
+const SubDomainDetails = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/SubDomainDetails'),
+})
 
 export class DomainType extends Registerable {
   get name() {

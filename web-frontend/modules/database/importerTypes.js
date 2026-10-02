@@ -1,10 +1,27 @@
+import { defineAsyncComponent } from 'vue'
+
 import { Registerable } from '@baserow/modules/core/registry'
 
-import TableCSVImporter from '@baserow/modules/database/components/table/TableCSVImporter'
-import TablePasteImporter from '@baserow/modules/database/components/table/TablePasteImporter'
-import TableXMLImporter from '@baserow/modules/database/components/table/TableXMLImporter'
-import TableJSONImporter from '@baserow/modules/database/components/table/TableJSONImporter'
-import TableExcelImporter from '@baserow/modules/database/components/table/TableExcelImporter'
+const TableCSVImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableCSVImporter'),
+})
+const TablePasteImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TablePasteImporter'),
+})
+const TableXMLImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableXMLImporter'),
+})
+const TableJSONImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableJSONImporter'),
+})
+const TableExcelImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableExcelImporter'),
+})
 
 export class ImporterType extends Registerable {
   /**

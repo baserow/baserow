@@ -60,7 +60,7 @@ import { matchSearchFilters } from '@baserow/modules/database/utils/view'
 import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 
 definePageMeta({
-  middleware: ['settings'],
+  middleware: ['settings', 'databaseDomain'],
 })
 
 const route = useRoute()

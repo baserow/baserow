@@ -13,8 +13,10 @@ const app = {
 }
 
 describe('premium dashboard widget types', () => {
-  test('maps cartesian and pie widgets to the shared chart component', () => {
-    expect(new ChartWidgetType({ app }).component).toBe(ChartWidget)
-    expect(new PieChartWidgetType({ app }).component).toBe(ChartWidget)
+  test('maps cartesian and pie widgets to the shared chart component', async () => {
+    const chart = new ChartWidgetType({ app }).component
+    const pie = new PieChartWidgetType({ app }).component
+    expect(chart).toBe(pie)
+    expect(await chart.__asyncLoader()).toBe(ChartWidget)
   })
 })

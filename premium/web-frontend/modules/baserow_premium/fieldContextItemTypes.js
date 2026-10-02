@@ -1,5 +1,10 @@
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GenerateAIValuesContextItem from '@baserow_premium/components/field/GenerateAIValuesContextItem'
+
+const GenerateAIValuesContextItem = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/field/GenerateAIValuesContextItem'),
+})
 
 export class GenerateAIValuesContextItemType extends Registerable {
   static getType() {

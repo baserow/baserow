@@ -160,6 +160,16 @@ describe('FormulaInputField validates on display', () => {
     return wrapper
   }
 
+  it('renders a stored field reference as an interactive formula node immediately', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: "get('fields.field_1')", mode: 'simple' },
+    })
+    const node = wrapper.find('.get-formula-component')
+    expect(node.exists()).toBe(true)
+    expect(node.attributes('data-node-view-wrapper')).toBeDefined()
+    expect(node.find('.get-formula-component__remove').exists()).toBe(true)
+  })
+
   it('flags an invalid initial value without requiring an edit', async () => {
     const wrapper = await mountField('$formula: now()')
     expect(wrapper.vm.isFormulaInvalid).toBe(true)

@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import UserFileService from '@baserow/modules/core/services/userFile'
 import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'

@@ -52,6 +52,7 @@ export default {
       applications: [],
       page: null,
       collapsed: false,
+      applicationRequestId: 0,
     }
   },
   computed: {
@@ -67,6 +68,7 @@ export default {
   watch: {
     template(value) {
       if (value === null) {
+        this.applicationRequestId += 1
         this.loading = false
         this.applications = []
         this.page = null
@@ -91,12 +93,32 @@ export default {
   },
   methods: {
     async fetchApplications(template) {
+      // A previous template can finish loading after another is selected or cleared.
+      const requestId = ++this.applicationRequestId
+      this.page = null
       this.loading = true
 
       try {
         const { data } = await ApplicationService(this.$client).fetchAll(
           template.workspace_id
         )
+        if (requestId !== this.applicationRequestId) return
+
+        // Preview pages also render outside TemplateModal. Load only the
+        // applications in this template before populating or rendering them.
+        const domains = new Set(data.map((application) => application.type))
+        if (
+          ['builder', 'automation', 'dashboard'].some((domain) =>
+            domains.has(domain)
+          )
+        ) {
+          // These previews use database field types through their integrations.
+          domains.add('database')
+        }
+        await Promise.all(
+          [...domains].map((domain) => this.$registry.loadDomain(domain))
+        )
+        if (requestId !== this.applicationRequestId) return
 
         this.applications = data.map((application) =>
           populateApplication(application, this.$registry)
@@ -121,10 +143,14 @@ export default {
           }
         }
       } catch (error) {
-        this.applications = []
-        notifyIf(error, 'templates')
+        if (requestId === this.applicationRequestId) {
+          this.applications = []
+          notifyIf(error, 'templates')
+        }
       } finally {
-        this.loading = false
+        if (requestId === this.applicationRequestId) {
+          this.loading = false
+        }
       }
     },
     selectApplication(application) {

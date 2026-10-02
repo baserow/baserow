@@ -1,10 +1,18 @@
-import { markRaw } from 'vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettingsComponent from '@baserow/modules/automation/components/settings/GeneralSettings'
-import IntegrationSettingsComponent from '@baserow/modules/automation/components/settings/IntegrationSettings'
 
-const GeneralSettings = markRaw(GeneralSettingsComponent)
-const IntegrationSettings = markRaw(IntegrationSettingsComponent)
+const GeneralSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/automation/components/settings/GeneralSettings'),
+  })
+)
+const IntegrationSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/automation/components/settings/IntegrationSettings'),
+  })
+)
 
 class AutomationSettingType extends Registerable {
   static getType() {

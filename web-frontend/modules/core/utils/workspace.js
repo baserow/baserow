@@ -7,6 +7,9 @@
  */
 export const fetchWorkspacesAndApplications = async (nuxtApp, workspaceId) => {
   const store = nuxtApp.$store
+  // Application loading can overlap selection. Keep permission and role loads
+  // sequential inside selectById because they share the same loading flag.
+  const pending = []
 
   if (!store.getters['workspace/isLoaded']) {
     await store.dispatch('workspace/fetchAll')
@@ -16,13 +19,14 @@ export const fetchWorkspacesAndApplications = async (nuxtApp, workspaceId) => {
       workspaces.find((w) => w.id === workspaceId) !== undefined
 
     if (workspaceExists) {
-      try {
-        await store.dispatch('workspace/selectById', workspaceId)
-      } catch {}
+      pending.push(
+        store.dispatch('workspace/selectById', workspaceId).catch(() => {})
+      )
     }
   }
 
   if (!store.getters['application/isLoaded']) {
-    await store.dispatch('application/fetchAll')
+    pending.push(store.dispatch('application/fetchAll'))
   }
+  await Promise.all(pending)
 }
