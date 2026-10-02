@@ -59,10 +59,10 @@ def get_example_pagination_serializer_class(
     fields = {
         "count": serializers.IntegerField(help_text="The total amount of results."),
         "next": serializers.URLField(
-            allow_blank=True, allow_null=True, help_text="URL to the next page."
+            allow_null=True, help_text="URL to the next page."
         ),
         "previous": serializers.URLField(
-            allow_blank=True, allow_null=True, help_text="URL to the previous page."
+            allow_null=True, help_text="URL to the previous page."
         ),
         "results": results_serializer_class(many=True),
     }
