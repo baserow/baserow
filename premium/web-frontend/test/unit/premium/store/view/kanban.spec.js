@@ -708,6 +708,89 @@ describe('Kanban view store', () => {
       })
     })
 
+    test('does not send an edit still queued when the drag hides the row', async () => {
+      const textField = { id: 3, name: 'Notes', type: 'text' }
+      const fieldsWithText = [...fields, textField]
+      const stacks = {
+        null: {
+          count: 1,
+          results: [
+            { id: 5, order: '5.00', field_1: null, field_3: 'a', _: {} },
+          ],
+        },
+        1: {
+          count: 1,
+          results: [{ id: 10, order: '10.00', field_1: { id: 1 }, _: {} }],
+        },
+      }
+      const state = Object.assign(kanbanStore.state(), {
+        lastKanbanId: 7,
+        singleSelectFieldId: 1,
+        stacks,
+      })
+      store.replaceState({ ...store.state, kanban: state })
+      let releaseFirstEdit = null
+      testApp.mock
+        .onPatch(`/database/rows/table/${table.id}/batch/`)
+        .replyOnce(
+          () =>
+            new Promise((resolve) => {
+              releaseFirstEdit = () =>
+                resolve([
+                  200,
+                  {
+                    items: [
+                      { id: 5, order: '5.00', field_1: null, field_3: 'b' },
+                    ],
+                    metadata: { updated_field_ids: [3] },
+                  },
+                ])
+            })
+        )
+        .onPatch(`/database/rows/table/${table.id}/batch/`)
+        .replyOnce(200, {
+          items: [{ id: 5, order: '5.00', field_1: { id: 1 }, field_3: 'b' }],
+          metadata: { updated_field_ids: [1], hidden_row_ids: [5] },
+        })
+        .onPatch(`/database/rows/table/${table.id}/batch/`)
+        .reply(401, { error: 'ERROR_PERMISSION_DENIED' })
+      const row = store.state.kanban.stacks.null.results[0]
+      const edit = (value, oldValue) =>
+        store.dispatch('kanban/updateRowValue', {
+          view: filteredView,
+          table,
+          row,
+          field: textField,
+          fields: fieldsWithText,
+          value,
+          oldValue,
+        })
+
+      const firstEdit = edit('b', 'a')
+      await flushPromises()
+      const secondEdit = edit('c', 'b')
+      await flushPromises()
+      await store.dispatch('kanban/startRowDrag', { row })
+      await store.dispatch('kanban/forceMoveRowTo', {
+        row,
+        targetStackId: '1',
+        targetIndex: 1,
+      })
+      await store.dispatch('kanban/stopRowDrag', {
+        table,
+        fields: fieldsWithText,
+        view: filteredView,
+      })
+      releaseFirstEdit()
+      await firstEdit
+      await secondEdit
+
+      expect(testApp.mock.history.patch).toHaveLength(2)
+      expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+        10,
+      ])
+    })
+
     test('updates the card from the batch response and moves it when it stays visible', async () => {
       dragRow5FromNullToStack1()
       let movePatchHit = false

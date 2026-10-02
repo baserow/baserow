@@ -834,6 +834,7 @@ export const actions = {
           created: false,
         })
         if (hiddenRowIds.has(row.id)) {
+          commit('SET_ROW_HIDDEN_BY_BACKEND', row)
           await dispatch('deletedExistingRow', { view, row, fields })
           return
         }
