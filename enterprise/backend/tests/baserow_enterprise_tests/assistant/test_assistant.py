@@ -66,7 +66,9 @@ from baserow_enterprise.assistant.models import (
     AssistantChatMessage,
 )
 from baserow_enterprise.assistant.output_validation import validate_final_answer
-from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.prompts import (
+    AGENT_SYSTEM_PROMPT,
+)
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
@@ -1043,6 +1045,20 @@ class TestAssistantLicenseTier:
         assert (
             "A request to display existing data does not authorize"
             in AGENT_SYSTEM_PROMPT
+        )
+        assert "create nothing — no database, table, page, or sample rows" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "one question in the user's language" in AGENT_SYSTEM_PROMPT
+        assert "offering three options: create a table with sample data" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "agree on its fields first" in AGENT_SYSTEM_PROMPT
+        assert "use data the user points you to" in AGENT_SYSTEM_PROMPT
+        assert "using existing fields" in AGENT_SYSTEM_PROMPT
+        assert "fields the user has authorized creating" in AGENT_SYSTEM_PROMPT
+        assert "the user has not authorized creating it, call ask_user" in (
+            AGENT_SYSTEM_PROMPT
         )
 
     def test_agent_system_prompt_covers_production_regressions(self):
@@ -2213,12 +2229,20 @@ class TestFinalAnswerValidation:
             "Updated rows have been saved.",
         ],
     )
-    def test_common_ungrounded_completion_phrases_are_sent_back(self, claim):
+    def test_common_completion_phrases_require_successful_tool_evidence(self, claim):
         ctx = MagicMock()
         ctx.messages = []
 
         with pytest.raises(ModelRetry, match="without a verified"):
             validate_final_answer(ctx, claim)
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Projects"}]},
+            {"created_tables": [{"id": 2, "name": "Projects"}]},
+            "created-table",
+        )
+        assert validate_final_answer(ctx, claim) == claim
 
     @pytest.mark.parametrize(
         "answer",
@@ -2258,8 +2282,27 @@ class TestFinalAnswerValidation:
             "Created on: shows when a row was added.",
             "1. Created by — shows who created the row.",
             "The Timeline view was added in Baserow 1.25.",
+            "The Timeline view was added in Baserow 1.25 and supports date ranges.",
+            "The Timeline view was added in version 1.25.2.",
+            "The Timeline view was added in 2024.",
+            "The Timeline view was added in 2024-06-01.",
             "Your changes were applied automatically after each edit.",
+            "Your changes were applied automatically after each edit, so there is no save button.",
             "Done! Click Save to finish.",
+            "The row was created by a form submission on June 3.",
+            "Your workspace was created in March.",
+            "The Projects table was created earlier, so I reused it.",
+            "The Status field has these options:\n1. To do\n2. In progress\n3. Done",
+            "Your Kanban view has three stacks: To do. In progress. Done.",
+            "Select the fields and click Create. Done!",
+            "Added rows to a filtered view may disappear if they don't match the filter.",
+            "Applied filters to a view are saved for all collaborators.",
+            "Done! Click Save to apply.",
+            "Created by field in a table shows who created each row.",
+            "Created on field for sorting rows by creation date.",
+            "The table was created automatically when you imported the CSV.",
+            "Your database was created from a template.",
+            "The Projects table was already created, so I reused it.",
             "Applied filters only affect your view.",
             "Updated cells highlight briefly.",
             "Updated values sync in real time.",
@@ -2528,6 +2571,36 @@ class TestFinalAnswerValidation:
 
         partial = "I created the Orders table with an error."
         assert validate_final_answer(ctx, partial) == partial
+
+    @pytest.mark.parametrize("apostrophe", ["'", "’"])
+    def test_passive_partial_completion_requires_actual_changes(self, apostrophe):
+        ctx = MagicMock()
+        answer = (
+            f"The Tasks table was created. The Status field wasn{apostrophe}t added."
+        )
+        ctx.messages = []
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, answer)
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Tasks"}]},
+            {
+                "created_tables": [{"id": 2, "name": "Tasks"}],
+                "notes": ["The Status field could not be created"],
+            },
+            "partial-table",
+        )
+        assert validate_final_answer(ctx, answer) == answer
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Tasks"}]},
+            {"created_tables": [], "errors": ["Permission denied"]},
+            "failed-table",
+        )
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, answer)
 
     def test_nested_empty_result_does_not_ground_success(self):
         ctx = MagicMock()

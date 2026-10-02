@@ -10,15 +10,21 @@ from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 
 from baserow.contrib.builder.elements.models import ButtonElement, HeadingElement
-from baserow.contrib.builder.elements.operations import UpdateElementOperationType
+from baserow.contrib.builder.elements.operations import (
+    ReadElementOperationType,
+    UpdateElementOperationType,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
 )
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
+from baserow.core.services.models import Service
 from baserow_enterprise.assistant.tools.builder.agents import (
     update_element_formulas,
     update_single_element_formulas,
+    update_workflow_action_formulas,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
@@ -961,6 +967,318 @@ def test_create_image_element(data_fixture):
 # ===========================================================================
 # Workflow action tools tests
 # ===========================================================================
+
+
+def _table_button_action_context(data_fixture, column_names):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    database = data_fixture.create_database_application(
+        user=user, workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(user=user, database=database)
+    source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    element = data_fixture.create_builder_table_element(
+        user=user,
+        page=page,
+        data_source=source,
+        fields=[
+            {"name": name, "type": "button", "config": {"label": f"'{name}'"}}
+            for name in column_names
+        ],
+    )
+    ctx = make_test_ctx(user, page.builder.workspace)
+    return ctx, page, element
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("events", [("click", "click"), ("Open_click", "Remove_click")])
+def test_table_button_actions_do_not_guess_view_or_delete(data_fixture, events):
+    ctx, page, element = _table_button_action_context(data_fixture, ["View", "Delete"])
+    detail_page = data_fixture.create_builder_page(builder=page.builder)
+    table = element.data_source.service.specific.table
+    service_count = Service.objects.count()
+
+    result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element=element.id,
+                event=events[0],
+                navigate_to_page_id=detail_page.id,
+            ),
+            ActionCreate(
+                type="delete_row",
+                element=element.id,
+                event=events[1],
+                table_id=table.id,
+                row_id="get('current_record.id')",
+            ),
+        ],
+        thought="Create separate View and Delete row buttons.",
+    )
+
+    assert result["created_actions"] == []
+    assert len(result["errors"]) == 2
+    assert all(
+        "View_click" in error and "Delete_click" in error for error in result["errors"]
+    )
+    assert not BuilderWorkflowAction.objects.filter(element=element).exists()
+    assert Service.objects.count() == service_count
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("use_uid", [False, True])
+def test_table_button_actions_attach_to_distinct_columns(
+    data_fixture, monkeypatch, use_uid
+):
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
+        update_workflow_action_formulas,
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
+        lambda *args: lambda formulas, context: formulas,
+    )
+    ctx, page, element = _table_button_action_context(data_fixture, ["View", "Delete"])
+    view_field, delete_field = list(element.fields.order_by("order"))
+    detail_page = data_fixture.create_builder_page(builder=page.builder)
+    table = element.data_source.service.specific.table
+
+    result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element=element.id,
+                event=f"{view_field.uid}_click" if use_uid else "view_click",
+                navigate_to_page_id=detail_page.id,
+                page_parameters=[{"name": "id", "value": "get('current_record.id')"}],
+            ),
+            ActionCreate(
+                type="delete_row",
+                element=element.id,
+                event=f"{delete_field.uid}_click" if use_uid else "Delete_click",
+                table_id=table.id,
+                row_id="get('current_record.id')",
+            ),
+        ],
+        thought="Create separate View and Delete row buttons.",
+    )
+
+    assert "errors" not in result
+    assert len(result["created_actions"]) == 2
+    saved_actions = {
+        action.event: action.get_type().type
+        for action in BuilderWorkflowAction.objects.filter(element=element)
+    }
+    assert saved_actions == {
+        f"{view_field.uid}_click": "open_page",
+        f"{delete_field.uid}_click": "delete_row",
+    }
+    view_action = BuilderWorkflowAction.objects.get(
+        element=element, event=f"{view_field.uid}_click"
+    ).specific
+    delete_action = BuilderWorkflowAction.objects.get(
+        element=element, event=f"{delete_field.uid}_click"
+    ).specific
+    assert (
+        view_action.page_parameters[0]["value"]["formula"] == "get('current_record.id')"
+    )
+    assert (
+        delete_action.service.specific.row_id["formula"] == "get('current_record.id')"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_page_keeps_valid_table_button_action_when_another_is_ambiguous(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    detail_page = data_fixture.create_builder_page(builder=page.builder)
+    database = data_fixture.create_database_application(
+        user=user, workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(user=user, database=database)
+    ctx = make_test_ctx(user, page.builder.workspace)
+
+    result = setup_page(
+        ctx,
+        page_id=page.id,
+        data_sources=[
+            DataSourceCreate(
+                ref="items", name="Items", type="list_rows", table_id=table.id
+            )
+        ],
+        elements=[
+            ElementItemCreate(
+                ref="table",
+                type="table",
+                data_source="items",
+                fields=[
+                    TableFieldConfig(name="View", type="button", label="View"),
+                    TableFieldConfig(name="Delete", type="button", label="Delete"),
+                ],
+            )
+        ],
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element="table",
+                event="View_click",
+                navigate_to_page_id=detail_page.id,
+            ),
+            ActionCreate(
+                type="delete_row",
+                element="table",
+                table_id=table.id,
+                row_id="get('current_record.id')",
+            ),
+        ],
+        thought="Create row buttons without guessing their actions.",
+    )
+
+    assert len(result["created_data_sources"]) == 1
+    assert len(result["created_elements"]) == 1
+    assert len(result["created_actions"]) == 1
+    assert len(result["errors"]) == 1
+    assert "delete_row" in result["errors"][0]
+    element_id = result["created_elements"][0]["id"]
+    action = BuilderWorkflowAction.objects.get(element_id=element_id)
+    assert action.get_type().type == "open_page"
+    assert (
+        action.event == f"{action.element.specific.fields.get(name='View').uid}_click"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "column_names,event",
+    [
+        (["View"], "click"),
+        (["View"], "Unknown_click"),
+        (["View"], "submit"),
+        (["View"], "00000000-0000-0000-0000-000000000000_click"),
+        (["View", " view "], "View_click"),
+    ],
+)
+def test_table_button_action_requires_an_unambiguous_valid_event(
+    data_fixture, column_names, event
+):
+    ctx, page, element = _table_button_action_context(data_fixture, column_names)
+    result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="notification", element=element.id, event=event, title="'Done'"
+            )
+        ],
+        thought="Attach a row button action.",
+    )
+
+    actions = BuilderWorkflowAction.objects.filter(element=element)
+    if event == "click":
+        assert "errors" not in result
+        assert actions.get().event == f"{element.fields.get().uid}_click"
+    else:
+        assert result["created_actions"] == []
+        assert len(result["errors"]) == 1
+        assert not actions.exists()
+        assert all(
+            str(field.uid) in result["errors"][0] for field in element.fields.all()
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("same_builder", [True, False])
+def test_table_button_action_cannot_target_an_element_on_another_page(
+    data_fixture, same_builder
+):
+    ctx, page, element = _table_button_action_context(data_fixture, ["View", "Delete"])
+    other_page = data_fixture.create_builder_page(
+        builder=page.builder if same_builder else None
+    )
+    protected_element = data_fixture.create_builder_table_element(
+        page=other_page,
+        fields=[
+            {"name": "Private action", "type": "button", "config": {"label": "'Go'"}},
+            {
+                "name": "Private delete",
+                "type": "button",
+                "config": {"label": "'Delete'"},
+            },
+        ],
+    )
+    result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="notification", element=protected_element.id, title="'Hi'"
+            )
+        ],
+        thought="Attach a row button action.",
+    )
+
+    assert result["created_actions"] == []
+    assert len(result["errors"]) == 1
+    assert "Private" not in result["errors"][0]
+    assert all(
+        str(field.uid) not in result["errors"][0]
+        for field in protected_element.fields.all()
+    )
+    assert not BuilderWorkflowAction.objects.filter(element=protected_element).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_table_button_action_checks_read_access_before_event_errors(
+    data_fixture, monkeypatch
+):
+    ctx, page, element = _table_button_action_context(data_fixture, ["View", "Delete"])
+    original_check = CoreHandler.check_permissions
+
+    def deny_element_read(self, actor, operation_name, *args, **kwargs):
+        if operation_name == ReadElementOperationType.type:
+            raise PermissionDenied()
+        return original_check(self, actor, operation_name, *args, **kwargs)
+
+    monkeypatch.setattr(CoreHandler, "check_permissions", deny_element_read)
+
+    with pytest.raises(PermissionDenied):
+        create_actions(
+            ctx,
+            page_id=page.id,
+            actions=[
+                ActionCreate(type="notification", element=element.id, title="'Hi'")
+            ],
+            thought="Attach a row button action.",
+        )
+    assert not BuilderWorkflowAction.objects.filter(element=element).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_action_still_accepts_shared_elements_of_the_same_builder(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    button = data_fixture.create_builder_button_element(
+        user=user, page=page.builder.shared_page
+    )
+    result = create_actions(
+        make_test_ctx(user, page.builder.workspace),
+        page_id=page.id,
+        actions=[ActionCreate(type="notification", element=button.id, title="'Hi'")],
+        thought="Attach an action to a shared button.",
+    )
+
+    assert "errors" not in result
+    assert len(result["created_actions"]) == 1
+    assert BuilderWorkflowAction.objects.get(element=button).event == "click"
 
 
 @pytest.mark.django_db(transaction=True)

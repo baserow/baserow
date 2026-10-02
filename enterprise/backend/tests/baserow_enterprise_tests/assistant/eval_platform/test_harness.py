@@ -974,6 +974,8 @@ class TestCaseToolCleanup:
 
         def blocked_tool(ctx: RunContext[AssistantDeps]) -> str:
             started.set()
+            # Timing from here keeps a slow case setup from releasing the tool early.
+            timer.start()
             try:
                 # Model an operation already in progress between checkpoints.
                 release.wait(3)
@@ -990,7 +992,6 @@ class TestCaseToolCleanup:
 
         case = isolated_case(async_tool if async_wrapper else blocked_tool)
         timer = threading.Timer(0.4, release.set)
-        timer.start()
         try:
             with pytest.raises(EvalCaseTimeout):
                 with override_assistant_prompts(
