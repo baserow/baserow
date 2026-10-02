@@ -45,6 +45,12 @@ class AIField(Field):
         on_delete=models.SET_NULL,
         help_text="The user on whose behalf the field is auto-updated.",
     )
+    # Named like the `LongTextField` column so the delegated long text logic reads it.
+    long_text_enable_rich_text = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Enable rich text formatting for the text output.",
+    )
 
     def __getattr__(self, name):
         """

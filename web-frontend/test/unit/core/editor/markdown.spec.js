@@ -565,17 +565,16 @@ describe('rich-text Markdown previews', () => {
 })
 
 describe('parseMarkdown image handling', () => {
-  test('replaces images with placeholder when enableImages is false', () => {
-    const html = parseMarkdown(
-      'Hello ![img][abc123_def456.png](https://example.com/file.png)'
+  test('shows a reference as its markdown when enableImages is false', () => {
+    const document = new DOMParser().parseFromString(
+      parseMarkdown('Hello ![img][abc123_def456.png]'),
+      'text/html'
     )
 
-    // `<img` excludes a real image; the `<i` icon element is not one. The alt
-    // text is asserted on its own so it cannot be satisfied by the class name.
-    expect(html).not.toContain('<img')
-    expect(html).toContain('Hello')
-    expect(html).toContain('iconoir-media-image')
-    expect(html).toMatch(/<\/i>\s*img/)
+    expect(document.body.textContent.trim()).toBe(
+      'Hello ![img][abc123_def456.png]'
+    )
+    expect(document.querySelector('img, a, i')).toBeNull()
   })
 
   test('renders images with inline URLs when enableImages is true', () => {
@@ -677,14 +676,16 @@ describe('parseMarkdown external image handling', () => {
     expect(document.querySelector('a')).toBeNull()
   })
 
-  test('renders a plain markdown image as a link when enableImages=false', () => {
-    const html = parseMarkdown(
+  test('shows a plain markdown image as its markdown when enableImages=false', () => {
+    const document = parse(
       'see ![photo](https://example.com/photo.png) here',
-      { enableImages: false }
+      false
     )
 
-    expect(html).not.toContain('<img')
-    expect(html).toContain('photo')
+    expect(document.body.textContent.trim()).toBe(
+      'see ![photo](https://example.com/photo.png) here'
+    )
+    expect(document.querySelector('img, a, i')).toBeNull()
   })
 
   test.each([
@@ -866,4 +867,315 @@ describe('parseMarkdown with a non-string value', () => {
       expect(parseMarkdown(value)).toBe('')
     }
   )
+})
+
+describe('image markdown without the image node', () => {
+  let editor
+
+  afterEach(() => {
+    editor?.destroy()
+  })
+
+  const IMAGE = '![c](https://example.com/c.png)'
+  const REFERENCE = '![d][abc_d.png]'
+  const REFERENCE_URL = 'https://example.com/media/user_files/abc_d.png'
+  const RESOLVED_REFERENCE = `${REFERENCE}(${REFERENCE_URL})`
+
+  const previewDocument = (markdown, options = {}) =>
+    new DOMParser().parseFromString(
+      parseMarkdown(markdown, options),
+      'text/html'
+    )
+
+  const previewText = (markdown, options) =>
+    previewDocument(markdown, options).body.textContent.trim()
+
+  test('the editor shows an image as its markdown', () => {
+    editor = createEditor(`see ${IMAGE} here`)
+
+    expect(editor.state.doc.textContent).toBe(`see ${IMAGE} here`)
+  })
+
+  test('saving after an edit keeps the image markdown and its URL', () => {
+    editor = createEditor(`see ${IMAGE}`)
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(editor.state.doc.textContent).toBe(`see ${IMAGE} edited`)
+    expect(previewText(reopened.markdown)).toBe(`see ${IMAGE} edited`)
+  })
+
+  test('the editor keeps a linked image as linked markdown', () => {
+    editor = createEditor(`[${IMAGE}](https://example.com)`)
+
+    const [text] = editor.getJSON().content[0].content
+    expect(text.text).toBe(IMAGE)
+    expect(text.marks).toEqual([
+      expect.objectContaining({
+        type: 'link',
+        attrs: expect.objectContaining({ href: 'https://example.com' }),
+      }),
+    ])
+  })
+
+  test('pastes image markdown as text', () => {
+    editor = createEditor('')
+
+    const slice = parseMarkdownClipboard(editor, `see ${IMAGE}`, false)
+
+    expect(slice.content.textBetween(0, slice.content.size)).toBe(
+      `see ${IMAGE}`
+    )
+  })
+
+  test.each([
+    ['full', '![photo][ref]', '[ref]: https://example.com/photo.png'],
+    ['collapsed', '![photo][]', '[photo]: https://example.com/photo.png'],
+    ['shortcut', '![photo]', '[photo]: https://example.com/photo.png'],
+    [
+      'title',
+      '![photo][ref]',
+      '[ref]: https://example.com/photo.png "Photo title"',
+    ],
+    [
+      'escaped alt and title',
+      String.raw`![a\]b][ref]`,
+      String.raw`[ref]: https://example.com/photo.png "Photo \"title\""`,
+    ],
+    [
+      'spaced destination',
+      '![photo][ref]',
+      '[ref]: <https://example.com/a b.png>',
+    ],
+  ])(
+    'keeps a %s image reference destination through edit, copy and reopen',
+    (name, reference, definition) => {
+      const markdown = `Before\n\n${reference}\n\n${definition}`
+      editor = createEditor(markdown)
+      const originalText = editor.state.doc.textContent
+      const destination =
+        name === 'spaced destination'
+          ? 'https://example.com/a%20b.png'
+          : 'https://example.com/photo.png'
+
+      expect(originalText).toContain(destination)
+      expect(previewText(markdown)).toBe(`Before\n${originalText.slice(6)}`)
+      const copied = serializeMarkdownClipboard(
+        editor,
+        editor.state.selection.$from.doc.slice(0)
+      )
+      expect(copied).toContain(destination)
+      editor.commands.insertContentAt(7, ' edited')
+
+      const reopened = reopen(editor)
+      editor = reopened.editor
+      expect(reopened.markdown).toContain(destination)
+      expect(editor.state.doc.textContent).toBe(
+        originalText.replace('Before', 'Before edited')
+      )
+      expect(previewText(reopened.markdown)).toContain(destination)
+      expect(
+        editor.getJSON().content.flatMap((node) => node.content ?? [])
+      ).not.toContainEqual(expect.objectContaining({ type: 'image' }))
+      if (name === 'title')
+        expect(editor.state.doc.textContent).toContain('Photo title')
+      if (name === 'escaped alt and title') {
+        expect(editor.state.doc.textContent).toContain(String.raw`a\]b`)
+        expect(editor.state.doc.textContent).toContain(
+          String.raw`Photo \"title\"`
+        )
+      }
+    }
+  )
+
+  test('keeps surrounding formatting and links sharing an image definition', () => {
+    const url = 'https://example.com/photo.png'
+    const markdown =
+      `**![photo][ref]** [![photo][ref]](https://baserow.io) [source][ref]` +
+      `\n\n[ref]: ${url} "Photo title"`
+    editor = createEditor(markdown)
+    const literal = `![photo](<${url}> "Photo title")`
+    const preview = previewDocument(markdown, { openLinkOnClick: true })
+
+    expect(preview.querySelector('strong').textContent).toBe(literal)
+    expect(
+      preview.querySelector('a[href="https://baserow.io"]').textContent
+    ).toBe(literal)
+    expect(preview.querySelector(`a[href="${url}"]`).textContent).toBe('source')
+    expect(preview.querySelector('img')).toBeNull()
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+    expect(editor.view.dom.querySelector('strong').textContent).toBe(literal)
+    expect(
+      editor.view.dom.querySelector('a[href="https://baserow.io"]').textContent
+    ).toBe(literal)
+    expect(editor.view.dom.querySelector(`a[href="${url}"]`).textContent).toBe(
+      'source'
+    )
+    expect(editor.view.dom.querySelector('img')).toBeNull()
+  })
+
+  test.each([
+    'javascript:alert(1)',
+    'data:text/html,%3Cscript%3Ealert(1)%3C/script%3E',
+  ])('keeps the unsafe image destination %s inert through saving', (url) => {
+    const markdown = `![photo][ref]\n\n[ref]: ${url}`
+    editor = createEditor(markdown)
+    expect(editor.state.doc.textContent).toContain(url)
+    expect(editor.view.dom.querySelector('img, a')).toBeNull()
+    expect(previewDocument(markdown).querySelector('img, a')).toBeNull()
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+    expect(reopened.markdown).toContain(url)
+    expect(editor.state.doc.textContent).toContain(url)
+    expect(editor.view.dom.querySelector('img, a')).toBeNull()
+    expect(
+      previewDocument(reopened.markdown).querySelector('img, a')
+    ).toBeNull()
+  })
+
+  test('the editor shows a resolved reference as its text without the URL', () => {
+    editor = createEditor(`see ${RESOLVED_REFERENCE}`)
+
+    expect(editor.getJSON().content[0].content).toEqual([
+      { type: 'text', text: `see ${REFERENCE}` },
+    ])
+  })
+
+  test('saving a resolved reference after an edit drops its URL', () => {
+    editor = createEditor(`see ${RESOLVED_REFERENCE}`)
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(reopened.markdown).not.toContain(REFERENCE_URL)
+    expect(editor.state.doc.textContent).toBe(`see ${REFERENCE} edited`)
+    expect(previewText(reopened.markdown)).toBe(`see ${REFERENCE} edited`)
+  })
+
+  test('the preview shows a resolved reference as its text without the URL', () => {
+    const document = previewDocument(`see ${RESOLVED_REFERENCE}`, {
+      openLinkOnClick: true,
+    })
+
+    expect(document.body.textContent.trim()).toBe(`see ${REFERENCE}`)
+    expect(document.querySelector('a')).toBeNull()
+  })
+
+  test('the preview keeps a linked image in its link', () => {
+    const document = previewDocument(`[${IMAGE}](https://example.com)`, {
+      openLinkOnClick: true,
+    })
+
+    const link = document.querySelector('a')
+    expect(link.getAttribute('href')).toBe('https://example.com')
+    expect(link.textContent).toBe(IMAGE)
+  })
+
+  test.each([
+    [IMAGE],
+    ['![c](https://example.com/c.png "title")'],
+    ['![a](https://a.example/a.png)![b](https://b.example/b.png)'],
+    ['![a ![b](https://b.example/b.png)](https://a.example/a.png)'],
+    ['![a\\]b](https://example.com/c.png)'],
+    ['\\![c](https://example.com/c.png)'],
+    ['`![c](https://example.com/c.png)`'],
+    ['![c](<https://example.com/a b.png>)'],
+    ['![c][ref]\n\n[ref]: https://example.com/c.png'],
+    ['![c][abc123_def456.png](https://example.com/c.png)'],
+    ['![a\\]b][abc123_def456.png](https://example.com/c.png)'],
+    ['![*a*][abc123_def456.png]'],
+  ])('the editor and the preview show %s as the same text', (markdown) => {
+    editor = createEditor(markdown)
+
+    expect(previewText(markdown)).toBe(editor.state.doc.textContent)
+  })
+})
+
+describe('escaped user file references', () => {
+  let editor
+
+  afterEach(() => {
+    editor?.destroy()
+  })
+
+  const LITERAL = '![photo][abc123_def456.png]'
+  const ESCAPED_REFERENCE = String.raw`![photo]\[abc123_def456.png]`
+  // The backend's former escape, still found in stored values.
+  const LEGACY_ESCAPED_REFERENCE = String.raw`!\[photo][abc123_def456.png]`
+
+  const hasImageNode = (instance) => {
+    let found = false
+    instance.state.doc.descendants((node) => {
+      found = found || node.type.name === 'image'
+    })
+    return found
+  }
+
+  const render = (markdown, enableImages) => {
+    editor = createEditor(markdown, { enableImages })
+    const document = new DOMParser().parseFromString(
+      parseMarkdown(markdown, { enableImages }),
+      'text/html'
+    )
+    return {
+      editorText: editor.state.doc.textContent,
+      hasImageNode: hasImageNode(editor),
+      previewText: document.body.textContent.trim(),
+      previewElements: document.querySelectorAll('img, a, i').length,
+    }
+  }
+
+  const literal = (text) => ({
+    editorText: text,
+    hasImageNode: false,
+    previewText: text,
+    previewElements: 0,
+  })
+
+  describe.each([[true], [false]])('with enableImages=%s', (enableImages) => {
+    test.each([[ESCAPED_REFERENCE], [LEGACY_ESCAPED_REFERENCE]])(
+      '%s shows as the literal reference',
+      (escaped) => {
+        expect(render(`see ${escaped} here`, enableImages)).toEqual(
+          literal(`see ${LITERAL} here`)
+        )
+      }
+    )
+
+    test.each([[ESCAPED_REFERENCE], [LEGACY_ESCAPED_REFERENCE]])(
+      'adjacent %s show as literal references',
+      (escaped) => {
+        expect(render(`${escaped}${escaped}`, enableImages)).toEqual(
+          literal(`${LITERAL}${LITERAL}`)
+        )
+      }
+    )
+
+    // An alt may hold `\[`, so the legacy escape nested in one still reads as a reference.
+    test('the escaped reference inside an image alt shows as literal text', () => {
+      expect(render(`![foo ${ESCAPED_REFERENCE}`, enableImages)).toEqual(
+        literal(`![foo ${LITERAL}`)
+      )
+    })
+  })
 })

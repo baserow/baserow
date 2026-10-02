@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 
 describe('FieldRichTextModal', () => {
   let testApp
@@ -36,4 +37,24 @@ describe('FieldRichTextModal', () => {
     expect(document.body.contains(floatingMenu)).toBe(true)
     expect(modal.contains(floatingMenu)).toBe(false)
   })
+
+  test.each([true, false])(
+    'passes enableImages=%s to its editor',
+    async (enableImages) => {
+      const wrapper = await testApp.mount(FieldRichTextModal, {
+        props: {
+          field: { id: 1, name: 'Notes' },
+          modelValue: 'Hello',
+          enableImages,
+        },
+      })
+
+      wrapper.vm.toggle()
+      await flushPromises()
+
+      expect(wrapper.findComponent(RichTextEditor).props('enableImages')).toBe(
+        enableImages
+      )
+    }
+  )
 })

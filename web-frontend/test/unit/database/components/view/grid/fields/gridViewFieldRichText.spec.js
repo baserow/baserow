@@ -15,6 +15,9 @@ const RichTextEditorStub = {
       type: [Object, Array, Function],
       default: null,
     },
+    mentionableUsers: { type: [Array, null], default: null },
+    enableImages: { type: Boolean, default: false },
+    uploadFile: { type: Function, default: null },
   },
   emits: ['update:modelValue'],
   data() {
@@ -311,6 +314,113 @@ describe('GridViewFieldRichText component', () => {
 
     expect(modal.find('.rich-text-modal__alert').exists()).toBe(false)
     expect(modal.find('.modal__close').exists()).toBe(true)
+  })
+
+  test('stays selected and answers alike when the expanded modal is closed by a click', async () => {
+    const wrapper = await mountComponent()
+    await editAndExpand(wrapper)
+    const click = new MouseEvent('click', { bubbles: true })
+
+    wrapper.vm.$refs.expandedModal.hide()
+
+    expect(wrapper.vm.canUnselectByClickingOutside(click)).toBe(false)
+    // An AI field cell wraps this one and asks again about the same click.
+    expect(wrapper.vm.canUnselectByClickingOutside(click)).toBe(false)
+    expect(
+      wrapper.vm.canUnselectByClickingOutside(
+        new MouseEvent('click', { bubbles: true })
+      )
+    ).toBe(true)
+  })
+
+  describe('default slot', () => {
+    const mountWithSlot = () =>
+      testApp.mount(GridViewFieldRichText, {
+        props: {
+          field,
+          value: 'hello',
+          selected: true,
+          readOnly: false,
+          storePrefix: 'page/',
+          workspaceId: 10,
+        },
+        slots: { default: '<button class="slot-probe">probe</button>' },
+        global: { stubs: { RichTextEditor: RichTextEditorStub } },
+      })
+
+    test('renders the default slot next to the inline editor', async () => {
+      const wrapper = await mountWithSlot()
+      wrapper.vm.edit()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.slot-probe').exists()).toBe(true)
+    })
+
+    test('hides the default slot while the expanded modal is open', async () => {
+      const wrapper = await mountWithSlot()
+      await editAndExpand(wrapper)
+
+      expect(wrapper.find('.slot-probe').exists()).toBe(false)
+    })
+  })
+
+  describe('mentions and images', () => {
+    const workspace = {
+      id: 10,
+      name: 'Workspace',
+      users: [{ user_id: 5, name: 'Jane Doe' }],
+    }
+
+    const value = 'ping @5 ![a][abc123_def456.png](https://example.com/a.png)'
+
+    beforeEach(async () => {
+      await testApp.store.dispatch('workspace/forceCreate', workspace)
+    })
+
+    const editors = async (wrapper) => {
+      wrapper.vm.edit()
+      await wrapper.vm.$nextTick()
+      return {
+        inline: wrapper.findComponent(RichTextEditorStub),
+        modal: wrapper.findComponent(FieldRichTextModal),
+      }
+    }
+
+    test('offers workspace mentions and images by default', async () => {
+      const wrapper = await mountComponent({ value })
+
+      expect(wrapper.find('.rich-text-editor__mention').text()).toBe(
+        '@Jane Doe'
+      )
+      expect(wrapper.find('img').exists()).toBe(true)
+      const { inline, modal } = await editors(wrapper)
+      for (const editor of [inline, modal]) {
+        expect(
+          editor.props('mentionableUsers').map(({ user_id: id }) => id)
+        ).toEqual([5])
+        expect(editor.props('enableImages')).toBe(true)
+        expect(editor.props('uploadFile')).toBeInstanceOf(Function)
+      }
+    })
+
+    test('keeps mentions and images off when disabled', async () => {
+      const wrapper = await mountComponent({
+        value,
+        enableMentions: false,
+        enableImages: false,
+      })
+
+      expect(wrapper.find('.rich-text-editor__mention').exists()).toBe(false)
+      expect(wrapper.find('img').exists()).toBe(false)
+      expect(wrapper.text()).toContain('ping @5')
+      const { inline, modal } = await editors(wrapper)
+      for (const editor of [inline, modal]) {
+        // `null`, not `[]`: an empty list still enables the mention extension.
+        expect(editor.props('mentionableUsers')).toBeNull()
+        expect(editor.props('enableImages')).toBe(false)
+        expect(editor.props('uploadFile')).toBeNull()
+      }
+    })
   })
 
   describe('image uploads', () => {

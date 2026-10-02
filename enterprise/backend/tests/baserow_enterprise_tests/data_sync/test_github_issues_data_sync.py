@@ -949,7 +949,7 @@ def test_sync_data_sync_table_body_with_reference_text_is_escaped(
     model = data_sync.table.get_model()
     assert getattr(model.objects.get(), f"field_{body_field.id}") == issue[
         "body"
-    ].replace("![", "!\\[")
+    ].replace("][", "]\\[")
 
     with patch(
         "baserow.contrib.database.data_sync.handler.RowHandler.update_rows"

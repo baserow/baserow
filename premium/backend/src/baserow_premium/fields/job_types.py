@@ -286,6 +286,7 @@ class GenerateAIValuesJobType(JobType):
         )
 
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
+        field_accepts_results = True
 
         def on_progress(value_update: AIValueUpdate):
             """
@@ -304,7 +305,11 @@ class GenerateAIValuesJobType(JobType):
                 _schedule_generate_ai_value_generation,
             )
 
+            nonlocal field_accepts_results
+
             rows_progress.increment()
+            if not field_accepts_results:
+                return
             row = value_update.row
             start_at = value_update.start_at
 
@@ -331,14 +336,15 @@ class GenerateAIValuesJobType(JobType):
                     return
 
             try:
-                row_handler.update_row_by_id(
+                field_accepts_results = AIFieldHandler.update_generated_value(
                     user,
-                    table,
+                    ai_field,
                     row.id,
-                    {ai_field.db_column: value_update.result},
+                    value_update.result,
                     model=model,
-                    values_already_prepared=True,
                 )
+                if not field_accepts_results:
+                    generator.stop_scheduling_rows()
             except RowDoesNotExist:
                 # The row was trahsed during the generation and we cannot update
                 # it, so we skip it.

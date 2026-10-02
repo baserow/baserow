@@ -1,5 +1,8 @@
 import { Extension } from '@tiptap/core'
 import { Fragment } from '@tiptap/pm/model'
+import Markdown from 'markdown-it'
+
+import { IMAGE_REF_REGEX } from '@baserow/modules/core/editor/image'
 
 // Marked can produce structurally incomplete JSON for valid but empty Markdown
 // constructs. Fit that JSON to the active ProseMirror schema before it reaches the
@@ -393,6 +396,65 @@ export const LiteralMarkdownHtml = Extension.create({
   name: 'literalMarkdownHtml',
   markdownTokenName: 'html',
   parseMarkdown: parseLiteralMarkdownHtml,
+})
+
+const referenceImageUrls = new Markdown()
+
+/** Keeps a resolved Markdown reference self-contained when its definition is removed. */
+export function literalReferenceImageMarkdown(alt, href, title) {
+  const destination = referenceImageUrls.normalizeLink(href)
+  const quotedTitle = title ? ` "${title.replace(/[\\"]/g, '\\$&')}"` : ''
+  return `![${alt}](<${destination}>${quotedTitle})`
+}
+
+function writtenImageAlt(token) {
+  // Marked removes bracket escapes from the alt, but literal text must keep them.
+  let end = 2
+  for (let index = 0; index < token.text.length; index++, end++) {
+    if (token.raw[end] === '\\' && /[[\]]/.test(token.raw[end + 1])) {
+      end++
+    }
+  }
+  return token.raw.slice(2, end)
+}
+
+// Without the image node an image would keep only its alt, and a save would drop its URL.
+export const LiteralMarkdownImage = Extension.create({
+  name: 'literalMarkdownImage',
+  markdownTokenName: 'image',
+  markdownTokenizer: {
+    name: 'literalImageReference',
+    level: 'inline',
+    start(source) {
+      return source.indexOf('![')
+    },
+    tokenize(source) {
+      const match = source.match(IMAGE_REF_REGEX)
+      if (!match) {
+        return undefined
+      }
+      // A resolved URL is the backend's, not text the user wrote.
+      return {
+        type: 'image',
+        raw: match[0],
+        literal: `![${match[1]}][${match[2]}]`,
+      }
+    },
+  },
+  parseMarkdown(token, helpers) {
+    if (token.literal !== undefined) {
+      return helpers.createTextNode(token.literal)
+    }
+    // Reference definitions do not become editor nodes; retain their resolved data.
+    const literal = token.raw.endsWith(']')
+      ? literalReferenceImageMarkdown(
+          writtenImageAlt(token),
+          token.href,
+          token.title
+        )
+      : token.raw
+    return helpers.createTextNode(literal)
+  },
 })
 
 const INLINE_HTML_REGEXP =

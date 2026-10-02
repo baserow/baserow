@@ -550,6 +550,38 @@ def test_update_field(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_primary,payload",
+    [
+        ("create_long_text_field", {"long_text_enable_rich_text": True}),
+        (
+            "create_text_field",
+            {"type": "long_text", "long_text_enable_rich_text": True},
+        ),
+    ],
+)
+def test_update_primary_field_to_rich_long_text_is_rejected(
+    api_client, data_fixture, create_primary, payload
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    primary = getattr(data_fixture, create_primary)(table=table, primary=True)
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": primary.id}),
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE"
+    unchanged = Field.objects.get(id=primary.id).specific
+    assert type(unchanged) is type(primary)
+    assert getattr(unchanged, "long_text_enable_rich_text", False) is False
+
+
+@pytest.mark.django_db
 def test_update_field_immutable_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

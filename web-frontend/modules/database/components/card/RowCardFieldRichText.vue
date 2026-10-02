@@ -19,6 +19,14 @@ export default {
       type: Number,
       required: true,
     },
+    enableMentions: {
+      type: Boolean,
+      default: true,
+    },
+    enableImages: {
+      type: Boolean,
+      default: true,
+    },
   },
   height: 32,
   computed: {
@@ -28,8 +36,9 @@ export default {
 
       return parseMarkdown(this.value, {
         openLinkOnClick: true,
-        enableImages: true,
-        workspaceUsers: workspace ? workspace.users : null,
+        enableImages: this.enableImages,
+        workspaceUsers:
+          this.enableMentions && workspace ? workspace.users : null,
         loggedUserId,
       })
     },

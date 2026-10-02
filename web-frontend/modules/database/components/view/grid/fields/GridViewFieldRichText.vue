@@ -27,13 +27,13 @@
       :class="{ 'grid-field-rich-text__textarea--resizable': editing }"
       :editable="editing && !isModalOpen()"
       :enable-rich-text-formatting="true"
-      :enable-images="true"
-      :mentionable-users="workspace ? workspace.users : null"
+      :enable-images="enableImages"
+      :mentionable-users="mentionableUsers"
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
-      :upload-file="editing ? uploadUserFile : null"
+      :upload-file="editing && enableImages ? uploadUserFile : null"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -46,13 +46,19 @@
     >
       {{ getError() }}
     </div>
+    <slot
+      v-if="!isModalOpen()"
+      name="default"
+      :slot-props="{ editing, opened }"
+    ></slot>
     <FieldRichTextModal
       ref="expandedModal"
       v-model="richCopy"
       :field="field"
       :error="getModalError()"
-      :mentionable-users="workspace ? workspace.users : null"
-      :upload-file="uploadUserFile"
+      :mentionable-users="mentionableUsers"
+      :enable-images="enableImages"
+      :upload-file="enableImages ? uploadUserFile : null"
       @hidden="onExpandedModalHidden"
     />
   </div>
@@ -71,6 +77,16 @@ import { getRichTextClipboardContent } from '@baserow/modules/database/utils/cli
 export default {
   components: { RichTextEditor, FieldRichTextModal },
   mixins: [gridField, gridFieldInput],
+  props: {
+    enableMentions: {
+      type: Boolean,
+      default: true,
+    },
+    enableImages: {
+      type: Boolean,
+      default: true,
+    },
+  },
   data() {
     return {
       richCopy: '',
@@ -82,13 +98,16 @@ export default {
     formattedValue() {
       return parseMarkdown(this.value, {
         openLinkOnClick: true,
-        enableImages: true,
-        workspaceUsers: this.workspace ? this.workspace.users : null,
+        enableImages: this.enableImages,
+        workspaceUsers: this.mentionableUsers,
         loggedUserId: this.$store.getters['auth/getUserId'],
       })
     },
     workspace() {
       return this.$store.getters['workspace/get'](this.workspaceId)
+    },
+    mentionableUsers() {
+      return this.enableMentions && this.workspace ? this.workspace.users : null
     },
   },
   watch: {
@@ -236,8 +255,10 @@ export default {
       // a direct child of the RichTextEditorBubbleMenu component. This means that the
       // when you click on an item, we have to prevent the next unselect event from
       // happening otherwise the cell will lose focus and the editor will close.
-      if (this.preventNextUnselect) {
+      if (this.preventNextUnselect || event === this.preventedUnselectEvent) {
         this.preventNextUnselect = false
+        // A wrapping cell (the AI field) asks again about the same click.
+        this.preventedUnselectEvent = event
         return false
       }
 

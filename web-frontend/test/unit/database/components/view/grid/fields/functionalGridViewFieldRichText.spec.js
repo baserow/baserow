@@ -25,9 +25,9 @@ describe('FunctionalGridViewFieldRichText component', () => {
     await testApp.afterEach()
   })
 
-  const mountComponent = (value) =>
+  const mountComponent = (value, props = {}) =>
     testApp.mount(FunctionalGridViewFieldRichText, {
-      props: { value, workspaceId: 10 },
+      props: { value, workspaceId: 10, ...props },
     })
 
   // Sized like the names the backend creates: `<32 chars>_<sha256>.<extension>`.
@@ -233,6 +233,88 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(wrapper.find('img').exists()).toBe(false)
     expect(text).not.toContain('abc123_file456.png')
     expect(text).not.toContain('https://example.com')
+  })
+
+  describe('mentions', () => {
+    beforeEach(async () => {
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 10,
+        name: 'Workspace',
+        users: [{ user_id: 5, name: 'Jane Doe' }],
+      })
+    })
+
+    test('resolves mentions against the workspace users by default', async () => {
+      const wrapper = await mountComponent('ping @5')
+
+      expect(wrapper.find('.rich-text-editor__mention').text()).toBe(
+        '@Jane Doe'
+      )
+    })
+
+    test('keeps mentions as text when disabled', async () => {
+      const wrapper = await mountComponent('ping @5', { enableMentions: false })
+
+      expect(wrapper.find('.rich-text-editor__mention').exists()).toBe(false)
+      expect(wrapper.text()).toBe('ping @5')
+    })
+  })
+
+  describe('with images off', () => {
+    const IMAGE = '![c](https://example.com/c.png)'
+
+    test('shows images as their markdown instead of placeholders', async () => {
+      replaceImagesWithPlaceholder.mockClear()
+      const wrapper = await mountComponent(
+        `see ${IMAGE} and ${imageRef(140)}`,
+        {
+          enableImages: false,
+        }
+      )
+
+      expect(wrapper.text()).toContain(`see ${IMAGE} and ![chart][`)
+      expect(wrapper.find('i.iconoir-media-image').exists()).toBe(false)
+      expect(wrapper.find('img').exists()).toBe(false)
+      expect(replaceImagesWithPlaceholder).not.toHaveBeenCalled()
+    })
+
+    test('shows a resolved reference without its URL', async () => {
+      const wrapper = await mountComponent(`see ${imageRef(140)}`, {
+        enableImages: false,
+      })
+
+      expect(wrapper.text()).toBe(`see ![chart][${fileName}]`)
+      expect(wrapper.find('a').exists()).toBe(false)
+    })
+
+    test('truncates a long value through an image', async () => {
+      const wrapper = await mountComponent(`${'x'.repeat(190)} ${IMAGE}`, {
+        enableImages: false,
+      })
+
+      expect(wrapper.text()).toBe(`${'x'.repeat(190)} ![c](http...`)
+    })
+  })
+
+  test.each([
+    [String.raw`!\[photo][abc123_def456.png]`],
+    [String.raw`![photo]\[abc123_def456.png]`],
+  ])('shows the escaped reference %s as literal text', async (escaped) => {
+    for (const enableImages of [true, false]) {
+      const wrapper = await mountComponent(`see ${escaped}`, { enableImages })
+
+      expect(wrapper.text()).toBe('see ![photo][abc123_def456.png]')
+      expect(wrapper.find('i.iconoir-media-image').exists()).toBe(false)
+    }
+  })
+
+  test('replaces an image nested in an image alt with placeholders', async () => {
+    const wrapper = await mountComponent(
+      '![foo ![x](https://e.com/u.png)](https://e.com/v.png)'
+    )
+
+    expect(wrapper.findAll('i.iconoir-media-image')).toHaveLength(2)
+    expect(wrapper.text()).not.toContain('e.com')
   })
 
   test('never renders plain markdown images as img', async () => {

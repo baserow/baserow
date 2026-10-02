@@ -24,6 +24,7 @@
     :value="value"
     :state="state"
     :read-only="readOnly"
+    v-bind="richTextProps"
   />
 </template>
 
@@ -73,6 +74,13 @@ export default {
         .get('aiFieldOutputType', this.field.ai_output_type)
         .getBaserowFieldType()
         .getFunctionalGridViewFieldComponent(this.field)
+    },
+    richTextProps() {
+      return this.$registry
+        .get('field', this.field.type)
+        .hasRichTextOutput(this.field)
+        ? { enableMentions: false, enableImages: false }
+        : {}
     },
     isDeactivatedFunctional() {
       return this.$registry

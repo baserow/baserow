@@ -289,7 +289,8 @@ def escape_user_file_references(
     def _escape(match: re.Match) -> str:
         if names is not None and match.group("name") not in names:
             return match.group(0)
-        return "!\\" + match.group(0)[1:]
+        # An escaped alt bracket would let an enclosing ``![`` match across it.
+        return f"![{match.group('alt')}]\\[{match.group('name')}]"
 
     return map_outside_code(
         content, lambda segment: MARKDOWN_IMAGE_REGEX.sub(_escape, segment)
