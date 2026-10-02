@@ -141,6 +141,9 @@ exports[`GridViewRows component with decoration > Should show cant add decorator
   >
     <!---->
   </div>
+  <div
+    id="teleports"
+  />
 </body>
 `;
 
@@ -162,6 +165,9 @@ exports[`GridViewRows component with decoration > Should show unavailable decora
   >
     <!---->
   </div>
+  <div
+    id="teleports"
+  />
 </body>
 `;
 
