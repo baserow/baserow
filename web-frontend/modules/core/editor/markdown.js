@@ -7,6 +7,7 @@ import { IMAGE_REF_REGEX } from '@baserow/modules/core/editor/image'
 import { parseMention } from '@baserow/modules/core/editor/mention'
 import {
   configureMarkdownSerializerCompatibility,
+  literalReferenceImageMarkdown,
   prepareMarkdownDocumentForSerialization,
 } from '@baserow/modules/core/editor/markdownCompatibility'
 import {
@@ -69,7 +70,19 @@ const literalImage = (state, silent) => {
     return false
   }
   if (!silent) {
-    state.push('text', '', 0).content = state.src.slice(start, state.pos)
+    let literal = state.src.slice(start, state.pos)
+    if (!reference && literal.endsWith(']')) {
+      // Match the editor: definitions disappear, so keep their destination/title inline.
+      state.pos = start
+      markdownItImage(state, false)
+      const image = state.tokens.pop()
+      literal = literalReferenceImageMarkdown(
+        image.content,
+        image.attrGet('src'),
+        image.attrGet('title')
+      )
+    }
+    state.push('text', '', 0).content = literal
   }
   return true
 }

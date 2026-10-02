@@ -933,6 +933,122 @@ describe('image markdown without the image node', () => {
     )
   })
 
+  test.each([
+    ['full', '![photo][ref]', '[ref]: https://example.com/photo.png'],
+    ['collapsed', '![photo][]', '[photo]: https://example.com/photo.png'],
+    ['shortcut', '![photo]', '[photo]: https://example.com/photo.png'],
+    [
+      'title',
+      '![photo][ref]',
+      '[ref]: https://example.com/photo.png "Photo title"',
+    ],
+    [
+      'escaped alt and title',
+      String.raw`![a\]b][ref]`,
+      String.raw`[ref]: https://example.com/photo.png "Photo \"title\""`,
+    ],
+    [
+      'spaced destination',
+      '![photo][ref]',
+      '[ref]: <https://example.com/a b.png>',
+    ],
+  ])(
+    'keeps a %s image reference destination through edit, copy and reopen',
+    (name, reference, definition) => {
+      const markdown = `Before\n\n${reference}\n\n${definition}`
+      editor = createEditor(markdown)
+      const originalText = editor.state.doc.textContent
+      const destination =
+        name === 'spaced destination'
+          ? 'https://example.com/a%20b.png'
+          : 'https://example.com/photo.png'
+
+      expect(originalText).toContain(destination)
+      expect(previewText(markdown)).toBe(`Before\n${originalText.slice(6)}`)
+      const copied = serializeMarkdownClipboard(
+        editor,
+        editor.state.selection.$from.doc.slice(0)
+      )
+      expect(copied).toContain(destination)
+      editor.commands.insertContentAt(7, ' edited')
+
+      const reopened = reopen(editor)
+      editor = reopened.editor
+      expect(reopened.markdown).toContain(destination)
+      expect(editor.state.doc.textContent).toBe(
+        originalText.replace('Before', 'Before edited')
+      )
+      expect(previewText(reopened.markdown)).toContain(destination)
+      expect(
+        editor.getJSON().content.flatMap((node) => node.content ?? [])
+      ).not.toContainEqual(expect.objectContaining({ type: 'image' }))
+      if (name === 'title')
+        expect(editor.state.doc.textContent).toContain('Photo title')
+      if (name === 'escaped alt and title') {
+        expect(editor.state.doc.textContent).toContain(String.raw`a\]b`)
+        expect(editor.state.doc.textContent).toContain(
+          String.raw`Photo \"title\"`
+        )
+      }
+    }
+  )
+
+  test('keeps surrounding formatting and links sharing an image definition', () => {
+    const url = 'https://example.com/photo.png'
+    const markdown =
+      `**![photo][ref]** [![photo][ref]](https://baserow.io) [source][ref]` +
+      `\n\n[ref]: ${url} "Photo title"`
+    editor = createEditor(markdown)
+    const literal = `![photo](<${url}> "Photo title")`
+    const preview = previewDocument(markdown, { openLinkOnClick: true })
+
+    expect(preview.querySelector('strong').textContent).toBe(literal)
+    expect(
+      preview.querySelector('a[href="https://baserow.io"]').textContent
+    ).toBe(literal)
+    expect(preview.querySelector(`a[href="${url}"]`).textContent).toBe('source')
+    expect(preview.querySelector('img')).toBeNull()
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+    expect(editor.view.dom.querySelector('strong').textContent).toBe(literal)
+    expect(
+      editor.view.dom.querySelector('a[href="https://baserow.io"]').textContent
+    ).toBe(literal)
+    expect(editor.view.dom.querySelector(`a[href="${url}"]`).textContent).toBe(
+      'source'
+    )
+    expect(editor.view.dom.querySelector('img')).toBeNull()
+  })
+
+  test.each([
+    'javascript:alert(1)',
+    'data:text/html,%3Cscript%3Ealert(1)%3C/script%3E',
+  ])('keeps the unsafe image destination %s inert through saving', (url) => {
+    const markdown = `![photo][ref]\n\n[ref]: ${url}`
+    editor = createEditor(markdown)
+    expect(editor.state.doc.textContent).toContain(url)
+    expect(editor.view.dom.querySelector('img, a')).toBeNull()
+    expect(previewDocument(markdown).querySelector('img, a')).toBeNull()
+    editor.commands.insertContentAt(
+      editor.state.doc.content.size - 1,
+      ' edited'
+    )
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+    expect(reopened.markdown).toContain(url)
+    expect(editor.state.doc.textContent).toContain(url)
+    expect(editor.view.dom.querySelector('img, a')).toBeNull()
+    expect(
+      previewDocument(reopened.markdown).querySelector('img, a')
+    ).toBeNull()
+  })
+
   test('the editor shows a resolved reference as its text without the URL', () => {
     editor = createEditor(`see ${RESOLVED_REFERENCE}`)
 

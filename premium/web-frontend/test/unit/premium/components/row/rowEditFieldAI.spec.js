@@ -193,4 +193,41 @@ describe('RowEditFieldAI component', () => {
       [String.raw`see !\[x\](https://example.com/a.png) edited`, value],
     ])
   })
+
+  test.each([null, 'Photo title'])(
+    'preserves a reference image destination and title %s after editing and reopening',
+    async (title) => {
+      await testApp.getStore().dispatch('workspace/forceCreate', workspace)
+      const url = 'https://example.com/photo.png'
+      const value = `![photo][reference]\n\n[reference]: ${url}${
+        title ? ` "${title}"` : ''
+      }`
+      const field = { ...aiField, long_text_enable_rich_text: true }
+      const wrapper = await mountWithValue(field, value)
+      const editor = wrapper.findComponent(RichTextEditor)
+
+      expect(wrapper.find('.tiptap img').exists()).toBe(false)
+
+      editor.vm.$emit('focus')
+      editor.vm.focus()
+      editor.vm.editor.commands.insertContent(' edited')
+      editor.vm.$emit('blur')
+      await wrapper.vm.$nextTick()
+
+      const [[savedValue, oldValue]] = wrapper.emitted('update')
+      expect(oldValue).toBe(value)
+      expect(savedValue).toContain(url)
+      if (title) {
+        expect(savedValue).toContain(title)
+      }
+
+      const reopened = await mountWithValue(field, savedValue)
+      expect(reopened.find('.tiptap').text()).toContain(url)
+      if (title) {
+        expect(reopened.find('.tiptap').text()).toContain(title)
+      }
+      expect(reopened.find('.tiptap').text()).toMatch(/ edited$/)
+      expect(reopened.find('.tiptap img').exists()).toBe(false)
+    }
+  )
 })

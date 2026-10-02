@@ -265,6 +265,70 @@ test.describe("AI field rich text", () => {
     );
   });
 
+  test("editing rich AI text preserves a reference image destination and title", async ({
+    page,
+  }) => {
+    const imageUrl = "https://external.invalid/reference.png";
+    const imageTitle = "Photo title";
+    const value = `Before\n\n![photo][ref]\n\n[ref]: ${imageUrl} "${imageTitle}"`;
+    await resetRows(g, [{ Name: "reference image", [RICH_AI]: value }]);
+    const imageRequests: string[] = [];
+    await page.route("**/external.invalid/**", (route) => route.abort());
+    page.on("request", (request) => {
+      if (request.url().includes("external.invalid")) {
+        imageRequests.push(request.url());
+      }
+    });
+
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.openRowModalFromContext(0);
+    const editor = rowModalField(grid, RICH_AI).locator(".ProseMirror");
+    await expect(editor).toContainText("Before");
+    await expect(editor).toContainText("photo");
+    await expect(editor.locator(IMAGE_ELEMENTS)).toHaveCount(0);
+
+    // Edit only the first paragraph. A collapsed DOM selection avoids an
+    // OS-specific select-all/cursor shortcut accidentally replacing the image.
+    await editor.locator("p").first().click();
+    await editor.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element.querySelector("p")!);
+      range.collapse(false);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    await expect
+      .poll(() => editor.evaluate(() => window.getSelection()?.isCollapsed))
+      .toBe(true);
+    await page.keyboard.type(" edited");
+    await expect(editor).toContainText("Before edited");
+    await expect(editor).toContainText("photo");
+    await grid.rowEditModal().locator(".row-modal__title").click();
+
+    await expect(async () => {
+      const saved = (await listRows(g.user, g.table))[0][RICH_AI];
+      expect(saved).toContain("Before edited");
+      expect(saved).toContain("photo");
+      expect(saved).toContain(imageUrl);
+      expect(saved).toContain(imageTitle);
+    }).toPass({ timeout: 10_000 });
+
+    await grid.goTo(g.database, g.table);
+    await expect(
+      grid.fieldCellAt(0, RICH_AI_INDEX).locator(IMAGE_ELEMENTS)
+    ).toHaveCount(0);
+    await grid.openRowModalFromContext(0);
+    const reopened = rowModalField(grid, RICH_AI).locator(".ProseMirror");
+    await expect(reopened).toContainText("Before edited");
+    await expect(reopened).toContainText(imageUrl);
+    await expect(reopened).toContainText(imageTitle);
+    await expect(reopened.locator(IMAGE_ELEMENTS)).toHaveCount(0);
+    expect(imageRequests).toEqual([]);
+  });
+
   test("the rich AI cell editor formats text but suggests no mentions", async ({
     page,
   }) => {
