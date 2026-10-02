@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix application builder actions using the current record failing with a required row ID error when the collection's data source is filtered by a formula that reads another data source.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-02"
+}

@@ -2284,3 +2284,122 @@ def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoin
         assert table.get_model().objects.count() == (
             0 if actor == "other_builder" else 1
         )
+
+
+@pytest.mark.django_db
+def test_dispatch_current_record_action_when_data_source_is_filtered_by_other_data_source(
+    api_client, data_fixture
+):
+    """
+    Narrowing the dispatch to the clicked record must only apply to the
+    collection's own data source. A data source read by one of its filter
+    formulas belongs to another table, so narrowing it to the same record id
+    would make the lookup fail and the collection return no rows.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    lookup_table, lookup_fields, lookup_rows = data_fixture.build_table(
+        user=user, columns=[("Key", "text")], rows=[["alpha"]]
+    )
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Key", "text"), ("Status", "text")],
+        rows=[["alpha", "open"], ["alpha", "open"], ["alpha", "open"]],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    lookup_data_source = (
+        data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page, integration=integration, table=lookup_table
+        )
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+    lookup = (
+        f"get('data_source.{lookup_data_source.id}.0.{lookup_fields[0].db_column}')"
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=data_source.service,
+        field=fields[0],
+        type="equal",
+        value=f"if({lookup},{lookup},'nomatch')",
+        value_is_formula=True,
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page, data_source=data_source, fields=[]
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table, row_id="get('current_record.id')"
+    )
+    service.field_mappings.create(field=fields[1], value="'closed'")
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        page=page, element=table_element, event=EventTypes.CLICK, service=service
+    )
+    # The clicked row's id does not exist in the lookup table.
+    clicked_row = rows[2]
+    assert clicked_row.id != lookup_rows[0].id
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.post(
+        url,
+        {
+            "metadata": {
+                "current_record": {"index": 2, "record_id": clicked_row.id},
+                "data_source": {"element": table_element.id},
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    updated_row = table.get_model().objects.get(id=clicked_row.id)
+    assert getattr(updated_row, fields[1].db_column) == "closed"
+
+
+@pytest.mark.django_db
+def test_public_dispatch_checks_deactivation_against_the_publishing_workspace(
+    api_client, data_fixture
+):
+    """
+    A published builder has no workspace; the action type's deactivation check
+    must receive the workspace the builder was published from, not `None`.
+    """
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    table, fields, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[]
+    )
+    element = data_fixture.create_builder_button_element(page=page)
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Public row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, service=service
+    )
+    assert builder.workspace is None
+
+    url = reverse("api:builder:workflow_action:dispatch", args=[workflow_action.id])
+    with patch.object(
+        CreateRowWorkflowActionType, "raise_if_deactivated", autospec=True
+    ) as raise_if_deactivated:
+        response = api_client.post(url, {}, format="json")
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    raise_if_deactivated.assert_called_once()
+    assert raise_if_deactivated.call_args.args[1] == draft.workspace

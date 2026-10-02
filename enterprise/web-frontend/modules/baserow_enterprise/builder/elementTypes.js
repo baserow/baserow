@@ -189,7 +189,10 @@ export class FileInputElementType extends FormElementType {
    * @returns
    */
   beforeActionDispatchContext(element, value, files) {
-    const withoutFiles = (element.multiple ? value : [value]).map((v) => {
+    // A file input that isn't rendered, e.g. hidden by its visibility rules,
+    // registers no form data, so its value can be undefined here.
+    const values = element.multiple ? value || [] : [value]
+    const withoutFiles = values.map((v) => {
       if (v?.__file__) {
         // Only register an uploadable file when there's actual file data. An
         // unchanged, pre-existing file is referenced by its `url` and has no

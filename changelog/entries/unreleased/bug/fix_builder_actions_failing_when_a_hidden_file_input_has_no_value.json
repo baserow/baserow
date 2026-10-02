@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix application builder actions failing to run when a multiple file input element on the page has no value, for example because it is hidden.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-02"
+}
