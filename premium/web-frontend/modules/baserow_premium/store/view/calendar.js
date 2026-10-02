@@ -239,6 +239,9 @@ export const mutations = {
   SET_CREATING(state, value) {
     state.creating = value
   },
+  SET_ROW_HIDDEN_BY_BACKEND(state, row) {
+    row._.hiddenByBackend = true
+  },
 }
 
 export const actions = {
@@ -570,6 +573,7 @@ export const actions = {
     const hiddenRowIds = reportHiddenRows(data, {
       dispatch,
       i18n: $i18n,
+      tableId: table.id,
       created: true,
     })
     if (hiddenRowIds.has(createdRow.id)) {
@@ -889,6 +893,10 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await updateRowQueue.add(async () => {
+        // The backend hid the row while this edit waited in the queue.
+        if (row._?.hiddenByBackend) {
+          return
+        }
         const updateRowsData = [
           Object.assign({ id: row.id }, updateRequestValues),
         ]
@@ -901,9 +909,11 @@ export const actions = {
         const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
+          tableId: table.id,
           created: false,
         })
         if (hiddenRowIds.has(row.id)) {
+          commit('SET_ROW_HIDDEN_BY_BACKEND', row)
           await dispatch('deletedExistingRow', { view, row, fields })
           return
         }

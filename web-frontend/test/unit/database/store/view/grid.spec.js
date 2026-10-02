@@ -1205,9 +1205,10 @@ describe('Grid view store', () => {
       fieldSearchMatches: [],
     }
 
-    const createRestrictedStore = (extraState = {}) => {
+    const createRestrictedStore = (extraState = {}, extraModules = {}) => {
       const restrictedStore = testApp.createStore({
         modules: {
+          ...extraModules,
           grid: {
             ...gridStore,
             actions: {
@@ -1222,7 +1223,7 @@ describe('Grid view store', () => {
         lastGridId: 1,
         count: 2,
         bufferStartIndex: 0,
-        bufferLimit: 10,
+        bufferLimit: 2,
         rows: [
           {
             id: 1,
@@ -1251,7 +1252,7 @@ describe('Grid view store', () => {
       message: 'hiddenRows.createdMessage - 1',
     }
 
-    test('updateRowValue removes the row', async () => {
+    test('updateRowValue removes the row and closes its row modal', async () => {
       const restrictedStore = createRestrictedStore()
       mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 1, order: '1.00', field_1: 'drop' }],
@@ -1273,6 +1274,10 @@ describe('Grid view store', () => {
         restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
       ).toEqual([2])
       expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
+      expect(dispatchSpy).toHaveBeenCalledWith('rowModal/rowsHiddenByBackend', {
+        tableId: 1,
+        rowIds: [1],
+      })
       expect(restrictedStore.getters['grid/getCount']).toBe(1)
     })
 
@@ -1303,6 +1308,36 @@ describe('Grid view store', () => {
       ).toEqual([2])
       expect(dispatchSpy).toHaveBeenCalledWith('toast/info', updatedToast)
       expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('updateDataIntoCells removes a hidden row fetched outside the buffer', async () => {
+      const restrictedStore = createRestrictedStore(
+        { count: 3 },
+        { view: { namespaced: true, getters: { get: () => () => view } } }
+      )
+      mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+        results: [{ id: 3, order: '3.00', field_1: 'keep' }],
+      })
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [
+          { id: 2, order: '2.00', field_1: 'changed' },
+          { id: 3, order: '3.00', field_1: 'drop' },
+        ],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [3] },
+      })
+
+      await restrictedStore.dispatch('grid/updateDataIntoCells', {
+        table: { id: 1 },
+        view,
+        allVisibleFields: fields,
+        allFieldsInTable: fields,
+        getScrollTop: () => 0,
+        textData: [['changed'], ['drop']],
+        rowIndex: 1,
+        fieldIndex: 0,
+      })
+
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
     })
 
     test('createNewRows removes the created row', async () => {
@@ -1347,6 +1382,481 @@ describe('Grid view store', () => {
         restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
       ).toEqual([1, 2])
       expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+
+    test('deletedExistingRow removes the row once when the closing row modal refreshes it', async () => {
+      const restrictedStore = createRestrictedStore({
+        activeSearchTerm: 'keep',
+        count: 3,
+        bufferLimit: 3,
+        rows: [1, 2, 3].map((id) => ({
+          id,
+          order: `${id}.00`,
+          field_1: id === 1 ? 'drop' : 'keep',
+          _: { ...rowMetadata, matchSearch: id !== 1, persistentId: `r${id}` },
+        })),
+      })
+      const row = restrictedStore.getters['grid/getRow'](1)
+
+      const removing = restrictedStore.dispatch('grid/deletedExistingRow', {
+        view,
+        fields,
+        row,
+        hiddenByBackend: true,
+      })
+      await restrictedStore.dispatch('grid/refreshRowById', {
+        grid: view,
+        rowId: 1,
+        fields,
+      })
+      await removing
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2, 3])
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
+      expect(restrictedStore.getters['grid/getBufferStartIndex']).toBe(0)
+    })
+
+    test('updateRowValue removes a selected row that also misses an ad hoc filter', async () => {
+      const filteredView = {
+        ...view,
+        filters: [{ id: 1, field: 1, type: 'equal', value: 'keep' }],
+      }
+      const restrictedStore = createRestrictedStore()
+      const row = restrictedStore.getters['grid/getRow'](1)
+      row._.selected = true
+      row._.selectedBy = [1]
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 1, order: '1.00', field_1: 'drop' }],
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
+      })
+
+      await restrictedStore.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view: filteredView,
+        fields,
+        row,
+        field: fields[0],
+        value: 'drop',
+        oldValue: 'keep',
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2])
+      expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('updateRowValue counts a hidden row outside the buffer and drops its queued edit', async () => {
+      const restrictedStore = createRestrictedStore({ count: 5 })
+      const rowOutsideBuffer = {
+        id: 7,
+        order: '7.00',
+        field_1: 'keep',
+        _: { ...rowMetadata, persistentId: 'r7' },
+      }
+      let releaseFirstEdit = null
+      mockServer.mock
+        .onPatch('/database/rows/table/1/batch/')
+        .replyOnce(
+          () =>
+            new Promise((resolve) => {
+              releaseFirstEdit = () =>
+                resolve([
+                  200,
+                  {
+                    items: [{ id: 7, order: '7.00', field_1: 'drop' }],
+                    metadata: { updated_field_ids: [1], hidden_row_ids: [7] },
+                  },
+                ])
+            })
+        )
+        .onPatch('/database/rows/table/1/batch/')
+        .reply(401, { error: 'ERROR_PERMISSION_DENIED' })
+      const edit = (value, oldValue) =>
+        restrictedStore.dispatch('grid/updateRowValue', {
+          table: { id: 1 },
+          view,
+          fields,
+          row: rowOutsideBuffer,
+          field: fields[0],
+          value,
+          oldValue,
+        })
+
+      const firstEdit = edit('drop', 'keep')
+      await flushPromises()
+      const secondEdit = edit('again', 'drop')
+      await flushPromises()
+      releaseFirstEdit()
+      await firstEdit
+      await secondEdit
+
+      expect(mockServer.mock.history.patch).toHaveLength(1)
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1, 2])
+      expect(restrictedStore.getters['grid/getCount']).toBe(4)
+      expect(restrictedStore.getters['grid/getBufferStartIndex']).toBe(0)
+    })
+
+    describe('edits queued behind a pending create', () => {
+      const createdRow = { id: 3, order: '3.00', field_1: '' }
+      const hiddenCreateResponse = {
+        items: [createdRow],
+        metadata: { updated_field_ids: [], hidden_row_ids: [3] },
+      }
+
+      const holdCreate = (response) => {
+        let release = null
+        mockServer.mock.onPost('/database/rows/table/1/batch/').reply(
+          () =>
+            new Promise((resolve) => {
+              release = () => resolve([200, response])
+            })
+        )
+        return () => release()
+      }
+      const echoPatch = () =>
+        mockServer.mock
+          .onPatch('/database/rows/table/1/batch/')
+          .reply((config) => [
+            200,
+            {
+              items: JSON.parse(config.data).items.map((item) => ({
+                order: `${item.id}.00`,
+                ...item,
+              })),
+              metadata: { updated_field_ids: [1], hidden_row_ids: [] },
+            },
+          ])
+      const createRow = (restrictedStore, before = null) =>
+        restrictedStore.dispatch('grid/createNewRows', {
+          view,
+          table: { id: 1 },
+          fields,
+          rows: [{}],
+          before,
+        })
+      const editRow = (restrictedStore, row, value) =>
+        restrictedStore.dispatch('grid/updateRowValue', {
+          table: { id: 1 },
+          view,
+          fields,
+          row,
+          field: fields[0],
+          value,
+          oldValue: row.field_1,
+        })
+      const rowValues = (restrictedStore) =>
+        restrictedStore.getters['grid/getAllRows'].map((row) => [
+          row.id,
+          row.field_1,
+        ])
+      const toastCalls = (dispatchSpy) =>
+        dispatchSpy.mock.calls.filter(([type]) => type.startsWith('toast/'))
+      const patchedRowIds = () =>
+        mockServer.mock.history.patch.map((request) =>
+          JSON.parse(request.data).items.map((item) => item.id)
+        )
+
+      test('cancels an edit on a new row appended at the end', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate(hiddenCreateResponse)
+        echoPatch()
+        const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const newRow = restrictedStore.getters['grid/getAllRows'][2]
+        const editing = editRow(restrictedStore, newRow, 'keep')
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await editing
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([])
+        expect(toastCalls(dispatchSpy)).toEqual([['toast/info', createdToast]])
+      })
+
+      test('cancels an edit on a new row inserted in the middle', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate({
+          ...hiddenCreateResponse,
+          items: [{ ...createdRow, order: '1.50' }],
+        })
+        echoPatch()
+
+        const before = restrictedStore.getters['grid/getAllRows'][1]
+        const creating = createRow(restrictedStore, before)
+        await flushPromises()
+        const newRow = restrictedStore.getters['grid/getAllRows'][1]
+        expect(newRow.id).not.toBe(2)
+        const editing = editRow(restrictedStore, newRow, 'keep')
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await editing
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([])
+      })
+
+      test('cancels every edit queued on the hidden row', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate(hiddenCreateResponse)
+        echoPatch()
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const newRow = restrictedStore.getters['grid/getAllRows'][2]
+        const firstEdit = editRow(restrictedStore, newRow, 'first')
+        const secondEdit = editRow(restrictedStore, newRow, 'keep')
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await firstEdit
+        await secondEdit
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([])
+      })
+
+      test('still saves an edit queued on another visible row', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate(hiddenCreateResponse)
+        echoPatch()
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const [firstRow, , newRow] = restrictedStore.getters['grid/getAllRows']
+        const hiddenRowEdit = editRow(restrictedStore, newRow, 'keep')
+        const visibleRowEdit = editRow(restrictedStore, firstRow, 'changed')
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await hiddenRowEdit
+        await visibleRowEdit
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'changed'],
+          [2, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([[1]])
+      })
+
+      const pasteRows = (restrictedStore, rowIndex, textData) =>
+        restrictedStore.dispatch('grid/updateDataIntoCells', {
+          table: { id: 1 },
+          view,
+          allVisibleFields: fields,
+          allFieldsInTable: fields,
+          getScrollTop: () => 0,
+          textData,
+          rowIndex,
+          fieldIndex: 0,
+        })
+
+      test('pastes only into the rows that stay visible', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate(hiddenCreateResponse)
+        echoPatch()
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const pasting = pasteRows(restrictedStore, 1, [['changed'], ['keep']])
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await pasting
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'changed'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([[2]])
+      })
+
+      test('cancels a paste into the hidden row only', async () => {
+        const restrictedStore = createRestrictedStore({
+          multiSelectHeadRowIndex: 2,
+          multiSelectTailRowIndex: 2,
+          multiSelectHeadFieldIndex: 0,
+          multiSelectTailFieldIndex: 0,
+        })
+        const releaseCreate = holdCreate(hiddenCreateResponse)
+        echoPatch()
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const pasting = pasteRows(restrictedStore, 2, [['keep']])
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await pasting
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(patchedRowIds()).toEqual([])
+      })
+
+      test('saves the edit when the backend reports no hidden rows', async () => {
+        const restrictedStore = createRestrictedStore()
+        const releaseCreate = holdCreate({
+          items: [createdRow],
+          metadata: { updated_field_ids: [] },
+        })
+        echoPatch()
+
+        const creating = createRow(restrictedStore)
+        await flushPromises()
+        const newRow = restrictedStore.getters['grid/getAllRows'][2]
+        const editing = editRow(restrictedStore, newRow, 'keep')
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await editing
+
+        expect(rowValues(restrictedStore)).toEqual([
+          [1, 'keep'],
+          [2, 'keep'],
+          [3, 'keep'],
+        ])
+        expect(restrictedStore.getters['grid/getCount']).toBe(3)
+        expect(patchedRowIds()).toEqual([[3]])
+      })
+
+      test('cancels an edit queued behind the edit that hid the row', async () => {
+        const restrictedStore = createRestrictedStore()
+        let releaseFirstEdit = null
+        mockServer.mock.onPatch('/database/rows/table/1/batch/').replyOnce(
+          () =>
+            new Promise((resolve) => {
+              releaseFirstEdit = () =>
+                resolve([
+                  200,
+                  {
+                    items: [{ id: 1, order: '1.00', field_1: 'drop' }],
+                    metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
+                  },
+                ])
+            })
+        )
+        echoPatch()
+        const row = restrictedStore.getters['grid/getRow'](1)
+
+        const firstEdit = editRow(restrictedStore, row, 'drop')
+        await flushPromises()
+        const secondEdit = editRow(restrictedStore, row, 'again')
+        await flushPromises()
+        releaseFirstEdit()
+        await firstEdit
+        await secondEdit
+
+        expect(rowValues(restrictedStore)).toEqual([[2, 'keep']])
+        expect(restrictedStore.getters['grid/getCount']).toBe(1)
+        expect(patchedRowIds()).toEqual([[1]])
+      })
+
+      test('cancels an edit on a new row created in a group', async () => {
+        const groupFields = [
+          ...fields,
+          {
+            id: 2,
+            name: 'Group',
+            type: 'text',
+            _: { type: { type: 'text' } },
+          },
+        ]
+        const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+        const groupedView = { ...view, group_bys: groupBys }
+        const restrictedStore = createRestrictedStore(
+          {
+            rows: [],
+            activeGroupBys: groupBys,
+            fieldOptions: {
+              1: { hidden: false, order: 0 },
+              2: { hidden: false, order: 1 },
+            },
+            groupBy: {
+              ...gridStore.state().groupBy,
+              treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+              collapse: { mode: 'expand', paths: [] },
+            },
+          },
+          {
+            field: { namespaced: true, getters: { getAll: () => groupFields } },
+          }
+        )
+        restrictedStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+          sectionKey: groupPathKey(2, 'A'),
+          rows: [1, 2].map((id) => ({
+            id,
+            order: `${id}.00`,
+            field_1: 'keep',
+            field_2: 'A',
+            _: { ...rowMetadata, persistentId: `r${id}` },
+          })),
+        })
+        const releaseCreate = holdCreate({
+          ...hiddenCreateResponse,
+          items: [{ ...createdRow, field_2: 'A' }],
+        })
+        echoPatch()
+
+        const creating = restrictedStore.dispatch('grid/createNewRowsInGroup', {
+          view: groupedView,
+          table: { id: 1 },
+          fields: groupFields,
+          path: { field_2: 'A' },
+          rows: [{}],
+        })
+        await flushPromises()
+        const newRow = restrictedStore.getters['grid/getAllRows'].find(
+          (row) => ![1, 2].includes(row.id)
+        )
+        const editing = restrictedStore.dispatch('grid/updateRowValue', {
+          table: { id: 1 },
+          view: groupedView,
+          fields: groupFields,
+          row: newRow,
+          field: groupFields[0],
+          value: 'keep',
+          oldValue: newRow.field_1,
+        })
+        await flushPromises()
+        releaseCreate()
+        await creating
+        await editing
+
+        expect(
+          restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+        ).toEqual([1, 2])
+        expect(restrictedStore.getters['grid/getCount']).toBe(2)
+        expect(restrictedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(
+          2
+        )
+        expect(patchedRowIds()).toEqual([])
+      })
     })
   })
 
@@ -9677,7 +10187,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'c')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: baseView,
@@ -9687,8 +10199,8 @@ describe('Grid view store', () => {
       })
 
       const request = mockServer.mock.history.post[0]
-      expect(request.params).toEqual({ view: 5 })
-      expect(JSON.parse(request.data)).toEqual({ field_1: 'c' })
+      expect(request.params).toEqual({ view: 5, include_metadata: true })
+      expect(JSON.parse(request.data)).toEqual({ items: [{ field_1: 'c' }] })
       const rows = confirmedStore.getters['grid/getAllRows']
       expect(rows.map((r) => r.id)).toEqual([1, 2, 3])
       expect(rows[2]._.selected).toBe(false)
@@ -9707,7 +10219,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'c')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'b'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'b')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: {
@@ -9732,7 +10246,9 @@ describe('Grid view store', () => {
         count: 10,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(11, 'k'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(11, 'k')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: baseView,
@@ -9754,7 +10270,9 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+      mockServer.mock
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [row(3, 'c')] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: {
@@ -9807,8 +10325,8 @@ describe('Grid view store', () => {
         },
       })
       mockServer.mock
-        .onPost('/database/rows/table/1/')
-        .reply(200, { ...row(11, 'Dan'), field_2: 'B' })
+        .onPost('/database/rows/table/1/batch/')
+        .reply(200, { items: [{ ...row(11, 'Dan'), field_2: 'B' }] })
 
       await confirmedStore.dispatch('grid/createNewRowConfirmed', {
         view: { ...baseView, group_bys: groupBys },
@@ -9827,6 +10345,39 @@ describe('Grid view store', () => {
       expect(confirmedStore.state.grid.count).toBe(1)
     })
 
+    test('does not show a confirmed row that the backend reports as hidden', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [row(3, 'c')],
+        metadata: { hidden_row_ids: [3] },
+      })
+      const dispatchSpy = vi.spyOn(confirmedStore, 'dispatch')
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: { ...baseView, ownership_type: 'restricted' },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      const request = mockServer.mock.history.post[0]
+      expect(request.params).toMatchObject({ view: 5, include_metadata: true })
+      expect(JSON.parse(request.data)).toEqual({ items: [{ field_1: 'c' }] })
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+      expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.createdMessage - 1',
+      })
+    })
+
     test('rejects and leaves the store untouched when the backend fails', async () => {
       const { confirmedStore, fetchByScrollTopDelayed } = createConfirmedStore({
         bufferStartIndex: 0,
@@ -9834,7 +10385,7 @@ describe('Grid view store', () => {
         count: 2,
         rows: [row(1, 'a'), row(2, 'b')],
       })
-      mockServer.mock.onPost('/database/rows/table/1/').reply(500)
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(500)
 
       await expect(
         confirmedStore.dispatch('grid/createNewRowConfirmed', {

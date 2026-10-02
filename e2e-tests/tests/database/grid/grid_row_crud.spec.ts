@@ -1271,7 +1271,7 @@ test.describe("1.7 Create from the floating add button", () => {
       (request) =>
         request.method() === "POST" &&
         new URL(request.url()).pathname ===
-          `/api/database/rows/table/${g.table.id}/`,
+          `/api/database/rows/table/${g.table.id}/batch/`,
     );
 
     await grid.expectFloatingAddRowButtonAboveFooter();

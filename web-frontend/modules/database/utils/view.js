@@ -734,8 +734,8 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
   })
 }
 
-/** Toasts once about rows the backend hid from the view; returns their ids. */
-export function reportHiddenRows(data, { dispatch, i18n, created }) {
+/** Toasts and closes the modals of rows the backend hid; returns their ids. */
+export function reportHiddenRows(data, { dispatch, i18n, tableId, created }) {
   const rowIds = new Set(data.metadata?.hidden_row_ids || [])
   const count = rowIds.size
   if (count === 0) {
@@ -750,6 +750,11 @@ export function reportHiddenRows(data, { dispatch, i18n, created }) {
       title: i18n.t('hiddenRows.title', { count }),
       message: i18n.t(messageKey, { count }),
     },
+    { root: true }
+  )
+  dispatch(
+    'rowModal/rowsHiddenByBackend',
+    { tableId, rowIds: [...rowIds] },
     { root: true }
   )
   return rowIds

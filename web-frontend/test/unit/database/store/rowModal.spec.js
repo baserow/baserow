@@ -199,4 +199,31 @@ describe('rowModal store', () => {
     valuesOfComponent1 = store.getters['test/get'](1)
     expect(valuesOfComponent1.row.field_1).toBe('Test 3')
   })
+
+  test('rows hidden by the backend', async () => {
+    const open = (componentId, tableId, id) =>
+      store.dispatch('test/open', {
+        componentId,
+        tableId,
+        id,
+        exists: true,
+        row: { id },
+      })
+    await open(1, 10, 100)
+    await open(2, 10, 101)
+    await open(3, 11, 100)
+
+    await store.dispatch('test/rowsHiddenByBackend', {
+      tableId: 10,
+      rowIds: [100],
+    })
+
+    expect(store.getters['test/get'](1).hiddenByBackend).toBe(true)
+    expect(store.getters['test/get'](2).hiddenByBackend).toBeUndefined()
+    expect(store.getters['test/get'](3).hiddenByBackend).toBeUndefined()
+
+    // Opening another row in the same modal starts without the flag.
+    await open(1, 10, 101)
+    expect(store.getters['test/get'](1).hiddenByBackend).toBeUndefined()
+  })
 })

@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
 import viewStore from '@baserow/modules/database/store/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -2090,7 +2091,7 @@ describe('Buffered rows view store helper', () => {
     })
   })
 
-  test('updated row hidden by the backend is removed', async () => {
+  test('updated row hidden by the backend is removed and its row modal closed', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -2121,6 +2122,7 @@ describe('Buffered rows view store helper', () => {
         items: [{ id: 1, order: '1.00000000000000000000', field_1: 'drop' }],
         metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
       })
+    const dispatchSpy = vi.spyOn(store, 'dispatch')
 
     await store.dispatch('test/updatePreparedRowValues', {
       table: { id: 1 },
@@ -2132,6 +2134,79 @@ describe('Buffered rows view store helper', () => {
       updateRequestValues: { field_1: 'drop' },
     })
 
+    expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([2])
+    expect(dispatchSpy).toHaveBeenCalledWith('rowModal/rowsHiddenByBackend', {
+      tableId: 1,
+      rowIds: [1],
+    })
+  })
+
+  test('an edit queued behind the edit that hid the row is not sent', async () => {
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [],
+      filter_groups: [],
+      sortings: [],
+      ownership_type: 'restricted',
+    }
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const populateRow = (row) => {
+      row._ = {}
+      return row
+    }
+    const state = {
+      visibleRange: { startIndex: 0, endIndex: 1 },
+      requestSize: 4,
+      viewId: 1,
+      rows: [
+        { id: 1, order: '1.00000000000000000000', field_1: 'keep', _: {} },
+        { id: 2, order: '2.00000000000000000000', field_1: 'keep', _: {} },
+      ],
+    }
+    const store = createStore({ service: null, populateRow }, state)
+    let releaseFirstEdit = null
+    testApp.mockServer.mock
+      .onPatch('/database/rows/table/1/batch/')
+      .replyOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirstEdit = () =>
+              resolve([
+                200,
+                {
+                  items: [
+                    { id: 1, order: '1.00000000000000000000', field_1: 'drop' },
+                  ],
+                  metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
+                },
+              ])
+          })
+      )
+      .onPatch('/database/rows/table/1/batch/')
+      .reply(401, { error: 'ERROR_PERMISSION_DENIED' })
+    const row = store.getters['test/getRows'][0]
+    const edit = (value, oldValue) =>
+      store.dispatch('test/updatePreparedRowValues', {
+        table: { id: 1 },
+        view,
+        fields,
+        row,
+        values: { field_1: value },
+        oldValues: { field_1: oldValue },
+        updateRequestValues: { field_1: value },
+      })
+
+    const firstEdit = edit('drop', 'keep')
+    await flushPromises()
+    const secondEdit = edit('again', 'drop')
+    await flushPromises()
+    releaseFirstEdit()
+    await firstEdit
+    await secondEdit
+
+    expect(testApp.mockServer.mock.history.patch).toHaveLength(1)
     expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([2])
   })
 })

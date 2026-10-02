@@ -259,6 +259,22 @@ export default {
     rowExists() {
       return this.modalRow.exists
     },
+    rowHiddenByBackend() {
+      return this.modalRow.hiddenByBackend === true
+    },
+    /** The topmost open modal, closed first once the backend hid the row. */
+    modalToCloseForHiddenRow() {
+      if (!this.rowHiddenByBackend) {
+        return null
+      }
+      let modal = this.getRootModal()
+      let openChild = modal.children.find((child) => child.open)
+      while (openChild !== undefined) {
+        modal = openChild
+        openChild = modal.children.find((child) => child.open)
+      }
+      return modal
+    },
     row() {
       return this.modalRow.row
     },
@@ -358,6 +374,10 @@ export default {
           row,
         })
       }
+    },
+    // Unlike a frontend-filtered row, a row the backend hid can't be edited.
+    modalToCloseForHiddenRow(modal) {
+      modal?.hide()
     },
     rowId(newValue, oldValue) {
       if (this.canSubscribeToRowUpdates) {

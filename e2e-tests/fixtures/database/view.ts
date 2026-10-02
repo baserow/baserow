@@ -230,3 +230,49 @@ export async function createViewDecoration(
 ): Promise<void> {
   await getClient(user).post(`database/views/${view.id}/decorations/`, values);
 }
+
+/** Creates a restricted view: editors only see and receive the rows its filters match. */
+export async function createRestrictedView(
+  user: User,
+  table: Table,
+  {
+    name,
+    type = "grid",
+    settings = {},
+  }: { name: string; type?: string; settings?: Record<string, unknown> },
+): Promise<View> {
+  const response: any = await getClient(user).post(
+    `database/views/table/${table.id}/`,
+    { name, type, ownership_type: "restricted", ...settings },
+  );
+  const data = response.data;
+  const view = new View(data.id, data.name, data.type, data.slug, table);
+  await ensureViewFieldOptions(user, view);
+  return view;
+}
+
+export async function updateViewFieldOptions(
+  user: User,
+  view: View,
+  fieldOptions: Record<number, Record<string, unknown>>,
+): Promise<void> {
+  await getClient(user).patch(`database/views/${view.id}/field-options/`, {
+    field_options: fieldOptions,
+  });
+}
+
+/** Sets the values new rows created in the view start with. */
+export async function setViewDefaultValues(
+  user: User,
+  view: View,
+  defaults: { field: Field; value: unknown }[],
+): Promise<void> {
+  await getClient(user).patch(
+    `database/views/${view.id}/default-values/`,
+    defaults.map(({ field, value }) => ({
+      field: field.id,
+      enabled: true,
+      value,
+    })),
+  );
+}
