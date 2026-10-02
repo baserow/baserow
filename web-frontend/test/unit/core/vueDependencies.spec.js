@@ -4,7 +4,8 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 
 const resolveFrom = (entrypoint, dependency) => {
-  const entrypointRequire = createRequire(require.resolve(entrypoint))
+  // nuxt only exports an `import` condition, so require.resolve can't find it.
+  const entrypointRequire = createRequire(import.meta.resolve(entrypoint))
   return realpathSync(entrypointRequire.resolve(dependency))
 }
 
