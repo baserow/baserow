@@ -352,9 +352,19 @@ class CollectionFieldSerializer(serializers.ModelSerializer):
         Transform the flat object received to a proper config dict.
         """
 
+        if not isinstance(data, Mapping):
+            raise ValidationError(
+                f"Invalid data. Expected a dictionary, but got {type(data).__name__}.",
+                code="invalid",
+            )
+
         try:
             if self.partial and self.instance:
                 instance_type = self.get_type_from_instance(self.instance)
+            elif "type" not in data:
+                raise ValidationError(
+                    "The field type is required.", code="INVALID_FIELD_TYPE"
+                )
             else:
                 instance_type = self.get_type_from_mapping(data)
         except InstanceTypeDoesNotExist:
