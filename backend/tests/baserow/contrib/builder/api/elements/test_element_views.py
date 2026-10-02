@@ -282,6 +282,7 @@ def test_create_element(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json()["allow_same_origin"] is False
+    assert response.json()["auto_height"] is False
 
     response = api_client.post(
         url,
@@ -319,9 +320,8 @@ def test_create_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_and_update_iframe_element_same_origin_permission(
-    api_client, data_fixture
-):
+@pytest.mark.parametrize("option", ["allow_same_origin", "auto_height"])
+def test_create_and_update_iframe_element_options(api_client, data_fixture, option):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
 
@@ -330,27 +330,52 @@ def test_create_and_update_iframe_element_same_origin_permission(
         url,
         {
             "type": "iframe",
-            "allow_same_origin": True,
+            option: True,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["allow_same_origin"] is True
+    assert response.json()[option] is True
 
-    element_url = reverse(
-        "api:builder:element:item", kwargs={"element_id": response.json()["id"]}
+    element_id = response.json()["id"]
+    duplicate_url = reverse(
+        "api:builder:element:duplicate", kwargs={"element_id": element_id}
     )
+    response = api_client.post(
+        duplicate_url, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["elements"][0][option] is True
+
+    element_url = reverse("api:builder:element:item", kwargs={"element_id": element_id})
     response = api_client.patch(
         element_url,
-        {"allow_same_origin": False},
+        {option: False},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["allow_same_origin"] is False
+    assert response.json()[option] is False
+
+    response = api_client.patch(
+        element_url,
+        {option: "invalid"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert (
+        next(element for element in response.json() if element["id"] == element_id)[
+            option
+        ]
+        is False
+    )
 
 
 @pytest.mark.django_db
