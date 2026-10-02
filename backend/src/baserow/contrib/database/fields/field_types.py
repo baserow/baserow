@@ -8342,22 +8342,24 @@ class AutonumberFieldType(ReadOnlyFieldType):
         # Create the sequence so that rows can start being automatically numbered.
         self.create_field_sequence(field, field.table.get_model(), connection)
 
-    def _extract_view_from_field_kwargs(self, user, field_kwargs):
+    def _extract_view_from_field_kwargs(self, user, table_id, field_kwargs):
         view_id = field_kwargs.get("view_id", None)
         if view_id is not None:
-            field_kwargs["view"] = ViewHandler().get_view_as_user(user, view_id)
+            field_kwargs["view"] = ViewHandler().get_view_as_user(
+                user, view_id, table_id=table_id
+            )
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        self._extract_view_from_field_kwargs(user, field_kwargs)
+        self._extract_view_from_field_kwargs(user, table.id, field_kwargs)
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
         self.create_field_sequence(field, model, connection)
         self.update_rows_with_field_sequence(field, field_kwargs.get("view", None))
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
-        self._extract_view_from_field_kwargs(user, field_kwargs)
+        self._extract_view_from_field_kwargs(user, from_field.table_id, field_kwargs)
 
     def before_schema_change(
         self,
@@ -8424,22 +8426,43 @@ class AutonumberFieldType(ReadOnlyFieldType):
         """
 
         not_trashed_first = Case(When(Q(trashed=False), then=Value(0)), default=1).asc()
-        order_bys = (not_trashed_first, "order", "id")
-
-        if view is not None:
-            queryset = ViewHandler().get_queryset(None, view).values("id")
-
-            filters = queryset.query.where
-            filtered_first = Case(When(filters, then=Value(0)), default=1).asc()
-
-            # The last two order bys are the default order bys of the table
-            if custom_order_bys := queryset.query.order_by[:-2]:
-                order_bys = (*custom_order_bys, *order_bys)
-
-            order_bys = (filtered_first, *order_bys)
+        order_bys = ("order", "id")
 
         table_model = field.table.get_model()
-        qs = table_model.objects_and_trash.annotate(
+        # Start from the ids only, so that sort annotations aggregating over joins
+        # group by the id instead of every column of the table.
+        qs = table_model.objects_and_trash.values("id")
+
+        if view is not None:
+            view_handler = ViewHandler()
+
+            # Sorts on fields like link rows and lookups order by an annotation, so
+            # the annotations must be added to the queryset that is numbered.
+            view_order_bys, qs = view_handler.get_view_order_bys(view, table_model, qs)
+            # The last two order bys are the default order bys of the table
+            if custom_order_bys := view_order_bys[:-2]:
+                order_bys = (*custom_order_bys, *order_bys)
+
+            # Filters can rely on their own joins and annotations, so the rows
+            # matching them are found with a subquery instead of copying the filters.
+            filtered_queryset = view_handler.get_queryset(
+                None, view, model=table_model, apply_sorts=False
+            )
+            # The view queryset always excludes trashed rows, so only add the check
+            # when the view's own filters add a condition.
+            view_filters_queryset = view_handler.apply_filters(
+                view, table_model.objects_and_trash.values("id")
+            )
+            if view_filters_queryset.query.where:
+                matches_filters = Exists(filtered_queryset.filter(id=OuterRef("id")))
+                filtered_first = Case(
+                    When(matches_filters, then=Value(0)), default=1
+                ).asc()
+                order_bys = (filtered_first, *order_bys)
+
+        order_bys = (not_trashed_first, *order_bys)
+
+        qs = qs.annotate(
             row_nr=Window(expression=RowNumber(), order_by=order_bys),
         ).values("id", "row_nr")
         sql, params = qs.query.get_compiler(connection=connection).as_sql()
