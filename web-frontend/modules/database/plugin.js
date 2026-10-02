@@ -81,6 +81,8 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('databaseOnboardingStep')
     $registry.registerNamespace('copyViewConfigurationOption')
 
+    // Workspace menus, jobs and notifications resolve these types before a
+    // database route opens, so shell-facing registrations must stay eager.
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
     $registry.register(

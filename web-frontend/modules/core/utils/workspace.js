@@ -7,7 +7,8 @@
  */
 export const fetchWorkspacesAndApplications = async (nuxtApp, workspaceId) => {
   const store = nuxtApp.$store
-  // Selection and application loading use independent endpoints.
+  // Application loading can overlap selection. Keep permission and role loads
+  // sequential inside selectById because they share the same loading flag.
   const pending = []
 
   if (!store.getters['workspace/isLoaded']) {

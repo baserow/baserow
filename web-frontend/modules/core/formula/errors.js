@@ -1,3 +1,4 @@
+// Shared by parsing and runtime evaluation; keep parser/editor dependencies out.
 export class BaserowFormulaParserError extends Error {
   constructor(offendingSymbol, line, character, message) {
     super()

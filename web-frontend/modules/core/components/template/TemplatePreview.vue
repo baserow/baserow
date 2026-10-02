@@ -93,6 +93,7 @@ export default {
   },
   methods: {
     async fetchApplications(template) {
+      // A previous template can finish loading after another is selected or cleared.
       const requestId = ++this.applicationRequestId
       this.page = null
       this.loading = true
@@ -111,6 +112,7 @@ export default {
             domains.has(domain)
           )
         ) {
+          // These previews use database field types through their integrations.
           domains.add('database')
         }
         await Promise.all(

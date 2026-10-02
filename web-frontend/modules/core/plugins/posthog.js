@@ -18,7 +18,7 @@ export default defineNuxtPlugin(() => {
     return
   }
 
-  // Loaded lazily so unconfigured installations never ship the library.
+  // Load configured analytics separately from the initial client bundle.
   import('posthog-js')
     .then(async ({ default: posthog }) => {
       posthog.init(projectApiKey, {
