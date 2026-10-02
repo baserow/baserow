@@ -1,4 +1,5 @@
 import { defineComponent } from 'vue'
+import { DOMWrapper } from '@vue/test-utils'
 
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -11,8 +12,8 @@ describe('PaginatedDropdown component', () => {
     testApp = new TestApp()
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const results = [
@@ -108,5 +109,31 @@ describe('PaginatedDropdown component', () => {
       displayName: 'Unnamed 2',
       item: { id: 2, value: '' },
     })
+  })
+
+  test('keyboard selection uses server results without filtering their labels locally', async () => {
+    const remoteFetch = vi.fn(fetchPage)
+    const wrapper = await mountComponent({
+      fetchPage: remoteFetch,
+      fetchOnOpen: true,
+      debounceTime: 0,
+      addEmptyItem: false,
+    })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await wrapper
+      .get('.select__search-input')
+      .setValue('a matching server alias')
+    await vi.waitFor(() =>
+      expect(remoteFetch).toHaveBeenLastCalledWith(1, 'a matching server alias')
+    )
+    await flushPromises()
+
+    expect(wrapper.get('.select__item').classes()).not.toContain('hidden')
+    const body = new DOMWrapper(document.body)
+    await body.trigger('keydown', { key: 'ArrowDown' })
+    await body.trigger('keydown', { key: 'Enter' })
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[1]])
   })
 })

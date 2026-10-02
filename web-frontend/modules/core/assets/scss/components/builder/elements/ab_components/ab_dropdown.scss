@@ -96,6 +96,35 @@
       grey 50%
     );
   }
+
+  .select__search {
+    border-bottom-color: var(--input-border-color, black);
+  }
+
+  .select__search-icon {
+    color: var(--input-text-color, $palette-neutral-900);
+  }
+
+  .select__search-input {
+    height: auto;
+    min-height: 36px;
+    line-height: normal;
+    font-size: var(--input-font-size, 13px);
+    font-family: var(--input-font-family, Inter);
+    font-weight: var(--input-font-weight, 400);
+    color: var(--input-text-color, $palette-neutral-900);
+    background-color: var(--input-background-color, $white);
+    padding: var(--input-vertical-padding, 8px)
+      var(--input-horizontal-padding, 12px) var(--input-vertical-padding, 8px) 0;
+
+    &::placeholder {
+      color: color-mix(
+        in srgb,
+        var(--input-text-color, $palette-neutral-900) 40%,
+        var(--input-background-color, $white)
+      );
+    }
+  }
 }
 
 .ab-dropdown__selected-placeholder {
