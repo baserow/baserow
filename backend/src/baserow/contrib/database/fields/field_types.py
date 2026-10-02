@@ -8448,7 +8448,12 @@ class AutonumberFieldType(ReadOnlyFieldType):
             filtered_queryset = view_handler.get_queryset(
                 None, view, model=table_model, apply_sorts=False
             )
-            if filtered_queryset.query.where:
+            # The view queryset always excludes trashed rows, so only add the check
+            # when the view's own filters add a condition.
+            view_filters_queryset = view_handler.apply_filters(
+                view, table_model.objects_and_trash.values("id")
+            )
+            if view_filters_queryset.query.where:
                 matches_filters = Exists(filtered_queryset.filter(id=OuterRef("id")))
                 filtered_first = Case(
                     When(matches_filters, then=Value(0)), default=1

@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -570,6 +571,35 @@ def test_renumber_rows_according_to_view_filtered_by_related_field(
     )
 
     assert _autonumber_values(table, autonumber_field) == expected
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "has_filter,filters_disabled,expects_subquery",
+    [(False, False, False), (True, True, False), (True, False, True)],
+)
+def test_renumber_rows_only_checks_view_filters_when_they_apply(
+    data_fixture, has_filter, filters_disabled, expects_subquery
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table, filters_disabled=filters_disabled)
+    if has_filter:
+        data_fixture.create_view_filter(
+            view=view, field=text_field, type="contains", value="a"
+        )
+
+    with CaptureQueriesContext(connection) as captured:
+        FieldHandler().create_field(
+            user, table, "autonumber", name="Number", view_id=view.id
+        )
+
+    numbering_sql = next(
+        query["sql"] for query in captured if "WITH ordered AS" in query["sql"]
+    )
+    assert ("EXISTS" in numbering_sql) is expects_subquery
 
 
 @pytest.mark.field_autonumber
