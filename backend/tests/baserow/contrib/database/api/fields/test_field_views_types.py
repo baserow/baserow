@@ -6,7 +6,7 @@ from django.shortcuts import reverse
 import pytest
 from faker import Faker
 from freezegun import freeze_time
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
@@ -1855,6 +1855,64 @@ def test_autonumber_field_type_create_fails_form_view(api_client, data_fixture):
             "type": "autonumber",
             "view_id": view.id,
         },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST, response_json
+    assert response_json["error"] == "ERROR_VIEW_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("action", ["create", "update"])
+@pytest.mark.parametrize("view_source", ["other_table", "other_workspace", "missing"])
+def test_autonumber_field_type_rejects_view_not_in_table(
+    api_client, data_fixture, action, view_source
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    text_field = data_fixture.create_text_field(table=table)
+    if view_source == "other_table":
+        other_table = data_fixture.create_database_table(database=database)
+        view_id = data_fixture.create_grid_view(table=other_table).id
+    elif view_source == "other_workspace":
+        view_id = data_fixture.create_grid_view().id
+    else:
+        view_id = 0
+
+    payload = {"name": "autonumber_field", "type": "autonumber", "view_id": view_id}
+    if action == "create":
+        response = api_client.post(
+            reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    else:
+        response = api_client.patch(
+            reverse("api:database:fields:item", kwargs={"field_id": text_field.id}),
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_404_NOT_FOUND, response_json
+    assert response_json["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_autonumber_field_type_update_fails_form_view(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_form_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": text_field.id}),
+        {"type": "autonumber", "view_id": view.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

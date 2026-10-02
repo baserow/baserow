@@ -348,6 +348,7 @@ class FieldsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
             FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
             ViewDoesNotSupportListingRows: ERROR_VIEW_NOT_SUPPORTED,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         }
     )
     def post(self, request, data, table_id):
@@ -498,6 +499,8 @@ class FieldView(APIView):
             FieldConstraintException: ERROR_FIELD_CONSTRAINT,
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
             FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
+            ViewDoesNotSupportListingRows: ERROR_VIEW_NOT_SUPPORTED,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         }
     )
     @require_request_data_type(dict)
