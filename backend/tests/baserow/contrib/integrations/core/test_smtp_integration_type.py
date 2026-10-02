@@ -2,6 +2,7 @@ import json
 from unittest.mock import Mock
 
 import pytest
+from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.core.integrations.registries import integration_type_registry
@@ -119,7 +120,7 @@ def test_smtp_integration_partial_update(data_fixture):
 def test_smtp_integration_serializer_field_names(data_fixture):
     integration_type = SMTPIntegrationType()
 
-    expected_fields = ["host", "port", "use_tls", "username", "password"]
+    expected_fields = ["host", "port", "use_tls", "use_ssl", "username", "password"]
     assert integration_type.serializer_field_names == expected_fields
     assert integration_type.allowed_fields == expected_fields
     assert integration_type.request_serializer_field_names == expected_fields
@@ -137,6 +138,7 @@ def test_smtp_integration_serialized_dict_type(data_fixture):
         "host": str,
         "port": int,
         "use_tls": bool,
+        "use_ssl": bool,
         "username": str,
         "password": str,
     }
@@ -159,10 +161,83 @@ def test_smtp_integration_prepare_values(data_fixture):
         "password": "password123",
     }
 
-    prepared_values = integration_type.prepare_values(input_values, user)
+    prepared_values = integration_type.prepare_values(dict(input_values), user)
 
-    # Should return the same values as it doesn't do any special processing
-    assert prepared_values == input_values
+    # Enabling STARTTLS turns implicit SSL off.
+    assert prepared_values == {**input_values, "use_ssl": False}
+
+
+@pytest.mark.django_db
+def test_smtp_integration_prepare_values_ssl_disables_tls(data_fixture):
+    user = data_fixture.create_user()
+
+    prepared_values = SMTPIntegrationType().prepare_values({"use_ssl": True}, user)
+
+    assert prepared_values == {"use_ssl": True, "use_tls": False}
+
+
+@pytest.mark.django_db
+def test_smtp_integration_prepare_values_rejects_tls_and_ssl(data_fixture):
+    user = data_fixture.create_user()
+
+    with pytest.raises(ValidationError):
+        SMTPIntegrationType().prepare_values({"use_tls": True, "use_ssl": True}, user)
+
+
+@pytest.mark.django_db
+def test_smtp_integration_create_with_implicit_ssl(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+
+    # `use_tls` defaults to True, so enabling SSL alone must switch it off.
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type_registry.get("smtp"),
+        application=application,
+        host="smtp.strato.de",
+        port=465,
+        use_ssl=True,
+    )
+
+    assert integration.use_ssl is True
+    assert integration.use_tls is False
+
+
+@pytest.mark.django_db
+def test_smtp_integration_partial_update_to_ssl_disables_tls(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_smtp_integration(user=user, use_tls=True)
+
+    updated = IntegrationService().update_integration(
+        user, integration, port=465, use_ssl=True
+    )
+
+    assert updated.integration.use_ssl is True
+    assert updated.integration.use_tls is False
+
+
+@pytest.mark.django_db
+def test_smtp_integration_import_serialized_without_use_ssl(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+
+    # Exports made before `use_ssl` existed don't have the key.
+    serialized_data = {
+        "id": 1,
+        "type": "smtp",
+        "host": "smtp.example.com",
+        "port": 587,
+        "use_tls": True,
+        "username": "user@example.com",
+        "password": "password123",
+    }
+
+    imported_integration = SMTPIntegrationType().import_serialized(
+        application, serialized_data, {}, lambda x, d: x
+    )
+
+    assert imported_integration.use_tls is True
+    assert imported_integration.use_ssl is False
 
 
 @pytest.mark.django_db
@@ -197,6 +272,7 @@ def test_smtp_integration_export_serialized(data_fixture):
         "host": "smtp.example.com",
         "port": 587,
         "use_tls": True,
+        "use_ssl": False,
         "username": "user@example.com",
         "password": "password123",
         "name": "",
@@ -239,6 +315,7 @@ def test_smtp_integration_export_serialized_exclude_sensitive(data_fixture):
         "host": None,
         "port": None,
         "use_tls": None,
+        "use_ssl": None,
         "username": None,
         "password": None,
         "name": "",
@@ -290,6 +367,7 @@ def test_smtp_integration_import_serialized_with_null_sensitive_fields(data_fixt
         "host": None,
         "port": None,
         "use_tls": None,
+        "use_ssl": None,
         "username": None,
         "password": None,
     }
@@ -301,6 +379,7 @@ def test_smtp_integration_import_serialized_with_null_sensitive_fields(data_fixt
     assert imported_integration.host == ""
     assert imported_integration.port == 587
     assert imported_integration.use_tls is True
+    assert imported_integration.use_ssl is False
     assert imported_integration.username is None
     assert imported_integration.password is None
     assert imported_integration.application_id == application.id
