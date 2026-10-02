@@ -31,6 +31,7 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.cache import local_cache
 from baserow.core.formula.exceptions import (
     InvalidFormulaContext,
     InvalidFormulaContextContent,
@@ -967,6 +968,30 @@ def test_data_source_data_provider_import_path_with_list_data_source(data_fixtur
             "database_fields": {123: 456},
         },
     ) == [str(data_source.id), "0", "field_456"]
+
+
+@pytest.mark.django_db
+def test_import_path_reuses_cached_data_source(data_fixture, django_assert_num_queries):
+    # Importing an application rewrites every formula path that references a data
+    # source, so the data source must only be fetched once per import.
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source()
+    id_mapping = defaultdict(lambda: MirrorDict())
+    id_mapping["builder_data_sources"] = {1: data_source.id}
+    id_mapping["database_fields"] = {123: 456}
+
+    with local_cache.context():
+        DataSourceDataProviderType().import_path(["1", "0", "field_123"], id_mapping)
+
+        with django_assert_num_queries(0):
+            assert DataSourceDataProviderType().import_path(
+                ["1", "0", "field_123"], id_mapping
+            ) == [str(data_source.id), "0", "field_456"]
+            DataSourceContextDataProviderType().import_path(
+                ["1", "field_123"], id_mapping
+            )
+            assert CurrentRecordDataProviderType().import_path(
+                ["field_123"], id_mapping, data_source_id=data_source.id
+            ) == ["field_456"]
 
 
 @pytest.mark.django_db
