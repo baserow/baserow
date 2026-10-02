@@ -2,19 +2,15 @@
   <ViewsAdminTable></ViewsAdminTable>
 </template>
 
-<script>
-import { useHead } from '#imports'
+<script setup>
+import { useHead, useNuxtApp } from '#imports'
 import ViewsAdminTable from '@baserow/modules/database/components/admin/views/ViewsAdminTable'
 
-export default {
-  components: { ViewsAdminTable },
-  setup() {
-    definePageMeta({
-      layout: 'app',
-      middleware: ['staff', 'databaseDomain'],
-    })
-    const { $i18n } = useNuxtApp()
-    useHead({ title: $i18n.t('viewsAdmin.title') })
-  },
-}
+definePageMeta({
+  layout: 'app',
+  middleware: ['staff', 'databaseDomain'],
+})
+
+const { $i18n } = useNuxtApp()
+useHead({ title: $i18n.t('viewsAdmin.title') })
 </script>

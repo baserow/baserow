@@ -225,7 +225,7 @@
 </template>
 
 <script>
-import { useHead } from '#imports'
+import { useHead, useNuxtApp } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import ActiveUsers from '@baserow/modules/core/components/admin/dashboard/charts/ActiveUsers'
@@ -233,16 +233,6 @@ import AdminDashboardService from '@baserow/modules/core/services/admin/dashboar
 
 export default {
   components: { ActiveUsers },
-  setup() {
-    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
-    // `layout` and `middleware` component options.
-    definePageMeta({
-      layout: 'app',
-      middleware: 'staff',
-    })
-    const { $i18n } = useNuxtApp()
-    useHead({ title: $i18n.t('adminDashboard.title') })
-  },
   data() {
     return {
       loading: true,
@@ -331,4 +321,14 @@ export default {
     },
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
+
+const { $i18n } = useNuxtApp()
+useHead({ title: $i18n.t('adminDashboard.title') })
 </script>
