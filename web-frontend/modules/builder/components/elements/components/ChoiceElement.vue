@@ -12,7 +12,7 @@
       :placeholder="
         canHaveOptions ? placeholderResolved : $t('choiceElement.addOptions')
       "
-      :show-search="false"
+      :show-search="element.show_search ?? false"
       :multiple="element.multiple"
       :clearable="!element.multiple && !element.required"
       @hide="onFormElementTouch"
@@ -73,6 +73,7 @@ export default {
      * @property {boolean} required - If the element is required for form submission
      * @property {boolean} multiple - If the choice element allows multiple selections
      * @property {boolean} show_as_dropdown - If the choice element should be displayed as a dropdown
+     * @property {boolean} show_search - If the dropdown allows searching its options
      * @property {Array} options - The options of the choice element
      * @property {string} option_type - The type of the options
      * @property {string} formula_name - The expression for the name of the option

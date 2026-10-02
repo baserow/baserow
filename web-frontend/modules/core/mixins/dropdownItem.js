@@ -58,10 +58,12 @@ export default {
       // This field is being used by `getDropdownItemComponents` in ``dropdown.js to
       // figure out if the child component is a dropdown item or not
       isDropdownItem: true,
-      query: '',
     }
   },
   computed: {
+    query() {
+      return this.parent.localSearchQuery
+    },
     // Retrieve the first parent of this component that has 'isDropdown'
     // property set.
     parent() {
@@ -99,11 +101,8 @@ export default {
         this.parent.focusedDropdownItem = value
       }
     },
-    search(query) {
-      this.query = query
-      return this.isVisible(query)
-    },
     isVisible(query) {
+      if (!this.visible) return false
       if (!query) return true
       if (query.trim().length === 0) return false
       const regex = new RegExp('(' + escapeRegExp(query) + ')', 'i')

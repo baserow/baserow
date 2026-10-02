@@ -40,24 +40,6 @@
       />
     </FormGroup>
     <FormGroup
-      :label="$t('generalForm.requiredTitle')"
-      class="margin-bottom-2"
-      small-label
-      required
-    >
-      <Checkbox v-model="values.required"></Checkbox>
-    </FormGroup>
-
-    <FormGroup
-      :label="$t('choiceElementForm.multiple')"
-      small-label
-      required
-      class="margin-bottom-2"
-    >
-      <Checkbox v-model="values.multiple"></Checkbox>
-    </FormGroup>
-
-    <FormGroup
       :label="$t('choiceElementForm.display')"
       small-label
       required
@@ -68,6 +50,27 @@
         :options="displayOptions"
         type="button"
       />
+    </FormGroup>
+
+    <FormGroup
+      small-label
+      :label="$t('choiceElementForm.extraSettings')"
+      class="margin-bottom-2"
+      required
+    >
+      <div class="margin-bottom-1">
+        <Checkbox v-model="values.required">{{
+          $t('generalForm.requiredTitle')
+        }}</Checkbox>
+      </div>
+      <div :class="{ 'margin-bottom-1': values.show_as_dropdown }">
+        <Checkbox v-model="values.multiple">{{
+          $t('choiceElementForm.multiple')
+        }}</Checkbox>
+      </div>
+      <Checkbox v-if="values.show_as_dropdown" v-model="values.show_search">{{
+        $t('choiceElementForm.enableSearch')
+      }}</Checkbox>
     </FormGroup>
 
     <FormGroup
@@ -193,6 +196,7 @@ export default {
         'options',
         'multiple',
         'show_as_dropdown',
+        'show_search',
         'option_type',
         'formula_name',
         'formula_value',
@@ -206,6 +210,7 @@ export default {
         options: [],
         multiple: false,
         show_as_dropdown: true,
+        show_search: false,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         formula_name: {},
         formula_value: {},
