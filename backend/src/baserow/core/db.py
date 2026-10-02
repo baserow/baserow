@@ -12,6 +12,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Set,
@@ -373,7 +374,7 @@ def transaction_atomic(
 
 
 @contextlib.contextmanager
-def jit_disabled():
+def jit_disabled() -> Iterator[None]:
     """
     Runs the block in a transaction with Postgres JIT compilation turned off. When
     already in a transaction, JIT stays off after the block too, unless a savepoint

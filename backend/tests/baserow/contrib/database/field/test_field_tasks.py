@@ -14,6 +14,7 @@ from freezegun import freeze_time
 
 from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.contrib.database.fields.field_types import FormulaFieldType
+from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
@@ -1454,6 +1455,40 @@ def test_update_workspaces_periodic_fields_continues_after_stricter_timeout_canc
     assert started_workspace_ids == [workspace_1.id, workspace_2.id]
     mock_logger.error.assert_called_once()
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_updates_formulas_without_jit(
+    data_fixture, settings
+):
+    # JIT compiled the large UPDATEs of lookup-based formulas for minutes, which
+    # can't be cancelled, so the batch ran into its hard time limit.
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    formula_field = FormulaField.objects.get(
+        table__database__workspace=workspace, formula="now()"
+    )
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+    jit_per_update = []
+
+    def record_jit(execute, sql, params, many, context):
+        if isinstance(sql, str) and sql.startswith(
+            f'UPDATE "database_table_{formula_field.table_id}" '
+            f'SET "{formula_field.db_column}"'
+        ):
+            with context["connection"].connection.cursor() as cursor:
+                cursor.execute("SHOW jit")
+                jit_per_update.append(cursor.fetchone()[0])
+        return execute(sql, params, many, context)
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL jit = on")
+    with connection.execute_wrapper(record_jit):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+
+    assert jit_per_update == ["off"]
 
 
 @pytest.mark.django_db
