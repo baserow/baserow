@@ -135,6 +135,22 @@ SECRET_KEY= DATABASE_PASSWORD= REDIS_PASSWORD= docker-compose up
 [BASEROW-WATCHER][2022-05-10 08:44:46] Baserow is now available at ...
 ```
 
+### Upgrading from a version older than 1.24
+
+* **PostgreSQL 11 data:** `docker-compose.yml` files before 1.24 ran the `db` service on
+  `postgres:11`; from 1.24 onward it runs PostgreSQL 15, which does not start on a data
+  volume created by PostgreSQL 11. Before step 4, temporarily switch the `db` service's
+  `image` to the `pgautoupgrade/pgautoupgrade` line that is commented out next to it in
+  `docker-compose.yml`. That image upgrades the data directory on its first start and then
+  runs as a normal PostgreSQL 15 server. Once Baserow is up, switch the image back. See
+  [Upgrading PostgreSQL database from a previous version](install-with-docker.md#upgrading-postgresql-database-from-a-previous-version)
+  for background. This does not apply if you point Baserow at your own PostgreSQL server.
+* **No intermediate Baserow versions are needed:** `git pull` the latest version and
+  start it. Baserow applies all migrations in between on startup.
+* While the backend applies migrations, the worker containers may log errors such as
+  `django.db.utils.ProgrammingError: column ... does not exist`. These are expected and
+  stop once the migrations finish.
+
 ## Upgrading from Baserow 1.8.2's docker-compose file
 
 > If you were previously using a separate api.your_baserow_server.com domain this is no
