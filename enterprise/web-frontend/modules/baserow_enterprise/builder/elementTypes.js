@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import {
   ElementType,
   FormElementType,
@@ -27,22 +27,18 @@ import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 const AuthFormElement = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/builder/components/elements/AuthFormElement'),
-  hydrate: hydrateOnIdle(),
 })
 const AuthFormElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/builder/components/elements/AuthFormElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FileInputElement = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/builder/components/elements/FileInputElement'),
-  hydrate: hydrateOnIdle(),
 })
 const FileInputElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/builder/components/elements/FileInputElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class AuthFormElementType extends ElementType {

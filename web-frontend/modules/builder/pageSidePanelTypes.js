@@ -1,25 +1,21 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const GeneralSidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/page/sidePanels/GeneralSidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 const StyleSidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/page/sidePanels/StyleSidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 const VisibilitySidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/page/sidePanels/VisibilitySidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 const EventsSidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/page/sidePanels/EventsSidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class pageSidePanelType extends Registerable {

@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
@@ -7,7 +7,6 @@ import { PersonalViewsPaidFeature } from '@baserow_premium/paidFeatures'
 const ViewOwnershipMenuLink = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/ViewOwnershipMenuLink'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class PersonalViewOwnershipType extends ViewOwnershipType {

@@ -1,16 +1,14 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { RowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
 import PremiumFeatures from '@baserow_premium/features'
 
 const RowCommentsSidebar = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/row_comments/RowCommentsSidebar'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditModalCommentNotificationMode = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/row_comments/RowEditModalCommentNotificationMode'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class CommentsRowModalSidebarType extends RowModalSidebarType {

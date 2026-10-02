@@ -1,11 +1,10 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
 const MadeWithBaserowBuilderDecorator = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/components/builder/MadeWithBaserowBuilderDecorator'),
-  hydrate: hydrateOnIdle(),
 })
 
 /**

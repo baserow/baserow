@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
@@ -8,7 +8,6 @@ import { FormViewType } from '@baserow/modules/database/viewTypes.js'
 const RestrictedViewFilterContext = defineAsyncComponent({
   loader: () =>
     import('@baserow_enterprise/components/views/RestrictedViewFilterContext'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class RestrictedViewOwnershipType extends ViewOwnershipType {

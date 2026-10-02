@@ -28,6 +28,7 @@
           :clipboard-markdown-resolver="resolveClipboardMarkdown"
           :upload-file="uploadFile"
           @update:model-value="$emit('update:modelValue', $event)"
+          @vue:mounted="focusEditor"
         ></RichTextEditor>
       </div>
     </template>
@@ -35,10 +36,7 @@
 </template>
 
 <script>
-import {
-  loadRichTextEditor,
-  RichTextEditor,
-} from '@baserow/modules/core/components/editor/richTextEditorAsync'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import Alert from '@baserow/modules/core/components/Alert'
 import modal from '@baserow/modules/core/mixins/modal'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
@@ -81,10 +79,13 @@ export default {
   methods: {
     resolveClipboardMarkdown: getRichTextClipboardContent,
     show() {
-      loadRichTextEditor().then(() => {
-        this.$nextTick(() => {
+      this.$nextTick(this.focusEditor)
+    },
+    focusEditor() {
+      this.$nextTick(() => {
+        if (this.isOpen()) {
           this.$refs.editor?.focus()
-        })
+        }
       })
     },
     isOpen() {
@@ -92,7 +93,10 @@ export default {
     },
     // Editor is only mounted while open; guard for reactive validation during the transition.
     serializeToMarkdown() {
-      return this.$refs.editor?.serializeToMarkdown() ?? ''
+      return (
+        this.$refs.editor?.serializeToMarkdown() ??
+        (typeof this.modelValue === 'string' ? this.modelValue : '')
+      )
     },
   },
 }

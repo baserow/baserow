@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GalleryView from '@baserow/modules/database/components/view/gallery/GalleryView'
@@ -35,7 +35,6 @@ import FormViewHeader from '@baserow/modules/database/components/view/form/FormV
 
 const ViewForm = defineAsyncComponent({
   loader: () => import('@baserow/modules/database/components/view/ViewForm'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class ViewType extends Registerable {

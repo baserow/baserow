@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle, markRaw } from 'vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import BreakpointsSettingsComponent from '@baserow/modules/builder/components/settings/BreakpointsSettings'
 
@@ -8,35 +8,30 @@ const GeneralSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/settings/GeneralSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 const IntegrationSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/settings/IntegrationSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 const ThemeSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/settings/ThemeSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 const DomainsSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/settings/DomainsSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 const UserSourcesSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/settings/UserSourcesSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 

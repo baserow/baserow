@@ -10,6 +10,27 @@ const getHandlers = () => {
   return handlers
 }
 
+describe('database realtime before lazy registration', () => {
+  test.each([undefined, { id: 2 }])(
+    'ignores fields outside the selected table without resolving their types',
+    (selectedTable) => {
+      const store = {
+        getters: { 'table/getSelected': selectedTable },
+        dispatch: vi.fn(),
+      }
+      const app = { $registry: { get: vi.fn() } }
+
+      getHandlers().field_created(
+        { store, app },
+        { field: { type: 'text', table_id: 1 } }
+      )
+
+      expect(app.$registry.get).not.toHaveBeenCalled()
+      expect(store.dispatch).not.toHaveBeenCalled()
+    }
+  )
+})
+
 describe('database realtime AI provider updates', () => {
   test('refreshes cached field errors when model availability changes', async () => {
     const handlers = getHandlers()

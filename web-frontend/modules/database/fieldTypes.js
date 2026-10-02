@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import BigNumber from 'bignumber.js'
 import {
   DURATION_FORMATS,
@@ -140,300 +140,241 @@ import RowCardFieldButtonField from '@baserow/modules/database/components/card/R
 const FieldTextSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldTextSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldLongTextSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldLongTextSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldNumberSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldNumberSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldAutonumberSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldAutonumberSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldDurationSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldDurationSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldRatingSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldRatingSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldDateSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldDateSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldLinkRowSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldLinkRowSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldMultipleSelectOptionsSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldMultipleSelectOptionsSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldSingleSelectOptionsSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldCollaboratorSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldCollaboratorSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldPasswordSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldPasswordSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldBooleanSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldBooleanSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldFormulaSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldFormulaSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldLookupSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldLookupSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldCountSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldCountSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldRollupSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldRollupSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldFormViewEditRowSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'),
-  hydrate: hydrateOnIdle(),
 })
 
 const RowEditFieldText = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldText'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldLongText = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldLongText'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldRichText = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldRichText'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldURL = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldURL'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldEmail = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldEmail'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldLinkRow = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldLinkRow'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldNumber = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldNumber'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldDuration = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldDuration'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldRating = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldRating'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldBoolean = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldBoolean'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldDate = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldDate'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldDateReadOnly = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldDateReadOnly'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldFile = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldFile'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldSingleSelect = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldSingleSelect'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldMultipleSelect = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldMultipleSelect'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldPhoneNumber = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldPhoneNumber'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldMultipleCollaborators = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldUUID = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldUUID'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldAutonumber = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldAutonumber'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldLastModifiedBy = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldLastModifiedBy'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldPassword = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldPassword'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldFormViewEditRow = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldFormViewEditRow'),
-  hydrate: hydrateOnIdle(),
 })
 const RowEditFieldFormula = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowEditFieldFormula'),
-  hydrate: hydrateOnIdle(),
 })
 
 const RowHistoryFieldText = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldText'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldRichText = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldRichText'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldDate = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldDate'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldNumber = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldNumber'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldDuration = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldDuration'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldMultipleCollaborators = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldMultipleCollaborators'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldFile = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldFile'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldMultipleSelect = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldMultipleSelect'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldSingleSelect = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldSingleSelect'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldBoolean = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldBoolean'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldLinkRow = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldLinkRow'),
-  hydrate: hydrateOnIdle(),
 })
 const RowHistoryFieldPassword = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistoryFieldPassword'),
-  hydrate: hydrateOnIdle(),
 })
 
 const FormViewFieldLinkRow = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldLinkRow'),
-  hydrate: hydrateOnIdle(),
 })
 const FormViewFieldMultipleLinkRow = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'),
-  hydrate: hydrateOnIdle(),
 })
 const FormViewFieldMultipleSelectCheckboxes = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'),
-  hydrate: hydrateOnIdle(),
 })
 const FormViewFieldMultipleCollaboratorsCheckboxes = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'),
-  hydrate: hydrateOnIdle(),
 })
 const FormViewFieldSingleSelectRadios = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'),
-  hydrate: hydrateOnIdle(),
 })
 const FormViewFieldOptionsAllowedSelectOptions = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class FieldType extends Registerable {

@@ -1,10 +1,9 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const GenerateAIValuesContextItem = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/field/GenerateAIValuesContextItem'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class GenerateAIValuesContextItemType extends Registerable {

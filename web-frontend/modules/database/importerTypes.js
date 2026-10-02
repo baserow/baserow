@@ -1,31 +1,26 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 
 import { Registerable } from '@baserow/modules/core/registry'
 
 const TableCSVImporter = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/table/TableCSVImporter'),
-  hydrate: hydrateOnIdle(),
 })
 const TablePasteImporter = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/table/TablePasteImporter'),
-  hydrate: hydrateOnIdle(),
 })
 const TableXMLImporter = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/table/TableXMLImporter'),
-  hydrate: hydrateOnIdle(),
 })
 const TableJSONImporter = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/table/TableJSONImporter'),
-  hydrate: hydrateOnIdle(),
 })
 const TableExcelImporter = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/table/TableExcelImporter'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class ImporterType extends Registerable {

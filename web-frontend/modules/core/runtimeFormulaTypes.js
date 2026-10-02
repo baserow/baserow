@@ -178,12 +178,10 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   /**
-   * A dynamic-import loader for the Vue component that renders this formula in
-   * the editor, or null when the formula has no visual node.
-   *
-   * @returns {Function || null}
+   * A TipTap node supplied by a formula extension, or null without a visual node.
+   * Built-in editor UI is registered separately from runtime evaluation.
    */
-  get formulaComponentLoader() {
+  get formulaComponent() {
     return null
   }
 
@@ -299,6 +297,14 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
 }
 
 export class RuntimeGet extends RuntimeFormulaFunction {
+  // The formula editor installs its synchronous UI factory when it loads. Keep
+  // runtime evaluation independent from TipTap and its Vue components.
+  static formulaComponentFactory = null
+
+  static registerFormulaComponentFactory(factory) {
+    RuntimeGet.formulaComponentFactory = factory
+  }
+
   static getType() {
     return 'get'
   }
@@ -319,9 +325,8 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     return 'get-formula-component'
   }
 
-  get formulaComponentLoader() {
-    return () =>
-      import('@baserow/modules/core/components/formula/GetFormulaComponent')
+  get formulaComponent() {
+    return RuntimeGet.formulaComponentFactory?.(this) ?? null
   }
 
   execute(context, args) {

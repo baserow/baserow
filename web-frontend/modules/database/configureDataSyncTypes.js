@@ -1,20 +1,17 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const ConfigureDataSyncVisibleFields = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/dataSync/ConfigureDataSyncVisibleFields'),
-  hydrate: hydrateOnIdle(),
 })
 const ConfigureDataSyncSettings = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/dataSync/ConfigureDataSyncSettings'),
-  hydrate: hydrateOnIdle(),
 })
 const ConfigureDataSyncHistory = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/dataSync/ConfigureDataSyncHistory'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class ConfigureDataSyncType extends Registerable {

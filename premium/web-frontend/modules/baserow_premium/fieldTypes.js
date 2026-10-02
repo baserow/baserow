@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 
 import {
   FieldType,
@@ -16,20 +16,16 @@ import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiPr
 
 const RowEditFieldAI = defineAsyncComponent({
   loader: () => import('@baserow_premium/components/row/RowEditFieldAI'),
-  hydrate: hydrateOnIdle(),
 })
 const FieldAISubForm = defineAsyncComponent({
   loader: () => import('@baserow_premium/components/field/FieldAISubForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FormulaFieldAI = defineAsyncComponent({
   loader: () => import('@baserow_premium/components/field/FormulaFieldAI'),
-  hydrate: hydrateOnIdle(),
 })
 const GridViewFieldAIGenerateValuesContextItem = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class AIFieldType extends FieldType {

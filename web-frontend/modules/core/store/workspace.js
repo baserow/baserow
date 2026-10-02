@@ -524,10 +524,8 @@ export const actions = {
     commit('INCREMENT_SELECT_REQUEST_ID')
     const requestId = state.selectRequestId
 
-    await Promise.all([
-      dispatch('fetchPermissions', workspace),
-      dispatch('fetchRoles', workspace),
-    ])
+    await dispatch('fetchPermissions', workspace)
+    await dispatch('fetchRoles', workspace)
     // Pages select without blocking the navigation, so a slower selection of the
     // workspace that was navigated away from can finish after the current one.
     // It must then not switch the selection and scopes back.

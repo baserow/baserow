@@ -90,6 +90,13 @@ describe('GridViewFieldType group by menu item', () => {
       },
     })
     await wrapper.vm.$refs.context.toggle(wrapper.vm.$refs.contextLink)
+    // The menu includes lazily loaded extension items. Finish their imports
+    // before asserting against the rendered menu or tearing down its app.
+    await Promise.all(
+      Object.values(store.$registry.getAll('fieldContextItem')).map((type) =>
+        type.getComponent().__asyncLoader?.()
+      )
+    )
     await wrapper.vm.$nextTick()
     return wrapper
   }

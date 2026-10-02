@@ -1,16 +1,14 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import SummaryWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/summary_widget.svg?url'
 
 const SummaryWidget = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/dashboard/components/widget/SummaryWidget'),
-  hydrate: hydrateOnIdle(),
 })
 const SummaryWidgetSettings = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/dashboard/components/widget/SummaryWidgetSettings'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class WidgetType extends Registerable {

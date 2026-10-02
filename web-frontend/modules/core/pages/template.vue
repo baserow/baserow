@@ -3,22 +3,24 @@
   <div v-else>error</div>
 </template>
 
-<script>
+<script setup>
+import { useAsyncData, useNuxtApp, useRoute } from '#imports'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateService from '@baserow/modules/core/services/template'
 
-export default {
-  name: 'Template',
-  components: { TemplatePreview },
-  async asyncData({ store, params, error, $client, ...rest }) {
-    const slug = params.slug
-    try {
-      const { data } = await TemplateService($client).fetch(slug)
+defineOptions({ name: 'Template' })
 
-      return { template: data }
-    } catch (error) {
-      return { template: null }
+const route = useRoute()
+const { $client } = useNuxtApp()
+const { data: template } = await useAsyncData(
+  () => `template:${route.params.slug}`,
+  async () => {
+    try {
+      const { data } = await TemplateService($client).fetch(route.params.slug)
+      return data
+    } catch {
+      return null
     }
-  },
-}
+  }
+)
 </script>

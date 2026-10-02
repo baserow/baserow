@@ -46,6 +46,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { defineComponent, ref, computed, watch, getCurrentInstance } from 'vue'
 
 export default defineComponent({
@@ -113,11 +114,21 @@ export default defineComponent({
     /**
      * Override show method from the modal mixin to handle setting selection.
      */
-    show(
+    async show(
       selectSettingType = null,
       displaySelectedSettingFormValue = false,
       ...args
     ) {
+      try {
+        await Promise.all([
+          this.$registry.loadDomain('database'),
+          this.$registry.loadDomain('automation'),
+        ])
+      } catch (error) {
+        notifyIf(error, 'automation')
+        return
+      }
+
       // If we've been instructed to show a specific setting component,
       // then ensure it's displayed first.
       if (selectSettingType) {

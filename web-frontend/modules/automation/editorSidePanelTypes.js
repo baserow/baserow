@@ -1,15 +1,13 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const NodeSidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/automation/components/workflow/sidePanels/NodeSidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 const HistorySidePanel = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/automation/components/workflow/sidePanels/HistorySidePanel'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class editorSidePanelType extends Registerable {

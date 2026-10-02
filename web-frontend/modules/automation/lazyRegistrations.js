@@ -72,15 +72,9 @@ export default function registerAutomationDomain(nuxtApp) {
   $registry.register('node', new CoreHTTPTriggerNodeType(context))
   $registry.register('node', new CoreInboundEmailTriggerNodeType(context))
   $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
-  $registry.register(
-    'node',
-    new LocalBaserowCreateRowsActionNodeType(context)
-  )
+  $registry.register('node', new LocalBaserowCreateRowsActionNodeType(context))
   $registry.register('node', new LocalBaserowUpdateRowActionNodeType(context))
-  $registry.register(
-    'node',
-    new LocalBaserowUpdateRowsActionNodeType(context)
-  )
+  $registry.register('node', new LocalBaserowUpdateRowsActionNodeType(context))
   $registry.register('node', new CoreHttpRequestNodeType(context))
   $registry.register('node', new CoreSMTPEmailNodeType(context))
   $registry.register('node', new CoreRouterNodeType(context))

@@ -1,3 +1,5 @@
+import { shallowReactive } from 'vue'
+
 export const REGISTERABLE = Symbol('REGISTERABLE')
 
 /**
@@ -59,33 +61,52 @@ export class Registerable {
 export class Registry {
   constructor() {
     this.registry = {}
-    this.domainLoaders = {}
+    this.domainLoaders = shallowReactive({})
     this.domainLoadPromises = {}
+    this.domainLoadedCounts = shallowReactive({})
   }
 
   /** Queues a loader that registers a domain's types when loadDomain first runs. */
   registerDomainLoader(domain, loader) {
     if (!Object.prototype.hasOwnProperty.call(this.domainLoaders, domain)) {
-      this.domainLoaders[domain] = []
+      this.domainLoaders[domain] = shallowReactive([])
     }
     this.domainLoaders[domain].push(loader)
   }
 
+  isDomainLoaded(domain) {
+    const loaders = this.domainLoaders[domain] || []
+    return (
+      loaders.length > 0 && this.domainLoadedCounts[domain] === loaders.length
+    )
+  }
+
   /**
-   * Runs every queued loader for the domain exactly once; concurrent callers share
-   * the promise. Loaders run sequentially in registration order (core, then premium,
-   * then enterprise) so type overrides land in the same order as the eager plugins.
+   * Runs each successful loader once; concurrent callers share the in-flight
+   * promise. Failed loads can retry without replaying earlier registrations.
+   * Loaders run in registration order so premium and enterprise overrides win.
    */
   loadDomain(domain) {
     if (
       !Object.prototype.hasOwnProperty.call(this.domainLoadPromises, domain)
     ) {
-      const loaders = this.domainLoaders[domain] || []
-      this.domainLoadPromises[domain] = (async () => {
-        for (const loader of loaders) {
-          await loader()
-        }
-      })()
+      // Defer execution until the promise is cached, including when a loader
+      // synchronously requests the same domain again.
+      const promise = Promise.resolve()
+        .then(async () => {
+          const loaders = this.domainLoaders[domain] || []
+          let loaded = this.domainLoadedCounts[domain] || 0
+          while (loaded < loaders.length) {
+            await loaders[loaded]()
+            this.domainLoadedCounts[domain] = ++loaded
+          }
+        })
+        .finally(() => {
+          if (this.domainLoadPromises[domain] === promise) {
+            delete this.domainLoadPromises[domain]
+          }
+        })
+      this.domainLoadPromises[domain] = promise
     }
     return this.domainLoadPromises[domain]
   }
@@ -99,7 +120,9 @@ export class Registry {
         `The namespace ${namespace} already exists in the registry.`
       )
     }
-    this.registry[namespace] = {}
+    // Late registrations must invalidate computed lists (for example guided
+    // tours and settings tabs), while type instances and their app stay raw.
+    this.registry[namespace] = shallowReactive({})
   }
 
   /**

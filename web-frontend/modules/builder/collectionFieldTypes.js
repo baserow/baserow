@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import {
   ensureArray,
@@ -15,72 +15,58 @@ import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
 const BooleanField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/BooleanField'),
-  hydrate: hydrateOnIdle(),
 })
 const TextField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/TextField'),
-  hydrate: hydrateOnIdle(),
 })
 const LinkField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/LinkField'),
-  hydrate: hydrateOnIdle(),
 })
 const ButtonField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const ButtonFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const BooleanFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm'),
-  hydrate: hydrateOnIdle(),
 })
 const TagsField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const TextFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm'),
-  hydrate: hydrateOnIdle(),
 })
 const TagsFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const LinkFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'),
-  hydrate: hydrateOnIdle(),
 })
 const ImageField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const ImageFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingField = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/RatingField'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingFieldForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class CollectionFieldType extends Registerable {

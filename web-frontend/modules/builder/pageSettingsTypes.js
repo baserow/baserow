@@ -1,18 +1,16 @@
-import { defineAsyncComponent, hydrateOnIdle, markRaw } from 'vue'
+import { defineAsyncComponent, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const PageSettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/page/settings/PageSettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 const PageVisibilitySettings = markRaw(
   defineAsyncComponent({
     loader: () =>
       import('@baserow/modules/builder/components/page/settings/PageVisibilitySettings.vue'),
-    hydrate: hydrateOnIdle(),
   })
 )
 

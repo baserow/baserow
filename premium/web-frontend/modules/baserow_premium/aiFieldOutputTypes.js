@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 import {
@@ -9,7 +9,6 @@ import {
 const FieldSelectOptionsSubForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/field/FieldSelectOptionsSubForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 export class AIFieldOutputType extends Registerable {
   /**

@@ -56,6 +56,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 //import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 
 export default {
@@ -107,11 +108,21 @@ export default {
     },
   },
   methods: {
-    show(
+    async show(
       selectSettingType = null,
       displaySelectedSettingForm = false,
       ...args
     ) {
+      try {
+        await Promise.all([
+          this.$registry.loadDomain('database'),
+          this.$registry.loadDomain('builder'),
+        ])
+      } catch (error) {
+        notifyIf(error, 'builder')
+        return
+      }
+
       // If we've been instructed to show a specific setting component,
       // then ensure it's displayed first.
       if (selectSettingType) {

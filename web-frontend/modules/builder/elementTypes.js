@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import {
   ensureArray,
@@ -68,207 +68,166 @@ import { getValueAtPath } from '../core/utils/object'
 const TextElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/TextElement'),
-  hydrate: hydrateOnIdle(),
 })
 const HeadingElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/HeadingElement'),
-  hydrate: hydrateOnIdle(),
 })
 const LinkElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/LinkElement'),
-  hydrate: hydrateOnIdle(),
 })
 const TextElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/TextElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const HeadingElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/HeadingElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const LinkElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/LinkElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const ImageElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/ImageElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const ImageElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/ImageElement'),
-  hydrate: hydrateOnIdle(),
 })
 const InputTextElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/InputTextElement'),
-  hydrate: hydrateOnIdle(),
 })
 const InputTextElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/InputTextElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const TableElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/TableElement'),
-  hydrate: hydrateOnIdle(),
 })
 const TableElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/TableElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const ColumnElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/ColumnElement'),
-  hydrate: hydrateOnIdle(),
 })
 const ColumnElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const DefaultStyleForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'),
-  hydrate: hydrateOnIdle(),
 })
 const ButtonElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/ButtonElement'),
-  hydrate: hydrateOnIdle(),
 })
 const ButtonElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const FormContainerElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/FormContainerElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const FormContainerElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const SimpleContainerElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const SimpleContainerElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const ChoiceElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/ChoiceElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const ChoiceElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const CheckboxElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/CheckboxElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const CheckboxElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const IFrameElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/IFrameElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const IFrameElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RepeatElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/RepeatElement'),
-  hydrate: hydrateOnIdle(),
 })
 const RepeatElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const RecordSelectorElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RecordSelectorElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const MultiPageContainerElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const MultiPageContainerElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/MultiPageContainerElement'),
-  hydrate: hydrateOnIdle(),
 })
 const DateTimePickerElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/DateTimePickerElement'),
-  hydrate: hydrateOnIdle(),
 })
 const DateTimePickerElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const MenuElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/MenuElement'),
-  hydrate: hydrateOnIdle(),
 })
 const MenuElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/RatingElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingInputElement = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/RatingInputElement.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RatingInputElementForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class ElementType extends Registerable {

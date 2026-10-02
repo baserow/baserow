@@ -13,10 +13,10 @@ import {
  * @throws {Error} If the archive is empty or the manifest is missing/invalid.
  */
 export async function extractManifestFromZip(zipFile) {
-  const { ZipReader, BlobReader, TextWriter, configure } =
-    await import('@zip.js/zip.js')
   if (import.meta.server)
     throw new Error('zip.js library not available on client')
+  const { ZipReader, BlobReader, TextWriter, configure } =
+    await import('@zip.js/zip.js')
   configure({ useWebWorkers: false })
   const reader = new ZipReader(new BlobReader(zipFile))
   try {

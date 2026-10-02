@@ -17,6 +17,7 @@
       :scrollable-area-element="scrollAreaElement"
       @update:model-value="dirty = true"
       @blur="stopEditing"
+      @vue:mounted="focusEditor"
     ></RichTextEditor>
     <template v-else>
       <RichTextEditor
@@ -40,10 +41,7 @@
 </template>
 
 <script>
-import {
-  loadRichTextEditor,
-  RichTextEditor,
-} from '@baserow/modules/core/components/editor/richTextEditorAsync'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 
 export default {
   name: 'FormViewDescription',
@@ -100,10 +98,12 @@ export default {
       this.buffer = this.value || ''
       this.dirty = false
       this.editing = true
-      loadRichTextEditor().then(() => {
-        this.$nextTick(() => {
+    },
+    focusEditor() {
+      this.$nextTick(() => {
+        if (this.editing) {
           this.$refs.editor?.focus()
-        })
+        }
       })
     },
     stopEditing() {

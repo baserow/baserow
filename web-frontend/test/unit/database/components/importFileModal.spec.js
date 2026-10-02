@@ -6,6 +6,15 @@ import ImportFileModal from '@baserow/modules/database/components/table/ImportFi
 
 let getDataHook = async () => {}
 
+const selectCSVImporter = async (wrapper) => {
+  await wrapper.find('.choice-items__link').trigger('click')
+  // Dynamic importer components must resolve before their named stub emits data.
+  await vi.waitFor(() =>
+    expect(wrapper.find('.csv-importer-stub').exists()).toBe(true)
+  )
+  await flushPromises()
+}
+
 const ModalStub = defineComponent({
   name: 'Modal',
   methods: {
@@ -160,8 +169,7 @@ describe('ImportFileModal', () => {
         },
       })
 
-      await wrapper.find('.choice-items__link').trigger('click')
-      await flushPromises()
+      await selectCSVImporter(wrapper)
 
       const mappingPanel = wrapper.find('.import-modal__field-mapping-body')
       const availableFieldNames = mappingPanel
@@ -236,8 +244,7 @@ describe('ImportFileModal', () => {
       },
     })
 
-    await wrapper.find('.choice-items__link').trigger('click')
-    await flushPromises()
+    await selectCSVImporter(wrapper)
     expect(wrapper.vm.writableFields.map(({ id }) => id)).toStrictEqual([
       1, 2, 3,
     ])
@@ -276,8 +283,7 @@ describe('ImportFileModal', () => {
       },
     })
 
-    await wrapper.find('.choice-items__link').trigger('click')
-    await flushPromises()
+    await selectCSVImporter(wrapper)
     wrapper.vm.useUpsertField = true
     wrapper.vm.upsertField = 2
     await nextTick()

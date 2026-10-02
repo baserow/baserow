@@ -34,6 +34,7 @@
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
       :upload-file="editing ? uploadUserFile : null"
+      @vue:mounted="focusEditor"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -59,10 +60,7 @@
 </template>
 
 <script>
-import {
-  loadRichTextEditor,
-  RichTextEditor,
-} from '@baserow/modules/core/components/editor/richTextEditorAsync'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import UserFileService from '@baserow/modules/core/services/userFile'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
@@ -206,10 +204,13 @@ export default {
       return this.$refs.input?.serializeToMarkdown() ?? this.value
     },
     afterEdit() {
-      loadRichTextEditor().then(() => {
-        this.$nextTick(() => {
+      this.$nextTick(this.focusEditor)
+    },
+    focusEditor() {
+      this.$nextTick(() => {
+        if (this.editing && !this.isModalOpen()) {
           this.$refs.input?.focus()
-        })
+        }
       })
     },
     onExpandedModalHidden() {
@@ -233,8 +234,11 @@ export default {
     },
     resetCellSize() {
       // remove any custom width and height set by the user resizing the cell
-      this.$refs.input.$el.style.width = ''
-      this.$refs.input.$el.style.height = ''
+      const style = this.$refs.input?.$el?.style
+      if (style) {
+        style.width = ''
+        style.height = ''
+      }
     },
     canUnselectByClickingOutside(event) {
       // The RichTextEditorBubbleMenuContext component is a context menu and so it's not

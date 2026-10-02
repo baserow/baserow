@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { WorkflowActionType } from '@baserow/modules/core/workflowActionTypes'
 import {
   CoreCSVFileReaderServiceType,
@@ -25,22 +25,18 @@ import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slac
 const NotificationWorkflowActionForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/workflowAction/NotificationWorkflowActionForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const OpenPageWorkflowActionForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/workflowAction/OpenPageWorkflowActionForm'),
-  hydrate: hydrateOnIdle(),
 })
 const WorkflowActionWithService = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'),
-  hydrate: hydrateOnIdle(),
 })
 const RefreshDataSourceWorkflowActionForm = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class NotificationWorkflowActionType extends WorkflowActionType {

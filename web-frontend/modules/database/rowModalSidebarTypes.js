@@ -1,10 +1,9 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 
 const RowHistorySidebar = defineAsyncComponent({
   loader: () =>
     import('@baserow/modules/database/components/row/RowHistorySidebar.vue'),
-  hydrate: hydrateOnIdle(),
 })
 
 export class RowModalSidebarType extends Registerable {

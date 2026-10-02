@@ -1,4 +1,4 @@
-import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+import { defineAsyncComponent } from 'vue'
 import {
   BaseBufferedRowViewTypeMixin,
   ViewType,
@@ -28,27 +28,22 @@ import { waitFor } from '@baserow/modules/core/utils/queue'
 const KanbanViewHeader = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/kanban/KanbanViewHeader'),
-  hydrate: hydrateOnIdle(),
 })
 const CalendarViewHeader = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/calendar/CalendarViewHeader'),
-  hydrate: hydrateOnIdle(),
 })
 const TimelineViewHeader = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/timeline/TimelineViewHeader'),
-  hydrate: hydrateOnIdle(),
 })
 const CalendarCreateIcalSharedViewLink = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'),
-  hydrate: hydrateOnIdle(),
 })
 const CalendarSharingIcalSlugSection = defineAsyncComponent({
   loader: () =>
     import('@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'),
-  hydrate: hydrateOnIdle(),
 })
 
 class PremiumViewType extends ViewType {

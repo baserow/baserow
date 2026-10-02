@@ -11,7 +11,7 @@ export default {
   setup() {
     definePageMeta({
       layout: 'app',
-      middleware: 'staff',
+      middleware: ['staff', 'databaseDomain'],
     })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('viewsAdmin.title') })
