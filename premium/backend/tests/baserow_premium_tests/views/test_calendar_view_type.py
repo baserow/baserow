@@ -121,7 +121,7 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
     calendar_view_type = view_type_registry.get("calendar")
 
     files_buffer = BytesIO()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         serialized = calendar_view_type.export_serialized(
             calendar_view,
             ImportExportConfig(include_permission_data=False),
@@ -149,7 +149,7 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
         }
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_calendar_view = calendar_view_type.import_serialized(
             calendar_view.table,
             serialized,

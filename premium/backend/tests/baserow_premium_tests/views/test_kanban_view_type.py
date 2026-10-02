@@ -89,7 +89,7 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
     files_buffer = BytesIO()
     kanban_field_type = view_type_registry.get("kanban")
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         serialized = kanban_field_type.export_serialized(
             kanban_view,
             ImportExportConfig(include_permission_data=False),
@@ -122,7 +122,7 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
         }
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_kanban_view = kanban_field_type.import_serialized(
             kanban_view.table,
             serialized,

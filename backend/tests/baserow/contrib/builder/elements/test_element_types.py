@@ -914,7 +914,7 @@ def test_image_element_import_export(data_fixture, fake, storage):
     # Let check if the file is actually imported from the zip_file
     image_file.delete()
 
-    with ZipFile(zip_buffer, "r", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(zip_buffer, "r", ZIP_DEFLATED) as files_zip:
         [imported_element] = PageHandler().import_elements(
             page, [serialized], id_mapping, files_zip=files_zip, storage=storage
         )

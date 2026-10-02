@@ -202,7 +202,7 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
     files_buffer = BytesIO()
     gallery_view_type = view_type_registry.get("gallery")
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         serialized = gallery_view_type.export_serialized(
             gallery_view,
             ImportExportConfig(include_permission_data=False),
@@ -231,7 +231,7 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
         }
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_gallery_view = gallery_view_type.import_serialized(
             gallery_view.table,
             serialized,
@@ -434,7 +434,7 @@ def test_import_export_form_view(data_fixture, tmpdir):
         },
     ]
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+    with ZipFile(files_buffer, "r", ZIP_DEFLATED) as zip_file:
         assert zip_file.read(user_file.name) == b"Hello World"
         assert len(zip_file.infolist()) == 1
 
@@ -443,7 +443,7 @@ def test_import_export_form_view(data_fixture, tmpdir):
         "database_field_select_options": {1: 2},
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_form_view = form_view_type.import_serialized(
             form_view.table,
             serialized,
@@ -726,7 +726,7 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
 
     assert r_groups.stored == recorded_groups_created
 
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+    with ZipFile(files_buffer, "r", ZIP_DEFLATED) as zip_file:
         assert zip_file.read(user_file.name) == b"Hello World"
         assert len(zip_file.infolist()) == 1
 
@@ -738,7 +738,7 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
         "database_field_select_options": {1: 2},
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_form_view = form_view_type.import_serialized(
             form_view.table,
             serialized,

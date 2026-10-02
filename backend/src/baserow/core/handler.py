@@ -1994,7 +1994,7 @@ class CoreHandler:
         if isinstance(
             files_buffer, (bytes, bytearray, memoryview, BytesIO, BufferedReader)
         ):
-            files_zip = ZipFile(files_buffer, "a", ZIP_DEFLATED, False)
+            files_zip = ZipFile(files_buffer, "a", ZIP_DEFLATED)
         else:
             files_zip = files_buffer
         try:

@@ -772,7 +772,7 @@ def test_export_user_file_doesnt_add_if_file_in_cache(
     cache = {f"user_file_{user_file.name}": True}
     files_buffer = BytesIO()
     storage.open = MagicMock()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         result = handler.export_user_file(
             user_file, files_zip=files_zip, storage=storage, cache=cache
         )
@@ -883,7 +883,7 @@ def test_import_user_file_returns_none_if_name_or_original_name_are_empty(
     serialized_user_file = {"name": name, "original_name": original_name}
 
     files_buffer = BytesIO()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         result = handler.import_user_file(
             serialized_user_file,
             files_zip=files_zip,
@@ -909,7 +909,7 @@ def test_import_user_file_returns_user_file_from_files_zip(tmpdir):
 
     files_buffer = BytesIO()
     mock_handle = MagicMock()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         # Populate the files_zip with a file, which we expect import_user_file()
         # to later extract.
         files_zip.writestr(name, "")

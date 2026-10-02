@@ -120,7 +120,7 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
     timeline_view_type = view_type_registry.get("timeline")
 
     files_buffer = BytesIO()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         serialized = timeline_view_type.export_serialized(
             timeline_view,
             ImportExportConfig(include_permission_data=False),
@@ -155,7 +155,7 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
         }
     }
 
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
+    with ZipFile(files_buffer, "a", ZIP_DEFLATED) as files_zip:
         imported_timeline_view = timeline_view_type.import_serialized(
             timeline_view.table,
             serialized,

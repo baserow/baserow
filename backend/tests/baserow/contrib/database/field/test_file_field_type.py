@@ -1,4 +1,5 @@
 import json
+import zipfile
 from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -8,6 +9,7 @@ from django.core.files.storage import FileSystemStorage
 from django.urls import reverse
 
 import pytest
+import zipstream.ng
 from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK
 
@@ -208,7 +210,13 @@ def test_file_field_type(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_file
-def test_import_export_file_field(data_fixture, tmpdir):
+@pytest.mark.parametrize("zip64_limit", [None, 100], ids=["standard", "zip64"])
+def test_import_export_file_field(data_fixture, tmpdir, monkeypatch, zip64_limit):
+    if zip64_limit is not None:
+        # Exercise ZIP64 offsets without creating a multi-gigabyte archive.
+        monkeypatch.setattr(zipfile, "ZIP64_LIMIT", zip64_limit)
+        monkeypatch.setattr(zipstream.ng, "ZIP64_LIMIT", zip64_limit)
+
     user = data_fixture.create_user()
     imported_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user)
@@ -256,9 +264,11 @@ def test_import_export_file_field(data_fixture, tmpdir):
         import_export_config=config,
     )
 
+    assert (b"PK\x06\x06" in files_buffer.getvalue()) == (zip64_limit is not None)
+
     # We expect that the exported zip file contains the user file used in the created
     # rows.
-    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+    with ZipFile(files_buffer, "r", ZIP_DEFLATED) as zip_file:
         assert zip_file.read(user_file.name) == b"Hello World"
 
     assert (
