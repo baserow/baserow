@@ -353,8 +353,11 @@ class BuilderWorkflowActionService:
             context=workflow_action,
         )
 
+        # A published builder has no workspace of its own; the licence that
+        # decides whether the action type may run is the one of the workspace
+        # it was published from.
         workflow_action.get_type().raise_if_deactivated(
-            workflow_action.page.builder.workspace
+            workflow_action.page.builder.get_workspace()
         )
 
         update_sample_data = self._can_update_sample_data(
