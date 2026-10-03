@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Prevents errors when closing formula editors in Application Builder",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-30"
+}
