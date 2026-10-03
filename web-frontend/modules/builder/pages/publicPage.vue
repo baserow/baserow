@@ -23,6 +23,7 @@ import {
 import {
   resolveApplicationRoute,
   resolveBuilderPagePath,
+  resolveSafeNextPath,
 } from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
@@ -127,32 +128,14 @@ const {
 
     if (!builder || (builderId && builderId !== builder.id)) {
       try {
-        if (mode === 'preview') {
-          const { id: receivedBuilderId } = await store.dispatch(
-            'publicBuilder/fetchPreview',
-            { builderId }
-          )
-          builder = await store.dispatch(
-            'application/selectById',
-            receivedBuilderId
-          )
-        } else if (builderId) {
-          await store.dispatch('publicBuilder/fetchById', { builderId })
-          builder = await store.dispatch('application/selectById', builderId)
-        } else {
-          // We don't have the builderId so it's a public page.
-          // Must fetch the builder instance by domain name.
-          const { id: receivedBuilderId } = await store.dispatch(
-            'publicBuilder/fetchByDomain',
-            {
-              domain: requestHostname,
-            }
-          )
-          builder = await store.dispatch(
-            'application/selectById',
-            receivedBuilderId
-          )
-        }
+        const { id: receivedBuilderId } = await store.dispatch(
+          'publicBuilder/fetch',
+          { mode, builderId, domain: requestHostname }
+        )
+        builder = await store.dispatch(
+          'application/selectById',
+          receivedBuilderId
+        )
       } catch (e) {
         if (
           e.response?.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID' ||
@@ -184,6 +167,7 @@ const {
           : null,
     })
 
+    let restoredAuthentication = false
     if (
       (!import.meta.server || import.meta.server) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
@@ -205,6 +189,7 @@ const {
             application: builder,
             token: refreshToken,
           })
+          restoredAuthentication = true
         } catch (error) {
           if (error.response?.status === 401) {
             // We logoff as the token has probably expired or became invalid
@@ -219,6 +204,15 @@ const {
           }
         }
       }
+    }
+
+    const nextPath = restoredAuthentication
+      ? resolveSafeNextPath(query.next)
+      : null
+    if (nextPath) {
+      return nuxtApp.runWithContext(() =>
+        navigateTo(nextPath, { redirectCode: 303 })
+      )
     }
 
     if (needPostBuilderLoading) {

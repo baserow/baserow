@@ -18,7 +18,7 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     meta: {
       previewBuilderRoute: true,
-      middleware: ['exchangePreviewToken'],
+      middleware: ['exchangePreviewToken', 'userSourceAuthProviderCallback'],
       builderPageMode: 'preview',
     },
   },
@@ -26,6 +26,7 @@ export const routes = [
     name: 'application-builder-published',
     path: '/builder/published/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
+    meta: { middleware: ['userSourceAuthProviderCallback'] },
   },
   {
     name: 'application-builder-page',
@@ -33,6 +34,9 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     // If publishedBuilderRoute is true, then that route will only be used on a
     // different subdomain.
-    meta: { publishedBuilderRoute: true },
+    meta: {
+      publishedBuilderRoute: true,
+      middleware: ['userSourceAuthProviderCallback'],
+    },
   },
 ]
