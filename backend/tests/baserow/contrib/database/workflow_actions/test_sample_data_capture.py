@@ -666,7 +666,7 @@ def test_a_transport_failure_of_no_known_kind_is_not_logged_either(data_fixture)
 @pytest.mark.django_db
 def test_an_answer_that_cannot_be_kept_is_not_logged_with_the_answer(data_fixture):
     """
-    Keeping the shape can fail on what the endpoint answered with: a NUL byte
+    Keeping the shape can fail on what the endpoint answered with: a NaN
     encodes here and is then refused by the column it is written to. The frame
     holds the whole answer, response headers included, so the failure itself
     cannot be logged.
@@ -681,9 +681,11 @@ def test_an_answer_that_cannot_be_kept_is_not_logged_with_the_answer(data_fixtur
     written = []
     sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
     try:
-        # The NUL is what the column refuses; the secret is what must
+        # The NaN is what the column refuses; the secret is what must
         # not be logged when it does.
-        with mock_advocate_request({"secret": "sk-ANSWERSECRET", "nul": "a\u0000b"}):
+        with mock_advocate_request(
+            {"secret": "sk-ANSWERSECRET", "ratio": float("nan")}
+        ):
             DatabaseWorkflowActionService().dispatch_workflow_actions(
                 user, button_field, row
             )
@@ -698,6 +700,28 @@ def test_an_answer_that_cannot_be_kept_is_not_logged_with_the_answer(data_fixtur
     assert "sk-ANSWERSECRET" not in logged
     # The action is still named, so an operator can find what failed.
     assert str(action.id) in logged
+
+
+@pytest.mark.django_db
+def test_a_nul_byte_in_an_answer_no_longer_loses_its_shape(data_fixture):
+    """
+    The column refuses a NUL byte too, but the HTTP request service removes
+    those from a text or JSON answer before it gets here, so the shape is kept.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "a\u0000b"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    action.service.refresh_from_db()
+    assert action.service.sample_data["data"]["body"] == {"title": "ab"}
 
 
 @pytest.mark.django_db

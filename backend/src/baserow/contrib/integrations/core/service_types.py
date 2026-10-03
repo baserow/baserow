@@ -75,7 +75,10 @@ from baserow.contrib.integrations.core.models import (
     HTTPQueryParam,
     generate_inbound_email_token,
 )
-from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.contrib.integrations.core.utils import (
+    calculate_next_periodic_run,
+    is_text_media_type,
+)
 from baserow.contrib.integrations.utils import (
     send_http_request,
 )
@@ -120,6 +123,7 @@ from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow.core.utils import remove_null_characters
 from baserow.version import VERSION as BASEROW_VERSION
 
 if TYPE_CHECKING:
@@ -553,6 +557,18 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 },
             )
 
+        if allowed_fields is None or "body_omitted" in allowed_fields:
+            properties.update(
+                **{
+                    "body_omitted": {
+                        "type": "boolean",
+                        "title": "Body omitted",
+                        "description": "True when the response was not text (a "
+                        "PDF, an image) and its body was not kept.",
+                    },
+                },
+            )
+
         if allowed_fields is None or "headers" in allowed_fields:
             schema = {}
             if sample_data:
@@ -769,7 +785,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             ) from e
         except request_exceptions.Timeout:
             return {
-                "data": {"raw_body": "", "body": "", "headers": {}, "status_code": 504}
+                "data": {
+                    "raw_body": "",
+                    "body": "",
+                    "body_omitted": False,
+                    "headers": {},
+                    "status_code": 504,
+                }
             }
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
@@ -785,23 +807,41 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             )
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
-        try:
-            # Try to parse as JSON regardless of Content-Type. A misconfigured
-            # API may return JSON but forget to set the content-type.
-            response_body = response.json()
-        except request_exceptions.JSONDecodeError:
-            # Otherwise, fall back to text
-            response_body = response.text
-
         # Preserve the original keys for existing formulas and add normalized
         # aliases so new formulas don't depend on the server's casing.
         response_headers = dict(response.headers.items())
         for key, value in tuple(response_headers.items()):
             response_headers.setdefault(key.lower(), value)
 
+        body_omitted = not is_text_media_type(response_headers.get("content-type"))
+        if not body_omitted:
+            try:
+                # Try to parse as JSON whatever the text media type says. A
+                # misconfigured API may return JSON as `text/html`, or without
+                # a content-type at all.
+                response_body = response.json()
+            except request_exceptions.JSONDecodeError:
+                # Otherwise, fall back to text
+                response_body = response.text
+
+            # A JSON body can carry a NUL character as `\u0000`, a text body as
+            # a raw byte. PostgreSQL refuses a NUL in json and text columns,
+            # and the body lands in several: the node result, the sample data
+            # of a test run, and any row a later node writes it into. Remove
+            # them once, here.
+            response_body = remove_null_characters(response_body)
+        else:
+            # A body that isn't text (a PDF, an image, an archive) is of no use
+            # to a later node, and decoding it would store garbage in every
+            # node result and in the sample data of a test run. The status code
+            # and the headers still say what came back, and `body_omitted`
+            # lets a workflow tell an empty answer from a discarded one.
+            response_body = ""
+
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
             "body": response_body,
+            "body_omitted": body_omitted,
             "headers": response_headers,
             "status_code": response.status_code,
         }

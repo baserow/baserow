@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "The HTTP request node no longer stores the body of binary responses such as PDFs and flags them with `body_omitted`, and a response holding NUL characters no longer leaves an automation run hanging.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-09-30"
+}

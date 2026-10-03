@@ -640,6 +640,7 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
       type: 'object',
       properties: {
         raw_body: { type: 'string', title: 'Raw body' },
+        body_omitted: { type: 'boolean', title: 'Body omitted' },
         headers: {
           type: 'object',
           title: 'Headers',

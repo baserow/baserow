@@ -667,6 +667,35 @@ def remove_invalid_surrogate_characters(
     )
 
 
+def remove_null_characters(value: Any) -> Any:
+    """
+    Removes NUL characters (U+0000) from every string in `value`, descending
+    into dicts (keys included), lists and tuples. Any other value is returned
+    as it is.
+
+    PostgreSQL can't store a NUL character in a text or json column, so content
+    that comes from outside (an HTTP response body, a file) has to be cleaned
+    before it's persisted, or the insert fails with a `DataError` and breaks
+    the surrounding transaction.
+
+    :param value: The value to clean.
+    :return: The same structure, without NUL characters in its strings.
+    """
+
+    if isinstance(value, str):
+        return value.replace("\x00", "") if "\x00" in value else value
+    if isinstance(value, dict):
+        return {
+            remove_null_characters(key): remove_null_characters(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [remove_null_characters(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(remove_null_characters(item) for item in value)
+    return value
+
+
 def split_ending_number(name: str) -> Tuple[str, str]:
     """
     Splits a string into two parts, the first part is the string before the last
