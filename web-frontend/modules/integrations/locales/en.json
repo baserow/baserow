@@ -44,6 +44,9 @@
     "localBaserowUpdateRowsDescription": "Updates multiple existing rows in a Baserow table.",
     "localBaserowDeleteRow": "Delete rows",
     "localBaserowDeleteRowDescription": "Deletes one or more rows in a Baserow table.",
+    "localBaserowVectorSearch": "Vector search",
+    "localBaserowVectorSearchDescription": "Finds the rows whose text is closest in meaning to a query, in a field with vector search enabled.",
+    "errorNoVectorFieldSelected": "No field selected to search in.",
     "localBaserowRowsCreated": "Rows are created",
     "localBaserowRowsCreatedDescription": "Triggered when rows are created in a Baserow table.",
     "localBaserowRowsUpdated": "Rows are updated",
@@ -422,5 +425,18 @@
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
     "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+  },
+  "localBaserowVectorSearchForm": {
+    "fieldLabel": "Field to search",
+    "fieldHelper": "Only long text fields with vector search enabled in their advanced settings are listed.",
+    "fieldPlaceholder": "Choose a field",
+    "noVectorFields": "This table has no field with vector search enabled yet.",
+    "includedFieldsLabel": "Fields in the results",
+    "includedFieldsHelper": "Keep this short so the agent only reads what it needs. Every field when empty.",
+    "includedFieldsPlaceholder": "All fields",
+    "maxResultsLabel": "Maximum number of results",
+    "searchQueryLabel": "Search query",
+    "searchQueryHelper": "What to look for. An agent tool fills this in from its query input.",
+    "searchQueryPlaceholder": "Search text"
   }
 }

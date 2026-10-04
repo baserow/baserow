@@ -104,3 +104,17 @@ def get_search_indexes(workspace_id: int) -> list[models.Index]:
         )
     ]
     return indexes
+
+
+class WorkspaceSearchTable(models.Model):
+    """
+    Tracks which optional columns have been added to a workspace's
+    `database_search_workspace_{id}_data` table. The table itself is created
+    lazily by the search task, so columns introduced later are added in the
+    same lazy way and recorded here, like the column flags on `Table`.
+    """
+
+    workspace = models.OneToOneField(
+        "core.Workspace", on_delete=models.CASCADE, related_name="search_table_state"
+    )
+    embedding_columns_added = models.BooleanField(default=False, db_default=False)

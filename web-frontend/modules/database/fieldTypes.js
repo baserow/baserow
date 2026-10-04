@@ -1167,6 +1167,14 @@ export class FieldType extends Registerable {
   canHaveDbIndex(fieldValues) {
     return false
   }
+
+  /**
+   * Whether the field type can keep an embedding per cell so it can be
+   * searched semantically. Mirrors `FieldType._can_have_vector_search`.
+   */
+  canHaveVectorSearch(fieldValues) {
+    return false
+  }
 }
 
 class SelectOptionBaseFieldType extends FieldType {
@@ -1365,6 +1373,10 @@ export class LongTextFieldType extends FieldType {
 
   getFormComponent() {
     return FieldLongTextSubForm
+  }
+
+  canHaveVectorSearch(fieldValues) {
+    return true
   }
 
   getGridViewFieldComponent(field) {

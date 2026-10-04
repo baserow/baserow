@@ -201,6 +201,35 @@ class LocalBaserowRowsDeleted(LocalBaserowTableService):
     """
 
 
+class LocalBaserowVectorSearch(LocalBaserowTableService):
+    """
+    Semantic search over one vector-enabled field of a table. Used as an agent
+    action tool: the agent supplies the query, the results carry the chosen
+    fields of the best matching rows.
+    """
+
+    field = models.ForeignKey(
+        "database.Field",
+        help_text="The field with vector search enabled that is searched.",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    included_fields = models.ManyToManyField(
+        "database.Field",
+        help_text="The fields returned for every matching row. All fields when empty.",
+        related_name="+",
+    )
+    max_results = models.PositiveIntegerField(
+        default=5, db_default=5, help_text="The maximum number of rows returned."
+    )
+    search_query = FormulaField(default="", help_text="The text to search for.")
+
+    @property
+    def included_field_ids(self) -> list[int]:
+        return list(self.included_fields.values_list("id", flat=True))
+
+
 class LocalBaserowFieldsUpdated(LocalBaserowTableService):
     """
     A model for the local baserow field updated trigger service. Unlike

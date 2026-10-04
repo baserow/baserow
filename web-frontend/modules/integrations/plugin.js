@@ -16,6 +16,7 @@ import {
   LocalBaserowRowsUpdatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowFieldsUpdatedTriggerServiceType,
+  LocalBaserowVectorSearchServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreCSVFileReaderServiceType,
@@ -78,6 +79,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'service',
       new LocalBaserowDeleteRowWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowVectorSearchServiceType(context)
     )
     $registry.register('service', new CoreHTTPRequestServiceType(context))
     $registry.register('service', new CoreSMTPEmailServiceType(context))

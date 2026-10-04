@@ -4,6 +4,7 @@ from baserow.api.user_files.serializers import UserFileField
 from baserow.contrib.integrations.core.inbound_email import (
     is_inbound_email_configured,
 )
+from baserow.core.embeddings import vector_search_available
 from baserow.core.models import Settings
 
 
@@ -11,6 +12,10 @@ class SettingsSerializer(serializers.ModelSerializer):
     co_branding_logo = UserFileField(
         required=False,
         help_text="Co-branding logo that's placed next to the Baserow logo (176x29).",
+    )
+    vector_search_available = serializers.SerializerMethodField(
+        help_text="Whether fields can enable vector search on this instance: the "
+        "embeddings service and pgvector are configured. Read-only.",
     )
     inbound_email_enabled = serializers.SerializerMethodField(
         help_text="Whether this instance is configured to receive inbound email "
@@ -34,6 +39,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "verify_import_signature",
             "allow_reporting_abuse",
             "inbound_email_enabled",
+            "vector_search_available",
         )
         extra_kwargs = {
             "allow_new_signups": {"required": False},
@@ -50,6 +56,9 @@ class SettingsSerializer(serializers.ModelSerializer):
 
     def get_inbound_email_enabled(self, instance) -> bool:
         return is_inbound_email_configured()
+
+    def get_vector_search_available(self, instance) -> bool:
+        return vector_search_available()
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

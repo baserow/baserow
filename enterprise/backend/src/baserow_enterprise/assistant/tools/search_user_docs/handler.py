@@ -11,10 +11,10 @@ from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import transaction
 
-from httpx import Client as httpxClient
 from loguru import logger
 from pgvector.django import L2Distance
 
+from baserow.core.embeddings import BaserowEmbedder  # noqa: F401
 from baserow_enterprise.assistant.models import (
     DEFAULT_CATEGORIES,
     KnowledgeBaseCategory,
@@ -56,53 +56,6 @@ def split_document(content: str):
         boundary = content.find(" ", start, end)
         if boundary >= 0:
             start = boundary + 1
-
-
-class BaserowEmbedder:
-    def __init__(self, api_url: str):
-        self.api_url = api_url
-
-    def _embed(self, texts: list[str], batch_size=8) -> list[list[float]]:
-        embeddings = []
-        client = httpxClient(base_url=self.api_url)
-        try:
-            for i in range(0, len(texts), batch_size):
-                response = client.post(
-                    "/embed", json={"texts": texts[i : i + batch_size]}
-                )
-                response.raise_for_status()
-                embeddings.extend(response.json()["embeddings"])
-        finally:
-            client.close()
-        return embeddings
-
-    def __call__(self, texts: list[str]) -> list[list[float]]:
-        if not texts:
-            return []
-
-        if not isinstance(texts, (list, tuple)):
-            texts = [texts]
-
-        embeddings = self._embed(texts)
-
-        if len(embeddings) != len(texts):
-            raise ValueError(
-                f"Expected {len(texts)} embeddings, but got {len(embeddings)}"
-            )
-
-        # Ensure the dimensions are correct
-        if len(embeddings[0]) > KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
-            raise ValueError(
-                f"Expected embeddings of dimension {KnowledgeBaseChunk.EMBEDDING_DIMENSIONS}, "
-                "but got {len(embeddings[0])}"
-            )
-        elif len(embeddings[0]) < KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
-            # Pad the embeddings with zeros if they are smaller than expected
-            for i in range(len(embeddings)):
-                embeddings[i] = embeddings[i] + [0.0] * (
-                    KnowledgeBaseChunk.EMBEDDING_DIMENSIONS - len(embeddings[i])
-                )
-        return embeddings
 
 
 class VectorHandler:

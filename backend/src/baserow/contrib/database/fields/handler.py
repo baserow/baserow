@@ -92,6 +92,8 @@ from .exceptions import (
     PrimaryFieldAlreadyExists,
     ReservedBaserowFieldNameException,
     TableHasNoPrimaryField,
+    VectorSearchNotAvailableError,
+    VectorSearchNotSupportedError,
 )
 from .field_cache import FieldCache
 from .models import Field, FieldConstraint, SelectOption, SpecificFieldForUpdate
@@ -275,6 +277,21 @@ class FieldHandler:
             specific_field,
         )
 
+    def _validate_vector_search(self, field_type, field: Field):
+        """
+        Vector search needs a field type that renders its values as embeddable
+        text and an instance with an embeddings service and pgvector.
+        """
+
+        from baserow.core.embeddings import vector_search_available
+
+        if not field.vector_search_enabled:
+            return
+        if not field_type.can_have_vector_search(field):
+            raise VectorSearchNotSupportedError(field_type.type)
+        if not vector_search_available():
+            raise VectorSearchNotAvailableError()
+
     def create_field(
         self,
         user: AbstractUser,
@@ -343,6 +360,7 @@ class FieldHandler:
             "immutable_type",
             "immutable_properties",
             "db_index",
+            "vector_search_enabled",
         ] + field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
         last_order = model_class.get_last_order(table)
@@ -399,6 +417,8 @@ class FieldHandler:
 
         if instance.db_index and not field_type.can_have_db_index(instance):
             raise DbIndexNotSupportedError(field_type.type)
+
+        self._validate_vector_search(field_type, instance)
 
         # Add the field to the table schema.
         with safe_django_schema_editor(atomic=False) as schema_editor:
@@ -578,6 +598,7 @@ class FieldHandler:
             "immutable_type",
             "immutable_properties",
             "db_index",
+            "vector_search_enabled",
         ] + to_field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
 
@@ -616,6 +637,12 @@ class FieldHandler:
             needs_to_update_search_data = from_field_type.should_update_search_data(
                 old_field, field_values
             )
+        if (
+            "vector_search_enabled" in field_values
+            and field_values["vector_search_enabled"] != old_field.vector_search_enabled
+        ):
+            # Embeddings are computed (or cleared) by the search data pipeline.
+            needs_to_update_search_data = True
 
         self._validate_name_and_optionally_rename_if_collision(
             field, field_values, postfix_to_fix_name_collisions
@@ -662,6 +689,8 @@ class FieldHandler:
             # If the user explicitly set the `db_index` to true, but it's not
             # compatible, then we want to fail hard so that the user is aware.
             raise DbIndexNotSupportedError(to_field_type.type)
+
+        self._validate_vector_search(to_field_type, field)
 
         # If no converter is found we are going to convert to field using the
         # lenient schema editor which will alter the field's type and set the data

@@ -52,3 +52,49 @@ describe('FieldForm field type dropdown', () => {
     expect(Object.keys(wrapper.vm.fieldTypes)).toContain('button')
   })
 })
+
+describe('FieldForm vector search option', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const mountForm = async (defaultValues = {}) =>
+    testApp.mount(FieldForm, {
+      shallow: true,
+      propsData: {
+        table: { id: 1 },
+        view: null,
+        primary: false,
+        allFieldsInTable: [{ id: 1, type: 'text', name: 'Name' }],
+        database: { id: 1, workspace: { id: 1 } },
+        defaultValues,
+      },
+    })
+
+  test('only long text fields on a configured instance can enable it', async () => {
+    const wrapper = await mountForm({ type: 'long_text' })
+    expect(wrapper.vm.canHaveVectorSearch).toBe(true)
+    expect(wrapper.vm.vectorSearchAvailable).toBe(false)
+
+    testApp.store.commit('settings/UPDATE_SETTINGS', {
+      vector_search_available: true,
+    })
+    expect(wrapper.vm.vectorSearchAvailable).toBe(true)
+
+    wrapper.vm.values = { ...wrapper.vm.values, vector_search_enabled: true }
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.getFormValues().vector_search_enabled).toBe(true)
+
+    // Switching to a type without vector search drops the flag on submit.
+    wrapper.vm.values = { ...wrapper.vm.values, type: 'text' }
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.canHaveVectorSearch).toBe(false)
+    expect(wrapper.vm.getFormValues().vector_search_enabled).toBe(false)
+  })
+})

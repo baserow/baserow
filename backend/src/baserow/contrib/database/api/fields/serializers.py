@@ -71,6 +71,7 @@ class FieldSerializer(serializers.ModelSerializer):
             "database_id",
             "workspace_id",
             "db_index",
+            "vector_search_enabled",
             "field_constraints",
         )
         extra_kwargs = {
@@ -163,7 +164,14 @@ class CreateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description", "db_index", "field_constraints")
+        fields = (
+            "name",
+            "type",
+            "description",
+            "db_index",
+            "vector_search_enabled",
+            "field_constraints",
+        )
         extra_kwargs = {
             "description": {
                 "required": False,
@@ -172,6 +180,7 @@ class CreateFieldSerializer(serializers.ModelSerializer):
                 "allow_blank": True,
             },
             "db_index": {"required": False},
+            "vector_search_enabled": {"required": False},
         }
 
 
@@ -183,7 +192,14 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Field
-        fields = ("name", "type", "description", "db_index", "field_constraints")
+        fields = (
+            "name",
+            "type",
+            "description",
+            "db_index",
+            "vector_search_enabled",
+            "field_constraints",
+        )
         extra_kwargs = {
             "name": {"required": False},
             "description": {
@@ -193,6 +209,7 @@ class UpdateFieldSerializer(serializers.ModelSerializer):
                 "allow_blank": True,
             },
             "db_index": {"required": False},
+            "vector_search_enabled": {"required": False},
         }
 
     def to_representation(self, instance):

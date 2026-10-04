@@ -98,3 +98,4 @@ except ImportError:
 # reach the backend through PRIVATE_BACKEND_URL, whose hostname is allowed in
 # the base settings.
 ALLOWED_HOSTS.append("host.docker.internal")  # noqa: F405
+ALLOWED_HOSTS.append("cdcb-82-174-173-79.ngrok-free.app")

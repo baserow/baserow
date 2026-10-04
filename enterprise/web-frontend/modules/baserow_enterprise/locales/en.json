@@ -1280,7 +1280,9 @@
     "addHeader": "Add header",
     "runsAs": "Runs as",
     "agentsIdentity": "the agent’s identity",
-    "noIdentity": "No identity"
+    "noIdentity": "No identity",
+    "vectorSearchDescription": "Finds the rows whose text is closest in meaning to the query. Use it to look up records by topic or description instead of exact words.",
+    "vectorSearchQueryInput": "What to search for, in natural language"
   },
   "agentMemory": {
     "placeholder": "Nothing remembered yet. Try “Remember to …” in a chat, or write a note here.",

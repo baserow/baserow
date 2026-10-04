@@ -17,6 +17,7 @@ import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integr
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
+import LocalBaserowVectorSearchForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowVectorSearchForm'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -602,6 +603,37 @@ export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpser
 
   get description() {
     return this.app.$i18n.t('serviceType.localBaserowUpdateRowsDescription')
+  }
+}
+
+export class LocalBaserowVectorSearchServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'local_baserow_vector_search'
+  }
+
+  get icon() {
+    return 'iconoir-search'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowVectorSearch')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowVectorSearchDescription')
+  }
+
+  get formComponent() {
+    return LocalBaserowVectorSearchForm
+  }
+
+  getErrorMessage({ service, application }) {
+    if (service !== undefined && service.table_id && !service.field_id) {
+      return this.app.$i18n.t('serviceType.errorNoVectorFieldSelected')
+    }
+    return super.getErrorMessage({ service, application })
   }
 }
 

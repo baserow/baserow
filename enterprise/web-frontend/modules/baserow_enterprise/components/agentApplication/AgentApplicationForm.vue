@@ -1,5 +1,5 @@
 <template>
-  <form class="agent-create" @submit.prevent="submit">
+  <form class="agent-create" @submit.prevent="onSubmit">
     <template v-if="step === 1">
       <FormGroup
         :error="v$.values.name.$error"
@@ -318,6 +318,15 @@ export default {
       this.values.description = template.description
       if (this.values.name === '' || this.values.name === this.defaultName) {
         this.values.name = template.name
+      }
+    },
+    // Enter on the first step moves to the review step like the Continue
+    // button does; the agent is only created from the review step.
+    onSubmit() {
+      if (this.step === 1) {
+        this.continueToReview()
+      } else {
+        this.submit()
       }
     },
     async continueToReview() {

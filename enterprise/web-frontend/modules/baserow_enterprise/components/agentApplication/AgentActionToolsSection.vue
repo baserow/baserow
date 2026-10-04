@@ -361,9 +361,12 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 const SUPPORTED_SERVICE_TYPES = [
   'local_baserow_upsert_row',
   'local_baserow_delete_row',
+  'local_baserow_vector_search',
   'http_request',
   'smtp_email',
 ]
+// Vector search is a read tool with one fixed input: the agent's query.
+const VECTOR_SEARCH_SERVICE_TYPE = 'local_baserow_vector_search'
 
 const INPUT_TYPES = ['string', 'number', 'boolean']
 
@@ -585,15 +588,31 @@ export default {
       this.$refs.addToolContext.hide()
       this.addLoading = true
       try {
+        const values = {
+          type: 'service',
+          name: serviceType.name,
+          config: {},
+          service_type: serviceType.getType(),
+          service: {},
+        }
+        if (serviceType.getType() === VECTOR_SEARCH_SERVICE_TYPE) {
+          values.config = {
+            description: this.$t('agentActionTools.vectorSearchDescription'),
+            inputs: [
+              {
+                name: 'query',
+                type: 'string',
+                description: this.$t('agentActionTools.vectorSearchQueryInput'),
+                required: true,
+              },
+            ],
+            require_approval: false,
+          }
+          values.service = { search_query: "get('tool_input.query')" }
+        }
         const tool = await this.$store.dispatch('agentApplication/createTool', {
           applicationId: this.application.id,
-          values: {
-            type: 'service',
-            name: serviceType.name,
-            config: {},
-            service_type: serviceType.getType(),
-            service: {},
-          },
+          values,
         })
         this.ensureDraft(tool)
       } catch (error) {

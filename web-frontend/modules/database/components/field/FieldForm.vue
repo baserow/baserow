@@ -190,6 +190,43 @@
               {{ $t('fieldForm.dbIndexDescription') }}
             </p>
           </div>
+
+          <FormGroup
+            :label="$t('fieldForm.vectorSearch')"
+            :small-label="true"
+            :horizontal-variable="true"
+            required
+            class="margin-top-2"
+          >
+            <div class="control__elements flex justify-content-end">
+              <SwitchInput
+                v-tooltip="vectorSearchDisabledTooltip"
+                :value="!!canHaveVectorSearch && values.vector_search_enabled"
+                :small="true"
+                :disabled="!canHaveVectorSearch || !vectorSearchAvailable"
+                class="inline-flex"
+                @input="values.vector_search_enabled = $event"
+              ></SwitchInput>
+            </div>
+          </FormGroup>
+          <div class="control__messages padding-top-0">
+            <p
+              v-if="vectorSearchError"
+              class="control__messages--error field-context__inner-element-width"
+            >
+              {{ $t(`fieldForm.${vectorSearchError}`) }}
+            </p>
+            <p class="control__helper-text field-context__inner-element-width">
+              {{ $t('fieldForm.vectorSearchDescription') }}
+            </p>
+          </div>
+          <Alert
+            v-if="canHaveVectorSearch && values.vector_search_enabled"
+            type="warning"
+            class="field-context__inner-element-width margin-top-0"
+          >
+            <p>{{ $t('fieldForm.vectorSearchWarning') }}</p>
+          </Alert>
         </div>
       </form>
     </div>
@@ -256,6 +293,7 @@ export default {
         'type',
         'description',
         'db_index',
+        'vector_search_enabled',
         'field_constraints',
       ],
       values: {
@@ -263,6 +301,7 @@ export default {
         type: this.forcedType || this.defaultValues.type,
         description: this.defaultValues.description,
         db_index: this.defaultValues.db_index,
+        vector_search_enabled: !!this.defaultValues.vector_search_enabled,
         field_constraints: this.defaultValues.field_constraints || [],
       },
       isPrefilledWithSuggestedFieldName: false,
@@ -270,6 +309,7 @@ export default {
       showDescription: false,
       selectedTabIndex: 0,
       dbIndexError: false,
+      vectorSearchError: null,
       fieldConstraintError: null,
     }
   },
@@ -305,6 +345,29 @@ export default {
 
       const values = Object.assign({}, this.defaultValues, this.values)
       return this.$registry.get('field', values.type).canHaveDbIndex(values)
+    },
+    canHaveVectorSearch() {
+      if (!this.values.type) {
+        return false
+      }
+      const values = Object.assign({}, this.defaultValues, this.values)
+      return this.$registry
+        .get('field', values.type)
+        .canHaveVectorSearch(values)
+    },
+    vectorSearchAvailable() {
+      return (
+        this.$store.getters['settings/get']?.vector_search_available === true
+      )
+    },
+    vectorSearchDisabledTooltip() {
+      if (!this.canHaveVectorSearch) {
+        return this.$t('fieldForm.vectorSearchDisabledTooltip')
+      }
+      if (!this.vectorSearchAvailable) {
+        return this.$t('fieldForm.vectorSearchUnavailableTooltip')
+      }
+      return null
     },
     fieldForConstraints() {
       return {
@@ -394,6 +457,7 @@ export default {
     },
     async submit(deep) {
       this.dbIndexError = false
+      this.vectorSearchError = null
       this.fieldConstraintError = null
       await form.methods.submit.bind(this)(deep)
     },
@@ -489,6 +553,8 @@ export default {
       // field type is supported.
       return Object.assign({}, this.values, this.getChildFormsValues(), {
         db_index: this.canHaveDbIndex && this.values.db_index,
+        vector_search_enabled:
+          this.canHaveVectorSearch && this.values.vector_search_enabled,
       })
     },
     handleErrorByForm(error) {
@@ -499,6 +565,21 @@ export default {
         error.handler.code === 'ERROR_DB_INDEX_NOT_SUPPORTED'
       ) {
         this.showDbIndexError()
+        handled = true
+      }
+
+      if (
+        error.handler &&
+        [
+          'ERROR_VECTOR_SEARCH_NOT_SUPPORTED',
+          'ERROR_VECTOR_SEARCH_NOT_AVAILABLE',
+        ].includes(error.handler.code)
+      ) {
+        this.selectedTabIndex = 1
+        this.vectorSearchError =
+          error.handler.code === 'ERROR_VECTOR_SEARCH_NOT_SUPPORTED'
+            ? 'vectorSearchNotSupportedError'
+            : 'vectorSearchUnavailableError'
         handled = true
       }
 

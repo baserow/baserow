@@ -559,6 +559,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
     }
     _can_have_db_index = True
+    _can_have_vector_search = True
     can_upsert = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:

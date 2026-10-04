@@ -12,19 +12,22 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
+import hashlib
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
 from functools import lru_cache
-from typing import TYPE_CHECKING, Iterable, List
+from itertools import zip_longest
+from typing import TYPE_CHECKING, Callable, Iterable, List
 from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.postgres.search import SearchQuery
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db import IntegrityError, ProgrammingError, connection, router, transaction
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import (
+    CharField,
     DateTimeField,
     Expression,
     F,
@@ -57,7 +60,9 @@ from baserow.contrib.database.search.regexes import (
 )
 from baserow.contrib.database.search.tasks import schedule_update_search_data
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
-from baserow.core.psycopg import errors
+from baserow.core.embeddings import EMBEDDING_TEXT_LIMIT, get_embedder
+from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS, is_pgvector_enabled
+from baserow.core.psycopg import errors, sql
 from baserow.core.utils import to_camel_case
 
 if TYPE_CHECKING:
@@ -103,9 +108,28 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
         return cursor.fetchone()[0]
 
 
+# Rows of the search table are embedded this many at a time.
+EMBEDDING_BATCH_ROWS = 100
+
+
+def _embedding_fields() -> dict:
+    """
+    The optional vector columns of the search table. They only exist on the
+    Django model when pgvector is installed; the columns themselves are added by
+    `ensure_workspace_search_table_columns`.
+    """
+
+    from pgvector.django import VectorField
+
+    return {
+        "embedding": VectorField(dimensions=DEFAULT_EMBEDDING_DIMENSIONS, null=True),
+        "embedding_hash": CharField(max_length=32, null=True),
+    }
+
+
 @lru_cache(maxsize=1024)
 def _generate_search_table_model(
-    workspace_id: int, managed=False
+    workspace_id: int, managed=False, with_embedding=False
 ) -> "AbstractSearchValue":
     """
     Generates the search table model for the given workspace ID. This model is used to
@@ -158,6 +182,8 @@ def _generate_search_table_model(
         "parent": workspace_id,
         "__str__": __str__,
     }
+    if with_embedding:
+        attrs.update(_embedding_fields())
 
     model = type(
         model_name,
@@ -168,6 +194,44 @@ def _generate_search_table_model(
         attrs,
     )
     return model
+
+
+def _add_embedding_columns(workspace_id: int):
+    """
+    Adds the vector columns and the cosine HNSW index to a workspace search
+    table. Every statement is idempotent so a race between tables of the same
+    workspace is harmless.
+    """
+
+    table = sql.Identifier(SearchHandler.get_workspace_search_table_name(workspace_id))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            sql.SQL(
+                "ALTER TABLE {table} "
+                "ADD COLUMN IF NOT EXISTS embedding vector({dims}) NULL, "
+                "ADD COLUMN IF NOT EXISTS embedding_hash varchar(32) NULL"
+            ).format(table=table, dims=sql.Literal(DEFAULT_EMBEDDING_DIMENSIONS))
+        )
+        cursor.execute(
+            sql.SQL(
+                "CREATE INDEX IF NOT EXISTS {index} ON {table} "
+                "USING hnsw (embedding vector_cosine_ops) "
+                "WITH (m=16, ef_construction=64)"
+            ).format(
+                index=sql.Identifier(
+                    f"database_search_workspace_{workspace_id}_embedding_idx"
+                ),
+                table=table,
+            )
+        )
+
+
+# Optional columns of the workspace search tables: the `WorkspaceSearchTable`
+# flag that records them and the function that adds them. Append here when the
+# search table grows a new column.
+SEARCH_TABLE_COLUMN_MIGRATIONS: list[tuple[str, Callable[[int], None]]] = [
+    ("embedding_columns_added", _add_embedding_columns),
+]
 
 
 class SearchDatabaseSchemaEditor(BaseDatabaseSchemaEditor):
@@ -202,7 +266,55 @@ class SearchHandler:
             for the specified workspace.
         """
 
-        return _generate_search_table_model(workspace_id, managed=managed)
+        # The managed model creates the table; its vector columns are added by
+        # `ensure_workspace_search_table_columns` right after, which also covers
+        # tables that existed before the columns did.
+        with_embedding = not managed and is_pgvector_enabled()
+        return _generate_search_table_model(
+            workspace_id, managed=managed, with_embedding=with_embedding
+        )
+
+    @classmethod
+    def ensure_workspace_search_table_columns(cls, workspace_id: int) -> bool:
+        """
+        Adds the optional columns the workspace search table may still be
+        missing, recording each one in `WorkspaceSearchTable`.
+
+        :return: True when the embedding columns are present.
+        """
+
+        from baserow.contrib.database.search.models import WorkspaceSearchTable
+
+        if not is_pgvector_enabled():
+            return False
+
+        state, _ = WorkspaceSearchTable.objects.get_or_create(workspace_id=workspace_id)
+        changed = []
+        for flag, add_columns in SEARCH_TABLE_COLUMN_MIGRATIONS:
+            if not getattr(state, flag):
+                with transaction.atomic():
+                    add_columns(workspace_id)
+                    setattr(state, flag, True)
+                    changed.append(flag)
+        if changed:
+            state.save(update_fields=changed)
+        return state.embedding_columns_added
+
+    @classmethod
+    def vector_search_ready(cls, workspace_id: int) -> bool:
+        """
+        Whether the workspace search table has its embedding columns, without
+        altering anything.
+        """
+
+        from baserow.contrib.database.search.models import WorkspaceSearchTable
+
+        return (
+            is_pgvector_enabled()
+            and WorkspaceSearchTable.objects.filter(
+                workspace_id=workspace_id, embedding_columns_added=True
+            ).exists()
+        )
 
     @classmethod
     def full_text_search_in_table(
@@ -853,6 +965,233 @@ class SearchHandler:
             cursor.execute(raw_sql, params)
 
     @classmethod
+    def _vector_search_fields(
+        cls, table: "Table", field_ids: Iterable[int], include_disabled: bool
+    ) -> dict:
+        """
+        The fields of the batch that have embeddings to compute. Fields whose
+        vector search was switched off are only included for full-field runs,
+        which is what toggling the option schedules, so their embeddings get
+        cleared once instead of on every cell batch.
+        """
+
+        wanted = set(field_ids)
+        model = table.get_model()
+        return {
+            f.id: f
+            for f in model.get_searchable_fields(include_trash=True)
+            if f.id in wanted and (f.vector_search_enabled or include_disabled)
+        }
+
+    @classmethod
+    def update_embeddings(
+        cls,
+        table: "Table",
+        field_ids: Iterable[int],
+        row_ids: Iterable[int] | None = None,
+        deadline: float | None = None,
+        embedder: Callable[[list[str]], list[list[float]]] | None = None,
+    ) -> bool:
+        """
+        Computes the embeddings of the given fields' cells and stores them in
+        the workspace search table. The texts are read without a lock, embedded
+        through the external service, and written in one short update per
+        batch, so the search rows are never locked while waiting on the service.
+        A cell is only embedded when the md5 of its text differs from the stored
+        `embedding_hash`, which makes retries and resumed runs cheap. Fields with
+        vector search switched off get their embeddings cleared.
+
+        :param deadline: `time.monotonic()` value after which the run stops.
+        :return: False when the deadline was hit or the service failed, so the
+            pending updates must be kept for a later run.
+        """
+
+        fields = cls._vector_search_fields(
+            table, field_ids, include_disabled=row_ids is None
+        )
+        if not fields:
+            return True
+
+        workspace_id = table.database.workspace_id
+        if not cls.ensure_workspace_search_table_columns(workspace_id):
+            # Without pgvector there is nothing to store; the option can't be
+            # enabled in that case either.
+            return True
+        search_table = cls.get_workspace_search_table_name(workspace_id)
+        model = table.get_model()
+
+        for field in fields.values():
+            if not field.vector_search_enabled:
+                cls._clear_embeddings(search_table, field.id)
+                continue
+            if embedder is None:
+                embedder = get_embedder()
+            qs = model.objects_and_trash.all().order_by("id")
+            if row_ids is not None:
+                qs = qs.filter(id__in=list(row_ids))
+            expression = field.get_type().get_vector_search_expression(field, qs)
+            cells = qs.annotate(vector_search_text=expression).values_list(
+                "id", "vector_search_text"
+            )
+            batch: list[tuple[int, str]] = []
+            for row_id, text in cells.iterator(chunk_size=EMBEDDING_BATCH_ROWS):
+                batch.append((row_id, (text or "")[:EMBEDDING_TEXT_LIMIT]))
+                if len(batch) >= EMBEDDING_BATCH_ROWS:
+                    if deadline is not None and time.monotonic() > deadline:
+                        return False
+                    if not cls._embed_batch(search_table, field.id, batch, embedder):
+                        return False
+                    batch = []
+            if batch and not cls._embed_batch(search_table, field.id, batch, embedder):
+                return False
+        return True
+
+    @classmethod
+    def _embed_batch(
+        cls,
+        search_table: str,
+        field_id: int,
+        batch: list[tuple[int, str]],
+        embedder: Callable[[list[str]], list[list[float]]],
+    ) -> bool:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "SELECT row_id, embedding_hash FROM {table} "
+                    "WHERE field_id = %s AND row_id = ANY(%s)"
+                ).format(table=sql.Identifier(search_table)),
+                [field_id, [row_id for row_id, _ in batch]],
+            )
+            stored = dict(cursor.fetchall())
+
+        changed = []
+        for row_id, text in batch:
+            digest = hashlib.md5(text.encode("utf-8")).hexdigest()  # noqa: S324
+            if stored.get(row_id) != digest:
+                changed.append((row_id, text, digest))
+        if not changed:
+            return True
+
+        to_embed = [(i, text) for i, (_, text, _) in enumerate(changed) if text]
+        vectors = {}
+        if to_embed:
+            try:
+                embeddings = embedder([text for _, text in to_embed])
+            except Exception as exc:
+                logger.warning(
+                    "Embedding {} cells of field {} failed: {}",
+                    len(to_embed),
+                    field_id,
+                    exc,
+                )
+                return False
+            vectors = {i: vector for (i, _), vector in zip(to_embed, embeddings)}
+
+        rows = []
+        params: list = []
+        for i, (row_id, _, digest) in enumerate(changed):
+            vector = vectors.get(i)
+            rows.append("(%s, %s::vector, %s)")
+            params.extend(
+                [
+                    row_id,
+                    "[" + ",".join(map(str, vector)) + "]" if vector else None,
+                    digest,
+                ]
+            )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "UPDATE {table} AS s SET embedding = d.embedding, "
+                    "embedding_hash = d.embedding_hash "
+                    "FROM (VALUES {values}) AS d(row_id, embedding, embedding_hash) "
+                    "WHERE s.field_id = %s AND s.row_id = d.row_id"
+                ).format(
+                    table=sql.Identifier(search_table),
+                    values=sql.SQL(", ".join(rows)),
+                ),
+                params + [field_id],
+            )
+        return True
+
+    @classmethod
+    def _clear_embeddings(cls, search_table: str, field_id: int):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "UPDATE {table} SET embedding = NULL, embedding_hash = NULL "
+                    "WHERE field_id = %s AND embedding_hash IS NOT NULL"
+                ).format(table=sql.Identifier(search_table)),
+                [field_id],
+            )
+
+    @classmethod
+    def vector_search(
+        cls,
+        table: "Table",
+        field: "Field",
+        query: str,
+        limit: int = 10,
+        embedder: Callable[[list[str]], list[list[float]]] | None = None,
+    ) -> list[tuple[int, float]]:
+        """
+        Hybrid search over one vector-enabled field: the nearest embeddings by
+        cosine distance interleaved with the full-text matches of the same
+        field, de-duplicated. Trashed rows may be included because the search
+        data keeps them; callers fetch the rows and drop what no longer exists.
+
+        :return: `(row_id, score)` pairs, best first. The score is the cosine
+            similarity for semantic hits and the text rank for lexical ones.
+        """
+
+        from pgvector.django import CosineDistance
+
+        workspace_id = table.database.workspace_id
+        if not field.vector_search_enabled or not cls.vector_search_ready(workspace_id):
+            return []
+        query = (query or "").strip()
+        if not query:
+            return []
+
+        search_model = cls.get_workspace_search_table_model(workspace_id)
+        candidates = max(limit * 4, 20)
+
+        embedder = embedder or get_embedder()
+        query_vector = embedder([query[:EMBEDDING_TEXT_LIMIT]])[0]
+        semantic = list(
+            search_model.objects.filter(field_id=field.id, embedding__isnull=False)
+            .annotate(distance=CosineDistance("embedding", query_vector))
+            .order_by("distance")
+            .values_list("row_id", "distance")[:candidates]
+        )
+
+        lexical = []
+        sanitized = cls.escape_postgres_query(query)
+        if sanitized:
+            search_query = SearchQuery(
+                sanitized, search_type="raw", config=cls.search_config()
+            )
+            lexical = list(
+                search_model.objects.filter(field_id=field.id, value=search_query)
+                .annotate(rank=SearchRank(F("value"), search_query))
+                .order_by("-rank", "row_id")
+                .values_list("row_id", "rank")[:candidates]
+            )
+
+        results: list[tuple[int, float]] = []
+        seen = set()
+        for semantic_hit, lexical_hit in zip_longest(semantic, lexical):
+            for hit, is_semantic in ((semantic_hit, True), (lexical_hit, False)):
+                if hit is None or hit[0] in seen:
+                    continue
+                seen.add(hit[0])
+                score = 1 - float(hit[1]) if is_semantic else float(hit[1])
+                results.append((hit[0], round(score, 4)))
+                if len(results) >= limit:
+                    return results
+        return results
+
+    @classmethod
     def delete_pending_updates(cls, q: Q, manager: str = "objects"):
         """
         Deletes pending search value updates based on the provided Q object.
@@ -918,6 +1257,14 @@ class SearchHandler:
         # Balance between query efficiency and cpu-usage for complex search expressions.
         fields_batch_size = 3
 
+        deadline = (
+            start + time_budget_seconds if time_budget_seconds is not None else None
+        )
+        # Fields whose embeddings couldn't be computed in this run keep their
+        # pending updates and are skipped until the periodic check retries
+        # them, so a failing embeddings service can't stall the whole table.
+        skipped_field_ids: set[int] = set()
+
         # First process full-field updates (row_id=None), removing any remaining
         # row-specific updates on the same field.
         last = False
@@ -929,7 +1276,11 @@ class SearchHandler:
                 )
                 return False
             with transaction.atomic():
-                field_ids = list(full_field_updates[:fields_batch_size])
+                field_ids = list(
+                    full_field_updates.exclude(field_id__in=skipped_field_ids)[
+                        :fields_batch_size
+                    ]
+                )
                 # Only delete updates older than this timestamp to avoid
                 # loosing newer updates made while processing.
                 check_timestamp = datetime.now(tz=timezone.utc)
@@ -937,14 +1288,24 @@ class SearchHandler:
                     last = True
                 if field_ids:
                     cls.update_search_data(table, field_ids=field_ids)
+            if field_ids:
+                # The embeddings call an external service, so they run after
+                # the tsvector transaction committed and never hold its locks.
+                if cls.update_embeddings(table, field_ids, deadline=deadline):
                     cls.delete_pending_updates(
                         Q(field_id__in=field_ids, updated_on__lte=check_timestamp)
                     )
+                else:
+                    skipped_field_ids.update(field_ids)
 
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
-            return PendingSearchValueUpdate.objects.filter(
-                field_id__in=table_field_ids, row_id__isnull=False
-            ).order_by()
+            return (
+                PendingSearchValueUpdate.objects.filter(
+                    field_id__in=table_field_ids, row_id__isnull=False
+                )
+                .exclude(field_id__in=skipped_field_ids)
+                .order_by()
+            )
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False
@@ -972,8 +1333,14 @@ class SearchHandler:
                     cls.update_search_data(
                         table, field_ids=list(field_ids), row_ids=list(row_ids)
                     )
+            if update_ids:
+                if cls.update_embeddings(
+                    table, list(field_ids), list(row_ids), deadline=deadline
+                ):
                     cls.delete_pending_updates(
                         Q(id__in=update_ids, updated_on__lte=check_timestamp)
                     )
+                else:
+                    skipped_field_ids.update(field_ids)
 
         return True

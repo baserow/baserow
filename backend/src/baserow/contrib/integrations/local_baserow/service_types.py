@@ -64,6 +64,7 @@ from baserow.contrib.database.rows.signals import (
     rows_deleted,
     rows_updated,
 )
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -103,6 +104,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
+    LocalBaserowVectorSearch,
     Service,
 )
 from baserow.contrib.integrations.local_baserow.utils import (
@@ -117,6 +119,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_deserialized_json,
     ensure_object,
+    ensure_string,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
@@ -3083,6 +3086,291 @@ class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"
     model_class = LocalBaserowRowsDeleted
+
+
+class LocalBaserowVectorSearchServiceType(LocalBaserowTableServiceType):
+    """
+    Semantic search over one field with vector search enabled. The agent builder
+    exposes it as an action tool: the query comes from the tool input, the
+    result lists the best matching rows with the chosen fields and a score.
+    """
+
+    type = "local_baserow_vector_search"
+    model_class = LocalBaserowVectorSearch
+    dispatch_types = [DispatchTypes.ACTION, DispatchTypes.DATA]
+    # Fetch more hits than asked for, because the search data keeps trashed
+    # rows until they are permanently deleted.
+    candidate_multiplier = 2
+
+    @property
+    def simple_formula_fields(self):
+        return super().simple_formula_fields + ["search_query"]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + ["field", "max_results", "search_query"]
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "field_id",
+            "included_field_ids",
+            "max_results",
+            "search_query",
+        ]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "field_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text="The id of the field with vector search enabled to search.",
+            ),
+            "included_field_ids": serializers.ListField(
+                child=serializers.IntegerField(),
+                required=False,
+                help_text="The ids of the fields returned per row; all when empty.",
+            ),
+            "max_results": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=50,
+                help_text="The maximum number of rows returned.",
+            ),
+            "search_query": FormulaSerializerField(
+                required=False,
+                help_text="The text to search for.",
+            ),
+        }
+
+    class SerializedDict(LocalBaserowTableServiceType.SerializedDict):
+        field_id: int
+        included_field_ids: List[int]
+        max_results: int
+        search_query: str
+
+    def enhance_queryset(self, queryset):
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .select_related("field")
+            .prefetch_related("included_fields")
+        )
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[ServiceSubClass] = None,
+    ) -> Dict[str, Any]:
+        values = super().prepare_values(values, user, instance)
+        table = values.get("table", getattr(instance, "table", None))
+
+        if (
+            "table" in values
+            and instance is not None
+            and instance.table_id != getattr(values["table"], "id", None)
+        ):
+            # Fields belong to a table; a new table starts from scratch.
+            values["field"] = None
+            values["included_field_ids"] = []
+
+        if "field_id" in values:
+            field = None
+            field_id = values.pop("field_id")
+            if field_id is not None:
+                field = FieldHandler().get_field(field_id)
+                if table is None or field.table_id != table.id:
+                    raise DRFValidationError(
+                        detail=f"The field with ID {field_id} is not related to "
+                        "the given table.",
+                        code="invalid_field",
+                    )
+                if not field.vector_search_enabled:
+                    raise DRFValidationError(
+                        detail=f"The field with ID {field_id} does not have vector "
+                        "search enabled.",
+                        code="invalid_field",
+                    )
+            values["field"] = field
+
+        if "included_field_ids" in values and table is not None:
+            wanted = {int(field_id) for field_id in values["included_field_ids"]}
+            existing = set(
+                Field.objects.filter(table=table, id__in=wanted).values_list(
+                    "id", flat=True
+                )
+            )
+            if wanted - existing:
+                raise DRFValidationError(
+                    detail="One or more included fields are not related to the "
+                    "given table.",
+                    code="invalid_field",
+                )
+            values["included_field_ids"] = sorted(wanted)
+
+        return values
+
+    def after_create(self, instance: LocalBaserowVectorSearch, values: Dict):
+        super().after_create(instance, values)
+        if "included_field_ids" in values:
+            instance.included_fields.set(values["included_field_ids"])
+
+    def after_update(
+        self, instance: LocalBaserowVectorSearch, values: Dict, changes: Dict
+    ):
+        super().after_update(instance, values, changes)
+        if "included_field_ids" in values:
+            instance.included_fields.set(values["included_field_ids"])
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if "field" in values:
+            del values["field"]
+        values["field_id"] = instance.field_id
+        values["included_field_ids"] = instance.included_field_ids
+        return values
+
+    def serialize_property(
+        self,
+        service: LocalBaserowVectorSearch,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "included_field_ids":
+            return service.included_field_ids
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        database_fields = id_mapping.get("database_fields", {})
+        if prop_name == "field_id":
+            return database_fields.get(value, value)
+        if prop_name == "included_field_ids":
+            return [
+                database_fields.get(field_id, field_id)
+                for field_id in value
+                if not database_fields or database_fields.get(field_id) is not None
+            ]
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        included_field_ids = serialized_values.pop("included_field_ids", [])
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+        if included_field_ids:
+            service.included_fields.set(included_field_ids)
+        return service
+
+    def formulas_to_resolve(
+        self, service: LocalBaserowVectorSearch
+    ) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "search_query",
+                service.search_query,
+                lambda value: ensure_string(value, allow_empty=True),
+                'property "Search query"',
+            )
+        ]
+
+    def resolve_service_formulas(
+        self, service: LocalBaserowVectorSearch, dispatch_context: DispatchContext
+    ) -> Dict[str, Any]:
+        resolved_values = super().resolve_service_formulas(service, dispatch_context)
+        if service.field_id is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No field selected to search in."
+            )
+        if not service.field.vector_search_enabled:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected field no longer has vector search enabled."
+            )
+        return resolved_values
+
+    def dispatch_data(
+        self,
+        service: LocalBaserowVectorSearch,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        table = service.table
+        model = self.get_table_model(service)
+        queryset = self.build_queryset(service, table, dispatch_context, model)
+
+        hits = SearchHandler.vector_search(
+            table,
+            service.field,
+            resolved_values.get("search_query") or "",
+            limit=service.max_results * self.candidate_multiplier,
+        )
+        rows_by_id = {
+            row.id: row
+            for row in queryset.filter(id__in=[row_id for row_id, _ in hits])
+        }
+        rows = [
+            (rows_by_id[row_id], score)
+            for row_id, score in hits
+            if row_id in rows_by_id
+        ][: service.max_results]
+        return {
+            "rows": rows,
+            "baserow_table_model": model,
+            "field_ids": service.included_field_ids or None,
+        }
+
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+        serializer = get_row_serializer_class(
+            dispatch_data["baserow_table_model"],
+            RowSerializer,
+            is_response=True,
+            field_ids=dispatch_data["field_ids"],
+            user_field_names=True,
+        )
+        results = []
+        for row, score in dispatch_data["rows"]:
+            data = serializer(row).data
+            # The row order is meaningless to a reader of search results.
+            data.pop("order", None)
+            data["score"] = score
+            results.append(data)
+        return DispatchResult(data={"results": results, "count": len(results)})
 
 
 class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):

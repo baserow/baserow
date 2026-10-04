@@ -366,7 +366,14 @@
     "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations.",
     "defaultValueDisabledByConstraint": "Cannot set a default value with a unique constraint",
     "defaultValueOverriddenByView": "A view-level default value is set for this field and will take precedence over this default value.",
-    "dbIndexDisabledTooltip": "Indexing is not available for this field type."
+    "dbIndexDisabledTooltip": "Indexing is not available for this field type.",
+    "vectorSearch": "Vector search",
+    "vectorSearchDescription": "Keeps an embedding of every cell so agents can search this field by meaning, not only by exact words.",
+    "vectorSearchDisabledTooltip": "Vector search is not available for this field type.",
+    "vectorSearchUnavailableTooltip": "Vector search is not configured on this instance. It needs the embeddings service and the pgvector extension.",
+    "vectorSearchWarning": "Calculating the embeddings of all existing rows happens in the background and can take a while, depending on the number of rows. Changes are picked up automatically afterwards.",
+    "vectorSearchNotSupportedError": "This field type cannot have vector search. Turn it off before saving or change the field type.",
+    "vectorSearchUnavailableError": "Vector search is not configured on this instance."
   },
   "fieldSelectThroughFieldSubForm": {
     "noTable": "You need at least one link to table field to create this field.",

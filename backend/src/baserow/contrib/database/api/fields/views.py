@@ -59,6 +59,8 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_RESERVED_BASEROW_FIELD_NAME,
     ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
+    ERROR_VECTOR_SEARCH_NOT_AVAILABLE,
+    ERROR_VECTOR_SEARCH_NOT_SUPPORTED,
     ERROR_VIEW_NOT_SUPPORTED,
 )
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
@@ -102,6 +104,8 @@ from baserow.contrib.database.fields.exceptions import (
     ReservedBaserowFieldNameException,
     SelectOptionDoesNotBelongToField,
     TableHasNoPrimaryField,
+    VectorSearchNotAvailableError,
+    VectorSearchNotSupportedError,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.job_types import DuplicateFieldJobType
@@ -343,6 +347,8 @@ class FieldsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             FailedToLockTableDueToConflict: ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
             CannotCreateFieldType: ERROR_CANNOT_CREATE_FIELD_TYPE,
             DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            VectorSearchNotSupportedError: ERROR_VECTOR_SEARCH_NOT_SUPPORTED,
+            VectorSearchNotAvailableError: ERROR_VECTOR_SEARCH_NOT_AVAILABLE,
             FieldConstraintException: ERROR_FIELD_CONSTRAINT,
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
@@ -495,6 +501,8 @@ class FieldView(APIView):
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
             SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
             DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            VectorSearchNotSupportedError: ERROR_VECTOR_SEARCH_NOT_SUPPORTED,
+            VectorSearchNotAvailableError: ERROR_VECTOR_SEARCH_NOT_AVAILABLE,
             FieldConstraintException: ERROR_FIELD_CONSTRAINT,
             InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
             FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,

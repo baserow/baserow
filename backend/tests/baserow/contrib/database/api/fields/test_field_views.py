@@ -1411,6 +1411,7 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
         "read_only": False,
         "description": None,
         "db_index": False,
+        "vector_search_enabled": False,
         "field_constraints": [],
         "related_fields": [
             {
@@ -1423,6 +1424,7 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "read_only": False,
                 "description": None,
                 "db_index": False,
+                "vector_search_enabled": False,
                 "field_constraints": [],
                 "text_default": "",
                 "immutable_properties": False,

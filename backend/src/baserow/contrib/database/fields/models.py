@@ -191,6 +191,13 @@ class Field(
         help_text="Indicates whether the field properties are immutable. If true, "
         "then it won't be possible to change the properties and the type via the API.",
     )
+    vector_search_enabled = models.BooleanField(
+        db_default=False,
+        default=False,
+        help_text="If true, an embedding of every cell is kept in the workspace "
+        "search data so the field can be searched semantically. Only field types "
+        "that support vector search can enable it.",
+    )
     db_index = models.BooleanField(
         db_default=False,
         default=False,

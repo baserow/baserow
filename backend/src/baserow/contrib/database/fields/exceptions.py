@@ -132,6 +132,21 @@ class DbIndexNotSupportedError(Exception):
         super().__init__(*args, **kwargs)
 
 
+class VectorSearchNotSupportedError(Exception):
+    """Raised when enabling vector search on a field type that can't have it."""
+
+    def __init__(self, field_type=None, *args, **kwargs):
+        self.field_type = field_type
+        super().__init__(*args, **kwargs)
+
+
+class VectorSearchNotAvailableError(Exception):
+    """
+    Raised when enabling vector search while the instance has no embeddings
+    service or pgvector.
+    """
+
+
 class FieldWithSameNameAlreadyExists(Exception):
     """
     Raised when a field is created or updated with a name that matches an

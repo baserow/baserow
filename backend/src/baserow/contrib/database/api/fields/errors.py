@@ -63,6 +63,18 @@ ERROR_DB_INDEX_NOT_SUPPORTED = (
     "The field type {e.field_type} does not support database indexes. Explicitly set "
     "`db_index` to `false` to fix this error.",
 )
+ERROR_VECTOR_SEARCH_NOT_SUPPORTED = (
+    "ERROR_VECTOR_SEARCH_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "The field type {e.field_type} does not support vector search. Explicitly set "
+    "`vector_search_enabled` to `false` to fix this error.",
+)
+ERROR_VECTOR_SEARCH_NOT_AVAILABLE = (
+    "ERROR_VECTOR_SEARCH_NOT_AVAILABLE",
+    HTTP_400_BAD_REQUEST,
+    "Vector search is not available on this instance: the embeddings service or "
+    "the pgvector extension is not configured.",
+)
 ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD = (
     "ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD",
     HTTP_400_BAD_REQUEST,

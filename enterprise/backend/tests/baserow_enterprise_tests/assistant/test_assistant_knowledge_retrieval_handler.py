@@ -26,9 +26,7 @@ class TestBaserowEmbedder:
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
         # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
             mock_post_response.json.return_value = {
@@ -55,9 +53,7 @@ class TestBaserowEmbedder:
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
         # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
             mock_post_response.json.return_value = {
@@ -81,9 +77,7 @@ class TestBaserowEmbedder:
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
         # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             # Mock the httpxClient.post call with smaller dimensions
             small_dimension = 512
             mock_client_instance = mock_client.return_value
@@ -110,9 +104,7 @@ class TestBaserowEmbedder:
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
         # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             # Mock the httpxClient.post call with larger dimensions
             large_dimension = DEFAULT_EMBEDDING_DIMENSIONS + 100
             mock_client_instance = mock_client.return_value
@@ -602,9 +594,7 @@ def test_embedder_closes_client_on_failed_batch():
         request=Request("POST", "http://test/embed"),
         response=Response(503),
     )
-    with patch(
-        "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-    ) as client:
+    with patch("baserow.core.embeddings.httpxClient") as client:
         response = client.return_value.post.return_value
         response.raise_for_status.side_effect = error
         with pytest.raises(HTTPStatusError):

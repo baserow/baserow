@@ -165,6 +165,13 @@ class FieldType(
     optionally possible for to add an index to the field.
     """
 
+    _can_have_vector_search = False
+    """
+    Indicates whether `vector_search_enabled` can be true on the field. If so, an
+    embedding of `get_vector_search_expression` is kept per cell in the workspace
+    search data.
+    """
+
     _can_group_by = False
     """Indicates whether it is possible to group by by this field type."""
 
@@ -331,6 +338,28 @@ class FieldType(
         """
 
         return True
+
+    def can_have_vector_search(self, field: Field) -> bool:
+        """
+        Override this method if this field type can keep embeddings of its values.
+
+        :param field: The field that's created or updated with vector search
+            enabled.
+        :return: True if the field can enable vector search.
+        """
+
+        return self._can_have_vector_search
+
+    def get_vector_search_expression(
+        self, field: Field, queryset: QuerySet
+    ) -> Expression:
+        """
+        The text that is embedded for a cell when vector search is enabled. It
+        defaults to the full-text search expression, which already renders the
+        value as text.
+        """
+
+        return self.get_search_expression(field, queryset)
 
     def get_internal_value_from_db(
         self, row: "GeneratedTableModel", field_name: str

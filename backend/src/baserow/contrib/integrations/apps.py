@@ -46,6 +46,7 @@ class IntegrationsConfig(AppConfig):
             LocalBaserowRowsUpdatedServiceType,
             LocalBaserowUpdateRowsServiceType,
             LocalBaserowUpsertRowServiceType,
+            LocalBaserowVectorSearchServiceType,
         )
 
         service_type_registry.register(LocalBaserowGetRowUserServiceType())
@@ -55,6 +56,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowCreateRowsServiceType())
         service_type_registry.register(LocalBaserowUpdateRowsServiceType())
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
+        service_type_registry.register(LocalBaserowVectorSearchServiceType())
         service_type_registry.register(LocalBaserowRowsCreatedServiceType())
         service_type_registry.register(LocalBaserowRowsUpdatedServiceType())
         service_type_registry.register(LocalBaserowRowsDeletedServiceType())
