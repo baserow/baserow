@@ -353,47 +353,57 @@ def update_workspaces_periodic_fields(
         - BATCH_UPDATE_DEADLINE_MARGIN_SECONDS
     )
     flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
-    with connection.execute_wrapper(_statement_deadline(deadline)):
-        for index, workspace_id in enumerate(workspace_ids):
-            if not flag.extend_if(run_token):
-                # Warn (not info): this drops the rest of the batch's work for the
-                # cycle, so operators should see it. A newer cycle owns the lock or it
-                # expired.
-                logger.warning(
-                    "update_workspaces_periodic_fields batch {batch_index} stopped: the "
-                    "run lock is no longer held by this cycle, so its remaining "
-                    "{skipped} workspace(s) are skipped this cycle.",
-                    batch_index=batch_index,
-                    skipped=len(workspace_ids) - index,
-                )
-                return
-            try:
-                # Checked before starting, so a workspace that can't be processed keeps
-                # its `now` and is first in line next cycle.
-                _ensure_time_left(deadline)
-                _update_workspace_periodic_fields(workspace_id, update_now)
-            except SoftTimeLimitExceeded:
-                # Out of time: stop cleanly so the task succeeds and the chord callback
-                # releases the lock. Continuing would run until the hard limit SIGKILLs
-                # the batch, stranding the lock until its TTL. The unprocessed
-                # workspaces keep their stale `now` and are picked up next cycle.
-                logger.warning(
-                    "update_workspaces_periodic_fields batch {batch_index} ran out of "
-                    "time at workspace {workspace_id}; stopping so the lock is "
-                    "released. {skipped} workspace(s) are skipped this cycle.",
-                    batch_index=batch_index,
-                    workspace_id=workspace_id,
-                    skipped=len(workspace_ids) - index,
-                )
-                return
-            except Exception:
-                # Keep going so one failing workspace can't fail the whole batch. A
-                # failed batch would skip the chord callback and leave the run lock
-                # stranded until its TTL expires.
-                logger.exception(
-                    "Periodic field update failed for workspace {workspace_id}.",
-                    workspace_id=workspace_id,
-                )
+    index, workspace_id = 0, None
+    try:
+        with connection.execute_wrapper(_statement_deadline(deadline)):
+            for index, workspace_id in enumerate(workspace_ids):
+                if not flag.extend_if(run_token):
+                    # Warn (not info): this drops the rest of the batch's work for the
+                    # cycle, so operators should see it. A newer cycle owns the lock
+                    # or it expired.
+                    logger.warning(
+                        "update_workspaces_periodic_fields batch {batch_index} "
+                        "stopped: the run lock is no longer held by this cycle, so its "
+                        "remaining {skipped} workspace(s) are skipped this cycle.",
+                        batch_index=batch_index,
+                        skipped=len(workspace_ids) - index,
+                    )
+                    return
+                try:
+                    # Checked before starting, so a workspace that can't be processed
+                    # keeps its `now` and is first in line next cycle.
+                    _ensure_time_left(deadline)
+                    _update_workspace_periodic_fields(workspace_id, update_now)
+                except SoftTimeLimitExceeded:
+                    raise
+                except Exception:
+                    # Keep going so one failing workspace can't fail the whole batch.
+                    # A failed batch would skip the chord callback and leave the run
+                    # lock stranded until its TTL expires.
+                    logger.exception(
+                        "Periodic field update failed for workspace {workspace_id}.",
+                        workspace_id=workspace_id,
+                    )
+    except SoftTimeLimitExceeded:
+        # Out of time, wherever in the loop it happened: stop cleanly so the task
+        # succeeds and the chord callback releases the lock. Continuing would run
+        # until the hard limit SIGKILLs the batch, stranding the lock until its TTL.
+        # The unprocessed workspaces keep their stale `now` and are picked up next
+        # cycle.
+        _warn_out_of_time(batch_index, workspace_id, len(workspace_ids) - index)
+
+
+def _warn_out_of_time(
+    batch_index: int, workspace_id: Optional[int], skipped: int
+) -> None:
+    logger.warning(
+        "update_workspaces_periodic_fields batch {batch_index} ran out of time at "
+        "workspace {workspace_id}; stopping so the lock is released. {skipped} "
+        "workspace(s) are skipped this cycle.",
+        batch_index=batch_index,
+        workspace_id=workspace_id,
+        skipped=skipped,
+    )
 
 
 @app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)

@@ -12,6 +12,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Optional,
     Set,
@@ -370,6 +371,30 @@ def transaction_atomic(
                 first_sql, first_args = first_sql_to_run_in_transaction_with_args
                 cursor.execute(first_sql.format(*first_args))
         yield a
+
+
+@contextlib.contextmanager
+def jit_disabled() -> Iterator[None]:
+    """
+    Runs the block in a transaction with Postgres JIT compilation turned off. When
+    already in a transaction, JIT stays off after the block too, unless a savepoint
+    around it is rolled back.
+
+    Meant for the statements formulas generate. Their expressions can be huge, and
+    JIT compiles every one of them before running the statement: that can take
+    minutes and can't be cancelled. The cost is losing JIT's speed-up on the rows,
+    which is modest even for statements that update a whole large table.
+    """
+
+    with contextlib.ExitStack() as stack:
+        # Not `atomic(savepoint=False)` inside a transaction: an exception in the
+        # block would then mark the caller's transaction for rollback, even when the
+        # caller catches it. A savepoint would cost two extra queries.
+        if not connection.in_atomic_block:
+            stack.enter_context(transaction.atomic())
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL jit = off")
+        yield
 
 
 def get_unique_orders_before_item(

@@ -2108,8 +2108,8 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     model = table.get_model()
 
     # An UPDATE query to set the formula field value + 1 query due
-    # to FormulaFieldType.after_rows_created
-    with django_assert_num_queries(len(captured.captured_queries) + 2):
+    # to FormulaFieldType.after_rows_created, each with a query that turns JIT off
+    with django_assert_num_queries(len(captured.captured_queries) + 4):
         (r,) = (
             RowHandler()
             .force_create_rows(
@@ -2135,7 +2135,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     )
     model = table.get_model()
 
-    with django_assert_num_queries(len(captured.captured_queries) + 2):
+    with django_assert_num_queries(len(captured.captured_queries) + 4):
         (r,) = (
             RowHandler()
             .force_create_rows(
@@ -2163,8 +2163,8 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     model = table.get_model()
 
     # Now a second UPDATE query is needed, so that F3 can use the result
-    # of F1 to correctly calculate its value
-    with django_assert_num_queries(len(captured.captured_queries) + 3):
+    # of F1 to correctly calculate its value, each with a query that turns JIT off
+    with django_assert_num_queries(len(captured.captured_queries) + 6):
         (r,) = (
             RowHandler()
             .force_create_rows(
@@ -2228,8 +2228,9 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     )
     model = table.get_model()
 
-    # An UPDATE query to set the formula field value
-    with django_assert_num_queries(len(captured.captured_queries) + 1):
+    # An UPDATE query to set the formula field value, and the query that turns JIT
+    # off for it
+    with django_assert_num_queries(len(captured.captured_queries) + 2):
         res = RowHandler().force_update_rows(
             user=user,
             table=table,
@@ -2253,7 +2254,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     )
     model = table.get_model()
 
-    with django_assert_num_queries(len(captured.captured_queries) + 1):
+    with django_assert_num_queries(len(captured.captured_queries) + 2):
         res = RowHandler().force_update_rows(
             user=user,
             table=table,
@@ -2279,8 +2280,8 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     model = table.get_model()
 
     # Now a second UPDATE query is needed, so that F3 can use the result
-    # of F1 to correctly calculate its value
-    with django_assert_num_queries(len(captured.captured_queries) + 2):
+    # of F1 to correctly calculate its value, each with a query that turns JIT off
+    with django_assert_num_queries(len(captured.captured_queries) + 4):
         res = RowHandler().force_update_rows(
             user=user,
             table=table,

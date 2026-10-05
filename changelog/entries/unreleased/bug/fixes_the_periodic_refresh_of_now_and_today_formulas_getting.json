@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes the periodic refresh of now() and today() formulas getting stuck on large formulas and leaving their values outdated",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-02"
+}

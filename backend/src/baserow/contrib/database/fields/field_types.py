@@ -170,6 +170,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
+    jit_disabled,
     specific_queryset,
 )
 from baserow.core.deferred_callbacks import (
@@ -6769,7 +6770,8 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
             field.cached_typed_internal_expression, model
         )
-        model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+        with jit_disabled():
+            model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
 
     def after_rows_created(
         self,
@@ -6796,7 +6798,8 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
             to_field.cached_typed_internal_expression, to_model
         )
-        to_model.objects_and_trash.all().update(**{f"{to_field.db_column}": expr})
+        with jit_disabled():
+            to_model.objects_and_trash.all().update(**{f"{to_field.db_column}": expr})
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)

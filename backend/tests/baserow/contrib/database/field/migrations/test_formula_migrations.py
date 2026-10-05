@@ -870,3 +870,50 @@ def test_v6_selector_matches_index_formulas_only(data_fixture):
     assert indexed.id in matched
     assert shortcut.id in matched, "first()/last() expand to index() internally"
     assert unrelated.id not in matched
+
+
+@pytest.mark.django_db
+def test_migration_recalculates_cell_values_without_jit(data_fixture):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[], []])
+    formula_field = data_fixture.create_formula_field(
+        table=table, formula="1", calculate_cell_values=False
+    )
+    FormulaField.objects.update(version=1)
+    jit_per_update = []
+
+    def record_jit(execute, sql, params, many, context):
+        if isinstance(sql, str) and sql.startswith(
+            f'UPDATE "database_table_{table.id}" SET "{formula_field.db_column}"'
+        ):
+            with context["connection"].connection.cursor() as cursor:
+                cursor.execute("SHOW jit")
+                jit_per_update.append(cursor.fetchone()[0])
+        return execute(sql, params, many, context)
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL jit = on")
+    with connection.execute_wrapper(record_jit):
+        FormulaMigrationHandler.migrate_formulas(
+            FormulaMigrations(
+                [
+                    FormulaMigration(
+                        version=1,
+                        recalculate_formula_attributes_for=NO_FORMULAS,
+                        recalculate_field_dependencies_for=NO_FORMULAS,
+                        recalculate_cell_values_for=NO_FORMULAS,
+                        force_recreate_formula_columns_for=NO_FORMULAS,
+                    ),
+                    FormulaMigration(
+                        version=2,
+                        recalculate_formula_attributes_for=NO_FORMULAS,
+                        recalculate_field_dependencies_for=NO_FORMULAS,
+                        recalculate_cell_values_for=ALL_FORMULAS,
+                        force_recreate_formula_columns_for=NO_FORMULAS,
+                    ),
+                ]
+            )
+        )
+
+    assert jit_per_update == ["off"]
+    assert_all_rows_are_not_none(data_fixture, formula_field)
