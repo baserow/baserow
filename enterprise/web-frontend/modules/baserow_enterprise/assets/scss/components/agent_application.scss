@@ -272,9 +272,12 @@
   font-size: 24px;
 }
 
+// Both the messages and the composer reserve the scrollbar gutter on both
+// edges, so their centered columns line up whether or not a scrollbar shows.
 .agent-chat__messages {
   flex: 1;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   padding: 24px 20px;
 
   &--welcome {
@@ -1374,6 +1377,8 @@
 
 .agent-chat__composer {
   flex-shrink: 0;
+  overflow-y: hidden;
+  scrollbar-gutter: stable both-edges;
   padding: 8px 20px 20px;
 
   .agent-chat__column {
@@ -2093,8 +2098,13 @@
 
   @include rounded($rounded-md);
 
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
+
   &:hover {
-    background-color: $palette-neutral-25;
+    border-color: $palette-neutral-400;
+    background-color: $palette-neutral-100;
     text-decoration: none;
   }
 }
@@ -2122,6 +2132,10 @@
   flex-shrink: 0;
   font-size: 14px;
   color: $palette-neutral-700;
+
+  .agent-configuration__exceptions-row:hover & {
+    color: $palette-neutral-1200;
+  }
 }
 
 .agent-configuration__identity-name {
@@ -2640,42 +2654,117 @@
   cursor: default;
 }
 
-// Step-by-step guide inside a channel card.
-.agent-configuration__setup {
-  margin: 16px 0;
-  padding-top: 12px;
-  border-top: 1px solid $palette-neutral-200;
+// Public web chat page: a single column that works from phones to desktops.
+.public-agent-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background-color: $white;
+  color: $palette-neutral-1200;
+}
 
-  .agent-configuration__expand-link {
-    color: $palette-neutral-900;
+.public-agent-chat__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid $palette-neutral-200;
+}
 
-    .agent-configuration__card-chevron {
-      margin-left: auto;
+.public-agent-chat__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 100%;
+  background-color: $palette-purple-600;
+  color: $white;
+  font-size: 16px;
+}
+
+.public-agent-chat__title {
+  @extend %ellipsis;
+
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.public-agent-chat__restart {
+  flex-shrink: 0;
+
+  @media (max-width: 600px) {
+    .button__label {
+      display: none;
     }
   }
 }
 
-.agent-configuration__steps {
-  margin: 12px 0 4px;
-  padding-left: 20px;
-  color: $palette-neutral-900;
-  font-size: 12px;
-  line-height: 18px;
+.public-agent-chat__messages {
+  min-height: 0;
 
-  li {
-    margin-bottom: 8px;
-    padding-left: 4px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
+  @media (max-width: 600px) {
+    padding: 24px 16px;
   }
+}
 
-  code {
-    @extend %agent-mono-chip;
-  }
+// The live reasoning bubble of the in-app chat, with the spinner next to the
+// text because visitors never see the reasoning itself.
+.public-agent-chat__working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
-  a {
-    text-decoration: underline;
+  .agent-chat-reasoning__indicator {
+    margin-bottom: 0;
   }
+}
+
+.public-agent-chat__welcome-text {
+  max-width: 480px;
+  white-space: pre-wrap;
+}
+
+.public-agent-chat__footer {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+
+  @media (max-width: 600px) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+// 16px stops mobile browsers from zooming into the textarea on focus.
+.public-agent-chat__textarea {
+  color: $palette-neutral-1200;
+  font-family: inherit;
+
+  @media (max-width: 600px) {
+    font-size: 16px;
+  }
+}
+
+.public-agent-chat__composer-row {
+  justify-content: flex-end;
+}
+
+.public-agent-chat__powered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  color: $palette-neutral-700;
+  font-size: 11px;
+}
+
+.public-agent-chat__logo {
+  display: flex;
+  align-items: center;
 }

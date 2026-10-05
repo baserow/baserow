@@ -298,6 +298,13 @@ export const actions = {
       throw error
     }
   },
+  async rotateChannelSlug({ commit }, { channelId }) {
+    const { data } = await AgentApplicationService(
+      this.$client
+    ).rotateChannelSlug(channelId)
+    commit('UPDATE_CHANNEL', { channelId, values: data })
+    return data
+  },
   async deleteChannel({ commit }, { channelId }) {
     await AgentApplicationService(this.$client).deleteChannel(channelId)
     commit('REMOVE_CHANNEL', channelId)

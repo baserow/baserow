@@ -7,6 +7,16 @@ import AgentApplicationForm from '@baserow_enterprise/components/agentApplicatio
 import SidebarComponentAgent from '@baserow_enterprise/components/agentApplication/SidebarComponentAgent'
 
 export class AgentApplicationType extends ApplicationType {
+  populate(application) {
+    const values = super.populate(application)
+    // The integration store pushes into this list when an action tool or
+    // trigger form creates an integration, so it must exist from the start.
+    if (!values.integrations) {
+      values.integrations = []
+    }
+    return values
+  }
+
   static getType() {
     return 'agent'
   }

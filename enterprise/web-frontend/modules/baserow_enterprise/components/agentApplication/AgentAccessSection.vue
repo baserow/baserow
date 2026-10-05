@@ -70,7 +70,7 @@
     <a
       v-if="exceptions.length > 0"
       class="agent-configuration__exceptions-row"
-      @click.prevent="openPermissions()"
+      @click.prevent="openExceptions()"
     >
       <span class="agent-configuration__exceptions-count">
         {{ $t('agentAccess.exceptionsCount', { count: exceptions.length }) }}
@@ -223,6 +223,7 @@ export default {
     AgentConfigurationSectionRow,
     AgentToolPermissionsModal,
   },
+  emits: ['open-section'],
   props: {
     application: {
       type: Object,
@@ -509,6 +510,15 @@ export default {
         )
       }
       this.saveWorkspaceConfig(values)
+    },
+    // The permissions modal lists every exception, but it only exists while
+    // workspace tools are on; action tool exceptions live in Action tools.
+    openExceptions() {
+      if (this.workspaceTool) {
+        this.openPermissions()
+      } else {
+        this.$emit('open-section', 'actions')
+      }
     },
     openPermissions(group = undefined) {
       this.$refs.permissionsModal.show(group)

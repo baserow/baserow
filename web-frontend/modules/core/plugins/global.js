@@ -20,6 +20,7 @@ import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 import Editable from '@baserow/modules/core/components/Editable'
 import Error from '@baserow/modules/core/components/Error'
 import Expandable from '@baserow/modules/core/components/Expandable.vue'
+import SetupGuide from '@baserow/modules/core/components/SetupGuide.vue'
 import FormElement from '@baserow/modules/core/components/FormElement'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import FormInput from '@baserow/modules/core/components/FormInput'
@@ -88,6 +89,7 @@ function setupVue(app) {
   app.component('Badge', Badge)
   app.component('BadgeCollaborator', BadgeCollaborator)
   app.component('Expandable', Expandable)
+  app.component('SetupGuide', SetupGuide)
   app.component('Button', Button)
   app.component('ButtonText', ButtonText)
   app.component('ButtonFloating', ButtonFloating)

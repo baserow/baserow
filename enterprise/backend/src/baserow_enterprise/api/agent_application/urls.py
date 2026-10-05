@@ -1,10 +1,18 @@
 from django.urls import path
 
+from .public_views import (
+    PublicAgentChatAuthView,
+    PublicAgentChatConversationsView,
+    PublicAgentChatConversationView,
+    PublicAgentChatMessagesView,
+    PublicAgentChatView,
+)
 from .views import (
     AgentApplicationApprovalsView,
     AgentChatApprovalsView,
     AgentChatCancelView,
     AgentChatChannelEventsView,
+    AgentChatChannelRotateSlugView,
     AgentChatChannelsView,
     AgentChatChannelView,
     AgentChatMessagesView,
@@ -131,5 +139,35 @@ urlpatterns = [
         "channels/<uuid:channel_uid>/events/",
         AgentChatChannelEventsView.as_view(),
         name="channel_events",
+    ),
+    path(
+        "channels/<int:channel_id>/rotate-slug/",
+        AgentChatChannelRotateSlugView.as_view(),
+        name="channel_rotate_slug",
+    ),
+    path(
+        "public/chat/<str:slug>/",
+        PublicAgentChatView.as_view(),
+        name="public_chat",
+    ),
+    path(
+        "public/chat/<str:slug>/auth/",
+        PublicAgentChatAuthView.as_view(),
+        name="public_chat_auth",
+    ),
+    path(
+        "public/chat/<str:slug>/conversations/",
+        PublicAgentChatConversationsView.as_view(),
+        name="public_chat_conversations",
+    ),
+    path(
+        "public/chat/<str:slug>/conversations/<str:chat_uuid>/",
+        PublicAgentChatConversationView.as_view(),
+        name="public_chat_conversation",
+    ),
+    path(
+        "public/chat/<str:slug>/conversations/<str:chat_uuid>/messages/",
+        PublicAgentChatMessagesView.as_view(),
+        name="public_chat_messages",
     ),
 ]

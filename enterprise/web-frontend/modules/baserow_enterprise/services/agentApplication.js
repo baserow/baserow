@@ -100,6 +100,11 @@ export default (client) => {
     updateChannel(channelId, values) {
       return client.patch(`agent_application/channels/${channelId}/`, values)
     },
+    rotateChannelSlug(channelId) {
+      return client.post(
+        `/agent_application/channels/${channelId}/rotate-slug/`
+      )
+    },
     deleteChannel(channelId) {
       return client.delete(`agent_application/channels/${channelId}/`)
     },

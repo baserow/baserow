@@ -1,4 +1,9 @@
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+    HTTP_429_TOO_MANY_REQUESTS,
+)
 
 ERROR_AGENT_DEFINITION_DOES_NOT_EXIST = (
     "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
@@ -58,4 +63,19 @@ ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST = (
     "ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST",
     HTTP_404_NOT_FOUND,
     "The requested chat channel does not exist.",
+)
+ERROR_PUBLIC_CHAT_AUTHORIZATION_REQUIRED = (
+    "ERROR_PUBLIC_CHAT_AUTHORIZATION_REQUIRED",
+    HTTP_401_UNAUTHORIZED,
+    "This chat is password protected; authorize first.",
+)
+ERROR_PUBLIC_CHAT_MESSAGE_LIMIT_REACHED = (
+    "ERROR_PUBLIC_CHAT_MESSAGE_LIMIT_REACHED",
+    HTTP_400_BAD_REQUEST,
+    "This conversation has reached its message limit. Start a new one.",
+)
+ERROR_PUBLIC_CHAT_RATE_LIMIT_EXCEEDED = (
+    "ERROR_PUBLIC_CHAT_RATE_LIMIT_EXCEEDED",
+    HTTP_429_TOO_MANY_REQUESTS,
+    "Too many messages, please wait a moment.",
 )

@@ -34,6 +34,16 @@
         {{ $t('localBaserowVectorSearchForm.noVectorFields') }}
       </p>
     </FormGroup>
+    <SetupGuide
+      :title="$t('localBaserowVectorSearchForm.setupHeading')"
+      :intro="$t('localBaserowVectorSearchForm.setupDescription')"
+    >
+      <li>{{ $t('localBaserowVectorSearchForm.setupStep1') }}</li>
+      <li>{{ $t('localBaserowVectorSearchForm.setupStep2') }}</li>
+      <li>{{ $t('localBaserowVectorSearchForm.setupStep3') }}</li>
+      <li>{{ $t('localBaserowVectorSearchForm.setupStep4') }}</li>
+      <li>{{ $t('localBaserowVectorSearchForm.setupStep5') }}</li>
+    </SetupGuide>
     <FormGroup
       small-label
       :label="$t('localBaserowVectorSearchForm.includedFieldsLabel')"

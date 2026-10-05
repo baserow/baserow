@@ -9,6 +9,41 @@ if TYPE_CHECKING:
 
 
 class AgentChatChannelType(Instance):
+    # Whether people talking through this channel may change the agent's
+    # memory (`remember`). Internal channels like Slack may; public ones not.
+    allows_memory_updates = True
+
+    def get_system_notes(self, channel: "AgentChatChannel") -> list[str]:
+        """
+        Extra notes for the agent's system prompt when a conversation comes in
+        through this channel, e.g. to describe who it is talking to.
+        """
+
+        return []
+
+    def is_rate_limited(self, channel: "AgentChatChannel") -> bool:
+        """
+        Channel-wide limit on inbound messages per minute, shared by every
+        conversation of the channel, so one busy integration can't exhaust
+        the agent.
+        """
+
+        from django.conf import settings
+        from django.core.cache import cache
+
+        from loguru import logger
+
+        limit = settings.AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE
+        cache_key = f"agent_application:channel:{channel.id}:rate"
+        cache.add(cache_key, 0, timeout=60)
+        count = cache.incr(cache_key)
+        if count > limit:
+            logger.warning(
+                "Chat channel {} exceeded {} messages per minute", channel.id, limit
+            )
+            return True
+        return False
+
     """
     An external chat surface (Slack, Telegram, ...) through which users can
     talk to an agent. A channel type receives inbound webhook requests from

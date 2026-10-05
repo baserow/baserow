@@ -72,6 +72,10 @@ def build_service_tool(tool: "AgentTool", deps: "AgentRunDeps") -> Tool:
         or f"Executes the configured {service_type.type} action."
     )
 
+    # Resolved here, outside the async tool call, so no database access
+    # happens from the event loop.
+    identity = tool.identity
+
     async def run_service_tool(ctx: RunContext["AgentRunDeps"], **kwargs):
         ctx.deps.tool_helpers.raise_if_cancelled()
         dispatch_context = AgentDispatchContext(
@@ -79,8 +83,8 @@ def build_service_tool(tool: "AgentTool", deps: "AgentRunDeps") -> Tool:
             runtime_inputs=kwargs,
             # A tool with its own identity acts as that workspace agent even
             # though the service's integration names the application's.
-            actor=tool.identity or ctx.deps.user,
-            actor_overrides_integration=tool.identity is not None,
+            actor=identity or ctx.deps.user,
+            actor_overrides_integration=identity is not None,
         )
 
         def dispatch():

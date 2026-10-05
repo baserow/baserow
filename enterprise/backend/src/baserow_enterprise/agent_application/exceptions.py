@@ -46,3 +46,11 @@ class AgentChatNotRetryable(Exception):
 
 class AgentChatChannelDoesNotExist(Exception):
     """Raised when the requested chat channel doesn't exist."""
+
+
+class PublicChatAuthorizationRequired(Exception):
+    """The public web chat is password protected and no valid token was given."""
+
+
+class PublicChatMessageLimitReached(Exception):
+    """A public web chat conversation holds as many messages as allowed."""

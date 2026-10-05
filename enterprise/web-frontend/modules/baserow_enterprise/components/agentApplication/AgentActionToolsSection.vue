@@ -500,8 +500,17 @@ export default {
   created() {
     this.debouncedToolSaves = {}
   },
-  mounted() {
+  async mounted() {
     this.actionTools.forEach((tool) => this.ensureDraft(tool))
+    // Local Baserow action forms pick a table through the application's
+    // integrations in the store, which only the trigger section loaded so far.
+    try {
+      await this.$store.dispatch('integration/fetch', {
+        application: this.application,
+      })
+    } catch (error) {
+      notifyIf(error, 'application')
+    }
   },
   watch: {
     actionTools(tools) {

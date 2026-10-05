@@ -229,8 +229,15 @@ class AgentRunner:
 
         # The memory is the agent's own scratchpad and is available in every
         # run, including triggered ones, so automated runs can record what
-        # they created or learned.
-        toolsets.append(build_memory_toolset())
+        # they created or learned. Channels talking to outsiders (the public
+        # web chat) opt out, so strangers can't rewrite it.
+        channel_type = self._channel_type()
+        if channel_type is None or channel_type.allows_memory_updates:
+            toolsets.append(build_memory_toolset())
+        if channel_type is not None:
+            self.deps.system_notes.extend(
+                channel_type.get_system_notes(self.chat.channel)
+            )
 
         # A human in the conversation may reconfigure the agent by chatting;
         # background triggered runs must not rewrite their own configuration.
@@ -241,6 +248,13 @@ class AgentRunner:
             toolsets.append(build_self_configure_toolset())
 
         return toolsets
+
+    def _channel_type(self):
+        if self.chat.channel_id is None:
+            return None
+        from .channels.registries import agent_chat_channel_type_registry
+
+        return agent_chat_channel_type_registry.get(self.chat.channel.type)
 
     def _build_native_tools(self) -> list:
         from .tools.registries import agent_tool_type_registry

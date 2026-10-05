@@ -1530,3 +1530,38 @@ class AgentChatChannelEventsView(APIView):
 
         channel_type = agent_chat_channel_type_registry.get(channel.type)
         return channel_type.handle_inbound(channel, request)
+
+
+class AgentChatChannelRotateSlugView(APIView):
+    """Gives a web chat channel a new public link, invalidating the old one."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Agent"],
+        operation_id="rotate_agent_chat_channel_slug",
+        description="Replaces the public link of a web chat channel.",
+        responses={200: None, 404: None},
+    )
+    @map_exceptions(
+        {AgentChatChannelDoesNotExist: ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST}
+    )
+    @transaction.atomic
+    def post(self, request, channel_id: int):
+        from baserow_enterprise.agent_application.channels.web import (
+            WebAgentChatChannelType,
+        )
+
+        channel = AgentChatChannelHandler().get_channel(channel_id)
+        application = channel.application
+        CoreHandler().check_permissions(
+            request.user,
+            UpdateAgentChatChannelOperationType.type,
+            workspace=application.workspace,
+            context=application,
+        )
+        if channel.type != WebAgentChatChannelType.type:
+            raise AgentChatChannelDoesNotExist("Only web chat channels have a link.")
+        channel = WebAgentChatChannelType().rotate_slug(channel)
+        broadcast_configuration_updated(application)
+        return Response(_serialize_channel(channel))

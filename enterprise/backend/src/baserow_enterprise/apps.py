@@ -273,6 +273,11 @@ class BaserowEnterpriseConfig(AppConfig):
             )
 
             agent_chat_channel_type_registry.register(SlackAgentChatChannelType())
+            from baserow_enterprise.agent_application.channels.web import (
+                WebAgentChatChannelType,
+            )
+
+            agent_chat_channel_type_registry.register(WebAgentChatChannelType())
 
         action_type_registry.register(UpdateAgentDefinitionActionType())
 
@@ -569,6 +574,11 @@ class BaserowEnterpriseConfig(AppConfig):
         )
 
         page_registry.register(AgentApplicationPageType())
+        from baserow_enterprise.agent_application.ws.pages import (
+            PublicAgentChatPageType,
+        )
+
+        page_registry.register(PublicAgentChatPageType())
 
         import baserow_enterprise.agent_application.tasks  # noqa: F401
         import baserow_enterprise.agent_application.ws.receivers  # noqa: F401

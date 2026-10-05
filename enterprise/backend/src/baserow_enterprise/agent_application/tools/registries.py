@@ -67,7 +67,9 @@ class AgentToolTypeRegistry(Registry[AgentToolType]):
 
     def build_toolsets(self, agent: "AgentDefinition", deps: "AgentRunDeps") -> list:
         toolsets = []
-        for tool in agent.tools.all():
+        # The identity is read while a tool runs inside the async agent loop,
+        # where a lazy load would be forbidden, so it comes along now.
+        for tool in agent.tools.select_related("service", "identity").all():
             toolset = self._build_for_tool(tool, deps)
             if toolset:
                 toolsets.extend(toolset)

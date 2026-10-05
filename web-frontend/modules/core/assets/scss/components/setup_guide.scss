@@ -1,0 +1,74 @@
+.setup-guide {
+  margin: 16px 0;
+  padding-top: 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.setup-guide__link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  font-weight: 500;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.setup-guide__chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 14px;
+  color: $palette-neutral-700;
+  transition: transform 0.2s ease;
+
+  &--expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.setup-guide__body {
+  padding-top: 12px;
+}
+
+.setup-guide__intro {
+  margin: 0 0 8px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.setup-guide__steps {
+  margin: 0 0 4px;
+  padding-left: 20px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+
+  li {
+    margin-bottom: 8px;
+    padding-left: 4px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  code {
+    padding: 1px 6px;
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-900;
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 16px;
+
+    @include rounded($rounded);
+  }
+
+  a {
+    text-decoration: underline;
+  }
+}

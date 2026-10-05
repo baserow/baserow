@@ -5,7 +5,6 @@ import re
 import time
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
@@ -161,19 +160,7 @@ class SlackAgentChatChannelType(AgentChatChannelType):
         process_agent_channel_message.delay(channel.id, session_key, text, sender_name)
 
     def _is_rate_limited(self, channel: "AgentChatChannel") -> bool:
-        limit = settings.AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE
-        cache_key = f"agent_application:channel:{channel.id}:rate"
-        cache.add(cache_key, 0, timeout=60)
-        count = cache.incr(cache_key)
-        if count > limit:
-            logger.warning(
-                "Agent chat channel {} exceeded the rate limit of {} messages "
-                "per minute",
-                channel.id,
-                limit,
-            )
-            return True
-        return False
+        return self.is_rate_limited(channel)
 
     def send_response(
         self, channel: "AgentChatChannel", chat: "AgentChat", text: str

@@ -1,6 +1,7 @@
 from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet, Sum
 
@@ -23,6 +24,7 @@ from .exceptions import (
 from .models import (
     AgentApplication,
     AgentChat,
+    AgentChatChannel,
     AgentChatMessage,
     AgentChatToolApproval,
     AgentDefinition,
@@ -350,6 +352,55 @@ class AgentChatHandler:
             },
         )
         return message
+
+    def get_public_web_channel(self, slug: str):
+        """
+        The enabled web chat channel of an active application behind a public
+        link, or None. Anything else looks like a missing link to visitors.
+        """
+
+        from .channels.web import WebAgentChatChannelType
+
+        if not slug:
+            return None
+        channel = (
+            AgentChatChannel.objects.select_related("application__workspace")
+            .filter(type=WebAgentChatChannelType.type, config__slug=slug)
+            .first()
+        )
+        if channel is None or not WebAgentChatChannelType().is_accessible(channel):
+            return None
+        return channel
+
+    def get_public_chat(self, channel, chat_uuid) -> Optional[AgentChat]:
+        """A visitor's conversation; the uuid is the only key they hold."""
+
+        try:
+            return AgentChat.objects.select_related("agent").get(
+                channel=channel, uuid=chat_uuid
+            )
+        except (AgentChat.DoesNotExist, ValueError, ValidationError):
+            return None
+
+    def create_public_chat(self, channel) -> AgentChat:
+        """
+        Starts a fresh conversation for a visitor of the web chat. Every page
+        load gets its own; the owner sees them in the conversation list.
+        """
+
+        agent = AgentApplicationHandler().get_main_agent(channel.application)
+        chat = AgentChat.objects.create(
+            agent=agent,
+            source=AgentChat.Source.CHANNEL,
+            channel=channel,
+            title=f"{channel.name or 'Web chat'}: visitor"[
+                : AgentChat.TITLE_MAX_LENGTH
+            ],
+        )
+        # The session key is what channels use to find a conversation again.
+        chat.channel_session_key = str(chat.uuid)
+        chat.save(update_fields=["channel_session_key"])
+        return chat
 
     def list_chats(self, agent: AgentDefinition) -> QuerySet:
         return agent.chats.defer("message_history").order_by("-pinned", "-updated_on")

@@ -40,6 +40,16 @@ export const rootChildRoutes = [
 // Top-level pages (define their own layout and middlewares via definePageMeta)
 export const pageRoutes = [
   {
+    name: 'agent-public-chat',
+    path: '/agent-chat/:slug',
+    file: path.resolve(__dirname, 'pages/publicAgentChat.vue'),
+  },
+  {
+    name: 'agent-public-chat-auth',
+    path: '/agent-chat/:slug/auth',
+    file: path.resolve(__dirname, 'pages/publicAgentChatLogin.vue'),
+  },
+  {
     name: 'agent-application',
     path: '/agent/:agentApplicationId',
     file: path.resolve(__dirname, 'pages/agentApplication.vue'),

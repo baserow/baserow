@@ -154,6 +154,14 @@ def setup(settings):
     settings.AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE = int(
         os.getenv("BASEROW_AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE", "") or 30
     )
+    # Public web chat: messages one visitor (by IP) may send per minute, and
+    # how many messages a single conversation may hold.
+    settings.AGENT_PUBLIC_CHAT_RATE_LIMIT_PER_MINUTE = int(
+        os.getenv("BASEROW_AGENT_PUBLIC_CHAT_RATE_LIMIT_PER_MINUTE", "") or 10
+    )
+    settings.AGENT_PUBLIC_CHAT_MAX_MESSAGES = int(
+        os.getenv("BASEROW_AGENT_PUBLIC_CHAT_MAX_MESSAGES", "") or 40
+    )
 
     # AI Assistant settings
     # Deprecated: select the Kuma model under AI providers > AI features. Keep this

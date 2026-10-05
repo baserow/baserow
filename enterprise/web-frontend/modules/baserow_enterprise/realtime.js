@@ -42,6 +42,17 @@ export const registerRealtimeEvents = (realtime) => {
     }
   )
 
+  // Public web chat: the backend only sends answers and a coarse status.
+  realtime.registerEvent('public_agent_chat_event', ({ store }, { event }) => {
+    store.dispatch('publicAgentChat/handleEvent', event)
+  })
+  realtime.registerEvent(
+    'public_agent_chat_status',
+    ({ store }, { status }) => {
+      store.dispatch('publicAgentChat/handleStatus', status)
+    }
+  )
+
   realtime.registerEvent('agent_chat_updated', ({ store }, { chat }) => {
     store.dispatch('agentHistory/forceUpdateChat', { chat })
     store.dispatch('agentChat/handleChatUpdated', { chat })

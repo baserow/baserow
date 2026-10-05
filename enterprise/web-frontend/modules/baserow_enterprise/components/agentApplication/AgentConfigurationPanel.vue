@@ -41,6 +41,7 @@
         v-else-if="activeSection === 'access'"
         :application="application"
         :read-only="!canUpdateAgent"
+        @open-section="$emit('update:section', $event)"
       />
       <AgentActionToolsSection
         v-else-if="activeSection === 'actions'"

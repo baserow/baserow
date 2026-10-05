@@ -1,6 +1,8 @@
 import asyncio
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 from django.urls import reverse
 
@@ -349,3 +351,48 @@ def test_setup_creates_table_trigger_and_actions(agent_with_table):
         tool.service.specific.get_type().type
         for tool in AgentTool.objects.filter(agent=agent, type="service")
     ) == ["slack_write_message", "smtp_email"]
+
+
+@pytest.mark.django_db
+def test_service_tool_runs_as_its_identity_without_touching_the_database_async(
+    agent_with_table,
+):
+    import asyncio
+
+    from baserow_enterprise.agent_application.tools.registries import (
+        agent_tool_type_registry,
+    )
+
+    user, token, workspace, application, agent, table, field = agent_with_table
+    identity = AgentService().create_agent(user, workspace, name="Mailer")
+    tool = AgentToolHandler().create_tool(
+        user, agent, "service", name="Notify", service_type_str="smtp_email"
+    )
+    AgentToolHandler().update_tool(user, tool, identity_id=identity.id)
+
+    seen = {}
+
+    def fake_dispatch(service, dispatch_context):
+        seen["actor"] = dispatch_context.actor
+        seen["override"] = dispatch_context.actor_overrides_integration
+        return SimpleNamespace(data={"ok": True})
+
+    deps = SimpleNamespace(
+        user=user,
+        chat=None,
+        tool_helpers=SimpleNamespace(raise_if_cancelled=lambda: None),
+        workspace=workspace,
+    )
+    # Tools are built from the run's tool list, which carries the identity
+    # along; the async call must not hit the database for it.
+    toolset = agent_tool_type_registry.build_toolsets(agent, deps)[0]
+    # Approval wrapping leaves the function toolset one level down.
+    inner = getattr(toolset, "wrapped", toolset)
+    pydantic_tool = next(iter(inner.tools.values()))
+    with patch(
+        "baserow.core.services.handler.ServiceHandler.dispatch_service",
+        side_effect=fake_dispatch,
+    ):
+        asyncio.run(pydantic_tool.function(SimpleNamespace(deps=deps), message="Hello"))
+    assert seen["actor"] == identity
+    assert seen["override"] is True

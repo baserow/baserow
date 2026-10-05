@@ -17,6 +17,7 @@ import assistantStore from '@baserow_enterprise/store/assistant'
 import agentApplicationStore from '@baserow_enterprise/store/agentApplication'
 import agentChatStore from '@baserow_enterprise/store/agentChat'
 import agentHistoryStore from '@baserow_enterprise/store/agentHistory'
+import publicAgentChatStore from '@baserow_enterprise/store/publicAgentChat'
 import { AgentApplicationType } from '@baserow_enterprise/agentApplication/applicationTypes'
 import { ToolInputDataProviderType } from '@baserow_enterprise/agentApplication/dataProviderTypes'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -153,6 +154,7 @@ export default defineNuxtPlugin({
     $store.registerModuleNuxtSafe('agentApplication', agentApplicationStore)
     $store.registerModuleNuxtSafe('agentChat', agentChatStore)
     $store.registerModuleNuxtSafe('agentHistory', agentHistoryStore)
+    $store.registerModuleNuxtSafe('publicAgentChat', publicAgentChatStore)
 
     $registry.register('application', new AgentApplicationType(context))
     $registry.register(

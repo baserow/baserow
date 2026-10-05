@@ -25,6 +25,9 @@ def _execute_agent_chat_turn(chat_id: int, prompt_message_id: int | None):
         "agent__application__workspace",
         "agent__application__agent_identity",
         "user",
+        # The runner broadcasts from async code, where the channel can no
+        # longer be lazily loaded (public web chat filtering needs it).
+        "channel",
     ).get(id=chat_id)
     prompt_message = (
         chat.messages.get(id=prompt_message_id)
