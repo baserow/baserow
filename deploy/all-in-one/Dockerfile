@@ -29,9 +29,9 @@ ENV DOCKER_USER=baserow_docker_user \
 RUN apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
-    curl gnupg2 ca-certificates && \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    curl ca-certificates && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc && \
+    echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     supervisor \
@@ -121,8 +121,8 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install postgres + redis (PGDG repo already added in base stage)
-RUN curl -fsSL https://packages.redis.io/gpg | gpg --batch --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb trixie main" > /etc/apt/sources.list.d/redis.list && \
+RUN curl -fsSL https://packages.redis.io/gpg -o /usr/share/keyrings/redis-archive-keyring.asc && \
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.asc] https://packages.redis.io/deb trixie main" > /etc/apt/sources.list.d/redis.list && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     "postgresql-${POSTGRES_VERSION}" \
