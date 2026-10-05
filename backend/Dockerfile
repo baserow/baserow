@@ -31,7 +31,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 FROM debian:trixie-slim AS wasmtime-builder
 ARG TARGETARCH
-ARG WASMTIME_VERSION=28.0.0
+# Stay on an LTS line (versions divisible by 12): only those get security fixes for 24 months.
+ARG WASMTIME_VERSION=48.0.5
+ARG WASMTIME_SHA256_AMD64=f533a0fb3eca20aee34d69192f214839c5227a507fff2ecb3070ae1a37f0c40d
+ARG WASMTIME_SHA256_ARM64=8713dcbc6f9427eb120d7a4b514b6a58597a369e5b5d79cebeaae11fa24479f5
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -41,13 +44,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
     case "${TARGETARCH}" in \
-        amd64) WASMTIME_ARCH="x86_64-linux" ;; \
-        arm64) WASMTIME_ARCH="aarch64-linux" ;; \
+        amd64) WASMTIME_ARCH="x86_64-linux" WASMTIME_SHA256="${WASMTIME_SHA256_AMD64}" ;; \
+        arm64) WASMTIME_ARCH="aarch64-linux" WASMTIME_SHA256="${WASMTIME_SHA256_ARM64}" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     curl -fsSL \
         "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}.tar.xz" \
         -o /tmp/wasmtime.tar.xz && \
+    echo "${WASMTIME_SHA256}  /tmp/wasmtime.tar.xz" | sha256sum -c - && \
     tar -xJf /tmp/wasmtime.tar.xz -C /tmp && \
     mv "/tmp/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}/wasmtime" /usr/local/bin/wasmtime && \
     chmod 0755 /usr/local/bin/wasmtime
