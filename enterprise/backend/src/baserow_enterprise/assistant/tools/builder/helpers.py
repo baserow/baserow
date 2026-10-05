@@ -29,12 +29,16 @@ from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.service import PageService
+from baserow.contrib.builder.workflow_actions.operations import (
+    UpdateBuilderWorkflowActionOperationType,
+)
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
+from baserow.contrib.database.fields.models import Field
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -860,6 +864,12 @@ def add_field_mapping_to_action(
     from baserow_enterprise.assistant.tools.shared.formula_utils import formula_object
 
     action = BuilderWorkflowActionService().get_workflow_action(user, action_id)
+    CoreHandler().check_permissions(
+        user,
+        UpdateBuilderWorkflowActionOperationType.type,
+        workspace=action.page.builder.workspace,
+        context=action,
+    )
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):
@@ -869,6 +879,12 @@ def add_field_mapping_to_action(
         )
 
     service = action.service.specific
+
+    if not Field.objects.filter(id=field_id, table_id=service.table_id).exists():
+        raise ToolInputError(
+            f"Field {field_id} is not in the table this action writes to. "
+            "Use get_tables_schema to find the table's field IDs."
+        )
 
     existing = LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
         service=service, field_id=field_id
