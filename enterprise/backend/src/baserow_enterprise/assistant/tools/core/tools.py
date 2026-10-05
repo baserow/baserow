@@ -6,7 +6,10 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
 
-from baserow.core.actions import CreateApplicationActionType
+from baserow.core.actions import (
+    CreateApplicationActionType,
+    UpdateApplicationActionType,
+)
 from baserow.core.service import CoreService
 from baserow.core.tools import applications as shared_applications
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
@@ -230,8 +233,6 @@ def update_builder(
     HOW: For setting a login page on a builder app, use setup_user_source first (which creates the login page), then call this if you need to change it.
     """
 
-    from baserow.core.handler import CoreHandler
-
     user = ctx.deps.user
 
     app = CoreService().get_application(user, builder_id).specific
@@ -246,7 +247,7 @@ def update_builder(
         if getattr(app, name) != value
     }
     if changes:
-        CoreHandler().update_application(user, app, **changes)
+        UpdateApplicationActionType.do(user, app, **changes)
         app.refresh_from_db()
 
     result: dict[str, Any] = {

@@ -7,6 +7,7 @@ the RunContext + FunctionToolset pattern.
 
 from copy import deepcopy
 from typing import Any
+from uuid import uuid4
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -31,9 +32,13 @@ from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.action.models import Action
+from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
+from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.agents import (
     update_element_formulas,
@@ -98,6 +103,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     needs_formula,
     wrap_static_string,
 )
+from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -3634,7 +3640,7 @@ def test_create_table_takes_a_data_source_id_sent_as_text(
 # ===========================================================================
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_setup_user_source_new_table(data_fixture):
     """Create a user source with a brand-new users table."""
 
@@ -3645,7 +3651,9 @@ def test_setup_user_source_new_table(data_fixture):
         UserSourceSetup,
     )
 
-    user = data_fixture.create_user()
+    message_group = uuid4()
+    session_id = "assistant-session"
+    user = data_fixture.create_user(session_id=session_id, action_group=message_group)
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
     database = data_fixture.create_database_application(user=user, workspace=workspace)
@@ -3711,8 +3719,29 @@ def test_setup_user_source_new_table(data_fixture):
     assert len(auth_forms) == 1
     assert auth_forms[0].specific.user_source_id == result["user_source_id"]
 
+    expected_actions = [
+        ("create_integration", "integration_id", us.integration_id),
+        ("create_user_source", "user_source_id", us.id),
+        ("create_page", "page_id", login_page.id),
+    ]
+    for action_type, id_param, object_id in expected_actions:
+        action = Action.objects.get(type=action_type)
+        assert action.params[id_param] == object_id
+        assert action.user_id == user.id
+        assert action.workspace_id == workspace.id
+        assert action.session == session_id
+        assert action.action_group == message_group
+        assert action.scope == ApplicationActionScopeType.value(builder.id)
 
-@pytest.mark.django_db(transaction=True)
+        entry = AuditLogEntry.objects.get(action_type=action_type)
+        assert entry.actor_id == user.id
+        assert entry.actor_type == UserSubjectType.type
+        assert entry.workspace_id == workspace.id
+        assert entry.action_command_type == "DO"
+        assert entry.action_params == action.params
+
+
+@pytest.mark.django_db
 def test_setup_user_source_existing_table(data_fixture):
     """Use an existing table that has the required fields."""
 
@@ -3724,6 +3753,9 @@ def test_setup_user_source_existing_table(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(database=database, name="Members")
     data_fixture.create_text_field(table=table, name="Name", primary=True)
@@ -3745,6 +3777,10 @@ def test_setup_user_source_existing_table(data_fixture):
 
     us = UserSourceHandler().get_user_source(result["user_source_id"])
     assert us.table_id == table.id
+    assert us.integration_id == integration.id
+    assert Integration.objects.filter(application=builder).count() == 1
+    assert not Action.objects.filter(type="create_integration").exists()
+    assert not AuditLogEntry.objects.filter(action_type="create_integration").exists()
 
 
 @pytest.mark.django_db(transaction=True)
