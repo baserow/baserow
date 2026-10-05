@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('integrations', '0036_coreinboundemailtriggerservice'),
+        ('integrations', '0037_coreresponseservice_and_more'),
     ]
 
     operations = [
