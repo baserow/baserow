@@ -61,6 +61,9 @@ handlers and permission checks. Keep other controls in `header-right-side`.
 The `empty` slot supplies the unfiltered empty-state content; do not repeat the
 primary action there. Unmatched search and filters show the shared no-results
 message instead, with the primary action available in the header.
+If the current page becomes empty while other results remain, the table shows
+a page-empty message and keeps pagination available instead of showing the
+collection's onboarding content.
 
 Columns scroll horizontally rather than disappearing. Mark row action columns
 with `stickyRight` in their `CrudTableColumn` definition so their controls stay

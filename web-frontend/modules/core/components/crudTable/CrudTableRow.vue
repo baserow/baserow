@@ -24,7 +24,7 @@
             :is="col.cellComponent"
             :row="row"
             :column="col"
-            v-bind="$attrs"
+            v-bind="cellAttrs"
             @row-context="(payload) => $emit('row-context', payload)"
             @row-update="$emit('row-update', $event)"
             @row-delete="$emit('row-delete', $event)"
@@ -66,6 +66,8 @@ defineOptions({ inheritAttrs: false })
 const props = defineProps({
   row: { type: Object, required: true },
   columns: { type: Array, required: true },
+  // Cell bindings must not be consumed by this component's own props or emits.
+  cellAttrs: { type: Object, default: () => ({}) },
   expandable: { type: Boolean, default: false },
   expanded: { type: Boolean, default: false },
   expandColumnKey: { type: String, default: null },

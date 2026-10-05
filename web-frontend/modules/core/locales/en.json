@@ -848,6 +848,7 @@
   },
   "crudTable": {
     "empty": "No items yet",
+    "emptyPage": "No results on this page.",
     "noResults": "No results found. Try adjusting your search or filters.",
     "rowActions": "Row actions",
     "expandRow": "Expand row details",

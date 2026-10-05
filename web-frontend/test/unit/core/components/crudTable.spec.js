@@ -503,7 +503,55 @@ describe('CrudTable component', () => {
     expect(table.find('h1').text()).toBe('0 items')
   })
 
-  test('deleting the last row on a later page keeps pagination available', async () => {
+  test.each([false, true])(
+    'cell bindings stay independent of row controls with expansion %s',
+    async (expandable) => {
+      const onToggle = vi.fn()
+      const Cell = {
+        props: ['row', 'expanded'],
+        emits: ['toggle'],
+        setup:
+          (props, { emit }) =>
+          () =>
+            h(
+              'button',
+              {
+                'data-test': 'cell-toggle',
+                onClick: () => emit('toggle', props.row.id),
+              },
+              String(props.expanded)
+            ),
+      }
+      const table = await mountCrudTable(
+        aService(vi.fn().mockResolvedValue(aPage([{ id: 1 }]))),
+        {
+          columns: [new CrudTableColumn('name', 'Name', Cell)],
+          onToggle,
+          expanded: true,
+        },
+        expandable ? expansionSlots : {}
+      )
+      await flushPromises()
+
+      expect(table.find('[data-test="cell-toggle"]').text()).toBe('true')
+      expect(table.find('.data-table__expanded-rows').exists()).toBe(false)
+      await table.find('[data-test="cell-toggle"]').trigger('click')
+      expect(onToggle).toHaveBeenCalledExactlyOnceWith(1)
+      expect(table.emitted('row-toggle')).toBeUndefined()
+
+      await table.setProps({ expanded: false })
+      expect(table.find('[data-test="cell-toggle"]').text()).toBe('false')
+
+      if (expandable) {
+        await table.find('.data-table__expand').trigger('click')
+        expect(table.find('.data-table__expanded-rows').exists()).toBe(true)
+        expect(table.emitted('row-toggle')[0][0].expanded).toBe(true)
+        expect(onToggle).toHaveBeenCalledTimes(1)
+      }
+    }
+  )
+
+  test('deleting the last row on a later page shows a page-empty message and keeps pagination', async () => {
     const fetch = vi.fn((_url, page) =>
       Promise.resolve(aPage([{ id: page, name: `Page ${page}` }], 101))
     )
@@ -511,6 +559,8 @@ describe('CrudTable component', () => {
       aService(fetch),
       {},
       {
+        empty: '<p>No members yet</p>',
+        'primary-action': '<button>Invite member</button>',
         menus: ({ deleteRow }) =>
           h(
             'button',
@@ -524,7 +574,10 @@ describe('CrudTable component', () => {
     await flushPromises()
     expect(table.find('tbody').text()).toBe('Page 2')
     await table.find('[data-test="delete"]').trigger('click')
-    expect(table.find('.data-table__empty').exists()).toBe(true)
+    expect(table.find('.data-table__empty').text()).toBe('crudTable.emptyPage')
+    expect(table.text()).not.toContain('No members yet')
+    expect(table.find('.data-table__empty button').exists()).toBe(false)
+    expect(table.find('header').text()).toContain('Invite member')
     await table.find('.paginator__button:first-child').trigger('click')
     await flushPromises()
     expect(table.find('tbody').text()).toBe('Page 1')

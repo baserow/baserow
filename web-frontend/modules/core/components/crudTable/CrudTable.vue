@@ -82,12 +82,15 @@
           <tr>
             <td :colspan="columns.length || 1" class="data-table__empty-cell">
               <div class="data-table__empty">
-                <slot v-if="!hasActiveFilters" name="empty">
+                <slot v-if="showEmptyCollectionState" name="empty">
                   <p>{{ $t('crudTable.empty') }}</p>
                 </slot>
+                <p v-else-if="totalCount > 0">
+                  {{ $t('crudTable.emptyPage') }}
+                </p>
                 <p v-else>{{ $t('crudTable.noResults') }}</p>
                 <div
-                  v-if="!hasActiveFilters && $slots['primary-action']"
+                  v-if="showEmptyCollectionState && $slots['primary-action']"
                   class="data-table__empty-action"
                 >
                   <slot name="primary-action"></slot>
@@ -115,7 +118,7 @@
             :expandable="canExpandRow(row)"
             :expanded="canExpandRow(row) && expandedRows.has(row[rowIdKey])"
             :expand-column-key="expandColumnKey"
-            v-bind="$attrs"
+            :cell-attrs="$attrs"
             @toggle="toggleRow(row)"
             @row-context="$emit('row-context', $event)"
             @row-update="updateRow"
@@ -328,6 +331,11 @@ export default {
     },
     showEmptyState() {
       return !this.loading && this.rows.length === 0
+    },
+    showEmptyCollectionState() {
+      return (
+        this.showEmptyState && this.totalCount === 0 && !this.hasActiveFilters
+      )
     },
   },
   watch: {
