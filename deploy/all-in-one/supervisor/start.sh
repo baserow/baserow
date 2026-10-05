@@ -102,4 +102,4 @@ startup_plugin_setup
 # = STARTUP SUPERVISOR
 # ========================
 startup_echo "Starting all Baserow processes:"
-exec /usr/bin/supervisord --configuration "${SUPERVISOR_CONF:-/baserow/supervisor/supervisor.conf}"
+exec /usr/local/bin/supervisord --configuration "${SUPERVISOR_CONF:-/baserow/supervisor/supervisor.conf}"

@@ -16,6 +16,8 @@ FROM caddy:${CADDY_VERSION} AS caddy_image
 FROM python:3.14.8-slim-trixie AS base
 ARG UID
 ARG GID
+ARG SUPERVISOR_VERSION=4.3.0
+ARG SUPERVISOR_SHA256=0bcb763fddafba410f35cbde226aa7f8514b9fb82eb05a0c85f6588d1c13f8db
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -34,7 +36,6 @@ RUN apt-get update && \
     echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
-    supervisor \
     psmisc \
     gawk \
     postgresql-client-"${POSTGRES_VERSION}" \
@@ -48,7 +49,11 @@ RUN apt-get update && \
     getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}" && \
     useradd --shell /bin/bash -l -u "$UID" -g "$GID" -o -c "" -d /baserow -m "${DOCKER_USER}" && \
     chmod 755 /baserow && \
-    # Setup supervisor
+    # Supervisor comes from PyPI because Debian's package pulls in a second Python interpreter
+    pip install --no-cache-dir --disable-pip-version-check --root-user-action=ignore \
+        --only-binary=:all: --require-hashes \
+        -r <(echo "supervisor==${SUPERVISOR_VERSION} --hash=sha256:${SUPERVISOR_SHA256}") && \
+    mkdir -p /var/log/supervisor && \
     ln -sf /dev/stdout /var/log/supervisor/supervisord.log && \
     # Create data and plugin directories with correct ownership
     mkdir -p "${DATA_DIR}" "${BASEROW_PLUGIN_DIR}" && \
