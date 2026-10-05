@@ -31,6 +31,7 @@ from baserow.core.utils import (
     random_string,
     remove_duplicates,
     remove_invalid_surrogate_characters,
+    remove_null_characters,
     remove_special_characters,
     resolve_and_validate_hostname,
     set_allowed_attrs,
@@ -163,6 +164,19 @@ def test_remove_invalid_surrogate_characters():
         remove_invalid_surrogate_characters(rb"test\ud83d\ude00") == r"test\ud83d\ude00"
     )
     assert remove_invalid_surrogate_characters(rb"test\udc00test") == "testtest"
+
+
+def test_remove_null_characters():
+    assert remove_null_characters("te\x00st") == "test"
+    # Nested structures are cleaned, dict keys included.
+    assert remove_null_characters(
+        {"ke\x00y": ["a\x00", ("b\x00",), 1, None, 2.5, True]}
+    ) == {"key": ["a", ("b",), 1, None, 2.5, True]}
+    # Anything else is returned as it is, a clean string included.
+    clean = "clean"
+    assert remove_null_characters(clean) is clean
+    assert remove_null_characters(None) is None
+    assert remove_null_characters(42) == 42
 
 
 def test_unused_names():

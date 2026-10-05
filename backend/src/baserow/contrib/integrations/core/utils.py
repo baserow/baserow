@@ -152,3 +152,44 @@ def calculate_next_periodic_run(
     # `next_run` is a local wall clock time, so it's resolved against the timezone
     # to get the instant it refers to, which is what's stored and compared against.
     return next_run.replace(tzinfo=zone).astimezone(datetime_timezone.utc)
+
+
+# Beside `text/*`, the media types whose body is text a later node can read. A
+# structured syntax suffix (`application/problem+json`, `image/svg+xml`) makes
+# any media type text as well.
+TEXT_MEDIA_SUBTYPES = frozenset(
+    {
+        "json",
+        "xml",
+        "javascript",
+        "yaml",
+        "x-yaml",
+        "x-ndjson",
+        "x-www-form-urlencoded",
+        "graphql",
+    }
+)
+TEXT_MEDIA_SUFFIXES = ("+json", "+xml")
+
+
+def is_text_media_type(content_type: str | None) -> bool:
+    """
+    Whether a `Content-Type` header value names a body that is text: `text/*`,
+    JSON, XML and the like. A missing or empty value counts as text, so an API
+    that forgets the header keeps working. Parameters such as `; charset=utf-8`
+    are ignored.
+
+    :param content_type: The value of the `Content-Type` header, if any.
+    :return: True if the body is text, False if it's binary (a PDF, an image).
+    """
+
+    media_type = (content_type or "").split(";", 1)[0].strip().lower()
+    if not media_type:
+        return True
+
+    main_type, _, subtype = media_type.partition("/")
+    return (
+        main_type == "text"
+        or subtype in TEXT_MEDIA_SUBTYPES
+        or subtype.endswith(TEXT_MEDIA_SUFFIXES)
+    )

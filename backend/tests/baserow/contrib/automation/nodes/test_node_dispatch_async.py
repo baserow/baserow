@@ -20,12 +20,17 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.tasks import resume_deferred_node_celery_task
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.core.services.exceptions import UnexpectedDispatchException
+from baserow.core.services.types import DispatchResult
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 TRIGGER_NODE_TYPE_PATH = (
     "baserow.contrib.automation.nodes.node_types.LocalBaserowRowsCreatedNodeTriggerType"
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
+UPSERT_ROW_SERVICE_TYPE_PATH = (
+    "baserow.contrib.integrations.local_baserow.service_types"
+    ".LocalBaserowUpsertRowServiceType"
+)
 TASKS_PATH = "baserow.contrib.automation.workflows.tasks"
 
 
@@ -954,6 +959,74 @@ def test_dispatch_node_simulation_error_unknown_exception_sends_node_updated_sig
     assert action_node.service.specific.sample_data is None
 
     # Make sure the node updated signal is sent
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=action_node
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_simulation_unstorable_sample_data_does_not_break_transaction(
+    mock_logger,
+    mock_automation_node_updated,
+    data_fixture,
+):
+    """
+    Regression test: when PostgreSQL rejects the sample data of a simulated
+    node (here a NUL character, which it refuses in a json column), the failing
+    save used to leave the surrounding transaction needing a rollback, so
+    recording the error crashed with a TransactionManagementError and the test
+    run hung in the started state. The save runs in a savepoint of its own now:
+    the run is marked as failed, and the failure reaches the sample data.
+    """
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+
+    workflow_history = data["workflow_history"]
+    workflow_history.simulate_until_node = action_node
+    workflow_history.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert_dispatches_next_node(result, (action_node, workflow_history, None))
+
+    with (
+        patch(
+            f"{UPSERT_ROW_SERVICE_TYPE_PATH}.dispatch_data",
+            return_value={"body": "%PDF-1.4\x00"},
+        ),
+        patch(
+            f"{UPSERT_ROW_SERVICE_TYPE_PATH}.dispatch_transform",
+            side_effect=lambda data: DispatchResult(data=data),
+        ),
+    ):
+        # This must not raise a TransactionManagementError.
+        result = AutomationNodeHandler().dispatch_node(
+            action_node.id,
+            history_id=workflow_history.id,
+        )
+
+    assert result is None
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert "Unexpected error while running workflow" in workflow_history.message
+
+    node_history = (
+        AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+        .order_by("-id")
+        .first()
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+
+    action_node.service.specific.refresh_from_db()
+    assert "_error" in action_node.service.specific.sample_data
+
     mock_automation_node_updated.send.assert_called_once_with(
         ANY, user=None, node=action_node
     )

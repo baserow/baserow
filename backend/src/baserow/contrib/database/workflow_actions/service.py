@@ -479,8 +479,8 @@ class DatabaseWorkflowActionService:
                 service.save(update_fields=["sample_data"])
         except Exception as exc:
             # Never fail a click that already succeeded. What an endpoint can
-            # answer with is not ours to predict: a NaN or a NUL byte encodes
-            # here and is then refused by the column it is written to, and by
+            # answer with is not ours to predict: a NaN encodes here and is
+            # then refused by the column it is written to, and by
             # this point the request has left and earlier actions have already
             # written their rows.
             # Not the exception itself: loguru prints the frame locals beside
