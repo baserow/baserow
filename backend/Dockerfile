@@ -62,13 +62,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 FROM golang:1.27-trixie AS mox-builder
 ARG MOX_VERSION=v0.0.17
+# mox v0.0.17 pins x/crypto v0.55.0 (CVE-2026-56855, CVE-2026-78662); drop once a mox release bumps it.
+ARG MOX_X_CRYPTO_VERSION=v0.56.0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# `go install` verifies the module against the Go checksum database
-# (sum.golang.org), so the pinned version is integrity-checked.
-RUN CGO_ENABLED=0 GOFLAGS=-trimpath go install "github.com/mjl-/mox@${MOX_VERSION}" && \
-    mv "$(go env GOPATH)/bin/mox" /usr/local/bin/mox && \
+# `go mod download` and `go get` check every module against sum.golang.org.
+WORKDIR /src/mox
+RUN go mod download "github.com/mjl-/mox@${MOX_VERSION}" && \
+    cp -r "$(go env GOMODCACHE)/github.com/mjl-/mox@${MOX_VERSION}/." . && \
+    chmod -R u+w . && \
+    go get "golang.org/x/crypto@${MOX_X_CRYPTO_VERSION}" && \
+    CGO_ENABLED=0 go build -trimpath -o /usr/local/bin/mox . && \
     chmod 0755 /usr/local/bin/mox
 
 
