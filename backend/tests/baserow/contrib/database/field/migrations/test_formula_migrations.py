@@ -17,8 +17,10 @@ from baserow.contrib.database.formula.migrations.migrations import (
     NO_FORMULAS,
     FormulaMigration,
     FormulaMigrations,
+    formulas_referencing_deleted_fields,
 )
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 
 
 def assert_all_rows_are_none(data_fixture, field):
@@ -917,3 +919,130 @@ def test_migration_recalculates_cell_values_without_jit(data_fixture):
 
     assert jit_per_update == ["off"]
     assert_all_rows_are_not_none(data_fixture, formula_field)
+
+
+def _lookup_of_a_link_field(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    linked = data_fixture.create_database_table(database=database)
+    further = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True)
+    data_fixture.create_text_field(table=linked, primary=True)
+    old_primary = data_fixture.create_text_field(table=further, primary=True)
+    new_primary = data_fixture.create_text_field(table=further)
+    link = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked, name="link"
+    )
+    link_of_link = FieldHandler().create_field(
+        user, linked, "link_row", link_row_table=further, name="link_of_link"
+    )
+    lookup = FieldHandler().create_field(
+        user,
+        table,
+        "lookup",
+        name="lookup",
+        through_field_id=link.id,
+        target_field_id=link_of_link.id,
+    )
+    return user, table, lookup, old_primary, new_primary
+
+
+@pytest.mark.django_db
+def test_v7_retypes_a_lookup_of_a_link_field_whose_primary_field_was_deleted(
+    data_fixture,
+):
+    user, table, lookup, old_primary, new_primary = _lookup_of_a_link_field(
+        data_fixture
+    )
+    stale_internal_formula = lookup.internal_formula
+    assert old_primary.db_column in stale_internal_formula
+
+    # The linked table's primary field changes and the old one is deleted, while
+    # the lookup keeps referencing the old one, as an outdated cached primary
+    # field used to cause.
+    FieldHandler().change_primary_field(user, new_primary.table, new_primary)
+    old_primary.delete()
+    FormulaField.objects.filter(id=lookup.id).update(
+        internal_formula=stale_internal_formula, version=BASEROW_FORMULA_VERSION - 1
+    )
+    invalidate_table_in_model_cache(table.id)
+    with pytest.raises(Exception):
+        RowHandler().create_row(user, table, {})
+
+    FormulaMigrationHandler.migrate_formulas_to_latest_version()
+
+    lookup.refresh_from_db()
+    assert new_primary.db_column in lookup.internal_formula
+    assert lookup.formula_type == "array"
+    RowHandler().create_row(user, table, {})
+
+
+@pytest.mark.django_db
+def test_v7_marks_a_formula_inlining_a_deleted_link_field_as_invalid(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    linked = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True)
+    data_fixture.create_text_field(table=linked, primary=True, name="name")
+    link = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked, name="link"
+    )
+    lookup = FieldHandler().create_field(
+        user,
+        table,
+        "lookup",
+        name="lookup",
+        through_field_id=link.id,
+        target_field_name="name",
+    )
+    count = FieldHandler().create_field(
+        user, table, "formula", name="count", formula="count(field('lookup'))"
+    )
+    assert link.db_column in count.internal_formula
+
+    # The link field disappears without its dependants being updated.
+    link.link_row_related_field.delete()
+    link.delete()
+    FormulaField.objects.update(version=BASEROW_FORMULA_VERSION - 1)
+    invalidate_table_in_model_cache(table.id)
+    with pytest.raises(Exception):
+        RowHandler().create_row(user, table, {})
+
+    FormulaMigrationHandler.migrate_formulas_to_latest_version()
+
+    lookup.refresh_from_db()
+    count.refresh_from_db()
+    assert lookup.formula_type == "invalid"
+    assert count.formula_type == "invalid"
+    RowHandler().create_row(user, table, {})
+
+
+@pytest.mark.django_db
+def test_v7_selector_matches_formulas_referencing_deleted_fields_only(data_fixture):
+    user, table, lookup, old_primary, _ = _lookup_of_a_link_field(data_fixture)
+    unrelated = FieldHandler().create_field(
+        user, table, "formula", name="unrelated", formula="'a' + 'b'"
+    )
+    trashed = data_fixture.create_text_field(table=table, name="trashed")
+    references_trashed = FieldHandler().create_field(
+        user, table, "formula", name="references_trashed", formula="field('trashed')"
+    )
+    FieldHandler().delete_field(user, trashed)
+    FormulaField.objects.filter(id=lookup.id).update(
+        internal_formula=lookup.internal_formula.replace(
+            old_primary.db_column, "field_999999999"
+        )
+    )
+
+    formulas = FormulaField.objects.all()
+    matched = set(
+        formulas.filter(formulas_referencing_deleted_fields(formulas)).values_list(
+            "id", flat=True
+        )
+    )
+
+    assert matched == {lookup.id}
+    assert unrelated.id not in matched
+    assert references_trashed.id not in matched

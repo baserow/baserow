@@ -1,4 +1,5 @@
 import dataclasses
+import re
 from typing import Callable, Union
 
 from django.db.models import Q, QuerySet
@@ -67,6 +68,30 @@ class FormulaMigration:
 class FormulaMigrations(list):
     def get_latest_version(self) -> int:
         return super().__getitem__(-1).version
+
+
+FIELD_REFERENCE_PATTERN = re.compile(r"field_(\d+)")
+
+
+def formulas_referencing_deleted_fields(formulas: QuerySet) -> Q:
+    from baserow.contrib.database.fields.models import Field
+
+    referenced_field_ids = {
+        formula_id: {int(i) for i in FIELD_REFERENCE_PATTERN.findall(internal)}
+        for formula_id, internal in formulas.values_list("id", "internal_formula")
+    }
+    existing_field_ids = set(
+        Field.objects_and_trash.filter(
+            id__in=set().union(*referenced_field_ids.values())
+        ).values_list("id", flat=True)
+    )
+    return Q(
+        id__in=[
+            formula_id
+            for formula_id, field_ids in referenced_field_ids.items()
+            if field_ids - existing_field_ids
+        ]
+    )
 
 
 def all_aggregate_formulas(formulas: QuerySet) -> Q:
@@ -141,6 +166,17 @@ FORMULA_MIGRATIONS = FormulaMigrations(
             recalculate_formula_attributes_for=FORMULAS_USING_INDEX,
             recalculate_field_dependencies_for=NO_FORMULAS,
             recalculate_cell_values_for=FORMULAS_USING_INDEX,
+            force_recreate_formula_columns_for=NO_FORMULAS,
+        ),
+        FormulaMigration(
+            version=7,
+            # v7 retypes formulas whose internal formula still references a field
+            # that no longer exists. Lookups of a link field could be typed against
+            # an outdated cached primary field, fixed in #6254, and formulas inlining
+            # them kept the stale reference too.
+            recalculate_formula_attributes_for=formulas_referencing_deleted_fields,
+            recalculate_field_dependencies_for=NO_FORMULAS,
+            recalculate_cell_values_for=formulas_referencing_deleted_fields,
             force_recreate_formula_columns_for=NO_FORMULAS,
         ),
     ]
