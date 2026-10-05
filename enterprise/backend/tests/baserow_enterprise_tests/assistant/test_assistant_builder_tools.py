@@ -3138,6 +3138,49 @@ def test_update_table_element_add_fields(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "update",
+    [
+        {
+            "fields": [
+                TableFieldConfig(name="Name", type="text", value="B"),
+                TableFieldConfig(name="Go", type="button", label="Go"),
+            ]
+        },
+        {"add_fields": [TableFieldConfig(name="Email", type="text", value="C")]},
+    ],
+)
+def test_update_table_columns_keeps_the_columns_it_resends(data_fixture, update):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    styles = {"cell": {"cell_font_color": "red"}}
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {"name": "Name", "type": "text", "config": {}, "styles": styles},
+            {"name": "Go", "type": "button", "config": {}},
+        ],
+    )
+    go_uid = table_element.fields.get(name="Go").uid
+    click_action = data_fixture.create_notification_workflow_action(
+        element=table_element, event=f"{go_uid}_click"
+    )
+
+    update_element(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        element=ElementUpdate(element_id=table_element.id, **update),
+        thought="test",
+    )
+
+    assert table_element.fields.get(name="Go").uid == go_uid
+    assert table_element.fields.get(name="Name").styles == styles
+    assert BuilderWorkflowAction.objects.filter(id=click_action.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_update_table_element_remove_fields(data_fixture):
     """remove_fields removes columns by name, preserving the rest."""
     user = data_fixture.create_user()

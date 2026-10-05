@@ -1621,6 +1621,13 @@ def _table_update(el: "ElementUpdate") -> dict:
             kwargs["fields"] = _convert_table_fields(
                 data_source_id=ds_id, fields=el.fields, allow_formula_generation=False
             )
+            current = {}
+            if element is not None and hasattr(element, "fields"):
+                current = {(f.name.lower(), f.type): f for f in element.fields.all()}
+            # A reused uid keeps the column's click actions; styles aren't resent.
+            for column in kwargs["fields"]:
+                if match := current.pop((column["name"].lower(), column["type"]), None):
+                    column.update(uid=str(match.uid), styles=match.styles)
         else:
             # Incremental: start from existing fields
             existing = []
@@ -1632,6 +1639,7 @@ def _table_update(el: "ElementUpdate") -> dict:
                             "type": f.type,
                             "config": f.config,
                             "uid": str(f.uid),
+                            "styles": f.styles,
                         }
                     )
 

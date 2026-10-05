@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Kuma keeps the table columns it doesn't change, including their styles and click actions",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}
