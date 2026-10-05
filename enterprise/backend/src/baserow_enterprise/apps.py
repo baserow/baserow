@@ -278,6 +278,13 @@ class BaserowEnterpriseConfig(AppConfig):
             )
 
             agent_chat_channel_type_registry.register(WebAgentChatChannelType())
+            from baserow_enterprise.agent_application.channels.website import (
+                WebsiteWidgetAgentChatChannelType,
+            )
+
+            agent_chat_channel_type_registry.register(
+                WebsiteWidgetAgentChatChannelType()
+            )
 
         action_type_registry.register(UpdateAgentDefinitionActionType())
 

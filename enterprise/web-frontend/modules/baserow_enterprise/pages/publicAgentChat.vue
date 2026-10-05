@@ -12,6 +12,7 @@
         type="secondary"
         icon="iconoir-plus"
         class="public-agent-chat__restart"
+        :title="$t('publicAgentChat.newConversation')"
         @click="restart"
       >
         {{ $t('publicAgentChat.newConversation') }}

@@ -45,13 +45,13 @@ class PublicAgentChatPageType(PageType):
     parameters = ["slug", "token", "conversation"]
 
     def can_add(self, user, web_socket_id, slug, token, conversation, **kwargs):
-        from ..channels.web import WebAgentChatChannelType
+        from ..channels.registries import agent_chat_channel_type_registry
         from ..handler import AgentChatHandler
 
         channel = AgentChatHandler().get_public_web_channel(slug)
         if channel is None:
             return False
-        channel_type = WebAgentChatChannelType()
+        channel_type = agent_chat_channel_type_registry.get(channel.type)
         if channel_type.has_password(channel) and not channel_type.is_token_valid(
             channel, token
         ):

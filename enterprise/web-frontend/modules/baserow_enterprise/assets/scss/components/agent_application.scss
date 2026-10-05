@@ -2188,7 +2188,9 @@
 .agent-configuration__channel-url-box {
   flex: 1;
   min-width: 0;
+  margin: 0;
   padding: 6px 8px;
+  white-space: pre-wrap;
   border: 1px solid $palette-neutral-200;
   border-radius: 4px;
   background-color: $palette-neutral-50;
@@ -2196,6 +2198,30 @@
   font-size: 12px;
   line-height: 18px;
   word-break: break-all;
+}
+
+.agent-configuration__channel-preview-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.agent-configuration__field-row {
+  display: flex;
+  gap: 12px;
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .agent-configuration__channel-url-copy {
@@ -2697,10 +2723,16 @@
 // text because visitors never see the reasoning itself.
 .public-agent-chat__working {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 
+  // The spinner is a pseudo-element on the text baseline; centering it in
+  // a box as tall as a text line keeps it level with the first line.
   .agent-chat-reasoning__indicator {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 18px;
     margin-bottom: 0;
   }
 }
@@ -2719,12 +2751,14 @@
   }
 }
 
-// 16px stops mobile browsers from zooming into the textarea on focus.
+// 16px stops phones from zooming into the textarea on focus. It is tied to
+// touch devices rather than width, because the page is also framed in the
+// narrow website widget on desktops.
 .public-agent-chat__textarea {
   color: $palette-neutral-1200;
   font-family: inherit;
 
-  @media (max-width: 600px) {
+  @media (max-width: 600px) and (pointer: coarse) {
     font-size: 16px;
   }
 }

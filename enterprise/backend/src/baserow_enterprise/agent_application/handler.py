@@ -359,13 +359,21 @@ class AgentChatHandler:
         link, or None. Anything else looks like a missing link to visitors.
         """
 
+        from .channels.registries import agent_chat_channel_type_registry
         from .channels.web import WebAgentChatChannelType
 
         if not slug:
             return None
+        # Every channel type built on the web chat (the website widget too)
+        # is reachable through the public endpoints.
+        public_types = [
+            channel_type.type
+            for channel_type in agent_chat_channel_type_registry.get_all()
+            if isinstance(channel_type, WebAgentChatChannelType)
+        ]
         channel = (
             AgentChatChannel.objects.select_related("application__workspace")
-            .filter(type=WebAgentChatChannelType.type, config__slug=slug)
+            .filter(type__in=public_types, config__slug=slug)
             .first()
         )
         if channel is None or not WebAgentChatChannelType().is_accessible(channel):

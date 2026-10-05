@@ -140,8 +140,41 @@
               </div>
               <AgentSlackSetupSteps created />
             </template>
-            <template v-else-if="channel.type === 'web'">
+            <template
+              v-else-if="channel.type === 'web' || channel.type === 'website'"
+            >
               <FormGroup
+                v-if="channel.type === 'website'"
+                small-label
+                :label="$t('agentChannels.embedCodeLabel')"
+                :helper-text="$t('agentChannels.embedCodeHelp')"
+                class="margin-bottom-2"
+              >
+                <div class="agent-configuration__channel-url">
+                  <pre class="agent-configuration__channel-url-box">{{
+                    embedCode(channel)
+                  }}</pre>
+                  <a
+                    class="agent-configuration__channel-url-copy"
+                    :title="$t('agentChannels.copyCode')"
+                    @click="copyText(channel, embedCode(channel))"
+                  >
+                    <i class="iconoir-copy"></i>
+                    <Copied :ref="`copied-${channel.id}`"></Copied>
+                  </a>
+                </div>
+                <a
+                  class="agent-configuration__channel-preview-link"
+                  :href="publicUrl(channel)"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <i class="iconoir-open-new-window"></i>
+                  {{ $t('agentChannels.previewChat') }}
+                </a>
+              </FormGroup>
+              <FormGroup
+                v-if="channel.type === 'web'"
                 small-label
                 :label="$t('agentChannels.publicLinkLabel')"
                 :helper-text="$t('agentChannels.publicLinkHelp')"
@@ -170,6 +203,7 @@
                 </ButtonText>
               </FormGroup>
               <div
+                v-if="channel.type === 'web'"
                 class="agent-configuration__switch-row agent-configuration__switch-row--plain"
               >
                 <i class="agent-configuration__switch-icon iconoir-lock"></i>
@@ -214,8 +248,59 @@
                   @input="onWebConfigChanged(channel)"
                 ></FormTextarea>
               </FormGroup>
+              <template v-if="channel.type === 'website'">
+                <FormGroup
+                  small-label
+                  :label="$t('agentChannels.buttonTextLabel')"
+                  class="margin-bottom-2"
+                >
+                  <FormInput
+                    v-model="channelDrafts[channel.id].buttonText"
+                    :disabled="!canUpdateChannel"
+                    :placeholder="$t('agentChannels.buttonTextPlaceholder')"
+                    @input="onWebConfigChanged(channel)"
+                  ></FormInput>
+                </FormGroup>
+                <div class="agent-configuration__field-row margin-bottom-2">
+                  <FormGroup
+                    small-label
+                    :label="$t('agentChannels.buttonColorLabel')"
+                  >
+                    <ColorInput
+                      v-model="channelDrafts[channel.id].buttonColor"
+                      small
+                      :allow-opacity="false"
+                      :disabled="!canUpdateChannel"
+                      @update:model-value="onWebConfigChanged(channel)"
+                    ></ColorInput>
+                  </FormGroup>
+                  <FormGroup
+                    small-label
+                    :label="$t('agentChannels.buttonPositionLabel')"
+                  >
+                    <Dropdown
+                      v-model="channelDrafts[channel.id].buttonPosition"
+                      :show-search="false"
+                      :fixed-items="true"
+                      :disabled="!canUpdateChannel"
+                      @update:model-value="onWebConfigChanged(channel)"
+                    >
+                      <DropdownItem
+                        v-for="option in buttonPositions"
+                        :key="option.value"
+                        :name="option.name"
+                        :value="option.value"
+                      />
+                    </Dropdown>
+                  </FormGroup>
+                </div>
+              </template>
               <div class="agent-configuration__hint">
-                {{ $t('agentChannels.webHint') }}
+                {{
+                  channel.type === 'website'
+                    ? $t('agentChannels.websiteHint')
+                    : $t('agentChannels.webHint')
+                }}
               </div>
             </template>
           </ReadOnlyForm>
@@ -253,7 +338,11 @@
           <AgentSlackSetupSteps />
         </template>
         <div v-else class="agent-configuration__hint margin-bottom-2">
-          {{ $t('agentChannels.webCreateHint') }}
+          {{
+            draft.type === 'website'
+              ? $t('agentChannels.websiteCreateHint')
+              : $t('agentChannels.webCreateHint')
+          }}
         </div>
         <div class="agent-configuration__channel-draft-actions">
           <Button
@@ -342,6 +431,13 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { downloadJson } from '@baserow_enterprise/utils/download'
 import slackImage from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
+const BUTTON_POSITIONS = [
+  'bottom-right',
+  'bottom-left',
+  'top-right',
+  'top-left',
+]
+
 export default {
   name: 'AgentChatChannelsSection',
   components: {
@@ -380,6 +476,12 @@ export default {
     }
   },
   computed: {
+    buttonPositions() {
+      return BUTTON_POSITIONS.map((value) => ({
+        value,
+        name: this.$t(`agentChannels.position_${value}`),
+      }))
+    },
     canUpdateChannel() {
       return this.$hasPermission(
         'agent_application.update_chat_channel',
@@ -411,6 +513,14 @@ export default {
               icon: 'iconoir-globe',
               iconColor: 'muted-blue',
               description: this.$t('agentChannels.webDescription'),
+            },
+            {
+              id: 'channel-website',
+              label: this.$t('agentChannels.website'),
+              value: 'website',
+              icon: 'iconoir-code',
+              iconColor: 'muted-blue',
+              description: this.$t('agentChannels.websiteDescription'),
             },
             {
               id: 'channel-slack',
@@ -458,16 +568,26 @@ export default {
           signingSecret: '',
           title: channel.config?.title || '',
           welcomeText: channel.config?.welcome_text || '',
+          buttonText: channel.config?.button_text || '',
+          buttonColor: channel.config?.button_color || '#5190ef',
+          buttonPosition: channel.config?.button_position || 'bottom-right',
         }
       }
     },
     channelTypeName(channel) {
-      return channel.type === 'web'
-        ? this.$t('agentChannels.web')
-        : this.$t('agentChannels.slack')
+      return this.$t(`agentChannels.${channel.type}`)
     },
     channelTypeIcon(channel) {
-      return channel.type === 'web' ? 'iconoir-globe' : ''
+      return (
+        { web: 'iconoir-globe', website: 'iconoir-code' }[channel.type] || ''
+      )
+    },
+    embedCode(channel) {
+      // Split so the closing tag can't end this component's own script
+      // block when the template is compiled.
+      return (
+        `<script src="${channel.config.embed_script_url}" async></scr` + `ipt>`
+      )
     },
     publicUrl(channel) {
       return (
@@ -554,10 +674,15 @@ export default {
         return
       }
       const values = { title: draft.title, welcome_text: draft.welcomeText }
-      if (
-        values.title === (channel.config?.title || '') &&
-        values.welcome_text === (channel.config?.welcome_text || '')
-      ) {
+      if (channel.type === 'website') {
+        values.button_text = draft.buttonText
+        values.button_color = draft.buttonColor
+        values.button_position = draft.buttonPosition
+      }
+      const unchanged = Object.entries(values).every(
+        ([key, value]) => value === (channel.config?.[key] || '')
+      )
+      if (unchanged) {
         return
       }
       try {
@@ -692,6 +817,12 @@ export default {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
       downloadJson(channel.manifest, `${name}-slack-manifest.json`)
+    },
+    copyText(channel, text) {
+      copyToClipboard(text)
+      const copied = this.$refs[`copied-${channel.id}`]
+      const instance = Array.isArray(copied) ? copied[0] : copied
+      instance?.show()
     },
     copyEventsUrl(channel) {
       copyToClipboard(channel.events_url)

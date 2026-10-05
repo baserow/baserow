@@ -6,6 +6,7 @@ exposure contract in `agent_application/channels/web.py` before adding data.
 
 from django.conf import settings
 from django.db import transaction
+from django.http import HttpResponse
 
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
@@ -18,8 +19,14 @@ from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.exceptions import RateLimitExceededException
 from baserow.throttling.handler import rate_limit
 from baserow.throttling.types import RateLimit
+from baserow_enterprise.agent_application.channels.registries import (
+    agent_chat_channel_type_registry,
+)
 from baserow_enterprise.agent_application.channels.web import (
     WebAgentChatChannelType,
+)
+from baserow_enterprise.agent_application.channels.website import (
+    WebsiteWidgetAgentChatChannelType,
 )
 from baserow_enterprise.agent_application.exceptions import (
     AgentChatAlreadyRunning,
@@ -78,7 +85,7 @@ def _get_channel(slug: str, request, require_token: bool = True):
     channel = AgentChatHandler().get_public_web_channel(slug)
     if channel is None:
         raise AgentChatChannelDoesNotExist(f"No public chat for slug {slug}.")
-    channel_type = WebAgentChatChannelType()
+    channel_type = agent_chat_channel_type_registry.get(channel.type)
     if (
         require_token
         and channel_type.has_password(channel)
@@ -261,3 +268,35 @@ class PublicAgentChatMessagesView(APIView):
         return Response(
             {"message_id": message.id, "status": "working"}, status=HTTP_202_ACCEPTED
         )
+
+
+class PublicAgentWidgetScriptView(APIView):
+    """
+    The embed script of a website widget channel. It is plain JavaScript, so
+    a `<script src>` on any site can load it without CORS, and it is served
+    uncached so widget settings apply as soon as they change.
+    """
+
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+
+    @extend_schema(
+        tags=["Agent application"],
+        operation_id="get_agent_widget_script",
+        description=(
+            "Returns the JavaScript that embeds the agent chat widget of a "
+            "website channel. Only channels of that type serve a script."
+        ),
+        responses={200: None, 404: None},
+    )
+    def get(self, request, slug):
+        channel = AgentChatHandler().get_public_web_channel(slug)
+        channel_type = WebsiteWidgetAgentChatChannelType()
+        if channel is None or channel.type != channel_type.type:
+            return HttpResponse(status=404)
+        response = HttpResponse(
+            channel_type.build_script(channel),
+            content_type="application/javascript; charset=utf-8",
+        )
+        response["Cache-Control"] = "no-cache"
+        return response

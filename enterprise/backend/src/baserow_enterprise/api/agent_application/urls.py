@@ -6,6 +6,7 @@ from .public_views import (
     PublicAgentChatConversationView,
     PublicAgentChatMessagesView,
     PublicAgentChatView,
+    PublicAgentWidgetScriptView,
 )
 from .views import (
     AgentApplicationApprovalsView,
@@ -169,5 +170,10 @@ urlpatterns = [
         "public/chat/<str:slug>/conversations/<str:chat_uuid>/messages/",
         PublicAgentChatMessagesView.as_view(),
         name="public_chat_messages",
+    ),
+    path(
+        "public/widget/<str:slug>.js",
+        PublicAgentWidgetScriptView.as_view(),
+        name="public_widget_script",
     ),
 ]
