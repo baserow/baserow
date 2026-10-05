@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes an error when removing every option used as the default of a multiple select field",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}

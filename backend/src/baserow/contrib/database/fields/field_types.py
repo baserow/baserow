@@ -5594,7 +5594,7 @@ class MultipleSelectFieldType(
     def get_validated_default_value(
         self, from_field, default_index, has_new_default_value, select_default_value
     ):
-        default_value = self.get_options_by_index(from_field, default_index)
+        default_value = self.get_options_by_index(from_field, default_index) or []
         if not select_default_value:
             return []
         if len(select_default_value) == len(default_value):

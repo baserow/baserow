@@ -770,3 +770,25 @@ def test_add_multiple_select_field_with_default_sets_existing_rows(
         value = getattr(row, f"field_{field_id}").all()
         value_ids = sorted([v.id for v in value])
         assert value_ids == sorted(select_option_ids)
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_select
+def test_removing_every_default_option_clears_the_default(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    option_a = data_fixture.create_select_option(field=field, value="A")
+    option_b = data_fixture.create_select_option(field=field, value="B")
+    field.multiple_select_default = [option_a.id]
+    field.save()
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        {"select_options": [{"id": option_b.id, "value": "B", "color": "red"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["multiple_select_default"] == []
