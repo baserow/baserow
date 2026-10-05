@@ -462,6 +462,9 @@ RUN apt-get update && \
     postgresql-client-${POSTGRES_VERSION} \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Plugin installs bootstrap pip into the app venv, so the system pip only adds CVEs.
+RUN pip uninstall -y --root-user-action=ignore pip
+
 RUN groupadd --system --gid $GID ${DOCKER_USER} && \
       useradd --shell /bin/bash -l -u $UID -g $GID -o -c "" -d /baserow -m ${DOCKER_USER} && \
       chmod 755 /baserow

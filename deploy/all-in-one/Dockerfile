@@ -53,6 +53,8 @@ RUN apt-get update && \
     pip install --no-cache-dir --disable-pip-version-check --root-user-action=ignore \
         --only-binary=:all: --require-hashes \
         -r <(echo "supervisor==${SUPERVISOR_VERSION} --hash=sha256:${SUPERVISOR_SHA256}") && \
+    # Plugin installs bootstrap pip into the app venv, so the system pip only adds CVEs
+    pip uninstall -y --root-user-action=ignore pip && \
     mkdir -p /var/log/supervisor && \
     ln -sf /dev/stdout /var/log/supervisor/supervisord.log && \
     # Create data and plugin directories with correct ownership
