@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes form actions failing when a required field is hidden from the visitor",
+    "issue_origin": "github",
+    "issue_number": 6252,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}

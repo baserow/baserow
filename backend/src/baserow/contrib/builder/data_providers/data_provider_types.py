@@ -1,4 +1,5 @@
 import re
+from contextvars import ContextVar
 from typing import Any, Dict, List, Optional, Type, Union
 
 from django.conf import settings
@@ -19,15 +20,23 @@ from baserow.contrib.builder.elements.mixins import (
     FormElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import FormElement
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.core.formula import resolve_formula
 from baserow.core.formula.exceptions import (
     InvalidFormulaContext,
     InvalidFormulaContextContent,
     InvalidRuntimeFormula,
 )
-from baserow.core.formula.registries import DataProviderType
+from baserow.core.formula.registries import (
+    DataProviderType,
+    formula_runtime_function_registry,
+)
+from baserow.core.formula.validator import ensure_boolean
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
@@ -37,6 +46,12 @@ from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 from baserow.core.workflow_actions.models import WorkflowAction
 
 RE_DEFAULT_ROLE = re.compile(rf"{DEFAULT_USER_ROLE_PREFIX}(\d+)")
+
+# The IDs of the elements whose visibility condition is being resolved, used to
+# detect visibility conditions which depend on themselves.
+_visibility_check_in_progress: ContextVar[frozenset[int]] = ContextVar(
+    "_visibility_check_in_progress", default=frozenset()
+)
 
 
 class BuilderDataProviderType(DataProviderType):
@@ -100,7 +115,72 @@ class FormDataProviderType(BuilderDataProviderType):
             ) from exc
 
         except (TypeError, ValueError) as exc:
+            # The frontend doesn't validate form fields hidden by a visibility
+            # condition, so an invalid value (e.g. an empty required field) is
+            # expected for them and is discarded instead of failing the dispatch.
+            if not self._is_element_visible(element, dispatch_context):
+                return None
             raise InvalidFormulaContextContent(str(exc)) from exc
+
+    def _is_element_visible(
+        self, element: FormElement, dispatch_context: DispatchContext
+    ) -> bool:
+        """
+        Returns whether the element is visible to the current user, as the
+        frontend decides it: the element and all its ancestors must be visible
+        to the user's login state and role, and pass their visibility condition.
+        If a condition can't be resolved, the element is considered visible so
+        that the form data is still validated.
+
+        :param element: The form element to check.
+        :param dispatch_context: The dispatch context used to resolve the
+            visibility conditions.
+        :return: False if the element or one of its ancestors is hidden from the
+            current user, True otherwise.
+        """
+
+        request = getattr(dispatch_context, "request", None)
+        user_source_user = getattr(request, "user_source_user", None)
+        if (
+            user_source_user is not None
+            and not ElementVisibilityPermissionManager().actor_can_view_element(
+                user_source_user, element
+            )
+        ):
+            return False
+
+        current_element = element
+        while current_element is not None:
+            if current_element.id in _visibility_check_in_progress.get():
+                # The visibility condition references itself, directly or
+                # through another form element, so we can't evaluate it.
+                return True
+
+            condition = current_element.visibility_condition
+            if condition and condition["formula"]:
+                token = _visibility_check_in_progress.set(
+                    _visibility_check_in_progress.get() | {current_element.id}
+                )
+                try:
+                    is_visible = ensure_boolean(
+                        resolve_formula(
+                            condition,
+                            formula_runtime_function_registry,
+                            dispatch_context.clone(),
+                        ),
+                        strict=False,
+                    )
+                except Exception:
+                    return True
+                finally:
+                    _visibility_check_in_progress.reset(token)
+
+                if not is_visible:
+                    return False
+
+            current_element = current_element.parent_element
+
+        return True
 
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         # The path can come in two lengths:
