@@ -86,6 +86,8 @@ jobs:
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             -e SECRET_KEY=test-secret-key \
+            -e BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE=/usr/local/bin/wasmtime \
+            -e BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=/usr/local/lib/baserow/qjs.wasm \
             "$BACKEND_IMAGE" ci-test "${pytest_extra_args[@]}"
           docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
           docker rm baserow_backend_test_container
