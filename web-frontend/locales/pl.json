@@ -24,7 +24,14 @@
         "saturday": "Sobota",
         "sunday": "Niedziela",
         "value": "wartość",
-        "workspace": "obszar roboczy"
+        "workspace": "obszar roboczy",
+        "created": "Utworzony",
+        "lastViewed": "Ostatnio wyświetlone",
+        "nameAsc": "Nazwa (A-Z)",
+        "nameDesc": "Nazwa (Z-A)",
+        "neverViewed": "Nie wyświetlone",
+        "createdAgo": "Utworzone {ago}",
+        "viewedAgo": "Wyświetlone {ago}"
     },
     "action": {
         "upload": "Prześlij",
@@ -127,7 +134,8 @@
         "decimalField": "Wartość w tym polu musi być typu dziesiętnego.",
         "copyFailed": "Kopiowanie do schowka nie powiodło się. Spróbuj ponownie.",
         "nameContainsUrl": "Nazwy nie mogą zawierać linków, domen lub adresów stron internetowych.",
-        "nameCantBeEmail": "Wprowadź swoje imię i nazwisko, a nie adres e-mail."
+        "nameCantBeEmail": "Wprowadź swoje imię i nazwisko, a nie adres e-mail.",
+        "nameContainsSpam": "Nazwy nie mogą zawierać znaków ozdobnych ani długich liczb."
     },
     "permission": {
         "admin": "Administrator",
@@ -189,7 +197,8 @@
         "overflowDuration": "Wartość wykracza poza zakres.",
         "invalidDuration": "Nieprawidłowy format ({durationFormat}).",
         "higherThan": "Wartość przekracza {max}.",
-        "maxCharsExceeded": "Max {max} znaków (-{over})."
+        "maxCharsExceeded": "Max {max} znaków (-{over}).",
+        "maxImagesExceeded": "Maksymalnie {max} plików graficznych (usuń {over})."
     },
     "fieldDocs": {
         "readOnly": "To jest pole tylko do odczytu.",
@@ -226,7 +235,8 @@
         "password": "Pole tylko do zapisu, w którym przechowywane jest zaszyfrowane hasło. Pole będzie miało wartość `null`, jeśli hasło nie zostało podane lub, `true` (prawda), jeśli hasło zostało wprowadzone. W tym polu można wprowadzić ciąg znaków.",
         "lastModifiedBy": "Pole “Ostatnio zmodyfikowane przez” jest polem tylko do odczytu.",
         "formViewEditRow": "Pole tylko do odczytu, które generuje unikalny, podpisany adres URL umożliwiający edycję wiersza przy użyciu powiązanego formularza.",
-        "button": "Pole przycisku. Po kliknięciu zostanie otwarta strona pod adresem URL utworzonym na podstawie wartości zawartych w wierszu. Komórka nie przechowuje żadnych danych. Próby zapisu zostaną odrzucone."
+        "button": "Pole przycisku. Po kliknięciu zostanie otwarta strona pod adresem URL utworzonym na podstawie wartości zawartych w wierszu. Komórka nie przechowuje żadnych danych. Próby zapisu zostaną odrzucone.",
+        "longTextRichText": "Pole tekstu wielowierszowego sformatowanego przy pomocy Markdown. Aby osadzić plik graficzny, należy go przesłać, korzystając z punktu końcowego do przesyłania plików, podając zwróconą nazwę w formacie ![alt][name]. Odpowiedzi będą zawierały tymczasowy adres URL w formacie ![alt][name](url), który zostanie zignorowany, gdy wartość zostanie odesłana. Jedna wartość może zawierać odnośniki do maksymalnie 100 plików, każda nazwa musi odpowiadać jednemu plikowi."
     },
     "viewFilter": {
         "contains": "zawiera",
@@ -343,7 +353,9 @@
         "automation_workflow": "zautomatyzowany proces",
         "automation_node": "węzeł automatyzacji",
         "builder_page": "strona konfiguratora",
-        "builder_element": "element konfiguratora"
+        "builder_element": "element konfiguratora",
+        "agent": "agent",
+        "database_workflow_action": "operacja przycisku"
     },
     "webhook": {
         "request": "Żądanie",
@@ -465,7 +477,9 @@
         "fieldConstraintTitle": "Naruszenie reguły integralności pola",
         "fieldConstraintDescription": "Nie można zastosować reguły integralności.",
         "fieldDataConstraintTitle": "Naruszenie reguły integralności danych pola",
-        "fieldDataConstraintDescription": "Nie można ukończyć operacji, ponieważ istniejące reguły integralności zostały naruszone."
+        "fieldDataConstraintDescription": "Nie można ukończyć operacji, ponieważ istniejące reguły integralności zostały naruszone.",
+        "userFileDoesNotExistTitle": "Plik graficzny nie istnieje",
+        "userFileDoesNotExistDescription": "Wartość odnosi się do pliku graficznego, który nie istnieje. Usuń wartość i spróbuj ponownie."
     },
     "importerType": {
         "csv": "Importuj plik CSV",
@@ -731,7 +745,8 @@
         "toJsonDescription": "Serializuje wartość jako ciąg znaków w formacie JSON, gdzie cudzysłowy, znaki odwrotnego ukośnika i znaki sterujące poprzedzone są znakiem \"escape\", dzięki czemu można ją umieścić w dokumencie JSON.",
         "fromJsonDescription": "Przetwarza ciąg znaków zakodowany w formacie JSON na wartość, taką jak obiekt, tablica lub liczba. Zwraca null, jeśli ciąg nie jest poprawnie sformatowany jako JSON.",
         "encodeUriDescription": "Symbol procentu umożliwia zakodowanie znaków, które nie są dozwolone w adresie URL, zachowując przy tym strukturę adresu URL",
-        "encodeUriComponentDescription": "Symbol procentu umożliwia zakodowanie argumentu w taki sposób, aby można go było użyć jako pojedynczy element adresu URL, np. jako segment ścieżki lub parametr zapytania"
+        "encodeUriComponentDescription": "Symbol procentu umożliwia zakodowanie argumentu w taki sposób, aby można go było użyć jako pojedynczy element adresu URL, np. jako segment ścieżki lub parametr zapytania",
+        "nowDescription": "Podaje aktualną datę i godzinę."
     },
     "runtimeGetErrors": {
         "invalidPath": "Argument 'get' '{path}' musi być zapisany jako ścieżka rozdzielona kropkami (np. 'dostawca.atrybut').",
