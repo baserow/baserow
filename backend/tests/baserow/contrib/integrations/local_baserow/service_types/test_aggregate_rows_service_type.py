@@ -155,6 +155,97 @@ def test_local_baserow_aggregate_rows_prepare_values_reset_field_when_table_chan
 
 
 @pytest.mark.django_db
+def test_local_baserow_aggregate_rows_prepare_values_clear_table_view_and_field(
+    data_fixture,
+):
+    """
+    Deselecting the table in the dashboard data source form sends `table_id`,
+    `view_id` and `field_id` as `None` together. This must reset the service
+    rather than raise an `AttributeError` on the cleared table.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, view=view, field=field, aggregation_type="sum"
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    prepared_values = service_type.prepare_values(
+        {"table_id": None, "view_id": None, "field_id": None},
+        user,
+        instance=service,
+    )
+
+    assert prepared_values["table"] is None
+    assert prepared_values["view"] is None
+    assert prepared_values["field"] is None
+    assert prepared_values["aggregation_type"] == ""
+
+
+@pytest.mark.django_db
+def test_local_baserow_aggregate_rows_prepare_values_clear_field(data_fixture):
+    """
+    Sending `field_id: None` on its own must clear the field and the
+    aggregation type, not leave the previous field in place.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=field, aggregation_type="sum"
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    prepared_values = service_type.prepare_values(
+        {"field_id": None}, user, instance=service
+    )
+
+    assert prepared_values["field"] is None
+    assert prepared_values["aggregation_type"] == ""
+
+
+@pytest.mark.django_db
+def test_local_baserow_aggregate_rows_prepare_values_field_without_table(
+    data_fixture,
+):
+    """
+    A `field_id` can only be validated against a table. Sending one while the
+    table is being cleared, or on creation before any table is set, must be
+    rejected with a validation error rather than raise an `AttributeError`.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table=table, field=field, aggregation_type="sum"
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    # Clearing the table while keeping a field.
+    with pytest.raises(ValidationError) as exc:
+        service_type.prepare_values(
+            {"table_id": None, "field_id": field.id}, user, instance=service
+        )
+    assert (
+        str(exc.value.detail["detail"])
+        == "A table ID is required alongside the field ID."
+    )
+
+    # Creating a service with a field but no table.
+    with pytest.raises(ValidationError) as exc:
+        service_type.prepare_values({"field_id": field.id}, user)
+    assert (
+        str(exc.value.detail["detail"])
+        == "A table ID is required alongside the field ID."
+    )
+
+
+@pytest.mark.django_db
 def test_local_baserow_aggregate_rows_prepare_values_incorrect_field(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)

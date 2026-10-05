@@ -1409,6 +1409,31 @@ def test_local_baserow_view_service_type_prepare_values(data_fixture):
     )
 
 
+@pytest.mark.django_db
+def test_local_baserow_view_service_type_prepare_values_clearing_table_resets_view(
+    data_fixture,
+):
+    """
+    Clearing the table (`table_id: None`) without an accompanying `view_id` must
+    reset the view, rather than raise an `AttributeError` when comparing the
+    instance's view table against the now-`None` table.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    service_type = LocalBaserowViewServiceType
+    service_type.model_class = Mock()
+    instance = data_fixture.create_local_baserow_list_rows_service(
+        table=table, view=view
+    )
+
+    assert service_type().prepare_values({"table_id": None}, user, instance) == {
+        "table": None,
+        "view": None,
+    }
+
+
 @pytest.fixture
 def local_baserow_get_context_data_fixture(data_fixture):
     """
