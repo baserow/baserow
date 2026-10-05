@@ -14,7 +14,8 @@
         "themeName": "Téma",
         "domainsName": "Domény",
         "userSourcesName": "Uživatelé",
-        "generalName": "Obecné"
+        "generalName": "Obecné",
+        "breakpointsName": "Body zlomu"
     },
     "createPageModal": {
         "header": "Vytvořit stránku",
@@ -120,7 +121,8 @@
         "errorIframeContentMissing": "Chybí obsah IFrame",
         "errorNoMenuItem": "Není nakonfigurována žádná položka nabídky",
         "errorMenuItemInError": "Alespoň jedna položka nabídky je chybně nakonfigurovaná",
-        "errorSubMenuItemInError": "Alespoň jedna podnabídka je chybně nakonfigurovaná"
+        "errorSubMenuItemInError": "Alespoň jedna podnabídka je chybně nakonfigurovaná",
+        "errorOptionNameMissing": "Možnosti chybí název"
     },
     "addElementButton": {
         "label": "Prvek"
@@ -192,7 +194,9 @@
     },
     "elementForms": {
         "textInputPlaceholder": "Zadejte text...",
-        "urlInputPlaceholder": "Zadejte adresu URL..."
+        "urlInputPlaceholder": "Zadejte adresu URL...",
+        "formValidationTitle": "Ověření formuláře",
+        "formValidationHint": "Umístěte tento prvek do formuláře, aby se před odesláním dat zobrazovaly chyby ověření."
     },
     "imageElementForm": {
         "fileLabel": "Obrázek",
@@ -255,7 +259,10 @@
         "loginToastTitle": "Ověření bylo úspěšné",
         "loginToastMessage": "Byli jste úspěšně přihlášeni.",
         "authorizedToastTitle": "Vyžadováno přihlášení",
-        "authorizedToastMessage": "Abyste získali přístup k této stránce, musíte být přihlášeni. Pokračujte přihlášením."
+        "authorizedToastMessage": "Abyste získali přístup k této stránce, musíte být přihlášeni. Pokračujte přihlášením.",
+        "previewSessionExpiredTitle": "Relace náhledu vypršela",
+        "previewSessionExpiredDescription": "Zavřete tuto kartu a znovu otevřete náhled z Builderu aplikací.",
+        "loginErrorToastTitle": "Ověření selhalo"
     },
     "integrationSettings": {
         "title": "Integrace",
@@ -395,7 +402,8 @@
         "notificationDescription": "Zobrazit uživateli zprávu s oznámením.",
         "openPageDescription": "Přejděte s uživatelem na jinou stránku nebo adresu URL.",
         "logoutDescription": "Odhlaste aktuálního uživatele.",
-        "refreshDataSourceDescription": "Znovu načtěte zdroj dat a aktualizujte prvky, které jej používají."
+        "refreshDataSourceDescription": "Znovu načtěte zdroj dat a aktualizujte prvky, které jej používají.",
+        "errorNotificationContentMissing": "Oznámení vyžaduje název nebo popis"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Název",
@@ -526,7 +534,8 @@
         "warningTitle": "Používejte pouze důvěryhodný obsah",
         "warningMessage": "Obsah IFrame je v editoru izolován v sandboxu, kde může vložené HTML spouštět skripty odděleně. V náhledech a publikovaných aplikacích může vložené HTML spouštět skripty bez omezení, zatímco externí adresy URL mohou spouštět skripty, odesílat formuláře a otevírat vyskakovací okna.",
         "allowSameOriginLabel": "Povolit prvku iframe přístup k datům vlastního webu",
-        "allowSameOriginHelp": "Tuto možnost povolte pouze pro důvěryhodnou externí adresu URL. Umožňuje prvku iframe používat v náhledech a publikovaných aplikacích soubory cookie, úložiště a další funkce stejného původu."
+        "allowSameOriginHelp": "Tuto možnost povolte pouze pro důvěryhodnou externí adresu URL. Umožňuje prvku iframe používat v náhledech a publikovaných aplikacích soubory cookie, úložiště a další funkce stejného původu.",
+        "editorPreviewPlaceholder": "Tento iframe se v editoru nezobrazuje.\nPomocí Náhledu zkontrolujte, jak vypadá v aplikaci."
     },
     "linkNavigationSelection": {
         "navigateTo": "Přejít na",
@@ -1107,5 +1116,25 @@
     },
     "getExpressionComponent": {
         "errorTooltip": "Neplatný odkaz"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Body zlomu",
+        "description": "Zvolte, kdy se aplikace přepíná mezi rozvržením pro mobil, tablet a počítač. Změny se nyní projeví v editoru a v publikované aplikaci po jejím publikování.",
+        "mobileLabel": "Bod zlomu pro mobil",
+        "tabletLabel": "Bod zlomu pro tablet",
+        "desktopLabel": "Bod zlomu pro počítač",
+        "desktopDescription": "Nad {breakpoint}px",
+        "updatedTitle": "Body zlomu uloženy",
+        "updatedDescription": "Nové body zlomu jsou aktivní v editoru. Chcete-li je použít pro návštěvníky, publikujte aplikaci.",
+        "mobileMustBeLessThanTablet": "Bod zlomu pro mobil musí být menší než bod zlomu pro tablet.",
+        "tabletMustBeGreaterThanMobile": "Bod zlomu pro tablet musí být větší než bod zlomu pro mobil."
+    },
+    "trashType": {
+        "builder_page": "stránka",
+        "builder_data_source": "zdroj dat",
+        "builder_workflow_action": "akce pracovního postupu"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Stránka"
     }
 }
