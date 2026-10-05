@@ -322,7 +322,8 @@
   },
   "premiumFieldType": {
     "ai": "AI prompt",
-    "aiDescription": "A read-only field that holds AI generated text based on the field prompt."
+    "aiDescription": "A read-only field that holds AI generated text based on the field prompt.",
+    "aiRichTextDescription": "A read-only field that holds AI generated text based on the field prompt, formatted with markdown."
   },
   "functionalGridViewFieldAI": {
     "generate": "Generate"

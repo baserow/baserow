@@ -31,10 +31,14 @@ from baserow.contrib.database.fields.exceptions import (
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_types import (
     CollationSortMixin,
+    LongTextFieldType,
     SelectOptionBaseFieldType,
 )
 from baserow.contrib.database.fields.models import Field, FileField, LinkRowField
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import FieldType, field_type_registry
+from baserow.contrib.database.fields.rich_text_utils import (
+    escape_user_file_references,
+)
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -44,6 +48,7 @@ from baserow.core.generative_ai.exceptions import (
     ModelDoesNotBelongToType,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.utils import grouper
 from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
 )
@@ -52,6 +57,7 @@ from baserow_premium.fields.tasks import schedule_ai_field_generation
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
+from .ai_field_output_types import TextAIFieldOutputType
 from .models import AIField
 from .registries import ai_field_output_registry
 from .visitors import extract_field_id_dependencies, replace_field_id_references
@@ -59,6 +65,12 @@ from .visitors import extract_field_id_dependencies, replace_field_id_references
 User = get_user_model()
 
 if TYPE_CHECKING:
+    from zipfile import ZipFile
+
+    from django.contrib.auth.models import AbstractUser
+    from django.core.files.storage import Storage
+    from django.db.backends.base.base import BaseDatabaseWrapper
+
     from baserow.contrib.database.fields.registries import StartingRowType
     from baserow.contrib.database.table.models import GeneratedTableModel
 
@@ -82,6 +94,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_file_field_id",
         "ai_auto_update",
         "ai_auto_update_user_id",
+        "long_text_enable_rich_text",
     ]
     serializer_field_names = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
@@ -91,6 +104,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_prompt",
         "ai_file_field_id",
         "ai_auto_update",
+        "long_text_enable_rich_text",
         "error",
     ]
     serializer_field_overrides = {
@@ -156,11 +170,21 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type.get_internal_value_from_db(row, field_name)
 
     def get_baserow_field_type(self, instance):
-        output_type = ai_field_output_registry.get(instance.ai_output_type)
-        baserow_field_type = field_type_registry.get_by_type(
-            output_type.baserow_field_type
-        )
-        return baserow_field_type
+        return self._get_output_baserow_field_type(instance.ai_output_type)
+
+    def _get_output_baserow_field_type(self, ai_output_type: str) -> FieldType:
+        output_type = ai_field_output_registry.get(ai_output_type)
+        return field_type_registry.get_by_type(output_type.baserow_field_type)
+
+    def can_be_primary_field(self, field_or_values: Field | dict) -> bool:
+        if isinstance(field_or_values, dict):
+            ai_output_type = field_or_values.get(
+                "ai_output_type", AIField._meta.get_field("ai_output_type").default
+            )
+        else:
+            ai_output_type = field_or_values.ai_output_type
+        output_field_type = self._get_output_baserow_field_type(ai_output_type)
+        return output_field_type.can_be_primary_field(field_or_values)
 
     def get_serializer_field(self, instance, **kwargs):
         baserow_field_type = self.get_baserow_field_type(instance)
@@ -279,13 +303,23 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.valid_for_bulk_update(field)
 
-    def prepare_value_for_db(self, instance, value):
+    def prepare_value_for_db(self, instance: AIField, value: Any) -> Any:
+        output_type = ai_field_output_registry.get(instance.ai_output_type)
+        value = output_type.sanitize_value(instance, value)
         baserow_field_type = self.get_baserow_field_type(instance)
         return baserow_field_type.prepare_value_for_db(instance, value)
 
     def prepare_value_for_db_in_bulk(
-        self, instance, values_by_row, continue_on_error=False
-    ):
+        self,
+        instance: AIField,
+        values_by_row: dict[int, Any],
+        continue_on_error: bool = False,
+    ) -> dict[int, Any]:
+        output_type = ai_field_output_registry.get(instance.ai_output_type)
+        values_by_row = {
+            row_index: output_type.sanitize_value(instance, value)
+            for row_index, value in values_by_row.items()
+        }
         baserow_field_type = self.get_baserow_field_type(instance)
         return baserow_field_type.prepare_value_for_db_in_bulk(
             instance, values_by_row, continue_on_error
@@ -336,16 +370,21 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     def set_import_serialized_value(
         self,
-        row,
-        field_name,
-        value,
-        id_mapping,
-        cache,
-        files_zip=None,
-        storage=None,
-    ):
-        field_object = row.get_field_object(field_name)
-        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        row: "GeneratedTableModel",
+        field_name: str,
+        value: Any,
+        id_mapping: dict[str, Any],
+        cache: dict[str, Any],
+        files_zip: Optional["ZipFile"] = None,
+        storage: Optional["Storage"] = None,
+    ) -> None:
+        field = row.get_field_object(field_name)["field"]
+        if field.long_text_enable_rich_text:
+            # Images are dropped, not uploaded, since a rich AI value never embeds one.
+            content = value.get("content", "") if isinstance(value, dict) else value
+            output_type = ai_field_output_registry.get(field.ai_output_type)
+            value = output_type.sanitize_value(field, content)
+        baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.set_import_serialized_value(
             row, field_name, value, id_mapping, cache, files_zip, storage
         )
@@ -585,6 +624,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
         if allowed_field_values.get("ai_auto_update"):
             allowed_field_values["ai_auto_update_user_id"] = user.id if user else None
+        if ai_output_type != TextAIFieldOutputType.type:
+            allowed_field_values["long_text_enable_rich_text"] = False
 
         return super().before_create(
             table, primary, allowed_field_values, order, user, field_kwargs
@@ -626,7 +667,32 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ):
             to_field_values["ai_auto_update_user_id"] = user.id if user else None
 
+        # Cleared, not kept, so switching back to text can't make a primary field rich.
+        if ai_output_type != TextAIFieldOutputType.type:
+            to_field_values["long_text_enable_rich_text"] = False
+
         return super().before_update(from_field, to_field_values, user, field_kwargs)
+
+    def get_request_kwargs_to_backup(
+        self, field: AIField, kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Backs up the rich text flag when the update switches the output type away
+        from text, because `before_update` clears it without it being in the
+        request, so undo would otherwise restore a plain text field.
+
+        :param field: The AI field that is about to be updated.
+        :param kwargs: The kwargs of the update request.
+        :return: The rich text flag to restore on undo, if this update clears it.
+        """
+
+        new_output_type = kwargs.get("ai_output_type") or field.ai_output_type
+        if (
+            field.long_text_enable_rich_text
+            and new_output_type != TextAIFieldOutputType.type
+        ):
+            return {"long_text_enable_rich_text": True}
+        return {}
 
     def import_serialized(
         self,
@@ -636,10 +702,19 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         id_mapping,
         deferred_fk_update_collector,
     ):
+        serialized_values = serialized_values.copy()
         if not import_export_config.is_duplicate:
-            serialized_values = serialized_values.copy()
             serialized_values.pop("ai_auto_update_user_id", None)
             serialized_values["ai_auto_update"] = False
+
+        ai_output_type = (
+            serialized_values.get("ai_output_type")
+            or AIField._meta.get_field("ai_output_type").default
+        )
+        if ai_output_type != TextAIFieldOutputType.type or serialized_values.get(
+            "primary"
+        ):
+            serialized_values["long_text_enable_rich_text"] = False
 
         ai_type = serialized_values.get("ai_generative_ai_type")
         generative_ai_type = None
@@ -717,8 +792,68 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
+    def after_update(
+        self,
+        from_field: Field,
+        to_field: AIField,
+        from_model: type["GeneratedTableModel"],
+        to_model: type["GeneratedTableModel"],
+        user: Optional["AbstractUser"],
+        connection: "BaseDatabaseWrapper",
+        altered_column: bool,
+        before: Any,
+        to_field_kwargs: dict[str, Any],
+    ) -> None:
+        """
+        Escapes the images in the existing values when the field starts storing rich
+        text, because ``prepare_value_for_db`` never saw them.
+
+        :param from_field: The field before the update.
+        :param to_field: The updated field.
+        :param from_model: The generated model containing only the old field.
+        :param to_model: The generated model containing only the new field.
+        :param user: The user on whose behalf the change is made.
+        :param connection: The connection used to make the schema change.
+        :param altered_column: Whether the column has been altered.
+        :param before: The value returned by ``before_update``.
+        :param to_field_kwargs: The kwargs passed when updating the field.
+        """
+
+        super().after_update(
+            from_field,
+            to_field,
+            from_model,
+            to_model,
+            user,
+            connection,
+            altered_column,
+            before,
+            to_field_kwargs,
+        )
+
+        was_rich_text = (
+            isinstance(from_field, AIField) and from_field.long_text_enable_rich_text
+        )
+        if was_rich_text or not to_field.long_text_enable_rich_text:
+            return
+
+        column = to_field.db_column
+        rows = (
+            field_type_registry.get_by_type(LongTextFieldType)
+            ._rows_with_image_references(to_model, column)
+            .values_list("id", column)
+            .iterator(chunk_size=100)
+        )
+        for chunk in grouper(100, rows):
+            escaped_rows = []
+            for row_id, value in chunk:
+                escaped = escape_user_file_references(value)
+                if escaped != value:
+                    escaped_rows.append(to_model(id=row_id, **{column: escaped}))
+            to_model.objects_and_trash.bulk_update(escaped_rows, [column])
+
     def should_backup_field_data_for_same_type_update(
-        self, old_field, new_field_attrs
+        self, old_field: AIField, new_field_attrs: dict[str, Any]
     ) -> bool:
         backup = super().should_backup_field_data_for_same_type_update(
             old_field, new_field_attrs
@@ -729,4 +864,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             and new_field_attrs["ai_output_type"]
             and new_field_attrs["ai_output_type"] != old_field.ai_output_type
         )
-        return backup or ai_output_changed
+        if backup or ai_output_changed:
+            return True
+
+        long_text_type = field_type_registry.get_by_type(LongTextFieldType)
+        return (
+            old_field.ai_output_type == TextAIFieldOutputType.type
+            and long_text_type.should_backup_field_data_for_same_type_update(
+                old_field, new_field_attrs
+            )
+        )

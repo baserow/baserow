@@ -152,6 +152,47 @@ describe('RichTextEditor Markdown persistence', () => {
     expect(reopened.find('.tiptap').html()).toBe(wrapper.find('.tiptap').html())
   })
 
+  test.each([
+    ['plain text', {}],
+    ['a copied rich cell', { clipboardMarkdownResolver: (text) => text }],
+  ])(
+    'pastes image markdown from %s as its text when images are off',
+    async (_, props) => {
+      const markdown = 'see ![c](https://example.com/c.png)'
+      const wrapper = await mountEditor('', props)
+
+      await wrapper.find('.tiptap').trigger('paste', {
+        clipboardData: {
+          getData: (type) => (type === 'text/plain' ? markdown : ''),
+        },
+      })
+
+      expect(wrapper.find('.tiptap').text()).toBe(markdown)
+    }
+  )
+
+  test.each([
+    ['plain text', {}],
+    ['a copied rich cell', { clipboardMarkdownResolver: (text) => text }],
+  ])(
+    'pastes a resolved reference from %s without its URL when images are off',
+    async (_, props) => {
+      const url = 'https://example.com/media/user_files/abc_d.png'
+      const wrapper = await mountEditor('', props)
+
+      await wrapper.find('.tiptap').trigger('paste', {
+        clipboardData: {
+          getData: (type) =>
+            type === 'text/plain' ? `see ![d][abc_d.png](${url})` : '',
+        },
+      })
+
+      expect(wrapper.find('.tiptap').text()).toBe('see ![d][abc_d.png]')
+      expect(wrapper.find('.tiptap a').exists()).toBe(false)
+      expect(wrapper.vm.serializeToMarkdown()).not.toContain(url)
+    }
+  )
+
   test('preserves trailing empty paragraphs copied from another rich text editor', async () => {
     const markdown = 'Line1\n\n\n\nLine3\n\n\n\nline5\n\n&nbsp;'
     const source = await mountEditor(markdown)
@@ -401,7 +442,74 @@ describe('RichTextEditor images', () => {
     )
 
     expect(wrapper.find('.tiptap img').exists()).toBe(false)
-    expect(wrapper.text()).toContain('photo')
+    expect(wrapper.find('.tiptap').text()).toBe(
+      'see ![photo](https://example.com/photo.png) here'
+    )
+  })
+
+  const copyAll = (wrapper) => {
+    const clipboard = {}
+    const copyEvent = new Event('copy', { bubbles: true, cancelable: true })
+    Object.defineProperty(copyEvent, 'clipboardData', {
+      value: {
+        clearData: () => {},
+        getData: (type) => clipboard[type] ?? '',
+        setData: (type, value) => {
+          clipboard[type] = value
+        },
+      },
+    })
+    wrapper.vm.editor.commands.selectAll()
+    wrapper.find('.tiptap').element.dispatchEvent(copyEvent)
+    return clipboard
+  }
+
+  const pasteInto = (wrapper, clipboard) =>
+    wrapper.find('.tiptap').trigger('paste', {
+      clipboardData: { getData: (type) => clipboard[type] ?? '' },
+    })
+
+  test('pastes an image copied from an editor with images as its markdown', async () => {
+    const markdown = 'see ![c](https://example.com/c.png)'
+    const clipboard = copyAll(await mountEditor(markdown))
+    expect(clipboard['text/html']).toContain('data-external-src')
+
+    const target = await mountEditor('', { enableImages: false })
+    await pasteInto(target, clipboard)
+
+    expect(target.find('.tiptap').text()).toBe(markdown)
+  })
+
+  test('pastes an uploaded image copied from an editor with images as its reference without the URL', async () => {
+    const clipboard = copyAll(await mountEditor(imageMarkdown('d', FIRST)))
+    expect(clipboard['text/html']).toContain('data-user-file-name')
+    expect(clipboard['text/plain']).toContain(userFileUrl(FIRST))
+
+    const target = await mountEditor('', { enableImages: false })
+    await pasteInto(target, clipboard)
+
+    expect(target.find('.tiptap').text()).toBe(`![d][${FIRST}]`)
+    expect(target.find('.tiptap a').exists()).toBe(false)
+    expect(target.vm.serializeToMarkdown()).not.toContain(userFileUrl(FIRST))
+  })
+
+  test('keeps an image-less value as it is until it is edited', async () => {
+    const wrapper = await mountEditor(
+      'see ![photo](https://example.com/photo.png)',
+      { enableImages: false }
+    )
+
+    expect(wrapper.vm.isDirty()).toBe(false)
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+
+    wrapper.vm.focus()
+    wrapper.vm.editor.commands.insertContent(' edited')
+
+    const saved = wrapper.vm.serializeToMarkdown()
+    const reopened = await mountEditor(saved, { enableImages: false })
+    expect(reopened.find('.tiptap').text()).toBe(
+      'see ![photo](https://example.com/photo.png) edited'
+    )
   })
 
   test('inserts dropped images in drop order, one after the other', async () => {

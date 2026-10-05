@@ -27,6 +27,7 @@ describe('FieldAISubForm component', () => {
       initialAIFeatures,
       refreshedAIFeatures,
       selectedModel = 'gpt-4',
+      defaultValues = {},
     } = {}
   ) => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
@@ -59,6 +60,7 @@ describe('FieldAISubForm component', () => {
           ai_generative_ai_model: selectedModel,
           ai_output_type: 'text',
           ai_prompt: aiPrompt,
+          ...defaultValues,
         },
       },
     })
@@ -85,6 +87,55 @@ describe('FieldAISubForm component', () => {
 
     expect(wrapper.find('.control__messages--error').exists()).toBe(false)
     expect(wrapper.vm.isFormValid()).toBe(true)
+  })
+
+  describe('rich text formatting', () => {
+    const submittedValues = async (wrapper) => {
+      wrapper.vm.submit()
+      await wrapper.vm.$nextTick()
+      return wrapper.emitted('submitted').at(-1)[0]
+    }
+
+    const selectOutputType = async (wrapper, name) => {
+      const item = wrapper
+        .findAll('.select__item')
+        .find(
+          (option) => option.find('.select__item-name-text').text() === name
+        )
+      await item.find('.select__item-link').trigger('click')
+    }
+
+    test('submits the stored flag with the text output', async () => {
+      const wrapper = await mountComponent(
+        { formula: "'hello'", mode: 'advanced' },
+        { defaultValues: { id: 1, long_text_enable_rich_text: true } }
+      )
+
+      expect(wrapper.text()).toContain(
+        'fieldLongTextSubForm.enableRichTextFormatting'
+      )
+      expect(await submittedValues(wrapper)).toMatchObject({
+        ai_output_type: 'text',
+        long_text_enable_rich_text: true,
+      })
+    })
+
+    test('does not submit the flag with the choice output', async () => {
+      const wrapper = await mountComponent(
+        { formula: "'hello'", mode: 'advanced' },
+        { defaultValues: { id: 1, long_text_enable_rich_text: true } }
+      )
+
+      await selectOutputType(wrapper, 'aiOutputType.choice')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).not.toContain(
+        'fieldLongTextSubForm.enableRichTextFormatting'
+      )
+      const values = await submittedValues(wrapper)
+      expect(values.ai_output_type).toBe('choice')
+      expect(values).not.toHaveProperty('long_text_enable_rich_text')
+    })
   })
 
   test('a disabled model stays visible but cannot be selected', async () => {

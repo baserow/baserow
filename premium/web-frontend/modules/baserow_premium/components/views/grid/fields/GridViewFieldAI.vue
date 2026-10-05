@@ -30,14 +30,14 @@
       :read-only="readOnly || generating"
       :row="row"
       :all-fields-in-table="allFieldsInTable"
-      v-bind="$attrs"
-      @editing-changed="(e) => (editing = e)"
+      v-bind="{ ...$attrs, ...richTextProps }"
       @update="(...args) => $emit('update', ...args)"
       @select-below="(...args) => $emit('selectBelow', ...args)"
       @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
-      <template v-if="!readOnly && editing" #default>
+      <template v-if="!readOnly" #default="{ slotProps }">
         <div
+          v-if="slotProps.editing"
           v-tooltip="fieldError"
           style="background-color: #fff; padding: 8px"
         >
@@ -82,7 +82,6 @@ export default {
   emits: ['update', 'selectBelow', 'add-row-after'],
   data() {
     return {
-      editing: false,
       keydownEventListener: null,
     }
   },
@@ -95,6 +94,13 @@ export default {
         .get('aiFieldOutputType', this.field.ai_output_type)
         .getBaserowFieldType()
         .getGridViewFieldComponent(this.field)
+    },
+    richTextProps() {
+      return this.$registry
+        .get('field', this.field.type)
+        .hasRichTextOutput(this.field)
+        ? { enableMentions: false, enableImages: false }
+        : {}
     },
   },
   watch: {
@@ -145,6 +151,9 @@ export default {
       return true
     },
     canUnselectByClickingOutside(event) {
+      if (this.$refs.cell?.canUnselectByClickingOutside?.(event) === false) {
+        return false
+      }
       if (!this.isDeactivated || !this.workspace) {
         return true
       }

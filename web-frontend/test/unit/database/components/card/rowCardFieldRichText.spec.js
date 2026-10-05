@@ -14,9 +14,9 @@ describe('RowCardFieldRichText component', () => {
     await testApp.afterEach()
   })
 
-  const mountComponent = (value) =>
+  const mountComponent = (value, props = {}) =>
     testApp.mount(RowCardFieldRichText, {
-      props: { value, workspaceId: 10 },
+      props: { value, workspaceId: 10, ...props },
     })
 
   test('renders the Markdown preview', async () => {
@@ -49,6 +49,30 @@ describe('RowCardFieldRichText component', () => {
     expect(mentions[0].attributes('data-id')).toBe('5')
     expect(wrapper.text()).toContain('and @99')
   })
+
+  test('keeps mentions as text when mentions are disabled', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 10,
+      name: 'Workspace',
+      users: [{ user_id: 5, name: 'Jane Doe' }],
+    })
+    const wrapper = await mountComponent('ping @5', { enableMentions: false })
+
+    expect(wrapper.find('.rich-text-editor__mention').exists()).toBe(false)
+    expect(wrapper.text()).toBe('ping @5')
+  })
+
+  test.each([true, false])(
+    'renders an image only when enableImages is %s',
+    async (enableImages) => {
+      const wrapper = await mountComponent(
+        '![a][abc123_def456.png](https://example.com/a.png)',
+        { enableImages }
+      )
+
+      expect(wrapper.find('img').exists()).toBe(enableImages)
+    }
+  )
 
   test('keeps raw HTML in cell values inert', async () => {
     const wrapper = await mountComponent(

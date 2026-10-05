@@ -632,6 +632,7 @@ class RowHandler:
         enhance_by_fields: bool = False,
         model: Optional[Type[GeneratedTableModel]] = None,
         view: Optional["View"] = None,
+        base_queryset: Optional[QuerySet] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Fetches a single row from the provided table and lock it for update.
@@ -645,6 +646,8 @@ class RowHandler:
             provided so that it does not have to be generated for a second time.
         :param view: Optionally provide view, if the row is fetched in the view.
             This can result in different permissions checks.
+        :param base_queryset: Optionally fetch the row from this queryset, preserving
+            its annotations while applying the usual locking and permissions.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The requested row instance.
         """
@@ -652,7 +655,9 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        base_queryset = model.objects.select_for_update(of=("self",))
+        if base_queryset is None:
+            base_queryset = model.objects.all()
+        base_queryset = base_queryset.select_for_update(of=("self",))
         if enhance_by_fields:
             base_queryset = base_queryset.enhance_by_fields()
 

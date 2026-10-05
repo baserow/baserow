@@ -6,6 +6,7 @@ import {
 import GridViewFieldAI from '@baserow_premium/components/views/grid/fields/GridViewFieldAI'
 import FunctionalGridViewFieldAI from '@baserow_premium/components/views/grid/fields/FunctionalGridViewFieldAI'
 import RowEditFieldAI from '@baserow_premium/components/row/RowEditFieldAI'
+import RowCardFieldAI from '@baserow_premium/components/card/RowCardFieldAI'
 import FieldAISubForm from '@baserow_premium/components/field/FieldAISubForm'
 import FormulaFieldAI from '@baserow_premium/components/field/FormulaFieldAI'
 import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'
@@ -15,6 +16,7 @@ import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 import _ from 'lodash'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal.vue'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { TextAIFieldOutputType } from '@baserow_premium/aiFieldOutputTypes'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -68,7 +70,7 @@ export class AIFieldType extends FieldType {
   }
 
   getCardComponent(field) {
-    return this.getBaserowFieldType(field).getCardComponent(field)
+    return RowCardFieldAI
   }
 
   getRowHistoryEntryComponent(field) {
@@ -101,7 +103,11 @@ export class AIFieldType extends FieldType {
 
   getDocsDescription(field) {
     const { $i18n } = this.app
-    return $i18n.t('premiumFieldType.aiDescription')
+    return $i18n.t(
+      this.hasRichTextOutput(field)
+        ? 'premiumFieldType.aiRichTextDescription'
+        : 'premiumFieldType.aiDescription'
+    )
   }
 
   getDocsRequestExample(field) {
@@ -114,6 +120,13 @@ export class AIFieldType extends FieldType {
 
   prepareValueForCopy(field, value) {
     return this.getBaserowFieldType(field).prepareValueForCopy(field, value)
+  }
+
+  prepareRichValueForCopy(field, value) {
+    if (!this.hasTextOutput(field)) {
+      return super.prepareRichValueForCopy(field, value)
+    }
+    return this.getBaserowFieldType(field).prepareRichValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
@@ -241,8 +254,21 @@ export class AIFieldType extends FieldType {
     return this.getBaserowFieldType(field).prepareValueForUpdate(field, value)
   }
 
-  prepareValueForPaste(field, value) {
-    return this.getBaserowFieldType(field).prepareValueForPaste(field, value)
+  prepareValueForPaste(field, value, richClipboardData) {
+    // Rich choice values match option ids only; choices must paste by name.
+    return this.getBaserowFieldType(field).prepareValueForPaste(
+      field,
+      value,
+      this.hasTextOutput(field) ? richClipboardData : undefined
+    )
+  }
+
+  hasTextOutput(field) {
+    return field.ai_output_type === TextAIFieldOutputType.getType()
+  }
+
+  hasRichTextOutput(field) {
+    return this.hasTextOutput(field) && !!field.long_text_enable_rich_text
   }
 
   getCompatibleFilterFieldType(field) {

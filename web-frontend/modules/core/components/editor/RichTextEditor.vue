@@ -68,6 +68,7 @@ import {
 } from '@baserow/modules/core/editor/trustedImageUrls'
 import {
   findPendingImages,
+  hasCopiedImage,
   insertPendingImages,
   withoutPendingImages,
 } from '@baserow/modules/core/editor/image'
@@ -383,16 +384,26 @@ export default {
             const copiedFromRichTextEditor =
               this.enableRichTextFormatting &&
               isRichTextEditorClipboard(plainText)
+            // Without the image node, the copied HTML would keep only each image's alt.
+            const copiedImageMarkdown =
+              copiedFromRichTextEditor &&
+              !this.enableImages &&
+              hasCopiedImage(event.clipboardData.getData('text/html'))
+                ? plainText
+                : null
             const resolvedClipboardMarkdown =
-              this.enableRichTextFormatting &&
+              copiedImageMarkdown ??
+              (this.enableRichTextFormatting &&
               !copiedFromRichTextEditor &&
               this.clipboardMarkdownResolver
                 ? this.clipboardMarkdownResolver(plainText)
-                : null
+                : null)
             if (typeof resolvedClipboardMarkdown === 'string') {
               const slice = parseMarkdownClipboard(
                 this.editor,
-                resolvedClipboardMarkdown,
+                this.enableImages
+                  ? resolvedClipboardMarkdown
+                  : stripImageUrls(resolvedClipboardMarkdown),
                 false
               )
               view.dispatch(
