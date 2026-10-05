@@ -2,13 +2,22 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 import onnxruntime as ort
-from transformers import AutoTokenizer
+from tokenizers import Tokenizer
 import numpy as np
+import json
 import os
 
 # Load ONNX model directly
 MODEL_DIR = "/model"
-tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
+tokenizer = Tokenizer.from_file(os.path.join(MODEL_DIR, "tokenizer.json"))
+with open(os.path.join(MODEL_DIR, "tokenizer_config.json")) as f:
+    tokenizer_config = json.load(f)
+# Match transformers' padding=True/truncation=True, not the 128-token defaults in tokenizer.json.
+tokenizer.enable_truncation(max_length=tokenizer_config["model_max_length"])
+tokenizer.enable_padding(
+    pad_id=tokenizer.token_to_id(tokenizer_config["pad_token"]),
+    pad_token=tokenizer_config["pad_token"],
+)
 
 # Create inference session
 model_path = os.path.join(MODEL_DIR, "model.onnx")
@@ -34,7 +43,12 @@ async def embed(request):
     if isinstance(texts, str):
         texts = [texts]
 
-    encoded = tokenizer(texts, padding=True, truncation=True, return_tensors="np")
+    encodings = tokenizer.encode_batch(texts)
+    encoded = {
+        "input_ids": np.array([e.ids for e in encodings], dtype=np.int64),
+        "token_type_ids": np.array([e.type_ids for e in encodings], dtype=np.int64),
+        "attention_mask": np.array([e.attention_mask for e in encodings], dtype=np.int64),
+    }
     ort_inputs = {k: v for k, v in encoded.items()}
 
     # Run model

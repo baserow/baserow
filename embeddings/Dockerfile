@@ -16,11 +16,15 @@ FROM python:3.14.8-slim-trixie
 
 COPY --from=builder /model /model
 
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
+# Nothing installs packages at runtime, so pip only adds CVEs.
 RUN pip install --no-cache-dir \
     onnxruntime==1.24.1 \
-    transformers==4.53.0 \
-    starlette==0.48.0 \
+    tokenizers==0.23.2 \
+    starlette==1.7.0 \
     uvicorn==0.37.0 && \
+    pip uninstall -y --root-user-action=ignore pip && \
     rm -rf /root/.cache
 
 WORKDIR /app
