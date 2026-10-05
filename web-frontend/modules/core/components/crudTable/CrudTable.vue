@@ -1,139 +1,147 @@
 <template>
   <div class="data-table">
-    <div v-if="showEmptyState">
-      <slot name="empty"></slot>
-    </div>
-    <template v-else>
-      <header class="data-table__header">
-        <h1 class="data-table__title">
-          <slot name="title"></slot>
-        </h1>
-        <div class="data-table__actions">
-          <CrudTableSearch
-            v-if="enableSearch"
-            ref="crudTableSearch"
-            :loading="loading && loaded"
-            :initial-search-term="defaultSearch || ''"
-            @search-changed="doSearch"
-          />
-          <slot name="header-right-side"></slot>
-        </div>
-      </header>
-      <slot name="header-filters"></slot>
-      <div class="data-table__body">
-        <table class="data-table__table">
-          <thead>
-            <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
-              <th
-                class="data-table__table-cell data-table__table-cell--header"
-                :colspan="columns.length"
-              >
-                <div class="data-table__table-cell-head skeleton">
-                  <SkeletonBlock width="200px"></SkeletonBlock>
-                </div>
-              </th>
-            </tr>
-            <tr v-else class="data-table__table-row">
-              <th
+    <header class="data-table__header">
+      <h1 class="data-table__title">
+        <slot name="title" :count="totalCount" :loading="initialLoading"></slot>
+      </h1>
+      <div class="data-table__actions">
+        <CrudTableSearch
+          v-if="enableSearch"
+          ref="crudTableSearch"
+          :loading="loading && loaded"
+          :initial-search-term="defaultSearch || ''"
+          @search-changed="doSearch"
+        />
+        <slot name="header-right-side"></slot>
+      </div>
+    </header>
+    <slot name="header-filters"></slot>
+    <div class="data-table__body">
+      <table class="data-table__table" :aria-busy="loading">
+        <thead v-if="!showEmptyState">
+          <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
+            <th
+              class="data-table__table-cell data-table__table-cell--header"
+              :colspan="columns.length"
+            >
+              <div class="data-table__table-cell-head skeleton">
+                <SkeletonBlock width="200px"></SkeletonBlock>
+              </div>
+            </th>
+          </tr>
+          <tr v-else class="data-table__table-row">
+            <th
+              v-for="col in columns"
+              :key="'head-' + col.key"
+              :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
+              class="data-table__table-cell data-table__table-cell--header"
+              :class="{
+                'data-table__table-cell--sticky-left': col.stickyLeft,
+                'data-table__table-cell--sticky-right': col.stickyRight,
+              }"
+            >
+              <div class="data-table__table-cell-head">
+                <template v-if="col.sortable">
+                  <div>
+                    <button
+                      type="button"
+                      class="data-table__table-cell-head-link"
+                      @click="toggleSort(col)"
+                    >
+                      {{ col.header }}
+                    </button>
+                    <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
+                  </div>
+                  <div class="data-table__table-cell-head-sort-icon">
+                    <template v-if="sorted(col)">
+                      <i :class="sortIcon(col)"></i>
+                      {{ sortIndex(col) }}
+                    </template>
+                  </div>
+                </template>
+                <template v-else>
+                  <div>
+                    {{ col.header }}
+                    <HelpIcon
+                      v-if="col.helpText"
+                      :tooltip="col.helpText"
+                    /></div
+                ></template>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <CrudTableSkeletonRows
+            v-if="loading"
+            :columns="columns"
+            :count="skeletonRowCount"
+          ></CrudTableSkeletonRows>
+          <tr v-else-if="showEmptyState">
+            <td :colspan="columns.length || 1">
+              <div class="data-table__empty">
+                <slot v-if="!hasActiveFilters" name="empty">
+                  <p>{{ $t('crudTable.empty') }}</p>
+                </slot>
+                <p v-else>{{ $t('crudTable.noResults') }}</p>
+              </div>
+            </td>
+          </tr>
+          <slot
+            v-else
+            name="rows"
+            :rows="rows"
+            :columns="columns"
+            :update-row="updateRow"
+            :delete-row="deleteRow"
+            :refresh="refresh"
+          >
+            <tr
+              v-for="row in rows"
+              :key="'row-' + row.id"
+              class="data-table__table-row"
+            >
+              <td
                 v-for="col in columns"
-                :key="'head-' + col.key"
-                :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
-                class="data-table__table-cell data-table__table-cell--header"
+                :key="'col-' + col.key"
+                class="data-table__table-cell"
                 :class="{
                   'data-table__table-cell--sticky-left': col.stickyLeft,
                   'data-table__table-cell--sticky-right': col.stickyRight,
+                  [`data-table__table-cell--${col.key}`]: true,
                 }"
+                @contextmenu="$emit('row-context', { col, row, event: $event })"
               >
-                <div class="data-table__table-cell-head">
-                  <template v-if="col.sortable">
-                    <div>
-                      <a
-                        class="data-table__table-cell-head-link"
-                        @click="toggleSort(col)"
-                        >{{ col.header }}</a
-                      >
-                      <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
-                    </div>
-                    <div class="data-table__table-cell-head-sort-icon">
-                      <template v-if="sorted(col)">
-                        <i :class="sortIcon(col)"></i>
-                        {{ sortIndex(col) }}
-                      </template>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div>
-                      {{ col.header }}
-                      <HelpIcon
-                        v-if="col.helpText"
-                        :tooltip="col.helpText"
-                      /></div
-                  ></template>
+                <div class="data-table__table-cell-content">
+                  <component
+                    :is="col.cellComponent"
+                    :row="row"
+                    :column="col"
+                    v-bind="$attrs"
+                    @row-context="(payload) => $emit('row-context', payload)"
+                    @row-update="updateRow"
+                    @row-delete="deleteRow"
+                    @refresh="refresh"
+                  />
                 </div>
-              </th>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            <CrudTableSkeletonRows
-              v-if="loading"
-              :columns="columns"
-              :count="skeletonRowCount"
-            ></CrudTableSkeletonRows>
-            <slot
-              v-else
-              name="rows"
-              :rows="rows"
-              :columns="columns"
-              :update-row="updateRow"
-              :delete-row="deleteRow"
-              :refresh="refresh"
-            >
-              <tr
-                v-for="row in rows"
-                :key="'row-' + row.id"
-                class="data-table__table-row"
-              >
-                <td
-                  v-for="col in columns"
-                  :key="'col-' + col.key"
-                  class="data-table__table-cell"
-                  :class="{
-                    'data-table__table-cell--sticky-left': col.stickyLeft,
-                    'data-table__table-cell--sticky-right': col.stickyRight,
-                    [`data-table__table-cell--${col.key}`]: true,
-                  }"
-                  @contextmenu="
-                    $emit('row-context', { col, row, event: $event })
-                  "
-                >
-                  <div class="data-table__table-cell-content">
-                    <component
-                      :is="col.cellComponent"
-                      :row="row"
-                      :column="col"
-                      v-bind="$attrs"
-                      @row-context="(payload) => $emit('row-context', payload)"
-                      @row-update="updateRow"
-                      @row-delete="deleteRow"
-                      @refresh="refresh"
-                    />
-                  </div>
-                </td>
-              </tr>
-            </slot>
-          </tbody>
-        </table>
-      </div>
-      <div v-if="service.options.isPaginated" class="data-table__footer">
-        <Paginator
-          v-skeleton="{ loading: initialLoading, height: '20px' }"
-          :page="page"
-          :total-pages="totalPages"
-          @change-page="fetch"
-        ></Paginator>
-      </div>
-      <slot name="menus" :update-row="updateRow" :delete-row="deleteRow"></slot>
-    </template>
+          </slot>
+        </tbody>
+      </table>
+    </div>
+    <div
+      v-if="service.options.isPaginated && !showEmptyState"
+      class="data-table__footer"
+    >
+      <Paginator
+        v-skeleton="{ loading: initialLoading, height: '20px' }"
+        :page="page"
+        :total-pages="totalPages"
+        @change-page="fetch"
+      ></Paginator>
+    </div>
+    <slot name="menus" :update-row="updateRow" :delete-row="deleteRow"></slot>
   </div>
 </template>
 
@@ -261,6 +269,7 @@ export default {
       loaded: false,
       page: 1,
       totalPages: 0,
+      totalCount: 0,
       lastFetchId: 0,
       searchQuery: this.defaultSearch || false,
       rows: [],
@@ -268,8 +277,8 @@ export default {
     }
   },
   computed: {
-    hasEmptySlot() {
-      return !!this.$slots.empty
+    hasActiveFilters() {
+      return !!this.searchQuery || Object.keys(this.filters).length > 0
     },
     initialLoading() {
       return this.loading && !this.loaded
@@ -282,14 +291,7 @@ export default {
       return this.rows.length || 10
     },
     showEmptyState() {
-      return (
-        this.hasEmptySlot &&
-        !this.loading &&
-        this.rows.length === 0 &&
-        this.page === 1 &&
-        this.searchQuery === false &&
-        Object.keys(this.filters).length === 0
-      )
+      return !this.loading && this.rows.length === 0
     },
   },
   watch: {
@@ -385,6 +387,7 @@ export default {
         }
 
         this.rows = _.isArray(data) ? data : data.results
+        this.totalCount = data.count ?? this.rows.length
       } catch (error) {
         if (fetchId !== this.lastFetchId) {
           return

@@ -846,6 +846,11 @@
     "lessThanMinuteAgo": "less than a minute ago",
     "justNow": "just now"
   },
+  "crudTable": {
+    "empty": "No items yet",
+    "noResults": "No results found. Try adjusting your search or filters.",
+    "rowActions": "Row actions"
+  },
   "crudTableSearch": {
     "search": "Search"
   },

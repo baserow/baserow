@@ -13,7 +13,7 @@ const NameField = {
     h('div', { class: 'flex align-items-center' }, [
       h(Avatar, {
         initials: props.row.name[0],
-        size: 'small',
+        size: 'medium',
         rounded: true,
         class: 'margin-right-2',
       }),

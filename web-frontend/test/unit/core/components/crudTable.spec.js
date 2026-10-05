@@ -30,8 +30,9 @@ describe('CrudTable component', () => {
     return { data: { count, results: rows } }
   }
 
-  async function mountCrudTable(service, props = {}) {
+  async function mountCrudTable(service, props = {}, slots = {}) {
     return await testApp.mount(CrudTable, {
+      slots,
       props: {
         service,
         columns: [new CrudTableColumn('name', 'Name', SimpleField)],
@@ -40,6 +41,68 @@ describe('CrudTable component', () => {
       },
     })
   }
+
+  test('empty tables keep the title, search, action and menus mounted', async () => {
+    const crudTable = await mountCrudTable(
+      aService(vi.fn().mockResolvedValue(aPage([]))),
+      {},
+      {
+        title: '<span>Members</span>',
+        'header-right-side': '<button>Invite member</button>',
+        empty: '<p>No members yet</p>',
+        menus: '<span data-test="menus">Menu content</span>',
+      }
+    )
+    await flushPromises()
+
+    expect(crudTable.find('h1').text()).toBe('Members')
+    expect(crudTable.find('input').exists()).toBe(true)
+    expect(crudTable.find('header button').text()).toBe('Invite member')
+    expect(crudTable.find('tbody').text()).toBe('No members yet')
+    expect(crudTable.find('[data-test="menus"]').exists()).toBe(true)
+    expect(crudTable.find('.data-table__footer').exists()).toBe(false)
+
+    await crudTable.find('input').setValue('missing')
+    await flushPromises()
+    expect(crudTable.find('tbody').text()).toContain('crudTable.noResults')
+    expect(crudTable.find('tbody').text()).not.toContain('No members yet')
+  })
+
+  test('the title slot receives the count for non-paginated services', async () => {
+    const service = {
+      options: { isPaginated: false },
+      fetch: vi.fn().mockResolvedValue({ data: [{ id: 1, name: 'Row 1' }] }),
+    }
+    const crudTable = await mountCrudTable(
+      service,
+      {},
+      {
+        title: '<template #default="{ count }">{{ count }} members</template>',
+      }
+    )
+    await flushPromises()
+    expect(crudTable.find('h1').text()).toBe('1 members')
+  })
+
+  test('the row action button emits the existing context payload', async () => {
+    const row = { id: 1, name: 'Row 1' }
+    const crudTable = await mountCrudTable(
+      aService(vi.fn().mockResolvedValue(aPage([row]))),
+      {
+        columns: [
+          new CrudTableColumn('more', '', MoreField, false, false, true),
+        ],
+      }
+    )
+    await flushPromises()
+    const button = crudTable.find('tbody button')
+    expect(button.attributes('aria-label')).toBe('crudTable.rowActions')
+    await button.trigger('click')
+    expect(crudTable.emitted('row-context')[0][0]).toMatchObject({
+      row,
+      target: button.element,
+    })
+  })
 
   test('the header and the rows are skeletons spanning all columns', async () => {
     let resolveFetch = null
