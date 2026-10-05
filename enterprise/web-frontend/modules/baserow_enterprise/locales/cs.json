@@ -36,7 +36,10 @@
         "inviteMembers": "Přidat členy",
         "membersTitle": "Členové",
         "noSubjectsSelected": "Prostřednictvím tohoto týmu zatím nikdo nemá přístup.",
-        "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým."
+        "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým.",
+        "agentLabel": "Agent",
+        "accessModalTitle": "Spravovat přístup týmu",
+        "accessModalDescription": "Zvolte lidi a agenty, kteří patří do tohoto týmu."
     },
     "editTeamContext": {
         "remove": "Smazat tým",
@@ -127,7 +130,8 @@
         "firstNameAttrKey": "Jméno",
         "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
         "lastNameAttrKey": "Příjmení",
-        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“."
+        "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“.",
+        "emailVerificationNotice": "Před ověřováním uživatelů zajistěte, aby poskytovatel identity vyžadoval ověřené e-mailové adresy. Podpisy SAML ověřují poskytovatele, nikoli vlastnictví e-mailové adresy."
     },
     "loginError": {
         "errorInvalidSamlRequest": "Požadavek SAML je neplatný.",
@@ -142,7 +146,9 @@
         "title": "Něco se nepodařilo:",
         "defaultErrorMessage": "Průběh přihlášení pomocí SSO nebylo možné dokončit.",
         "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktujte svého administrátora.",
-        "errorUserDeactivated": "uživatel byl zakázán."
+        "errorUserDeactivated": "uživatel byl zakázán.",
+        "errorUnverifiedEmail": "poskytovatel identity neověřil vaši e-mailovou adresu. Ověřte prosím svůj e-mail u poskytovatele a zkuste to znovu.",
+        "errorApplicationUserLimitReached": "Přihlášení je dočasně nedostupné. Kontaktujte prosím vlastníka webu nebo to zkuste později."
     },
     "roles": {
         "builder": {
@@ -248,7 +254,8 @@
         "membersTab": "Členové",
         "teamsTab": "Týmy",
         "subjectTypeNameMembers": "členové",
-        "subjectTypeNameTeams": "týmy"
+        "subjectTypeNameTeams": "týmy",
+        "agentsTab": "Agenti"
     },
     "selectMembersList": {
         "searchPlaceholder": "Hledat členy...",
@@ -262,7 +269,8 @@
         "invite": "Pozvat {type} ({count})",
         "types": {
             "members": "členy",
-            "teams": "týmy"
+            "teams": "týmy",
+            "agents": "agenti"
         },
         "helpTooltip": "Přiřazení role člena má přednost před přiřazením role týmu."
     },
@@ -294,7 +302,8 @@
         "lastNameAttrKey": "Příjmení",
         "firstNameAttrKeyHelper": "Jméno uživatele, nebo celé jméno, pokud není zadáno „Příjmení“.",
         "lastNameAttrKeyHelper": "Příjmení uživatele (volitelné). Vymažte tuto hodnotu, chcete-li celé jméno zadat v poli „Jméno“.",
-        "callbackUrl": "URL zpětného volání"
+        "callbackUrl": "URL zpětného volání",
+        "emailVerificationNotice": "Před ověřováním uživatelů zajistěte, aby poskytovatel identity vyžadoval ověřené e-mailové adresy. Baserow důvěřuje e-mailové adrese uvedené poskytovatelem."
     },
     "loginButton": {
         "continueWith": "Pokračovat pomocí"
@@ -329,7 +338,9 @@
         "xlsFileReaderContent": "Načítejte řádky ze souborů XLS a XLSX v uzlech automatizace a akcích pracovních postupů tvůrce aplikací.",
         "dataScanner": "Skener dat",
         "dataScannerContent": "Prohledávejte všechna data v instanci Baserow a hledejte citlivé vzory, například čísla IBAN nebo zdravotnické identifikátory, případně porovnávejte data se seznamy známých hodnot. Nastavte automatické plány skenování a zobrazujte podrobné výsledky.",
-        "dateDependency": "Datumová závislost"
+        "dateDependency": "Datumová závislost",
+        "builderGraphElement": "Prvek grafu",
+        "builderGraphElementContent": "Zobrazte data řízená vzorcem jako graf na stránkách aplikace."
     },
     "userTeamsField": {
         "no_records": "Žádné týmy"
@@ -445,7 +456,9 @@
         "nobodyTitle": "Nikdo",
         "nobodyDescription": "Žádní uživatelé",
         "allowInForms": "Povolit nastavení tohoto pole v řádcích vytvořených prostřednictvím formulářů",
-        "linkRowWarning": "Toto je pole „Odkaz na tabulku“. Chcete-li zajistit, aby hodnoty nebylo možné měnit z propojené tabulky, nastavte správná oprávnění také u propojené tabulky."
+        "linkRowWarning": "Toto je pole „Odkaz na tabulku“. Chcete-li zajistit, aby hodnoty nebylo možné měnit z propojené tabulky, nastavte správná oprávnění také u propojené tabulky.",
+        "customTitle": "Konkrétní uživatelé, agenti nebo týmy",
+        "customDescription": "Pouze vybraní uživatelé, agenti a členové týmů, kteří již mají roli Editor, Builder nebo Správce"
     },
     "builderSettingTypes": {
         "customCode": "Vlastní CSS/JS"
@@ -479,7 +492,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "Vybraný zdroj uživatelů nemá žádnou možnost přihlášení",
-        "errorUserSourceMissing": "Není vybrán žádný zdroj uživatelů"
+        "errorUserSourceMissing": "Není vybrán žádný zdroj uživatelů",
+        "graph": "Graf",
+        "graphDescription": "Zobrazte data řízená vzorcem jako graf."
     },
     "fieldPermissionsMenuItem": {
         "label": "Upravit oprávnění pole"
@@ -570,8 +585,8 @@
         "polarArea": "Polární plošný graf"
     },
     "groupedAggregateRowsDataSourceForm": {
-        "series": "Datové řady",
-        "addSeries": "Přidat datovou řadu",
+        "series": "Řady",
+        "addSeries": "Přidat řadu",
         "data": "Data",
         "sourceFieldLabel": "Zdroj",
         "viewFieldLabel": "Zobrazení",
@@ -580,13 +595,13 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Pole",
         "aggregationTypeLabel": "Souhrn",
-        "deleteSeries": "Odstranit datovou řadu",
+        "deleteSeries": "Odstranit řadu",
         "chartType": "Typ grafu",
         "barChart": "Sloupcový",
         "lineChart": "Spojnicový",
-        "pieChart": "Výsečový",
+        "pieChart": "Koláčový",
         "doughnutChart": "Prstencový",
-        "polarAreaChart": "Polární plošný"
+        "polarAreaChart": "Polární plocha"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Seskupit podle",
@@ -594,7 +609,7 @@
         "groupByRowId": "ID řádku"
     },
     "aggregationSortByForm": {
-        "sortByFieldLabel": "Seřadit podle",
+        "sortByFieldLabel": "Řadit podle",
         "none": "Žádné",
         "ascending": "Vzestupně",
         "descending": "Sestupně"
@@ -883,5 +898,65 @@
         "placeholder": "např. Sleduj klientské projekty s termíny, vlastníky a stavem.",
         "title": "Co má pro vás Kuma vytvořit?",
         "suggestionsTitle": "Nebo začněte jedním z těchto návrhů"
+    },
+    "enterpriseAgents": {
+        "teams": "Týmy",
+        "noTeams": "Žádné týmy",
+        "teamsLoadError": "Týmy se nepodařilo načíst.",
+        "teamsLoadErrorDescription": "Zkontrolujte připojení a zkuste to znovu.",
+        "retry": "Zkusit znovu"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} využil {usage} z {limit} dostupných uživatelů aplikace.",
+        "titleReached": "{workspaceName} dosáhl limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím, dokud neprovedete upgrade."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "Najít agenty…",
+        "selectedAmountLabel": "Vybraní agenti: {count}"
+    },
+    "subjectType": {
+        "team": "Tým",
+        "teams": "Týmy"
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "Výběr neuděluje přístup k tabulce. Vybraný uživatel, agent nebo člen vybraného týmu musí mít také roli Editor, Builder nebo Správce v místě, kde se tato tabulka nachází.",
+        "canEdit": "Vybraní uživatelé, agenti a týmy",
+        "noSelectedSubjects": "Zatím není nikdo vybrán. Pomocí vyhledávání výše přidejte uživatele, agenta nebo tým.",
+        "addPeopleOrTeams": "Přidat uživatele, agenty nebo týmy",
+        "searchPlaceholder": "Hledat uživatele, agenty nebo týmy",
+        "searchHint": "Hledat podle názvu",
+        "teamDescription": "Tým",
+        "teamSearchDescription": "Tým · {count} člen | Tým · {count} členů",
+        "remove": "Odebrat {subject}"
+    },
+    "graphElementForm": {
+        "labels": "Popisky",
+        "labelsHelper": "Vzorec musí vyhodnotit pole. Každá položka se stane jedním popiskem v grafu.",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Řady",
+        "series": "Řada {number}",
+        "addSeries": "Přidat řadu",
+        "seriesLabel": "Popisek řady",
+        "seriesLabelPlaceholder": "'Revenue'",
+        "seriesValues": "Hodnoty",
+        "seriesValuesHelper": "Vzorec musí vyhodnotit jednu číselnou hodnotu pro každý popisek.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Typ grafu",
+        "seriesColor": "Barva",
+        "barChart": "Sloupcový",
+        "lineChart": "Spojnicový"
+    },
+    "graphElement": {
+        "series": "Řada {number}",
+        "noData": "Žádná data grafu"
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Napájejte asistenta Kuma AI."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Řekněte nám, co chcete vytvořit",
+        "placeholder": "Vytvořit evidenci firemního majetku",
+        "build": "Vytvořit"
     }
 }
