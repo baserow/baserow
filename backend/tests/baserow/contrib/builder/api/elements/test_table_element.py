@@ -165,6 +165,43 @@ def test_cant_update_a_table_element_fields_with_wrong_field_type(
 
 
 @pytest.mark.django_db
+def test_cant_create_a_table_element_with_non_object_fields(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+
+    response = api_client.post(
+        url,
+        {"type": "table", "fields": ["field_1", "field_2"]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["fields"][0][0]["code"] == "invalid"
+
+
+@pytest.mark.django_db
+def test_cant_create_a_table_element_with_field_missing_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+
+    response = api_client.post(
+        url,
+        {"type": "table", "fields": [{"name": "Name", "value": "'test'"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["fields"][0][0]["code"] == "INVALID_FIELD_TYPE"
+
+
+@pytest.mark.django_db
 def test_cant_update_a_table_element_fields_with_wrong_field_property(
     api_client, data_fixture
 ):
