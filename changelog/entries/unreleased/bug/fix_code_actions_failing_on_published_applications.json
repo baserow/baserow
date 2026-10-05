@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix application builder code and XLS file reader actions failing on published applications when the feature is licensed per workspace.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-02"
+}

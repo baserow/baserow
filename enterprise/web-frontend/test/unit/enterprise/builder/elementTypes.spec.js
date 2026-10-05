@@ -201,6 +201,51 @@ describe('Enterprise builder element types', () => {
     })
   })
 
+  describe('File input action dispatch context', () => {
+    const getElementType = () =>
+      useNuxtApp().$registry.get('element', 'input_file')
+
+    test('multiple input without form data sends an empty list', () => {
+      const files = {}
+      const element = { id: 1, multiple: true }
+
+      expect(
+        getElementType().beforeActionDispatchContext(element, undefined, files)
+      ).toEqual([])
+      expect(files).toEqual({})
+    })
+
+    test('single input without form data sends no value', () => {
+      const files = {}
+      const element = { id: 1, multiple: false }
+
+      expect(
+        getElementType().beforeActionDispatchContext(element, undefined, files)
+      ).toBeUndefined()
+      expect(files).toEqual({})
+    })
+
+    test('multiple input registers only the files that carry data', () => {
+      const files = {}
+      const element = { id: 1, multiple: true }
+      const value = [
+        { __file__: true, name: 'new.txt', data: 'blob' },
+        { __file__: true, name: 'old.txt', url: 'https://example.com/old.txt' },
+      ]
+
+      const result = getElementType().beforeActionDispatchContext(
+        element,
+        value,
+        files
+      )
+
+      expect(Object.values(files)).toEqual(['blob'])
+      expect(result[0].file).toBe(Object.keys(files)[0])
+      expect(result[0].data).toBeUndefined()
+      expect(result[1]).toEqual({ ...value[1], data: undefined })
+    })
+  })
+
   test('graph element is an advanced paid feature', () => {
     const testApp = useNuxtApp()
 

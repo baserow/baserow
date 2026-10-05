@@ -1215,7 +1215,14 @@ class LocalBaserowListRowsUserServiceType(
                 "order",
             )
 
-        if dispatch_context.only_record_id is not None:
+        # Narrowing to one record targets the data source being dispatched. A
+        # data source dispatched to resolve that one's formulas (e.g. a filter
+        # looking up another data source) must not be narrowed too, as the
+        # record id belongs to a different table.
+        if (
+            dispatch_context.only_record_id is not None
+            and dispatch_context.is_adhoc_refinable(service)
+        ):
             queryset = queryset.filter(id=dispatch_context.only_record_id)
 
         # We query one more row to be able to know if there is another page that can be
