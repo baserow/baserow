@@ -24,7 +24,14 @@
         "friday": "pátek",
         "saturday": "sobota",
         "sunday": "neděle",
-        "value": "hodnota"
+        "value": "hodnota",
+        "created": "Vytvořeno",
+        "lastViewed": "Naposledy zobrazeno",
+        "nameAsc": "Název (A–Z)",
+        "nameDesc": "Název (Z–A)",
+        "neverViewed": "Nikdy nezobrazeno",
+        "createdAgo": "Vytvořeno {ago}",
+        "viewedAgo": "Zobrazeno {ago}"
     },
     "action": {
         "upload": "Nahrát",
@@ -127,7 +134,8 @@
         "decimalField": "Pole musí obsahovat desetinné číslo.",
         "invalidURL": "Zadejte platnou adresu URL.",
         "alreadyInUse": "Tento název pole se již používá.",
-        "copyFailed": "Kopírování do schránky se nezdařilo. Zkuste to prosím znovu."
+        "copyFailed": "Kopírování do schránky se nezdařilo. Zkuste to prosím znovu.",
+        "nameContainsSpam": "Názvy nesmějí obsahovat ozdobné znaky ani dlouhá čísla."
     },
     "permission": {
         "admin": "Admin",
@@ -189,7 +197,8 @@
         "invalidDuration": "Neplatný formát ({durationFormat}).",
         "overflowDuration": "Hodnota je mimo hranice.",
         "higherThan": "Hodnota je vyšší než {max}.",
-        "maxCharsExceeded": "Max. {max} znaků (-{over})."
+        "maxCharsExceeded": "Max. {max} znaků (-{over}).",
+        "maxImagesExceeded": "Maximálně {max} obrázků (odeberte {over})."
     },
     "fieldDocs": {
         "readOnly": "Toto je pole pouze pro čtení.",
@@ -226,7 +235,8 @@
         "autonumber": "Pole jen pro čtení, které automaticky zvyšuje číslo pro každý nový řádek.",
         "password": "Pole pouze pro zápis, které obsahuje hashované heslo. Pokud není nastaveno, má hodnotu `null`, a pokud nastaveno je, má hodnotu `true`. K jeho nastavení přijímá řetězec.",
         "formViewEditRow": "Pole jen pro čtení, které vytváří jedinečnou podepsanou adresu URL umožňující upravovat řádek prostřednictvím propojeného zobrazení formuláře.",
-        "button": "Pole tlačítka. Kliknutím na tlačítko se otevře adresa URL sestavená z hodnot řádku. Buňka neukládá data a pokusy o zápis jsou odmítnuty."
+        "button": "Pole tlačítka. Kliknutím na tlačítko se otevře adresa URL sestavená z hodnot řádku. Buňka neukládá data a pokusy o zápis jsou odmítnuty.",
+        "longTextRichText": "Přijímá víceřádkový text formátovaný pomocí Markdownu. Chcete-li vložit obrázek, nahrajte jej pomocí endpointu pro nahrání souborů a na jeho vrácený název odkažte jako ![alt][name]. Odpovědi přidají dočasnou adresu URL ![alt][name](url), která se při odeslání hodnoty zpět ignoruje. Hodnota může odkazovat nejvýše na 100 obrázků a každý název musí patřit nahranému obrázku."
     },
     "viewFilter": {
         "contains": "obsahuje",
@@ -346,7 +356,9 @@
         "automation_workflow": "pracovní postup automatizace",
         "automation_node": "uzel automatizace",
         "builder_page": "stránka editoru",
-        "builder_element": "prvek editoru"
+        "builder_element": "prvek editoru",
+        "agent": "agent",
+        "database_workflow_action": "akce tlačítka"
     },
     "webhook": {
         "request": "Požadavek",
@@ -464,7 +476,9 @@
         "fieldConstraintTitle": "Porušení omezení pole",
         "fieldConstraintDescription": "Omezení nelze použít.",
         "fieldDataConstraintTitle": "Porušení omezení dat pole",
-        "fieldDataConstraintDescription": "Operaci nelze dokončit kvůli porušení existujících omezení."
+        "fieldDataConstraintDescription": "Operaci nelze dokončit kvůli porušení existujících omezení.",
+        "userFileDoesNotExistTitle": "Obrázek neexistuje",
+        "userFileDoesNotExistDescription": "Hodnota odkazuje na obrázek, který už neexistuje. Odeberte jej a zkuste to znovu."
     },
     "importerType": {
         "csv": "Importovat soubor CSV",
@@ -728,7 +742,8 @@
         "toJsonDescription": "Serializuje hodnotu do řetězce kódovaného jako JSON, přičemž escapuje uvozovky, zpětná lomítka a řídicí znaky, aby ji bylo možné bezpečně vložit do dokumentu JSON.",
         "fromJsonDescription": "Parsuje řetězec kódovaný jako JSON na hodnotu, například objekt, pole nebo číslo. Pokud řetězec není platný JSON, vrátí null.",
         "encodeUriDescription": "Zakóduje procenty znaky, které nejsou v adrese URL povoleny, a zachová strukturu adresy URL",
-        "encodeUriComponentDescription": "Zakóduje argument procenty, aby jej bylo možné bezpečně použít jako jednu část adresy URL, například segment cesty nebo parametr dotazu"
+        "encodeUriComponentDescription": "Zakóduje argument procenty, aby jej bylo možné bezpečně použít jako jednu část adresy URL, například segment cesty nebo parametr dotazu",
+        "nowDescription": "Vrací aktuální datum a čas."
     },
     "nodeExplorer": {
         "noResults": "Nebyly nalezeny žádné výsledky",
