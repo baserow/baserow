@@ -20,7 +20,11 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.models import (
+    Element,
+    MenuElement,
+    MenuItemElement,
+)
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -671,6 +675,7 @@ def ensure_child_menu(
     ]
 
     if menu_child is not None:
+        menu_items_orm = keep_existing_menu_items(menu_child.specific, menu_items_orm)
         UpdateElementActionType.do(user, menu_child, {"menu_items": menu_items_orm})
     else:
         menu_type = element_type_registry.get("menu")
@@ -684,6 +689,74 @@ def ensure_child_menu(
                 "menu_items": menu_items_orm,
             },
         )
+
+
+def _menu_item_values(item: MenuItemElement) -> dict[str, Any]:
+    """
+    Return the values that recreate a menu item as it is.
+
+    :param item: The existing menu item.
+    :return: The item's values, keyed like the menu's ``menu_items`` input.
+    """
+
+    return {
+        "uid": str(item.uid),
+        "type": item.type,
+        "variant": item.variant,
+        "name": item.name,
+        "navigation_type": item.navigation_type,
+        "navigate_to_page_id": item.navigate_to_page_id,
+        "navigate_to_url": item.navigate_to_url,
+        "page_parameters": item.page_parameters,
+        "query_parameters": item.query_parameters,
+        "target": item.target,
+    }
+
+
+def keep_existing_menu_items(
+    menu: MenuElement, menu_items: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    Keep the menu items Kuma resends as they are, instead of recreating them.
+
+    Items are matched by name to the menu's top-level items. A kept item keeps its
+    uid, so its click actions survive, and its type, settings and children; only a
+    page link takes the requested page. Children of kept items are not added again.
+
+    :param menu: The menu whose items are replaced.
+    :param menu_items: The requested items built from Kuma's input.
+    :return: The items to save on the menu.
+    """
+
+    top_level = {
+        item.name: item for item in menu.menu_items.filter(parent_menu_item=None)
+    }
+    kept_child_names = {
+        child.name
+        for item in menu_items
+        if item["name"] in top_level
+        for child in top_level[item["name"]].menu_item_children.all()
+    }
+
+    items = []
+    for item in menu_items:
+        existing = top_level.pop(item["name"], None)
+        if existing is None:
+            if item["name"] not in kept_child_names:
+                items.append(item)
+            continue
+        values = _menu_item_values(existing)
+        if (
+            existing.type == MenuItemElement.TYPES.LINK
+            and existing.navigation_type == MenuItemElement.NAVIGATION_TYPES.PAGE
+        ):
+            values["navigate_to_page_id"] = item["navigate_to_page_id"]
+        values["children"] = [
+            _menu_item_values(child)
+            for child in existing.menu_item_children.order_by("menu_item_order")
+        ]
+        items.append(values)
+    return items
 
 
 # ---------------------------------------------------------------------------

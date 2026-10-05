@@ -5,6 +5,7 @@ Tests cover pages, data sources, elements, and workflow actions using
 the RunContext + FunctionToolset pattern.
 """
 
+import uuid
 from copy import deepcopy
 from typing import Any
 
@@ -2698,6 +2699,50 @@ def test_update_menu_items(data_fixture):
     assert items[1].navigate_to_page_id == page2.id
     assert items[2].name == "Contact"
     assert items[2].navigate_to_page_id == page3.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_menu_items_keeps_the_items_it_resends(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+    logout_uid = uuid.uuid4()
+    menu = data_fixture.create_builder_menu_element_items(
+        page=page,
+        menu_items=[
+            {
+                "type": "button",
+                "variant": "button",
+                "uid": logout_uid,
+                "name": "Log out",
+            }
+        ],
+    )
+    click_action = data_fixture.create_notification_workflow_action(
+        element=menu, event=f"{logout_uid}_click"
+    )
+
+    update_element(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=menu.id,
+            menu_items=[
+                MenuItemCreate(name="Home", page_id=page.id),
+                MenuItemCreate(name="Log out", page_id=page.id),
+            ],
+        ),
+        thought="test",
+    )
+
+    items = list(menu.menu_items.order_by("menu_item_order"))
+    assert [(item.name, item.type) for item in items] == [
+        ("Home", "link"),
+        ("Log out", "button"),
+    ]
+    assert items[1].uid == logout_uid
+    assert BuilderWorkflowAction.objects.filter(id=click_action.id).exists()
 
 
 @pytest.mark.django_db

@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.elements.models import Element, TableElement
 
-from .helpers import ensure_child_menu
+from .helpers import ensure_child_menu, keep_existing_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
@@ -111,6 +111,29 @@ class MenuAssistantElementType(AssistantElementType):
         """
 
         return {"menu_orientation": "orientation", "menu_alignment": "alignment"}
+
+    def prepare_update(
+        self, user: AbstractUser, element: Element, update: ElementUpdate
+    ) -> PreparedElementUpdate:
+        """
+        Keep the menu items the update resends, so they keep their click actions,
+        settings and sub-links.
+
+        :param user: The user updating the menu, who may update it.
+        :param element: The menu element, locked for update.
+        :param update: The properties to change.
+        :return: The menu items to save.
+        """
+
+        if update.menu_items is None:
+            return PreparedElementUpdate(kwargs={}, result={})
+        menu_items = update.to_update_kwargs(self.type)["menu_items"]
+        return PreparedElementUpdate(
+            kwargs={
+                "menu_items": keep_existing_menu_items(element.specific, menu_items)
+            },
+            result={},
+        )
 
 
 class MultiPageContainerAssistantElementType(AssistantElementType):
