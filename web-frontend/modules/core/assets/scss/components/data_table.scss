@@ -71,6 +71,11 @@
   margin: 0 24px;
   border: 1px solid $palette-neutral-200;
   border-radius: 6px;
+
+  &--empty {
+    border-style: dashed;
+    border-color: $palette-neutral-400;
+  }
 }
 
 .data-table__table {
@@ -81,6 +86,10 @@
   border: none;
   border-collapse: separate;
   border-spacing: 0;
+
+  .data-table__body--empty & {
+    height: 100%;
+  }
 }
 
 .data-table__table-cell {
@@ -254,10 +263,16 @@ thead + .data-table__row-group .data-table__table-cell-content {
 }
 
 .data-table__footer {
+  align-self: center;
   flex-shrink: 0;
   padding: 24px 24px 0;
   width: 253px;
   max-width: 100%;
+}
+
+.data-table__empty-cell {
+  padding: 0;
+  vertical-align: middle;
 }
 
 .data-table__empty {
@@ -269,6 +284,20 @@ thead + .data-table__row-group .data-table__table-cell-content {
     width: 100%;
     max-width: 520px;
     margin: 0 auto;
+  }
+}
+
+.data-table__empty-action {
+  margin-top: 24px;
+
+  &:empty {
+    display: none;
+  }
+
+  > .button {
+    margin-left: 0;
+
+    @include button-size;
   }
 }
 

@@ -119,7 +119,7 @@ const renderTable =
         :row-expandable="row => row.id !== 3"
         @total-count-update="count = $event" @row-context="openContext">
         <template #title>{{ count }} members</template>
-        <template #header-right-side>
+        <template #primary-action>
           <Button type="primary" size="large" icon="iconoir-plus">Invite members</Button>
         </template>
         <template #empty>

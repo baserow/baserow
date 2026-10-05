@@ -85,6 +85,31 @@ describe('CrudTable component', () => {
     expect(crudTable.find('h1').text()).toBe('1 members')
   })
 
+  test('the empty state reuses the primary action and its click handler', async () => {
+    const onCreate = vi.fn()
+    const crudTable = await mountCrudTable(
+      aService(vi.fn().mockResolvedValue(aPage([]))),
+      {},
+      {
+        'primary-action': () => h('button', { onClick: onCreate }, 'Create'),
+        empty: '<p>No items yet</p>',
+      }
+    )
+    await flushPromises()
+
+    expect(crudTable.find('header button').text()).toBe('Create')
+    expect(crudTable.find('tbody button').text()).toBe('Create')
+    await crudTable.find('tbody button').trigger('click')
+    expect(onCreate).toHaveBeenCalledTimes(1)
+
+    await crudTable.find('input').setValue('missing')
+    await flushPromises()
+    expect(crudTable.find('tbody').text()).toContain('crudTable.noResults')
+    expect(crudTable.find('tbody button').exists()).toBe(false)
+    await crudTable.find('header button').trigger('click')
+    expect(onCreate).toHaveBeenCalledTimes(2)
+  })
+
   test('the row action button emits the existing context payload', async () => {
     const row = { id: 1, name: 'Row 1' }
     const crudTable = await mountCrudTable(

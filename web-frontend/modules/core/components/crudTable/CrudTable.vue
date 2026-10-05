@@ -13,10 +13,14 @@
           @search-changed="doSearch"
         />
         <slot name="header-right-side"></slot>
+        <slot name="primary-action"></slot>
       </div>
     </header>
     <slot name="header-filters"></slot>
-    <div class="data-table__body">
+    <div
+      class="data-table__body"
+      :class="{ 'data-table__body--empty': showEmptyState }"
+    >
       <table class="data-table__table" :aria-busy="loading">
         <thead v-if="!showEmptyState">
           <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
@@ -76,12 +80,18 @@
         </tbody>
         <tbody v-else-if="showEmptyState">
           <tr>
-            <td :colspan="columns.length || 1">
+            <td :colspan="columns.length || 1" class="data-table__empty-cell">
               <div class="data-table__empty">
                 <slot v-if="!hasActiveFilters" name="empty">
                   <p>{{ $t('crudTable.empty') }}</p>
                 </slot>
                 <p v-else>{{ $t('crudTable.noResults') }}</p>
+                <div
+                  v-if="!hasActiveFilters && $slots['primary-action']"
+                  class="data-table__empty-action"
+                >
+                  <slot name="primary-action"></slot>
+                </div>
               </div>
             </td>
           </tr>
@@ -169,7 +179,8 @@ import isObject from 'lodash/isObject'
  *
  * Slots:
  *  #title: Header title, with the result count and initial loading state.
- *  #header-right-side: Primary actions beside the search.
+ *  #header-right-side: Additional controls beside the search.
+ *  #primary-action: Main action, also shown in the unfiltered empty state.
  *  #empty: Empty state when no search or filters are active.
  *  #menus: Placed in the footer and expected to only contain Contexts and Modals.
  *          Receives updateRow, deleteRow and refresh to synchronize table data.

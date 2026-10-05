@@ -17,7 +17,7 @@
           })
         }}
       </template>
-      <template #header-right-side>
+      <template #primary-action>
         <Button
           type="primary"
           size="large"

@@ -16,7 +16,7 @@
           })
         }}
       </template>
-      <template #header-right-side>
+      <template #primary-action>
         <Button
           v-if="
             $hasPermission(

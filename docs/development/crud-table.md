@@ -54,9 +54,13 @@ renderer and expansion. Callers using it own their row interactions.
 
 The `title` slot receives `{ count, loading }`, where `count` is the service's
 total result count (or the array length for non-paginated services). Search and
-`header-right-side` actions remain visible when the table is empty. The `empty`
-slot applies to an unfiltered table; unmatched search and filters show the
-shared no-results message instead.
+`header-right-side` controls remain visible when the table is empty. Put the
+view's main creation or invitation button in `primary-action`: it appears in
+the header and below the unfiltered empty-state content, with the same event
+handlers and permission checks. Keep other controls in `header-right-side`.
+The `empty` slot supplies the unfiltered empty-state content; do not repeat the
+primary action there. Unmatched search and filters show the shared no-results
+message instead, with the primary action available in the header.
 
 Columns scroll horizontally rather than disappearing. Mark row action columns
 with `stickyRight` in their `CrudTableColumn` definition so their controls stay

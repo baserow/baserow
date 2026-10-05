@@ -19,17 +19,12 @@
           <p class="placeholder__content">
             {{ $t('dataScanner.emptyDescription') }}
           </p>
-          <div class="placeholder__action">
-            <Button type="primary" size="large" @click="openCreateModal">
-              {{ $t('dataScanner.createScan') }}
-            </Button>
-          </div>
         </div>
       </template>
       <template #title>
         {{ $t('dataScanner.title') }}
       </template>
-      <template #header-right-side>
+      <template #primary-action>
         <Button
           type="primary"
           size="large"
