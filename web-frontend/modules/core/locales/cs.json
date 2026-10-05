@@ -33,7 +33,10 @@
         "general": "Obecné",
         "people": "Lidé",
         "licenses": "Licence",
-        "replayGuidedTour": "Znovu spustit průvodce"
+        "replayGuidedTour": "Znovu spustit průvodce",
+        "allWorkspaces": "Všechny pracovní prostory",
+        "backToHome": "Zpět na domovskou stránku",
+        "templates": "Šablony"
     },
     "accountForm": {
         "nameLabel": "Vaše jméno",
@@ -700,7 +703,8 @@
         "title": "Nastavení pracovního prostoru"
     },
     "workspaceSettingType": {
-        "generativeAI": "Generativní AI"
+        "generativeAI": "Generativní AI",
+        "aiProviders": "Poskytovatelé AI"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
@@ -736,7 +740,19 @@
         "anthropicModelIdentifierDescription": "Zadejte [identifikátor modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Například: `claude-sonnet-5`, `claude-opus-4-8` nebo `claude-haiku-4-5`.",
         "mistralModelIdentifierDescription": "Zadejte [identifikátor modelu Mistral](https://docs.mistral.ai/models/). Například: `mistral-large-latest`, `mistral-medium-latest` nebo `mistral-small-latest`.",
         "ollamaModelIdentifierDescription": "Zadejte identifikátor [modelu nainstalovaného v Ollama](https://ollama.com/library). Například: `gemma3`, `qwen3` nebo `llama3.3`.",
-        "openRouterModelIdentifierDescription": "Zadejte [identifikátor modelu OpenRouter](https://openrouter.ai/models). Například: `openai/gpt-5.6` nebo `anthropic/claude-sonnet-5`."
+        "openRouterModelIdentifierDescription": "Zadejte [identifikátor modelu OpenRouter](https://openrouter.ai/models). Například: `openai/gpt-5.6` nebo `anthropic/claude-sonnet-5`.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Klíč API",
+        "googleApiKeyDescription": "Zadejte klíč API služby Google AI Studio. [Vytvořte nebo zobrazte klíč API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Povolené modely",
+        "googleModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Gemini](https://ai.google.dev/gemini-api/docs/models), které lze použít v Baserow. Například: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Zadejte [identifikátor modelu Gemini](https://ai.google.dev/gemini-api/docs/models). Například: `gemini-3.6-flash` nebo `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Klíč API",
+        "groqApiKeyDescription": "Zadejte klíč API služby Groq. [Vytvořte nebo zobrazte klíč API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Povolené modely",
+        "groqModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Groq](https://console.groq.com/docs/models), které lze použít v Baserow. Například: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Zadejte [identifikátor modelu Groq](https://console.groq.com/docs/models). Například: `openai/gpt-oss-120b` nebo `openai/gpt-oss-20b`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Nastavení generativní AI",
@@ -745,7 +761,16 @@
         "changedDescription": "Nastavení bylo aktualizováno a nyní se bude používat v tomto pracovním prostoru.",
         "submitButton": "Aktualizovat nastavení",
         "openSettings": "Otevřít nastavení",
-        "hideSettings": "Skrýt nastavení"
+        "hideSettings": "Skrýt nastavení",
+        "providerTitle": "Poskytovatelé AI",
+        "providerDescription": "Spravujte poskytovatele vlastněné tímto pracovním prostorem nebo povolte či zakažte poskytovatele zděděné z instance.",
+        "sharedModelsTitle": "Sdíleno mezi pracovními prostory",
+        "addWorkspaceConfiguration": "Přidat konfiguraci pracovního prostoru",
+        "overridden": "Přepsáno",
+        "overriddenByWorkspace": "Přepsáno pracovním prostorem",
+        "disabledInWorkspace": "Zakázáno v pracovním prostoru",
+        "noProviders": "Žádní poskytovatelé AI nejsou k dispozici",
+        "noProvidersDescription": "Přidejte poskytovatele pro tento pracovní prostor nebo požádejte správce instance, aby nějakého nakonfiguroval."
     },
     "dashboardVerifyEmail": {
         "title": "Zkontrolujte svou e-mailovou schránku a kliknutím na odkaz ověřte svůj e-mail.",
@@ -1223,7 +1248,8 @@
         "showErrorLabel": "Zobrazit chybu",
         "downloadFullPayload": "Stáhnout úplnou datovou část",
         "truncatedLabel": "[Výstup zkrácen]",
-        "truncatedPayloadWarning": "Zobrazuje se pouze prvních {size} znaků. Stáhněte úplnou datovou část a prohlédněte si ji v počítači."
+        "truncatedPayloadWarning": "Zobrazuje se pouze prvních {size} znaků. Stáhněte úplnou datovou část a prohlédněte si ji v počítači.",
+        "noHtmlContent": "Tento e-mail nemá tělo ve formátu HTML."
     },
     "workspaceOutdatedToast": {
         "title": "Příliš mnoho změn",
@@ -1308,7 +1334,46 @@
         "retry": "Zkusit znovu",
         "saveError": "Poskytovatele AI se nepodařilo uložit.",
         "saveModelError": "Model poskytovatele AI se nepodařilo uložit.",
-        "actionError": "Změnu poskytovatele AI se nepodařilo dokončit."
+        "actionError": "Změnu poskytovatele AI se nepodařilo dokončit.",
+        "availableFor": "K dispozici pro",
+        "availableForDescription": "Zvolte, které uvedené funkce AI mohou tento model používat.",
+        "availableForList": "K dispozici pro: {features}",
+        "availableForNone": "Není k dispozici pro žádnou z uvedených funkcí",
+        "featureSettingsTitle": "Funkce AI",
+        "featureSettingsDescription": "Pro každou funkci zvolte model nakonfigurovaného poskytovatele. Modely prostředí jsou zastaralé.",
+        "kumaDisabled": "Zakázáno",
+        "kumaInvalidFallback": "Vybraný model není k dispozici — používá se zastaralý model prostředí: {model}",
+        "kumaInvalidNoFallback": "Vybraný model není k dispozici — není nakonfigurován žádný model prostředí",
+        "kumaDisabledInWorkspace": "Zakázáno v tomto pracovním prostoru",
+        "kumaUseInstance": "Použít nastavení instance — {model}",
+        "kumaInheritedUnavailable": "vybraný model instance není k dispozici",
+        "kumaUseLegacy": "Použít model prostředí (zastaralý): {model}",
+        "kumaLegacyFallback": "model prostředí (zastaralý): {model}",
+        "kumaLegacyEmpty": "prázdné",
+        "kumaNotConfigured": "není nakonfigurováno",
+        "featureModelLabel": "Model pro {feature}",
+        "modelScopeInstance": "Instance",
+        "modelScopeWorkspace": "Pracovní prostor",
+        "noFeatureModels": "Nejsou k dispozici žádné vhodné modely. Upravte model a zvolte, které funkce jej mohou používat.",
+        "featureSettingError": "Nastavení funkce AI se nepodařilo uložit.",
+        "featureSettingErrorDescription": "Obnovte stránku a zvolte dostupný model.",
+        "inherited": "Zděděno",
+        "moreActions": "Další akce",
+        "testAllModels": "Otestovat všechny modely",
+        "testModel": "Otestovat model",
+        "someTestsFailed": "Některé testy selhaly",
+        "featureTestPassed": "{feature}: Úspěšně otestováno",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Testování…",
+        "disableModelTitle": "Zakázat {name}?",
+        "disableModelDescription": "Model zůstane vybraný tam, kde je nakonfigurován, ale nebude jej možné používat, dokud jej znovu nepovolíte.",
+        "modelFeaturesRemovedTitle": "Změnit funkce, pro které je {name} k dispozici?",
+        "modelFeaturesRemovedDescription": "Funkce, jejichž výběr jste zrušili, už tento model nemohou používat.",
+        "modelInUse": "{features} používá tento model. | {features} používají tento model.",
+        "modelUsageUnknown": "Baserow nemohl ověřit, co tento model stále používá.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Přejmenovat {name}?",
+        "modelIdentifierRenamedDescription": "Nadále budou ukazovat na starý identifikátor a přestanou fungovat, dokud nebudou přesměrovány."
     },
     "groupedMenu": {
         "core": "Základní",
@@ -1323,5 +1388,50 @@
         "previous": "Předchozí video",
         "next": "Další video",
         "close": "Zavřít"
+    },
+    "allWorkspaces": {
+        "title": "Vaše pracovní prostory",
+        "searchResults": "Výsledky vyhledávání",
+        "searchPlaceholder": "Hledat",
+        "allItems": "Všechny položky",
+        "itemsSelected": "{count} typ položky | {count} typy položek",
+        "createWorkspace": "Vytvořit pracovní prostor",
+        "expandedView": "Rozšířené zobrazení",
+        "compactView": "Kompaktní zobrazení",
+        "collapseAll": "Sbalit vše",
+        "expandAll": "Rozbalit vše",
+        "workspacesSection": "Pracovní prostory",
+        "itemsSection": "Položky",
+        "noResultsTitle": "Nebyly nalezeny žádné výsledky",
+        "noResultsDescription": "Pro výraz „{search}“ jsme nic nenašli. Zkontrolujte pravopis nebo použijte jiná klíčová slova.",
+        "clearSearch": "Vymazat vyhledávání",
+        "membersCount": "0 členů | 1 člen | {count} členů",
+        "itemsCount": "0 položek | 1 položka | {count} položek",
+        "moreElements": "{count} další prvek | {count} další prvky",
+        "noApplications": "Zatím žádné aplikace Builder",
+        "noFilterMatches": "Žádné položky neodpovídají vybraným typům.",
+        "create": "Vytvořit",
+        "members": "Členové",
+        "settings": "Nastavení"
+    },
+    "recentlyViewed": {
+        "title": "Naposledy zobrazené",
+        "yourItems": "Vaše položky",
+        "name": "Název",
+        "lastViewed": "Naposledy zobrazeno",
+        "workspace": "Pracovní prostor",
+        "allWorkspaces": "Všechny pracovní prostory",
+        "workspacesSelected": "{count} pracovní prostor | {count} pracovní prostory",
+        "allItems": "Všechny položky",
+        "itemTypesSelected": "{count} typ položky | {count} typy položek",
+        "tableView": "Tabulka",
+        "cardsView": "Karty",
+        "loadMore": "Načíst další",
+        "emptyTitle": "Nedávno nebylo nic zobrazeno",
+        "emptyDescription": "Zde se zobrazí zobrazení, stránky, nástěnky a pracovní postupy, které otevřete.",
+        "noFilterMatchesTitle": "Žádné položky neodpovídají vybraným filtrům",
+        "noFilterMatchesDescription": "Zkuste vybrat jiné pracovní prostory nebo typy položek.",
+        "clearFilters": "Vymazat filtry",
+        "goToWorkspaces": "Přejít do pracovních prostorů"
     }
 }
