@@ -14,13 +14,17 @@ from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
 )
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
 )
+from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
+from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder.agents import (
     update_element_formulas,
     update_single_element_formulas,
@@ -81,7 +85,14 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-from .utils import create_fake_tool_helpers, make_test_ctx
+from .utils import (
+    actions_in_message,
+    create_fake_tool_helpers,
+    make_test_ctx,
+    redo_message,
+    start_message,
+    undo_message,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -3358,6 +3369,49 @@ def test_setup_user_source_new_table(data_fixture):
     auth_forms = [e for e in elements if e.get_type().type == "auth_form"]
     assert len(auth_forms) == 1
     assert auth_forms[0].specific.user_source_id == result["user_source_id"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_user_source_is_undoable(data_fixture):
+    from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
+    from baserow_enterprise.assistant.tools.builder.types.user_source import (
+        UserSourceSetup,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    start_message(user)
+
+    result = setup_user_source(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        setup=UserSourceSetup(name="App Users", database_id=database.id),
+        thought="test",
+    )
+
+    assert actions_in_message(user) == [
+        "create_integration",
+        "create_table",
+        "create_field",
+        "create_field",
+        "create_field",
+        "create_rows",
+        "create_user_source",
+        "create_page",
+        "create_element",
+    ]
+    created = [
+        UserSource.objects.filter(id=result["user_source_id"]),
+        Page.objects.filter(id=result["login_page_id"]),
+        Integration.objects.filter(application=builder),
+    ]
+    scopes = [ApplicationActionScopeType.value(builder.id)]
+    undo_message(user, scopes)
+    assert not any(queryset.exists() for queryset in created)
+    redo_message(user, scopes)
+    assert all(queryset.exists() for queryset in created)
 
 
 @pytest.mark.django_db(transaction=True)

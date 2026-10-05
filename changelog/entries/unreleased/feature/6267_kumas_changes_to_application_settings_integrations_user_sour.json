@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Kuma's changes to application settings, integrations, user sources and login pages can be undone",
+    "issue_origin": "github",
+    "issue_number": 6267,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}
