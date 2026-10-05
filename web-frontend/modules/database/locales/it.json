@@ -1334,7 +1334,7 @@
         "tableTrashed": "Questa azione usa una tabella che si trova nel cestino o non esiste più. Ripristina la tabella o scegline un'altra.",
         "requiresReconfiguration": "Questa azione fa riferimento a una tabella, un campo o un'integrazione che si trova nel cestino o non esiste più.",
         "noInstanceSmtp": "Questa istanza di Baserow non ha un server SMTP configurato, quindi un pulsante non può inviare email.",
-        "instanceSmtpTurnedOff": "L'invio tramite il server SMTP di questa istanza di Baserow è disattivato, quindi un pulsante non può inviare email.",
+        "instanceSmtpTurnedOff": "L'invio tramite il server SMTP di questa istanza di Baserow è disattivato. Scegli una integrazione SMTP per inviare questa email.",
         "slackOk": "OK",
         "slackChannel": "Canale",
         "slackTs": "Timestamp del messaggio",
@@ -1342,7 +1342,8 @@
         "slackData": "Dati",
         "startWorkflowMissing": "Impossibile trovare il flusso di lavoro di questa azione. Potrebbe essere stato eliminato o potresti non avervi accesso. Scegli un altro flusso di lavoro o chiedi a qualcuno che può vederlo.",
         "startWorkflowUnpublished": "Questo flusso di lavoro non è ancora stato pubblicato. Pubblicalo prima che il pulsante possa avviarlo.",
-        "startWorkflowNotLive": "Questo flusso di lavoro è in pausa o disattivato. Riprendilo prima che il pulsante possa avviarlo."
+        "startWorkflowNotLive": "Questo flusso di lavoro è in pausa o disattivato. Riprendilo prima che il pulsante possa avviarlo.",
+        "smtpIntegrationIncomplete": "Questa integrazione SMTP non prevede un server. Inserisci il suo host prima di poter inviare il messaggio."
     },
     "openUrlWorkflowActionForm": {
         "url": "URL",
@@ -1419,5 +1420,8 @@
         "ruleDoesNotExist": "La regola non esiste",
         "ruleTypeDoesNotExist": "Il tipo di regola non esiste",
         "ruleAlreadyExists": "La regola esiste già"
+    },
+    "hiddenRows": {
+        "updatedMessage": "La riga non corrisponde più ai filtri di questa vista, quindi è nascosta. | {count} righe non corrispondono più ai filtri di questa vista, quindi sono nascoste."
     }
 }
