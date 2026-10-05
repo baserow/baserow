@@ -12,45 +12,84 @@
       </div>
       <template v-else>
         <div
+          class="agent-tool-approvals__header agent-pending-approvals__header"
+        >
+          <i class="iconoir-shield-check agent-tool-approvals__header-icon"></i>
+          <span class="agent-tool-approvals__header-title">
+            {{ $t('agentPendingApprovals.title', { count: approvals.length }) }}
+          </span>
+        </div>
+        <div
           v-for="approval in approvals"
           :key="approval.id"
-          class="agent-pending-approvals__item"
-          :title="$t('agentPendingApprovals.openConversation')"
-          @click="openConversation(approval)"
+          class="agent-tool-approvals__item"
         >
-          <div class="agent-pending-approvals__item-content">
-            <div class="agent-pending-approvals__item-tool">
+          <div class="agent-tool-approvals__item-body">
+            <div class="agent-tool-approvals__tool-name">
               {{ humanToolName(approval.tool_name) }}
             </div>
-            <div class="agent-pending-approvals__item-chat">
-              {{ approval.chat_title || $t('agentPendingApprovals.untitled') }}
-            </div>
-            <div
-              v-if="argsPreview(approval)"
-              class="agent-pending-approvals__item-args"
+            <a
+              class="agent-pending-approvals__chat"
+              :title="$t('agentPendingApprovals.openConversation')"
+              @click.prevent="openConversation(approval)"
             >
-              {{ argsPreview(approval) }}
+              <i class="iconoir-chat-bubble-empty"></i>
+              <span>{{
+                approval.chat_title || $t('agentPendingApprovals.untitled')
+              }}</span>
+            </a>
+            <div v-if="summary(approval)" class="agent-tool-approvals__summary">
+              {{ summary(approval) }}
             </div>
+            <div class="agent-tool-approvals__details">
+              <a
+                class="agent-tool-approvals__details-toggle"
+                @click.prevent="toggleDetails(approval)"
+              >
+                <i
+                  class="iconoir-nav-arrow-right agent-tool-approvals__details-chevron"
+                  :class="{
+                    'agent-tool-approvals__details-chevron--expanded':
+                      expandedArgs[approval.id],
+                  }"
+                ></i>
+                {{
+                  expandedArgs[approval.id]
+                    ? $t('agentToolApprovals.hideDetails')
+                    : $t('agentToolApprovals.showDetails')
+                }}
+              </a>
+              <code class="agent-tool-approvals__details-id">{{
+                approval.tool_name
+              }}</code>
+            </div>
+            <pre
+              v-if="expandedArgs[approval.id]"
+              class="agent-tool-approvals__args"
+              >{{ formatArgs(approval) }}</pre
+            >
           </div>
-          <div v-if="canDecide" class="agent-pending-approvals__item-buttons">
-            <Button
-              size="small"
-              type="secondary"
-              :disabled="deciding"
-              :loading="isDeciding(approval, true)"
-              @click.stop="decide(approval, true)"
-            >
-              {{ $t('agentPendingApprovals.approve') }}
-            </Button>
-            <Button
-              size="small"
-              type="danger"
-              :disabled="deciding"
-              :loading="isDeciding(approval, false)"
-              @click.stop="decide(approval, false)"
-            >
-              {{ $t('agentPendingApprovals.reject') }}
-            </Button>
+          <div v-if="canDecide" class="agent-tool-approvals__item-side">
+            <div class="agent-tool-approvals__item-actions">
+              <Button
+                size="small"
+                type="secondary"
+                :disabled="deciding"
+                :loading="isDeciding(approval, false)"
+                @click="decide(approval, false)"
+              >
+                {{ $t('agentPendingApprovals.reject') }}
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                :disabled="deciding"
+                :loading="isDeciding(approval, true)"
+                @click="decide(approval, true)"
+              >
+                {{ $t('agentPendingApprovals.approve') }}
+              </Button>
+            </div>
           </div>
         </div>
       </template>
@@ -59,15 +98,12 @@
 </template>
 
 <script>
-import { defineComponent, ref, computed } from 'vue'
+import { defineComponent, ref, computed, reactive } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
-
-// Longer args previews add noise without being readable in a compact row; the
-// full args stay visible on the approval card in the conversation itself.
-const ARGS_PREVIEW_LENGTH = 120
+import { summarizeToolArgs } from '@baserow_enterprise/utils/agentChatEvents'
 
 export default defineComponent({
   name: 'AgentPendingApprovalsContext',
@@ -115,14 +151,12 @@ export default defineComponent({
     const humanToolName = (name) =>
       store.getters['agentApplication/getToolLabel'](name)
 
-    const argsPreview = (approval) => {
-      if (!approval.tool_args || Object.keys(approval.tool_args).length === 0) {
-        return ''
-      }
-      const preview = JSON.stringify(approval.tool_args)
-      return preview.length > ARGS_PREVIEW_LENGTH
-        ? `${preview.slice(0, ARGS_PREVIEW_LENGTH)}…`
-        : preview
+    const summary = (approval) => summarizeToolArgs(approval.tool_args)
+    const formatArgs = (approval) =>
+      JSON.stringify(approval.tool_args ?? {}, null, 2)
+    const expandedArgs = reactive({})
+    const toggleDetails = (approval) => {
+      expandedArgs[approval.id] = !expandedArgs[approval.id]
     }
 
     const removeLocally = (approval) => {
@@ -190,7 +224,10 @@ export default defineComponent({
       hide,
       fetch,
       humanToolName,
-      argsPreview,
+      summary,
+      formatArgs,
+      expandedArgs,
+      toggleDetails,
       decide,
       openConversation,
     }

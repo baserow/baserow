@@ -238,7 +238,9 @@ def test_start_channel_chat_creates_chat_and_reuses_session(channel_setup):
     assert chat.messages.get().content == "Hello"
     start_mock.assert_called_once()
 
-    # A second message in the same Slack conversation continues the chat.
+    assert chat.title == "Slack: Hello"
+
+    # A second message in the same Slack thread continues the chat.
     with patch(
         "baserow_enterprise.agent_application.handler.AgentChatHandler.start_chat_run"
     ):
@@ -306,15 +308,21 @@ def test_channel_chat_run_posts_answer_back(channel_setup):
             "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
         ),
     ):
-        request_mock.return_value.json.return_value = {"ok": True}
+        request_mock.return_value.json.return_value = {"ok": True, "ts": "7.7"}
         process_agent_channel_message(channel.id, "D123|", "Hello agent", "")
 
     chat = AgentChat.objects.get(channel=channel)
     assert chat.status == AgentChat.Status.IDLE
     ai_message = chat.messages.filter(role=AgentChatMessage.Role.AI).last()
     assert ai_message.content
-    # The final answer was posted back into the Slack conversation.
-    assert request_mock.call_args.kwargs["params"]["text"] == ai_message.content
+    # A placeholder went out as soon as the run started, and the final
+    # answer replaced it in the Slack conversation.
+    calls = [call.kwargs for call in request_mock.call_args_list]
+    assert calls[0]["url"] == "https://slack.com/api/chat.postMessage"
+    assert calls[0]["params"]["text"] == "_Working on it…_"
+    assert calls[-1]["url"] == "https://slack.com/api/chat.update"
+    assert calls[-1]["params"]["ts"] == "7.7"
+    assert calls[-1]["params"]["text"] == ai_message.content
 
 
 @pytest.mark.django_db
@@ -367,7 +375,7 @@ def test_channel_api_crud_masks_secrets(api_client, data_fixture, channel_setup)
 
 
 @pytest.mark.django_db
-def test_create_channel_without_credentials_fails(
+def test_slack_channel_can_be_created_before_the_app_exists(
     api_client, data_fixture, channel_setup
 ):
     user, application, agent, channel = channel_setup
@@ -375,11 +383,220 @@ def test_create_channel_without_credentials_fails(
 
     response = api_client.post(
         f"/api/agent_application/{application.id}/channels/",
-        {"type": "slack", "config": {"bot_token": "xoxb-3"}},
+        {"type": "slack", "name": "Support bot"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == 400
+    assert response.status_code == 200, response.json()
+    data = response.json()
+    assert data["config"] == {"bot_token_set": False, "signing_secret_set": False}
+    # The manifest carries the channel's events URL and the agent's name, so
+    # the Slack app can be created from it in one go.
+    manifest = data["manifest"]
+    assert manifest["display_information"]["name"] == "Agent"
+    assert manifest["features"]["bot_user"]["display_name"] == "Agent"
+    assert (
+        manifest["settings"]["event_subscriptions"]["request_url"]
+        == (data["events_url"])
+    )
+    assert manifest["settings"]["event_subscriptions"]["bot_events"] == [
+        "app_mention",
+        "message.im",
+    ]
+    assert manifest["oauth_config"]["scopes"]["bot"] == [
+        "chat:write",
+        "app_mentions:read",
+        "im:history",
+    ]
+
+    new_channel = AgentChatChannel.objects.get(id=data["id"])
+    # Slack verifies the request URL while the app is created from the
+    # manifest, before the signing secret is known here.
+    body = json.dumps({"type": "url_verification", "challenge": "xyz"}).encode()
+    response = api_client.post(
+        f"/api/agent_application/channels/{new_channel.uid}/events/",
+        data=body,
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert response.json() == {"challenge": "xyz"}
+
+    # Real events are rejected until the secrets are set.
+    body = _slack_event_body({"type": "message", "user": "U1", "text": "hi"})
+    with patch(
+        "baserow_enterprise.agent_application.tasks.process_agent_channel_message.delay"
+    ) as delay_mock:
+        response = api_client.post(
+            f"/api/agent_application/channels/{new_channel.uid}/events/",
+            data=body,
+            content_type="application/json",
+        )
+    assert response.status_code == 401
+    delay_mock.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_direct_message_threads_are_separate_conversations(api_client, channel_setup):
+    user, application, agent, channel = channel_setup
+
+    def dm(text, ts, thread_ts=None):
+        event = {
+            "type": "message",
+            "channel_type": "im",
+            "channel": "D123",
+            "user": "U1",
+            "text": text,
+            "ts": ts,
+        }
+        if thread_ts:
+            event["thread_ts"] = thread_ts
+        return _slack_event_body(event, event_id=f"Ev{ts}")
+
+    with patch(
+        "baserow_enterprise.agent_application.tasks.process_agent_channel_message.delay"
+    ) as delay_mock:
+        _post_event(api_client, channel, dm("First question", "1.0"))
+        _post_event(api_client, channel, dm("Follow up", "2.0", thread_ts="1.0"))
+        _post_event(api_client, channel, dm("Unrelated -&gt; question", "3.0"))
+
+    assert [call.args for call in delay_mock.call_args_list] == [
+        (channel.id, "D123|1.0", "First question", ""),
+        (channel.id, "D123|1.0", "Follow up", ""),
+        (channel.id, "D123|3.0", "Unrelated -> question", ""),
+    ]
+
+
+@pytest.mark.django_db
+def test_mention_inside_direct_message_is_processed_once(api_client, channel_setup):
+    user, application, agent, channel = channel_setup
+    event = {
+        "channel_type": "im",
+        "channel": "D123",
+        "user": "U1",
+        "text": "<@UBOT> hello",
+        "ts": "5.0",
+    }
+
+    with patch(
+        "baserow_enterprise.agent_application.tasks.process_agent_channel_message.delay"
+    ) as delay_mock:
+        _post_event(
+            api_client,
+            channel,
+            _slack_event_body({**event, "type": "message"}, event_id="Ev1"),
+        )
+        _post_event(
+            api_client,
+            channel,
+            _slack_event_body({**event, "type": "app_mention"}, event_id="Ev2"),
+        )
+
+    delay_mock.assert_called_once_with(channel.id, "D123|5.0", "hello", "")
+
+
+@pytest.mark.django_db
+def test_slack_placeholder_is_replaced_by_the_answer(channel_setup):
+    user, application, agent, channel = channel_setup
+    chat = AgentChat.objects.create(
+        agent=agent,
+        source=AgentChat.Source.CHANNEL,
+        channel=channel,
+        channel_session_key="D123|1.0",
+    )
+    channel_type = SlackAgentChatChannelType()
+
+    with patch(
+        "baserow_enterprise.agent_application.channels.slack.send_http_request"
+    ) as request_mock:
+        request_mock.return_value.json.return_value = {"ok": True, "ts": "9.9"}
+        channel_type.on_run_starting(channel, chat)
+        placeholder = request_mock.call_args.kwargs
+        assert placeholder["url"] == "https://slack.com/api/chat.postMessage"
+        assert placeholder["params"]["thread_ts"] == "1.0"
+
+        request_mock.return_value.json.return_value = {"ok": True}
+        channel_type.send_response(channel, chat, "**Done**: see [docs](https://x.y)")
+        update = request_mock.call_args.kwargs
+        assert update["url"] == "https://slack.com/api/chat.update"
+        assert update["params"]["ts"] == "9.9"
+        assert update["params"]["text"] == "*Done*: see <https://x.y|docs>"
+
+        # A later answer in the same thread has no placeholder left to update.
+        channel_type.send_response(channel, chat, "More")
+        assert request_mock.call_args.kwargs["url"] == (
+            "https://slack.com/api/chat.postMessage"
+        )
+
+
+def test_markdown_to_mrkdwn():
+    from baserow_enterprise.agent_application.channels.slack_format import (
+        markdown_to_mrkdwn,
+    )
+
+    markdown = (
+        "## Tasks\n\n"
+        "There are **11 tasks** & 2 *groups*:\n\n"
+        "- Authentication — Steve <Gray>\n"
+        "* Dashboard\n"
+        "1. Keep `a < b` as is\n\n"
+        "---\n"
+        "```\nx = **not bold**\n```\n"
+        "~~old~~ [Open](https://example.com/a?b=1)"
+    )
+    assert markdown_to_mrkdwn(markdown) == (
+        "*Tasks*\n\n"
+        "There are *11 tasks* &amp; 2 _groups_:\n\n"
+        "• Authentication — Steve &lt;Gray&gt;\n"
+        "• Dashboard\n"
+        "1. Keep `a < b` as is\n\n"
+        "```\nx = **not bold**\n```\n"
+        "~old~ <https://example.com/a?b=1|Open>"
+    )
+
+
+@pytest.mark.django_db
+def test_message_while_running_is_retried_without_being_stored(channel_setup):
+    from baserow_enterprise.agent_application.exceptions import (
+        AgentChatAlreadyRunning,
+    )
+
+    user, application, agent, channel = channel_setup
+    chat = AgentChat.objects.create(
+        agent=agent,
+        source=AgentChat.Source.CHANNEL,
+        channel=channel,
+        channel_session_key="D123|1.0",
+        status=AgentChat.Status.IN_PROGRESS,
+    )
+
+    with pytest.raises(AgentChatAlreadyRunning):
+        start_channel_chat(channel, "D123|1.0", "Are you there?")
+    assert chat.messages.count() == 0
+
+
+@pytest.mark.django_db
+def test_message_while_awaiting_approval_is_answered_without_being_stored(
+    channel_setup,
+):
+    user, application, agent, channel = channel_setup
+    chat = AgentChat.objects.create(
+        agent=agent,
+        source=AgentChat.Source.CHANNEL,
+        channel=channel,
+        channel_session_key="D123|1.0",
+        status=AgentChat.Status.AWAITING_APPROVAL,
+    )
+
+    with patch(
+        "baserow_enterprise.agent_application.channels.slack.send_http_request"
+    ) as request_mock:
+        request_mock.return_value.json.return_value = {"ok": True}
+        assert start_channel_chat(channel, "D123|1.0", "Hurry up") is None
+
+    assert chat.messages.count() == 0
+    assert (
+        "waiting for a team member" in request_mock.call_args.kwargs["params"]["text"]
+    )
 
 
 @pytest.mark.django_db

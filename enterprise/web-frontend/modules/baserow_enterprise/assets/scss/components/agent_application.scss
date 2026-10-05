@@ -2250,14 +2250,19 @@
 }
 
 .agent-pending-approvals {
-  width: 420px;
+  width: 480px;
   max-width: calc(100vw - 24px);
+
+  .agent-tool-approvals__details-toggle {
+    white-space: nowrap;
+  }
 }
 
 .agent-pending-approvals__body {
-  max-height: 400px;
+  max-height: 480px;
   overflow-y: auto;
-  padding: 4px 0;
+
+  @include rounded($rounded-md);
 }
 
 .agent-pending-approvals__loading {
@@ -2274,58 +2279,32 @@
   text-align: center;
 }
 
-.agent-pending-approvals__item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  cursor: pointer;
+// The pending list reuses the approval card's item styles so both places
+// look the same; only the header corners and the conversation link differ.
+.agent-pending-approvals__header {
+  // The context box is rounded with $rounded-md, so the header follows it
+  // instead of the approval card's larger radius.
+  @include rounded($rounded-md $rounded-md 0 0);
+}
 
-  &:not(:first-child) {
-    border-top: 1px solid $palette-neutral-100;
+.agent-pending-approvals__chat {
+  @extend %ellipsis;
+
+  display: block;
+  margin-top: 2px;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  line-height: 18px;
+
+  i {
+    margin-right: 4px;
+    font-size: 12px;
   }
 
   &:hover {
-    background-color: $palette-neutral-25;
+    color: $palette-neutral-1200;
+    text-decoration: none;
   }
-}
-
-.agent-pending-approvals__item-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-
-.agent-pending-approvals__item-tool {
-  @extend %ellipsis;
-
-  color: $palette-neutral-1200;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.agent-pending-approvals__item-chat {
-  @extend %ellipsis;
-
-  color: $palette-neutral-700;
-  font-size: 12px;
-}
-
-.agent-pending-approvals__item-args {
-  @extend %ellipsis;
-
-  color: $palette-neutral-900;
-  font-family: monospace;
-  font-size: 11px;
-}
-
-.agent-pending-approvals__item-buttons {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 // Modal to choose exactly which Baserow workspace tools the agent may use.

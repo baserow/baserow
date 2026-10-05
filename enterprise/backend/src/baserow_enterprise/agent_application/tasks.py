@@ -129,19 +129,29 @@ def resume_agent_chat(self, chat_id: int):
     _execute_agent_chat_turn(chat_id, None)
 
 
-@app.task(bind=True, queue="export")
+# A message that arrives while the agent is still answering the previous one
+# in the same thread is retried for a couple of minutes instead of dropped.
+CHANNEL_MESSAGE_RETRY_SECONDS = 5
+CHANNEL_MESSAGE_MAX_RETRIES = 24
+
+
+@app.task(bind=True, queue="export", max_retries=CHANNEL_MESSAGE_MAX_RETRIES)
 def process_agent_channel_message(
     self, channel_id: int, session_key: str, text: str, sender_name: str = ""
 ):
     """
     Handles a message received through an external chat channel (e.g. a
-    Slack DM): finds or creates the chat for that external conversation and
-    starts a run. The webhook view only verifies and enqueues, because the
-    external service expects an immediate response.
+    Slack thread): finds or creates the chat for that external conversation
+    and starts a run. The webhook view only verifies and enqueues, because
+    the external service expects an immediate response.
     """
 
-    from .channels.registries import start_channel_chat
-    from .models import AgentChatChannel
+    from .channels.registries import (
+        agent_chat_channel_type_registry,
+        start_channel_chat,
+    )
+    from .exceptions import AgentChatAlreadyRunning
+    from .models import AgentChat, AgentChatChannel
 
     channel = (
         AgentChatChannel.objects.select_related("application__workspace")
@@ -151,7 +161,21 @@ def process_agent_channel_message(
     if channel is None:
         return
 
-    start_channel_chat(channel, session_key, text, sender_name)
+    try:
+        start_channel_chat(channel, session_key, text, sender_name)
+    except AgentChatAlreadyRunning:
+        if self.request.retries < CHANNEL_MESSAGE_MAX_RETRIES:
+            raise self.retry(countdown=CHANNEL_MESSAGE_RETRY_SECONDS)
+        chat = AgentChat.objects.filter(
+            channel=channel, channel_session_key=session_key
+        ).first()
+        if chat is not None:
+            agent_chat_channel_type_registry.get(channel.type).send_response(
+                channel,
+                chat,
+                "The agent is still busy with the previous message; please "
+                "try again once it has answered.",
+            )
 
 
 @app.task(bind=True, queue="export")

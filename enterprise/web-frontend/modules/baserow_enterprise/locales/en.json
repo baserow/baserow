@@ -550,6 +550,7 @@
     "pendingApprovals": "{count} pending approval | {count} pending approvals"
   },
   "agentPendingApprovals": {
+    "title": "No approvals waiting | 1 approval waiting | {count} approvals waiting",
     "empty": "No pending approvals.",
     "untitled": "Untitled conversation",
     "approve": "Approve",
@@ -731,6 +732,7 @@
     "web": "Web chat",
     "webDescription": "A public page where anyone with the link can chat with the agent.",
     "webCreateHint": "A public link is generated when the channel is created. You can protect it with a password afterwards.",
+    "slackCreateHint": "The Slack app manifest and events URL are generated when the channel is created. Add the bot token and signing secret afterwards.",
     "publicLinkLabel": "Public link",
     "publicLinkHelp": "Anyone with this link can talk to the agent. Every page visit starts a new conversation, which you can read here.",
     "rotateLink": "Generate a new link",
@@ -758,24 +760,31 @@
     "enabledLabel": "Enabled",
     "delete": "Remove channel",
     "eventsUrlLabel": "Events request URL",
-    "eventsUrlHelp": "Paste this URL as the Slack app's Events API request URL, subscribe it to the message.im and app_mention events, and give the bot the chat:write scope.",
+    "eventsUrlHelp": "Paste this URL as the Slack app’s Events API request URL when setting the app up manually.",
     "activeHint": "The agent must be active for the channel to respond.",
     "copyUrl": "Copy URL",
+    "manifestLabel": "Slack app manifest",
+    "manifestHelp": "Create the Slack app from this file and it is wired to this channel, with the agent name, scopes and events filled in.",
+    "downloadManifest": "Download manifest",
     "create": "Create channel",
     "cancel": "Cancel",
     "channels": "Channels",
     "intro": "Connect a chat app and people can talk to {name} from there. Every thread becomes a conversation here, with the same tools and approvals."
   },
   "agentSlackSetup": {
-    "title": "How to connect Slack",
+    "title": "Connect Slack with the app manifest",
+    "manifestDownloadDraft": "Create the channel here. Its card then offers the Slack app manifest for download.",
+    "manifestDownloadCreated": "Download the Slack app manifest above. It already contains the agent name, the scopes, the events and this channel’s request URL.",
+    "manifestCreateApp": "Go to {link}, click “Create New App” → “From a manifest”, pick the Slack workspace, paste the manifest and create the app.",
+    "install": "Click “Install to Workspace”, then copy the Bot User OAuth Token (it starts with {prefix}) into the Bot token field.",
+    "signingSecret": "Under “Basic Information” → “App Credentials” copy the Signing Secret into the Signing secret field.",
+    "talk": "Turn the agent on in the header. Then send the bot a direct message, or invite it to a channel and {'@'}mention it.",
+    "manualTitle": "Or set up the Slack app manually",
     "createApp": "Go to {link}, click “Create New App” → “From scratch”, give it a name and pick the Slack workspace.",
     "scopes": "Under “OAuth & Permissions” add the bot token scopes {scopes}.",
     "messagesTab": "Under “App Home” enable the Messages Tab and allow users to send messages from it, so people can message the agent directly.",
-    "install": "Click “Install to Workspace”, then copy the Bot User OAuth Token (it starts with {prefix}) into the Bot token field.",
-    "signingSecret": "Under “Basic Information” → “App Credentials” copy the Signing Secret into the Signing secret field.",
     "eventsDraft": "Create the channel here, then under “Event Subscriptions” enable events, paste the Events request URL shown on the channel as the Request URL and subscribe to the bot events {events}. Save, and reinstall the app if Slack asks.",
-    "eventsCreated": "Under “Event Subscriptions” enable events, paste the Events request URL above as the Request URL and subscribe to the bot events {events}. Save, and reinstall the app if Slack asks.",
-    "talk": "Turn the agent on in the header. Then send the bot a direct message, or invite it to a channel and {'@'}mention it."
+    "eventsCreated": "Under “Event Subscriptions” enable events, paste the Events request URL above as the Request URL and subscribe to the bot events {events}. Save, and reinstall the app if Slack asks."
   },
   "publicAgentChat": {
     "newConversation": "New conversation",

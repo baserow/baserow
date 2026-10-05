@@ -1343,6 +1343,7 @@ def _serialize_channel(channel) -> dict:
         "enabled": channel.enabled,
         "config": channel_type.get_public_config(channel),
         "events_url": events_url,
+        "manifest": channel_type.get_manifest(channel, events_url),
     }
 
 

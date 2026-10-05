@@ -98,6 +98,24 @@ class AgentChatChannelType(Instance):
 
         raise NotImplementedError
 
+    def get_manifest(self, channel: "AgentChatChannel", events_url: str) -> dict | None:
+        """
+        A ready-made app definition for the external service, when it
+        supports one, so users can create the app without clicking through
+        its settings.
+        """
+
+        return None
+
+    def on_run_starting(self, channel: "AgentChatChannel", chat: "AgentChat") -> None:
+        """
+        Called right before an inbound message starts a run, so the channel
+        can show that the agent is working on an answer. May be called again
+        for the same chat when the start is retried.
+        """
+
+        return None
+
 
 class AgentChatChannelTypeRegistry(Registry[AgentChatChannelType]):
     name = "agent_chat_channel_type"
@@ -116,7 +134,11 @@ def start_channel_chat(
     Shared inbound-message handling for every channel type: finds or creates
     the chat belonging to the external conversation, stores the message and
     starts an agent run. Returns the created message or None when the
-    message was dropped (agent inactive or already running).
+    message was dropped (agent inactive, channel disabled or the chat is
+    waiting for an approval).
+
+    :raises AgentChatAlreadyRunning: When the chat is still answering the
+        previous message. Nothing is stored, so the caller can retry later.
     """
 
     from ..exceptions import AgentChatAlreadyRunning, AgentChatAwaitingApproval
@@ -129,6 +151,7 @@ def start_channel_chat(
 
     agent = AgentApplicationHandler().get_main_agent(application)
     chat_handler = AgentChatHandler()
+    channel_type = agent_chat_channel_type_registry.get(channel.type)
 
     chat = AgentChat.objects.filter(
         channel=channel, channel_session_key=session_key
@@ -139,24 +162,37 @@ def start_channel_chat(
             source=AgentChat.Source.CHANNEL,
             channel=channel,
             channel_session_key=session_key,
-            title=f"{channel.name or channel.type}: {sender_name or session_key}"[
+            title=f"{channel.name or channel.type}: {text}"[
                 : AgentChat.TITLE_MAX_LENGTH
             ],
         )
 
+    # Checked up front so nothing is stored or posted for a message the
+    # chat cannot take yet; the run start below guards the remaining race.
+    if chat.status == AgentChat.Status.AWAITING_APPROVAL:
+        channel_type.send_response(channel, chat, _AWAITING_APPROVAL_TEXT)
+        return None
+    if chat.status in (AgentChat.Status.IN_PROGRESS, AgentChat.Status.CANCELING):
+        raise AgentChatAlreadyRunning(f"The chat {chat.id} is already running.")
+
     content = f"{sender_name}: {text}" if sender_name else text
     message = chat_handler.create_message(chat, AgentChatMessage.Role.HUMAN, content)
+    channel_type.on_run_starting(channel, chat)
 
     try:
         chat_handler.start_chat_run(chat, message)
-    except (AgentChatAlreadyRunning, AgentChatAwaitingApproval):
-        channel_type = agent_chat_channel_type_registry.get(channel.type)
-        channel_type.send_response(
-            channel,
-            chat,
-            "The agent is still busy with the previous message; please try "
-            "again once it has answered.",
-        )
+    except AgentChatAwaitingApproval:
+        message.delete()
+        channel_type.send_response(channel, chat, _AWAITING_APPROVAL_TEXT)
         return None
+    except AgentChatAlreadyRunning:
+        message.delete()
+        raise
 
     return message
+
+
+_AWAITING_APPROVAL_TEXT = (
+    "The agent is waiting for a team member to review a step in Baserow "
+    "before it can continue."
+)

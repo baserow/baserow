@@ -121,10 +121,24 @@
                   </a>
                 </div>
               </FormGroup>
+              <FormGroup
+                small-label
+                :label="$t('agentChannels.manifestLabel')"
+                :helper-text="$t('agentChannels.manifestHelp')"
+                class="margin-bottom-2"
+              >
+                <Button
+                  type="secondary"
+                  icon="iconoir-download"
+                  @click="downloadManifest(channel)"
+                >
+                  {{ $t('agentChannels.downloadManifest') }}
+                </Button>
+              </FormGroup>
               <div class="agent-configuration__hint">
                 {{ $t('agentChannels.activeHint') }}
               </div>
-              <AgentSlackSetupSteps v-if="channel.type === 'slack'" created />
+              <AgentSlackSetupSteps created />
             </template>
             <template v-else-if="channel.type === 'web'">
               <FormGroup
@@ -233,29 +247,10 @@
           ></FormInput>
         </FormGroup>
         <template v-if="draft.type === 'slack'">
-          <FormGroup
-            small-label
-            :label="$t('agentChannels.botTokenLabel')"
-            class="margin-bottom-2"
-          >
-            <FormInput
-              v-model="draft.botToken"
-              type="password"
-              :placeholder="$t('agentChannels.botTokenPlaceholder')"
-            ></FormInput>
-          </FormGroup>
-          <FormGroup
-            small-label
-            :label="$t('agentChannels.signingSecretLabel')"
-            class="margin-bottom-2"
-          >
-            <FormInput
-              v-model="draft.signingSecret"
-              type="password"
-              :placeholder="$t('agentChannels.signingSecretPlaceholder')"
-            ></FormInput>
-          </FormGroup>
-          <AgentSlackSetupSteps v-if="draft.type === 'slack'" />
+          <div class="agent-configuration__hint margin-bottom-2">
+            {{ $t('agentChannels.slackCreateHint') }}
+          </div>
+          <AgentSlackSetupSteps />
         </template>
         <div v-else class="agent-configuration__hint margin-bottom-2">
           {{ $t('agentChannels.webCreateHint') }}
@@ -264,11 +259,6 @@
           <Button
             type="primary"
             :loading="createLoading"
-            :disabled="
-              draft.type === 'slack' &&
-              (draft.botToken.trim() === '' ||
-                draft.signingSecret.trim() === '')
-            "
             @click="createChannel"
           >
             {{ $t('agentChannels.create') }}
@@ -349,6 +339,7 @@ import AgentConfigurationCard from '@baserow_enterprise/components/agentApplicat
 import AgentSlackSetupSteps from '@baserow_enterprise/components/agentApplication/AgentSlackSetupSteps'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { downloadJson } from '@baserow_enterprise/utils/download'
 import slackImage from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
 export default {
@@ -590,12 +581,7 @@ export default {
     onAddChannelSelect(item) {
       this.$refs.addChannelContext.hide()
       if (this.draft === null) {
-        this.draft = {
-          type: item.value,
-          name: '',
-          botToken: '',
-          signingSecret: '',
-        }
+        this.draft = { type: item.value, name: '' }
       }
     },
     async createChannel() {
@@ -608,13 +594,7 @@ export default {
             values: {
               type: this.draft.type,
               name: this.draft.name,
-              config:
-                this.draft.type === 'slack'
-                  ? {
-                      bot_token: this.draft.botToken,
-                      signing_secret: this.draft.signingSecret,
-                    }
-                  : {},
+              config: {},
             },
           }
         )
@@ -705,6 +685,13 @@ export default {
       } finally {
         this.savingSecrets = this.savingSecrets.filter((item) => item !== key)
       }
+    },
+    downloadManifest(channel) {
+      const name = (channel.name || this.application.name || 'slack-app')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+      downloadJson(channel.manifest, `${name}-slack-manifest.json`)
     },
     copyEventsUrl(channel) {
       copyToClipboard(channel.events_url)
