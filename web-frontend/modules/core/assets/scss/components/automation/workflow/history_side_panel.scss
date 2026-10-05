@@ -1,3 +1,23 @@
+.history-side-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.history-side-panel__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.history-side-panel__pagination {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
 .history-side-panel__title {
   display: flex;
   justify-content: space-between;
