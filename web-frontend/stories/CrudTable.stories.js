@@ -124,8 +124,11 @@ const renderTable =
         </template>
         <template #empty>
           <div class="placeholder">
-            <h2 class="placeholder__header">No members yet</h2>
-            <p class="placeholder__content">Invite someone to get started.</p>
+            <div class="placeholder__icon">
+              <i class="iconoir-group" aria-hidden="true"></i>
+            </div>
+            <h2 class="placeholder__header">{{ $t('membersSettings.membersTable.emptyTitle') }}</h2>
+            <p class="placeholder__content">{{ $t('membersSettings.membersTable.emptyDescription') }}</p>
           </div>
         </template>
         <template v-if="expansion" #row-expansion-toggle>+2</template>

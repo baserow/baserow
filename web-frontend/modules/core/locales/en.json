@@ -862,6 +862,8 @@
     "membersTable": {
       "title": "{userAmount} Members in {workspaceName}",
       "inviteMember": "Invite member",
+      "emptyTitle": "No members yet",
+      "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
         "name": "Name",
         "email": "Email",
@@ -879,6 +881,8 @@
     },
     "invitesTable": {
       "title": "{invitesAmount} Pending invites in {workspaceName}",
+      "emptyTitle": "No pending invites",
+      "emptyDescription": "Invite people to join this workspace. You can track and manage their invitations here until they accept.",
       "columns": {
         "email": "Email",
         "role": "Default role"

@@ -17,6 +17,19 @@
           })
         }}
       </template>
+      <template #empty>
+        <div class="placeholder">
+          <div class="placeholder__icon">
+            <i class="iconoir-mail" aria-hidden="true"></i>
+          </div>
+          <h2 class="placeholder__header">
+            {{ $t('membersSettings.invitesTable.emptyTitle') }}
+          </h2>
+          <p class="placeholder__content">
+            {{ $t('membersSettings.invitesTable.emptyDescription') }}
+          </p>
+        </div>
+      </template>
       <template #primary-action>
         <Button
           type="primary"
