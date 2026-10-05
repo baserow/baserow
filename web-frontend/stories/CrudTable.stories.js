@@ -88,7 +88,7 @@ function createService(state) {
 }
 
 const renderTable =
-  (state = 'populated', width = '100%') =>
+  (state = 'populated', width = '100%', expansion = null) =>
   (args) => ({
     components: { CrudTable, Button, Context },
     setup() {
@@ -108,12 +108,15 @@ const renderTable =
         selectedRow,
         openContext,
         width,
+        expansion,
         service: createService(state),
       }
     },
     template: `
     <div :style="{ position: 'relative', height: '640px', width, maxWidth: '100%' }">
       <CrudTable v-bind="args" :service="service" :columns="columns" row-id-key="id"
+        :expand-column-key="expansion ? 'role' : null"
+        :row-expandable="row => row.id !== 3"
         @total-count-update="count = $event" @row-context="openContext">
         <template #title>{{ count }} members</template>
         <template #header-right-side>
@@ -124,6 +127,31 @@ const renderTable =
             <h2 class="placeholder__header">No members yet</h2>
             <p class="placeholder__content">Invite someone to get started.</p>
           </div>
+        </template>
+        <template v-if="expansion" #row-expansion-toggle>+2</template>
+        <template v-if="expansion" #expanded-row="{ row, columns }">
+          <template v-if="expansion === 'aligned'">
+            <tr v-for="detail in ['Projects', 'Tasks']" :key="detail" class="data-table__table-row">
+              <td colspan="2" class="data-table__table-cell">
+                <div class="data-table__table-cell-content">{{ detail }} · {{ row.name }}</div>
+              </td>
+              <td class="data-table__table-cell">
+                <div class="data-table__table-cell-content">{{ row.role }}</div>
+              </td>
+              <td class="data-table__table-cell">
+                <div class="data-table__table-cell-content">{{ row.team }}</div>
+              </td>
+              <td class="data-table__table-cell data-table__table-cell--sticky-right">
+                <div class="data-table__table-cell-content"></div>
+              </td>
+            </tr>
+          </template>
+          <tr v-else>
+            <td :colspan="columns.length" class="data-table__expanded-content">
+              Contact {{ row.name }} at <a :href="'mailto:' + row.email">{{ row.email }}</a>.
+              This slot can contain any component, including forms and loading states.
+            </td>
+          </tr>
         </template>
         <template #menus>
           <Context ref="context">
@@ -157,3 +185,25 @@ export const Populated = { render: renderTable() }
 export const Empty = { render: renderTable('empty') }
 export const Loading = { render: renderTable('loading') }
 export const NarrowViewport = { render: renderTable('populated', '390px') }
+
+const openFirstRow = async ({ canvas, userEvent }) => {
+  const buttons = await canvas.findAllByRole('button', {
+    name: 'Expand row details',
+  })
+  await userEvent.click(buttons[0])
+}
+
+export const ExpandableRows = {
+  render: renderTable('populated', '100%', 'aligned'),
+  play: openFirstRow,
+}
+
+export const ExpandedContent = {
+  render: renderTable('populated', '100%', 'content'),
+  play: openFirstRow,
+}
+
+export const NarrowExpandableRows = {
+  render: renderTable('populated', '390px', 'aligned'),
+  play: openFirstRow,
+}

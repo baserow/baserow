@@ -163,9 +163,23 @@
 
   .data-table__table-row--hover &,
   .data-table__table-row--selected &,
-  .data-table__table-row:first-child & {
+  :where(tbody:not(.data-table__row-group))
+    .data-table__table-row:where(:first-child)
+    & {
     border-top-color: transparent;
   }
+}
+
+.data-table__expanded-rows .data-table__table-cell-content {
+  border-top: 0;
+}
+
+.data-table__row-group .data-table__table-cell-content {
+  border-top-color: $palette-neutral-200;
+}
+
+thead + .data-table__row-group .data-table__table-cell-content {
+  border-top-color: transparent;
 }
 
 .data-table__table-cell-content-full-width {
@@ -252,12 +266,79 @@
   text-align: center;
 
   .placeholder {
-    max-width: 100%;
+    width: 100%;
+    max-width: 520px;
     margin: 0 auto;
   }
 }
 
+.data-table__table-row--expandable {
+  cursor: pointer;
+}
+
+.data-table__expand {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 4px 8px;
+  border: 1px solid $palette-blue-100;
+  border-radius: 16px;
+  background: $palette-blue-50;
+  color: $palette-blue-700;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: $palette-blue-100;
+  }
+}
+
+.data-table__expanded-rows {
+  background: $palette-neutral-25;
+
+  .data-table__table-cell {
+    background: $palette-neutral-25;
+  }
+
+  .data-table__table-cell:first-child {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 36px;
+      width: 1px;
+      background: $palette-neutral-200;
+    }
+
+    .data-table__table-cell-content {
+      padding-left: 56px;
+    }
+  }
+
+  tr:first-child .data-table__table-cell::before {
+    top: 16px;
+  }
+
+  tr:last-child .data-table__table-cell::before {
+    bottom: 16px;
+  }
+}
+
+.data-table__expanded-content {
+  padding: 24px;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: normal;
+}
+
 .data-table__more:focus-visible,
+.data-table__expand:focus-visible,
 .data-table__table-cell-head-link:focus-visible {
   outline: 2px solid $palette-blue-500;
   outline-offset: 2px;
