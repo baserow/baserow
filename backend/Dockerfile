@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-ARG PYTHON_BASE_IMAGE="python:3.14.7-slim-trixie"
+ARG PYTHON_BASE_IMAGE="python:3.14.8-slim-trixie"
 ARG UID="9999"
 ARG GID="9999"
 
