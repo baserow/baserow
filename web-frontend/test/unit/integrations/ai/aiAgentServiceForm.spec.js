@@ -438,7 +438,10 @@ describe('AIAgentServiceType', () => {
     new AIAgentServiceType({
       app: {
         $i18n: { t: (key) => key },
-        $registry: { getAll: () => modelTypes },
+        $registry: {
+          getAll: () => modelTypes,
+          get: () => ({ getErrorMessage: () => null }),
+        },
         $store: {
           getters: {
             'integration/getIntegrationById': () => integration,
