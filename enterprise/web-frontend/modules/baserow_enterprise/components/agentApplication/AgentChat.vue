@@ -13,10 +13,27 @@
     <div
       ref="messagesEl"
       class="agent-chat__messages"
-      :class="{ 'agent-chat__messages--welcome': showWelcome }"
+      :class="{ 'agent-chat__messages--welcome': showWelcome || loading }"
     >
       <div class="agent-chat__column">
-        <div v-if="loadingConversation" class="agent-chat__loading">
+        <div
+          v-if="loading"
+          class="agent-chat-welcome agent-chat-welcome--skeleton"
+        >
+          <SkeletonBlock width="64px" height="64px" shape="circle" />
+          <SkeletonBlock width="240px" height="20px" class="margin-top-3" />
+          <SkeletonBlock width="320px" height="12px" class="margin-top-2" />
+          <div class="agent-chat-welcome__suggestions">
+            <SkeletonBlock
+              v-for="index in 3"
+              :key="index"
+              width="100%"
+              height="72px"
+              shape="square"
+            />
+          </div>
+        </div>
+        <div v-else-if="loadingConversation" class="agent-chat__loading">
           <div class="loading"></div>
         </div>
         <AgentChatEmptyState
@@ -184,12 +201,14 @@
             ref="textareaEl"
             v-model="message"
             class="agent-chat__composer-textarea"
-            :disabled="awaitingApproval"
+            :disabled="awaitingApproval || loading"
             :placeholder="
               awaitingApproval
                 ? $t('agentChat.awaitingApprovalPlaceholder')
                 : $t('agentChat.inputPlaceholderNamed', {
-                    name: agent?.name || application.name,
+                    name: loading
+                      ? application.name
+                      : agent?.name || application.name,
                   })
             "
             :rows="1"
@@ -280,6 +299,11 @@ export default defineComponent({
     AgentChatToolGroup,
   },
   props: {
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     runningOnce: {
       type: Boolean,
       required: false,

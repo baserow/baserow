@@ -3,9 +3,13 @@
     <div class="agent-page__header-title">
       <i class="agent-page__header-icon baserow-icon-agent"></i>
       <span class="agent-page__header-name">
-        {{ agent?.name || application.name }}
+        {{ application.name }}
       </span>
-      <ul class="header__filter agent-page__header-approvals">
+      <ul
+        v-skeleton="loading"
+        data-allow-mismatch="class,style,attribute"
+        class="header__filter agent-page__header-approvals"
+      >
         <li class="header__filter-item">
           <a
             ref="approvalsButton"
@@ -34,7 +38,11 @@
       />
     </div>
     <div class="header__right">
-      <span class="agent-page__header-status">
+      <span
+        v-skeleton="loading"
+        data-allow-mismatch="class,style,attribute"
+        class="agent-page__header-status"
+      >
         <Badge :color="activeValue ? 'green' : 'neutral'" indicator rounded>
           {{
             activeValue ? $t('agentHeader.active') : $t('agentHeader.paused')
@@ -49,7 +57,11 @@
         ></SwitchInput>
       </span>
       <div class="header__buttons header__buttons--with-separator">
-        <span class="agent-page__header-last-run">
+        <span
+          v-skeleton="loading"
+          data-allow-mismatch="class,style,attribute"
+          class="agent-page__header-last-run"
+        >
           {{
             application.last_run_on
               ? $t('agentHeader.lastRun', { time: lastRun })
@@ -57,7 +69,7 @@
           }}
         </span>
         <Button
-          v-if="canRunOnce"
+          v-if="canRunOnce && !loading"
           type="secondary"
           icon="iconoir-play"
           :loading="runningOnce"
@@ -88,6 +100,11 @@ export default defineComponent({
   name: 'AgentHeader',
   components: { AgentPendingApprovalsContext },
   props: {
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     application: {
       type: Object,
       required: true,

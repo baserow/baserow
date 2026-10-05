@@ -1,6 +1,24 @@
 <template>
   <div class="agent-conversation-list">
-    <div class="agent-conversation-list__scroll">
+    <div v-if="pageLoading" class="agent-conversation-list__scroll">
+      <div class="agent-conversation-list__section-title">
+        {{ $t('agentConversationList.recent') }}
+      </div>
+      <ul class="agent-conversation-list__items">
+        <li
+          v-for="index in 8"
+          :key="index"
+          class="agent-conversation-list__item agent-conversation-list__item--skeleton"
+        >
+          <SkeletonBlock width="8px" height="8px" shape="circle" />
+          <SkeletonBlock
+            :width="`${skeletonWidths[index % skeletonWidths.length]}%`"
+            height="12px"
+          />
+        </li>
+      </ul>
+    </div>
+    <div v-else class="agent-conversation-list__scroll">
       <template v-if="pinnedChats.length > 0">
         <div class="agent-conversation-list__section-title">
           {{ $t('agentConversationList.pinned') }}
@@ -47,7 +65,10 @@
         {{ $t('agentConversationList.loadMore') }}
       </ButtonText>
     </div>
-    <div v-if="canRunChat" class="agent-conversation-list__footer">
+    <div
+      v-if="canRunChat && !pageLoading"
+      class="agent-conversation-list__footer"
+    >
       <Button
         type="secondary"
         icon="iconoir-plus"
@@ -71,12 +92,20 @@ export default defineComponent({
   name: 'AgentConversationList',
   components: { AgentConversationListItem },
   props: {
+    // The page is still fetching the agent; the list shows placeholders.
+    pageLoading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     application: {
       type: Object,
       required: true,
     },
   },
   setup(props) {
+    // Varied title lengths so the placeholder reads as a list of titles.
+    const skeletonWidths = [70, 45, 60, 80, 50]
     const store = useStore()
     const { $hasPermission } = useNuxtApp()
 
@@ -132,6 +161,7 @@ export default defineComponent({
     }
 
     return {
+      skeletonWidths,
       canRunChat,
       pinnedChats,
       recentChats,

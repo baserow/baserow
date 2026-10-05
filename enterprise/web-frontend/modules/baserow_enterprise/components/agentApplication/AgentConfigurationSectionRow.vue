@@ -5,9 +5,13 @@
     </span>
     <span class="agent-configuration-row__body">
       <span class="agent-configuration-row__title">{{ title }}</span>
-      <span v-if="summary" class="agent-configuration-row__summary">{{
-        summary
-      }}</span>
+      <span
+        v-if="summary || loading"
+        v-skeleton="{ loading, width: '60%' }"
+        data-allow-mismatch="class,style,attribute"
+        class="agent-configuration-row__summary"
+        >{{ summary }}</span
+      >
     </span>
     <span v-if="rightLabel" class="agent-configuration-row__right">{{
       rightLabel
@@ -37,6 +41,12 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+    // The agent is still being fetched; the summary shows a placeholder.
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   emits: ['click'],

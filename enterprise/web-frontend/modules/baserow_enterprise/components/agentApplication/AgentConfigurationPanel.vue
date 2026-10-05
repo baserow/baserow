@@ -5,7 +5,7 @@
       @mousedown.prevent="startResize"
     ></div>
     <AgentConfigurationSubpage
-      v-if="activeSection === null"
+      v-if="activeSection === null || loading"
       :title="$t('agentConfiguration.title')"
       @close="$emit('close')"
     >
@@ -16,7 +16,8 @@
           :icon="row.icon"
           :title="row.title"
           :summary="row.summary"
-          @click="$emit('update:section', row.key)"
+          :loading="loading"
+          @click="!loading && $emit('update:section', row.key)"
         />
       </div>
     </AgentConfigurationSubpage>
@@ -103,6 +104,13 @@ export default defineComponent({
     AgentAgentSettingsSection,
   },
   props: {
+    // The page is still fetching the agent: the root rows render with
+    // placeholder summaries and the open section waits for the data.
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     application: {
       type: Object,
       required: true,

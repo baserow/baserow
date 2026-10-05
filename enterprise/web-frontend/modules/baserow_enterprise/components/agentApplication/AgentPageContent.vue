@@ -4,6 +4,7 @@
       :application="application"
       :configuration-open="configurationOpen"
       :running-once="runningOnce"
+      :loading="loading"
       @toggle-configuration="configurationOpen = !configurationOpen"
       @open-conversation="openConversation"
       @run-once="runOnce"
@@ -12,11 +13,13 @@
       <AgentConversationList
         class="agent-page__conversation-list"
         :application="application"
+        :page-loading="loading"
       />
       <AgentChat
         class="agent-page__chat"
         :application="application"
         :running-once="runningOnce"
+        :loading="loading"
         @run-once="runOnce"
         @open-configuration="openConfiguration"
       />
@@ -25,6 +28,7 @@
         v-model:section="configurationSection"
         class="agent-page__configuration"
         :application="application"
+        :loading="loading"
         @close="configurationOpen = false"
       />
     </div>
@@ -65,6 +69,11 @@ export default defineComponent({
       required: false,
       default: false,
     },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   setup(props) {
     const store = useStore()
@@ -83,6 +92,16 @@ export default defineComponent({
     watch(configurationOpen, (open) => {
       openCookie.value = open ? 'true' : 'false'
     })
+    // Whether a fresh agent needs the panel is only known once its data has
+    // been fetched.
+    watch(
+      () => props.autoOpenConfiguration,
+      (value) => {
+        if (value) {
+          configurationOpen.value = true
+        }
+      }
+    )
     // Which configuration section is open; kept here so closing and
     // reopening the panel returns to the same place.
     const configurationSection = ref(null)

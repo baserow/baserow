@@ -4,6 +4,7 @@
     :workspace="workspace"
     :application="application"
     :auto-open-configuration="autoOpenConfiguration"
+    :loading="loading"
   />
 </template>
 
@@ -11,7 +12,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
-import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
+import { useNuxtApp, createError, useHead } from '#app'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
@@ -37,11 +39,14 @@ const route = useRoute()
 const router = useRouter()
 const { $realtime } = useNuxtApp()
 
-// Everything the page renders is fetched here so server side rendering (and
-// a client navigation) paints the populated page in one go instead of the
-// empty state first. The conversation in the `chat` query param is opened as
-// part of it for the same reason.
-const { data, error: fetchError } = await useAsyncData(
+// The middleware already selected the workspace and the application, so the
+// page paints its skeleton right away and fetches the agent, conversations
+// and configuration lazily, like the other pages. The conversation in the
+// `chat` query param is opened as part of that fetch.
+const application = computed(() => store.getters['application/getSelected'])
+const workspace = computed(() => store.getters['workspace/getSelected'])
+
+const { data, loading } = await usePageAsyncData(
   `agent-application-${route.params.agentApplicationId}-${
     route.query.chat || ''
   }`,
@@ -110,8 +115,6 @@ const { data, error: fetchError } = await useAsyncData(
       )
 
       return {
-        workspace,
-        application,
         autoOpenConfiguration,
         staleChatQuery,
       }
@@ -135,12 +138,6 @@ const { data, error: fetchError } = await useAsyncData(
   }
 )
 
-if (fetchError.value) {
-  throw fetchError.value
-}
-
-const application = computed(() => data.value?.application)
-const workspace = computed(() => data.value?.workspace)
 const autoOpenConfiguration = computed(
   () => data.value?.autoOpenConfiguration || false
 )
@@ -231,12 +228,23 @@ onMounted(() => {
     $realtime.subscribe('agent_application', {
       agent_application_id: application.value.id,
     })
-    if (data.value?.staleChatQuery) {
-      setChatQueryParam(null)
-    }
-    querySyncReady.value = true
   }
 })
+
+// The URL sync only starts once the data has arrived, because until then the
+// store still holds the previous page's conversation.
+watch(
+  loading,
+  (value) => {
+    if (!value && data.value && !querySyncReady.value) {
+      if (data.value.staleChatQuery) {
+        setChatQueryParam(null)
+      }
+      querySyncReady.value = true
+    }
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
   if (application.value) {

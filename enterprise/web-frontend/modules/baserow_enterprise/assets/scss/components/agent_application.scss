@@ -2781,3 +2781,22 @@
   display: flex;
   align-items: center;
 }
+
+// Skeleton loading state of the agent page while its data is fetched.
+.agent-conversation-list__item--skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+
+.agent-chat-welcome--skeleton {
+  width: 100%;
+  max-width: 480px;
+
+  .agent-chat-welcome__suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin-top: 32px;
+  }
+}
