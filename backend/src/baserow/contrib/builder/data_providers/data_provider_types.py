@@ -205,7 +205,9 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         if "builder_data_sources" in id_mapping:
             try:
                 data_source_id = id_mapping["builder_data_sources"][int(data_source_id)]
-                data_source = DataSourceHandler().get_data_source(data_source_id)
+                data_source = DataSourceHandler().get_data_source(
+                    data_source_id, with_cache=True
+                )
             except (KeyError, DataSourceDoesNotExist):
                 # The data source have probably been deleted so we return the
                 # initial path
@@ -293,7 +295,9 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
         if "builder_data_sources" in id_mapping:
             try:
                 data_source_id = id_mapping["builder_data_sources"][int(data_source_id)]
-                data_source = DataSourceHandler().get_data_source(data_source_id)
+                data_source = DataSourceHandler().get_data_source(
+                    data_source_id, with_cache=True
+                )
             except (KeyError, DataSourceDoesNotExist):
                 # The data source have probably been deleted, so we return the
                 # initial path
@@ -405,7 +409,9 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             return path
 
         try:
-            data_source = DataSourceHandler().get_data_source(data_source_id)
+            data_source = DataSourceHandler().get_data_source(
+                data_source_id, with_cache=True
+            )
         except DataSourceDoesNotExist:
             # The data source has probably been trashed/deleted; leave the path
             # unchanged, consistent with the other data provider `import_path`
