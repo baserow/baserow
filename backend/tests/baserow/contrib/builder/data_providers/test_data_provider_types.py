@@ -123,6 +123,8 @@ def test_form_data_provider_get_data_chunk(mock_validate):
 def test_form_data_provider_validate_data_chunk(mock_handler):
     mock_element = Mock()
     mock_element.id = 42
+    mock_element.visibility_condition = {"formula": "", "mode": "simple"}
+    mock_element.parent_element = None
     mock_element_type = Mock()
     mock_element_type.type = "elt_type"
 

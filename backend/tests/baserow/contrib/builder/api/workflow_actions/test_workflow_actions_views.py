@@ -49,6 +49,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.services.types import DispatchResult
 
 
@@ -2403,3 +2404,243 @@ def test_public_dispatch_checks_deactivation_against_the_publishing_workspace(
     assert response.status_code == HTTP_200_OK, response.json()
     raise_if_deactivated.assert_called_once()
     assert raise_if_deactivated.call_args.args[1] == draft.workspace
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "active,notes,parent_condition,expected_status",
+    [
+        # Notes is hidden by its own visibility condition, so it's skipped.
+        (False, "", None, HTTP_200_OK),
+        # A valid value of a hidden field is still used.
+        (False, "Kept", None, HTTP_200_OK),
+        # Notes is visible and empty, so the required check still applies.
+        (True, "", None, HTTP_400_BAD_REQUEST),
+        # Notes is visible and filled in.
+        (True, "Some notes", None, HTTP_200_OK),
+        # Notes is hidden because its parent container is hidden.
+        (True, "", "'false'", HTTP_200_OK),
+    ],
+)
+def test_dispatch_workflow_action_skips_required_check_for_hidden_form_field(
+    api_client, data_fixture, active, notes, parent_condition, expected_status
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    database = data_fixture.create_database_application(workspace=builder.workspace)
+    table = data_fixture.create_database_table(database=database)
+    active_field = data_fixture.create_boolean_field(table=table)
+    notes_field = data_fixture.create_long_text_field(table=table)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    form_container = data_fixture.create_builder_form_container_element(page=page)
+    active_element = data_fixture.create_builder_checkbox_element(
+        page=page,
+        reference_element=form_container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="",
+    )
+    column = data_fixture.create_builder_column_element(
+        page=page,
+        reference_element=form_container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="",
+        visibility_condition=parent_condition or "",
+    )
+    notes_element = data_fixture.create_builder_input_text_element(
+        page=page,
+        reference_element=column,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+        required=True,
+        visibility_condition=f"get('form_data.{active_element.id}')",
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=form_container, event=EventTypes.SUBMIT, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(
+        field=active_field, value=f"get('form_data.{active_element.id}')"
+    )
+    service.field_mappings.create(
+        field=notes_field, value=f"get('form_data.{notes_element.id}')"
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    payload = {
+        "metadata": json.dumps(
+            {"form_data": {active_element.id: active, notes_element.id: notes}}
+        )
+    }
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == HTTP_400_BAD_REQUEST:
+        assert response.json() == {
+            "error": "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            "detail": f'Value error for field "{notes_field.name}": '
+            "The value is required",
+        }
+    else:
+        row = table.get_model().objects.get()
+        assert (getattr(row, f"field_{notes_field.id}") or "") == notes
+
+
+@pytest.mark.django_db
+def test_dispatch_workflow_action_with_self_referencing_visibility_condition(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    database = data_fixture.create_database_application(workspace=builder.workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_text_field(table=table)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    input_text_element = data_fixture.create_builder_input_text_element(
+        page=page, required=True
+    )
+    input_text_element.visibility_condition = (
+        f"get('form_data.{input_text_element.id}')"
+    )
+    input_text_element.save()
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=button_element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(
+        field=field, value=f"get('form_data.{input_text_element.id}')"
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    payload = {"metadata": json.dumps({"form_data": {input_text_element.id: ""}})}
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    # The condition can't be evaluated, so the field is validated as visible.
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+        "detail": f'Value error for field "{field.name}": The value is required',
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "logged_in,visibility,role_type,include_role,on_parent,expected_status",
+    [
+        # Visible to everyone, so the required check applies.
+        (False, "all", "allow_all", False, False, HTTP_400_BAD_REQUEST),
+        # Only shown to logged-in visitors, and the visitor is anonymous.
+        (False, "logged-in", "allow_all", False, False, HTTP_200_OK),
+        # Only shown to anonymous visitors, and the visitor is logged in.
+        (True, "not-logged", "allow_all", False, False, HTTP_200_OK),
+        # Only shown to other roles than the visitor's.
+        (True, "logged-in", "disallow_all_except", False, False, HTTP_200_OK),
+        (True, "logged-in", "allow_all_except", True, False, HTTP_200_OK),
+        # Shown to the visitor's role, so the required check applies.
+        (True, "logged-in", "disallow_all_except", True, False, HTTP_400_BAD_REQUEST),
+        # Hidden through its parent container.
+        (False, "logged-in", "allow_all", False, True, HTTP_200_OK),
+    ],
+)
+def test_dispatch_workflow_action_skips_required_check_for_form_field_hidden_by_role(
+    api_client,
+    data_fixture,
+    logged_in,
+    visibility,
+    role_type,
+    include_role,
+    on_parent,
+    expected_status,
+):
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    table, fields, _ = data_fixture.build_table(
+        user=user, columns=[("Notes", "text")], rows=[]
+    )
+
+    headers = {}
+    role = None
+    if logged_in:
+        user_source = data_fixture.create_local_baserow_table_user_source(
+            application=builder, integration=integration, user=user
+        )
+        row = user_source.table.get_model().objects.first()
+        external_user = user_source.get_type().get_user(user_source, user_id=row.id)
+        role = external_user.role
+        headers["HTTP_AUTHORIZATION"] = (
+            f"JWT {external_user.get_refresh_token().access_token}"
+        )
+
+    visibility_kwargs = {
+        "visibility": visibility,
+        "role_type": role_type,
+        "roles": [role] if include_role else [],
+    }
+    form_container = data_fixture.create_builder_form_container_element(page=page)
+    column = data_fixture.create_builder_column_element(
+        page=page,
+        reference_element=form_container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="",
+        **(visibility_kwargs if on_parent else {}),
+    )
+    notes_element = data_fixture.create_builder_input_text_element(
+        page=page,
+        reference_element=column,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+        required=True,
+        **({} if on_parent else visibility_kwargs),
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(
+        field=fields[0], value=f"get('form_data.{notes_element.id}')"
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=form_container, event=EventTypes.SUBMIT, service=service
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    payload = {"metadata": json.dumps({"form_data": {notes_element.id: ""}})}
+    response = api_client.post(url, payload, format="json", **headers)
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == HTTP_400_BAD_REQUEST:
+        assert response.json() == {
+            "error": "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            "detail": f'Value error for field "{fields[0].name}": '
+            "The value is required",
+        }
+    else:
+        assert table.get_model().objects.count() == 1
