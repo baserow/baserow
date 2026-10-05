@@ -2,6 +2,7 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow_enterprise.assistant.tools.database.tools import (
     delete_fields,
     update_fields,
@@ -85,6 +86,35 @@ def test_update_select_field_options(data_fixture):
     assert len(updated["options"]) == 2
     option_values = {o["value"] for o in updated["options"]}
     assert option_values == {"Open", "Closed"}
+
+
+@pytest.mark.django_db
+def test_update_select_field_options_keeps_existing_cell_values(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_single_select_field(table=table, name="Status")
+    open_option = data_fixture.create_select_option(field=field, value="Open")
+    row = RowHandler().create_row(user, table, {field.db_column: open_option.id})
+
+    update_fields(
+        make_test_ctx(user, workspace),
+        fields=[
+            FieldItemUpdate(
+                field_id=field.id,
+                options=[
+                    SelectOptionCreate(value="Open", color="green"),
+                    SelectOptionCreate(value="In progress", color="blue"),
+                ],
+            )
+        ],
+        thought="add an option",
+    )
+
+    row.refresh_from_db()
+    assert getattr(row, f"{field.db_column}_id") == open_option.id
+    assert {o.value for o in field.select_options.all()} == {"Open", "In progress"}
 
 
 @pytest.mark.django_db

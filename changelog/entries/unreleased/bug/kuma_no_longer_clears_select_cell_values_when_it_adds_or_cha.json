@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Kuma no longer clears select cell values when it adds or changes options of a field",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}
