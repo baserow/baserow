@@ -31,6 +31,8 @@ from baserow.core.operations import (
     ReadApplicationOperationType,
 )
 from baserow.core.registries import object_scope_type_registry
+from baserow.core.skills import signals as skill_signals
+from baserow.core.skills.operations import ListWorkspaceSkillsOperationType
 from baserow.core.user import signals as user_signals
 from baserow.core.utils import generate_hash
 
@@ -343,6 +345,64 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
                 "type": "applications_reordered",
                 "workspace_id": workspace.id,
                 "order": order,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(skill_signals.skill_created)
+def skill_created(sender, skill, user=None, **kwargs):
+    from baserow.api.skills.serializers import WorkspaceSkillSerializer
+
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            skill.workspace_id,
+            ListWorkspaceSkillsOperationType.type,
+            "workspace",
+            skill.workspace_id,
+            {
+                "type": "workspace_skill_created",
+                "workspace_id": skill.workspace_id,
+                "skill": WorkspaceSkillSerializer(skill).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(skill_signals.skill_updated)
+def skill_updated(sender, skill, user=None, **kwargs):
+    from baserow.api.skills.serializers import WorkspaceSkillSerializer
+
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            skill.workspace_id,
+            ListWorkspaceSkillsOperationType.type,
+            "workspace",
+            skill.workspace_id,
+            {
+                "type": "workspace_skill_updated",
+                "workspace_id": skill.workspace_id,
+                "skill": WorkspaceSkillSerializer(skill).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(skill_signals.skill_deleted)
+def skill_deleted(sender, skill_id, workspace, user=None, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workspace.id,
+            ListWorkspaceSkillsOperationType.type,
+            "workspace",
+            workspace.id,
+            {
+                "type": "workspace_skill_deleted",
+                "workspace_id": workspace.id,
+                "skill_id": skill_id,
             },
             getattr(user, "web_socket_id", None),
         )

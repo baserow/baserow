@@ -6,6 +6,8 @@ from .prompts import (
     AGENT_BASE_PROMPT,
     AGENT_INSTRUCTIONS_PROMPT,
     AGENT_MEMORY_PROMPT,
+    AGENT_SKILLS_ON_DEMAND_PROMPT,
+    AGENT_SKILLS_PROMPT,
 )
 
 agent_run_agent: Agent[AgentRunDeps, str] = Agent(
@@ -37,6 +39,40 @@ def user_instructions(ctx: RunContext[AgentRunDeps]) -> str:
             instructions, chat.trigger_type, chat.event_payload
         )
     return AGENT_INSTRUCTIONS_PROMPT.format(instructions=instructions)
+
+
+@agent_run_agent.instructions
+def workspace_skills(ctx: RunContext[AgentRunDeps]) -> str:
+    from .models import AgentSkill
+
+    always = [
+        agent_skill.skill
+        for agent_skill in ctx.deps.skills
+        if agent_skill.mode == AgentSkill.Mode.ALWAYS
+    ]
+    on_demand = [
+        agent_skill.skill
+        for agent_skill in ctx.deps.skills
+        if agent_skill.mode == AgentSkill.Mode.ON_DEMAND
+    ]
+    if not always and not on_demand:
+        return ""
+
+    always_text = "".join(
+        f'<skill name="{skill.name}">\n{skill.content.strip()}\n</skill>\n'
+        for skill in always
+    )
+    on_demand_text = (
+        AGENT_SKILLS_ON_DEMAND_PROMPT.format(
+            listing="\n".join(
+                f"- {skill.name}: {skill.description.strip() or 'No description.'}"
+                for skill in on_demand
+            )
+        )
+        if on_demand
+        else ""
+    )
+    return AGENT_SKILLS_PROMPT.format(always=always_text, on_demand=on_demand_text)
 
 
 @agent_run_agent.instructions

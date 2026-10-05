@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.user_files.serializers import UserFileField
@@ -6,10 +7,24 @@ from baserow_enterprise.agent_application.models import (
     AgentChatMessage,
     AgentChatToolApproval,
     AgentDefinition,
+    AgentSkill,
 )
 
 
+class AgentSkillSerializer(serializers.ModelSerializer):
+    skill_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="skill.name", read_only=True)
+    description = serializers.CharField(source="skill.description", read_only=True)
+
+    class Meta:
+        model = AgentSkill
+        fields = ("id", "skill_id", "name", "description", "mode", "order")
+        read_only_fields = fields
+
+
 class AgentDefinitionSerializer(serializers.ModelSerializer):
+    skills = serializers.SerializerMethodField()
+
     class Meta:
         model = AgentDefinition
         fields = (
@@ -22,13 +37,34 @@ class AgentDefinitionSerializer(serializers.ModelSerializer):
             "ai_generative_ai_type",
             "ai_generative_ai_model",
             "ai_temperature",
+            "skills",
             "created_on",
             "updated_on",
         )
         read_only_fields = ("id", "application_id", "created_on", "updated_on")
 
+    @extend_schema_field(AgentSkillSerializer(many=True))
+    def get_skills(self, agent):
+        return AgentSkillSerializer(
+            agent.agent_skills.select_related("skill").order_by("order", "id"),
+            many=True,
+        ).data
+
+
+class SetAgentSkillSerializer(serializers.Serializer):
+    skill_id = serializers.IntegerField()
+    mode = serializers.ChoiceField(
+        choices=AgentSkill.Mode.choices, default=AgentSkill.Mode.ALWAYS
+    )
+
 
 class UpdateAgentDefinitionSerializer(serializers.ModelSerializer):
+    skills = SetAgentSkillSerializer(
+        many=True,
+        required=False,
+        help_text="Replaces the workspace skills the agent follows, in order.",
+    )
+
     class Meta:
         model = AgentDefinition
         fields = (
@@ -39,6 +75,7 @@ class UpdateAgentDefinitionSerializer(serializers.ModelSerializer):
             "ai_generative_ai_type",
             "ai_generative_ai_model",
             "ai_temperature",
+            "skills",
         )
         extra_kwargs = {field: {"required": False} for field in fields}
 

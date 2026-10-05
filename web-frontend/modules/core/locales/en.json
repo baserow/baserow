@@ -382,7 +382,48 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "aiProviders": "AI providers"
+    "aiProviders": "AI providers",
+    "skills": "Skills"
+  },
+  "workspaceSkills": {
+    "title": "Skills",
+    "description": "Reusable instructions, written in markdown, that agents of this workspace can follow. Give each skill a clear description so an agent knows when it applies.",
+    "createSkill": "Create skill",
+    "editSkill": "Edit skill",
+    "backToOverview": "Back to overview",
+    "deleteSkill": "Delete skill",
+    "deleteTitle": "Delete skill?",
+    "deleteText": "“{name}” is removed from every agent that uses it. This cannot be undone.",
+    "empty": "No skills yet",
+    "emptyDescription": "Create a skill to share instructions, conventions or how-tos between your agents.",
+    "noDescription": "No description",
+    "updated": "Updated {time}",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Formula conventions",
+    "nameNotUnique": "A skill with this name already exists in the workspace.",
+    "descriptionLabel": "When to use it",
+    "descriptionHelp": "One or two sentences. Agents read this to decide whether the skill applies.",
+    "descriptionPlaceholder": "e.g. Use when writing or changing Baserow formulas.",
+    "contentLabel": "Instructions",
+    "contentPlaceholder": "Write the instructions the agent should follow…",
+    "markdownMode": "Edit as markdown",
+    "richTextMode": "Rich text",
+    "importFile": "Import from file",
+    "importHelp": "A SKILL.md, Cursor rule, Copilot instructions file or plain markdown. Its frontmatter fills the name and description.",
+    "characters": "{count} characters"
+  },
+  "promptAttachments": {
+    "add": "Add to the instructions",
+    "search": "Search...",
+    "nothingToAdd": "Nothing left to add",
+    "remove": "Remove",
+    "unknown": "Unknown",
+    "skills": "Skills",
+    "skillAlways": "Always",
+    "skillAlwaysDescription": "The skill is part of every prompt.",
+    "skillOnDemand": "On demand",
+    "skillOnDemandDescription": "Only listed; loaded when the agent decides it applies.",
+    "manageSkills": "Manage workspace skills"
   },
   "generativeAIModelType": {
     "openai": "OpenAI",

@@ -873,6 +873,16 @@ export class RealTimeHandler {
       })
     })
 
+    this.registerEvent('workspace_skill_created', ({ store }, data) => {
+      store.dispatch('workspaceSkill/forceCreate', data.skill)
+    })
+    this.registerEvent('workspace_skill_updated', ({ store }, data) => {
+      store.dispatch('workspaceSkill/forceUpdate', data.skill)
+    })
+    this.registerEvent('workspace_skill_deleted', ({ store }, data) => {
+      store.dispatch('workspaceSkill/forceDelete', data.skill_id)
+    })
+
     this.registerEvent('application_created', ({ store }, data) => {
       store.dispatch('application/forceCreate', data.application)
     })

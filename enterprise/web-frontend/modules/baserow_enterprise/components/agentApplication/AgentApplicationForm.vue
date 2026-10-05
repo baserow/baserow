@@ -83,6 +83,18 @@
           :rows="8"
           :placeholder="$t('agentInstructions.placeholder')"
         ></FormTextarea>
+        <PromptAttachments
+          v-if="fullWorkspace"
+          :workspace="fullWorkspace"
+          :attachments="skills"
+          @add="skills.push($event)"
+          @update="
+            skills = skills.map((item) =>
+              item.id === $event.id ? $event : item
+            )
+          "
+          @remove="skills = skills.filter((item) => item.id !== $event.id)"
+        />
       </FormGroup>
       <FormGroup
         small-label
@@ -199,6 +211,7 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
+import PromptAttachments from '@baserow/modules/core/components/promptAttachments/PromptAttachments'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentService from '@baserow/modules/core/services/agent'
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
@@ -212,6 +225,7 @@ const TEMPLATES = [
 
 export default {
   name: 'AgentApplicationForm',
+  components: { PromptAttachments },
   mixins: [form],
   props: {
     defaultName: {
@@ -239,6 +253,8 @@ export default {
       identities: [],
       loadingIdentities: false,
       identityChoice: 'none',
+      // Workspace skills picked for the new agent: `{ type, id, mode }`.
+      skills: [],
       values: {
         name: this.defaultName,
         description: '',
@@ -391,6 +407,12 @@ export default {
       }
       if (this.identityChoice !== 'none') {
         values.permissions = this.values.permissions
+      }
+      if (this.skills.length > 0) {
+        values.skills = this.skills.map(({ id, mode }) => ({
+          skill_id: id,
+          mode,
+        }))
       }
       return values
     },

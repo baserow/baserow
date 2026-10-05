@@ -301,6 +301,17 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(DeleteApplicationOperationType())
         operation_type_registry.register(UpdateSettingsOperationType())
         operation_type_registry.register(ManageAIProvidersOperationType())
+        from .skills.operations import (
+            CreateWorkspaceSkillOperationType,
+            DeleteWorkspaceSkillOperationType,
+            ListWorkspaceSkillsOperationType,
+            UpdateWorkspaceSkillOperationType,
+        )
+
+        operation_type_registry.register(ListWorkspaceSkillsOperationType())
+        operation_type_registry.register(CreateWorkspaceSkillOperationType())
+        operation_type_registry.register(UpdateWorkspaceSkillOperationType())
+        operation_type_registry.register(DeleteWorkspaceSkillOperationType())
         operation_type_registry.register(CreateSnapshotApplicationOperationType())
         operation_type_registry.register(DeleteApplicationSnapshotOperationType())
         operation_type_registry.register(ListSnapshotsApplicationOperationType())

@@ -21,6 +21,7 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Agent, Application, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.skills.models import WorkspaceSkill
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
@@ -31,6 +32,7 @@ from .models import (
     AgentChatChannel,
     AgentChatToolApproval,
     AgentDefinition,
+    AgentSkill,
     AgentTool,
     AgentTrigger,
 )
@@ -96,6 +98,7 @@ SETUP_FIELDS = [
     "permissions",
     "web_search",
     "create_identity",
+    "skills",
 ]
 RUN_MODES = [
     "chat",
@@ -177,6 +180,14 @@ class AgentApplicationType(ApplicationType):
             help_text=(
                 "Creates a workspace agent identity named after the application "
                 "and acts as it (create only, requires the create agent permission)."
+            ),
+        ),
+        "skills": serializers.ListField(
+            child=serializers.DictField(),
+            required=False,
+            help_text=(
+                "Workspace skills the agent follows, as `{skill_id, mode}` "
+                "entries with mode `always` or `on_demand` (create only)."
             ),
         ),
     }
@@ -289,6 +300,16 @@ class AgentApplicationType(ApplicationType):
                 "ai_generative_ai_type": agent.ai_generative_ai_type,
                 "ai_generative_ai_model": agent.ai_generative_ai_model,
                 "ai_temperature": agent.ai_temperature,
+                # Skills are workspace level, so the links only survive a
+                # duplicate within the same workspace.
+                "skills": (
+                    [
+                        {"skill_id": agent_skill.skill_id, "mode": agent_skill.mode}
+                        for agent_skill in agent.agent_skills.order_by("order", "id")
+                    ]
+                    if import_export_config.is_duplicate
+                    else []
+                ),
             }
             for agent in agent_application.agents.all()
         ]
@@ -445,6 +466,25 @@ class AgentApplicationType(ApplicationType):
                 ai_generative_ai_type=serialized_agent.get("ai_generative_ai_type"),
                 ai_generative_ai_model=serialized_agent.get("ai_generative_ai_model"),
                 ai_temperature=serialized_agent.get("ai_temperature"),
+            )
+            # Only skills that still exist in this workspace are relinked.
+            skill_ids = set(
+                WorkspaceSkill.objects.filter(
+                    workspace=workspace,
+                    id__in=[s["skill_id"] for s in serialized_agent.get("skills", [])],
+                ).values_list("id", flat=True)
+            )
+            AgentSkill.objects.bulk_create(
+                [
+                    AgentSkill(
+                        agent=agent,
+                        skill_id=entry["skill_id"],
+                        mode=entry.get("mode") or AgentSkill.Mode.ALWAYS,
+                        order=index,
+                    )
+                    for index, entry in enumerate(serialized_agent.get("skills", []))
+                    if entry["skill_id"] in skill_ids
+                ]
             )
             agents_by_exported_id[serialized_agent["id"]] = agent
             children_progress.increment()

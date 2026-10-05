@@ -15,6 +15,7 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.api.skills.errors import ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST
 from baserow.api.user_files.errors import ERROR_INVALID_USER_FILE_NAME_ERROR
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import (
@@ -25,6 +26,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import CreateApplicationsWorkspaceOperationType
 from baserow.core.services.registries import service_type_registry
+from baserow.core.skills.exceptions import WorkspaceSkillDoesNotExist
 from baserow.core.user_files.exceptions import InvalidUserFileNameError
 from baserow_enterprise.agent_application.actions import UpdateAgentDefinitionActionType
 from baserow_enterprise.agent_application.channels.handler import (
@@ -260,6 +262,7 @@ class UpdateAgentDefinitionView(APIView):
         {
             AgentDefinitionDoesNotExist: ERROR_AGENT_DEFINITION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceSkillDoesNotExist: ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST,
         }
     )
     @validate_body(UpdateAgentDefinitionSerializer, partial=True, return_validated=True)

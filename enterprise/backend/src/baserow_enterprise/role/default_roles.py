@@ -267,6 +267,12 @@ from baserow.core.operations import (
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
 )
+from baserow.core.skills.operations import (
+    CreateWorkspaceSkillOperationType,
+    DeleteWorkspaceSkillOperationType,
+    ListWorkspaceSkillsOperationType,
+    UpdateWorkspaceSkillOperationType,
+)
 from baserow.core.snapshots.operations import (
     CreateSnapshotApplicationOperationType,
     DeleteApplicationSnapshotOperationType,
@@ -459,6 +465,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadAgentDefinitionOperationType,
         ReadAgentTriggerOperationType,
         ListAgentToolsOperationType,
+        ListWorkspaceSkillsOperationType,
         ListAgentChatsOperationType,
         ReadAgentChatOperationType,
         ReadAgentUsageOperationType,
@@ -510,6 +517,9 @@ default_roles[BUILDER_ROLE_UID].extend(
     default_roles[EDITOR_ROLE_UID]
     + [
         ListAgentsWorkspaceOperationType,
+        CreateWorkspaceSkillOperationType,
+        UpdateWorkspaceSkillOperationType,
+        DeleteWorkspaceSkillOperationType,
         CreatePageOperationType,
         DeletePageOperationType,
         UpdatePageOperationType,

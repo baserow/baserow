@@ -1,0 +1,132 @@
+.workspace-skills__description {
+  margin: 0 0 16px;
+  color: $palette-neutral-900;
+  line-height: 20px;
+}
+
+// Empty state in the style of the two-factor auth settings.
+.workspace-skills__empty {
+  margin: 48px auto 24px;
+  text-align: center;
+
+  h3 {
+    margin-bottom: 8px;
+  }
+
+  p {
+    max-width: 420px;
+    margin: 0 auto 20px;
+    color: $palette-neutral-900;
+    line-height: 20px;
+  }
+}
+
+.workspace-skills__empty-icon {
+  display: inline-block;
+  padding: 12px;
+  margin-bottom: 24px;
+  border: 1px solid $palette-neutral-200;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+  font-size: 22px;
+  line-height: 1;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded-md);
+}
+
+// Cards in the style of the database tokens list.
+.workspace-skills__item {
+  margin: 16px 0;
+  padding: 16px 20px;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.workspace-skills__item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workspace-skills__item-name {
+  @extend %ellipsis;
+
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-blue-500;
+  }
+}
+
+.workspace-skills__item-more {
+  flex-shrink: 0;
+}
+
+.workspace-skills__item-description {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.workspace-skills__item-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.workspace-skill-form__content-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.workspace-skill-form__content-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-skill-form__file-input {
+  display: none;
+}
+
+.workspace-skill-form__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: $palette-neutral-900;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.workspace-skill-form__editor {
+  min-height: 280px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.workspace-skill-form__markdown {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.workspace-skill-form__counter {
+  margin-top: 6px;
+  font-size: 12px;
+  color: $palette-neutral-700;
+  text-align: right;
+}

@@ -39,7 +39,10 @@ class AgentApplicationService:
             context=agent.application.application_ptr,
         )
 
+        skills = kwargs.pop("skills", None)
         agent = self.handler.update_agent(agent, **kwargs)
+        if skills is not None:
+            self.handler.set_agent_skills(agent, skills)
 
         agent_definition_updated.send(self, user=user, agent=agent)
 

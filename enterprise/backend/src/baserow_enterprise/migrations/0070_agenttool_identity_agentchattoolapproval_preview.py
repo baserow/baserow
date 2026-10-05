@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
             "baserow_enterprise",
             "0069_agentapplication_agentchatchannel_agentchat_and_more",
         ),
-        ("core", "0121_agent"),
+        ("core", "0127_workspaceskill"),
     ]
 
     operations = [
@@ -42,5 +42,56 @@ class Migration(migrations.Migration):
                 ),
                 null=True,
             ),
+        ),
+        migrations.CreateModel(
+            name="AgentSkill",
+            fields=[
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "mode",
+                    models.CharField(
+                        choices=[("always", "Always"), ("on_demand", "On demand")],
+                        db_default="always",
+                        default="always",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "order",
+                    models.PositiveIntegerField(db_default=0, default=0),
+                ),
+                (
+                    "agent",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="agent_skills",
+                        to="baserow_enterprise.agentdefinition",
+                    ),
+                ),
+                (
+                    "skill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="agent_skills",
+                        to="core.workspaceskill",
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ("order", "id"),
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("agent", "skill"), name="unique_agent_skill"
+                    )
+                ],
+            },
         ),
     ]

@@ -142,7 +142,7 @@ def test_web_channel_runs_without_the_memory_tool(web_channel):
     runner = AgentRunner.__new__(AgentRunner)
     runner.agent = agent
     runner.chat = chat
-    runner.deps = SimpleNamespace(system_notes=[])
+    runner.deps = SimpleNamespace(system_notes=[], skills=[])
     with (
         patch(
             "baserow_enterprise.agent_application.tools.registries."

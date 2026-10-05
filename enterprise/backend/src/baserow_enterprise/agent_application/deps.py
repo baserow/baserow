@@ -46,6 +46,9 @@ class AgentRunDeps:
     workspace_tool_identities: dict = field(default_factory=dict)
     # Successful row writes of this run, shared with the assistant's row tools.
     resource_changes: ResourceChanges = field(default_factory=ResourceChanges)
+    # The agent's `AgentSkill` rows with their skills preloaded, read before
+    # the async run so prompt building and `load_skill` touch no database.
+    skills: list = field(default_factory=list)
 
     def extend_sources(self, new_sources: list[str]):
         self.sources.extend(s for s in new_sources if s not in self.sources)

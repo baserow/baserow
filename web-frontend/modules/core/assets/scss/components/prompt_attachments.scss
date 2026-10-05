@@ -1,0 +1,71 @@
+.prompt-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+// Chips and the "+" button share the regular icon button height.
+.prompt-attachments__chip.chips {
+  max-width: 100%;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.prompt-attachments__chip-label {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.prompt-attachments__chip-option {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid $palette-neutral-300;
+  font-size: 11px;
+  color: $palette-neutral-700;
+}
+
+.prompt-attachments__add {
+  flex-shrink: 0;
+}
+
+// The grouped menu brings its own width; the context only clips it to the
+// rounded corners, like the agent builder's add menus.
+.prompt-attachments__picker {
+  overflow: hidden;
+}
+
+.prompt-attachments__option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prompt-attachments__option-description {
+  font-size: 11px;
+  line-height: 14px;
+  color: $palette-neutral-700;
+  white-space: normal;
+}
+
+.prompt-attachments__manage {
+  padding: 10px 16px;
+  border-top: 1px solid $palette-neutral-200;
+  background-color: $white;
+}
+
+.prompt-attachments__manage-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}

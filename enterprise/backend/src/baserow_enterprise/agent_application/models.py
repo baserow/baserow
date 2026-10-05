@@ -109,6 +109,40 @@ class AgentDefinition(
         return self.application
 
 
+class AgentSkill(models.Model):
+    """
+    A workspace skill an agent follows. "Always" inlines the skill's content
+    into every prompt; "on demand" only lists its name and description and
+    lets the agent load the content with a tool when it decides it applies.
+    """
+
+    class Mode(models.TextChoices):
+        ALWAYS = "always", "Always"
+        ON_DEMAND = "on_demand", "On demand"
+
+    agent = models.ForeignKey(
+        AgentDefinition, on_delete=models.CASCADE, related_name="agent_skills"
+    )
+    skill = models.ForeignKey(
+        "core.WorkspaceSkill", on_delete=models.CASCADE, related_name="agent_skills"
+    )
+    mode = models.CharField(
+        max_length=16,
+        choices=Mode.choices,
+        default=Mode.ALWAYS,
+        db_default=Mode.ALWAYS,
+    )
+    order = models.PositiveIntegerField(default=0, db_default=0)
+
+    class Meta:
+        ordering = ("order", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "skill"], name="unique_agent_skill"
+            )
+        ]
+
+
 class AgentTrigger(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     """
     Connects an agent application to a trigger service. The trigger's service

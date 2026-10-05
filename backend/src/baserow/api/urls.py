@@ -23,6 +23,7 @@ from .mcp import urls as mcp_urls
 from .notifications import urls as notifications_urls
 from .search import urls as search_urls
 from .settings import urls as settings_urls
+from .skills import urls as skills_urls
 from .snapshots import urls as snapshots_urls
 from .spectacular.views import CachedSpectacularJSONAPIView
 from .templates import urls as templates_urls
@@ -63,6 +64,7 @@ urlpatterns = (
         path("last-viewed/", include(last_viewed_urls, namespace="last_viewed")),
         path("admin/", include(admin_urls, namespace="admin")),
         path("ai-providers/", include(ai_provider_urls, namespace="ai_provider")),
+        path("skills/", include(skills_urls, namespace="skills")),
         path("mcp/", include(mcp_urls, namespace="mcp")),
         path(
             "",

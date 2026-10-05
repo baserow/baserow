@@ -39,6 +39,7 @@ from .mixins import (
 )
 from .notifications.models import Notification
 from .services.models import Service
+from .skills.models import WorkspaceSkill  # noqa: F401
 
 __all__ = [
     "Settings",

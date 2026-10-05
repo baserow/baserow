@@ -216,14 +216,19 @@ class AgentRunner:
             agent=self.agent,
             chat=chat,
             tool_helpers=self._tool_helpers,
+            skills=list(
+                self.agent.agent_skills.select_related("skill").order_by("order", "id")
+            ),
         )
         self._toolsets = self._build_toolsets()
         self._native_tools = self._build_native_tools()
 
     def _build_toolsets(self) -> list:
+        from .models import AgentSkill
         from .tools.memory import build_memory_toolset
         from .tools.registries import agent_tool_type_registry
         from .tools.self_configure import build_self_configure_toolset
+        from .tools.skills import build_skills_toolset
 
         toolsets = agent_tool_type_registry.build_toolsets(self.agent, self.deps)
 
@@ -234,6 +239,11 @@ class AgentRunner:
         channel_type = self._channel_type()
         if channel_type is None or channel_type.allows_memory_updates:
             toolsets.append(build_memory_toolset())
+        if any(
+            agent_skill.mode == AgentSkill.Mode.ON_DEMAND
+            for agent_skill in self.deps.skills
+        ):
+            toolsets.append(build_skills_toolset())
         if channel_type is not None:
             self.deps.system_notes.extend(
                 channel_type.get_system_notes(self.chat.channel)

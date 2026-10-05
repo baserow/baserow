@@ -28,6 +28,7 @@ from .models import (
     AgentChatMessage,
     AgentChatToolApproval,
     AgentDefinition,
+    AgentSkill,
 )
 
 
@@ -98,6 +99,48 @@ class AgentApplicationHandler:
 
         agent.save(update_fields=list(allowed_values.keys()) + ["updated_on"])
         return agent
+
+    def set_agent_skills(
+        self, agent: AgentDefinition, skills: list[dict]
+    ) -> list[AgentSkill]:
+        """
+        Replaces the skills the agent follows. Every entry is a dict with the
+        workspace skill id and the mode; the order of the list is kept.
+
+        :raises WorkspaceSkillDoesNotExist: When a skill is not in the
+            agent's workspace.
+        """
+
+        from baserow.core.skills.exceptions import WorkspaceSkillDoesNotExist
+        from baserow.core.skills.models import WorkspaceSkill
+
+        skill_ids = [entry["skill_id"] for entry in skills]
+        found = {
+            skill.id: skill
+            for skill in WorkspaceSkill.objects.filter(
+                workspace_id=agent.application.workspace_id, id__in=skill_ids
+            )
+        }
+        missing = [skill_id for skill_id in skill_ids if skill_id not in found]
+        if missing:
+            raise WorkspaceSkillDoesNotExist(
+                f"The skills {missing} do not exist in the workspace."
+            )
+
+        AgentSkill.objects.filter(agent=agent).delete()
+        rows = AgentSkill.objects.bulk_create(
+            [
+                AgentSkill(
+                    agent=agent,
+                    skill=found[entry["skill_id"]],
+                    mode=entry.get("mode") or AgentSkill.Mode.ALWAYS,
+                    order=index,
+                )
+                for index, entry in enumerate(skills)
+            ]
+        )
+        agent.save(update_fields=["updated_on"])
+        return rows
 
     def set_agent_identity(
         self, application: AgentApplication, agent_identity: Optional[Agent]
@@ -216,6 +259,14 @@ class AgentApplicationHandler:
 
         if setup.get("web_search"):
             AgentToolHandler().create_tool(user, agent, "web_search")
+
+        if setup.get("skills"):
+            from baserow.core.skills.exceptions import WorkspaceSkillDoesNotExist
+
+            try:
+                self.set_agent_skills(agent, setup["skills"])
+            except WorkspaceSkillDoesNotExist as exc:
+                raise DRFValidationError(detail=str(exc), code="invalid_skill") from exc
 
         for service_type_str in setup.get("actions") or []:
             # Validates the type; the tool keeps the type's display name until

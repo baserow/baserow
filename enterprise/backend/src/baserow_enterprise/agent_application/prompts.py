@@ -86,3 +86,16 @@ possibly by the user to teach you:
 {memory}
 </memory>
 """
+
+AGENT_SKILLS_PROMPT = """\
+Skills are reusable instructions shared by the workspace. Follow the skills \
+below whenever they apply to what you are doing.
+
+{always}{on_demand}"""
+
+AGENT_SKILLS_ON_DEMAND_PROMPT = """\
+These skills are available on demand. When one applies to the task, call \
+`load_skill` with its name first and follow what it returns:
+
+{listing}
+"""
