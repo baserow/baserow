@@ -11,7 +11,15 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.builder.elements.element_types import HeaderElementType
+from baserow.contrib.builder.elements.element_types import (
+    CheckboxElementType,
+    ChoiceElementType,
+    DateTimePickerElementType,
+    HeaderElementType,
+    InputTextElementType,
+    RatingInputElementType,
+    RecordSelectorElementType,
+)
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
@@ -20,6 +28,10 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BaserowFormulaObject,
+)
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.trash.handler import TrashHandler
 
@@ -1778,3 +1790,112 @@ def test_move_element_rejects_place_in_container_with_non_child_position_on_shar
         str(header.id): {"next": {"": [footer.id]}},
         str(footer.id): {},
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula_element_type,field_name",
+    [
+        pytest.param(InputTextElementType, "label", id="input_text-label"),
+        pytest.param(CheckboxElementType, "label", id="checkbox-label"),
+        pytest.param(ChoiceElementType, "label", id="choice-label"),
+        pytest.param(ChoiceElementType, "formula_name", id="choice-formula_name"),
+        pytest.param(DateTimePickerElementType, "label", id="datetime_picker-label"),
+        pytest.param(RatingInputElementType, "label", id="rating_input-label"),
+        pytest.param(RecordSelectorElementType, "label", id="record_selector-label"),
+    ],
+)
+def test_update_element_formula_with_markdown_format(
+    api_client, data_fixture, formula_element_type, field_name
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_element(formula_element_type, page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {field_name: {"formula": "'**Name**'", "format": "markdown"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json[field_name] == {
+        "formula": "'**Name**'",
+        "mode": "simple",
+        "version": "0.1",
+        "format": "markdown",
+    }
+
+    element.refresh_from_db()
+    assert getattr(element, field_name)["format"] == "markdown"
+
+
+@pytest.mark.django_db
+def test_update_element_rejects_format_on_plain_only_formula(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_input_text_element(page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"default_value": {"formula": "'Name'", "format": "markdown"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "default_value": [
+                {
+                    "error": "The format 'markdown' is not allowed for this "
+                    "formula. Allowed formats: plain.",
+                    "code": "invalid_format",
+                }
+            ]
+        },
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "label",
+    [
+        {"formula": "'Name'", "format": "plain"},
+        # A missing format means plain too.
+        {"formula": "'Name'"},
+    ],
+)
+def test_update_element_formula_drops_plain_format(api_client, data_fixture, label):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_input_text_element(
+        page=page,
+        label=BaserowFormulaObject.create(
+            formula="'**Name**'", format=BASEROW_FORMULA_FORMAT_MARKDOWN
+        ),
+    )
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"label": label},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["label"] == {
+        "formula": "'Name'",
+        "mode": "simple",
+        "version": "0.1",
+    }
+
+    element.refresh_from_db()
+    assert "format" not in element.label

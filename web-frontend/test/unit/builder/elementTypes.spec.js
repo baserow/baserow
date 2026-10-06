@@ -1152,6 +1152,37 @@ describe('elementTypes tests', () => {
         { name: 'Bar Name', value: 'bar_name' },
       ])
     })
+
+    test('getOptionsResolved carries the format of the name formula for formula options.', () => {
+      const elementType = testApp.$registry.get('element', 'choice')
+      const element = {
+        required: true,
+        option_type: CHOICE_OPTION_TYPES.FORMULAS,
+        formula_value: { formula: "'a,b'" },
+        formula_name: { formula: "'**A**,**B**'", format: 'markdown' },
+      }
+
+      // The element renders the names in that format.
+      expect(elementType.getOptionsResolved(element, {})).toEqual([
+        { id: 0, value: 'a', name: '**A**', nameFormat: 'markdown' },
+        { id: 1, value: 'b', name: '**B**', nameFormat: 'markdown' },
+      ])
+    })
+
+    test('getOptionsResolved leaves the name format undefined for plain formula options.', () => {
+      const elementType = testApp.$registry.get('element', 'choice')
+      const element = {
+        required: true,
+        option_type: CHOICE_OPTION_TYPES.FORMULAS,
+        formula_value: { formula: "'a,b'" },
+        formula_name: { formula: "'A,B'" },
+      }
+
+      expect(elementType.getOptionsResolved(element, {})).toEqual([
+        { id: 0, value: 'a', name: 'A', nameFormat: undefined },
+        { id: 1, value: 'b', name: 'B', nameFormat: undefined },
+      ])
+    })
   })
 
   describe('HeadingElementType isInError tests', () => {

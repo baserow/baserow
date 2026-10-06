@@ -30,6 +30,7 @@ from baserow.contrib.builder.elements.element_types import (
     ImageElementType,
     InputTextElementType,
     LinkElementType,
+    RatingInputElementType,
     RecordSelectorElementType,
     TextElementType,
     collection_element_types,
@@ -56,6 +57,11 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BaserowFormulaObject,
+)
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
@@ -1677,3 +1683,92 @@ def test_element_type_get_event_names(data_fixture):
     assert get_event_names(form) == ["submit"]
     assert get_event_names(table) == [f"{button_field.uid}_click"]
     assert get_event_names(menu) == [f"{button_item_uid}_click"]
+
+
+@pytest.mark.parametrize(
+    "formula_element_type,field_name",
+    [
+        (InputTextElementType, "label"),
+        (CheckboxElementType, "label"),
+        (ChoiceElementType, "label"),
+        (ChoiceElementType, "formula_name"),
+        (DateTimePickerElementType, "label"),
+        (RatingInputElementType, "label"),
+        (RecordSelectorElementType, "label"),
+    ],
+)
+def test_element_type_rendered_formula_allows_markdown_format(
+    formula_element_type, field_name
+):
+    """
+    The formulas whose resolved value is rendered as text on the page accept a
+    markdown `format`, and say so in the API docs.
+    """
+
+    field = formula_element_type().serializer_field_overrides[field_name]
+
+    assert field.allowed_formats == [
+        BASEROW_FORMULA_FORMAT_PLAIN,
+        BASEROW_FORMULA_FORMAT_MARKDOWN,
+    ]
+    assert field.help_text.endswith("Accepted `format` values: plain, markdown.")
+
+
+@pytest.mark.parametrize(
+    "formula_element_type,field_name",
+    [
+        (InputTextElementType, "default_value"),
+        (CheckboxElementType, "default_value"),
+        (ChoiceElementType, "formula_value"),
+        (RecordSelectorElementType, "default_value"),
+    ],
+)
+def test_element_type_unrendered_formula_stays_plain_only(
+    formula_element_type, field_name
+):
+    """
+    The formulas that are never rendered as text (values) keep accepting the
+    plain format only.
+    """
+
+    field = formula_element_type().serializer_field_overrides[field_name]
+
+    assert field.allowed_formats == [BASEROW_FORMULA_FORMAT_PLAIN]
+
+
+@pytest.mark.django_db
+def test_input_text_element_import_export_keeps_label_format(data_fixture):
+    page = data_fixture.create_builder_page()
+    label = BaserowFormulaObject.create(
+        formula="'**Name**'", format=BASEROW_FORMULA_FORMAT_MARKDOWN
+    )
+    exported_input_text_element = data_fixture.create_builder_input_text_element(
+        page=page, label=label
+    )
+
+    serialized = InputTextElementType().export_serialized(exported_input_text_element)
+    assert serialized["label"] == label
+
+    id_mapping = {"builder_data_sources": {}}
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
+
+    assert imported_element.label == label
+
+
+@pytest.mark.django_db
+def test_choice_element_import_export_keeps_formula_name_format(data_fixture):
+    page = data_fixture.create_builder_page()
+    formula_name = BaserowFormulaObject.create(
+        formula="'**A**,**B**'", format=BASEROW_FORMULA_FORMAT_MARKDOWN
+    )
+    exported_choice_element = data_fixture.create_builder_choice_element(
+        page=page, formula_name=formula_name
+    )
+
+    serialized = ChoiceElementType().export_serialized(exported_choice_element)
+    assert serialized["formula_name"] == formula_name
+
+    id_mapping = {"builder_data_sources": {}}
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
+
+    assert imported_element.formula_name == formula_name

@@ -9,6 +9,9 @@ describe('Builder workflow action types', () => {
   })
 
   afterEach(async () => {
+    // The store is shared between the tests: a spy on its `dispatch` must not
+    // outlive the test that set it up.
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -415,5 +418,32 @@ describe('Builder workflow action types', () => {
         files: {},
       }
     )
+  })
+
+  test('shows the notification with the formats of its title and description', async () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'notification')
+    // Resolves the literal formulas the action holds.
+    const resolveFormula = ({ formula }) => formula.slice(1, -1)
+
+    await workflowActionType.execute({
+      workflowAction: {
+        type: 'notification',
+        title: { formula: "'**Saved**'", format: 'markdown' },
+        description: { formula: "'Row created'" },
+      },
+      resolveFormula,
+    })
+
+    const [toast] = testApp.store.getters['builderToast/all']
+    expect(toast).toMatchObject({
+      type: 'info-primary',
+      title: '**Saved**',
+      titleFormat: 'markdown',
+      message: 'Row created',
+    })
+    // A plain description has no format to pass on.
+    expect(toast.messageFormat).toBeUndefined()
   })
 })

@@ -28,6 +28,7 @@ from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     CoreStartWorkflowWorkflowAction,
     EventTypes,
+    NotificationWorkflowAction,
     RefreshDataSourceWorkflowAction,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
@@ -48,7 +49,11 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaObject,
+)
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.services.types import DispatchResult
 
@@ -2644,3 +2649,84 @@ def test_dispatch_workflow_action_skips_required_check_for_form_field_hidden_by_
         }
     else:
         assert table.get_model().objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_create_notification_workflow_action_with_markdown_format(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": NotificationWorkflowActionType.type,
+            "event": "click",
+            "element_id": element.id,
+            "title": {"formula": "'**Saved**'", "format": "markdown"},
+            "description": {"formula": "'Row created'"},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["title"] == {
+        "formula": "'**Saved**'",
+        "mode": "simple",
+        "version": "0.1",
+        "format": "markdown",
+    }
+    # A missing format means plain and is never added to the object.
+    assert response_json["description"] == {
+        "formula": "'Row created'",
+        "mode": "simple",
+        "version": "0.1",
+    }
+
+    workflow_action = NotificationWorkflowAction.objects.get(id=response_json["id"])
+    assert workflow_action.title["format"] == "markdown"
+    assert "format" not in workflow_action.description
+
+
+@pytest.mark.django_db
+def test_update_notification_workflow_action_drops_plain_format(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_notification_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        title=BaserowFormulaObject.create(
+            formula="'**Saved**'", format=BASEROW_FORMULA_FORMAT_MARKDOWN
+        ),
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.patch(
+        url,
+        {"title": {"formula": "'Saved'", "format": "plain"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["title"] == {
+        "formula": "'Saved'",
+        "mode": "simple",
+        "version": "0.1",
+    }
+
+    workflow_action.refresh_from_db()
+    assert "format" not in workflow_action.title

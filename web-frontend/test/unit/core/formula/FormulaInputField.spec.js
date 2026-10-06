@@ -530,3 +530,106 @@ describe('FormulaInputField tolerates a null value', () => {
     expect(wrapper.emitted('input').at(-1)).toEqual([''])
   })
 })
+
+// ── Formats ─────────────────────────────────────────────────────────
+// The surface showing the resolved formula can render it as plain text or
+// markdown. The picker lives in the explorer context; the field only shows a
+// badge while a non-plain format is selected and relays the picked format.
+
+describe('FormulaInputField formats', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  async function mountField(props = {}) {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: {
+        value: "'Name'",
+        mode: 'simple',
+        allowedFormats: ['plain', 'markdown'],
+        ...props,
+      },
+    })
+    await wrapper.vm.$nextTick()
+    return wrapper
+  }
+
+  it('shows a badge while a non-plain format is selected', async () => {
+    const wrapper = await mountField({ format: 'markdown' })
+
+    const badge = wrapper.find('.formula-input-field__format-badge')
+    expect(badge.text()).toBe('M')
+    expect(badge.attributes('title')).toBe('formulaInputField.formatBadgeTitle')
+    expect(badge.attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables the badge with the field', async () => {
+    const wrapper = await mountField({ format: 'markdown', disabled: true })
+
+    expect(
+      wrapper.find('.formula-input-field__format-badge').attributes('disabled')
+    ).toBeDefined()
+  })
+
+  it.each([
+    ['the format is plain', { format: 'plain' }],
+    [
+      'a single format is allowed',
+      { format: 'markdown', allowedFormats: ['markdown'] },
+    ],
+    ['the field is read-only', { format: 'markdown', readOnly: true }],
+  ])('shows no badge when %s', async (_, props) => {
+    const wrapper = await mountField(props)
+
+    expect(wrapper.find('.formula-input-field__format-badge').exists()).toBe(
+      false
+    )
+  })
+
+  it('keeps the badge in raw mode', async () => {
+    // The format applies to the rendering of the value, not to the formula.
+    const wrapper = await mountField({
+      value: 'Name',
+      mode: 'raw',
+      format: 'markdown',
+      allowRawValues: true,
+    })
+
+    expect(wrapper.find('.formula-input-field__format-badge').exists()).toBe(
+      true
+    )
+  })
+
+  it('hands the format and its options to the explorer context', async () => {
+    const wrapper = await mountField({ format: 'markdown' })
+    wrapper.vm.isFocused = true
+    await wrapper.vm.$nextTick()
+
+    const explorer = wrapper.findComponent({
+      name: 'FormulaInputExplorerContext',
+    })
+    expect(explorer.props('format')).toBe('markdown')
+    expect(explorer.props('formatOptions')).toEqual([
+      { value: 'plain', name: 'formulaInputField.formatPlain' },
+      { value: 'markdown', name: 'formulaInputField.formatMarkdown' },
+    ])
+  })
+
+  it('emits the format picked in the explorer context', async () => {
+    const wrapper = await mountField()
+    wrapper.vm.isFocused = true
+    await wrapper.vm.$nextTick()
+
+    wrapper
+      .findComponent({ name: 'FormulaInputExplorerContext' })
+      .vm.$emit('format-changed', 'markdown')
+
+    expect(wrapper.emitted('update:format')).toEqual([['markdown']])
+  })
+})

@@ -154,4 +154,105 @@ describe('ChoiceElement', () => {
 
     expect(wrapper.element).toMatchSnapshot()
   })
+
+  describe('with formula options', () => {
+    const formulaOptionsElement = (overrides = {}) => ({
+      id: 43,
+      type: 'choice',
+      multiple: false,
+      option_type: 'formulas',
+      show_as_dropdown: true,
+      options: [],
+      formula_value: { formula: "'a,b'" },
+      formula_name: { formula: "'**A**,**B**'", format: 'markdown' },
+      default_value: { formula: "'a'" },
+      page_id: 1,
+      ...overrides,
+    })
+
+    test('renders markdown option names in the dropdown', async () => {
+      const wrapper = await mountComponentForElement(formulaOptionsElement())
+
+      const items = wrapper.findAll('.ab-dropdownitem__item-name-text')
+      expect(items.map((item) => item.find('strong').text())).toEqual([
+        'A',
+        'B',
+      ])
+      // The tooltip keeps the raw name.
+      expect(items.map((item) => item.attributes('title'))).toEqual([
+        '**A**',
+        '**B**',
+      ])
+      // The selected option is rendered too, not shown as raw syntax.
+      const selected = wrapper.find('.ab-dropdown__selected-text')
+      expect(selected.find('strong').text()).toBe('A')
+      expect(selected.text()).toBe('A')
+    })
+
+    test('lists the selected options of a multiple dropdown', async () => {
+      const wrapper = await mountComponentForElement(
+        formulaOptionsElement({
+          multiple: true,
+          default_value: { formula: "'a,b'" },
+        })
+      )
+
+      const selected = wrapper.find('.ab-dropdown__selected-text')
+      expect(selected.findAll('strong').map((name) => name.text())).toEqual([
+        'A',
+        'B',
+      ])
+      expect(selected.text()).toBe('A, B')
+    })
+
+    test('keeps plain option names as they are', async () => {
+      const wrapper = await mountComponentForElement(
+        formulaOptionsElement({ formula_name: { formula: "'**A**,**B**'" } })
+      )
+
+      const items = wrapper.findAll('.ab-dropdownitem__item-name-text')
+      expect(items.map((item) => item.text())).toEqual(['**A**', '**B**'])
+      expect(wrapper.find('strong').exists()).toBe(false)
+    })
+
+    test('renders markdown option names as radios', async () => {
+      const wrapper = await mountComponentForElement(
+        formulaOptionsElement({ show_as_dropdown: false })
+      )
+
+      const labels = wrapper.findAll('.ab-radio__label')
+      expect(labels.map((label) => label.find('strong').text())).toEqual([
+        'A',
+        'B',
+      ])
+    })
+
+    test('renders markdown option names as checkboxes', async () => {
+      const wrapper = await mountComponentForElement(
+        formulaOptionsElement({ show_as_dropdown: false, multiple: true })
+      )
+
+      const labels = wrapper.findAll('.ab-checkbox__label')
+      expect(labels.map((label) => label.find('strong').text())).toEqual([
+        'A',
+        'B',
+      ])
+    })
+
+    test('never renders links in option names', async () => {
+      const wrapper = await mountComponentForElement(
+        formulaOptionsElement({
+          formula_name: {
+            formula: "'[A](https://baserow.io),B'",
+            format: 'markdown',
+          },
+        })
+      )
+
+      expect(wrapper.find('a.ab-link').exists()).toBe(false)
+      expect(wrapper.find('.ab-dropdownitem__item-name-text').text()).toBe(
+        '[A](https://baserow.io)'
+      )
+    })
+  })
 })
