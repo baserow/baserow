@@ -11,6 +11,7 @@ from .exceptions import (
     MCPEndpointDoesNotExist,
 )
 from .models import MCPEndpoint
+from .oauth.tokens import revoke_endpoint_tokens
 from .operations import (
     CreateMCPEndpointOperationType,
     DeleteMCPEndpointOperationType,
@@ -193,4 +194,6 @@ class MCPEndpointHandler:
             context=endpoint,
         )
 
+        endpoint_id = endpoint.id
         endpoint.delete()
+        revoke_endpoint_tokens(endpoint_id)
