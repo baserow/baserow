@@ -99,6 +99,22 @@ const rows = [
     email: 'sam@example.com',
     role: 'Editor',
     team: 'Engineering',
+    assignments: [
+      {
+        id: 1,
+        name: 'Projects',
+        scope: 'Database in Widelab',
+        icon: 'iconoir-db',
+        role: 'Builder',
+      },
+      {
+        id: 2,
+        name: 'Tasks',
+        scope: 'Table in Projects',
+        icon: 'iconoir-table',
+        role: 'Editor',
+      },
+    ],
   },
   {
     id: 3,
@@ -113,6 +129,15 @@ const rows = [
     email: 'robin@example.com',
     role: 'Editor',
     team: 'Design',
+    assignments: [
+      {
+        id: 1,
+        name: 'Kanban - Q3',
+        scope: 'View in Projects / Tasks',
+        icon: 'baserow-icon-kanban',
+        role: 'Editor',
+      },
+    ],
   },
 ]
 
@@ -152,7 +177,7 @@ function createService(state, records) {
 }
 
 const renderTable =
-  (state = 'populated', width = '100%', expansion = null) =>
+  (state = 'populated', width = '100%', expandable = false) =>
   (args) => ({
     components: { CrudTable, Button, Context, Avatar, RolePicker },
     setup() {
@@ -173,15 +198,15 @@ const renderTable =
         selectedRow,
         openContext,
         width,
-        expansion,
+        expandable,
         service: createService(state, records),
       }
     },
     template: `
     <div :style="{ position: 'relative', height: '640px', width, maxWidth: '100%' }">
       <CrudTable v-bind="args" :service="service" :columns="columns" row-id-key="id"
-        :expand-column-key="expansion ? 'role' : null"
-        :row-expandable="row => expansion === 'aligned' ? Boolean(row.assignments?.length) : row.id !== 3"
+        :expand-column-key="expandable ? 'role' : null"
+        :row-expandable="row => Boolean(row.assignments?.length)"
         @total-count-update="count = $event" @row-context="openContext">
         <template #title>{{ count }} members</template>
         <template #primary-action>
@@ -196,33 +221,25 @@ const renderTable =
             <p class="placeholder__content">{{ $t('membersSettings.membersTable.emptyDescription') }}</p>
           </div>
         </template>
-        <template v-if="expansion === 'aligned'" #row-expansion-toggle="{ row }">+{{ row.assignments.length }}</template>
-        <template v-if="expansion" #expanded-row="{ row, columns }">
-          <template v-if="expansion === 'aligned'">
-            <tr v-for="detail in row.assignments" :key="detail.id" class="data-table__table-row">
-              <td colspan="2" class="data-table__table-cell">
-                <div class="data-table__table-cell-content crud-table-story__resource">
-                  <Avatar :icon="detail.icon" color="neutral" size="large" rounded class="crud-table-story__resource-icon" />
-                  <span>{{ detail.name }}</span>
-                  <span class="crud-table-story__separator" aria-hidden="true">·</span>
-                  <span class="crud-table-story__scope">{{ detail.scope }}</span>
-                </div>
-              </td>
-              <td class="data-table__table-cell">
-                <div class="data-table__table-cell-content"><RolePicker v-model="detail.role" /></div>
-              </td>
-              <td class="data-table__table-cell">
-                <div class="data-table__table-cell-content"></div>
-              </td>
-              <td class="data-table__table-cell data-table__table-cell--sticky-right">
-                <div class="data-table__table-cell-content"></div>
-              </td>
-            </tr>
-          </template>
-          <tr v-else>
-            <td :colspan="columns.length" class="data-table__expanded-content">
-              Contact {{ row.name }} at <a :href="'mailto:' + row.email">{{ row.email }}</a>.
-              This slot can contain any component, including forms and loading states.
+        <template v-if="expandable" #row-expansion-toggle="{ row }">+{{ row.assignments.length }}</template>
+        <template v-if="expandable" #expanded-row="{ row }">
+          <tr v-for="detail in row.assignments" :key="detail.id" class="data-table__table-row">
+            <td colspan="2" class="data-table__table-cell">
+              <div class="data-table__table-cell-content crud-table-story__resource">
+                <Avatar :icon="detail.icon" color="neutral" size="large" rounded class="crud-table-story__resource-icon" />
+                <span>{{ detail.name }}</span>
+                <span class="crud-table-story__separator" aria-hidden="true">·</span>
+                <span class="crud-table-story__scope">{{ detail.scope }}</span>
+              </div>
+            </td>
+            <td class="data-table__table-cell">
+              <div class="data-table__table-cell-content"><RolePicker v-model="detail.role" /></div>
+            </td>
+            <td class="data-table__table-cell">
+              <div class="data-table__table-cell-content"></div>
+            </td>
+            <td class="data-table__table-cell data-table__table-cell--sticky-right">
+              <div class="data-table__table-cell-content"></div>
             </td>
           </tr>
         </template>
@@ -267,16 +284,11 @@ const openFirstRow = async ({ canvas, userEvent }) => {
 }
 
 export const ExpandableRows = {
-  render: renderTable('populated', '100%', 'aligned'),
-  play: openFirstRow,
-}
-
-export const ExpandedContent = {
-  render: renderTable('populated', '100%', 'content'),
+  render: renderTable('populated', '100%', true),
   play: openFirstRow,
 }
 
 export const NarrowExpandableRows = {
-  render: renderTable('populated', '390px', 'aligned'),
+  render: renderTable('populated', '390px', true),
   play: openFirstRow,
 }
