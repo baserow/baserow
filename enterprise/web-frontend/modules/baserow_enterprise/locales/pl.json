@@ -25,7 +25,10 @@
         "membersTitle": "Członkowie",
         "noSubjectsSelected": "Nikt nie ma jeszcze dostępu przez ten zespół.",
         "roleHelpText": "Indywidualne role są zawsze nadrzędne w stosunku do ról w zespołach.",
-        "submit": "Zapisz"
+        "submit": "Zapisz",
+        "agentLabel": "Agent",
+        "accessModalTitle": "Zarządzanie dostępem zespołu",
+        "accessModalDescription": "Wybierz osoby oraz agentów należących do tego zespołu."
     },
     "editTeamContext": {
         "edit": "Edytuj zespół",
@@ -124,7 +127,8 @@
         "defaultAttrs": "Domyślne",
         "firstNameAttrKeyHelper": "Imię użytkownika lub imię i nazwisko, jeśli nie podano 'nazwiska'.",
         "firstNameAttrKey": "Imię",
-        "lastNameAttrKey": "Nazwisko"
+        "lastNameAttrKey": "Nazwisko",
+        "emailVerificationNotice": "Sprawdź, czy dostawca usług tożsamości wymaga użycia zweryfikowanych adresów e-mail przed uwierzytelnieniem. Podpisy SAML służą do uwierzytelniania dostawcy, a nie do potwierdzania własności adresu e-mail."
     },
     "createSettingsAuthProviderModal": {
         "title": "Dodaj nowy typ {type}"
@@ -156,7 +160,9 @@
         "errorAuthFlowError": "wystąpił błąd podczas uwierzytelnienia u wybranego dostawcy.",
         "errorDifferentProvider": "prosimy o wybranie dostawcy użytego przy rejestracji.",
         "errorWorkspaceInvitationEmailMismatch": "twój adres e-mail nie jest zgodny z adresem w zaproszeniu.",
-        "errorSignupDisabled": "rejestracja została wyłączona przez administratora."
+        "errorSignupDisabled": "rejestracja została wyłączona przez administratora.",
+        "errorUnverifiedEmail": "Dostawca usług tożsamości nie zweryfikował twojego adresu e-mail. Proszę potwierdzić adres e-mail u dostawcy i spróbować ponownie.",
+        "errorApplicationUserLimitReached": "Logowanie jest chwilowo niedostępne. Skontaktuj się z właścicielem strony lub spróbuj ponownie później."
     },
     "roles": {
         "commenter": {
@@ -263,7 +269,8 @@
         "invite": "Zaproś {count} {type}",
         "types": {
             "members": "członkowie zespołu",
-            "teams": "zespoły"
+            "teams": "zespoły",
+            "agents": "agenci"
         },
         "helpTooltip": "Indywidualne role członków zespołu są nadrzędne w stosunku do ról przypisanych w zespołach.",
         "roleSelectorBuilderDataWarningTooltip": "Będą mogli tworzyć formuły i pola wyszukiwania, odsłaniając dowolne pola w dowolnych połączonych tabelach."
@@ -302,7 +309,8 @@
         "membersTab": "Członkowie zespołu",
         "teamsTab": "Zespoły",
         "subjectTypeNameMembers": "członkowie zespołu",
-        "subjectTypeNameTeams": "zespoły"
+        "subjectTypeNameTeams": "zespoły",
+        "agentsTab": "Agenci"
     },
     "membersRoleField": {
         "noAccessHelpText": "Ten użytkownik wymaga indywidualnie przyznanego dostępu do zasobów.",
@@ -920,5 +928,24 @@
         "prompt": "Utwórz bazę danych zawierającą tabele, pola, przykładowe wiersze i widoki zgodnie z następującym opisem: {prompt}",
         "context": "Osoba zadająca pytanie pracuje w sektorze: {industry} i w zespole: {team}. Skonfiguruj tabele, pola i przykładowe wiersze, które będą odpowiadać temu profilowi.",
         "language": "Zapisz wszystko w języku określonym kodem ISO 639-1 jako \"{language}\"."
+    },
+    "enterpriseAgents": {
+        "teams": "Zespoły",
+        "noTeams": "Brak zespołów",
+        "teamsLoadError": "Nie można było załadować zespołów.",
+        "teamsLoadErrorDescription": "Sprawdź połączenie i spróbuj ponownie.",
+        "retry": "Spróbuj ponownie"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "W obszarze {workspaceName} wykorzystano {usage} z {limit} dostępnych użytkowników aplikacji.",
+        "titleReached": "W obszarze {workspaceName} wykorzystano {limit} użytkowników aplikacji. Dopóki limit nie zostanie zwiększony, nie będzie można zalogować się do opublikowanych aplikacji."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "Znajdź agentów...",
+        "selectedAmountLabel": "wybrano {count} agentów"
+    },
+    "subjectType": {
+        "team": "Zespół",
+        "teams": "Zespoły"
     }
 }
