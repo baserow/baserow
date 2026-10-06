@@ -73,7 +73,9 @@ accessible while scrolling. Keep the same sticky class on any expanded action
 cells, as demonstrated by the expandable Storybook story.
 
 The **Expandable Rows** and **Narrow Expandable Rows** stories demonstrate member
-role details using three local assignments: Projects (database), Tasks (table)
+role details for Arlene, Sam and Robin, with three, two and one assignments
+respectively. Expand several members at once; Charlie has no assignments and
+cannot be expanded. The examples include Projects (database), Tasks (table)
 and Kanban - Q3 (view). The role selectors are interactive; edits stay in the
 story's in-memory fixtures. This is a reusable component example, not a members
 page or a backend integration. Storybook contains UI components rather than
