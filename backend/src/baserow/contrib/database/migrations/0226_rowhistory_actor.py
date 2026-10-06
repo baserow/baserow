@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("database", "0223_gridview_group_by_layout"),
+        ("database", "0225_rich_text_file_uniques"),
     ]
 
     operations = [
