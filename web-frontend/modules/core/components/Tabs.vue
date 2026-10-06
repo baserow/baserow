@@ -36,7 +36,13 @@
         >
           <i v-if="tab.icon" :class="tab.icon"></i>
           {{ tab.title }}
-          <Badge v-if="tab.badge" color="cyan" size="small" class="margin-left-1">{{ tab.badge }}</Badge>
+          <Badge
+            v-if="tab.badge"
+            color="cyan"
+            size="small"
+            class="margin-left-1"
+            >{{ tab.badge }}</Badge
+          >
           <i v-if="tab.appendIcon" :class="tab.appendIcon"></i>
         </a>
       </li>

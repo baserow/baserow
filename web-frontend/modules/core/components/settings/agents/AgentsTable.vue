@@ -4,7 +4,7 @@
     :service="service"
     :columns="columns"
     row-id-key="id"
-      :search-placeholder="$t('agents.search')"
+    :search-placeholder="$t('agents.search')"
     @row-context="openContext"
   >
     <template #title="{ count }">{{
@@ -12,7 +12,9 @@
     }}</template>
     <template #empty>
       <div class="placeholder">
-        <div class="placeholder__icon"><i class="baserow-icon-agent" aria-hidden="true"></i></div>
+        <div class="placeholder__icon">
+          <i class="baserow-icon-agent" aria-hidden="true"></i>
+        </div>
         <h2 class="placeholder__header">{{ $t('agents.emptyTitle') }}</h2>
         <p class="placeholder__content">{{ $t('agents.emptyDescription') }}</p>
       </div>
