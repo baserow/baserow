@@ -1,0 +1,19 @@
+@import '../modules/core/assets/scss/colors';
+
+.crud-table-story__resource {
+  gap: 8px;
+}
+
+.crud-table-story__resource-icon {
+  margin-right: 4px;
+  background: $palette-neutral-200;
+  color: $palette-neutral-700;
+}
+
+.crud-table-story__separator {
+  color: $palette-neutral-400;
+}
+
+.crud-table-story__scope {
+  color: $palette-neutral-900;
+}

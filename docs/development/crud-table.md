@@ -72,7 +72,9 @@ with `stickyRight` in their `CrudTableColumn` definition so their controls stay
 accessible while scrolling. Keep the same sticky class on any expanded action
 cells, as demonstrated by the expandable Storybook story.
 
-The **Baserow / Management pages** stories demonstrate the member, invitation,
-team and agent layouts, including narrow tables, empty agents and agent dialogs.
-They use in-memory fixtures; role changes and agent form submissions stay local
-to the preview.
+The **Expandable Rows** and **Narrow Expandable Rows** stories demonstrate member
+role details using three local assignments: Projects (database), Tasks (table)
+and Kanban - Q3 (view). The role selectors are interactive; edits stay in the
+story's in-memory fixtures. This is a reusable component example, not a members
+page or a backend integration. Storybook contains UI components rather than
+management-page previews.
