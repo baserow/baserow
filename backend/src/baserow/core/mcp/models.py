@@ -39,6 +39,13 @@ class MCPEndpoint(
         on_delete=models.CASCADE,
         help_text="The workspace that the MCP endpoint belongs to.",
     )
+    allowed_tools = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Names of the MCP tools this endpoint may use. Null allows every "
+        "enabled tool.",
+    )
 
     class Meta:
         ordering = ("id",)

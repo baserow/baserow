@@ -100,7 +100,7 @@ class BaserowMCPServer:
                 content=[TextContent(type="text", text="Endpoint not found.")],
                 isError=True,
             )
-        tool = mcp_tool_registry.match_by_name(name)
+        tool = mcp_tool_registry.get_allowed_tool(endpoint, name)
         if not tool:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Tool '{name}' not found.")],

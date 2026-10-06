@@ -51,6 +51,11 @@ class MCPTool(Instance):
     def get_name(self) -> str:
         return self.type
 
+    @property
+    def display_title(self) -> str:
+        """``title``, or a readable fallback derived from ``type``."""
+        return self.title or self.type.replace("_", " ").capitalize()
+
     async def list(self, endpoint: MCPEndpoint) -> List["Tool"]:
         """
         Return the MCP Tool definition(s) for this tool.
@@ -71,7 +76,7 @@ class MCPTool(Instance):
         if description:
             description = " ".join(description.split())
         annotations = ToolAnnotations(
-            title=self.title or self.type.replace("_", " ").capitalize(),
+            title=self.display_title,
             readOnlyHint=self.read_only,
             destructiveHint=self.destructive,
         )
@@ -125,12 +130,25 @@ class MCPTool(Instance):
 class MCPToolRegistry(Registry[MCPTool]):
     name = "mcp_tools"
 
+    def get_enabled_tools(self) -> List[MCPTool]:
+        """Return the enabled tools, in registration order."""
+        return [tool for tool in self.registry.values() if tool.enabled]
+
+    def get_allowed_tools(self, endpoint: MCPEndpoint) -> List[MCPTool]:
+        """
+        Return the enabled tools the endpoint may use. ``allowed_tools = None``
+        allows every enabled tool.
+        """
+        tools = self.get_enabled_tools()
+        if endpoint.allowed_tools is None:
+            return tools
+        allowed = set(endpoint.allowed_tools)
+        return [tool for tool in tools if tool.name in allowed]
+
     async def list_all_tools(self, endpoint: MCPEndpoint) -> List["Tool"]:
-        """Return only *enabled* tools available to the given endpoint user."""
+        """Return the enabled tools the given endpoint is allowed to use."""
         all_tools: List["Tool"] = []
-        for mcp in self.registry.values():
-            if not mcp.enabled:
-                continue
+        for mcp in self.get_allowed_tools(endpoint):
             tools = await mcp.list(endpoint)
             all_tools.extend(tools)
         return all_tools
@@ -138,6 +156,13 @@ class MCPToolRegistry(Registry[MCPTool]):
     def match_by_name(self, name: str) -> Optional[MCPTool]:
         """Return the tool registered under ``name``, or None."""
         return self.registry.get(name)
+
+    def get_allowed_tool(self, endpoint: MCPEndpoint, name: str) -> Optional[MCPTool]:
+        """Return the tool called ``name`` if the endpoint may call it, or None."""
+        tool = self.match_by_name(name)
+        if tool is None or tool not in self.get_allowed_tools(endpoint):
+            return None
+        return tool
 
 
 mcp_tool_registry = MCPToolRegistry()
