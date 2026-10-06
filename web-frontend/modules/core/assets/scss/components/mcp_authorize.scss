@@ -1,0 +1,16 @@
+.mcp-authorize__client {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mcp-authorize__redirect {
+  color: $palette-neutral-900;
+  margin-bottom: 24px;
+}
+
+.mcp-authorize__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}

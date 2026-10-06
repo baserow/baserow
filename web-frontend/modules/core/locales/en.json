@@ -1,4 +1,17 @@
 {
+  "mcpAuthorize": {
+    "title": "Connect an AI tool",
+    "wants": "{client} wants to use Baserow as you.",
+    "redirect": "After you allow access you'll be sent back to {host}.",
+    "endpoint": "MCP endpoint",
+    "createNew": "Create a new endpoint",
+    "newName": "Endpoint name",
+    "newWorkspace": "Workspace",
+    "allow": "Allow",
+    "deny": "Deny",
+    "invalid": "This authorization request is not valid.",
+    "failed": "Could not complete the connection."
+  },
   "paginator": {
     "page": "Page",
     "of": "of {pages}"
