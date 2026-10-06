@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added markdown formatting to Application Builder labels, help text, choice options, notifications and table text cells.",
+    "issue_origin": "github",
+    "issue_number": 5957,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-06"
+}
