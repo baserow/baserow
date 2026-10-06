@@ -1,18 +1,18 @@
 <template>
-  <span v-if="isReadOnly">
-    {{ roleName(column.additionalProps.roles, row) }}
-  </span>
-  <a v-else class="member-role-field__link" @click.prevent="onClick">
-    <span>
-      {{ roleName(column.additionalProps.roles, row) }}
-    </span>
-    <i class="iconoir-nav-arrow-down"></i>
-  </a>
+  <RoleSelectorButton
+    :role-uid="row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'"
+    :role-name="roleName(column.additionalProps.roles, row)"
+    :read-only="isReadOnly"
+    @click="onClick"
+  />
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 export default {
   name: 'MemberRoleField',
+  components: { RoleSelectorButton },
   props: {
     row: {
       type: Object,

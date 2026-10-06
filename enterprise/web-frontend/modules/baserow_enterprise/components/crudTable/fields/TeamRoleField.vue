@@ -1,24 +1,17 @@
 <template>
   <div>
-    <span
-      v-if="
+    <RoleSelectorButton
+      :role-uid="row.default_role"
+      :role-name="roleName(roles, row)"
+      :read-only="
         !$hasPermission(
           'enterprise.teams.team.update',
           row,
           column.additionalProps.workspaceId
         )
       "
-    >
-      {{ roleName(roles, row) }}
-    </span>
-    <a
-      v-else
-      ref="editRoleContextLink"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      {{ roleName(roles, row) }}
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -31,6 +24,8 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -41,7 +36,7 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 export default {
   name: 'TeamRoleField',
   emits: ['row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,

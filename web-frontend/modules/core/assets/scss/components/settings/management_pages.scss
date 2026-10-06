@@ -1,0 +1,26 @@
+.management-name-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.management-name-field__name {
+  font-weight: 500;
+}
+
+.management-teams-field {
+  .expand-overflow-list__item {
+    padding: 0;
+    background: transparent;
+  }
+
+  .management-teams-field__empty {
+    color: $palette-neutral-700;
+  }
+}
+
+.management-pages {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

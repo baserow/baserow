@@ -1,15 +1,11 @@
 <template>
   <div>
-    <span v-if="isReadOnly">{{ roleName }}</span>
-    <a
-      v-else
-      ref="editRoleContextLink"
-      class="member-role-field__link"
-      @click.prevent="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      <span>{{ roleName }}</span>
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+    <RoleSelectorButton
+      :role-uid="row.role_uid"
+      :role-name="roleName"
+      :read-only="isReadOnly"
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -23,13 +19,15 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import EditRoleContext from '@baserow/modules/core/components/settings/members/EditRoleContext'
 
 export default {
   name: 'AgentRoleField',
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: { type: Object, required: true },
     column: { type: Object, required: true },

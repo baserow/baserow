@@ -1,13 +1,10 @@
 <template>
   <div>
-    <a
-      ref="editRoleContextLink"
-      class="member-role-field__link"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      <span>{{ roleName(roles, rowSanitised) }}</span>
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+    <RoleSelectorButton
+      :role-uid="rowSanitised.permissions"
+      :role-name="roleName(roles, rowSanitised)"
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="rowSanitised"
@@ -20,6 +17,8 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import EditRoleContext from '@baserow/modules/core/components/settings/members/EditRoleContext'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -29,7 +28,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'InvitationsRoleField',
   emits: ['row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,

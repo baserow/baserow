@@ -92,7 +92,8 @@
     "createdColumn": "Created on",
     "subjectsColumn": "Members",
     "roleColumn": "Default role",
-    "roleHelpText": "Can be overriden with roles on databases and tables."
+    "roleHelpText": "Can be overriden with roles on databases and tables.",
+    "search": "Search teams"
   },
   "subjectSampleField": {
     "titleAttr": "{subjectCount} members in this team."
