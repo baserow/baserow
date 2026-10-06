@@ -12,6 +12,8 @@ import {
 } from '@baserow_enterprise/paidFeatures'
 import CoreCodeServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreCodeServiceForm.vue'
 import CoreXLSFileReaderServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreXLSFileReaderServiceForm.vue'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
+import CoreRunAgentServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreRunAgentServiceForm.vue'
 
 export const CORE_CODE_SERVICE_DEFAULT_CODE = `function main(context) {
   return {
@@ -184,5 +186,92 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
 
   getOrder() {
     return 7
+  }
+}
+
+/**
+ * Starts a conversation with an agent application. One service for every
+ * host: a button field, an automation node, an application builder action
+ * and, as an action tool, another agent.
+ */
+export class CoreRunAgentServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'run_agent'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreRunAgent')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreRunAgentDescription')
+  }
+
+  get icon() {
+    return 'baserow-icon-agent'
+  }
+
+  /**
+   * Listed with the Local Baserow services: an agent is part of the workspace,
+   * not an external workflow. The group is built by hand because the service
+   * itself needs no integration, and declaring one would add the integration
+   * picker to its form.
+   */
+  get group() {
+    const integrationType = this.app.$registry.get(
+      'integration',
+      LocalBaserowIntegrationType.getType()
+    )
+    return {
+      id: `integration-${integrationType.getType()}`,
+      label: integrationType.name,
+      image: integrationType.image,
+      icon: integrationType.iconClass,
+      iconColor: integrationType.iconColor,
+    }
+  }
+
+  getAgentApplication(
+    applicationId,
+    workspace = this.app.$store.getters['workspace/getSelected']
+  ) {
+    if (!workspace?.id || !applicationId) {
+      return null
+    }
+    return this.app.$store.getters['application/getAllOfWorkspace'](
+      workspace
+    ).find(
+      (application) =>
+        application.type === 'agent' && application.id === applicationId
+    )
+  }
+
+  getErrorMessage({ service }) {
+    if (service !== undefined && !service.agent_application_id) {
+      return this.app.$i18n.t('serviceType.errorNoAgentSelected')
+    }
+    // An empty store looks like a missing agent until applications loaded.
+    if (
+      service?.agent_application_id &&
+      this.app.$store.getters['application/isLoaded'] &&
+      !this.getAgentApplication(service.agent_application_id)
+    ) {
+      return this.app.$i18n.t('serviceType.errorAgentMissing')
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  get formComponent() {
+    return CoreRunAgentServiceForm
+  }
+
+  getDataSchema(applicationContext, service) {
+    return service?.schema || null
+  }
+
+  getOrder() {
+    return 9
   }
 }

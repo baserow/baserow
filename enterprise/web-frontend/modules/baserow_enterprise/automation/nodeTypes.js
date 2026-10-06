@@ -2,6 +2,7 @@ import { NodeType } from '@baserow/modules/automation/nodeTypes'
 import { ActionNodeTypeMixin } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   CoreCodeServiceType,
+  CoreRunAgentServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
 
@@ -45,5 +46,23 @@ export class CoreXLSFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
       'service',
       CoreXLSFileReaderServiceType.getType()
     )
+  }
+}
+
+export class CoreRunAgentNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'run_agent'
+  }
+
+  getOrder() {
+    return 10.5
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.runAgentLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreRunAgentServiceType.getType())
   }
 }

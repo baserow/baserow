@@ -9,10 +9,18 @@ from loguru import logger
 from baserow.config.celery import app
 
 
-def _execute_agent_chat_turn(chat_id: int, prompt_message_id: int | None):
+def _execute_agent_chat_turn(
+    chat_id: int, prompt_message_id: int | None, inline: bool = False
+):
     """
     Executes one turn of an agent chat, either started by a prompt message or
     resumed from the approval queue (no prompt message).
+
+    :param inline: The turn runs inside a caller that may hold a transaction
+        (a "Run agent" service waiting for the answer). The runner's database
+        work then goes through the caller's own connection, where the chat it
+        just created is visible, instead of the separate thread `asyncio.run`
+        would use.
     """
 
     from .chat_types import AiErrorMessage
@@ -56,7 +64,14 @@ def _execute_agent_chat_turn(chat_id: int, prompt_message_id: int | None):
     runner = None
     try:
         runner = AgentRunner(chat)
-        if prompt_message is not None:
+        if inline:
+            from asgiref.sync import async_to_sync
+
+            if prompt_message is not None:
+                async_to_sync(runner.arun)(prompt_message)
+            else:
+                async_to_sync(runner.arun_resume)()
+        elif prompt_message is not None:
             asyncio.run(runner.arun(prompt_message))
         else:
             asyncio.run(runner.arun_resume())
@@ -118,6 +133,16 @@ def _notify_chat_channel(chat):
             channel_type.send_response(channel, chat, text)
     except Exception:
         logger.exception("Failed to notify chat channel for chat {}", chat.id)
+
+
+def execute_chat_turn_inline(chat_id: int, prompt_message_id: int) -> None:
+    """
+    Runs a turn in the calling process. For a sub agent the parent's run is
+    already a worker thread waiting on the tool, so the queue would only add
+    a hop; the turn runs in that thread instead.
+    """
+
+    _execute_agent_chat_turn(chat_id, prompt_message_id, inline=True)
 
 
 @app.task(bind=True, queue="export")

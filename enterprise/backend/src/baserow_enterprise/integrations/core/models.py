@@ -38,6 +38,35 @@ class CoreCodeServiceInjection(models.Model):
     )
 
 
+class CoreRunAgentService(Service):
+    """
+    Starts a conversation with an agent application: from a button click, an
+    automation, an application builder action or, as a tool, from another
+    agent.
+    """
+
+    agent_application = models.ForeignKey(
+        "baserow_enterprise.AgentApplication",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The agent application to start a conversation with.",
+    )
+    prompt = FormulaField(
+        blank=True,
+        help_text="The message that opens the conversation.",
+    )
+    wait_for_result = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text=(
+            "Whether to run the agent's turn before answering, so the agent's "
+            "reply is part of the result. Otherwise the run is queued and only "
+            "the conversation link is returned."
+        ),
+    )
+
+
 class CoreXLSFileReaderService(Service):
     """
     A service to read rows from an XLS or XLSX file.

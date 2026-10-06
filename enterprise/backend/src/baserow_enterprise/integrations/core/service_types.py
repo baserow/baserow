@@ -35,6 +35,7 @@ from baserow_enterprise.integrations.core.models import (
     CORE_CODE_SERVICE_CODE_MAX_LENGTH,
     CoreCodeService,
     CoreCodeServiceInjection,
+    CoreRunAgentService,
     CoreXLSFileReaderService,
 )
 from baserow_premium.license.handler import LicenseHandler
@@ -508,3 +509,348 @@ class CoreXLSFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
 
     def _is_legacy_xls(self, data: bytes) -> bool:
         return data.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
+
+
+class CoreRunAgentServiceType(CoreServiceType):
+    """
+    Starts a conversation with an agent application. One service serves every
+    host: the button field, an automation node, an application builder action
+    and the agent's own action tools, where it makes another agent callable
+    as a sub agent.
+    """
+
+    type = "run_agent"
+    model_class = CoreRunAgentService
+    dispatch_types = [DispatchTypes.ACTION]
+    allowed_fields = ["agent_application", "prompt", "wait_for_result"]
+    serializer_field_names = ["agent_application_id", "prompt", "wait_for_result"]
+
+    # How many agents may sit between the first conversation and this one.
+    # Two levels cover a coordinator delegating to specialists; deeper chains
+    # are usually a loop.
+    MAX_DEPTH = 2
+    AGENT_DOES_NOT_EXIST_ERROR = "The agent application with ID {id} does not exist."
+
+    class SerializedDict(ServiceDict):
+        agent_application_id: int
+        prompt: str
+        wait_for_result: bool
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "agent_application_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text=CoreRunAgentService._meta.get_field(
+                    "agent_application"
+                ).help_text,
+            ),
+            "prompt": FormulaSerializerField(
+                required=False,
+                default="",
+                help_text=CoreRunAgentService._meta.get_field("prompt").help_text,
+            ),
+            "wait_for_result": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreRunAgentService._meta.get_field(
+                    "wait_for_result"
+                ).help_text,
+            ),
+        }
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
+
+    def get_schema_name(self, service: CoreRunAgentService) -> str:
+        return f"RunAgent{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreRunAgentService,
+        allowed_fields: List[str] | None = None,
+    ) -> Dict[str, Any] | None:
+        properties = {
+            "chat_uuid": {"type": "string", "title": "Conversation id"},
+            "url": {"type": "string", "title": "Conversation link"},
+            "status": {"type": "string", "title": "Status"},
+            "answer": {"type": "string", "title": "Answer"},
+        }
+        if allowed_fields is not None:
+            properties = {k: v for k, v in properties.items() if k in allowed_fields}
+        # The title is what the data explorer shows for the result, so it
+        # names the agent rather than the service.
+        application = getattr(service, "agent_application", None)
+        return {
+            "title": application.name if application is not None else "Run agent",
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(
+        self, service: CoreRunAgentService
+    ) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "prompt", service.prompt, ensure_string, 'property "prompt"'
+            )
+        ]
+
+    def get_agent_application_to_run(
+        self, user, application_id: int, workspace_id: int | None = None
+    ):
+        """
+        Resolves the agent a service may start. The permission is checked
+        before anything about the agent is revealed, and refused like a
+        missing one, so a refusal never says whether the agent exists.
+
+        :param user: Who is configuring the service.
+        :param application_id: The agent application they want to start.
+        :param workspace_id: The workspace the service belongs to, when the
+            host knows it; the agent must live there.
+        :raises serializers.ValidationError: When the agent does not exist in
+            that workspace or the user may not run it.
+        """
+
+        from baserow.core.exceptions import PermissionException
+        from baserow.core.handler import CoreHandler
+        from baserow_enterprise.agent_application.models import AgentApplication
+        from baserow_enterprise.agent_application.operations import (
+            RunAgentChatOperationType,
+        )
+
+        error = serializers.ValidationError(
+            self.AGENT_DOES_NOT_EXIST_ERROR.format(id=application_id)
+        )
+        application = (
+            AgentApplication.objects.filter(id=application_id)
+            .select_related("workspace")
+            .first()
+        )
+        if application is None or (
+            workspace_id is not None and application.workspace_id != workspace_id
+        ):
+            raise error
+        try:
+            CoreHandler().check_permissions(
+                user,
+                RunAgentChatOperationType.type,
+                workspace=application.workspace,
+                context=application.application_ptr,
+            )
+        except PermissionException as exc:
+            raise error from exc
+        return application
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user,
+        instance: CoreRunAgentService | None = None,
+    ) -> Dict[str, Any]:
+        values = super().prepare_values(values, user, instance)
+        if "agent_application_id" not in values:
+            return values
+        application_id = values.pop("agent_application_id")
+        values["agent_application"] = (
+            None
+            if application_id is None
+            else self.get_agent_application_to_run(user, application_id)
+        )
+        return values
+
+    def export_prepared_values(self, instance: CoreRunAgentService):
+        values = super().export_prepared_values(instance)
+        application = values.pop("agent_application")
+        values["agent_application_id"] = application.id if application else None
+        return values
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        **kwargs,
+    ) -> Any:
+        if prop_name == "agent_application_id" and value is not None:
+            return id_mapping.get("applications", {}).get(value, value)
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        import_formula=None,
+        **kwargs,
+    ) -> CoreRunAgentService:
+        """
+        Imports the service without an agent, then decides the agent once the
+        import can name every application it created: the agent may be
+        imported after the automation or database that points at it. Like the
+        start-workflow service, a copy that stays inside the instance decides
+        right away.
+        """
+
+        from baserow.core.deferred_callbacks import (
+            is_deferred_callback_context_active,
+            register_deferred_callback,
+        )
+
+        exported_id = serialized_values.get("agent_application_id")
+        service = super().import_serialized(
+            parent,
+            {**serialized_values, "agent_application_id": None},
+            id_mapping,
+            import_formula=import_formula,
+            **kwargs,
+        )
+        if exported_id is None:
+            return service
+        import_export_config = kwargs.get("import_export_config")
+
+        def decide_agent():
+            service.agent_application_id = self.import_agent_application_id(
+                exported_id, id_mapping, import_export_config
+            )
+            service.save(update_fields=["agent_application"])
+
+        if is_deferred_callback_context_active():
+            register_deferred_callback(decide_agent)
+        else:
+            decide_agent()
+        return service
+
+    def import_agent_application_id(
+        self, exported_id: Any, id_mapping: Dict[str, Any], import_export_config
+    ) -> int | None:
+        """
+        The agent an imported service may start, or None. Kept only when this
+        import remapped it, or when the data never left the instance (a
+        duplicate or a publication) and the agent still exists in the
+        workspace imported into. A file import or a template install keeps
+        neither: ids are one global sequence and could name a stranger's agent.
+        """
+
+        from baserow_enterprise.agent_application.models import AgentApplication
+
+        if isinstance(exported_id, bool) or not isinstance(exported_id, int):
+            return None
+        mapping = id_mapping.get("applications", {})
+        if exported_id in mapping.keys():
+            application_id = mapping[exported_id]
+        elif (
+            import_export_config is not None
+            and not import_export_config.is_template
+            and (
+                import_export_config.is_duplicate or import_export_config.is_publishing
+            )
+        ):
+            application_id = exported_id
+        else:
+            return None
+        queryset = AgentApplication.objects.filter(id=application_id)
+        workspace_id = id_mapping.get("import_workspace_id")
+        if workspace_id is not None:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        return application_id if queryset.exists() else None
+
+    def dispatch_data(
+        self,
+        service: CoreRunAgentService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        from django.conf import settings
+        from django.contrib.auth.models import AbstractUser
+
+        from baserow.core.exceptions import PermissionException
+        from baserow.core.handler import CoreHandler
+        from baserow_enterprise.agent_application.handler import AgentChatHandler
+        from baserow_enterprise.agent_application.operations import (
+            RunAgentChatOperationType,
+        )
+
+        application = service.agent_application
+        if application is None or application.trashed:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The agent to run is not configured."
+            )
+
+        # The parent conversation when another agent calls this as a tool.
+        parent_chat = getattr(dispatch_context, "chat", None)
+        workspace_id = (
+            dispatch_context.workspace.id
+            if dispatch_context.workspace is not None
+            else getattr(parent_chat, "agent", None)
+            and parent_chat.agent.application.workspace_id
+        )
+        # An import can bind a service to an agent elsewhere, so the run
+        # checks what save checks: the agent lives in the workspace the
+        # service runs in.
+        if workspace_id is None or application.workspace_id != workspace_id:
+            raise ServiceImproperlyConfiguredDispatchException(
+                self.AGENT_DOES_NOT_EXIST_ERROR.format(id=application.id)
+            )
+
+        # Buttons and agent tools act as someone; automations and the
+        # application builder run as the system, like a trigger does.
+        actor = dispatch_context.actor
+        if actor is not None:
+            try:
+                CoreHandler().check_permissions(
+                    actor,
+                    RunAgentChatOperationType.type,
+                    workspace=application.workspace,
+                    context=application.application_ptr,
+                )
+            except PermissionException as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "Not allowed to start a conversation with this agent."
+                ) from exc
+
+        depth = 0
+        ancestor = parent_chat
+        while ancestor is not None:
+            if ancestor.agent.application_id == application.id:
+                raise UnexpectedDispatchException(
+                    "An agent cannot start a conversation with itself."
+                )
+            depth += 1
+            ancestor = ancestor.parent_chat
+        if depth >= self.MAX_DEPTH:
+            raise UnexpectedDispatchException(
+                f"Agents can delegate at most {self.MAX_DEPTH} levels deep."
+            )
+
+        prompt = (resolved_values.get("prompt") or "").strip()
+        if not prompt:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The prompt that opens the conversation is empty."
+            )
+
+        # A tool call is only useful with the answer in it.
+        wait = service.wait_for_result or parent_chat is not None
+        chat, answer = AgentChatHandler().start_service_chat(
+            application,
+            prompt,
+            user=actor if isinstance(actor, AbstractUser) else None,
+            parent_chat=parent_chat,
+            wait=wait,
+        )
+        return {
+            "chat_uuid": str(chat.uuid),
+            "url": (
+                f"{settings.PUBLIC_WEB_FRONTEND_URL}/agent/{application.id}"
+                f"?chat={chat.uuid}"
+            ),
+            "status": chat.status,
+            "answer": answer,
+        }
+
+    def dispatch_transform(self, data: Any) -> DispatchResult:
+        return DispatchResult(data=data)

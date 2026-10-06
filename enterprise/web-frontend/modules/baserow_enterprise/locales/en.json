@@ -28,7 +28,11 @@
     "localBaserowUpsertRow": "Create or update a row",
     "localBaserowUpsertRowDescription": "Creates a new row, or updates an existing one when a row id is provided.",
     "errorCodeMissing": "Missing code property",
-    "errorXLSFileMissing": "Missing XLS file property"
+    "errorXLSFileMissing": "Missing XLS file property",
+    "coreRunAgent": "Run agent",
+    "coreRunAgentDescription": "Start a conversation with an agent",
+    "errorNoAgentSelected": "Choose the agent to run.",
+    "errorAgentMissing": "This action's agent can't be found. It may have been deleted, or you may not have access to it."
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -54,7 +58,8 @@
   },
   "nodeType": {
     "codeLabel": "Execute code",
-    "xlsFileReaderLabel": "Read an XLS file"
+    "xlsFileReaderLabel": "Read an XLS file",
+    "runAgentLabel": "Run agent"
   },
   "createTeamModal": {
     "title": "Create team",
@@ -1435,5 +1440,15 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "coreRunAgentServiceForm": {
+    "agent": "Agent",
+    "agentHelperText": "The agent that gets a new conversation.",
+    "noAgents": "This workspace has no agents yet.",
+    "prompt": "Message",
+    "promptHelperText": "The message that opens the conversation, for example what to do with the current row.",
+    "promptPlaceholder": "Summarise this ticket and suggest a reply",
+    "wait": "Wait for the answer",
+    "waitHelperText": "Run the agent before continuing, so the agent's reply is part of the result. Without waiting only the conversation link is returned."
   }
 }

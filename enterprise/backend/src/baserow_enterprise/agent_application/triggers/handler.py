@@ -40,6 +40,12 @@ def check_service_table_in_workspace(prepared_values: dict, application) -> None
             detail="The table must belong to the application's workspace.",
             code="invalid_table",
         )
+    target = prepared_values.get("agent_application")
+    if target is not None and target.workspace_id != application.workspace_id:
+        raise DRFValidationError(
+            detail="The agent must belong to the application's workspace.",
+            code="invalid_agent_application",
+        )
 
 
 def schedule_periodic_service(service) -> None:

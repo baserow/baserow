@@ -4,6 +4,7 @@ from baserow.core.cache import local_cache
 from baserow.core.models import Settings
 from baserow_enterprise.integrations.core.models import (
     CoreCodeService,
+    CoreRunAgentService,
     CoreXLSFileReaderService,
 )
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
@@ -43,6 +44,9 @@ class EnterpriseFixtures:
 
     def create_enterprise_core_code_service(self, **kwargs):
         return self.create_service(CoreCodeService, **kwargs)
+
+    def create_enterprise_core_run_agent_service(self, **kwargs):
+        return self.create_service(CoreRunAgentService, **kwargs)
 
     def create_enterprise_core_xls_file_reader_service(self, **kwargs):
         return self.create_service(CoreXLSFileReaderService, **kwargs)

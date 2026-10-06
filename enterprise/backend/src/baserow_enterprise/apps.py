@@ -53,6 +53,34 @@ def register_xls_file_reader_features():
     automation_node_type_registry.register(CoreXLSFileReaderNodeType())
 
 
+def register_run_agent_features():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
+    from baserow.contrib.database.workflow_actions.registries import (
+        database_workflow_action_type_registry,
+    )
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.automation.nodes.node_types import CoreRunAgentNodeType
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        CoreRunAgentActionType,
+    )
+    from baserow_enterprise.database.workflow_actions.workflow_action_types import (
+        CoreRunAgentWorkflowActionType,
+    )
+    from baserow_enterprise.integrations.core.service_types import (
+        CoreRunAgentServiceType,
+    )
+
+    service_type_registry.register(CoreRunAgentServiceType())
+    automation_node_type_registry.register(CoreRunAgentNodeType())
+    builder_workflow_action_type_registry.register(CoreRunAgentActionType())
+    database_workflow_action_type_registry.register(CoreRunAgentWorkflowActionType())
+
+
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
@@ -482,6 +510,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         register_code_runner_features()
         register_xls_file_reader_features()
+        register_run_agent_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (

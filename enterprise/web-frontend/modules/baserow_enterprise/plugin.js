@@ -110,15 +110,19 @@ import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboar
 import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
   CoreCodeServiceType,
+  CoreRunAgentServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
 import { LocalBaserowUpsertRowServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import {
   CoreCodeWorkflowActionType,
+  CoreRunAgentWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
+import { CoreRunAgentWorkflowActionType as CoreRunAgentDatabaseWorkflowActionType } from '@baserow_enterprise/database/workflowActionTypes'
 import {
   CoreCodeNodeType,
+  CoreRunAgentNodeType,
   CoreXLSFileReaderNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
 import {
@@ -236,6 +240,16 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreXLSFileReaderNodeType(context))
     // Used by agent action tools, which store the backend's upsert row
     // service type name.
+    $registry.register('service', new CoreRunAgentServiceType(context))
+    $registry.register(
+      'workflowAction',
+      new CoreRunAgentWorkflowActionType(context)
+    )
+    $registry.register('node', new CoreRunAgentNodeType(context))
+    $registry.register(
+      'databaseWorkflowActionType',
+      new CoreRunAgentDatabaseWorkflowActionType(context)
+    )
     $registry.register('service', new LocalBaserowUpsertRowServiceType(context))
     // Exposes the agent tool's declared inputs in the formula data explorer;
     // registered in the automation namespace because the reused automation

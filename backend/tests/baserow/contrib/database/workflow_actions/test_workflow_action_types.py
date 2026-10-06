@@ -40,6 +40,8 @@ def test_every_type_is_registered():
         "smtp_email",
         "slack_write_message",
         "start_workflow",
+        # Registered by the enterprise app.
+        "run_agent",
     }
 
 

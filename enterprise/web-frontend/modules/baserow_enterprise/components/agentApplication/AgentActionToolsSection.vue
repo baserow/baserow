@@ -370,6 +370,8 @@ const SUPPORTED_SERVICE_TYPES = [
   'local_baserow_vector_search',
   'http_request',
   'smtp_email',
+  // Another agent, run as a sub agent that answers with its reply.
+  'run_agent',
 ]
 // Vector search is a read tool with one fixed input: the agent's query.
 const VECTOR_SEARCH_SERVICE_TYPE = 'local_baserow_vector_search'

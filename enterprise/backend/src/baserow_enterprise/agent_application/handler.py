@@ -589,7 +589,49 @@ class AgentChatHandler:
     def list_messages(self, chat: AgentChat) -> QuerySet:
         return chat.messages.order_by("id")
 
-    def start_chat_run(self, chat: AgentChat, prompt_message: AgentChatMessage) -> None:
+    def start_service_chat(
+        self,
+        application,
+        prompt: str,
+        user: Optional[AbstractUser] = None,
+        parent_chat: Optional[AgentChat] = None,
+        wait: bool = False,
+    ) -> tuple[AgentChat, Optional[str]]:
+        """
+        Starts a conversation on behalf of a "Run agent" service. With `wait`
+        the turn runs here instead of on the queue and the agent's answer is
+        returned with the chat, which is what a tool call or an automation's
+        next step needs.
+        """
+
+        from .tasks import execute_chat_turn_inline
+
+        agent = AgentApplicationHandler().get_main_agent(application)
+        chat = AgentChat.objects.create(
+            agent=agent,
+            source=AgentChat.Source.SERVICE,
+            user=user,
+            parent_chat=parent_chat,
+            title=prompt[: AgentChat.TITLE_MAX_LENGTH],
+        )
+        message = self.create_message(chat, AgentChatMessage.Role.HUMAN, prompt)
+        self.start_chat_run(chat, message, enqueue=not wait)
+        if not wait:
+            return chat, None
+
+        execute_chat_turn_inline(chat.id, message.id)
+        chat.refresh_from_db()
+        answer = (
+            chat.messages.filter(role=AgentChatMessage.Role.AI)
+            .order_by("-id")
+            .values_list("content", flat=True)
+            .first()
+        )
+        return chat, answer
+
+    def start_chat_run(
+        self, chat: AgentChat, prompt_message: AgentChatMessage, enqueue: bool = True
+    ) -> None:
         """
         Marks the chat as running and enqueues the background run after the
         current transaction commits.
@@ -628,7 +670,12 @@ class AgentChatHandler:
         chat.status = AgentChat.Status.IN_PROGRESS
         broadcast_chat_updated(chat)
 
-        transaction.on_commit(lambda: run_agent_chat.delay(chat.id, prompt_message.id))
+        # A caller that runs the turn itself (a sub agent waiting for the
+        # answer) must not also have the queue run it.
+        if enqueue:
+            transaction.on_commit(
+                lambda: run_agent_chat.delay(chat.id, prompt_message.id)
+            )
 
     def retry_chat_run(self, chat: AgentChat) -> AgentChatMessage:
         """

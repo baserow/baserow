@@ -279,6 +279,9 @@ class AgentChat(
         TRIGGER = "trigger", "Trigger"
         SETUP = "setup", "Setup"
         CHANNEL = "channel", "Channel"
+        # Started by a "Run agent" service: a button, an automation, an
+        # application builder action or another agent's tool call.
+        SERVICE = "service", "Service"
 
     uuid = models.UUIDField(default=uuid.uuid4, unique=True)
     agent = models.ForeignKey(
@@ -311,6 +314,19 @@ class AgentChat(
     )
     trigger_type = models.CharField(max_length=64, blank=True, db_default="")
     event_payload = models.JSONField(null=True, blank=True, db_default=None)
+    parent_chat = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        default=None,
+        db_default=None,
+        on_delete=models.SET_NULL,
+        related_name="child_chats",
+        help_text=(
+            "The conversation whose agent started this one through a tool "
+            "call, when another agent did."
+        ),
+    )
     channel = models.ForeignKey(
         AgentChatChannel,
         null=True,

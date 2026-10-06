@@ -36,6 +36,7 @@ class SlackBotIntegrationType(IntegrationType):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config=None,
     ) -> SlackBotIntegration:
         """
         Imports a serialized integration. Ensures that if we're importing an exported
@@ -52,4 +53,5 @@ class SlackBotIntegrationType(IntegrationType):
             files_zip=files_zip,
             storage=storage,
             cache=cache,
+            import_export_config=import_export_config,
         )

@@ -182,6 +182,7 @@ class AgentChatSerializer(serializers.ModelSerializer):
             "status",
             "source",
             "trigger_type",
+            "parent_chat_id",
             "started_on",
             "completed_on",
             "error",
