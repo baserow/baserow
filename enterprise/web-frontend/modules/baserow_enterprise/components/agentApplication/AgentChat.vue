@@ -186,6 +186,13 @@
               v-for="attachment in attachments"
               :key="attachment.key"
               class="agent-chat__attachment-chip"
+              :class="{
+                'agent-chat__attachment-chip--clickable': !attachment.uploading,
+              }"
+              :title="
+                attachment.uploading ? '' : $t('agentChat.openAttachment')
+              "
+              @click="openComposerAttachment(attachment)"
             >
               <div
                 v-if="attachment.uploading"
@@ -205,12 +212,18 @@
               <a
                 class="agent-chat__attachment-chip-remove"
                 :title="$t('agentChat.removeAttachment')"
-                @click.prevent="removeAttachment(attachment)"
+                @click.prevent.stop="removeAttachment(attachment)"
               >
                 <i class="iconoir-cancel"></i>
               </a>
             </div>
           </div>
+          <FileFieldModal
+            v-if="uploadedAttachmentFiles.length > 0"
+            ref="composerFileModal"
+            :files="uploadedAttachmentFiles"
+            :read-only="true"
+          ></FileFieldModal>
           <textarea
             ref="textareaEl"
             v-model="message"
@@ -297,6 +310,7 @@ import AgentChatMessage from '@baserow_enterprise/components/agentApplication/Ag
 import AgentChatReasoning from '@baserow_enterprise/components/agentApplication/AgentChatReasoning'
 import AgentChatTriggerRow from '@baserow_enterprise/components/agentApplication/AgentChatTriggerRow'
 import AgentChatToolGroup from '@baserow_enterprise/components/agentApplication/AgentChatToolGroup'
+import FileFieldModal from '@baserow/modules/database/components/field/FileFieldModal'
 import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 const MIN_ROWS = 1
@@ -312,6 +326,7 @@ export default defineComponent({
     AgentChatReasoning,
     AgentChatTriggerRow,
     AgentChatToolGroup,
+    FileFieldModal,
   },
   props: {
     loading: {
@@ -756,6 +771,25 @@ export default defineComponent({
 
     const attachmentIcon = (attachment) => mimetype2icon(attachment?.mime_type)
 
+    const composerFileModal = ref(null)
+    // Only finished uploads can be previewed; the modal indexes this list.
+    const uploadedAttachmentFiles = computed(() =>
+      attachments.value
+        .filter((attachment) => !attachment.uploading && attachment.data)
+        .map((attachment) => ({
+          ...attachment.data,
+          visible_name: attachment.file.name,
+        }))
+    )
+    const openComposerAttachment = (attachment) => {
+      const index = attachments.value
+        .filter((a) => !a.uploading && a.data)
+        .indexOf(attachment)
+      if (index !== -1) {
+        composerFileModal.value?.show(index)
+      }
+    }
+
     const formatSize = (bytes) => formatFileSize(t, locale.value, bytes)
 
     const canAttach = computed(
@@ -894,6 +928,9 @@ export default defineComponent({
       decideApprovals,
       approvalsForIds,
       attachmentIcon,
+      composerFileModal,
+      uploadedAttachmentFiles,
+      openComposerAttachment,
       formatSize,
       removeAttachment,
       openFilePicker,

@@ -613,7 +613,8 @@
     "copy": "Copy",
     "modelMissingTitle": "No AI model configured",
     "modelMissing": "Pick the provider and model this agent runs on before starting a conversation.",
-    "configureModel": "Configure model"
+    "configureModel": "Configure model",
+    "openAttachment": "Open attachment"
   },
   "agentChatTrigger": {
     "preview": "Preview",

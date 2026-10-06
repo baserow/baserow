@@ -602,6 +602,20 @@
   white-space: nowrap;
 }
 
+.agent-chat__attachment-chip--clickable {
+  cursor: pointer;
+
+  &,
+  &:hover {
+    text-decoration: none;
+  }
+
+  &:hover {
+    border-color: $palette-neutral-400;
+    background-color: $palette-neutral-25;
+  }
+}
+
 .agent-chat__attachment-chip-icon {
   flex-shrink: 0;
   color: $palette-neutral-700;

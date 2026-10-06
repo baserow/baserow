@@ -10,7 +10,10 @@ from baserow.api.services.serializers import (
     PolymorphicServiceSerializer,
     ServiceSerializer,
 )
-from baserow.api.user_files.serializers import UserFileField
+from baserow.api.user_files.serializers import (
+    UserFileField,
+    UserFileURLAndThumbnailsSerializerMixin,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow_enterprise.agent_application.channels.registries import (
     agent_chat_channel_type_registry,
@@ -216,7 +219,31 @@ class AgentChatWithPayloadSerializer(AgentChatSerializer):
         read_only_fields = fields
 
 
+class AgentChatAttachmentSerializer(
+    UserFileURLAndThumbnailsSerializerMixin, serializers.Serializer
+):
+    """
+    Attachments are stored as the user file's serialized dict, which has no
+    URLs; those depend on the storage and are derived when read, like the
+    file field does.
+    """
+
+    visible_name = serializers.CharField(required=False)
+    name = serializers.CharField()
+    size = serializers.IntegerField()
+    mime_type = serializers.CharField()
+    is_image = serializers.BooleanField()
+    image_width = serializers.IntegerField(allow_null=True)
+    image_height = serializers.IntegerField(allow_null=True)
+    uploaded_at = serializers.DateTimeField()
+
+    def get_instance_attr(self, instance, name):
+        return instance[name]
+
+
 class AgentChatMessageSerializer(serializers.ModelSerializer):
+    attachments = AgentChatAttachmentSerializer(many=True)
+
     class Meta:
         model = AgentChatMessage
         fields = (

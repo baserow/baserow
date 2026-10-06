@@ -437,13 +437,19 @@ class AgentChatHandler:
         )
         # Other users watching this conversation must see new human/system
         # messages appear live; AI events are broadcast by the runner.
+        from baserow_enterprise.api.agent_application.serializers import (
+            AgentChatAttachmentSerializer,
+        )
+
         broadcast_chat_event(
             chat,
             {
                 "type": role,
                 "id": message.id,
                 "content": content,
-                "attachments": message.attachments,
+                "attachments": AgentChatAttachmentSerializer(
+                    message.attachments, many=True
+                ).data,
             },
         )
         return message

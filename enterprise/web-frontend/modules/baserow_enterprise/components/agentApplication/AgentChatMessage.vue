@@ -10,10 +10,12 @@
         v-if="event.attachments && event.attachments.length > 0"
         class="agent-chat-message__attachments"
       >
-        <div
+        <a
           v-for="(attachment, index) in event.attachments"
           :key="index"
-          class="agent-chat__attachment-chip"
+          class="agent-chat__attachment-chip agent-chat__attachment-chip--clickable"
+          :title="$t('agentChat.openAttachment')"
+          @click.prevent="openAttachment(index)"
         >
           <i
             class="agent-chat__attachment-chip-icon"
@@ -29,8 +31,14 @@
             class="agent-chat__attachment-chip-size"
             >{{ formatSize(attachment.size) }}</span
           >
-        </div>
+        </a>
       </div>
+      <FileFieldModal
+        v-if="previewFiles.length > 0"
+        ref="fileModal"
+        :files="previewFiles"
+        :read-only="true"
+      ></FileFieldModal>
     </template>
     <template v-else-if="variant === 'ai'">
       <!-- eslint-disable vue/no-v-html -->
@@ -61,6 +69,7 @@ import { defineComponent, computed, ref } from 'vue'
 import moment from '@baserow/modules/core/moment'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { renderMarkdown } from '@baserow_enterprise/utils/agentMarkdown'
+import FileFieldModal from '@baserow/modules/database/components/field/FileFieldModal'
 
 const VARIANTS = {
   human: 'human',
@@ -72,6 +81,7 @@ const VARIANTS = {
 
 export default defineComponent({
   name: 'AgentChatMessage',
+  components: { FileFieldModal },
   props: {
     event: {
       type: Object,
@@ -90,6 +100,19 @@ export default defineComponent({
   },
   setup(props) {
     const copied = ref(null)
+    const fileModal = ref(null)
+    // Older messages were stored without a display name; the modal needs one
+    // for its title and the download filename.
+    const previewFiles = computed(() =>
+      (props.event.attachments || []).map((attachment) => ({
+        ...attachment,
+        visible_name:
+          attachment.visible_name ||
+          attachment.original_name ||
+          attachment.name,
+      }))
+    )
+    const openAttachment = (index) => fileModal.value?.show(index)
     const variant = computed(() => VARIANTS[props.event.type] || 'system')
     const rendered = computed(() => renderMarkdown(props.event.content))
     const relativeTime = computed(() =>
@@ -99,7 +122,16 @@ export default defineComponent({
       copyToClipboard(props.event.content || '')
       copied.value?.show()
     }
-    return { copied, variant, rendered, relativeTime, copy }
+    return {
+      copied,
+      fileModal,
+      previewFiles,
+      openAttachment,
+      variant,
+      rendered,
+      relativeTime,
+      copy,
+    }
   },
 })
 </script>
