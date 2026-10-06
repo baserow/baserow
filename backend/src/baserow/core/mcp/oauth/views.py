@@ -3,7 +3,8 @@ from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.views import View
 
 from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
-from oauth2_provider.oauth2_backends import get_oauthlib_core
+
+from .authorize import validate_query
 
 
 class MCPAuthorizeRedirectView(View):
@@ -14,7 +15,7 @@ class MCPAuthorizeRedirectView(View):
 
     def get(self, request):
         try:
-            get_oauthlib_core().validate_authorization_request(request)
+            validate_query(request, request.user, request.META.get("QUERY_STRING", ""))
         except OAuthToolkitError as error:
             oauthlib_error = error.oauthlib_error
             # Fatal errors (unknown client, invalid redirect URI) must never redirect

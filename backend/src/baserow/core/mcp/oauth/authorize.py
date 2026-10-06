@@ -1,7 +1,10 @@
+from django.conf import settings
 from django.http import HttpRequest, QueryDict
 
+from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.oauth2_backends import get_oauthlib_core
-from oauthlib.oauth2 import AccessDeniedError
+from oauthlib.oauth2 import AccessDeniedError, InvalidRequestError
+from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
 
 from baserow.core.mcp.models import MCPEndpoint
 
@@ -30,14 +33,45 @@ def _authorize_request(original_request, user, query: str) -> HttpRequest:
     return request
 
 
+def _validate(request: HttpRequest):
+    scopes, credentials = get_oauthlib_core().validate_authorization_request(request)
+    state = credentials.get("state")
+    redirect_uri = credentials["redirect_uri"]
+
+    # Only S256 is supported; the library would otherwise accept `plain` here and
+    # fail later when the code is created.
+    if request.GET.get("code_challenge_method") != "S256":
+        raise OAuthToolkitError(
+            error=InvalidRequestError(
+                description="Only the S256 code_challenge_method is supported.",
+                state=state,
+            ),
+            redirect_uri=redirect_uri,
+        )
+
+    # The token audience is pinned to the MCP resource; a client asking for any other
+    # resource is rejected, a missing one is accepted.
+    if any(r != settings.MCP_RESOURCE_URL for r in request.GET.getlist("resource")):
+        raise OAuthToolkitError(
+            error=CustomOAuth2Error(
+                error="invalid_target",
+                description="The requested resource is not supported.",
+                state=state,
+            ),
+            redirect_uri=redirect_uri,
+        )
+
+    return scopes, credentials
+
+
 def validate_query(original_request, user, query: str):
     """
-    :raises OAuthToolkitError: When the authorization request is invalid.
+    :raises OAuthToolkitError: When the authorization request is invalid. Errors that
+        are safe to send back to the client have a redirect URI set.
     :return: The requested scopes and the credentials of the request.
     """
 
-    request = _authorize_request(original_request, user, query)
-    return get_oauthlib_core().validate_authorization_request(request)
+    return _validate(_authorize_request(original_request, user, query))
 
 
 def issue_code(
@@ -51,21 +85,18 @@ def issue_code(
     """
 
     request = _authorize_request(original_request, user, query)
-    core = get_oauthlib_core()
-    _, credentials = core.validate_authorization_request(request)
+    _, credentials = _validate(request)
 
     if not allow:
         error = AccessDeniedError(state=credentials.get("state"))
         return error.in_uri(credentials["redirect_uri"])
 
     # `validate_authorization_request` doesn't carry the RFC 8707 `resource` through,
-    # so add it like the library's own `AuthorizationView.form_valid` does.
-    resources = request.GET.getlist("resource")
-    if resources:
-        credentials["resource"] = resources
+    # so set it like `AuthorizationView.form_valid` does, pinned to the MCP resource.
+    credentials["resource"] = [settings.MCP_RESOURCE_URL]
 
     scopes = [MCP_SCOPE, endpoint_scope(endpoint.id)]
-    uri, _, _, _ = core.create_authorization_response(
+    uri, _, _, _ = get_oauthlib_core().create_authorization_response(
         request, scopes=scopes, credentials=credentials, allow=True
     )
     return uri

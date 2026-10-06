@@ -1,7 +1,6 @@
 from urllib.parse import urlparse
 
 from django.db import transaction
-from django.http import QueryDict
 
 from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.models import get_application_model
@@ -34,13 +33,14 @@ def _invalid_request(error: OAuthToolkitError) -> Response:
     )
 
 
-def _client_info(query: str) -> dict:
-    params = QueryDict(query)
-    application = get_application_model().objects.get(client_id=params["client_id"])
+def _client_info(credentials: dict) -> dict:
+    application = get_application_model().objects.get(
+        client_id=credentials["client_id"]
+    )
     return {
         "client_id": application.client_id,
         "client_name": application.name,
-        "redirect_host": urlparse(params["redirect_uri"]).hostname,
+        "redirect_host": urlparse(credentials["redirect_uri"]).hostname,
         "registration_source": application.registration_source,
     }
 
@@ -51,7 +51,7 @@ class MCPOAuthConsentView(APIView):
     def get(self, request):
         query = request.query_params.get("query", "")
         try:
-            validate_query(request, request.user, query)
+            _, credentials = validate_query(request, request.user, query)
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
@@ -60,7 +60,7 @@ class MCPOAuthConsentView(APIView):
         )
         return Response(
             {
-                **_client_info(query),
+                **_client_info(credentials),
                 "endpoints": [
                     {
                         "id": endpoint.id,
@@ -106,7 +106,18 @@ class MCPOAuthConsentView(APIView):
                     request.user, data["endpoint_id"]
                 )
 
-        redirect_url = issue_code(
-            request, request.user, data["query"], endpoint, data["allow"]
-        )
+        try:
+            redirect_url = issue_code(
+                request, request.user, data["query"], endpoint, data["allow"]
+            )
+        except OAuthToolkitError as error:
+            if error.oauthlib_error.redirect_uri:
+                return Response(
+                    {
+                        "redirect_url": error.oauthlib_error.in_uri(
+                            error.oauthlib_error.redirect_uri
+                        )
+                    }
+                )
+            return _invalid_request(error)
         return Response({"redirect_url": redirect_url})

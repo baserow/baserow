@@ -1,5 +1,5 @@
 import hashlib
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from django.conf import settings
 from django.urls import reverse
@@ -9,6 +9,7 @@ from oauth2_provider.models import AccessToken
 
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
+    REDIRECT_URI,
     authorize_query,
     obtain_tokens,
     pkce_pair,
@@ -38,14 +39,128 @@ def test_authorize_redirects_to_frontend_consent(client):
     assert parse_qs(location.query)["client_id"] == [client_id]
 
 
+def without_param(query, name):
+    params = parse_qs(query)
+    params.pop(name)
+    return urlencode(params, doseq=True)
+
+
+def assert_redirects_with_error(response, error):
+    assert response.status_code == 302
+    assert response["Location"].startswith(REDIRECT_URI)
+    assert "/mcp/authorize" not in response["Location"]
+    query = parse_qs(urlparse(response["Location"]).query)
+    assert query["error"] == [error]
+    assert query["state"] == ["s1"]
+
+
 @pytest.mark.django_db
 def test_authorize_without_pkce_is_rejected(client):
     client_id = register_dcr_client(client)
-    query = authorize_query(client_id, "x").replace("code_challenge=x", "")
+    _, challenge = pkce_pair()
+    query = without_param(authorize_query(client_id, challenge), "code_challenge")
     response = client.get(f"/oauth/authorize/?{query}")
-    # oauthlib treats a missing code challenge as fatal: shown, never redirected.
+    assert_redirects_with_error(response, "invalid_request")
+
+
+@pytest.mark.django_db
+def test_authorize_rejects_plain_challenge_method(client):
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    query = authorize_query(client_id, challenge).replace("S256", "plain")
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert_redirects_with_error(response, "invalid_request")
+
+
+@pytest.mark.django_db
+def test_authorize_rejects_foreign_resource(client):
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    query = authorize_query(client_id, challenge) + "&resource=https%3A%2F%2Fevil.test"
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert_redirects_with_error(response, "invalid_target")
+
+
+@pytest.mark.django_db
+def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    query = authorize_query(client_id, challenge).replace("S256", "plain")
+    response = post_consent(
+        api_client,
+        token,
+        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+    )
     assert response.status_code == 400
-    assert "Location" not in response
+    assert response.json()["error"] == "invalid_request"
+
+
+@pytest.mark.django_db
+def test_consent_post_rejects_foreign_resource(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    query = authorize_query(client_id, challenge) + "&resource=https%3A%2F%2Fevil.test"
+    response = post_consent(
+        api_client,
+        token,
+        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_target"
+
+
+@pytest.mark.django_db
+def test_consent_get_without_redirect_uri_uses_registered_one(
+    client, api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token()
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    query = without_param(authorize_query(client_id, challenge), "redirect_uri")
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": query},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+    assert response.json()["redirect_host"] == "127.0.0.1"
+
+
+@pytest.mark.django_db
+def test_missing_resource_is_pinned_to_mcp_resource(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    client_id = register_dcr_client(client)
+    verifier, challenge = pkce_pair()
+    query = without_param(authorize_query(client_id, challenge), "resource")
+    response = post_consent(
+        api_client,
+        token,
+        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+    )
+    assert response.status_code == 200
+    code = parse_qs(urlparse(response.json()["redirect_url"]).query)["code"][0]
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "client_id": client_id,
+            "code_verifier": verifier,
+        },
+    )
+    assert response.status_code == 200, response.content
+    checksum = hashlib.sha256(response.json()["access_token"].encode()).hexdigest()
+    access = AccessToken.objects.get(token_checksum=checksum)
+    assert access.allows_audience(settings.MCP_RESOURCE_URL)
 
 
 @pytest.mark.django_db
