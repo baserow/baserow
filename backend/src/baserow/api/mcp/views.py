@@ -35,6 +35,10 @@ from .serializers import (
     UpdateMCPEndpointSerializer,
 )
 
+# Endpoints of OAuth grants are managed as connected apps, never through these
+# routes, so their key is never returned.
+LEGACY_ENDPOINTS = MCPEndpoint.objects.filter(oauth_client_id__isnull=True)
+
 
 class MCPEndpointsView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -53,10 +57,9 @@ class MCPEndpointsView(APIView):
     def get(self, request):
         """Lists all the MCP endpoints of the authenticated user."""
 
-        # Endpoints of OAuth grants are listed as connected apps instead.
-        endpoints = MCPEndpoint.objects.filter(
-            user=request.user, oauth_client_id__isnull=True
-        ).select_related("workspace")
+        endpoints = LEGACY_ENDPOINTS.filter(user=request.user).select_related(
+            "workspace"
+        )
         serializer = MCPEndpointSerializer(endpoints, many=True)
         return Response(serializer.data)
 
@@ -111,7 +114,9 @@ class MCPEndpointView(APIView):
     def get(self, request, endpoint_id):
         """Returns the requested MCP endpoint if the user has access to it."""
 
-        endpoint = MCPEndpointHandler().get_endpoint(request.user, endpoint_id)
+        endpoint = MCPEndpointHandler().get_endpoint(
+            request.user, endpoint_id, base_queryset=LEGACY_ENDPOINTS
+        )
         serializer = MCPEndpointSerializer(endpoint)
         return Response(serializer.data)
 
@@ -146,7 +151,7 @@ class MCPEndpointView(APIView):
         endpoint = MCPEndpointHandler().get_endpoint(
             request.user,
             endpoint_id,
-            base_queryset=MCPEndpoint.objects.select_for_update(of=("self",)),
+            base_queryset=LEGACY_ENDPOINTS.select_for_update(of=("self",)),
         )
 
         endpoint = action_type_registry.get(UpdateMCPEndpointActionType.type).do(
@@ -175,7 +180,9 @@ class MCPEndpointView(APIView):
     def delete(self, request, endpoint_id):
         """Deletes an MCP endpoint if the user has access to it."""
 
-        endpoint = MCPEndpointHandler().get_endpoint(request.user, endpoint_id)
+        endpoint = MCPEndpointHandler().get_endpoint(
+            request.user, endpoint_id, base_queryset=LEGACY_ENDPOINTS
+        )
 
         action_type_registry.get(DeleteMCPEndpointActionType.type).do(
             request.user, endpoint

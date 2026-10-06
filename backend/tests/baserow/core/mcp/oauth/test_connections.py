@@ -82,6 +82,22 @@ def test_list_connections_counts_all_tools_when_unrestricted(api_client, data_fi
 
 
 @pytest.mark.django_db
+def test_list_connections_hides_grants_in_workspaces_the_user_left(
+    client, api_client, data_fixture
+):
+    owner = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    left = data_fixture.create_workspace(user=owner, members=[user])
+    kept = data_fixture.create_workspace(user=user)
+    obtain_tokens(client, api_client, token, left)
+    kept_id = obtain_tokens(client, api_client, token, kept)["endpoint_id"]
+    left.workspaceuser_set.filter(user=user).delete()
+
+    response = api_client.get(reverse(LIST_URL), HTTP_AUTHORIZATION=f"JWT {token}")
+    assert [c["id"] for c in response.json()["connections"]] == [kept_id]
+
+
+@pytest.mark.django_db
 def test_list_connections_when_oauth_disabled(api_client, data_fixture, settings):
     settings.BASEROW_MCP_OAUTH_ENABLED = False
     user, token = data_fixture.create_user_and_token()

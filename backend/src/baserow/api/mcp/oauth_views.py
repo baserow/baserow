@@ -173,8 +173,11 @@ class MCPOAuthConnectionsView(APIView):
             )
 
         endpoints = list(
+            # A grant in a workspace the user left can't be used or deleted.
             MCPEndpoint.objects.filter(
-                user=request.user, oauth_client_id__isnull=False
+                user=request.user,
+                oauth_client_id__isnull=False,
+                workspace__workspaceuser__user=request.user,
             ).select_related("workspace")
         )
         Application = get_application_model()

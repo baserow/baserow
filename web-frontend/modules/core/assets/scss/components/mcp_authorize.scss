@@ -46,10 +46,6 @@
 .mcp-authorize__avatar {
   @extend %mcp-client-avatar;
 
-  &--client {
-    background-color: $palette-red-700;
-  }
-
   &--baserow {
     background-color: $palette-blue-700;
 
