@@ -6,6 +6,7 @@
       :ref="`role${role.uid}`"
       :name="role.name"
       :value="role.uid"
+      :icon="showRoleIcons ? getRoleIcon(role.uid) : null"
       :disabled="role.isDeactivated"
       :description="role.description"
       @click="clickOnDeactivatedItem($event)"
@@ -46,9 +47,12 @@
 </template>
 
 <script>
+import { getRoleIcon } from '@baserow/modules/core/utils/roles'
+
 export default {
   name: 'WorkspaceRoleSelector',
   props: {
+    showRoleIcons: { type: Boolean, default: false },
     modelValue: {
       type: String,
       required: true,
@@ -81,6 +85,7 @@ export default {
     },
   },
   methods: {
+    getRoleIcon,
     deactivatedClickModal(role) {
       return Object.values(this.$registry.getAll('roles'))
         .find((registeredRole) => registeredRole.getUid() === role.uid)
