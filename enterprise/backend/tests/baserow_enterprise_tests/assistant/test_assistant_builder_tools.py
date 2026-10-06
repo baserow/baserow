@@ -18,6 +18,7 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.services.models import Service
@@ -27,6 +28,7 @@ from baserow_enterprise.assistant.tools.builder.agents import (
     update_workflow_action_formulas,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
+    add_action_field_mapping,
     create_actions,
     create_collection_elements,
     create_data_sources,
@@ -1625,10 +1627,6 @@ def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction
 def test_add_action_field_mapping_requires_update_permission(
     data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
-    from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
-    )
-
     owner = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner)
     builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
@@ -1667,10 +1665,6 @@ def test_add_action_field_mapping_requires_update_permission(
 def test_add_action_field_mapping_rejects_fields_outside_the_action_table(
     data_fixture, same_workspace
 ):
-    from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
-    )
-
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
@@ -1699,6 +1693,56 @@ def test_add_action_field_mapping_rejects_fields_outside_the_action_table(
     assert "Salary" not in str(exc_info.value)
     mappings = action.service.specific.field_mappings.all()
     assert [m.field_id for m in mappings] == [name_field.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_action_field_mapping_updates_mapping_of_trashed_field(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    ctx = make_test_ctx(user, workspace)
+    action = _create_row_action_on_form(ctx, page, table, name_field)
+    FieldHandler().delete_field(user, name_field)
+
+    result = add_action_field_mapping(
+        ctx,
+        action_id=action.id,
+        field_id=name_field.id,
+        value_formula="'B'",
+        thought="test",
+    )
+
+    assert result["status"] == "updated"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_action_field_mapping_rejects_action_without_table(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button = data_fixture.create_builder_button_element(page=page)
+    action = data_fixture.create_local_baserow_create_row_workflow_action(
+        user=user, page=page, element=button, event="click"
+    )
+
+    with pytest.raises(ToolInputError, match="has no table selected"):
+        add_action_field_mapping(
+            make_test_ctx(user, workspace),
+            action_id=action.id,
+            field_id=name_field.id,
+            value_formula="'B'",
+            thought="test",
+        )
+
+    assert not action.service.specific.field_mappings.exists()
 
 
 # ===========================================================================

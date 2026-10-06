@@ -880,7 +880,15 @@ def add_field_mapping_to_action(
 
     service = action.service.specific
 
-    if not Field.objects.filter(id=field_id, table_id=service.table_id).exists():
+    if not service.table_id:
+        raise ToolInputError(
+            f"Action {action_id} has no table selected, so it has no fields to map. "
+            "This tool cannot select a table. Until one is selected, the action will fail."
+        )
+
+    if not Field.objects_and_trash.filter(
+        id=field_id, table_id=service.table_id
+    ).exists():
         raise ToolInputError(
             f"Field {field_id} is not in the table this action writes to. "
             "Use get_tables_schema to find the table's field IDs."
