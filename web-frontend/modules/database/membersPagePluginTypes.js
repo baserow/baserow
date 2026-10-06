@@ -1,11 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 export class MembersPagePluginType extends Registerable {
-  /** Optional expanded-row renderer and predicate for the members table. */
-  getMemberRowExpansion() {
-    return null
-  }
-
   /**
    * Lets you manipulate the columns of the members table to either add, remove or
    * modify columns.

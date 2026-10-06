@@ -6,19 +6,8 @@ import EnterpriseFeatures from '@baserow_enterprise/features'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
 import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
 import AdminHighestPaidRoleField from '@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField'
-import MemberRoleSummaryRows from '@baserow_enterprise/components/member-roles/MemberRoleSummaryRows'
 
 export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
-  getMemberRowExpansion() {
-    return {
-      component: MemberRoleSummaryRows,
-      columnKey: 'role_uid',
-      isExpandable: (member) =>
-        Boolean(member.highest_role_uid) &&
-        member.highest_role_uid !== member.role_uid,
-    }
-  }
-
   static getType() {
     return 'enterprise_members_columns'
   }
