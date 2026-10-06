@@ -4,7 +4,7 @@ from django.views import View
 
 from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
 
-from .authorize import validate_query
+from .authorize import error_redirect_url, validate_query
 
 
 class MCPAuthorizeRedirectView(View):
@@ -24,9 +24,7 @@ class MCPAuthorizeRedirectView(View):
                 return HttpResponseBadRequest(
                     oauthlib_error.description or oauthlib_error.error
                 )
-            return HttpResponseRedirect(
-                oauthlib_error.in_uri(oauthlib_error.redirect_uri)
-            )
+            return HttpResponseRedirect(error_redirect_url(request, error))
 
         query = request.META.get("QUERY_STRING", "")
         return HttpResponseRedirect(

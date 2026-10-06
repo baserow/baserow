@@ -16,6 +16,8 @@ from tests.baserow.core.mcp.oauth.helpers import (
     register_dcr_client,
 )
 
+ISSUER = settings.OAUTH2_PROVIDER["OIDC_ISS_ENDPOINT"]
+
 
 def post_consent(api_client, token, body):
     return api_client.post(
@@ -52,6 +54,7 @@ def assert_redirects_with_error(response, error):
     query = parse_qs(urlparse(response["Location"]).query)
     assert query["error"] == [error]
     assert query["state"] == ["s1"]
+    assert query["iss"] == [ISSUER]
 
 
 @pytest.mark.django_db
@@ -252,6 +255,7 @@ def test_consent_deny_returns_access_denied(client, api_client, data_fixture):
     query = parse_qs(urlparse(redirect_url).query)
     assert query["error"] == ["access_denied"]
     assert query["state"] == ["s1"]
+    assert query["iss"] == [ISSUER]
 
 
 @pytest.mark.django_db

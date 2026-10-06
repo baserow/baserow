@@ -16,7 +16,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
-from baserow.core.mcp.oauth.authorize import issue_code, validate_query
+from baserow.core.mcp.oauth.authorize import (
+    error_redirect_url,
+    issue_code,
+    validate_query,
+)
 
 from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
 from .oauth_serializers import ConsentSerializer
@@ -112,12 +116,6 @@ class MCPOAuthConsentView(APIView):
             )
         except OAuthToolkitError as error:
             if error.oauthlib_error.redirect_uri:
-                return Response(
-                    {
-                        "redirect_url": error.oauthlib_error.in_uri(
-                            error.oauthlib_error.redirect_uri
-                        )
-                    }
-                )
+                return Response({"redirect_url": error_redirect_url(request, error)})
             return _invalid_request(error)
         return Response({"redirect_url": redirect_url})

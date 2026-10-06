@@ -2,7 +2,8 @@ from django.conf import settings
 from django.http import HttpRequest, QueryDict
 
 from oauth2_provider.exceptions import OAuthToolkitError
-from oauth2_provider.oauth2_backends import get_oauthlib_core
+from oauth2_provider.oauth2_backends import _add_iss_to_redirect, get_oauthlib_core
+from oauth2_provider.settings import oauth2_settings
 from oauthlib.oauth2 import AccessDeniedError, InvalidRequestError
 from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
 
@@ -31,6 +32,25 @@ def _authorize_request(original_request, user, query: str) -> HttpRequest:
     request.GET = QueryDict(query)
     request.user = user
     return request
+
+
+def with_iss(request: HttpRequest, uri: str) -> str:
+    """
+    Adds the RFC 9207 `iss` parameter to a redirect back to the client, like the
+    library does for successful responses.
+    """
+
+    if not oauth2_settings.COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS:
+        return uri
+    issuer = oauth2_settings.oauth2_authorization_server_issuer(request)
+    return _add_iss_to_redirect(uri, issuer)
+
+
+def error_redirect_url(request: HttpRequest, error: OAuthToolkitError) -> str:
+    """The client redirect URI carrying the error, `state` and `iss`."""
+
+    oauthlib_error = error.oauthlib_error
+    return with_iss(request, oauthlib_error.in_uri(oauthlib_error.redirect_uri))
 
 
 def _validate(request: HttpRequest):
@@ -89,7 +109,7 @@ def issue_code(
 
     if not allow:
         error = AccessDeniedError(state=credentials.get("state"))
-        return error.in_uri(credentials["redirect_uri"])
+        return with_iss(request, error.in_uri(credentials["redirect_uri"]))
 
     # `validate_authorization_request` doesn't carry the RFC 8707 `resource` through,
     # so set it like `AuthorizationView.form_valid` does, pinned to the MCP resource.

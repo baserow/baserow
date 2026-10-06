@@ -167,7 +167,9 @@ def test_authorize_rejects_client_requested_endpoint_scope(client, extra):
     response = client.get(f"/oauth/authorize/?{query}")
     assert response.status_code == 302
     assert response["Location"].startswith(REDIRECT_URI)
-    assert parse_qs(urlparse(response["Location"]).query)["error"] == ["invalid_scope"]
+    query = parse_qs(urlparse(response["Location"]).query)
+    assert query["error"] == ["invalid_scope"]
+    assert query["iss"] == [settings.OAUTH2_PROVIDER["OIDC_ISS_ENDPOINT"]]
 
 
 @pytest.mark.django_db
