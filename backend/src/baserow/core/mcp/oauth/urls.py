@@ -3,22 +3,12 @@ from django.urls import include, path
 from oauth2_provider import urls as oauth2_urls
 from oauth2_provider import views as oauth2_views
 
-from .dcr import (
-    MCPDynamicClientRegistrationManagementView,
-    MCPDynamicClientRegistrationView,
-)
 from .views import MCPAuthorizeRedirectView
 
 oauth_patterns = [
     path("authorize/", MCPAuthorizeRedirectView.as_view(), name="authorize"),
     path("token/", oauth2_views.TokenView.as_view(), name="token"),
     path("revoke_token/", oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
-    path("register/", MCPDynamicClientRegistrationView.as_view(), name="dcr-register"),
-    path(
-        "register/<str:client_id>/",
-        MCPDynamicClientRegistrationManagementView.as_view(),
-        name="dcr-register-management",
-    ),
 ]
 
 # One include with namespace "oauth2_provider": the metadata views reverse

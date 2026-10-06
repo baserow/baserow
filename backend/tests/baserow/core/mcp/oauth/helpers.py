@@ -19,20 +19,31 @@ def pkce_pair():
     return verifier, challenge
 
 
-def register_dcr_client(client, redirect_uri=REDIRECT_URI, name="Test MCP client"):
-    response = client.post(
-        "/oauth/register/",
-        {
-            "client_name": name,
-            "redirect_uris": [redirect_uri],
-            "grant_types": ["authorization_code", "refresh_token"],
-            "response_types": ["code"],
-            "token_endpoint_auth_method": "none",
-        },
-        content_type="application/json",
-    )
-    assert response.status_code == 201, response.content
-    return response.json()["client_id"]
+_cimd_documents = {}
+
+
+def fake_cimd_fetch(_fetcher, client_id):
+    """Stands in for the HTTP fetch of a client metadata document."""
+
+    return _cimd_documents[client_id], 300
+
+
+def cimd_client(client, redirect_uri=REDIRECT_URI, client_name="Test MCP client"):
+    """
+    Returns the client_id of a new CIMD client on an allowlisted host. The metadata
+    document is served by the `cimd_fetch` fixture's patched fetcher.
+    """
+
+    client_id = f"https://claude.ai/oauth/test-client-{secrets.token_hex(6)}.json"
+    _cimd_documents[client_id] = {
+        "client_id": client_id,
+        "client_name": client_name,
+        "redirect_uris": [redirect_uri],
+        "grant_types": ["authorization_code", "refresh_token"],
+        "response_types": ["code"],
+        "token_endpoint_auth_method": "none",
+    }
+    return client_id
 
 
 def authorize_query(client_id, challenge, redirect_uri=REDIRECT_URI, state="s1"):
@@ -58,13 +69,13 @@ def enabled_tool_names():
 
 def obtain_tokens(client, api_client, token, workspace, tools=None, client_id=None):
     """
-    Runs DCR -> consent -> token. `token` is the user's JWT, `tools=None` grants
-    every enabled tool, `client_id=None` registers a new client. The result
+    Runs consent -> token. `token` is the user's JWT, `tools=None` grants
+    every enabled tool, `client_id=None` uses a new CIMD client. The result
     carries the `endpoint_id` consent picked.
     """
 
     verifier, challenge = pkce_pair()
-    client_id = client_id or register_dcr_client(client)
+    client_id = client_id or cimd_client(client)
     query = authorize_query(client_id, challenge)
     response = api_client.post(
         reverse("api:mcp:oauth_consent"),

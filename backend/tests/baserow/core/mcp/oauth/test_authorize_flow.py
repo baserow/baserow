@@ -13,10 +13,10 @@ from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
     authorize_query,
+    cimd_client,
     enabled_tool_names,
     obtain_tokens,
     pkce_pair,
-    register_dcr_client,
 )
 
 ISSUER = settings.OAUTH2_PROVIDER["OIDC_ISS_ENDPOINT"]
@@ -42,7 +42,7 @@ def post_consent(api_client, token, body):
 
 @pytest.mark.django_db
 def test_authorize_redirects_to_frontend_consent(client):
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge)
     response = client.get(f"/oauth/authorize/?{query}")
@@ -78,7 +78,7 @@ def assert_redirects_with_error(response, error):
 
 @pytest.mark.django_db
 def test_authorize_without_pkce_is_rejected(client):
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = without_param(authorize_query(client_id, challenge), "code_challenge")
     response = client.get(f"/oauth/authorize/?{query}")
@@ -87,7 +87,7 @@ def test_authorize_without_pkce_is_rejected(client):
 
 @pytest.mark.django_db
 def test_authorize_rejects_plain_challenge_method(client):
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge).replace("S256", "plain")
     response = client.get(f"/oauth/authorize/?{query}")
@@ -96,7 +96,7 @@ def test_authorize_rejects_plain_challenge_method(client):
 
 @pytest.mark.django_db
 def test_authorize_rejects_foreign_resource(client):
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge) + "&resource=https%3A%2F%2Fevil.test"
     response = client.get(f"/oauth/authorize/?{query}")
@@ -107,7 +107,7 @@ def test_authorize_rejects_foreign_resource(client):
 def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge).replace("S256", "plain")
     response = post_consent(
@@ -123,7 +123,7 @@ def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fi
 def test_consent_post_rejects_foreign_resource(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge) + "&resource=https%3A%2F%2Fevil.test"
     response = post_consent(
@@ -140,7 +140,7 @@ def test_consent_get_without_redirect_uri_uses_registered_one(
     client, api_client, data_fixture
 ):
     _, token = data_fixture.create_user_and_token()
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = without_param(authorize_query(client_id, challenge), "redirect_uri")
     response = api_client.get(
@@ -156,7 +156,7 @@ def test_consent_get_without_redirect_uri_uses_registered_one(
 def test_missing_resource_is_pinned_to_mcp_resource(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     verifier, challenge = pkce_pair()
     query = without_param(authorize_query(client_id, challenge), "resource")
     response = post_consent(
@@ -197,7 +197,7 @@ def test_consent_get_lists_workspaces_and_enabled_tools(
     workspace_1 = data_fixture.create_workspace(user=user, name="One")
     workspace_2 = data_fixture.create_workspace(user=user, name="Two")
     data_fixture.create_workspace(name="Not mine")
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     response = api_client.get(
         reverse("api:mcp:oauth_consent"),
@@ -257,7 +257,7 @@ def test_full_flow_issues_endpoint_bound_token(client, api_client, data_fixture)
 @pytest.mark.django_db
 def test_consent_deny_returns_access_denied(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     response = post_consent(
         api_client,
@@ -277,7 +277,7 @@ def test_consent_deny_returns_access_denied(client, api_client, data_fixture):
 def test_consent_creates_grant_with_allowed_tools(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     response = post_consent(
         api_client,
@@ -305,7 +305,7 @@ def test_consent_reuses_grant_for_same_client_and_workspace(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     other_workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     first = obtain_tokens(
         client, api_client, token, workspace, ["list_tables"], client_id=client_id
     )
@@ -369,7 +369,7 @@ def test_long_client_name_is_cut_to_the_endpoint_name_length(
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client, name="x" * 150)
+    client_id = cimd_client(client, client_name="x" * 150)
     obtain_tokens(client, api_client, token, workspace, client_id=client_id)
     assert MCPEndpoint.objects.get(user=user).name == "x" * 100
 
@@ -390,7 +390,7 @@ def test_long_client_name_is_cut_to_the_endpoint_name_length(
 def test_consent_rejects_invalid_tools(client, api_client, data_fixture, tools):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     body = allow_body(authorize_query(client_id, challenge), workspace)
     if tools is None:
@@ -406,7 +406,7 @@ def test_consent_rejects_invalid_tools(client, api_client, data_fixture, tools):
 def test_consent_allow_requires_workspace(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     body = allow_body(authorize_query(client_id, challenge), workspace)
     del body["workspace_id"]
@@ -418,7 +418,7 @@ def test_consent_allow_requires_workspace(client, api_client, data_fixture):
 @pytest.mark.django_db
 def test_consent_unknown_workspace_is_rejected(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     body = {
         "query": authorize_query(client_id, challenge),
@@ -436,7 +436,7 @@ def test_consent_unknown_workspace_is_rejected(client, api_client, data_fixture)
 def test_consent_cannot_grant_foreign_workspace(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     foreign_workspace = data_fixture.create_workspace()
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     response = post_consent(
         api_client,
@@ -455,7 +455,7 @@ def test_consent_cannot_reuse_grant_after_leaving_workspace(
     owner = data_fixture.create_user()
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=owner, members=[user])
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     obtain_tokens(
         client, api_client, token, workspace, ["list_tables"], client_id=client_id
     )

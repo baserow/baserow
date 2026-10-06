@@ -9,86 +9,16 @@ from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
     authorize_query,
+    cimd_client,
     obtain_tokens,
     pkce_pair,
-    register_dcr_client,
 )
-
-
-def register(client, **metadata):
-    return client.post(
-        "/oauth/register/",
-        {
-            "client_name": "Client",
-            "redirect_uris": [REDIRECT_URI],
-            "token_endpoint_auth_method": "none",
-            **metadata,
-        },
-        content_type="application/json",
-    )
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "metadata",
-    [
-        {"grant_types": ["password"]},
-        {"grant_types": ["client_credentials"]},
-        {"grant_types": ["implicit"]},
-        {"grant_types": ["urn:ietf:params:oauth:grant-type:device_code"]},
-        {"grant_types": ["authorization_code"], "response_types": ["token"]},
-        {"grant_types": ["authorization_code"], "response_types": ["code", "token"]},
-        {"grant_types": "authorization_code"},
-        {"response_types": "code"},
-    ],
-)
-def test_dcr_rejects_grants_other_than_authorization_code(client, metadata):
-    count = Application.objects.count()
-    response = register(client, **metadata)
-    assert response.status_code == 400, response.content
-    assert response.json()["error"] == "invalid_client_metadata"
-    assert Application.objects.count() == count
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "metadata",
-    [
-        {},
-        {"grant_types": ["authorization_code"]},
-        {"grant_types": ["authorization_code", "refresh_token"]},
-        {"grant_types": ["authorization_code"], "response_types": ["code"]},
-    ],
-)
-def test_dcr_accepts_authorization_code(client, metadata):
-    response = register(client, **metadata)
-    assert response.status_code == 201, response.content
-
-
-@pytest.mark.django_db
-def test_dcr_update_cannot_switch_to_password_grant(client):
-    response = register(client)
-    data = response.json()
-    response = client.put(
-        urlparse(data["registration_client_uri"]).path,
-        {
-            "client_name": "Client",
-            "redirect_uris": [REDIRECT_URI],
-            "grant_types": ["password"],
-            "token_endpoint_auth_method": "none",
-        },
-        content_type="application/json",
-        HTTP_AUTHORIZATION=f"Bearer {data['registration_access_token']}",
-    )
-    assert response.status_code == 400, response.content
-    application = Application.objects.get(client_id=data["client_id"])
-    assert application.authorization_grant_type == Application.GRANT_AUTHORIZATION_CODE
 
 
 @pytest.mark.django_db
 def test_password_grant_is_refused(client, data_fixture):
-    # An application allowed to use the password grant can only exist if created
-    # outside DCR; the token endpoint must still refuse it.
+    # An application created in the admin may allow the password grant; the token
+    # endpoint must still refuse it.
     user = data_fixture.create_user(email="victim@example.com", password="password")
     endpoint = data_fixture.create_mcp_endpoint(user=user)
     application = Application.objects.create(
@@ -157,7 +87,7 @@ def test_implicit_response_type_is_refused(client):
 @pytest.mark.django_db
 @pytest.mark.parametrize("extra", ["", "&mcp_endpoint_consent=True"])
 def test_authorize_rejects_client_requested_endpoint_scope(client, extra):
-    client_id = register_dcr_client(client)
+    client_id = cimd_client(client)
     _, challenge = pkce_pair()
     query = (
         authorize_query(client_id, challenge).replace(
