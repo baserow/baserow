@@ -46,12 +46,17 @@
         :name="optionLabel(option)"
         :value="option.value"
       >
-        <ABFormattedText
-          :value="optionLabel(option)"
-          :format="option.nameFormat"
-          profile="inline"
-          :allow-links="false"
-        />
+        <span
+          class="ab-dropdownitem__item-name-text"
+          :title="optionLabel(option)"
+        >
+          <ABFormattedText
+            :value="optionLabel(option)"
+            :format="option.nameFormat"
+            profile="inline"
+            :allow-links="false"
+          />
+        </span>
       </ABDropdownItem>
     </ABDropdown>
     <template v-else>

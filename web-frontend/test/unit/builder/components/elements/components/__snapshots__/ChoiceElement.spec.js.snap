@@ -221,8 +221,13 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                     >
                       <!--v-if-->
                       
-                      <span>
-                        First
+                      <span
+                        class="ab-dropdownitem__item-name-text"
+                        title="First"
+                      >
+                        <span>
+                          First
+                        </span>
                       </span>
                       
                     </div>
@@ -243,8 +248,13 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                     >
                       <!--v-if-->
                       
-                      <span>
-                        Second
+                      <span
+                        class="ab-dropdownitem__item-name-text"
+                        title="Second"
+                      >
+                        <span>
+                          Second
+                        </span>
                       </span>
                       
                     </div>
