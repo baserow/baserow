@@ -3,84 +3,155 @@
     <div class="auth__logo">
       <Logo />
     </div>
-    <div class="auth__head auth__head-title">
-      <h1>{{ $t('mcpAuthorize.title') }}</h1>
-    </div>
     <Error :error="error" />
-    <div v-if="consent" class="mcp-authorize__body">
-      <p class="mcp-authorize__client">
-        {{ $t('mcpAuthorize.wants', { client: consent.client_name }) }}
-      </p>
-      <p class="mcp-authorize__redirect">
-        {{ $t('mcpAuthorize.redirect', { host: consent.redirect_host }) }}
-      </p>
-      <FormGroup :label="$t('mcpAuthorize.workspace')" required>
-        <p
-          v-if="!consent.workspaces.length"
-          class="mcp-authorize__empty"
-          data-test="mcp-authorize-no-workspaces"
-        >
-          {{ $t('mcpAuthorize.noWorkspaces') }}
-        </p>
-        <Dropdown v-else v-model="workspaceId" :show-search="false">
-          <DropdownItem
-            v-for="workspace in consent.workspaces"
-            :key="workspace.id"
-            :name="workspace.name"
-            :value="workspace.id"
-          />
-        </Dropdown>
-      </FormGroup>
-      <FormGroup :label="$t('mcpAuthorize.tools')" required>
+    <div v-if="!consent && !error.visible" class="mcp-authorize__card">
+      <div class="skeleton" data-test="mcp-authorize-loading">
+        <div class="mcp-authorize__header">
+          <SkeletonBlock width="100%" height="40px" />
+          <SkeletonBlock width="60%" height="20px" />
+          <SkeletonBlock width="40%" height="14px" />
+        </div>
+        <div class="mcp-authorize__divider"></div>
+        <SkeletonBlock width="100%" height="36px" />
+        <SkeletonBlock width="100%" height="160px" />
+      </div>
+    </div>
+    <template v-if="consent">
+      <div class="mcp-authorize__card">
+        <div class="mcp-authorize__header">
+          <div class="mcp-authorize__pair">
+            <div
+              class="mcp-authorize__avatar mcp-authorize__avatar--client"
+              data-test="mcp-authorize-avatar"
+            >
+              {{ clientInitial }}
+            </div>
+            <span class="mcp-authorize__dots">• • •</span>
+            <div class="mcp-authorize__avatar mcp-authorize__avatar--baserow">
+              <img
+                src="@baserow/modules/core/static/img/baserow-icon.svg?url"
+                alt=""
+              />
+            </div>
+          </div>
+          <h1 class="mcp-authorize__title" data-test="mcp-authorize-title">
+            {{ $t('mcpAuthorize.title', { client: consent.client_name }) }}
+          </h1>
+          <p class="mcp-authorize__subtitle">
+            {{ $t('mcpAuthorize.subtitle') }}
+          </p>
+          <Badge
+            v-if="consent.verified"
+            color="green"
+            data-test="mcp-authorize-verified"
+            >{{
+              $t('mcpAuthorize.verified', { host: consent.verified_host })
+            }}</Badge
+          >
+          <p class="mcp-authorize__returns" data-test="mcp-authorize-returns">
+            {{ $t('mcpAuthorize.returns', { host: consent.redirect_host }) }}
+          </p>
+        </div>
+        <div class="mcp-authorize__divider"></div>
+        <FormGroup :label="$t('mcpAuthorize.workspace')" required>
+          <p
+            v-if="!consent.workspaces.length"
+            class="mcp-authorize__empty"
+            data-test="mcp-authorize-no-workspaces"
+          >
+            {{ $t('mcpAuthorize.noWorkspaces') }}
+          </p>
+          <Dropdown v-else v-model="workspaceId" :show-search="false">
+            <DropdownItem
+              v-for="workspace in consent.workspaces"
+              :key="workspace.id"
+              :name="workspace.name"
+              :value="workspace.id"
+              :description="databasesLabel(workspace.database_count)"
+              :data-test="`mcp-authorize-workspace-${workspace.id}`"
+            />
+          </Dropdown>
+        </FormGroup>
+        <div class="mcp-authorize__section-head">
+          <span class="mcp-authorize__section-label">{{
+            $t('mcpAuthorize.tools')
+          }}</span>
+          <span class="mcp-authorize__links">
+            <a data-test="mcp-authorize-select-all" @click="setAll(true)">{{
+              $t('mcpAuthorize.selectAll')
+            }}</a>
+            <span aria-hidden="true"> · </span>
+            <a data-test="mcp-authorize-select-none" @click="setAll(false)">{{
+              $t('mcpAuthorize.selectNone')
+            }}</a>
+          </span>
+        </div>
         <p v-if="!consent.tools.length" class="mcp-authorize__empty">
           {{ $t('mcpAuthorize.noTools') }}
         </p>
-        <div
-          v-for="group in toolGroups"
-          :key="group.key"
-          class="mcp-authorize__tool-group"
-          :data-test="`mcp-authorize-tools-${group.key}`"
-        >
-          <div class="mcp-authorize__tool-group-title">
-            {{ $t(group.label) }}
-          </div>
-          <Checkbox
-            v-for="tool in group.tools"
-            :key="tool.name"
-            v-model="ticked[tool.name]"
-            class="mcp-authorize__tool"
-            :data-test="`mcp-authorize-tool-${tool.name}`"
+        <div v-else class="mcp-authorize__tools">
+          <div
+            v-for="group in toolGroups"
+            :key="group.key"
+            :data-test="`mcp-authorize-tools-${group.key}`"
           >
-            {{ tool.title }}
-            <span v-if="tool.destructive" class="mcp-authorize__tool-hint">{{
-              $t('mcpAuthorize.destructiveHint')
-            }}</span>
-          </Checkbox>
+            <div class="mcp-authorize__tool-group-title">
+              {{ $t(group.label) }}
+            </div>
+            <div
+              v-for="tool in group.tools"
+              :key="tool.name"
+              class="mcp-authorize__tool"
+            >
+              <Checkbox
+                v-model="ticked[tool.name]"
+                class="mcp-authorize__tool-checkbox"
+                :data-test="`mcp-authorize-tool-${tool.name}`"
+              >
+                {{ tool.title }}
+              </Checkbox>
+              <Badge
+                v-if="tool.destructive"
+                :color="isDelete(tool) ? 'red' : 'yellow'"
+                size="small"
+                class="mcp-authorize__tool-badge"
+                :data-test="`mcp-authorize-badge-${tool.name}`"
+                >{{
+                  isDelete(tool)
+                    ? $t('mcpAuthorize.deletes')
+                    : $t('mcpAuthorize.overwrites')
+                }}</Badge
+              >
+            </div>
+          </div>
         </div>
-      </FormGroup>
-      <div class="mcp-authorize__actions">
-        <Button
-          type="secondary"
-          :disabled="loading"
-          data-test="mcp-authorize-deny"
-          @click="submit(false)"
-          >{{ $t('mcpAuthorize.deny') }}</Button
-        >
-        <Button
-          type="primary"
-          :loading="loading"
-          :disabled="loading || !canAllow"
-          data-test="mcp-authorize-allow"
-          @click="submit(true)"
-          >{{ $t('mcpAuthorize.allow') }}</Button
-        >
+        <div class="mcp-authorize__actions">
+          <Button
+            type="secondary"
+            :disabled="loading"
+            data-test="mcp-authorize-deny"
+            @click="submit(false)"
+            >{{ $t('mcpAuthorize.deny') }}</Button
+          >
+          <Button
+            type="primary"
+            :loading="loading"
+            :disabled="loading || !canAllow"
+            data-test="mcp-authorize-allow"
+            @click="submit(true)"
+            >{{ $t('mcpAuthorize.allow') }}</Button
+          >
+        </div>
       </div>
-    </div>
+      <p class="mcp-authorize__signed-in" data-test="mcp-authorize-signed-in">
+        {{ $t('mcpAuthorize.signedIn', { email: username }) }}
+      </p>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -90,7 +161,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { $client } = useNuxtApp()
+const { $client, $store: store } = useNuxtApp()
 const { t } = useI18n()
 
 /**
@@ -121,7 +192,7 @@ const ticked = reactive({})
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
 
-const { data: consent } = await useAsyncData('mcp-consent', async () => {
+const { data: consent } = useAsyncData('mcp-consent', async () => {
   try {
     const { data } = await MCPOAuthService($client).getConsent(query)
     return data
@@ -134,9 +205,41 @@ const { data: consent } = await useAsyncData('mcp-consent', async () => {
     return null
   }
 })
-workspaceId.value = consent.value?.workspaces[0]?.id ?? null
-for (const tool of consent.value?.tools || []) {
-  ticked[tool.name] = true
+
+// Preselect the first workspace that has databases, so the user doesn't land on
+// an empty one, and tick every tool.
+watch(
+  consent,
+  (value) => {
+    const workspaces = value?.workspaces || []
+    const preferred =
+      workspaces.find((workspace) => workspace.database_count > 0) ||
+      workspaces[0]
+    workspaceId.value = preferred?.id ?? null
+    for (const tool of value?.tools || []) {
+      ticked[tool.name] = true
+    }
+  },
+  { immediate: true }
+)
+
+const username = computed(() => store.getters['auth/getUsername'])
+const clientInitial = computed(() =>
+  (consent.value?.client_name || '').trim().charAt(0).toUpperCase()
+)
+
+function databasesLabel(count) {
+  return t('mcpAuthorize.databases', { count: count || 0 })
+}
+
+function isDelete(tool) {
+  return tool.name.startsWith('delete_')
+}
+
+function setAll(value) {
+  for (const tool of consent.value?.tools || []) {
+    ticked[tool.name] = value
+  }
 }
 
 const toolGroups = computed(() => {

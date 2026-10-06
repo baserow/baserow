@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 
 from django.db import transaction
+from django.db.models import Count
 
 from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.models import get_application_model
@@ -11,6 +12,7 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.contrib.database.models import Database
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.mcp.handler import MCPEndpointHandler
@@ -38,14 +40,18 @@ def _invalid_request(error: OAuthToolkitError) -> Response:
 
 
 def _client_info(credentials: dict) -> dict:
-    application = get_application_model().objects.get(
-        client_id=credentials["client_id"]
-    )
+    Application = get_application_model()
+    application = Application.objects.get(client_id=credentials["client_id"])
+    verified = application.registration_source == Application.RegistrationSource.CIMD
     return {
         "client_id": application.client_id,
         "client_name": application.name,
         "redirect_host": urlparse(credentials["redirect_uri"]).hostname,
         "registration_source": application.registration_source,
+        # A CIMD client_id is an https URL on an allowlisted host, so the host
+        # is vouched for by the allowlist.
+        "verified": verified,
+        "verified_host": urlparse(application.client_id).hostname if verified else None,
     }
 
 
@@ -59,16 +65,28 @@ class MCPOAuthConsentView(APIView):
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
-        workspace_users = (
+        workspace_users = list(
             WorkspaceUser.objects.filter(user=request.user)
             .select_related("workspace")
             .order_by("order", "id")
+        )
+        database_counts = dict(
+            Database.objects.filter(
+                workspace_id__in=[wu.workspace_id for wu in workspace_users]
+            )
+            .values_list("workspace_id")
+            .annotate(count=Count("id"))
+            .order_by()
         )
         return Response(
             {
                 **_client_info(credentials),
                 "workspaces": [
-                    {"id": wu.workspace_id, "name": wu.workspace.name}
+                    {
+                        "id": wu.workspace_id,
+                        "name": wu.workspace.name,
+                        "database_count": database_counts.get(wu.workspace_id, 0),
+                    }
                     for wu in workspace_users
                 ],
                 "tools": [

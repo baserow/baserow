@@ -7,7 +7,7 @@ from django.conf import settings
 from django.urls import reverse
 
 import pytest
-from oauth2_provider.models import AccessToken
+from oauth2_provider.models import AccessToken, get_application_model
 
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
@@ -196,7 +196,14 @@ def test_consent_get_lists_workspaces_and_enabled_tools(
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user, name="One")
     workspace_2 = data_fixture.create_workspace(user=user, name="Two")
-    data_fixture.create_workspace(name="Not mine")
+    other = data_fixture.create_workspace(name="Not mine")
+    data_fixture.create_database_application(workspace=workspace_1)
+    data_fixture.create_database_application(workspace=workspace_1)
+    trashed = data_fixture.create_database_application(
+        workspace=workspace_1, trashed=True
+    )
+    data_fixture.create_database_application(workspace=other)
+    assert trashed.trashed
     client_id = cimd_client(client)
     _, challenge = pkce_pair()
     response = api_client.get(
@@ -210,9 +217,11 @@ def test_consent_get_lists_workspaces_and_enabled_tools(
     assert data["client_id"] == client_id
     assert data["redirect_host"] == "127.0.0.1"
     assert "endpoints" not in data
+    assert data["verified"] is True
+    assert data["verified_host"] == "claude.ai"
     assert data["workspaces"] == [
-        {"id": workspace_1.id, "name": "One"},
-        {"id": workspace_2.id, "name": "Two"},
+        {"id": workspace_1.id, "name": "One", "database_count": 2},
+        {"id": workspace_2.id, "name": "Two", "database_count": 0},
     ]
     tools = {tool["name"]: tool for tool in data["tools"]}
     assert [tool["name"] for tool in data["tools"]] == enabled_tool_names()
@@ -486,3 +495,26 @@ def test_consent_invalid_query_does_not_create_endpoint(
 def test_consent_requires_authentication(api_client):
     response = api_client.get(reverse("api:mcp:oauth_consent"))
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_consent_get_manual_client_is_not_verified(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    Application = get_application_model()
+    Application.objects.create(
+        client_id="manual-client",
+        name="Manual",
+        client_type=Application.CLIENT_PUBLIC,
+        authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+        redirect_uris=REDIRECT_URI,
+        registration_source=Application.RegistrationSource.MANUAL,
+    )
+    _, challenge = pkce_pair()
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query("manual-client", challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["verified"] is False
+    assert response.json()["verified_host"] is None
