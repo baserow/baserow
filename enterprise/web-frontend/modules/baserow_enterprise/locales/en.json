@@ -730,7 +730,9 @@
     "valuesCount": "{count} value | {count} values",
     "copyToken": "Copy for the instructions",
     "examplePayload": "Example payload",
-    "examplePayloadHelper": "What “Run once” hands the agent, so you can try it without waiting for the real event."
+    "examplePayloadHelper": "What “Run once” hands the agent, so you can try it without waiting for the real event.",
+    "onlyWhenMentioned": "Only run when the agent is mentioned",
+    "onlyWhenMentionedHint": "People can then address the agent with {'@'} in a comment on this table. Without this option every comment starts a run."
   },
   "agentChannels": {
     "empty": "No chat channels yet. Connect a chat app to talk to the agent from there.",

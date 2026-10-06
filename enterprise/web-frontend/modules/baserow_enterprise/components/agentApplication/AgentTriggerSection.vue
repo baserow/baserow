@@ -67,6 +67,21 @@
         <div class="agent-configuration__hint">
           {{ $t('agentTrigger.hint') }}
         </div>
+        <template v-if="trigger.service_type === ROW_COMMENT_SERVICE_TYPE">
+          <Checkbox
+            :model-value="Boolean(trigger.config?.only_when_mentioned)"
+            :disabled="readOnly"
+            class="margin-top-2"
+            @update:model-value="
+              onConfigChange(trigger, { only_when_mentioned: $event })
+            "
+          >
+            {{ $t('agentTrigger.onlyWhenMentioned') }}
+          </Checkbox>
+          <div class="agent-configuration__hint">
+            {{ $t('agentTrigger.onlyWhenMentionedHint') }}
+          </div>
+        </template>
         <Expandable
           v-if="(trigger.tokens || []).length > 0"
           class="agent-configuration__trigger-data"
@@ -189,6 +204,7 @@ export default {
   },
   data() {
     return {
+      ROW_COMMENT_SERVICE_TYPE: 'local_baserow_row_comment_created',
       loading: false,
       addLoading: false,
       deletingIds: [],
@@ -315,6 +331,19 @@ export default {
         notifyIf(error, 'application')
       } finally {
         this.addLoading = false
+      }
+    },
+    async onConfigChange(trigger, values) {
+      try {
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTrigger`,
+          {
+            triggerId: trigger.id,
+            values: { config: { ...(trigger.config || {}), ...values } },
+          }
+        )
+      } catch (error) {
+        notifyIf(error, 'application')
       }
     },
     async onEnabledChange(trigger, enabled) {

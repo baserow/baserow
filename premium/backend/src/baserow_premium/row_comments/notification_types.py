@@ -137,11 +137,12 @@ class RowCommentNotificationType(EmailNotificationTypeMixin, NotificationType):
 
 
 @receiver(row_comment_created)
-def on_row_comment_created(sender, row_comment, row, user, mentions, **kwargs):
-    if mentions:
-        RowCommentMentionNotificationType.notify_mentioned_users(
-            row_comment, row, mentions
-        )
+def on_row_comment_created(sender, row_comment, row, user, mentions=(), **kwargs):
+    # Mentioned users are notified by the user mention target type; this
+    # receiver handles the subscribers. Notifications name their sender, and
+    # an agent application's comment has none, so it notifies nobody for now.
+    if row_comment.user_id is None:
+        return
 
     user_ids_to_exclude = [mention.id for mention in mentions]
     users_to_notify = RowCommentHandler.get_users_to_notify_for_comment(
@@ -172,8 +173,6 @@ def on_row_comment_created(sender, row_comment, row, user, mentions, **kwargs):
 
 
 @receiver(row_comment_updated)
-def on_row_comment_updated(sender, row_comment, row, user, mentions, **kwargs):
-    if mentions:
-        RowCommentMentionNotificationType.notify_mentioned_users(
-            row_comment, row, mentions
-        )
+def on_row_comment_updated(sender, row_comment, row, user, mentions=(), **kwargs):
+    # Newly mentioned users are notified by the user mention target type.
+    pass

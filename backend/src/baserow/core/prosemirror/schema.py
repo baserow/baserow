@@ -28,13 +28,20 @@ nodes = {
     "mention": {
         "group": "inline",
         "inline": True,
-        "attrs": {"id": {"default": None}, "label": {"default": None}},
+        # `kind` tells a user mention from an application one (an agent that
+        # asked to be mentioned); both share the same id space otherwise.
+        "attrs": {
+            "id": {"default": None},
+            "label": {"default": None},
+            "kind": {"default": "user"},
+        },
         "toDOM": lambda node: [
             "span",
             {
                 "class": "mention",
                 "data-id": str(node.attrs["id"]),
                 "data-label": node.attrs["label"],
+                "data-kind": node.attrs["kind"],
                 "data-type": "mention",
                 "contenteditable": "false",
             },
@@ -46,6 +53,7 @@ nodes = {
                 "getAttrs": lambda dom: {
                     "id": dom.getAttribute("data-id"),
                     "label": dom.getAttribute("data-label"),
+                    "kind": dom.getAttribute("data-kind") or "user",
                 },
             }
         ],

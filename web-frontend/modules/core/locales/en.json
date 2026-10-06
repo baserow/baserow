@@ -1078,7 +1078,9 @@
   },
   "richTextEditor": {
     "errorUnsupportedImageTitle": "Image can't be embedded",
-    "errorUnsupportedImageMessage": "{name} is not a supported image and was not added."
+    "errorUnsupportedImageMessage": "{name} is not a supported image and was not added.",
+    "mentionMembers": "Members",
+    "mentionAgents": "Agents"
   },
   "richTextEditorBubbleMenu": {
     "bold": "Bold",

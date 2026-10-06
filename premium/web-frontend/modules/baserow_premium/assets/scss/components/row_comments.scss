@@ -75,6 +75,11 @@
     margin-right: 0;
     margin-left: 10px;
   }
+
+  &--agent {
+    background-color: $palette-purple-100;
+    color: $palette-purple-800;
+  }
 }
 
 .row-comments__comment-head-details {

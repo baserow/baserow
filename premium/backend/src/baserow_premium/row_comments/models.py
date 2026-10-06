@@ -39,6 +39,23 @@ class RowComment(
     )  # Deprecated, will be removed in a future release.
     message = models.JSONField(default=dict, help_text="The rich text comment content.")
     mentions = models.ManyToManyField(User, related_name="row_comment_mentions")
+    # Agents (applications) addressed with `@`; the row comment trigger
+    # passes them on so an agent can react to its own mentions only.
+    mentioned_applications = models.ManyToManyField(
+        "core.Application", related_name="row_comment_mentions", blank=True
+    )
+    # Set when an agent application posted the comment, in which case `user`
+    # is empty; the application's name is shown as the author.
+    author_application = models.ForeignKey(
+        "core.Application",
+        null=True,
+        blank=True,
+        default=None,
+        db_default=None,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The agent application that posted the comment, if any.",
+    )
 
     class Meta:
         db_table = "database_rowcomment"

@@ -3,7 +3,7 @@ import tippy from 'tippy.js'
 
 import RichTextEditorMentionsList from '@baserow/modules/core/components/editor/RichTextEditorMentionsList'
 
-export default ({ users }) => ({
+export default ({ users, agents = [] }) => ({
   render: () => {
     let popup
     let component
@@ -12,7 +12,7 @@ export default ({ users }) => ({
       onStart: (props) => {
         component = new VueRenderer(RichTextEditorMentionsList, {
           editor: props.editor,
-          props: { users, ...props },
+          props: { users, agents, ...props },
         })
 
         if (!props.clientRect) {

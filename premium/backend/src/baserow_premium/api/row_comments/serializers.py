@@ -1,4 +1,5 @@
-from drf_spectacular.utils import extend_schema_serializer
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 
 from baserow.core.prosemirror.utils import is_valid_prosemirror_document
@@ -9,12 +10,34 @@ from baserow_premium.row_comments.models import (
 
 
 @extend_schema_serializer(deprecate_fields=["comment"])
+class RowCommentMentionableSerializer(serializers.Serializer):
+    type = serializers.CharField(
+        help_text="The mention target type, stored as the mention's `kind`."
+    )
+    id = serializers.IntegerField(help_text="The id to mention.")
+    name = serializers.CharField(help_text="The label shown for the mention.")
+
+
 class RowCommentSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(
-        max_length=32, source="user.first_name", required=False
+    first_name = serializers.SerializerMethodField(
+        help_text="The author's name: the user's first name, or the agent "
+        "application's name when an agent posted the comment."
+    )
+    author_application_id = serializers.IntegerField(
+        read_only=True,
+        allow_null=True,
+        help_text="Set when an agent application posted the comment.",
     )
     edited = serializers.SerializerMethodField()
     message = serializers.SerializerMethodField()
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_first_name(self, instance):
+        if instance.user_id is not None:
+            return instance.user.first_name
+        if instance.author_application_id is not None:
+            return instance.author_application.name
+        return None
 
     def get_edited(self, instance):
         return instance.updated_on > instance.created_on
@@ -30,6 +53,7 @@ class RowCommentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "user_id",
+            "author_application_id",
             "first_name",
             "table_id",
             "row_id",

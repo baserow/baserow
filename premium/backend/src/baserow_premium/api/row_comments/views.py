@@ -43,6 +43,7 @@ from baserow_premium.row_comments.handler import RowCommentHandler
 
 from .serializers import (
     RowCommentCreateSerializer,
+    RowCommentMentionableSerializer,
     RowCommentSerializer,
     RowCommentsNotificationModeSerializer,
     RowCommentViewQueryParamsSerializer,
@@ -383,3 +384,44 @@ class RowCommentsNotificationModeView(APIView):
             request.user, table_id, row_id, notification_mode, view_id=view_id
         )
         return Response(status=204)
+
+
+class RowCommentMentionablesView(APIView):
+    """
+    What a comment on this table can address with `@` besides the workspace
+    members, e.g. agents whose row comment trigger watches the table and asked
+    to be mentioned.
+    """
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="table_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The table the comments are placed in.",
+            ),
+        ],
+        tags=["Database table rows"],
+        operation_id="list_row_comment_mentionables",
+        description=(
+            "Lists what can be mentioned with `@` in a comment on a row of the "
+            "table besides the workspace members, such as agents."
+            "\n\nThis is a **premium** feature."
+        ),
+        responses={
+            200: RowCommentMentionableSerializer(many=True),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request, table_id):
+        targets = RowCommentHandler.get_mentionable_targets(request.user, table_id)
+        return Response(RowCommentMentionableSerializer(targets, many=True).data)

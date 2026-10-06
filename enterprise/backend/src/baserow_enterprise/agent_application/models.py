@@ -164,6 +164,9 @@ class AgentTrigger(
         related_name="agent_trigger",
     )
     enabled = models.BooleanField(default=True, db_default=True)
+    # Options of the trigger type itself (e.g. "only when mentioned" for row
+    # comments), as opposed to the service's configuration.
+    config = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ("id",)

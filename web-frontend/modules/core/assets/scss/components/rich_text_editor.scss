@@ -188,6 +188,35 @@ span[data-type='mention'] {
   background-color: $color-error-100;
 }
 
+.rich-text-editor__mention--agent {
+  color: $palette-purple-800;
+  background-color: $palette-purple-100;
+}
+
+.rich-text-editor__mention-list-section {
+  padding: 6px 8px 2px;
+  color: $palette-neutral-700;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.rich-text-editor__mention-list-agent-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  color: $palette-purple-800;
+  background-color: $palette-purple-100;
+  font-size: 12px;
+
+  @include rounded($rounded);
+}
+
 .rich-text-editor__mention-dropdown {
   .dropdown__items {
     bottom: 1px;

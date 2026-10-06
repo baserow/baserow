@@ -25,25 +25,42 @@ def is_valid_prosemirror_document(json_doc: Dict[str, Any]) -> bool:
         return False
 
 
-def extract_mentioned_user_ids(json_doc: Dict[str, Any]) -> Set[int]:
-    """
-    Extracts the user ids of all mentioned users from the given json document.
+MENTION_KIND_USER = "user"
 
-    :param json_doc: The json document to extract the mentioned user ids from.
-    :return: A set of user ids.
-    :raise ValueError: When the given json document is not valid according to the
-        schema.
+
+def extract_mention_ids(json_doc: Dict[str, Any], kind: str) -> Set[int]:
+    """
+    The ids of the mentions of one kind in the document. Mention nodes carry
+    a `kind` (what is being addressed: a user, an application, ...); the
+    registered mention target types decide what each kind resolves to.
+
+    :raise ValueError: When the document is not valid according to the schema.
     """
 
     mentions = set()
 
     def _extract_mentions(node, *args):
-        if node.type.name == "mention":
+        # Older documents have no kind; they only ever mentioned users.
+        if (
+            node.type.name == "mention"
+            and (node.attrs.get("kind") or MENTION_KIND_USER) == kind
+        ):
             mentions.add(node.attrs["id"])
 
     doc = Node.from_json(schema, json_doc)
     doc.descendants(_extract_mentions)
     return mentions
+
+
+def extract_mentioned_user_ids(json_doc: Dict[str, Any]) -> Set[int]:
+    """
+    Extracts the user ids of all mentioned users from the given json document.
+
+    :raise ValueError: When the given json document is not valid according to the
+        schema.
+    """
+
+    return extract_mention_ids(json_doc, MENTION_KIND_USER)
 
 
 def extract_mentioned_users_in_workspace(

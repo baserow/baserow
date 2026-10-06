@@ -1,22 +1,41 @@
 <template>
   <div>
-    <template v-if="filteredUsers.length">
+    <template v-if="items.length">
       <ul class="rich-text-editor__mention-list">
-        <li
-          v-for="(user, index) in filteredUsers"
-          :key="index"
-          ref="user"
-          class="rich-text-editor__mention-list-item"
-          :class="{ 'is-selected': index === selectedIndex }"
-          @click.stop.prevent="selectItem(index)"
+        <template
+          v-for="(item, index) in items"
+          :key="`${item.kind}-${item.id}`"
         >
-          <div class="select-collaborators__initials">
-            {{ userInitials(user) }}
-          </div>
-          <div class="select-collaborators__dropdown-option">
-            {{ user.name }}
-          </div>
-        </li>
+          <li
+            v-if="showSections && index === firstIndexOfKind(item.kind)"
+            class="rich-text-editor__mention-list-section"
+          >
+            {{
+              item.kind === 'application'
+                ? $t('richTextEditor.mentionAgents')
+                : $t('richTextEditor.mentionMembers')
+            }}
+          </li>
+          <li
+            ref="item"
+            class="rich-text-editor__mention-list-item"
+            :class="{ 'is-selected': index === selectedIndex }"
+            @click.stop.prevent="selectItem(index)"
+          >
+            <div
+              v-if="item.kind === 'application'"
+              class="rich-text-editor__mention-list-agent-icon"
+            >
+              <i class="baserow-icon-agent"></i>
+            </div>
+            <div v-else class="select-collaborators__initials">
+              {{ initials(item) }}
+            </div>
+            <div class="select-collaborators__dropdown-option">
+              {{ item.name }}
+            </div>
+          </li>
+        </template>
       </ul>
     </template>
   </div>
@@ -29,7 +48,15 @@ export default {
       type: Array,
       required: true,
     },
-
+    /**
+     * Agents that asked to be mentioned on this table, as
+     * `{ id, name }`; empty where comments cannot address an agent.
+     */
+    agents: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
     command: {
       type: Function,
       required: true,
@@ -43,8 +70,14 @@ export default {
   data() {
     return {
       selectedIndex: 0,
-      filteredUsers: [],
+      items: [],
     }
+  },
+
+  computed: {
+    showSections() {
+      return this.items.some((item) => item.kind === 'application')
+    },
   },
 
   watch: {
@@ -53,12 +86,26 @@ export default {
     },
     query: {
       handler(query, oldQuery) {
-        this.filteredUsers = this.users.filter(
-          (user) =>
-            !query ||
-            user.name.toLowerCase().includes(query.toLowerCase()) ||
-            `${user.user_id}` === query
-        )
+        const matches = (name, id) =>
+          !query ||
+          name.toLowerCase().includes(query.toLowerCase()) ||
+          `${id}` === query
+        this.items = [
+          ...this.users
+            .filter((user) => matches(user.name, user.user_id))
+            .map((user) => ({
+              kind: 'user',
+              id: user.user_id,
+              name: user.name,
+            })),
+          ...this.agents
+            .filter((agent) => matches(agent.name, agent.id))
+            .map((agent) => ({
+              kind: agent.type || 'application',
+              id: agent.id,
+              name: agent.name,
+            })),
+        ]
         if (query !== oldQuery) {
           this.selectedIndex = 0
         }
@@ -68,8 +115,11 @@ export default {
   },
 
   methods: {
-    userInitials(user) {
-      return user.name.slice(0, 1).toUpperCase()
+    initials(item) {
+      return item.name.slice(0, 1).toUpperCase()
+    },
+    firstIndexOfKind(kind) {
+      return this.items.findIndex((item) => item.kind === kind)
     },
     onKeyDown({ event }) {
       if (event.key === 'ArrowUp') {
@@ -93,8 +143,8 @@ export default {
     },
     scrollSelectedIntoView() {
       this.$nextTick(() => {
-        const listItem = this.$refs.user[this.selectedIndex]
-        listItem.scrollIntoView({ behavior: 'auto', block: 'nearest' })
+        const listItem = this.$refs.item?.[this.selectedIndex]
+        listItem?.scrollIntoView({ behavior: 'auto', block: 'nearest' })
       })
     },
     upHandler() {
@@ -106,7 +156,7 @@ export default {
     },
 
     downHandler() {
-      if (this.selectedIndex === this.filteredUsers.length - 1) return
+      if (this.selectedIndex === this.items.length - 1) return
 
       this.selectedIndex = this.selectedIndex + 1
       this.scrollSelectedIntoView()
@@ -117,10 +167,10 @@ export default {
     },
 
     selectItem(index) {
-      const item = this.filteredUsers[index]
+      const item = this.items[index]
 
       if (item) {
-        this.command({ id: item.user_id, label: item.name })
+        this.command({ id: item.id, label: item.name, kind: item.kind })
       }
     },
   },

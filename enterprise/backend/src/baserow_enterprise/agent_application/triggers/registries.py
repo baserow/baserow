@@ -102,6 +102,25 @@ class AgentTriggerType(Instance):
 
         return None
 
+    def prepare_config(self, config: dict) -> dict:
+        """
+        Validates and normalizes the trigger's own options before they are
+        stored. Unknown keys are dropped so a stale client cannot store
+        anything the type does not read.
+
+        :raises rest_framework.exceptions.ValidationError: When invalid.
+        """
+
+        return {}
+
+    def should_run(self, trigger: AgentTrigger, event_payload: Any) -> bool:
+        """
+        Whether this event starts a run for the trigger, given its options.
+        Consulted before the rate limit so skipped events never count.
+        """
+
+        return True
+
     def resolve_token(self, path: str, event_payload: Any) -> Optional[str]:
         """
         Resolves a token path (without the `trigger.` prefix) against the
@@ -183,18 +202,19 @@ class AgentTriggerType(Instance):
         chat_handler = AgentChatHandler()
 
         for trigger in triggers:
+            service_payload = (
+                event_payload(service_map[trigger.service_id])
+                if callable(event_payload)
+                else event_payload
+            )
+            if not self.should_run(trigger, service_payload):
+                continue
             if self._is_rate_limited(trigger):
                 continue
 
             main_agent = trigger.application.agents.first()
             if main_agent is None:
                 continue
-
-            service_payload = (
-                event_payload(service_map[trigger.service_id])
-                if callable(event_payload)
-                else event_payload
-            )
 
             chat = chat_handler.create_triggered_chat(
                 main_agent, self.type, cap_event_payload(service_payload)

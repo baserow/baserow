@@ -65,12 +65,29 @@ export const parseMention =
     }
   }
 
+export const MENTION_KIND_USER = 'user'
+export const MENTION_KIND_APPLICATION = 'application'
+
 export const createMention = ({
   users = [],
+  agents = [],
   loggedUserId = null,
   suggestion = undefined,
 } = {}) => {
   const extension = TiptapMention.extend({
+    // `kind` tells a member mention from an agent (application) one; both
+    // carry a numeric id, so the kind is what keeps them apart.
+    addAttributes() {
+      return {
+        ...this.parent?.(),
+        kind: {
+          default: MENTION_KIND_USER,
+          parseHTML: (element) =>
+            element.getAttribute('data-kind') || MENTION_KIND_USER,
+          renderHTML: (attributes) => ({ 'data-kind': attributes.kind }),
+        },
+      }
+    },
     markdownTokenName: 'mention',
     markdownTokenizer: {
       name: 'mention',
@@ -117,10 +134,21 @@ export const createMention = ({
 
   const options = {
     renderHTML: ({ options: mentionOptions, node }) => {
+      const classes = ['rich-text-editor__mention']
+      if (node.attrs.kind === MENTION_KIND_APPLICATION) {
+        const agent = agents.find(({ id }) => id === parseInt(node.attrs.id))
+        classes.push('rich-text-editor__mention--agent')
+        return [
+          'span',
+          mergeAttributes(mentionOptions.HTMLAttributes, {
+            class: classes.join(' '),
+          }),
+          `@${node.attrs.label ?? agent?.name ?? node.attrs.id}`,
+        ]
+      }
       const userId = parseInt(node.attrs.id)
       const user = users.find(({ user_id: id }) => id === userId)
       const label = node.attrs.label ?? user?.name ?? node.attrs.id
-      const classes = ['rich-text-editor__mention']
       if (userId === loggedUserId) {
         classes.push('rich-text-editor__mention--current-user')
       } else if (!user) {

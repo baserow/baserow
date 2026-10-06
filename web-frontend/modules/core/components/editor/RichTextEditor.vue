@@ -105,6 +105,14 @@ export default {
       type: [Array, null],
       default: null,
     },
+    /**
+     * Agents that can be addressed with `@` next to the members, as
+     * `{ id, name }`. Only meaningful together with `mentionableUsers`.
+     */
+    mentionableAgents: {
+      type: Array,
+      default: () => [],
+    },
     enterStopEdit: {
       type: Boolean,
       default: false,
@@ -186,6 +194,13 @@ export default {
       },
     },
     enableImages() {
+      this.teardownEditor()
+      this.createEditor()
+    },
+    // The mention extension reads its lists when the editor is built, and the
+    // agents arrive from a request after mount; the draft survives because
+    // it is reloaded from `modelValue`.
+    mentionableAgents() {
       this.teardownEditor()
       this.createEditor()
     },
@@ -296,10 +311,12 @@ export default {
       // If mentionable users are provided, add the mention extension.
       const users = this.mentionableUsers
       if (users !== null) {
+        const agents = this.mentionableAgents
         const mentionsExt = createMention({
           loggedUserId: this.loggedUserId,
-          suggestion: suggestion({ users }),
+          suggestion: suggestion({ users, agents }),
           users,
+          agents,
         })
         extensions.push(mentionsExt)
       }

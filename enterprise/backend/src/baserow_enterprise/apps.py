@@ -237,6 +237,17 @@ class BaserowEnterpriseConfig(AppConfig):
         if feature_flag_is_enabled(FF_AGENTS):
             application_type_registry.register(AgentApplicationType())
 
+            from baserow_enterprise.agent_application.mention_types import (
+                AgentApplicationMentionTargetType,
+            )
+            from baserow_premium.row_comments.registries import (
+                row_comment_mention_target_type_registry,
+            )
+
+            row_comment_mention_target_type_registry.register(
+                AgentApplicationMentionTargetType()
+            )
+
             from baserow.core.ai_provider.registries import (
                 ai_provider_model_feature_type_registry,
             )

@@ -72,6 +72,7 @@ def test_row_comments_api_view(premium_data_fixture, api_client):
         "table_id": table.id,
         "updated_on": "2020-01-01T12:00:00Z",
         "user_id": user.id,
+        "author_application_id": None,
         "edited": False,
         "trashed": False,
     }
@@ -1152,6 +1153,7 @@ def test_user_can_be_mentioned_in_message(premium_data_fixture, api_client):
         "table_id": table.id,
         "updated_on": "2020-01-01T12:00:00Z",
         "user_id": user.id,
+        "author_application_id": None,
         "edited": False,
         "trashed": False,
     }
@@ -1231,6 +1233,7 @@ def test_multiple_users_can_be_mentioned_in_a_comment(premium_data_fixture, api_
         "table_id": table.id,
         "updated_on": "2020-01-01T12:00:00Z",
         "user_id": user.id,
+        "author_application_id": None,
         "edited": False,
         "trashed": False,
     }
@@ -1243,11 +1246,19 @@ def test_multiple_users_can_be_mentioned_in_a_comment(premium_data_fixture, api_
                 "content": [
                     {
                         "type": "mention",
-                        "attrs": {"id": user_2.pk, "label": user_2.first_name},
+                        "attrs": {
+                            "id": user_2.pk,
+                            "label": user_2.first_name,
+                            "kind": "user",
+                        },
                     },
                     {
                         "type": "mention",
-                        "attrs": {"id": user_3.pk, "label": user_3.first_name},
+                        "attrs": {
+                            "id": user_3.pk,
+                            "label": user_3.first_name,
+                            "kind": "user",
+                        },
                     },
                 ],
             }

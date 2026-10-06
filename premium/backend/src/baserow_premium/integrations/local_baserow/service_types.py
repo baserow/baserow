@@ -1234,20 +1234,31 @@ class LocalBaserowRowCommentCreatedServiceType(LocalBaserowRowsSignalServiceType
     model_class = LocalBaserowRowCommentCreated
     returns_list = False
 
-    def _handle_signal(self, sender, row_comment, row, user, mentions, **kwargs):
+    def _handle_signal(
+        self, sender, row_comment, row, user, mention_targets=None, **kwargs
+    ):
+        from baserow_premium.row_comments.registries import (
+            row_comment_mention_target_type_registry,
+        )
+
         def get_data(service):
-            return {
+            data = {
                 "id": row_comment.id,
                 "table_id": row_comment.table_id,
                 "row_id": row_comment.row_id,
                 "message": row_comment.message,
                 "user": ({"id": user.id, "name": user.first_name} if user else None),
-                "mentions": [
-                    {"id": mention.id, "name": mention.first_name}
-                    for mention in mentions or []
-                ],
+                "author_application_id": row_comment.author_application_id,
                 "created_on": row_comment.created_on.isoformat(),
             }
+            # Each kind of mention adds its own view of who was addressed.
+            for target_type in row_comment_mention_target_type_registry.get_all():
+                data.update(
+                    target_type.get_event_payload(
+                        (mention_targets or {}).get(target_type.type, [])
+                    )
+                )
+            return data
 
         self._process_event(
             self._get_services_to_dispatch(row_comment.table),
@@ -1256,16 +1267,26 @@ class LocalBaserowRowCommentCreatedServiceType(LocalBaserowRowsSignalServiceType
         )
 
     def generate_schema(self, service, allowed_fields=None):
+        from baserow_premium.row_comments.registries import (
+            row_comment_mention_target_type_registry,
+        )
+
+        properties = {
+            "id": {"type": "number", "title": "Comment id"},
+            "table_id": {"type": "number", "title": "Table id"},
+            "row_id": {"type": "number", "title": "Row id"},
+            "message": {"type": "object", "title": "Message"},
+            "user": {"type": "object", "title": "Author"},
+            "author_application_id": {
+                "type": "number",
+                "title": "Author agent id",
+            },
+            "created_on": {"type": "string", "title": "Created on"},
+        }
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            properties.update(target_type.get_event_schema())
         return {
             "title": f"RowCommentCreated{service.id}Schema",
             "type": "object",
-            "properties": {
-                "id": {"type": "number", "title": "Comment id"},
-                "table_id": {"type": "number", "title": "Table id"},
-                "row_id": {"type": "number", "title": "Row id"},
-                "message": {"type": "object", "title": "Message"},
-                "user": {"type": "object", "title": "Author"},
-                "mentions": {"type": "array", "title": "Mentions"},
-                "created_on": {"type": "string", "title": "Created on"},
-            },
+            "properties": properties,
         }

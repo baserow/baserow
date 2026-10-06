@@ -228,8 +228,10 @@ class AgentRunner:
         from .models import AgentSkill
         from .tools.memory import build_memory_toolset
         from .tools.registries import agent_tool_type_registry
+        from .tools.row_comment_reply import build_row_comment_reply_toolset
         from .tools.self_configure import build_self_configure_toolset
         from .tools.skills import build_skills_toolset
+        from .triggers.trigger_types import RowCommentCreatedAgentTriggerType
 
         toolsets = agent_tool_type_registry.build_toolsets(self.agent, self.deps)
 
@@ -249,6 +251,11 @@ class AgentRunner:
             self.deps.system_notes.extend(
                 channel_type.get_system_notes(self.chat.channel)
             )
+
+        # A conversation started by a row comment can be answered where it
+        # was asked; other runs have no row to reply on.
+        if self.chat.trigger_type == RowCommentCreatedAgentTriggerType.type:
+            toolsets.append(build_row_comment_reply_toolset())
 
         # A human in the conversation may reconfigure the agent by chatting;
         # background triggered runs must not rewrite their own configuration.

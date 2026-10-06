@@ -16,10 +16,16 @@ class BaserowPremiumConfig(AppConfig):
         from baserow_premium.builder.application_types import (
             PremiumBuilderApplicationType,
         )
+        from baserow_premium.row_comments.mention_types import UserMentionTargetType
+        from baserow_premium.row_comments.registries import (
+            row_comment_mention_target_type_registry,
+        )
         from baserow_premium.row_comments.row_metadata_types import (
             RowCommentCountMetadataType,
             RowCommentsNotificationModeMetadataType,
         )
+
+        row_comment_mention_target_type_registry.register(UserMentionTargetType())
 
         # We replace the original application type with the premium one to
         # add the licences to workspace serializer

@@ -62,4 +62,25 @@ class Migration(migrations.Migration):
             },
             bases=("core.service",),
         ),
+        migrations.AddField(
+            model_name="rowcomment",
+            name="mentioned_applications",
+            field=models.ManyToManyField(
+                blank=True, related_name="row_comment_mentions", to="core.application"
+            ),
+        ),
+        migrations.AddField(
+            model_name="rowcomment",
+            name="author_application",
+            field=models.ForeignKey(
+                blank=True,
+                db_default=None,
+                default=None,
+                help_text="The agent application that posted the comment, if any.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to="core.application",
+            ),
+        ),
     ]

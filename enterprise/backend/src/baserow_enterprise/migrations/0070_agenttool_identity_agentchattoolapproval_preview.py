@@ -279,4 +279,9 @@ class Migration(migrations.Migration):
             },
             bases=("builder.builderworkflowaction",),
         ),
+        migrations.AddField(
+            model_name="agenttrigger",
+            name="config",
+            field=models.JSONField(blank=True, default=dict),
+        ),
     ]

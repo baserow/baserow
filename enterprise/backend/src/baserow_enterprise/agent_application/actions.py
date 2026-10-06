@@ -385,6 +385,7 @@ class CreateAgentTriggerActionType(UndoableActionType):
         service_type_str: str,
         service_values: Optional[dict] = None,
         enabled: bool = True,
+        config: Optional[dict] = None,
     ) -> AgentTrigger:
         trigger = AgentTriggerHandler().create_trigger(
             user,
@@ -392,6 +393,7 @@ class CreateAgentTriggerActionType(UndoableActionType):
             service_type_str,
             service_values=service_values,
             enabled=enabled,
+            config=config,
         )
         cls.register_action(
             user=user,
@@ -437,7 +439,10 @@ class UpdateAgentTriggerActionType(UndoableActionType):
 
     @classmethod
     def _values(cls, trigger: AgentTrigger, with_service: bool) -> dict:
-        values: dict[str, Any] = {"enabled": trigger.enabled}
+        values: dict[str, Any] = {
+            "enabled": trigger.enabled,
+            "config": trigger.config or {},
+        }
         if with_service:
             values["service"] = _service_values(trigger.service)
         return values
@@ -450,6 +455,7 @@ class UpdateAgentTriggerActionType(UndoableActionType):
             trigger,
             service_values=values.get("service"),
             enabled=values.get("enabled"),
+            config=values.get("config"),
         )
 
     @classmethod
@@ -459,11 +465,12 @@ class UpdateAgentTriggerActionType(UndoableActionType):
         trigger: AgentTrigger,
         service_values: Optional[dict] = None,
         enabled: Optional[bool] = None,
+        config: Optional[dict] = None,
     ) -> AgentTrigger:
         with_service = service_values is not None
         original_values = cls._values(trigger, with_service)
         trigger = AgentTriggerHandler().update_trigger(
-            user, trigger, service_values=service_values, enabled=enabled
+            user, trigger, service_values=service_values, enabled=enabled, config=config
         )
         new_values = cls._values(trigger, with_service)
         application = trigger.application

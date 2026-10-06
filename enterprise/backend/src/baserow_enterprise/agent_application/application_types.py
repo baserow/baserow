@@ -121,6 +121,7 @@ PERMISSION_PRESETS = ["read_only", "ask_first", "free"]
 class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
+
     serializer_field_names = [
         "name",
         "description",
@@ -406,6 +407,7 @@ class AgentApplicationType(ApplicationType):
             {
                 "id": trigger.id,
                 "enabled": trigger.enabled,
+                "config": trigger.config or {},
                 "service": ServiceHandler().export_service(
                     trigger.service.specific,
                     files_zip=files_zip,
@@ -707,6 +709,7 @@ class AgentApplicationType(ApplicationType):
             AgentTrigger.objects.create(
                 application=application,
                 service=trigger_service,
+                config=serialized_trigger.get("config") or {},
                 # The per-trigger state is preserved; an imported copy still
                 # never runs invisibly because `active` is not exported and
                 # defaults to off, so the user activates it deliberately.

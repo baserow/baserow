@@ -245,7 +245,12 @@ class PremiumFixtures:
                     {},
                     [
                         schema.node(
-                            "mention", {"id": mention.id, "label": mention.first_name}
+                            "mention",
+                            {
+                                "id": mention.id,
+                                "label": mention.first_name,
+                                "kind": "user",
+                            },
                         )
                         for mention in mentions
                     ],

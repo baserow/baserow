@@ -76,6 +76,7 @@
               v-model="comment"
               editor-class="rich-text-editor__content--comment"
               :mentionable-users="workspace.users"
+              :mentionable-agents="mentionableAgents"
               :placeholder="$t('rowCommentSidebar.comment')"
               :enter-stop-edit="true"
               @stop-edit="postComment()"
@@ -97,6 +98,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import RowComment from '@baserow_premium/components/row_comments/RowComment'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import RowCommentService from '@baserow_premium/services/row_comments/row_comments'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
@@ -130,6 +132,9 @@ export default {
   data() {
     return {
       comment: '',
+      // Agents that asked to be mentioned on this table; refreshed per table
+      // because the option is set per trigger.
+      mentionableAgents: [],
     }
   },
   computed: {
@@ -198,6 +203,12 @@ export default {
     },
   },
   watch: {
+    'table.id': {
+      handler() {
+        this.fetchMentionableAgents()
+      },
+      immediate: true,
+    },
     async hasPremiumFeaturesEnabled() {
       await this.initialLoad()
     },
@@ -211,6 +222,22 @@ export default {
     await this.initialLoad()
   },
   methods: {
+    async fetchMentionableAgents() {
+      // Nothing to mention when comments cannot be written here.
+      if (!this.hasPremiumFeaturesEnabled || !this.canCreateComments) {
+        this.mentionableAgents = []
+        return
+      }
+      try {
+        const { data } = await RowCommentService(
+          this.$client
+        ).fetchMentionables(this.table.id)
+        this.mentionableAgents = data
+      } catch {
+        // The picker simply offers members only.
+        this.mentionableAgents = []
+      }
+    },
     async initialLoad() {
       if (!this.hasPremiumFeaturesEnabled) {
         return

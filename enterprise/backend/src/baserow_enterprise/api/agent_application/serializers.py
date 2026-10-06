@@ -136,11 +136,21 @@ class CreateAgentTriggerSerializer(serializers.Serializer):
     service_type = serializers.CharField()
     enabled = serializers.BooleanField(required=False)
     service = serializers.DictField(required=False)
+    config = serializers.DictField(
+        required=False,
+        help_text="Options of the trigger type, e.g. `only_when_mentioned` "
+        "for row comments.",
+    )
 
 
 class UpdateAgentTriggerSerializer(serializers.Serializer):
     enabled = serializers.BooleanField(required=False)
     service = serializers.DictField(required=False)
+    config = serializers.DictField(
+        required=False,
+        help_text="Options of the trigger type, e.g. `only_when_mentioned` "
+        "for row comments.",
+    )
 
 
 class CreateAgentToolSerializer(serializers.Serializer):
@@ -336,6 +346,9 @@ class AgentTriggerSerializer(serializers.Serializer):
 
     id = serializers.IntegerField(read_only=True)
     enabled = serializers.BooleanField(read_only=True)
+    config = serializers.DictField(
+        read_only=True, help_text="Options of the trigger type."
+    )
     service_type = serializers.CharField(
         read_only=True, help_text="The type of the trigger service."
     )
@@ -365,6 +378,7 @@ class AgentTriggerSerializer(serializers.Serializer):
         return {
             "id": trigger.id,
             "enabled": trigger.enabled,
+            "config": trigger.config or {},
             "service_type": service_type,
             "service": service_type_registry.get_serializer(
                 service, ServiceSerializer

@@ -30,6 +30,9 @@ export default (client) => {
         `/row_comments/${tableId}/comment/${commentId}/?${buildViewIdParam(viewId)}`
       )
     },
+    fetchMentionables(tableId) {
+      return client.get(`/row_comments/${tableId}/mentionables/`)
+    },
     updateNotificationMode(tableId, rowId, mode, { viewId = null } = {}) {
       return client.put(
         `/row_comments/${tableId}/${rowId}/notification-mode/?${buildViewIdParam(viewId)}`,

@@ -27,9 +27,11 @@ class LocalBaserowTableAgentTriggerType(AgentTriggerType):
     headline_template = "Trigger: an event occurred in table {table}."
 
     def get_opening_headline(self, trigger: AgentTrigger) -> str:
+        return self.headline_template.format(table=self._table_name(trigger))
+
+    def _table_name(self, trigger: AgentTrigger) -> str:
         table = getattr(trigger.service.specific, "table", None)
-        table_name = f'"{table.name}" (id {table.id})' if table else "(unknown)"
-        return self.headline_template.format(table=table_name)
+        return f'"{table.name}" (id {table.id})' if table else "(unknown)"
 
     def get_tokens(self, trigger: AgentTrigger) -> list[dict]:
         return [
@@ -83,6 +85,45 @@ class RowCommentCreatedAgentTriggerType(LocalBaserowTableAgentTriggerType):
     service_type = "local_baserow_row_comment_created"
     headline_template = "Trigger: a comment was placed on a row in table {table}."
 
+    # With this option the agent only reacts when someone addresses it with
+    # `@` in the comment, which is also what lists it in the mention picker.
+    ONLY_WHEN_MENTIONED = "only_when_mentioned"
+
+    def prepare_config(self, config: dict) -> dict:
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+
+        value = config.get(self.ONLY_WHEN_MENTIONED, False)
+        if not isinstance(value, bool):
+            raise DRFValidationError(
+                detail=f"`{self.ONLY_WHEN_MENTIONED}` must be a boolean.",
+                code="invalid_config",
+            )
+        return {self.ONLY_WHEN_MENTIONED: value}
+
+    def should_run(self, trigger: AgentTrigger, event_payload) -> bool:
+        payload = event_payload or {}
+        # The agent's own reply must not start it again.
+        if payload.get("author_application_id") == trigger.application_id:
+            return False
+        if not (trigger.config or {}).get(self.ONLY_WHEN_MENTIONED):
+            return True
+        return trigger.application_id in (
+            payload.get("mentioned_application_ids") or []
+        )
+
+    def get_opening_headline(self, trigger: AgentTrigger) -> str:
+        if (trigger.config or {}).get(self.ONLY_WHEN_MENTIONED):
+            headline = (
+                "Trigger: you were mentioned in a comment on a row in table "
+                f"{self._table_name(trigger)}."
+            )
+        else:
+            headline = super().get_opening_headline(trigger)
+        return (
+            f"{headline} Answer with the `reply_to_row_comment` tool so the "
+            "person reads it on the row."
+        )
+
     def get_tokens(self, trigger: AgentTrigger) -> list[dict]:
         return [
             {"token": "{{trigger.comment.message}}", "description": "The comment text"},
@@ -108,6 +149,7 @@ class RowCommentCreatedAgentTriggerType(LocalBaserowTableAgentTriggerType):
             "message": "Can you look into this one?",
             "user": {"id": 1, "name": "Sample user"},
             "mentions": [],
+            "mentioned_application_ids": [],
             "created_on": timezone.now().isoformat(),
         }
 

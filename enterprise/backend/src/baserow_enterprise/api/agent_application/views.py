@@ -994,6 +994,7 @@ class AgentTriggersView(APIView):
                 data["service_type"],
                 service_values=data.get("service"),
                 enabled=data.get("enabled", True),
+                config=data.get("config"),
             )
 
         return Response(AgentTriggerSerializer(trigger).data)
@@ -1048,6 +1049,7 @@ class AgentTriggerView(APIView):
                 trigger,
                 service_values=data.get("service"),
                 enabled=data.get("enabled"),
+                config=data.get("config"),
             )
 
         return Response(AgentTriggerSerializer(trigger).data)

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
@@ -18,7 +19,6 @@ from baserow.contrib.database.views.registries import (
 from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.handler import CoreHandler
 from baserow.core.prosemirror.utils import (
-    extract_mentioned_users_in_workspace,
     is_valid_prosemirror_document,
 )
 from baserow.core.trash.handler import TrashHandler
@@ -42,6 +42,9 @@ from baserow_premium.row_comments.operations import (
     DeleteRowCommentsOperationType,
     ReadRowCommentsOperationType,
     UpdateRowCommentsOperationType,
+)
+from baserow_premium.row_comments.registries import (
+    row_comment_mention_target_type_registry,
 )
 from baserow_premium.row_comments.signals import (
     row_comment_created,
@@ -146,9 +149,11 @@ class RowCommentHandler:
             PREMIUM, requesting_user, table.database.workspace
         )
 
-        queryset = RowComment.objects.select_related(
-            "table__database__workspace"
-        ).prefetch_related("mentions")
+        queryset = (
+            RowComment.objects.select_related("table__database__workspace")
+            .select_related("author_application")
+            .prefetch_related("mentions")
+        )
 
         try:
             row_comment = queryset.get(pk=comment_id)
@@ -171,6 +176,75 @@ class RowCommentHandler:
             raise RowCommentDoesNotExist()
 
         return row_comment
+
+    @classmethod
+    def get_mentionable_targets(
+        cls, requesting_user: AbstractUser, table_id: int
+    ) -> list[dict]:
+        """
+        What a comment on the table may address with `@`, gathered from every
+        registered mention target type (an agent offers itself when its row
+        comment trigger watches the table and asked to be mentioned).
+
+        :raises TableDoesNotExist: If the table does not exist.
+        :raises PermissionException: If the user may not read the comments.
+        """
+
+        table = TableHandler().get_table(table_id)
+        CoreHandler().check_permissions(
+            requesting_user,
+            ReadRowCommentsOperationType.type,
+            workspace=table.database.workspace,
+            context=table,
+        )
+        targets = []
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            targets.extend(target_type.list_mentionable(requesting_user, table))
+        return targets
+
+    @classmethod
+    def _resolve_mentions(cls, message: Dict[str, Any], workspace) -> Dict[str, list]:
+        """
+        Every registered type's mentions found in the message, resolved to
+        objects of the workspace, keyed by type.
+
+        :raises InvalidRowCommentMentionException: When the document is invalid.
+        """
+
+        resolved = {}
+        try:
+            for target_type in row_comment_mention_target_type_registry.get_all():
+                resolved[target_type.type] = target_type.resolve(
+                    target_type.extract_ids(message), workspace
+                )
+        except ValueError:
+            raise InvalidRowCommentMentionException()
+        return resolved
+
+    @classmethod
+    def _mentions_created(
+        cls, row_comment: RowComment, row, mentions: Dict[str, list], user
+    ) -> None:
+        """
+        Stores the mentions of a new comment, sends the created signal with
+        what each type adds to it, then lets each type react.
+        """
+
+        signal_kwargs = {}
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            targets = mentions[target_type.type]
+            target_type.attach(row_comment, targets)
+            signal_kwargs.update(target_type.get_signal_kwargs(targets))
+        row_comment_created.send(
+            cls,
+            row_comment=row_comment,
+            row=row,
+            user=user,
+            mention_targets=mentions,
+            **signal_kwargs,
+        )
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            target_type.comment_created(row_comment, row, mentions[target_type.type])
 
     @classmethod
     def create_comment(
@@ -219,10 +293,7 @@ class RowCommentHandler:
         if not is_valid_prosemirror_document(message):
             raise InvalidRowCommentException()
 
-        try:
-            mentions = extract_mentioned_users_in_workspace(message, workspace)
-        except ValueError:
-            raise InvalidRowCommentMentionException()
+        mentions = cls._resolve_mentions(message, workspace)
 
         row_comment = RowComment.objects.create(
             user=requesting_user,
@@ -231,17 +302,43 @@ class RowCommentHandler:
             message=message,
             comment=message,
         )
+        cls._mentions_created(row_comment, row, mentions, user=requesting_user)
+        return row_comment
 
-        if mentions:
-            row_comment.mentions.set(mentions)
+    @classmethod
+    def create_application_comment(
+        cls, application, table_id: int, row_id: int, message: Dict[str, Any]
+    ) -> RowComment:
+        """
+        Posts a comment on behalf of an agent application, which is how an
+        agent answers where it was asked. The run that calls this was started
+        by a comment on the same row, which already passed the user's
+        permission and licence checks, and an agent holds neither.
 
-        row_comment_created.send(
-            cls,
-            row_comment=row_comment,
-            row=row,
-            user=requesting_user,
-            mentions=list(mentions),
+        :raises TableDoesNotExist: If the table does not exist.
+        :raises InvalidRowCommentException: If the document is not valid.
+        """
+
+        table = TableHandler().get_table(table_id)
+        workspace = table.database.workspace
+        if not is_valid_prosemirror_document(message):
+            raise InvalidRowCommentException()
+        # No acting user: the run was started by a comment on this very row.
+        try:
+            row = table.get_model().objects.get(id=row_id)
+        except table.get_model().DoesNotExist:
+            raise RowDoesNotExist(row_id)
+        mentions = cls._resolve_mentions(message, workspace)
+
+        row_comment = RowComment.objects.create(
+            user=None,
+            author_application=application,
+            table=table,
+            row_id=row_id,
+            message=message,
+            comment=message,
         )
+        cls._mentions_created(row_comment, row, mentions, user=None)
         return row_comment
 
     @classmethod
@@ -287,29 +384,40 @@ class RowCommentHandler:
         if not is_valid_prosemirror_document(message):
             raise InvalidRowCommentException()
 
-        try:
-            new_mentions = extract_mentioned_users_in_workspace(message, workspace)
-            old_mentions = row_comment.mentions.all()
-        except ValueError:
-            raise InvalidRowCommentMentionException()
+        mentions = cls._resolve_mentions(message, workspace)
+        previous = {
+            target_type.type: target_type.get_attached(row_comment)
+            for target_type in row_comment_mention_target_type_registry.get_all()
+        }
 
         row_comment.message = message
         row_comment.save(update_fields=["message", "updated_on"])
 
-        if new_mentions:
-            row_comment.mentions.set(new_mentions)
-
         row = RowHandler().get_row(
             requesting_user, table, row_comment.row_id, view=view
         )
-
+        signal_kwargs = {}
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            targets = mentions[target_type.type]
+            target_type.attach(row_comment, targets)
+            # Receivers only care about who is newly mentioned.
+            signal_kwargs.update(
+                target_type.get_signal_kwargs(
+                    [t for t in targets if t not in previous[target_type.type]]
+                )
+            )
         row_comment_updated.send(
             cls,
             row_comment=row_comment,
             row=row,
             user=requesting_user,
-            mentions=list(set(new_mentions) - set(old_mentions)),
+            mention_targets=mentions,
+            **signal_kwargs,
         )
+        for target_type in row_comment_mention_target_type_registry.get_all():
+            target_type.comment_updated(
+                row_comment, row, mentions[target_type.type], previous[target_type.type]
+            )
         return row_comment
 
     @classmethod

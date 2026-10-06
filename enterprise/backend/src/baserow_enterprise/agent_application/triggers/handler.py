@@ -133,8 +133,11 @@ class AgentTriggerHandler:
         service_type_str: str,
         service_values: Optional[dict] = None,
         enabled: bool = True,
+        config: Optional[dict] = None,
     ) -> AgentTrigger:
         service_type = self._validate_service_type(service_type_str)
+        trigger_type = agent_trigger_type_registry.get_by_service_type(service_type_str)
+        config = trigger_type.prepare_config(config or {})
         service_values = dict(service_values or {})
         service_values = self._validate_integration(application, service_values)
         prepared_values = service_type.prepare_values(service_values, user)
@@ -145,7 +148,7 @@ class AgentTriggerHandler:
         schedule_periodic_service(service)
 
         trigger = AgentTrigger.objects.create(
-            application=application, service=service, enabled=enabled
+            application=application, service=service, enabled=enabled, config=config
         )
         agent_trigger_created.send(self, trigger=trigger, user=user)
         return trigger
@@ -175,6 +178,7 @@ class AgentTriggerHandler:
         trigger: AgentTrigger,
         service_values: Optional[dict] = None,
         enabled: Optional[bool] = None,
+        config: Optional[dict] = None,
     ) -> AgentTrigger:
         if service_values is not None:
             service = trigger.service.specific
@@ -189,9 +193,18 @@ class AgentTriggerHandler:
             ServiceHandler().update_service(service_type, service, **prepared_values)
             schedule_periodic_service(service)
 
+        update_fields = []
         if enabled is not None and enabled != trigger.enabled:
             trigger.enabled = enabled
-            trigger.save(update_fields=["enabled", "updated_on"])
+            update_fields.append("enabled")
+        if config is not None:
+            trigger_type = agent_trigger_type_registry.get_by_service_type(
+                trigger.service.specific.get_type().type
+            )
+            trigger.config = trigger_type.prepare_config(config)
+            update_fields.append("config")
+        if update_fields:
+            trigger.save(update_fields=[*update_fields, "updated_on"])
 
         agent_trigger_updated.send(self, trigger=trigger, user=user)
         return trigger

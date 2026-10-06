@@ -11,8 +11,19 @@
         class="row-comments__comment-head-details"
         :class="{ 'row-comments__comment-head-details--right': ownComment }"
       >
-        <div v-if="!ownComment" class="row-comments__comment-head-initial">
-          {{ $filters.nameAbbreviation(firstName) }}
+        <div
+          v-if="!ownComment"
+          class="row-comments__comment-head-initial"
+          :class="{
+            'row-comments__comment-head-initial--agent':
+              comment.author_application_id,
+          }"
+        >
+          <i
+            v-if="comment.author_application_id"
+            class="baserow-icon-agent"
+          ></i>
+          <template v-else>{{ $filters.nameAbbreviation(firstName) }}</template>
         </div>
         <div class="row-comments__comment-head-name">
           {{ ownComment ? $t('rowComment.you') : firstName }}
@@ -137,7 +148,10 @@ export default {
     },
 
     firstName() {
-      if (this.comment.user_id === null) {
+      if (
+        this.comment.user_id === null &&
+        !this.comment.author_application_id
+      ) {
         return this.$t('rowComment.anonymous')
       }
       return this.comment.first_name
