@@ -78,7 +78,7 @@ def test_flag_off_refuses_oauth_token_but_accepts_key(client, api_client, data_f
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
-    endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     with override_settings(BASEROW_MCP_OAUTH_ENABLED=False):
         _, error = async_to_sync(resolve_bearer)(tokens["access_token"])
         assert error == "invalid_token"

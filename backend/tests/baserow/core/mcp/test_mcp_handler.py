@@ -31,6 +31,12 @@ def test_get_by_key(data_fixture):
     assert endpoint.workspace_id == workspace_1.id
     assert isinstance(endpoint_tmp, MCPEndpoint)
 
+    grant = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace_1, oauth_client_id="https://claude.ai/x.json"
+    )
+    with pytest.raises(MCPEndpointDoesNotExist):
+        handler.get_by_key(key=grant.key)
+
 
 @pytest.mark.django_db
 def test_get_endpoint(data_fixture):

@@ -59,7 +59,10 @@ def _resolve_bearer_sync(value: str):
         if result is not None:
             return result
 
-    endpoint = MCPEndpoint.objects.filter(key=value).first()
+    # OAuth grants' endpoints only accept their OAuth tokens, never their key.
+    endpoint = MCPEndpoint.objects.filter(
+        key=value, oauth_client_id__isnull=True
+    ).first()
     if endpoint is None:
         return None, INVALID_TOKEN
     return endpoint, None

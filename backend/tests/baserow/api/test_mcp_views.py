@@ -51,6 +51,22 @@ def test_list_endpoints(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_endpoints_excludes_oauth_grants(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, oauth_client_id="https://claude.ai/x.json"
+    )
+
+    response = api_client.get(
+        reverse("api:mcp:list_endpoints"), HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [e["id"] for e in response.json()] == [endpoint.id]
+
+
+@pytest.mark.django_db
 def test_create_endpoint(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user)

@@ -7,7 +7,8 @@ import pytest
 from asgiref.sync import async_to_sync
 from httpx import ASGITransport, AsyncClient
 
-from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.mcp import BaserowMCPServer, current_endpoint_id, current_key
+from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import enabled_tool_names, obtain_tokens
 
 INIT = {
@@ -47,6 +48,7 @@ def _post(body, auth=None, path="/mcp"):
             response = await client.post(path, json=body, headers=headers)
         # The handler must not leak the endpoint key into the caller's context.
         assert current_key.get(None) is None
+        assert current_endpoint_id.get(None) is None
         return response
 
     return async_to_sync(inner)()
@@ -291,3 +293,62 @@ def test_oauth_token_rejected_when_oauth_disabled(data_fixture, settings):
     )
     assert _post(LIST, "flag-off-token").status_code == 401
     assert _post(LIST, endpoint.key).status_code == 200
+
+
+def _get(path):
+    async def inner():
+        app = BaserowMCPServer().sse_app()
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            return await client.get(path)
+
+    return async_to_sync(inner)()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_oauth_grant_key_is_refused_as_bearer(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
+    response = _post(LIST, endpoint.key)
+    assert response.status_code == 401
+    assert 'error="invalid_token"' in response.headers["www-authenticate"]
+    # The OAuth token bound to the same endpoint keeps working.
+    response = _post(LIST, tokens["access_token"])
+    assert response.status_code == 200
+    assert response.json()["result"]["tools"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_oauth_grant_key_is_refused_on_sse(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
+    response = _get(f"/mcp/{endpoint.key}/sse")
+    assert response.status_code == 401
+    assert response.text == "Endpoint not found."
+
+
+@pytest.mark.django_db
+def test_get_endpoint_ignores_oauth_grant_key(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    grant = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, oauth_client_id="https://claude.ai/x.json"
+    )
+    manual = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+
+    async def lookup(var, value):
+        ctx = var.set(value)
+        try:
+            return await BaserowMCPServer().get_endpoint()
+        finally:
+            var.reset(ctx)
+
+    get = async_to_sync(lookup)
+    assert get(current_key, grant.key) is None
+    assert get(current_key, manual.key).id == manual.id
+    assert get(current_endpoint_id, grant.id).id == grant.id

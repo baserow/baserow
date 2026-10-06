@@ -11,6 +11,11 @@ if TYPE_CHECKING:
     from starlette.applications import Starlette
 
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
+# Set by `/mcp` once the bearer is resolved. It takes precedence over `current_key`,
+# so endpoints of OAuth grants, whose key is refused, still resolve for their tokens.
+current_endpoint_id: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "current_endpoint_id"
+)
 
 
 def _is_sse_disconnect_teardown_error(exc: BaseException) -> bool:
@@ -73,11 +78,16 @@ class BaserowMCPServer:
         from baserow.core.mcp.models import MCPEndpoint
         from baserow.core.subjects import UserSubjectType
 
-        key = current_key.get()
+        endpoint_id = current_endpoint_id.get(None)
+        if endpoint_id is not None:
+            lookup = {"id": endpoint_id}
+        else:
+            # The key of an OAuth grant's endpoint is never a credential.
+            lookup = {"key": current_key.get(), "oauth_client_id__isnull": True}
         try:
             endpoint = await MCPEndpoint.objects.select_related(
                 "user", "user__profile", "workspace"
-            ).aget(key=key)
+            ).aget(**lookup)
             # This call checks if the user is active, account is not deleted, and if it
             # belongs in the workspace. It's important to check this everytime an
             # operation is done because the permissions could have changed.
@@ -263,7 +273,7 @@ class BaserowMCPServer:
                 if scheme.lower() == "bearer" and value:
                     endpoint, error = await resolve_bearer(value)
 
-                key_ctx = current_key.set(endpoint.key if endpoint else "")
+                id_ctx = current_endpoint_id.set(endpoint.id if endpoint else None)
                 try:
                     if endpoint is not None and await server.get_endpoint() is None:
                         endpoint, error = None, INVALID_TOKEN
@@ -278,7 +288,7 @@ class BaserowMCPServer:
                         return
                     await server._handle_streamable_http(scope, receive, send)
                 finally:
-                    current_key.reset(key_ctx)
+                    current_endpoint_id.reset(id_ctx)
 
         streamable_http_app = _StreamableHTTPApp()
 

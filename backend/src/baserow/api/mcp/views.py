@@ -53,9 +53,10 @@ class MCPEndpointsView(APIView):
     def get(self, request):
         """Lists all the MCP endpoints of the authenticated user."""
 
-        endpoints = MCPEndpoint.objects.filter(user=request.user).select_related(
-            "workspace"
-        )
+        # Endpoints of OAuth grants are listed as connected apps instead.
+        endpoints = MCPEndpoint.objects.filter(
+            user=request.user, oauth_client_id__isnull=True
+        ).select_related("workspace")
         serializer = MCPEndpointSerializer(endpoints, many=True)
         return Response(serializer.data)
 

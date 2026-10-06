@@ -23,7 +23,8 @@ from .operations import (
 class MCPEndpointHandler:
     def get_by_key(self, key: str) -> MCPEndpoint:
         """
-        Fetches a single MCP endpoint instance based on the key.
+        Fetches a single MCP endpoint instance based on the key. Endpoints of OAuth
+        grants are excluded because their key is not a credential.
 
         :param key: The unique endpoint key.
         :raises MCPEndpointDoesNotExist: Raised when the requested endpoint was not
@@ -33,7 +34,7 @@ class MCPEndpointHandler:
 
         try:
             endpoint = MCPEndpoint.objects.select_related("workspace", "user").get(
-                key=key
+                key=key, oauth_client_id__isnull=True
             )
         except MCPEndpoint.DoesNotExist:
             raise MCPEndpointDoesNotExist(

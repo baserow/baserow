@@ -1,6 +1,10 @@
 from django.urls import re_path
 
-from .oauth_views import MCPOAuthConsentView
+from .oauth_views import (
+    MCPOAuthConnectionsView,
+    MCPOAuthConnectionView,
+    MCPOAuthConsentView,
+)
 from .views import MCPEndpointsView, MCPEndpointView
 
 app_name = "baserow.api.mcp"
@@ -13,4 +17,14 @@ urlpatterns = [
         name="endpoint",
     ),
     re_path(r"^oauth/consent/$", MCPOAuthConsentView.as_view(), name="oauth_consent"),
+    re_path(
+        r"^oauth/connections/$",
+        MCPOAuthConnectionsView.as_view(),
+        name="oauth_connections",
+    ),
+    re_path(
+        r"^oauth/connections/(?P<connection_id>[0-9]+)/$",
+        MCPOAuthConnectionView.as_view(),
+        name="oauth_connection",
+    ),
 ]
