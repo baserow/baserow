@@ -74,3 +74,20 @@ export const WithIcons = {
     `,
   }),
 }
+
+export const WithBadge = {
+  args: { selectedIndex: 2 },
+  render: (args) => ({
+    components: { Tabs, Tab },
+    setup() {
+      return { args }
+    },
+    template: `
+      <Tabs v-bind="args">
+        <Tab title="Account">Account settings</Tab>
+        <Tab title="Security">Security settings</Tab>
+        <Tab title="Notifications" badge="New">Notification preferences</Tab>
+      </Tabs>
+    `,
+  }),
+}
