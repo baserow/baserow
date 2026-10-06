@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.db import transaction
 
 import anyio
@@ -481,3 +483,99 @@ def test_call_tool_exception_returns_is_error_true(data_fixture):
             async_to_sync(inner)()
     finally:
         current_key.reset(key_token)
+
+
+@pytest.mark.django_db
+@patch("baserow.core.posthog.capture_user_event")
+def test_call_tool_captures_analytics_event(mock_capture, data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint()
+    mcp = BaserowMCPServer()
+
+    key_token = current_key.set(endpoint.key)
+
+    try:
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                await client.call_tool("list_databases", {})
+                await client.call_tool("update_rows", {"table_id": 999999, "rows": []})
+                await client.call_tool("nonexistent_tool", {})
+
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+    # The unknown tool is not captured.
+    assert [c.args[2] for c in mock_capture.call_args_list] == [
+        {"endpoint_id": endpoint.id, "tool": "list_databases", "success": True},
+        {"endpoint_id": endpoint.id, "tool": "update_rows", "success": False},
+    ]
+    for call in mock_capture.call_args_list:
+        assert call.args[0] == endpoint.user
+        assert call.args[1] == "mcp_tool_called"
+        assert call.kwargs["workspace"] == endpoint.workspace
+
+
+@pytest.mark.django_db
+@patch("baserow.core.posthog.capture_user_event")
+def test_call_tool_without_endpoint_does_not_capture(mock_capture, data_fixture):
+    mcp = BaserowMCPServer()
+
+    key_token = current_key.set("test-key")
+
+    try:
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                await client.call_tool("list_tables", {})
+
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+    mock_capture.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.posthog.capture_user_event")
+def test_handle_sse_captures_connected_event(mock_capture, data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint()
+    app = BaserowMCPServer().sse_app()
+
+    async def connect(key):
+        client_disconnected = anyio.Event()
+
+        async def receive():
+            await client_disconnected.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            if message["type"] == "http.response.start":
+                client_disconnected.set()
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": f"/mcp/{key}/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+
+        with anyio.fail_after(10):
+            await app(scope, receive, send)
+
+    async def inner():
+        await connect(endpoint.key)
+        await connect("invalid-key")
+
+    async_to_sync(inner)()
+
+    # Only the valid endpoint's connection is captured.
+    mock_capture.assert_called_once_with(
+        endpoint.user,
+        "mcp_connected",
+        {"endpoint_id": endpoint.id},
+        workspace=endpoint.workspace,
+    )
