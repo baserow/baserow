@@ -7,11 +7,8 @@ from django.db import connection, models
 
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.types import (
-    BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_MODE_SIMPLE,
-    BaserowFormulaFormat,
     BaserowFormulaMinified,
-    BaserowFormulaMode,
     FormulaFieldDatabaseValue,
     JSONFormulaFieldDatabaseValue,
     JSONFormulaFieldResult,
@@ -21,30 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 BASEROW_FORMULA_VERSION_INITIAL = "0.1"
-
-
-def _minify(
-    formula: str,
-    mode: BaserowFormulaMode,
-    version: str,
-    format: Optional[BaserowFormulaFormat] = None,
-) -> BaserowFormulaMinified:
-    """
-    Builds the stored form of a formula object. The `fmt` key is only written
-    for a format other than plain: a stored formula without `fmt` is plain, and
-    `fmt: "plain"` is never written.
-
-    :param formula: The formula string.
-    :param mode: The formula mode.
-    :param version: The formula version.
-    :param format: The `format` of the formula object, if any.
-    :return: The minified formula.
-    """
-
-    minified = BaserowFormulaMinified(m=mode, v=version, f=formula)
-    if format and format != BASEROW_FORMULA_FORMAT_PLAIN:
-        minified["fmt"] = format
-    return minified
 
 
 class FormulaField(models.TextField):
@@ -254,7 +227,7 @@ class FormulaField(models.TextField):
         # We should always be receiving a string or dictionary here.
         if value is None:
             return json.dumps(
-                _minify(
+                BaserowFormulaMinified.create(
                     formula="",
                     mode=BASEROW_FORMULA_MODE_SIMPLE,
                     version=BASEROW_FORMULA_VERSION_INITIAL,
@@ -264,8 +237,9 @@ class FormulaField(models.TextField):
         # v2/v2.1: if we've received a dictionary...
         if isinstance(value, dict):
             # Ensure we have proper defaults for None values. The `format` is
-            # only stored (as `fmt`) when it isn't plain, see `_minify`.
-            minified = _minify(
+            # only stored (as `fmt`) when it isn't plain, see
+            # `BaserowFormulaMinified.create`.
+            minified = BaserowFormulaMinified.create(
                 formula=value.get("formula") or "",
                 mode=value.get("mode") or BASEROW_FORMULA_MODE_SIMPLE,
                 version=value.get("version") or BASEROW_FORMULA_VERSION_INITIAL,
@@ -282,7 +256,7 @@ class FormulaField(models.TextField):
         # In v1.x the frontend will keep sending a formula string,
         # so we need to convert it to the new format.
         return json.dumps(
-            _minify(
+            BaserowFormulaMinified.create(
                 formula=str(value),
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
@@ -483,12 +457,12 @@ class JSONFormulaField(models.JSONField):
         # Coerce `None` values so that non-serializer write paths (direct ORM
         # saves, application import) can never persist a null formula.
         if not isinstance(value, dict):
-            return _minify(
+            return BaserowFormulaMinified.create(
                 formula=value or "",
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             )
-        return _minify(
+        return BaserowFormulaMinified.create(
             formula=value.get("formula") or "",
             mode=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
             version=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),

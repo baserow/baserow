@@ -130,13 +130,38 @@ class BaserowFormulaMinified(TypedDict):
     The stored form of a `BaserowFormulaObject`, e.g.
     `{"f": "'**bold**'", "m": "simple", "v": "0.1", "fmt": "markdown"}`. The
     `fmt` key is the `format` of the object and is absent when the format is
-    plain.
+    plain, see `create`.
     """
 
     v: str
     m: BaserowFormulaMode
     f: BaserowFormula
     fmt: NotRequired[BaserowFormulaFormat]
+
+    @classmethod
+    def create(
+        cls,
+        formula: str,
+        mode: BaserowFormulaMode,
+        version: str,
+        format: Optional[BaserowFormulaFormat] = None,
+    ) -> "BaserowFormulaMinified":
+        """
+        Builds the stored form of a formula object. The `fmt` key is only
+        written for a format other than plain: a stored formula without `fmt`
+        is plain, and `fmt: "plain"` is never written.
+
+        :param formula: The formula string.
+        :param mode: The formula mode.
+        :param version: The formula version.
+        :param format: The `format` of the formula object, if any.
+        :return: The minified formula.
+        """
+
+        minified = BaserowFormulaMinified(m=mode, v=version, f=formula)
+        if format and format != BASEROW_FORMULA_FORMAT_PLAIN:
+            minified["fmt"] = format
+        return minified
 
 
 FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]
