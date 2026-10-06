@@ -4,6 +4,8 @@
     "issue_origin": "github",
     "issue_number": null,
     "domain": "builder",
-    "bullet_points": [],
+    "bullet_points": [
+        "When Kuma's argument repair would drop or change a value, the call goes back to Kuma instead of running."
+    ],
     "created_at": "2026-10-05"
 }

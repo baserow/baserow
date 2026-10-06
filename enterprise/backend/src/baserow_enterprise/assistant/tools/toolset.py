@@ -120,6 +120,8 @@ def _id_producer(key: str) -> str | None:
 
 _MAX_REPORTED_ERRORS = 8
 
+_UNKNOWN_KEY_ERRORS = frozenset({"extra_forbidden", "unexpected_keyword_argument"})
+
 
 def _unwrap_union(node: Any) -> dict:
     """First non-null branch of an anyOf/oneOf, else the node itself."""
@@ -256,7 +258,7 @@ def _render_tool_arg_errors(
                 f"- {path}: required, but you did not send it. Send "
                 f"{_describe_shape(node, exact)}.{_discovery_hint(leaf)}"
             )
-        elif err_type in ("extra_forbidden", "unexpected_keyword_argument"):
+        elif err_type in _UNKNOWN_KEY_ERRORS:
             node, exact = _schema_at(schema, loc[:-1])
             keys = _keys_of(node) if exact else []
             allowed = (
@@ -390,7 +392,7 @@ def _render_dropped_values(dropped: list[tuple[str, Any]]) -> str:
     """
     Render dropped values as ``path=value`` entries, capped like the error report.
 
-    :param dropped: The (path, value) pairs a repair left out.
+    :param dropped: The (path, value) pairs a repair left out or changed.
     :return: The entries, followed by ", and N more" when some were left out.
     """
 
@@ -399,6 +401,38 @@ def _render_dropped_values(dropped: list[tuple[str, Any]]) -> str:
     )
     hidden = len(dropped) - _MAX_REPORTED_ERRORS
     return f"{shown}, and {hidden} more" if hidden > 0 else shown
+
+
+def _holds_a_value(node: Any) -> bool:
+    """
+    Tell whether arguments hold a value a repair must keep.
+
+    :param node: The arguments, or a part of them.
+    :return: Whether they hold a scalar that is not None or "".
+    """
+
+    try:
+        return next(_scalar_values(node), None) is not None
+    except RecursionError:
+        # Arguments too deeply nested to read go back to the model like any value.
+        return True
+
+
+def _only_unknown_keys_with_values(errors: list[dict]) -> bool:
+    """
+    Tell whether every validation error is an unknown key that holds a value.
+
+    The rest of such arguments is valid, so a repair could only drop those values,
+    which the guard refuses, or move them under a key the model didn't choose.
+
+    :param errors: The Pydantic errors of the tool arguments.
+    :return: Whether there is no other kind of error.
+    """
+
+    return all(
+        error.get("type") in _UNKNOWN_KEY_ERRORS and _holds_a_value(error.get("input"))
+        for error in errors
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -412,8 +446,9 @@ explanation, no markdown fences.
 
 Rules:
 1. Preserve every value the caller supplied. You may move a value to the \
-correct key, rename a key, drop an unsupported key, or convert a value to the \
-type the schema requires — nothing else.
+correct key, rename a key, or convert a value to the type the schema requires \
+— nothing else. Drop an unsupported key only when its value is empty; \
+otherwise keep the value under the closest accepted key, or leave it as it is.
 2. Do not invent data. Fill in a required value only when it is already \
 present elsewhere in the caller's object, or when the schema itself \
 determines it (a default, a const, or a single-member enum). Never invent an \
@@ -519,7 +554,7 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
     2. **Fix broken tool args** via a lightweight structured-output call
        instead of going through the full agent retry loop (which is slow
        and rarely succeeds). A fix that drops or changes a value the model
-       sent is sent back to the model instead of run.
+       sent is sent back to the model instead of being run.
     """
 
     def __init__(
@@ -648,15 +683,26 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         :param wrong_args: The rejected arguments.
         :param error: The validation error they produced.
         :return: The repaired arguments, validated against the original schema.
-        :raises ModelRetry: When the fixer fails, declares the arguments
-            unfixable, its fix also fails validation, or its fix drops or
-            changes a value the model sent, so pydantic-ai can handle the
+        :raises ModelRetry: When the only errors are unknown keys that hold values,
+            the fixer fails or declares the arguments unfixable, its fix leaves out
+            or changes a value the model sent, the arguments are nested too deeply
+            to compare with the fix, or the fix also fails validation. The message
+            describes the arguments the model sent, so pydantic-ai can handle the
             retry normally.
         """
 
         schema = self._schemas.get(tool_name, {})
         error_details = error.errors(include_url=False, include_context=False)
         report = format_tool_arg_errors(tool_name, schema, wrong_args, error_details)
+
+        if _only_unknown_keys_with_values(error_details):
+            logger.warning(
+                "[assistant] Tool '{}' args have unknown keys that hold values, "
+                "sending them back without a fix. Errors: {}",
+                tool_name,
+                error_details,
+            )
+            raise ModelRetry(report) from error
 
         logger.warning(
             "[assistant] Tool '{}' args failed validation, attempting fix. Errors: {}",
@@ -713,33 +759,35 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 f"ask the user), then call the tool again."
             )
 
-        # Re-validate with original schema
-        original_validator = self._original_validators[tool_name]
         try:
-            validated = original_validator.validate_python(fixed_args)
-        except ValidationError as e2:
-            retry_errors = e2.errors(include_url=False, include_context=False)
+            dropped = _dropped_values(wrong_args, fixed_args)
+        except RecursionError as exc:
             logger.warning(
-                "[assistant] Fixed args for tool '{}' still invalid: {}",
+                "[assistant] Args for tool '{}' are nested too deeply to check the fix",
                 tool_name,
-                retry_errors,
             )
-            raise ModelRetry(
-                format_tool_arg_errors(tool_name, schema, fixed_args, retry_errors)
-            ) from e2
-
-        dropped = _dropped_values(wrong_args, fixed_args)
+            raise ModelRetry(report) from exc
         if dropped:
+            rendered = _render_dropped_values(dropped)
             logger.warning(
                 "[assistant] Repair for tool '{}' would drop values ({} in total): {}",
                 tool_name,
                 len(dropped),
-                _render_dropped_values(dropped),
+                rendered,
             )
             raise ModelRetry(
                 f"{report}\nA repair would drop or change these values, so the call "
-                f"did not run: {_render_dropped_values(dropped)}. Send each one under "
-                "an accepted key with an accepted value, or leave it out on purpose."
+                f"did not run: {rendered}. Send each one under an accepted key with an "
+                "accepted value, or leave it out on purpose."
             )
 
-        return validated
+        original_validator = self._original_validators[tool_name]
+        try:
+            return original_validator.validate_python(fixed_args)
+        except ValidationError as e2:
+            logger.warning(
+                "[assistant] Fixed args for tool '{}' still invalid: {}",
+                tool_name,
+                e2.errors(include_url=False, include_context=False),
+            )
+            raise ModelRetry(report) from e2

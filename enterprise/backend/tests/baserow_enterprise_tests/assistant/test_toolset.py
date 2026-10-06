@@ -510,12 +510,14 @@ class _Column(AssistantBaseModel):
 
 
 async def _save_column_toolset(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, repaired: dict[str, Any] | None = None
 ) -> tuple[Callable[[dict[str, Any]], Awaitable[Any]], AsyncMock, list[_Column]]:
     """
-    Build a ``save_column`` toolset whose repair always answers with the column "Go".
+    Build a ``save_column`` toolset whose repair always gives the same answer.
 
     :param monkeypatch: Replaces the repair call.
+    :param repaired: The arguments the repair answers with. Defaults to the column
+        "Go".
     :return: A function that calls the tool, the repair mock and the saved columns.
     """
 
@@ -530,9 +532,8 @@ async def _save_column_toolset(
     )
     ctx = RunContext(deps=None, model=model, usage=RunUsage(), prompt="Save")
     tools = await toolset.get_tools(ctx)
-    repair = AsyncMock(
-        return_value=SimpleNamespace(output=json.dumps({"column": {"name": "Go"}}))
-    )
+    answer = {"column": {"name": "Go"}} if repaired is None else repaired
+    repair = AsyncMock(return_value=SimpleNamespace(output=json.dumps(answer)))
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.toolset.run_agent_with_model", repair
     )
@@ -552,7 +553,7 @@ async def test_repair_that_drops_a_value_does_not_run_the_tool(
     call, repair, saved = await _save_column_toolset(monkeypatch)
 
     with pytest.raises(ModelRetry) as exc:
-        await call({"column": {"name": "Go", "navigation_type": "page"}})
+        await call({"column": {"title": "Go", "navigation_type": "page"}})
 
     repair.assert_awaited_once()
     assert "did NOT run" in str(exc.value)
@@ -561,6 +562,84 @@ async def test_repair_that_drops_a_value_does_not_run_the_tool(
         'column.navigation_type="page". Send each one under an accepted key with an '
         "accepted value, or leave it out on purpose."
     ) in str(exc.value)
+    assert saved == []
+
+
+@pytest.mark.asyncio
+async def test_repair_that_drops_a_value_and_fails_validation_reports_the_sent_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_column_toolset(
+        monkeypatch, repaired={"column": {"caption": "Go"}}
+    )
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"title": "Go", "navigation_type": "page"}})
+
+    repair.assert_awaited_once()
+    assert "'title' is not a key of this object" in str(exc.value)
+    assert "caption" not in str(exc.value)
+    assert (
+        "A repair would drop or change these values, so the call did not run: "
+        'column.navigation_type="page".'
+    ) in str(exc.value)
+    assert saved == []
+
+
+@pytest.mark.asyncio
+async def test_repair_that_fails_validation_reports_the_sent_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_column_toolset(
+        monkeypatch, repaired={"column": {"caption": "Go"}}
+    )
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"title": "Go"}})
+
+    repair.assert_awaited_once()
+    assert str(exc.value).startswith("save_column did NOT run")
+    assert "'title' is not a key of this object" in str(exc.value)
+    assert "caption" not in str(exc.value)
+    assert saved == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "unknown",
+    [
+        pytest.param({"navigation_type": "page", "pin": 0}, id="values"),
+        pytest.param({"notes": "[" * 100_000}, id="deeply-nested-json-text"),
+    ],
+)
+async def test_unknown_keys_with_values_go_back_without_a_repair(
+    monkeypatch: pytest.MonkeyPatch, unknown: dict[str, Any]
+) -> None:
+    call, repair, saved = await _save_column_toolset(monkeypatch)
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"name": "Go", **unknown}})
+
+    repair.assert_not_awaited()
+    assert str(exc.value).startswith("save_column did NOT run")
+    assert all(
+        f"'{key}' is not a key of this object" in str(exc.value) for key in unknown
+    )
+    assert saved == []
+
+
+@pytest.mark.asyncio
+async def test_deeply_nested_json_text_goes_back_without_running_the_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_column_toolset(monkeypatch)
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"label": "[" * 100_000}})
+
+    repair.assert_awaited_once()
+    assert str(exc.value).startswith("save_column did NOT run")
+    assert "A repair would drop" not in str(exc.value)
     assert saved == []
 
 
@@ -594,7 +673,7 @@ async def test_retry_message_lists_a_limited_number_of_dropped_values(
     extras = {f"extra_{n}": f"value {n}" for n in range(_MAX_REPORTED_ERRORS + 2)}
 
     with pytest.raises(ModelRetry) as exc:
-        await call({"column": {"name": "Go", **extras}})
+        await call({"column": {"title": "Go", **extras}})
 
     last_shown = _MAX_REPORTED_ERRORS - 1
     assert f'column.extra_{last_shown}="value {last_shown}"' in str(exc.value)
@@ -621,7 +700,7 @@ async def test_warning_for_a_rejected_repair_lists_a_limited_number_of_values(
     extras = {f"extra_{n}": f"value {n}" for n in range(_MAX_REPORTED_ERRORS + 2)}
 
     with pytest.raises(ModelRetry):
-        await call({"column": {"name": "Go", **extras}})
+        await call({"column": {"title": "Go", **extras}})
 
     (warning,) = [text for text in logged_warnings if "would drop" in text]
     assert f"{len(extras)} in total" in warning
