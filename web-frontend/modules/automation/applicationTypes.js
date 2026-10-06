@@ -9,6 +9,10 @@ import WorkflowTemplate from '@baserow/modules/automation/components/workflow/Wo
 import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
 
 export class AutomationApplicationType extends ApplicationType {
+  get hasIntegrationSettingsPage() {
+    return true
+  }
+
   static getType() {
     return 'automation'
   }

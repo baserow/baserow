@@ -23,6 +23,20 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(AIIntegrationType())
         integration_type_registry.register(SlackBotIntegrationType())
 
+        from baserow.contrib.integrations.google.integration_types import (
+            GoogleIntegrationType,
+        )
+        from baserow.contrib.integrations.jira.integration_types import (
+            JiraIntegrationType,
+        )
+        from baserow.contrib.integrations.microsoft.integration_types import (
+            MicrosoftIntegrationType,
+        )
+
+        integration_type_registry.register(GoogleIntegrationType())
+        integration_type_registry.register(MicrosoftIntegrationType())
+        integration_type_registry.register(JiraIntegrationType())
+
         from baserow.contrib.integrations.ai.ai_provider_feature_types import (
             AIAgentAIProviderModelFeatureType,
         )
@@ -67,6 +81,47 @@ class IntegrationsConfig(AppConfig):
         )
 
         service_type_registry.register(SlackWriteMessageServiceType())
+
+        from baserow.contrib.integrations.google.service_types import (
+            GmailSendEmailServiceType,
+            GoogleCalendarCreateEventServiceType,
+            GoogleCalendarDeleteEventServiceType,
+            GoogleCalendarListEventsServiceType,
+            GoogleCalendarUpdateEventServiceType,
+        )
+        from baserow.contrib.integrations.jira.service_types import (
+            JiraCreateIssueServiceType,
+            JiraDeleteIssueServiceType,
+            JiraListIssuesServiceType,
+            JiraUpdateIssueServiceType,
+        )
+        from baserow.contrib.integrations.microsoft.service_types import (
+            MicrosoftTeamsSendMessageServiceType,
+            OutlookCalendarCreateEventServiceType,
+            OutlookCalendarDeleteEventServiceType,
+            OutlookCalendarListEventsServiceType,
+            OutlookCalendarUpdateEventServiceType,
+            OutlookSendEmailServiceType,
+        )
+
+        for external_service_type in (
+            GmailSendEmailServiceType,
+            GoogleCalendarCreateEventServiceType,
+            GoogleCalendarUpdateEventServiceType,
+            GoogleCalendarDeleteEventServiceType,
+            GoogleCalendarListEventsServiceType,
+            MicrosoftTeamsSendMessageServiceType,
+            OutlookSendEmailServiceType,
+            OutlookCalendarCreateEventServiceType,
+            OutlookCalendarUpdateEventServiceType,
+            OutlookCalendarDeleteEventServiceType,
+            OutlookCalendarListEventsServiceType,
+            JiraListIssuesServiceType,
+            JiraCreateIssueServiceType,
+            JiraUpdateIssueServiceType,
+            JiraDeleteIssueServiceType,
+        ):
+            service_type_registry.register(external_service_type())
 
         from baserow.contrib.integrations.core.service_types import (
             CoreCSVFileReaderServiceType,

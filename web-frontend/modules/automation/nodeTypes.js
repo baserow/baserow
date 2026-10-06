@@ -40,6 +40,27 @@ import {
 } from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import {
+  GmailSendEmailServiceType,
+  GoogleCalendarCreateEventServiceType,
+  GoogleCalendarDeleteEventServiceType,
+  GoogleCalendarListEventsServiceType,
+  GoogleCalendarUpdateEventServiceType,
+} from '@baserow/modules/integrations/google/serviceTypes'
+import {
+  MicrosoftTeamsSendMessageServiceType,
+  OutlookCalendarCreateEventServiceType,
+  OutlookCalendarDeleteEventServiceType,
+  OutlookCalendarListEventsServiceType,
+  OutlookCalendarUpdateEventServiceType,
+  OutlookSendEmailServiceType,
+} from '@baserow/modules/integrations/microsoft/serviceTypes'
+import {
+  JiraCreateIssueServiceType,
+  JiraDeleteIssueServiceType,
+  JiraListIssuesServiceType,
+  JiraUpdateIssueServiceType,
+} from '@baserow/modules/integrations/jira/serviceTypes'
 
 export class NodeType extends Registerable {
   /**
@@ -1530,3 +1551,120 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
     )
   }
 }
+
+/**
+ * The third-party actions (Google, Microsoft, Jira) differ only in their
+ * service type and copy, so one factory declares them.
+ */
+const externalActionNodeType = (ServiceTypeClass, i18nKey, order) =>
+  class extends ActionNodeTypeMixin(NodeType) {
+    static getType() {
+      return ServiceTypeClass.getType()
+    }
+
+    getOrder() {
+      return order
+    }
+
+    get name() {
+      return this.app.$i18n.t(`nodeType.${i18nKey}Name`)
+    }
+
+    getDefaultLabel() {
+      return this.app.$i18n.t(`nodeType.${i18nKey}Label`)
+    }
+
+    get serviceType() {
+      return this.app.$registry.get('service', ServiceTypeClass.getType())
+    }
+  }
+
+export const GmailSendEmailNodeType = externalActionNodeType(
+  GmailSendEmailServiceType,
+  'gmailSendEmail',
+  100
+)
+
+export const GoogleCalendarCreateEventNodeType = externalActionNodeType(
+  GoogleCalendarCreateEventServiceType,
+  'googleCalendarCreateEvent',
+  101
+)
+
+export const GoogleCalendarUpdateEventNodeType = externalActionNodeType(
+  GoogleCalendarUpdateEventServiceType,
+  'googleCalendarUpdateEvent',
+  102
+)
+
+export const GoogleCalendarDeleteEventNodeType = externalActionNodeType(
+  GoogleCalendarDeleteEventServiceType,
+  'googleCalendarDeleteEvent',
+  103
+)
+
+export const GoogleCalendarListEventsNodeType = externalActionNodeType(
+  GoogleCalendarListEventsServiceType,
+  'googleCalendarListEvents',
+  104
+)
+
+export const MicrosoftTeamsSendMessageNodeType = externalActionNodeType(
+  MicrosoftTeamsSendMessageServiceType,
+  'microsoftTeamsSendMessage',
+  105
+)
+
+export const OutlookSendEmailNodeType = externalActionNodeType(
+  OutlookSendEmailServiceType,
+  'outlookSendEmail',
+  106
+)
+
+export const OutlookCalendarCreateEventNodeType = externalActionNodeType(
+  OutlookCalendarCreateEventServiceType,
+  'outlookCalendarCreateEvent',
+  107
+)
+
+export const OutlookCalendarUpdateEventNodeType = externalActionNodeType(
+  OutlookCalendarUpdateEventServiceType,
+  'outlookCalendarUpdateEvent',
+  108
+)
+
+export const OutlookCalendarDeleteEventNodeType = externalActionNodeType(
+  OutlookCalendarDeleteEventServiceType,
+  'outlookCalendarDeleteEvent',
+  109
+)
+
+export const OutlookCalendarListEventsNodeType = externalActionNodeType(
+  OutlookCalendarListEventsServiceType,
+  'outlookCalendarListEvents',
+  110
+)
+
+export const JiraListIssuesNodeType = externalActionNodeType(
+  JiraListIssuesServiceType,
+  'jiraListIssues',
+  111
+)
+
+export const JiraCreateIssueNodeType = externalActionNodeType(
+  JiraCreateIssueServiceType,
+  'jiraCreateIssue',
+  112
+)
+
+export const JiraUpdateIssueNodeType = externalActionNodeType(
+  JiraUpdateIssueServiceType,
+  'jiraUpdateIssue',
+  113
+)
+
+export const JiraDeleteIssueNodeType = externalActionNodeType(
+  JiraDeleteIssueServiceType,
+  'jiraDeleteIssue',
+  114
+)

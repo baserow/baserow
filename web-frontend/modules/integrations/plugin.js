@@ -35,6 +35,30 @@ import {
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
+import { GoogleIntegrationType } from '@baserow/modules/integrations/google/integrationTypes'
+import {
+  GmailSendEmailServiceType,
+  GoogleCalendarCreateEventServiceType,
+  GoogleCalendarDeleteEventServiceType,
+  GoogleCalendarListEventsServiceType,
+  GoogleCalendarUpdateEventServiceType,
+} from '@baserow/modules/integrations/google/serviceTypes'
+import { MicrosoftIntegrationType } from '@baserow/modules/integrations/microsoft/integrationTypes'
+import {
+  MicrosoftTeamsSendMessageServiceType,
+  OutlookCalendarCreateEventServiceType,
+  OutlookCalendarDeleteEventServiceType,
+  OutlookCalendarListEventsServiceType,
+  OutlookCalendarUpdateEventServiceType,
+  OutlookSendEmailServiceType,
+} from '@baserow/modules/integrations/microsoft/serviceTypes'
+import { JiraIntegrationType } from '@baserow/modules/integrations/jira/integrationTypes'
+import {
+  JiraCreateIssueServiceType,
+  JiraDeleteIssueServiceType,
+  JiraListIssuesServiceType,
+  JiraUpdateIssueServiceType,
+} from '@baserow/modules/integrations/jira/serviceTypes'
 import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
@@ -48,6 +72,9 @@ export default defineNuxtPlugin({
     $registry.register('integration', new SMTPIntegrationType(context))
     $registry.register('integration', new AIIntegrationType(context))
     $registry.register('integration', new SlackBotIntegrationType(context))
+    $registry.register('integration', new GoogleIntegrationType(context))
+    $registry.register('integration', new MicrosoftIntegrationType(context))
+    $registry.register('integration', new JiraIntegrationType(context))
 
     $registry.register(
       'aiProviderModelFeature',
@@ -101,6 +128,25 @@ export default defineNuxtPlugin({
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))
+    for (const ServiceTypeClass of [
+      GmailSendEmailServiceType,
+      GoogleCalendarCreateEventServiceType,
+      GoogleCalendarUpdateEventServiceType,
+      GoogleCalendarDeleteEventServiceType,
+      GoogleCalendarListEventsServiceType,
+      MicrosoftTeamsSendMessageServiceType,
+      OutlookSendEmailServiceType,
+      OutlookCalendarCreateEventServiceType,
+      OutlookCalendarUpdateEventServiceType,
+      OutlookCalendarDeleteEventServiceType,
+      OutlookCalendarListEventsServiceType,
+      JiraListIssuesServiceType,
+      JiraCreateIssueServiceType,
+      JiraUpdateIssueServiceType,
+      JiraDeleteIssueServiceType,
+    ]) {
+      $registry.register('service', new ServiceTypeClass(context))
+    }
     $registry.register(
       'service',
       new LocalBaserowRowsCreatedTriggerServiceType(context)

@@ -1,0 +1,61 @@
+.integration-setup-steps {
+  color: $palette-neutral-900;
+  padding-left: 20px;
+  line-height: 170%;
+
+  & pre {
+    margin: 0;
+    display: inline;
+    white-space: pre-wrap;
+    background-color: $palette-neutral-100;
+  }
+}
+
+.integration-setup-steps__note {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 160%;
+}
+
+.oauth2-connect__redirect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.oauth2-connect__redirect-uri {
+  @extend %ellipsis;
+
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  font-size: 12px;
+
+  @include rounded($rounded);
+}
+
+.oauth2-connect__copy {
+  position: relative;
+  flex-shrink: 0;
+  color: $palette-neutral-900;
+}
+
+.oauth2-connect__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.oauth2-connect__account {
+  color: $palette-neutral-900;
+  font-size: 12px;
+}
+
+.oauth2-connect__hint {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 160%;
+}

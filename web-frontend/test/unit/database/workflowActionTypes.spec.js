@@ -36,6 +36,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'local_baserow_update_row',
       'open_url',
+      'run_agent',
       'slack_write_message',
       'smtp_email',
       'start_workflow',
@@ -55,6 +56,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'slack_write_message',
       'start_workflow',
+      'run_agent',
     ])
   })
 

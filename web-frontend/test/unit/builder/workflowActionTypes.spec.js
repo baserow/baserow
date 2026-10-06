@@ -35,6 +35,7 @@ describe('Builder workflow action types', () => {
       'ai_agent',
       'csv_file_reader',
       'xls_file_reader',
+      'run_agent',
       'slack_write_message',
     ])
   })

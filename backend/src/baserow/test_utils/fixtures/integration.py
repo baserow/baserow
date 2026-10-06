@@ -33,6 +33,32 @@ class IntegrationFixtures:
         integration = self.create_integration(SlackBotIntegration, **kwargs)
         return integration
 
+    def create_google_integration(self, **kwargs):
+        from baserow.contrib.integrations.google.models import GoogleIntegration
+
+        kwargs.setdefault("client_id", "google-client-id")
+        kwargs.setdefault("client_secret", "google-client-secret")  # nosec B105
+        kwargs.setdefault("refresh_token", "google-refresh-token")  # nosec B105
+        return self.create_integration(GoogleIntegration, **kwargs)
+
+    def create_microsoft_integration(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            MicrosoftIntegration,
+        )
+
+        kwargs.setdefault("client_id", "microsoft-client-id")
+        kwargs.setdefault("client_secret", "microsoft-client-secret")  # nosec B105
+        kwargs.setdefault("refresh_token", "microsoft-refresh-token")  # nosec B105
+        return self.create_integration(MicrosoftIntegration, **kwargs)
+
+    def create_jira_integration(self, **kwargs):
+        from baserow.contrib.integrations.jira.models import JiraIntegration
+
+        kwargs.setdefault("url", "https://example.atlassian.net")
+        kwargs.setdefault("username", "jira@example.com")
+        kwargs.setdefault("api_token", "jira-token")  # nosec B105
+        return self.create_integration(JiraIntegration, **kwargs)
+
     def create_integration_with_first_type(self, **kwargs):
         first_type = list(integration_type_registry.get_all())[0]
         return self.create_integration(first_type.model_class, **kwargs)

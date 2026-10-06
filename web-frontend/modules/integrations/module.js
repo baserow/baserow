@@ -13,6 +13,10 @@ export default defineNuxtModule({
     addPlugin({
       src: resolve('./plugin.js'),
     })
+    addPlugin({
+      src: resolve('./oauth2/plugins/oauth2Result.js'),
+      mode: 'client',
+    })
 
     nuxt.hook('i18n:registerModule', (register) => {
       register({

@@ -142,7 +142,12 @@ async function mountComponent({
           },
         },
         $registry: {
-          get: vi.fn(() => ({ type: 'smtp' })),
+          // Application types answer whether they have an integrations page.
+          get: vi.fn((namespace, type) =>
+            namespace === 'application'
+              ? { hasIntegrationSettingsPage: type !== 'database' }
+              : { type: 'smtp' }
+          ),
         },
       },
     },
@@ -305,8 +310,8 @@ describe('Core SMTP email service form', () => {
   })
 
   test('an integration can be edited from a database but not a builder', async () => {
-    // A database has no integrations page, so the dropdown is the only place
-    // to edit one. The builder and automations keep their own pages.
+    // Without an integrations page the dropdown is the only place to edit
+    // one; the builder and automations keep their own pages.
     const service = { instance_smtp_settings_enabled: false }
     const inDatabase = await mountComponent({
       service,

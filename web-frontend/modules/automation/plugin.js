@@ -37,6 +37,21 @@ import {
   CoreManualTriggerNodeType,
   AIAgentActionNodeType,
   SlackWriteMessageNodeType,
+  GmailSendEmailNodeType,
+  GoogleCalendarCreateEventNodeType,
+  GoogleCalendarUpdateEventNodeType,
+  GoogleCalendarDeleteEventNodeType,
+  GoogleCalendarListEventsNodeType,
+  MicrosoftTeamsSendMessageNodeType,
+  OutlookSendEmailNodeType,
+  OutlookCalendarCreateEventNodeType,
+  OutlookCalendarUpdateEventNodeType,
+  OutlookCalendarDeleteEventNodeType,
+  OutlookCalendarListEventsNodeType,
+  JiraListIssuesNodeType,
+  JiraCreateIssueNodeType,
+  JiraUpdateIssueNodeType,
+  JiraDeleteIssueNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
@@ -136,6 +151,21 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreCSVFileReaderNodeType(context))
     $registry.register('node', new CoreStartWorkflowNodeType(context))
     $registry.register('node', new SlackWriteMessageNodeType(context))
+    $registry.register('node', new GmailSendEmailNodeType(context))
+    $registry.register('node', new GoogleCalendarCreateEventNodeType(context))
+    $registry.register('node', new GoogleCalendarUpdateEventNodeType(context))
+    $registry.register('node', new GoogleCalendarDeleteEventNodeType(context))
+    $registry.register('node', new GoogleCalendarListEventsNodeType(context))
+    $registry.register('node', new MicrosoftTeamsSendMessageNodeType(context))
+    $registry.register('node', new OutlookSendEmailNodeType(context))
+    $registry.register('node', new OutlookCalendarCreateEventNodeType(context))
+    $registry.register('node', new OutlookCalendarUpdateEventNodeType(context))
+    $registry.register('node', new OutlookCalendarDeleteEventNodeType(context))
+    $registry.register('node', new OutlookCalendarListEventsNodeType(context))
+    $registry.register('node', new JiraListIssuesNodeType(context))
+    $registry.register('node', new JiraCreateIssueNodeType(context))
+    $registry.register('node', new JiraUpdateIssueNodeType(context))
+    $registry.register('node', new JiraDeleteIssueNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
     $registry.register('node', new LocalBaserowListRowsActionNodeType(context))

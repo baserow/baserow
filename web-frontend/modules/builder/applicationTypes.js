@@ -11,6 +11,10 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export class BuilderApplicationType extends ApplicationType {
+  get hasIntegrationSettingsPage() {
+    return true
+  }
+
   static getType() {
     return 'builder'
   }

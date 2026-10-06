@@ -31,6 +31,15 @@ class AutomationConfig(AppConfig):
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
             CoreStartWorkflowNodeType,
+            GmailSendEmailActionNodeType,
+            GoogleCalendarCreateEventActionNodeType,
+            GoogleCalendarDeleteEventActionNodeType,
+            GoogleCalendarListEventsActionNodeType,
+            GoogleCalendarUpdateEventActionNodeType,
+            JiraCreateIssueActionNodeType,
+            JiraDeleteIssueActionNodeType,
+            JiraListIssuesActionNodeType,
+            JiraUpdateIssueActionNodeType,
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowCreateRowsNodeType,
@@ -43,6 +52,12 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowsUpdatedNodeTriggerType,
             LocalBaserowUpdateRowNodeType,
             LocalBaserowUpdateRowsNodeType,
+            MicrosoftTeamsSendMessageActionNodeType,
+            OutlookCalendarCreateEventActionNodeType,
+            OutlookCalendarDeleteEventActionNodeType,
+            OutlookCalendarListEventsActionNodeType,
+            OutlookCalendarUpdateEventActionNodeType,
+            OutlookSendEmailActionNodeType,
             SlackWriteMessageActionNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
@@ -210,6 +225,37 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreManualTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())
+        automation_node_type_registry.register(GmailSendEmailActionNodeType())
+        automation_node_type_registry.register(
+            GoogleCalendarCreateEventActionNodeType()
+        )
+        automation_node_type_registry.register(
+            GoogleCalendarUpdateEventActionNodeType()
+        )
+        automation_node_type_registry.register(
+            GoogleCalendarDeleteEventActionNodeType()
+        )
+        automation_node_type_registry.register(GoogleCalendarListEventsActionNodeType())
+        automation_node_type_registry.register(
+            MicrosoftTeamsSendMessageActionNodeType()
+        )
+        automation_node_type_registry.register(OutlookSendEmailActionNodeType())
+        automation_node_type_registry.register(
+            OutlookCalendarCreateEventActionNodeType()
+        )
+        automation_node_type_registry.register(
+            OutlookCalendarUpdateEventActionNodeType()
+        )
+        automation_node_type_registry.register(
+            OutlookCalendarDeleteEventActionNodeType()
+        )
+        automation_node_type_registry.register(
+            OutlookCalendarListEventsActionNodeType()
+        )
+        automation_node_type_registry.register(JiraListIssuesActionNodeType())
+        automation_node_type_registry.register(JiraCreateIssueActionNodeType())
+        automation_node_type_registry.register(JiraUpdateIssueActionNodeType())
+        automation_node_type_registry.register(JiraDeleteIssueActionNodeType())
 
         from baserow.core.trash.registries import trash_operation_type_registry
 

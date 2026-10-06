@@ -230,10 +230,11 @@ export default {
       }
       return this.values.use_instance_smtp_settings
     },
-    // A database has no integrations page of its own, so the dropdown is the
-    // only place to edit one, as with the Slack action.
+    // Without an integrations page the dropdown is the only place to edit
+    // one, as with the Slack action.
     editableFromHere() {
-      return this.application?.type === 'database'
+      return !this.$registry.get('application', this.application.type)
+        .hasIntegrationSettingsPage
     },
     integrations() {
       if (!this.application) {

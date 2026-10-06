@@ -33,6 +33,15 @@ from baserow.contrib.automation.nodes.models import (
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
+    GmailSendEmailActionNode,
+    GoogleCalendarCreateEventActionNode,
+    GoogleCalendarDeleteEventActionNode,
+    GoogleCalendarListEventsActionNode,
+    GoogleCalendarUpdateEventActionNode,
+    JiraCreateIssueActionNode,
+    JiraDeleteIssueActionNode,
+    JiraListIssuesActionNode,
+    JiraUpdateIssueActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowCreateRowsActionNode,
@@ -45,6 +54,12 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
     LocalBaserowUpdateRowsActionNode,
+    MicrosoftTeamsSendMessageActionNode,
+    OutlookCalendarCreateEventActionNode,
+    OutlookCalendarDeleteEventActionNode,
+    OutlookCalendarListEventsActionNode,
+    OutlookCalendarUpdateEventActionNode,
+    OutlookSendEmailActionNode,
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
@@ -70,6 +85,19 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.google.service_types import (
+    GmailSendEmailServiceType,
+    GoogleCalendarCreateEventServiceType,
+    GoogleCalendarDeleteEventServiceType,
+    GoogleCalendarListEventsServiceType,
+    GoogleCalendarUpdateEventServiceType,
+)
+from baserow.contrib.integrations.jira.service_types import (
+    JiraCreateIssueServiceType,
+    JiraDeleteIssueServiceType,
+    JiraListIssuesServiceType,
+    JiraUpdateIssueServiceType,
+)
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
 )
@@ -85,6 +113,14 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedServiceType,
     LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
+)
+from baserow.contrib.integrations.microsoft.service_types import (
+    MicrosoftTeamsSendMessageServiceType,
+    OutlookCalendarCreateEventServiceType,
+    OutlookCalendarDeleteEventServiceType,
+    OutlookCalendarListEventsServiceType,
+    OutlookCalendarUpdateEventServiceType,
+    OutlookSendEmailServiceType,
 )
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
@@ -851,3 +887,171 @@ class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode
     service_type = SlackWriteMessageServiceType.type
+
+
+class GmailSendEmailActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Gmail send email")
+    type = "gmail_send_email"
+    model_class = GmailSendEmailActionNode
+    service_type = GmailSendEmailServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_gmail_send_email_service()}
+
+
+class GoogleCalendarCreateEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Google Calendar create event")
+    type = "google_calendar_create_event"
+    model_class = GoogleCalendarCreateEventActionNode
+    service_type = GoogleCalendarCreateEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_google_calendar_create_event_service()
+        }
+
+
+class GoogleCalendarUpdateEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Google Calendar update event")
+    type = "google_calendar_update_event"
+    model_class = GoogleCalendarUpdateEventActionNode
+    service_type = GoogleCalendarUpdateEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_google_calendar_update_event_service()
+        }
+
+
+class GoogleCalendarDeleteEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Google Calendar delete event")
+    type = "google_calendar_delete_event"
+    model_class = GoogleCalendarDeleteEventActionNode
+    service_type = GoogleCalendarDeleteEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_google_calendar_delete_event_service()
+        }
+
+
+class GoogleCalendarListEventsActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Google Calendar list events")
+    type = "google_calendar_list_events"
+    model_class = GoogleCalendarListEventsActionNode
+    service_type = GoogleCalendarListEventsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_google_calendar_list_events_service()
+        }
+
+
+class MicrosoftTeamsSendMessageActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Microsoft Teams send message")
+    type = "microsoft_teams_send_message"
+    model_class = MicrosoftTeamsSendMessageActionNode
+    service_type = MicrosoftTeamsSendMessageServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_microsoft_teams_send_message_service()
+        }
+
+
+class OutlookSendEmailActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Outlook send email")
+    type = "outlook_send_email"
+    model_class = OutlookSendEmailActionNode
+    service_type = OutlookSendEmailServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_outlook_send_email_service()}
+
+
+class OutlookCalendarCreateEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Outlook Calendar create event")
+    type = "outlook_calendar_create_event"
+    model_class = OutlookCalendarCreateEventActionNode
+    service_type = OutlookCalendarCreateEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_outlook_calendar_create_event_service()
+        }
+
+
+class OutlookCalendarUpdateEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Outlook Calendar update event")
+    type = "outlook_calendar_update_event"
+    model_class = OutlookCalendarUpdateEventActionNode
+    service_type = OutlookCalendarUpdateEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_outlook_calendar_update_event_service()
+        }
+
+
+class OutlookCalendarDeleteEventActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Outlook Calendar delete event")
+    type = "outlook_calendar_delete_event"
+    model_class = OutlookCalendarDeleteEventActionNode
+    service_type = OutlookCalendarDeleteEventServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_outlook_calendar_delete_event_service()
+        }
+
+
+class OutlookCalendarListEventsActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Outlook Calendar list events")
+    type = "outlook_calendar_list_events"
+    model_class = OutlookCalendarListEventsActionNode
+    service_type = OutlookCalendarListEventsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {
+            "service": pytest_data_fixture.create_outlook_calendar_list_events_service()
+        }
+
+
+class JiraListIssuesActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Jira list issues")
+    type = "jira_list_issues"
+    model_class = JiraListIssuesActionNode
+    service_type = JiraListIssuesServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_jira_list_issues_service()}
+
+
+class JiraCreateIssueActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Jira create issue")
+    type = "jira_create_issue"
+    model_class = JiraCreateIssueActionNode
+    service_type = JiraCreateIssueServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_jira_create_issue_service()}
+
+
+class JiraUpdateIssueActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Jira update issue")
+    type = "jira_update_issue"
+    model_class = JiraUpdateIssueActionNode
+    service_type = JiraUpdateIssueServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_jira_update_issue_service()}
+
+
+class JiraDeleteIssueActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Jira delete issue")
+    type = "jira_delete_issue"
+    model_class = JiraDeleteIssueActionNode
+    service_type = JiraDeleteIssueServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        return {"service": pytest_data_fixture.create_jira_delete_issue_service()}

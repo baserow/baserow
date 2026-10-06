@@ -157,6 +157,221 @@ class ServiceFixtures:
             kwargs.setdefault("integration_args", {}).setdefault("token", "xoxb-test")
         return self.create_service(SlackWriteMessageService, **kwargs)
 
+    def create_gmail_send_email_service(self, **kwargs):
+        from baserow.contrib.integrations.google.models import GmailSendEmailService
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(GmailSendEmailService, **kwargs)
+
+    def create_google_calendar_create_event_service(self, **kwargs):
+        from baserow.contrib.integrations.google.models import (
+            GoogleCalendarCreateEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(GoogleCalendarCreateEventService, **kwargs)
+
+    def create_google_calendar_update_event_service(self, **kwargs):
+        from baserow.contrib.integrations.google.models import (
+            GoogleCalendarUpdateEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(GoogleCalendarUpdateEventService, **kwargs)
+
+    def create_google_calendar_delete_event_service(self, **kwargs):
+        from baserow.contrib.integrations.google.models import (
+            GoogleCalendarDeleteEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(GoogleCalendarDeleteEventService, **kwargs)
+
+    def create_google_calendar_list_events_service(self, **kwargs):
+        from baserow.contrib.integrations.google.models import (
+            GoogleCalendarListEventsService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(GoogleCalendarListEventsService, **kwargs)
+
+    def create_microsoft_teams_send_message_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            MicrosoftTeamsSendMessageService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(MicrosoftTeamsSendMessageService, **kwargs)
+
+    def create_outlook_send_email_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            OutlookSendEmailService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(OutlookSendEmailService, **kwargs)
+
+    def create_outlook_calendar_create_event_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            OutlookCalendarCreateEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(OutlookCalendarCreateEventService, **kwargs)
+
+    def create_outlook_calendar_update_event_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            OutlookCalendarUpdateEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(OutlookCalendarUpdateEventService, **kwargs)
+
+    def create_outlook_calendar_delete_event_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            OutlookCalendarDeleteEventService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(OutlookCalendarDeleteEventService, **kwargs)
+
+    def create_outlook_calendar_list_events_service(self, **kwargs):
+        from baserow.contrib.integrations.microsoft.models import (
+            OutlookCalendarListEventsService,
+        )
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "client_id": "id",
+                "client_secret": "secret",
+                "refresh_token": "rt",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(OutlookCalendarListEventsService, **kwargs)
+
+    def create_jira_list_issues_service(self, **kwargs):
+        from baserow.contrib.integrations.jira.models import JiraListIssuesService
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "url": "https://example.atlassian.net",
+                "username": "u@example.com",
+                "api_token": "t",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(JiraListIssuesService, **kwargs)
+
+    def create_jira_create_issue_service(self, **kwargs):
+        from baserow.contrib.integrations.jira.models import JiraCreateIssueService
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "url": "https://example.atlassian.net",
+                "username": "u@example.com",
+                "api_token": "t",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(JiraCreateIssueService, **kwargs)
+
+    def create_jira_update_issue_service(self, **kwargs):
+        from baserow.contrib.integrations.jira.models import JiraUpdateIssueService
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "url": "https://example.atlassian.net",
+                "username": "u@example.com",
+                "api_token": "t",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(JiraUpdateIssueService, **kwargs)
+
+    def create_jira_delete_issue_service(self, **kwargs):
+        from baserow.contrib.integrations.jira.models import JiraDeleteIssueService
+
+        if "integration" not in kwargs:
+            integration_args = kwargs.setdefault("integration_args", {})
+            for key, value in {
+                "url": "https://example.atlassian.net",
+                "username": "u@example.com",
+                "api_token": "t",
+            }.items():
+                integration_args.setdefault(key, value)
+        return self.create_service(JiraDeleteIssueService, **kwargs)
+
     def create_core_iterator_service(self, **kwargs):
         return self.create_service(CoreIteratorService, **kwargs)
 

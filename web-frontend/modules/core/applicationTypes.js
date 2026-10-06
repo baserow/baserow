@@ -7,6 +7,16 @@ import ApplicationForm from '@baserow/modules/core/components/application/Applic
  */
 export class ApplicationType extends Registerable {
   /**
+   * Whether the application has a settings page where its integrations can
+   * be managed. Without one, a service form must let the user edit the
+   * selected integration from its picker, or a broken integration could
+   * never be repaired.
+   */
+  get hasIntegrationSettingsPage() {
+    return false
+  }
+
+  /**
    * The icon class name that is used as convenience for the user to
    * recognize certain application types. If you for example want the database
    * icon, you must return 'database' here. This will result in the classname
