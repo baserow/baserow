@@ -1,74 +1,53 @@
 <template>
   <Modal
     ref="modal"
-    class="manage-agent-modal"
-    :class="{ 'manage-agent-modal--edit': isUpdate }"
     :left-sidebar="isUpdate"
     :left-sidebar-scrollable="isUpdate"
-    :box-padding="false"
-    :content-padding="false"
+    :content-padding="
+      selectedSetting == null ? true : selectedSetting.componentPadding
+    "
   >
     <template v-if="isUpdate" #sidebar>
-      <div class="modal-sidebar__head">
-        <Avatar icon="baserow-icon-agent" color="purple" aria-hidden="true" />
-        <span class="manage-agent-modal__name">{{ agent.name }}</span>
+      <div class="modal-sidebar__title">
+        {{ $t('agents.updateTitle') }}
       </div>
       <ul class="modal-sidebar__nav">
         <li v-for="setting in registeredSettings" :key="setting.getType()">
-          <button
-            type="button"
+          <a
             class="modal-sidebar__nav-link"
             :class="{
               active:
                 selectedSetting &&
                 setting.getType() === selectedSetting.getType(),
             }"
-            :aria-current="
-              selectedSetting && setting.getType() === selectedSetting.getType()
-                ? 'page'
-                : undefined
-            "
-            :disabled="loading"
             @click="selectSetting(setting)"
           >
-            <i
-              class="modal-sidebar__nav-icon"
-              :class="setting.icon"
-              aria-hidden="true"
-            ></i>
+            <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
             {{ setting.name }}
-          </button>
+          </a>
         </li>
       </ul>
     </template>
     <template #content>
-      <h2 class="manage-agent-modal__title">
+      <h2 class="box__title">
         {{ isUpdate ? selectedSetting?.name : $t('agents.createTitle') }}
       </h2>
-      <form class="manage-agent-modal__form" @submit.prevent="submit">
-        <div
-          class="manage-agent-modal__body"
-          :class="{
-            'manage-agent-modal__body--no-padding':
-              selectedSetting?.componentPadding === false,
-          }"
-        >
-          <Error :error="error" />
-          <Alert v-if="success" type="success">
-            <template #title>{{ $t('agents.saved') }}</template>
-          </Alert>
-          <component
-            :is="setting.component"
-            v-for="setting in displayedSettings"
-            :key="setting.getType()"
-            :ref="`setting_${setting.getType()}`"
-            v-model="values"
-            :workspace="workspace"
-            :agent="agent"
-            :roles="roles"
-          />
-        </div>
-        <div class="manage-agent-modal__footer">
+      <Error :error="error" />
+      <Alert v-if="success" type="success">
+        <template #title>{{ $t('agents.saved') }}</template>
+      </Alert>
+      <form @submit.prevent="submit">
+        <component
+          :is="setting.component"
+          v-for="setting in displayedSettings"
+          :key="setting.getType()"
+          :ref="`setting_${setting.getType()}`"
+          v-model="values"
+          :workspace="workspace"
+          :agent="agent"
+          :roles="roles"
+        />
+        <div class="actions">
           <Button type="secondary" button-type="button" @click="hide">{{
             isUpdate ? $t('action.close') : $t('action.cancel')
           }}</Button>
