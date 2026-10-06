@@ -34,6 +34,15 @@ class MCPTool(Instance):
     enabled: bool = True
     """Whether the tool is available to MCP clients."""
 
+    title: str | None = None
+    """Human-readable tool name shown by MCP clients."""
+
+    read_only: bool = False
+    """True when the tool never changes data. Clients skip confirmation."""
+
+    destructive: bool = False
+    """True when the tool can overwrite or delete data. Clients always confirm."""
+
     @property
     def name(self) -> str:
         """MCP tool name, derived from ``type``."""
@@ -51,6 +60,7 @@ class MCPTool(Instance):
         ``input_schema``. Override for custom behaviour.
         """
         from mcp import Tool
+        from mcp.types import ToolAnnotations
 
         schema = (
             self.input_schema.model_json_schema()
@@ -60,7 +70,19 @@ class MCPTool(Instance):
         description = self.__class__.__doc__
         if description:
             description = " ".join(description.split())
-        return [Tool(name=self.type, description=description, inputSchema=schema)]
+        annotations = ToolAnnotations(
+            title=self.title or self.type.replace("_", " ").capitalize(),
+            readOnlyHint=self.read_only,
+            destructiveHint=self.destructive,
+        )
+        return [
+            Tool(
+                name=self.type,
+                description=description,
+                inputSchema=schema,
+                annotations=annotations,
+            )
+        ]
 
     async def call(
         self,

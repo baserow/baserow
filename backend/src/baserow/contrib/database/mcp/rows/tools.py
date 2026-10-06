@@ -16,6 +16,8 @@ class ListRowsMcpTool(MCPTool):
     """
 
     type = "list_table_rows"
+    title = "List rows"
+    read_only = True
     input_schema = ListRowsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: ListRowsInput) -> dict:
@@ -37,6 +39,7 @@ class CreateRowsMcpTool(MCPTool):
     """
 
     type = "create_rows"
+    title = "Create rows"
     input_schema = CreateRowsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: CreateRowsInput) -> list[dict]:
@@ -54,6 +57,8 @@ class UpdateRowsMcpTool(MCPTool):
     """
 
     type = "update_rows"
+    title = "Update rows"
+    destructive = True
     input_schema = UpdateRowsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: UpdateRowsInput) -> list[dict]:
@@ -72,6 +77,8 @@ class DeleteRowsMcpTool(MCPTool):
     """
 
     type = "delete_rows"
+    title = "Delete rows"
+    destructive = True
     input_schema = DeleteRowsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: DeleteRowsInput) -> str:

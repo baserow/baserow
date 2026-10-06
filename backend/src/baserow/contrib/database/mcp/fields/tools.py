@@ -17,6 +17,7 @@ class CreateFieldsMcpTool(MCPTool):
     """
 
     type = "create_fields"
+    title = "Create fields"
     enabled = False
     input_schema = CreateFieldsInput
 
@@ -36,6 +37,8 @@ class UpdateFieldsMcpTool(MCPTool):
     """
 
     type = "update_fields"
+    title = "Update fields"
+    destructive = True
     enabled = False
     input_schema = UpdateFieldsInput
 
@@ -53,6 +56,8 @@ class DeleteFieldsMcpTool(MCPTool):
     """
 
     type = "delete_fields"
+    title = "Delete fields"
+    destructive = True
     enabled = False
     input_schema = DeleteFieldsInput
 
