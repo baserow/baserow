@@ -14,6 +14,7 @@ class SubjectOptionsHandler:
         search: str = "",
         subject_types: set[str] | None = None,
         exclude_ids: dict[str, list[int]] | None = None,
+        subject_type_options_kwargs: dict[str, dict] | None = None,
     ) -> QuerySet:
         """Return a unified queryset supplied by listable subject types.
 
@@ -23,6 +24,7 @@ class SubjectOptionsHandler:
 
         search = (search or "").strip()
         exclude_ids = exclude_ids or {}
+        subject_type_options_kwargs = subject_type_options_kwargs or {}
         requested_types = subject_types or set(subject_type_registry.get_types())
         option_querysets = []
         for subject_type in subject_type_registry.get_all():
@@ -32,6 +34,7 @@ class SubjectOptionsHandler:
                 workspace=workspace,
                 search=search,
                 exclude_ids=exclude_ids.get(subject_type.type, []),
+                **subject_type_options_kwargs.get(subject_type.type, {}),
             )
             if queryset is not None:
                 option_querysets.append(queryset)
