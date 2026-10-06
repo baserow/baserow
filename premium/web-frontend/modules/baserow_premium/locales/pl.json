@@ -422,5 +422,29 @@
     "viewOwnershipType": {
         "personal": "Osobisty",
         "personalDescription": "Tylko Ty możesz wyświetlić ten widok."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Szereg danych",
+        "addSeries": "Dodaj szereg danych",
+        "sourceFieldLabel": "Źródło",
+        "notSelected": "Nie wybrano"
+    },
+    "aggregationSeriesForm": {
+        "deleteSeries": "Usuń szereg danych",
+        "chartType": "Rodzaj wykresu",
+        "barChart": "Słupkowy",
+        "lineChart": "Liniowy",
+        "pieChart": "Kołowy",
+        "doughnutChart": "Pierścieniowy",
+        "polarAreaChart": "Biegunowy"
+    },
+    "aggregationGroupByForm": {
+        "groupByNone": "Brak",
+        "groupByRowId": "ID wiersza"
+    },
+    "aggregationSortByForm": {
+        "none": "Brak",
+        "ascending": "Rosnąco",
+        "descending": "Malejąco"
     }
 }
