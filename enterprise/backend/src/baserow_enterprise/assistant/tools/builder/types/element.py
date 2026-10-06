@@ -1839,7 +1839,11 @@ class ElementUpdate(BaseModel):
     )
     menu_items: list[MenuItemUpdate] | None = Field(
         default=None,
-        description="(menu, header, footer) The whole menu, in order: items left out are removed. Pass uid to keep an item.",
+        description="(menu, header, footer) The whole menu, in order. Send every current item with its uid, or list it in remove_menu_items.",
+    )
+    remove_menu_items: list[str] | None = Field(
+        default=None,
+        description="(menu, header, footer) uids of the items to delete. Without menu_items, the other items stay as they are.",
     )
 
     # -- Dispatch -------------------------------------------------------------
@@ -1855,6 +1859,13 @@ class ElementUpdate(BaseModel):
         """
 
         return any(getattr(self, name) is not None for name in TABLE_COLUMN_PROPERTIES)
+
+    def changes_menu_items(self) -> bool:
+        """
+        :return: Whether this update sets or removes menu items.
+        """
+
+        return self.menu_items is not None or self.remove_menu_items is not None
 
     def to_update_kwargs(self, element_type: str) -> dict:
         """Return kwargs for ``ElementService.update_element()``."""

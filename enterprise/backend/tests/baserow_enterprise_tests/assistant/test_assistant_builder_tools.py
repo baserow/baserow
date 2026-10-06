@@ -2775,15 +2775,24 @@ def _create_site_menu(data_fixture) -> _SiteMenu:
 
 def _update_menu(
     site: _SiteMenu,
-    menu_items: list[MenuItemUpdate],
+    menu_items: list[MenuItemUpdate] | None = None,
     menu: MenuElement | None = None,
+    remove_menu_items: list[str] | None = None,
 ) -> dict[str, Any]:
     return update_element(
         site.ctx,
         page_id=site.home.id,
-        element=ElementUpdate(element_id=(menu or site.menu).id, menu_items=menu_items),
+        element=ElementUpdate(
+            element_id=(menu or site.menu).id,
+            menu_items=menu_items,
+            remove_menu_items=remove_menu_items,
+        ),
         thought="test",
     )
+
+
+def _uids(site: _SiteMenu, *names: str) -> list[str]:
+    return [site.uids[name] for name in names]
 
 
 def _menu_tree(menu: MenuElement) -> list[tuple[str, str, list[str]]]:
@@ -2966,7 +2975,7 @@ def test_update_menu_items_points_a_kept_link_to_another_page(data_fixture):
         ),
         pytest.param(
             lambda s: [MenuItemUpdate(name="home", page_id=s.home.id)],
-            lambda s: f"already exists.*{s.uids['Home']}",
+            lambda s: f"left out.*{s.uids['Home']}",
             id="forgotten uid",
         ),
         pytest.param(
@@ -3019,80 +3028,218 @@ def test_update_menu_items_rejects_what_it_cannot_apply(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "menu_items,tree,kept",
+    "update_args,error",
     [
         pytest.param(
-            lambda s: [MenuItemUpdate(uid=s.uids["Products"])],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=uid) for uid in _uids(s, "Home", "Divider")
+                ]
+                + [MenuItemUpdate(uid=s.uids["Products"])]
+            },
+            lambda s: f"left out.*{s.uids['Help']}",
+            id="item left out",
+        ),
+        pytest.param(
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=uid)
+                    for uid in _uids(s, "Home", "Help", "Divider", "Products")
+                ],
+                "remove_menu_items": _uids(s, "Help"),
+            },
+            lambda s: "both kept and removed",
+            id="item kept and removed",
+        ),
+        pytest.param(
+            lambda s: {"remove_menu_items": _uids(s, "Products")},
+            lambda s: f"left out.*{s.uids['Pricing']}",
+            id="parent removed without its sub-links",
+        ),
+        pytest.param(
+            lambda s: {"remove_menu_items": [str(uuid.uuid4())]},
+            lambda s: "not in this menu",
+            id="unknown uid removed",
+        ),
+    ],
+)
+def test_update_menu_items_rejects_unclear_removals(
+    data_fixture,
+    update_args: Callable[[_SiteMenu], dict[str, Any]],
+    error: Callable[[_SiteMenu], str],
+):
+    site = _create_site_menu(data_fixture)
+    tree = _menu_tree(site.menu)
+
+    with pytest.raises(ToolInputError, match=error(site)):
+        _update_menu(site, **update_args(site))
+
+    assert _menu_tree(site.menu) == tree
+    assert _kept_names(site) == set(site.uids)
+    assert _help_action_exists(site)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "update_args,tree,kept",
+    [
+        pytest.param(
+            lambda s: {
+                "menu_items": [MenuItemUpdate(uid=s.uids["Products"])],
+                "remove_menu_items": _uids(s, "Home", "Help", "Divider"),
+            },
             [("Products", "link", ["Pricing", "Features"])],
             {"Products", "Pricing", "Features"},
             id="kept when children are left out",
         ),
         pytest.param(
-            lambda s: [
-                MenuItemUpdate(
-                    uid=s.uids["Products"],
-                    children=[
-                        MenuSubLinkUpdate(uid=s.uids["Features"]),
-                        MenuSubLinkUpdate(name="Changelog", page_id=s.about.id),
-                    ],
-                )
-            ],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(
+                        uid=s.uids["Products"],
+                        children=[
+                            MenuSubLinkUpdate(uid=s.uids["Features"]),
+                            MenuSubLinkUpdate(name="Changelog", page_id=s.about.id),
+                        ],
+                    )
+                ],
+                "remove_menu_items": _uids(s, "Home", "Help", "Divider", "Pricing"),
+            },
             [("Products", "link", ["Features", "Changelog"])],
             {"Products", "Features"},
             id="replaced by children",
         ),
         pytest.param(
-            lambda s: [
-                MenuItemUpdate(uid=s.uids["Products"]),
-                MenuItemUpdate(uid=s.uids["Pricing"]),
-            ],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=s.uids["Products"]),
+                    MenuItemUpdate(uid=s.uids["Pricing"]),
+                ],
+                "remove_menu_items": _uids(s, "Home", "Help", "Divider"),
+            },
             [("Products", "link", ["Features"]), ("Pricing", "link", [])],
             {"Products", "Pricing", "Features"},
             id="sub-link moved to the top level",
         ),
         pytest.param(
-            lambda s: [
-                MenuItemUpdate(
-                    uid=s.uids["Products"],
-                    children=[MenuSubLinkUpdate(uid=s.uids["Home"])],
-                )
-            ],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(
+                        uid=s.uids["Products"],
+                        children=[MenuSubLinkUpdate(uid=s.uids["Home"])],
+                    )
+                ],
+                "remove_menu_items": _uids(s, "Help", "Divider", "Pricing", "Features"),
+            },
             [("Products", "link", ["Home"])],
             {"Products", "Home"},
             id="top-level link moved to the sub-links",
         ),
         pytest.param(
-            lambda s: [
-                MenuItemUpdate(uid=s.uids["Products"]),
-                MenuItemUpdate(name="Pricing", page_id=s.about.id),
-            ],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=s.uids["Products"]),
+                    MenuItemUpdate(name="Pricing", page_id=s.about.id),
+                ],
+                "remove_menu_items": _uids(s, "Home", "Help", "Divider"),
+            },
             [("Products", "link", ["Pricing", "Features"]), ("Pricing", "link", [])],
             {"Products", "Pricing", "Features"},
             id="new item named like a sub-link",
         ),
         pytest.param(
-            lambda s: [
-                MenuItemUpdate(
-                    name="Company",
-                    page_id=s.about.id,
-                    children=[MenuSubLinkUpdate(name="Team", page_id=s.about.id)],
-                )
-            ],
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(
+                        name="Company",
+                        page_id=s.about.id,
+                        children=[MenuSubLinkUpdate(name="Team", page_id=s.about.id)],
+                    )
+                ],
+                "remove_menu_items": list(s.uids.values()),
+            },
             [("Company", "link", ["Team"])],
             set(),
             id="new item with new sub-links",
+        ),
+        pytest.param(
+            lambda s: {"remove_menu_items": _uids(s, "Pricing")},
+            [
+                ("Home", "link", []),
+                ("Help", "button", []),
+                ("Divider", "separator", []),
+                ("Products", "link", ["Features"]),
+            ],
+            {"Home", "Help", "Divider", "Products", "Features"},
+            id="removed on their own",
+        ),
+        pytest.param(
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=s.uids["Home"]),
+                    MenuItemUpdate(name="Help", page_id=s.about.id),
+                    MenuItemUpdate(uid=s.uids["Divider"]),
+                    MenuItemUpdate(uid=s.uids["Products"]),
+                ],
+                "remove_menu_items": _uids(s, "Help"),
+            },
+            [
+                ("Home", "link", []),
+                ("Help", "link", []),
+                ("Divider", "separator", []),
+                ("Products", "link", ["Pricing", "Features"]),
+            ],
+            {"Home", "Divider", "Products", "Pricing", "Features"},
+            id="replaced on purpose",
+        ),
+        pytest.param(
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(uid=uid)
+                    for uid in _uids(s, "Home", "Help", "Divider", "Products")
+                ],
+                "remove_menu_items": _uids(s, "Pricing"),
+            },
+            [
+                ("Home", "link", []),
+                ("Help", "button", []),
+                ("Divider", "separator", []),
+                ("Products", "link", ["Features"]),
+            ],
+            {"Home", "Help", "Divider", "Products", "Features"},
+            id="sub-link removed from a parent sent without children",
+        ),
+        pytest.param(
+            lambda s: {
+                "menu_items": [
+                    MenuItemUpdate(
+                        uid=s.uids["Home"],
+                        children=[MenuSubLinkUpdate(uid=s.uids["Products"])],
+                    ),
+                    MenuItemUpdate(uid=s.uids["Help"]),
+                    MenuItemUpdate(uid=s.uids["Divider"]),
+                ],
+                "remove_menu_items": _uids(s, "Pricing", "Features"),
+            },
+            [
+                ("Home", "link", ["Products"]),
+                ("Help", "button", []),
+                ("Divider", "separator", []),
+            ],
+            {"Home", "Help", "Divider", "Products"},
+            id="parent moved under a link once its sub-links are removed",
         ),
     ],
 )
 def test_update_menu_items_edits_sub_links(
     data_fixture,
-    menu_items: Callable[[_SiteMenu], list[MenuItemUpdate]],
+    update_args: Callable[[_SiteMenu], dict[str, Any]],
     tree: list[tuple[str, str, list[str]]],
     kept: set[str],
 ):
     site = _create_site_menu(data_fixture)
 
-    _update_menu(site, menu_items(site))
+    _update_menu(site, **update_args(site))
 
     assert _menu_tree(site.menu) == tree
     assert _kept_names(site) == kept
@@ -3344,13 +3491,23 @@ def test_update_shared_container_clears_menu_items(data_fixture, element_type):
     menu = MenuElement.objects.get(page__builder=builder)
     assert menu.parent_element_id == element_id
     assert menu.menu_items.count() == 1
+    with pytest.raises(ToolInputError, match="left out"):
+        update_element(
+            ctx,
+            page_id=page.id,
+            element=ElementUpdate(element_id=element_id, menu_items=[]),
+            thought="Clear the navigation items.",
+        )
     result = update_element(
         ctx,
         page_id=page.id,
-        element=ElementUpdate(element_id=element_id, menu_items=[]),
+        element=ElementUpdate(
+            element_id=element_id,
+            remove_menu_items=[str(menu.menu_items.get().uid)],
+        ),
         thought="Clear the navigation items.",
     )
-    assert result["updated_fields"] == ["menu_items"]
+    assert result["updated_fields"] == ["remove_menu_items"]
     assert not menu.menu_items.exists()
 
 

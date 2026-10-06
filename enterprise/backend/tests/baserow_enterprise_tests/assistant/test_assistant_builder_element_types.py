@@ -116,7 +116,11 @@ def test_the_default_guidance_lists_the_supported_properties() -> None:
         (
             "menu",
             MenuAssistantElementType,
-            {"menu_orientation": "orientation", "menu_alignment": "alignment"},
+            {
+                "menu_orientation": "orientation",
+                "menu_alignment": "alignment",
+                "remove_menu_items": "menu_items",
+            },
         ),
     ],
 )
@@ -249,7 +253,9 @@ def test_a_header_or_footer_applies_its_menu_items_after_the_update(
 
     assert isinstance(hooks, registered_type)
     assert hooks is assistant_element_type_registry.get(element_type)
-    assert hooks.properties_applied_after_update == frozenset({"menu_items"})
+    assert hooks.properties_applied_after_update == frozenset(
+        {"menu_items", "remove_menu_items"}
+    )
 
 
 @pytest.mark.django_db
@@ -304,6 +310,7 @@ def test_a_header_or_footer_replaces_the_items_of_the_menu_inside(
     container_id = created["created_elements"][0]["id"]
     menu = MenuElement.objects.get(page__builder=seeded.page.builder)
     assert menu.parent_element_id == container_id
+    home = menu.menu_items.get()
     about = data_fixture.create_builder_page(
         builder=seeded.page.builder, name="About", path="/about"
     )
@@ -314,11 +321,12 @@ def test_a_header_or_footer_replaces_the_items_of_the_menu_inside(
         element=ElementUpdate(
             element_id=container_id,
             menu_items=[MenuItemUpdate(name="About", page_id=about.id)],
+            remove_menu_items=[str(home.uid)],
         ),
         thought="Point the navigation to the about page.",
     )
 
-    assert result["updated_fields"] == ["menu_items"]
+    assert result["updated_fields"] == ["menu_items", "remove_menu_items"]
     assert MenuElement.objects.get(page__builder=seeded.page.builder).id == menu.id
     assert [
         (item.name, item.navigate_to_page_id) for item in menu.menu_items.all()

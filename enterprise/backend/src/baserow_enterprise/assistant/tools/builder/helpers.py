@@ -663,7 +663,9 @@ def ensure_child_menu(
             break
 
     menu = menu_child.specific if menu_child is not None else None
-    menu_items_orm = resolve_menu_items(menu, element_update.menu_items)
+    menu_items_orm = resolve_menu_items(
+        menu, element_update.menu_items, element_update.remove_menu_items
+    )
 
     if menu_child is not None:
         UpdateElementActionType.do(user, menu_child, {"menu_items": menu_items_orm})
@@ -710,18 +712,22 @@ def _menu_item_values(item: MenuItemElement) -> dict[str, Any]:
 
 
 def resolve_menu_items(
-    menu: MenuElement | None, items: list[MenuItemUpdate]
+    menu: MenuElement | None,
+    items: list[MenuItemUpdate] | None,
+    removed: list[str] | None,
 ) -> list[dict[str, Any]]:
     """
     Check the menu items Kuma sends against the menu and build its new items.
 
     :param menu: The menu to update, or None when it doesn't exist yet.
-    :param items: The top-level items Kuma sent, in menu order.
+    :param items: The top-level items Kuma sent, in menu order, or None to keep
+        every item that isn't removed.
+    :param removed: The uids of the items to delete.
     :return: The menu's new ``menu_items``, each with its sub-links as children.
     :raises ToolInputError: If an item can't be applied as sent.
     """
 
-    return _MenuItemsResolver(menu, items).resolve()
+    return _MenuItemsResolver(menu, items, removed).resolve()
 
 
 class _MenuItemsResolver:
@@ -730,17 +736,25 @@ class _MenuItemsResolver:
 
     An item with a uid keeps the existing item and whatever Kuma doesn't change, so a
     button keeps its click actions and a link its sub-links. An item without a uid is
-    a new page link. Anything the menu can't apply raises before it is saved.
+    a new page link. An item is deleted only when its uid is in the removed list.
+    Anything the menu can't apply raises before it is saved.
     """
 
-    def __init__(self, menu: MenuElement | None, items: list[MenuItemUpdate]) -> None:
+    def __init__(
+        self,
+        menu: MenuElement | None,
+        items: list[MenuItemUpdate] | None,
+        removed: list[str] | None,
+    ) -> None:
         """
         :param menu: The menu to update, or None when it doesn't exist yet.
-        :param items: The top-level items Kuma sent, in menu order.
+        :param items: The top-level items Kuma sent, in menu order, or None to keep
+            every item that isn't removed.
+        :param removed: The uids of the items to delete.
         """
 
         self.menu = menu
-        self.items = items
+        self.removed = set(removed or [])
         # Query again: a cached menu can hold items prefetched before they changed.
         current = (
             list(menu.menu_items.order_by("menu_item_order"))
@@ -748,13 +762,30 @@ class _MenuItemsResolver:
             else []
         )
         self.current = {str(item.uid): item for item in current}
-        _, self.sub_links = group_menu_items(current)
+        top_level, self.sub_links = group_menu_items(current)
+        self.items = items if items is not None else self._all_but_removed(top_level)
         self.sent = Counter(
             sent.uid
-            for item in items
+            for item in self.items
             for sent in (item, *(item.children or []))
             if sent.uid is not None
         )
+
+    def _all_but_removed(
+        self, top_level: list[MenuItemElement]
+    ) -> list[MenuItemUpdate]:
+        return [
+            MenuItemUpdate(
+                uid=str(item.uid),
+                children=[
+                    MenuSubLinkUpdate(uid=str(sub_link.uid))
+                    for sub_link in self.sub_links[item.id]
+                    if str(sub_link.uid) not in self.removed
+                ],
+            )
+            for item in top_level
+            if str(item.uid) not in self.removed
+        ]
 
     def resolve(self) -> list[dict[str, Any]]:
         """
@@ -766,15 +797,21 @@ class _MenuItemsResolver:
 
         self._check_uids()
         menu_items = [self._top_level_item(item) for item in self.items]
-        self._check_nothing_is_recreated(menu_items)
+        self._check_nothing_is_left_out(menu_items)
         return menu_items
 
     def _check_uids(self) -> None:
-        for uid, count in self.sent.items():
+        for uid in [*self.sent, *self.removed]:
             if uid not in self.current:
                 raise ToolInputError(
                     f"Menu item uid '{uid}' is not in this menu. {self._listing()} "
                     "Omit uid to add a new page link."
+                )
+        for uid, count in self.sent.items():
+            if uid in self.removed:
+                raise ToolInputError(
+                    f"Menu item '{self.current[uid].name}' (uid {uid}) is both kept "
+                    "and removed. Send it in menu_items or in remove_menu_items."
                 )
             if count > 1:
                 raise ToolInputError(
@@ -803,7 +840,7 @@ class _MenuItemsResolver:
             values["children"] = [
                 _menu_item_values(sub_link)
                 for sub_link in self.sub_links[self.current[item.uid].id]
-                if str(sub_link.uid) not in self.sent
+                if not self._placed_or_removed(sub_link)
             ]
         else:
             values["children"] = []
@@ -817,7 +854,7 @@ class _MenuItemsResolver:
                 "sub-links."
             )
         if item.uid is not None and any(
-            str(sub_link.uid) not in self.sent
+            not self._placed_or_removed(sub_link)
             for sub_link in self.sub_links[self.current[item.uid].id]
         ):
             raise ToolInputError(
@@ -867,25 +904,24 @@ class _MenuItemsResolver:
                 f"'{item.name}' is a {item.type}, so it can't link to a page."
             )
 
-    def _check_nothing_is_recreated(self, menu_items: list[dict[str, Any]]) -> None:
-        """A new item named like an item being removed means Kuma forgot its uid."""
+    def _placed_or_removed(self, item: MenuItemElement) -> bool:
+        return str(item.uid) in self.sent or str(item.uid) in self.removed
 
-        resolved = [
-            values for item in menu_items for values in (item, *item["children"])
-        ]
-        kept = {values["uid"] for values in resolved}
-        new_names = {
-            values["name"].strip().casefold()
-            for values in resolved
-            if values["uid"] not in self.current
+    def _check_nothing_is_left_out(self, menu_items: list[dict[str, Any]]) -> None:
+        kept = {
+            values["uid"] for item in menu_items for values in (item, *item["children"])
         }
-        for uid, item in self.current.items():
-            if uid not in kept and item.name.strip().casefold() in new_names:
-                raise ToolInputError(
-                    f"'{item.name}' already exists (uid {uid}) and would be removed "
-                    "and added again, losing its settings and click actions. Pass "
-                    "its uid to keep it, or remove it in a separate call first."
-                )
+        left_out = [
+            f"'{item.name}' (uid {uid})"
+            for uid, item in self.current.items()
+            if uid not in kept and uid not in self.removed
+        ]
+        if left_out:
+            raise ToolInputError(
+                f"These menu items were left out: {', '.join(left_out)}. Send them "
+                "with their uid to keep them, or list their uids in remove_menu_items "
+                "to delete them."
+            )
 
 
 # ---------------------------------------------------------------------------

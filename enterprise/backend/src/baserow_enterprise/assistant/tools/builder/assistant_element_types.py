@@ -100,7 +100,7 @@ class ColumnAssistantElementType(AssistantElementType):
 class MenuAssistantElementType(AssistantElementType):
     """
     Kuma sets a menu's orientation and alignment with menu_orientation and
-    menu_alignment.
+    menu_alignment, and keeps or removes its items by uid.
     """
 
     type = "menu"
@@ -108,13 +108,18 @@ class MenuAssistantElementType(AssistantElementType):
     @property
     def property_aliases(self) -> dict[str, str]:
         """
-        The menu's orientation and alignment, which ElementUpdate prefixes with menu_.
+        The menu's orientation and alignment, which ElementUpdate prefixes with menu_,
+        and the removed items, which are saved as the menu's items.
 
         :return: menu_orientation and menu_alignment, mapped to the orientation and
-            alignment kwargs.
+            alignment kwargs, and remove_menu_items, mapped to the menu_items kwarg.
         """
 
-        return {"menu_orientation": "orientation", "menu_alignment": "alignment"}
+        return {
+            "menu_orientation": "orientation",
+            "menu_alignment": "alignment",
+            "remove_menu_items": "menu_items",
+        }
 
     def prepare_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
@@ -131,9 +136,11 @@ class MenuAssistantElementType(AssistantElementType):
             saved.
         """
 
-        if update.menu_items is None:
+        if not update.changes_menu_items():
             return PreparedElementUpdate(kwargs={}, result={})
-        menu_items = resolve_menu_items(element.specific, update.menu_items)
+        menu_items = resolve_menu_items(
+            element.specific, update.menu_items, update.remove_menu_items
+        )
         return PreparedElementUpdate(kwargs={"menu_items": menu_items}, result={})
 
     def item_details(self, element: Element) -> dict[str, Any]:
@@ -153,7 +160,7 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
     headers and footers are containers, not menus.
     """
 
-    properties_applied_after_update = frozenset({"menu_items"})
+    properties_applied_after_update = frozenset({"menu_items", "remove_menu_items"})
 
     def after_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
@@ -167,7 +174,7 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
         :param update: The properties that were changed.
         """
 
-        if update.menu_items is not None:
+        if update.changes_menu_items():
             ensure_child_menu(user, element, update)
 
 

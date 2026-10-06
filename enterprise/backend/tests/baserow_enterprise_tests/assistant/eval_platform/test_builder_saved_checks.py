@@ -23,7 +23,6 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ActionCreate,
     ElementUpdate,
     MenuItemUpdate,
-    MenuSubLinkUpdate,
 )
 from baserow_enterprise.assistant.tools.builder.types.element import new_menu_link
 
@@ -165,17 +164,12 @@ def _rename_help(scenario: EvalScenario, fx) -> None:
 
 
 def _remove_pricing(scenario: EvalScenario, fx) -> None:
-    uids = scenario.pre_state["uids"]
-    _update_menu(
-        scenario,
-        [
-            *_keep(scenario, "Home"),
-            MenuItemUpdate(
-                uid=uids["Products"],
-                children=[MenuSubLinkUpdate(uid=uids["Features"])],
-            ),
-            *_keep(scenario, "Divider", "Help"),
-        ],
+    helpers.update_element(
+        scenario.user,
+        ElementUpdate(
+            element_id=scenario.refs["menu"].id,
+            remove_menu_items=[scenario.pre_state["uids"]["Pricing"]],
+        ),
     )
 
 

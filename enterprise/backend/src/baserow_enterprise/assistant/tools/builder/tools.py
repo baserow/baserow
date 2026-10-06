@@ -852,11 +852,13 @@ def update_element(
       Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
-    - menu_items (menu, header or footer) is the whole menu, in order: items left out are removed.
+    - menu_items (menu, header or footer) is the whole menu, in order.
     - Keep an item by passing its uid from list_elements. It keeps its type, settings,
       click actions and sub-links; set name to rename it, page_id to point a link to a page.
     - Items without uid are new page links and need name and page_id.
     - children replaces an item's sub-links; leave it out to keep them.
+    - Nothing is deleted unless its uid is in remove_menu_items. Every current item must be
+      sent with its uid or listed there. remove_menu_items alone keeps the other items.
     - A button can't link to a page: give it an open_page action with create_actions.
     """
 
