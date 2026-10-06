@@ -4,10 +4,12 @@ from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
 
 from pydantic import Field, model_validator
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow_enterprise.assistant.types import BaseModel
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.elements.models import CollectionField, TableElement
+    from baserow.contrib.database.table.models import Table
 
 VALUE_COLUMN_TYPES: frozenset[str] = frozenset({"text", "boolean", "rating"})
 COLUMN_NAME_MAX_LENGTH = 225
@@ -45,7 +47,11 @@ class TableColumnAdd(BaseModel):
     )
     value: str | None = Field(
         default=None,
-        description="(text) Fixed text or a runtime formula such as get('current_record.field_<id>'); '' leaves the cells empty. Omit it to show the data source field named like the column.",
+        description="(text) Fixed text or a runtime formula such as get('current_record.field_<id>'); '' leaves the cells empty. Omit value and field_id to show the data source field named like the column.",
+    )
+    field_id: int | None = Field(
+        default=None,
+        description="(text) Database field to show, from get_tables_schema.",
     )
     label: str | None = Field(
         default=None,
@@ -70,12 +76,19 @@ class TableColumnUpdate(BaseModel):
         default=None,
         description="(text, boolean, rating) New fixed text or runtime formula.",
     )
+    field_id: int | None = Field(
+        default=None,
+        description="(text, boolean, rating) Database field to show instead, from get_tables_schema.",
+    )
     label: str | None = Field(default=None, description="(button) New button caption.")
 
     @model_validator(mode="after")
     def _require_a_change(self) -> "TableColumnUpdate":
-        if self.name is None and self.value is None and self.label is None:
-            raise ValueError(f"Column {self.uid} needs a new name, value or label.")
+        changes = (self.name, self.value, self.field_id, self.label)
+        if all(change is None for change in changes):
+            raise ValueError(
+                f"Column {self.uid} needs a new name, value, field_id or label."
+            )
         return self
 
 
@@ -143,6 +156,28 @@ def table_column_items(element: "TableElement") -> list[TableColumnItem]:
     return [table_column_item(column) for column in columns]
 
 
+def data_source_table(data_source_id: int | None) -> "Table | None":
+    """
+    Find the database table a data source reads.
+
+    :param data_source_id: The data source, or None.
+    :return: The table, or None when the data source doesn't exist or is trashed,
+        has no service, or its service reads no table.
+    """
+
+    if not data_source_id:
+        return None
+    try:
+        data_source = DataSource.objects.select_related("service").get(
+            id=data_source_id
+        )
+    except DataSource.DoesNotExist:
+        return None
+    if data_source.service is None:
+        return None
+    return getattr(data_source.service.specific, "table", None)
+
+
 def data_source_fields(data_source_id: int | None) -> dict[str, tuple[int, str]]:
     """
     Read the fields of the database table a data source reads.
@@ -152,21 +187,13 @@ def data_source_fields(data_source_id: int | None) -> dict[str, tuple[int, str]]
         when there is no data source or it reads no table.
     """
 
-    if not data_source_id:
+    table = data_source_table(data_source_id)
+    if table is None:
         return {}
-    try:
-        from baserow.contrib.builder.data_sources.models import DataSource
-
-        ds = DataSource.objects.select_related("service").get(id=data_source_id)
-        table = ds.service.specific.table
-        if table is None:
-            return {}
-        return {
-            column_name_key(f.name): (f.id, f.get_type().type)
-            for f in table.field_set.select_related("content_type").all()
-        }
-    except Exception:
-        return {}
+    return {
+        column_name_key(field.name): (field.id, field.get_type().type)
+        for field in table.field_set.select_related("content_type")
+    }
 
 
 def field_formula(field_id: int, field_type: str) -> str:

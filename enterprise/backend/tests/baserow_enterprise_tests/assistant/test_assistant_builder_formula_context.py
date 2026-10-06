@@ -537,9 +537,10 @@ def test_new_table_column_rejects_implicit_generation_before_changes(
         )
     assert str(raised.value) == (
         f"Column 'Computed' has a {key} that is not a valid formula. For fixed "
-        "text, put it in single quotes; to show data, use a runtime formula such as "
-        "get('current_record.field_<id>'). \"$formula:\" descriptions are generated "
-        "only when a table is created. No changes were applied."
+        "text, put it in single quotes; to show data, set field_id or use a runtime "
+        "formula such as get('current_record.field_<id>'). \"$formula:\" "
+        "descriptions are generated only when a table is created. No changes were "
+        "applied."
     )
     table.refresh_from_db()
     assert table.items_per_page == original_page_size

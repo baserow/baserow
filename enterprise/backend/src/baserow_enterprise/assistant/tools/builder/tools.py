@@ -832,6 +832,8 @@ def update_element(
     - value and label take fixed text or a runtime formula such as
       get('current_record.field_<id>'). "$formula:" descriptions work only when
       creating a table.
+    - To show a database field, set field_id (from get_tables_schema). Renaming a
+      column doesn't change what it shows.
     - A column's type can't change: remove it and add a new one.
     - There is no hidden column: hiding one means removing it, and undo can't bring
       it back, so confirm with the user first.

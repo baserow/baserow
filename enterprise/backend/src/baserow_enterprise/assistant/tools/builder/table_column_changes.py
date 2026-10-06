@@ -4,10 +4,12 @@ import uuid
 from collections import Counter
 from collections.abc import Iterable
 from copy import deepcopy
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypeVar
 
 from baserow.contrib.builder.elements.models import TableElement
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.table.models import Table
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
@@ -24,7 +26,7 @@ from .types.table_columns import (
     TableColumnAdd,
     TableColumnUpdate,
     column_name_key,
-    data_source_fields,
+    data_source_table,
     field_formula,
     stored_formula_text,
 )
@@ -33,6 +35,8 @@ NO_CHANGES = "No changes were applied."
 MAX_LISTED_COLUMNS = 25
 
 Column = dict[str, Any]
+
+_Item = TypeVar("_Item")
 
 _LABEL_COLUMN_TYPES = frozenset({"button"})
 _NEW_VALUE_COLUMN_TYPES = frozenset({"text"})
@@ -43,6 +47,14 @@ class TableColumnsChange(NamedTuple):
 
     fields: list[Column]
     removed: list[RemovedTableColumn]
+
+
+class SourceTable(NamedTuple):
+    """The database table a table element's data source reads, and its fields."""
+
+    table: Table | None
+    fields_by_id: dict[int, Field]
+    fields_by_name: dict[str, Field]
 
 
 def column_uid(raw: str) -> str:
@@ -78,9 +90,9 @@ def column_formula(text: str, column_name: str, key: str) -> str:
     if not is_valid_formula(formula):
         raise ToolInputError(
             f"Column '{column_name}' has a {key} that is not a valid formula. For "
-            "fixed text, put it in single quotes; to show data, use a runtime formula "
-            "such as get('current_record.field_<id>'). \"$formula:\" descriptions are "
-            f"generated only when a table is created. {NO_CHANGES}"
+            "fixed text, put it in single quotes; to show data, set field_id or use a "
+            "runtime formula such as get('current_record.field_<id>'). \"$formula:\" "
+            f"descriptions are generated only when a table is created. {NO_CHANGES}"
         )
     return formula
 
@@ -96,7 +108,8 @@ def merge_table_columns(
     Merge column changes into the full column list core saves for a table.
 
     Columns the changes don't name are resent exactly as stored, so they keep their
-    uid, settings, styles and click actions.
+    uid, settings, styles and click actions. A field_id, or a new text column without
+    a value, shows a field of the table the element's data source reads.
 
     :param element: The table element, locked for update.
     :param add: New columns.
@@ -121,25 +134,31 @@ def merge_table_columns(
     removed_uids = set(remove_uids)
     _check_changed_once(update_uids, removed_uids)
     _check_types_fit(update, update_uids, add, by_uid)
+    _check_value_or_field_id(update, update_uids, add, by_uid)
 
     kept = [column for column in stored if column["uid"] not in removed_uids]
+    removed = [column for column in stored if column["uid"] in removed_uids]
     if order is not None:
         _check_order(kept, order, removed_uids, by_uid)
         position = {uid: index for index, uid in enumerate(order)}
         kept.sort(key=lambda column: position[column["uid"]])
     _check_anchors_stay(anchors, removed_uids)
-
-    changes = dict(zip(update_uids, update))
-    merged = [_changed(column, changes.get(column["uid"])) for column in kept]
-    fields_by_name = data_source_fields(element.data_source_id) if add else {}
-    for new in add:
-        merged.insert(
-            _insert_index(merged, new.before_uid), _new_column(new, fields_by_name)
-        )
-
-    removed = [column for column in stored if column["uid"] in removed_uids]
-    _check_names(merged, stored)
     _check_not_added_again(add, removed)
+    changes = dict(zip(update_uids, update))
+    _check_names(_merged_names(kept, changes, add), stored)
+
+    source = (
+        _source_table(element.data_source_id)
+        if _binds_a_field(add, update)
+        else SourceTable(None, {}, {})
+    )
+    _check_field_ids(element, source, update, add)
+    _check_new_columns_not_empty(element, source, add)
+
+    merged = [_changed(column, changes.get(column["uid"]), source) for column in kept]
+    for new in add:
+        merged.insert(_insert_index(merged, new.before_uid), _new_column(new, source))
+
     if not merged:
         raise ToolInputError(
             f"Table element {element.id} would have no columns left. Keep a column, or "
@@ -170,8 +189,8 @@ def _stored_columns(element: TableElement) -> list[Column]:
     ]
 
 
-def _unique(uids: Iterable[str]) -> list[str]:
-    return list(dict.fromkeys(uids))
+def _unique(items: Iterable[_Item]) -> list[_Item]:
+    return list(dict.fromkeys(items))
 
 
 def _listing(columns: list[Column]) -> str:
@@ -225,7 +244,11 @@ def _misfit_keys(
     column_type: str,
     value_types: frozenset[str],
 ) -> list[str]:
-    fitting_types = {"value": value_types, "label": _LABEL_COLUMN_TYPES}
+    fitting_types = {
+        "value": value_types,
+        "field_id": value_types,
+        "label": _LABEL_COLUMN_TYPES,
+    }
     return [
         key
         for key, types in fitting_types.items()
@@ -252,10 +275,32 @@ def _check_types_fit(
     ]
     if misfits:
         raise ToolInputError(
-            f"These changes don't fit the column type: {'; '.join(misfits)}. value is "
-            "for text, boolean and rating columns, and label for button columns; link, "
-            "tags and image columns can only be renamed, reordered or removed here. "
-            f"{NO_CHANGES}"
+            f"These changes don't fit the column type: {'; '.join(misfits)}. value and "
+            "field_id are for text, boolean and rating columns, and label for button "
+            "columns; link, tags and image columns can only be renamed, reordered or "
+            f"removed here. {NO_CHANGES}"
+        )
+
+
+def _check_value_or_field_id(
+    update: list[TableColumnUpdate],
+    update_uids: list[str],
+    add: list[TableColumnAdd],
+    by_uid: dict[str, Column],
+) -> None:
+    refs = [
+        f"Column {uid} '{by_uid[uid]['name']}'"
+        for change, uid in zip(update, update_uids)
+        if change.value is not None and change.field_id is not None
+    ]
+    refs += [
+        f"The new column '{new.name}'"
+        for new in add
+        if new.value is not None and new.field_id is not None
+    ]
+    if refs:
+        raise ToolInputError(
+            f"{refs[0]} has both value and field_id. Set only one. {NO_CHANGES}"
         )
 
 
@@ -292,20 +337,97 @@ def _check_anchors_stay(anchors: list[str], removed_uids: set[str]) -> None:
         )
 
 
-def _changed(column: Column, change: TableColumnUpdate | None) -> Column:
+def _bound_by_name(new: TableColumnAdd) -> bool:
+    return new.type == "text" and new.value is None and new.field_id is None
+
+
+def _binds_a_field(add: list[TableColumnAdd], update: list[TableColumnUpdate]) -> bool:
+    return any(entry.field_id is not None for entry in [*update, *add]) or any(
+        _bound_by_name(new) for new in add
+    )
+
+
+def _source_table(data_source_id: int | None) -> SourceTable:
+    table = data_source_table(data_source_id)
+    fields = list(table.field_set.select_related("content_type")) if table else []
+    return SourceTable(
+        table,
+        {field.id: field for field in fields},
+        {column_name_key(field.name): field for field in fields},
+    )
+
+
+def _check_field_ids(
+    element: TableElement,
+    source: SourceTable,
+    update: list[TableColumnUpdate],
+    add: list[TableColumnAdd],
+) -> None:
+    field_ids = _unique(
+        entry.field_id for entry in [*update, *add] if entry.field_id is not None
+    )
+    if not field_ids:
+        return
+    if source.table is None:
+        raise ToolInputError(
+            f"Table element {element.id} has no data source with a database table, so "
+            f"field_id can't be used. Set value instead. {NO_CHANGES}"
+        )
+    unknown = [
+        field_id for field_id in field_ids if field_id not in source.fields_by_id
+    ]
+    if unknown:
+        raise ToolInputError(
+            f"Fields {unknown} are not fields of table {source.table.id} "
+            f"'{source.table.name}', which the data source of table element "
+            f"{element.id} reads. Use field ids of that table from get_tables_schema. "
+            f"{NO_CHANGES}"
+        )
+
+
+def _check_new_columns_not_empty(
+    element: TableElement, source: SourceTable, add: list[TableColumnAdd]
+) -> None:
+    for new in filter(_bound_by_name, add):
+        if source.table is None:
+            raise ToolInputError(
+                f"The new column '{new.name}' would be empty because table element "
+                f"{element.id} has no data source. Set value. {NO_CHANGES}"
+            )
+        if column_name_key(new.name) not in source.fields_by_name:
+            raise ToolInputError(
+                f"The new column '{new.name}' would be empty: table {source.table.id} "
+                f"'{source.table.name}' has no field named '{new.name}'. Set field_id "
+                "(from get_tables_schema) or value; value '' keeps it empty on "
+                f"purpose. {NO_CHANGES}"
+            )
+
+
+def _formula_showing(field: Field) -> str:
+    return field_formula(field.id, field.get_type().type)
+
+
+def _new_name(column: Column, change: TableColumnUpdate | None) -> str:
+    return column["name"] if change is None or change.name is None else change.name
+
+
+def _changed(
+    column: Column, change: TableColumnUpdate | None, source: SourceTable
+) -> Column:
     if change is None:
         return column
     config = deepcopy(column["config"]) if isinstance(column["config"], dict) else {}
-    for key in ("value", "label"):
-        text = getattr(change, key)
+    sent = {"value": change.value, "label": change.label}
+    if change.field_id is not None:
+        sent["value"] = _formula_showing(source.fields_by_id[change.field_id])
+    for key, text in sent.items():
         stored_text = stored_formula_text(column["config"], key)
         if text is not None and text.strip() != stored_text.strip():
             config[key] = formula_object(
                 column_formula(text, column["name"], key),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
-    name = change.name if change.name is not None else column["name"]
-    return {**column, "name": name, "config": config}
+    return {**column, "name": _new_name(column, change), "config": config}
 
 
 def _insert_index(merged: list[Column], before_uid: str | None) -> int:
@@ -317,19 +439,20 @@ def _insert_index(merged: list[Column], before_uid: str | None) -> int:
     )
 
 
-def _new_column(
-    new: TableColumnAdd, fields_by_name: dict[str, tuple[int, str]]
-) -> Column:
+def _new_value(new: TableColumnAdd, source: SourceTable) -> str:
+    if new.value is not None:
+        return new.value
+    if new.field_id is not None:
+        return _formula_showing(source.fields_by_id[new.field_id])
+    return _formula_showing(source.fields_by_name[column_name_key(new.name)])
+
+
+def _new_column(new: TableColumnAdd, source: SourceTable) -> Column:
     if new.type == "button":
-        key = "label"
-        formula = column_formula(new.label or new.name, new.name, key)
-    elif new.value is not None:
-        key = "value"
-        formula = column_formula(new.value, new.name, key)
+        key, text = "label", new.label or new.name
     else:
-        key = "value"
-        match = fields_by_name.get(column_name_key(new.name))
-        formula = field_formula(*match) if match else "''"
+        key, text = "value", _new_value(new, source)
+    formula = column_formula(text, new.name, key)
     return {
         "name": new.name,
         "type": new.type,
@@ -349,10 +472,24 @@ def _name_owner(column: Column, stored_names: set[tuple[str, str]]) -> str:
     return f"column {column['uid']} '{column['name']}'"
 
 
-def _check_names(merged: list[Column], stored: list[Column]) -> None:
+def _merged_names(
+    kept: list[Column],
+    changes: dict[str, TableColumnUpdate],
+    add: list[TableColumnAdd],
+) -> list[Column]:
+    columns = [
+        {"uid": column["uid"], "name": _new_name(column, changes.get(column["uid"]))}
+        for column in kept
+    ]
+    for new in add:
+        columns.insert(_insert_index(columns, new.before_uid), {"name": new.name})
+    return columns
+
+
+def _check_names(columns: list[Column], stored: list[Column]) -> None:
     stored_names = {(column["uid"], column["name"]) for column in stored}
     groups: dict[str, list[Column]] = {}
-    for column in merged:
+    for column in columns:
         if key := column_name_key(column["name"]):
             groups.setdefault(key, []).append(column)
     clashes = [
