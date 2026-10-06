@@ -8,7 +8,7 @@ from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
 
 from baserow.core.mcp.models import MCPEndpoint
 
-from .validators import MCP_SCOPE, endpoint_scope
+from .validators import CONSENT_CREDENTIAL, MCP_SCOPE, endpoint_scope
 
 AUTHORIZE_PATH = "/oauth/authorize/"
 
@@ -94,6 +94,8 @@ def issue_code(
     # `validate_authorization_request` doesn't carry the RFC 8707 `resource` through,
     # so set it like `AuthorizationView.form_valid` does, pinned to the MCP resource.
     credentials["resource"] = [settings.MCP_RESOURCE_URL]
+    # Lets the validator accept the endpoint scope, which clients can't request.
+    credentials[CONSENT_CREDENTIAL] = True
 
     scopes = [MCP_SCOPE, endpoint_scope(endpoint.id)]
     uri, _, _, _ = get_oauthlib_core().create_authorization_response(
