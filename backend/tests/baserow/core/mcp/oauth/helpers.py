@@ -50,15 +50,29 @@ def authorize_query(client_id, challenge, redirect_uri=REDIRECT_URI, state="s1")
     )
 
 
-def obtain_tokens(client, api_client, token, endpoint):
-    """Runs DCR -> consent -> token. `token` is the user's JWT."""
+def enabled_tool_names():
+    from baserow.core.mcp.registries import mcp_tool_registry
+
+    return [tool.name for tool in mcp_tool_registry.get_enabled_tools()]
+
+
+def obtain_tokens(client, api_client, token, workspace, tools=None):
+    """
+    Runs DCR -> consent -> token. `token` is the user's JWT, `tools=None` grants
+    every enabled tool. The result carries the `endpoint_id` consent picked.
+    """
 
     verifier, challenge = pkce_pair()
     client_id = register_dcr_client(client)
     query = authorize_query(client_id, challenge)
     response = api_client.post(
         reverse("api:mcp:oauth_consent"),
-        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+        {
+            "query": query,
+            "allow": True,
+            "workspace_id": workspace.id,
+            "tools": enabled_tool_names() if tools is None else tools,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -77,4 +91,6 @@ def obtain_tokens(client, api_client, token, endpoint):
         },
     )
     assert response.status_code == 200, response.content
-    return {**response.json(), "client_id": client_id}
+    tokens = response.json()
+    endpoint_id = int(tokens["scope"].split("endpoint:")[1].split()[0])
+    return {**tokens, "client_id": client_id, "endpoint_id": endpoint_id}

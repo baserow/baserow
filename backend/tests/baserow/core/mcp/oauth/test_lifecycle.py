@@ -9,6 +9,7 @@ from oauth2_provider.models import AccessToken, Application, RefreshToken
 
 from baserow.core.mcp.auth import resolve_bearer
 from baserow.core.mcp.handler import MCPEndpointHandler
+from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.oauth.tokens import revoke_endpoint_tokens
 from tests.baserow.core.mcp.oauth.helpers import obtain_tokens
 
@@ -17,11 +18,11 @@ from tests.baserow.core.mcp.oauth.helpers import obtain_tokens
 def test_deleting_endpoint_removes_its_tokens(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    keep = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    obtain_tokens(client, api_client, token, endpoint)
-    kept = obtain_tokens(client, api_client, token, keep)
-    endpoint_id = endpoint.id
+    keep_workspace = data_fixture.create_workspace(user=user)
+    endpoint_id = obtain_tokens(client, api_client, token, workspace)["endpoint_id"]
+    kept = obtain_tokens(client, api_client, token, keep_workspace)
+    endpoint = MCPEndpoint.objects.get(id=endpoint_id)
+    keep = MCPEndpoint.objects.get(id=kept["endpoint_id"])
     MCPEndpointHandler().delete_endpoint(user, endpoint)
     assert not AccessToken.objects.filter(
         scope__contains=f"endpoint:{endpoint_id}"
@@ -76,8 +77,8 @@ def test_revoke_endpoint_tokens_matches_scope_exactly(data_fixture):
 def test_flag_off_refuses_oauth_token_but_accepts_key(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, endpoint)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
     with override_settings(BASEROW_MCP_OAUTH_ENABLED=False):
         _, error = async_to_sync(resolve_bearer)(tokens["access_token"])
         assert error == "invalid_token"

@@ -112,7 +112,11 @@ class MCPEndpointHandler:
                 return key
 
     def create_endpoint(
-        self, user: AbstractUser, workspace: Workspace, name: str
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        name: str,
+        allowed_tools: list[str] | None = None,
     ) -> MCPEndpoint:
         """
         Creates a new MCP endpoint.
@@ -123,6 +127,8 @@ class MCPEndpointHandler:
         :type workspace: Workspace
         :param name: The name of the endpoint.
         :type name: str
+        :param allowed_tools: The tool names the endpoint may use, None for all
+            enabled tools.
         :return: The created endpoint instance.
         :rtype: MCPEndpoint
         """
@@ -135,9 +141,52 @@ class MCPEndpointHandler:
         )
 
         endpoint = MCPEndpoint.objects.create(
-            name=name, key=self.generate_unique_key(), user=user, workspace=workspace
+            name=name,
+            key=self.generate_unique_key(),
+            user=user,
+            workspace=workspace,
+            allowed_tools=allowed_tools,
         )
 
+        return endpoint
+
+    def grant_oauth_client(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        name: str,
+        allowed_tools: list[str],
+    ) -> MCPEndpoint:
+        """
+        Returns the endpoint backing an OAuth client's access to a workspace,
+        creating it on first consent and updating its allowed tools afterwards. The
+        endpoint is matched on user, workspace and name (the client name).
+
+        :param user: The user giving consent.
+        :param workspace: The workspace the client gets access to.
+        :param name: The client name, used as the endpoint name.
+        :param allowed_tools: The tool names the client may use.
+        :return: The created or updated endpoint.
+        """
+
+        endpoint = (
+            MCPEndpoint.objects.filter(user=user, workspace=workspace, name=name)
+            .order_by("id")
+            .first()
+        )
+        if endpoint is None:
+            return self.create_endpoint(
+                user, workspace, name, allowed_tools=allowed_tools
+            )
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateMCPEndpointOperationType.type,
+            workspace=workspace,
+            context=endpoint,
+        )
+        endpoint.allowed_tools = allowed_tools
+        endpoint.save(update_fields=["allowed_tools"])
         return endpoint
 
     def update_endpoint(

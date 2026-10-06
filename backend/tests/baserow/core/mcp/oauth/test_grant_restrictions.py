@@ -5,6 +5,7 @@ from django.conf import settings
 import pytest
 from oauth2_provider.models import AccessToken, Application
 
+from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
     authorize_query,
@@ -176,9 +177,9 @@ def test_authorize_rejects_client_requested_endpoint_scope(client, extra):
 def test_refresh_cannot_widen_to_another_endpoint(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     other = data_fixture.create_mcp_endpoint()
-    tokens = obtain_tokens(client, api_client, token, endpoint)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
 
     response = client.post(
         "/oauth/token/",

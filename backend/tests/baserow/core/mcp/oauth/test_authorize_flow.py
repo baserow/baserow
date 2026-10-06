@@ -13,12 +13,22 @@ from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
     authorize_query,
+    enabled_tool_names,
     obtain_tokens,
     pkce_pair,
     register_dcr_client,
 )
 
 ISSUER = settings.OAUTH2_PROVIDER["OIDC_ISS_ENDPOINT"]
+
+
+def allow_body(query, workspace, tools=None):
+    return {
+        "query": query,
+        "allow": True,
+        "workspace_id": workspace.id,
+        "tools": enabled_tool_names() if tools is None else tools,
+    }
 
 
 def post_consent(api_client, token, body):
@@ -97,14 +107,13 @@ def test_authorize_rejects_foreign_resource(client):
 def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     client_id = register_dcr_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge).replace("S256", "plain")
     response = post_consent(
         api_client,
         token,
-        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+        allow_body(query, workspace),
     )
     assert response.status_code == 400
     assert response.json()["error"] == "invalid_request"
@@ -114,14 +123,13 @@ def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fi
 def test_consent_post_rejects_foreign_resource(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     client_id = register_dcr_client(client)
     _, challenge = pkce_pair()
     query = authorize_query(client_id, challenge) + "&resource=https%3A%2F%2Fevil.test"
     response = post_consent(
         api_client,
         token,
-        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+        allow_body(query, workspace),
     )
     assert response.status_code == 400
     assert response.json()["error"] == "invalid_target"
@@ -148,14 +156,13 @@ def test_consent_get_without_redirect_uri_uses_registered_one(
 def test_missing_resource_is_pinned_to_mcp_resource(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     client_id = register_dcr_client(client)
     verifier, challenge = pkce_pair()
     query = without_param(authorize_query(client_id, challenge), "resource")
     response = post_consent(
         api_client,
         token,
-        {"query": query, "endpoint_id": endpoint.id, "allow": True},
+        allow_body(query, workspace),
     )
     assert response.status_code == 200
     code = parse_qs(urlparse(response.json()["redirect_url"]).query)["code"][0]
@@ -183,11 +190,13 @@ def test_authorize_unknown_client_is_not_redirected(client):
 
 
 @pytest.mark.django_db
-def test_consent_get_lists_user_endpoints(client, api_client, data_fixture):
+def test_consent_get_lists_workspaces_and_enabled_tools(
+    client, api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    data_fixture.create_mcp_endpoint()
+    workspace_1 = data_fixture.create_workspace(user=user, name="One")
+    workspace_2 = data_fixture.create_workspace(user=user, name="Two")
+    data_fixture.create_workspace(name="Not mine")
     client_id = register_dcr_client(client)
     _, challenge = pkce_pair()
     response = api_client.get(
@@ -200,7 +209,23 @@ def test_consent_get_lists_user_endpoints(client, api_client, data_fixture):
     assert data["client_name"] == "Test MCP client"
     assert data["client_id"] == client_id
     assert data["redirect_host"] == "127.0.0.1"
-    assert [e["id"] for e in data["endpoints"]] == [endpoint.id]
+    assert "endpoints" not in data
+    assert data["workspaces"] == [
+        {"id": workspace_1.id, "name": "One"},
+        {"id": workspace_2.id, "name": "Two"},
+    ]
+    tools = {tool["name"]: tool for tool in data["tools"]}
+    assert [tool["name"] for tool in data["tools"]] == enabled_tool_names()
+    # Disabled tools are never offered.
+    assert "delete_table" not in tools
+    assert tools["list_tables"] == {
+        "name": "list_tables",
+        "title": "List tables",
+        "read_only": True,
+        "destructive": False,
+    }
+    assert tools["delete_rows"]["read_only"] is False
+    assert tools["delete_rows"]["destructive"] is True
 
 
 @pytest.mark.django_db
@@ -218,34 +243,15 @@ def test_consent_get_invalid_query(api_client, data_fixture):
 def test_full_flow_issues_endpoint_bound_token(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, endpoint)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint = MCPEndpoint.objects.get(user=user, workspace=workspace)
+    assert tokens["endpoint_id"] == endpoint.id
     checksum = hashlib.sha256(tokens["access_token"].encode()).hexdigest()
     access = AccessToken.objects.get(token_checksum=checksum)
     assert set(access.scope.split()) == {"mcp", f"endpoint:{endpoint.id}"}
     assert access.user_id == user.id
     assert access.allows_audience(settings.MCP_RESOURCE_URL)
     assert tokens["refresh_token"]
-
-
-@pytest.mark.django_db
-def test_consent_rejects_foreign_endpoint(client, api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    other = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=other)
-    foreign = data_fixture.create_mcp_endpoint(user=other, workspace=workspace)
-    client_id = register_dcr_client(client)
-    _, challenge = pkce_pair()
-    response = post_consent(
-        api_client,
-        token,
-        {
-            "query": authorize_query(client_id, challenge),
-            "endpoint_id": foreign.id,
-            "allow": True,
-        },
-    )
-    assert response.status_code == 404
 
 
 @pytest.mark.django_db
@@ -268,7 +274,7 @@ def test_consent_deny_returns_access_denied(client, api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_consent_can_create_endpoint(client, api_client, data_fixture):
+def test_consent_creates_grant_with_allowed_tools(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     client_id = register_dcr_client(client)
@@ -276,21 +282,102 @@ def test_consent_can_create_endpoint(client, api_client, data_fixture):
     response = post_consent(
         api_client,
         token,
-        {
-            "query": authorize_query(client_id, challenge),
-            "new_endpoint": {"name": "Claude", "workspace_id": workspace.id},
-            "allow": True,
-        },
+        allow_body(
+            authorize_query(client_id, challenge),
+            workspace,
+            # Stored in registry order whatever order the client sends.
+            ["list_table_rows", "list_tables"],
+        ),
     )
-    assert response.status_code == 200
-    assert "code=" in response.json()["redirect_url"]
-    assert MCPEndpoint.objects.filter(user=user, name="Claude").exists()
+    assert response.status_code == 200, response.content
+    redirect = parse_qs(urlparse(response.json()["redirect_url"]).query)
+    assert redirect["code"]
+    endpoint = MCPEndpoint.objects.get(user=user)
+    assert endpoint.workspace_id == workspace.id
+    assert endpoint.name == "Test MCP client"
+    assert endpoint.allowed_tools == ["list_tables", "list_table_rows"]
 
 
 @pytest.mark.django_db
-def test_consent_cannot_create_endpoint_in_foreign_workspace(
+def test_consent_reuses_grant_for_same_client_and_workspace(
     client, api_client, data_fixture
 ):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    other_workspace = data_fixture.create_workspace(user=user)
+    first = obtain_tokens(client, api_client, token, workspace, ["list_tables"])
+    second = obtain_tokens(
+        client, api_client, token, workspace, ["list_databases", "list_tables"]
+    )
+    assert first["endpoint_id"] == second["endpoint_id"]
+    endpoint = MCPEndpoint.objects.get(user=user)
+    assert endpoint.allowed_tools == ["list_databases", "list_tables"]
+    # Another workspace gets its own grant.
+    third = obtain_tokens(client, api_client, token, other_workspace)
+    assert third["endpoint_id"] != first["endpoint_id"]
+    assert MCPEndpoint.objects.filter(user=user).count() == 2
+
+
+@pytest.mark.parametrize(
+    "tools",
+    [
+        [],
+        ["does_not_exist"],
+        # Disabled tools can't be granted.
+        ["delete_table"],
+        ["list_tables", "list_tables"],
+        "list_tables",
+        None,
+    ],
+)
+@pytest.mark.django_db
+def test_consent_rejects_invalid_tools(client, api_client, data_fixture, tools):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    body = allow_body(authorize_query(client_id, challenge), workspace)
+    if tools is None:
+        del body["tools"]
+    else:
+        body["tools"] = tools
+    response = post_consent(api_client, token, body)
+    assert response.status_code == 400, response.content
+    assert not MCPEndpoint.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_consent_allow_requires_workspace(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    body = allow_body(authorize_query(client_id, challenge), workspace)
+    del body["workspace_id"]
+    response = post_consent(api_client, token, body)
+    assert response.status_code == 400
+    assert not MCPEndpoint.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_consent_unknown_workspace_is_rejected(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    body = {
+        "query": authorize_query(client_id, challenge),
+        "allow": True,
+        "workspace_id": 999999,
+        "tools": ["list_tables"],
+    }
+    response = post_consent(api_client, token, body)
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
+    assert not MCPEndpoint.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_consent_cannot_grant_foreign_workspace(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     foreign_workspace = data_fixture.create_workspace()
     client_id = register_dcr_client(client)
@@ -298,15 +385,32 @@ def test_consent_cannot_create_endpoint_in_foreign_workspace(
     response = post_consent(
         api_client,
         token,
-        {
-            "query": authorize_query(client_id, challenge),
-            "new_endpoint": {"name": "Claude", "workspace_id": foreign_workspace.id},
-            "allow": True,
-        },
+        allow_body(authorize_query(client_id, challenge), foreign_workspace),
     )
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
     assert not MCPEndpoint.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_consent_cannot_reuse_grant_after_leaving_workspace(
+    client, api_client, data_fixture
+):
+    owner = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=owner, members=[user])
+    obtain_tokens(client, api_client, token, workspace, ["list_tables"])
+    workspace.workspaceuser_set.filter(user=user).delete()
+    client_id = register_dcr_client(client)
+    _, challenge = pkce_pair()
+    response = post_consent(
+        api_client,
+        token,
+        allow_body(authorize_query(client_id, challenge), workspace),
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    assert MCPEndpoint.objects.get(user=user).allowed_tools == ["list_tables"]
 
 
 @pytest.mark.django_db
@@ -315,15 +419,7 @@ def test_consent_invalid_query_does_not_create_endpoint(
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    response = post_consent(
-        api_client,
-        token,
-        {
-            "query": "client_id=nope",
-            "new_endpoint": {"name": "Claude", "workspace_id": workspace.id},
-            "allow": True,
-        },
-    )
+    response = post_consent(api_client, token, allow_body("client_id=nope", workspace))
     assert response.status_code == 400
     assert not MCPEndpoint.objects.filter(user=user).exists()
 

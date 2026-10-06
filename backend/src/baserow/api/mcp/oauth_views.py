@@ -13,7 +13,6 @@ from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.oauth.authorize import (
@@ -21,8 +20,9 @@ from baserow.core.mcp.oauth.authorize import (
     issue_code,
     validate_query,
 )
+from baserow.core.mcp.registries import mcp_tool_registry
+from baserow.core.models import WorkspaceUser
 
-from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
 from .oauth_serializers import ConsentSerializer
 
 
@@ -59,20 +59,26 @@ class MCPOAuthConsentView(APIView):
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
-        endpoints = MCPEndpoint.objects.filter(user=request.user).select_related(
-            "workspace"
+        workspace_users = (
+            WorkspaceUser.objects.filter(user=request.user)
+            .select_related("workspace")
+            .order_by("order", "id")
         )
         return Response(
             {
                 **_client_info(credentials),
-                "endpoints": [
+                "workspaces": [
+                    {"id": wu.workspace_id, "name": wu.workspace.name}
+                    for wu in workspace_users
+                ],
+                "tools": [
                     {
-                        "id": endpoint.id,
-                        "name": endpoint.name,
-                        "workspace_id": endpoint.workspace_id,
-                        "workspace_name": endpoint.workspace.name,
+                        "name": tool.name,
+                        "title": tool.display_title,
+                        "read_only": tool.read_only,
+                        "destructive": tool.destructive,
                     }
-                    for endpoint in endpoints
+                    for tool in mcp_tool_registry.get_enabled_tools()
                 ],
             }
         )
@@ -80,7 +86,6 @@ class MCPOAuthConsentView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            MCPEndpointDoesNotExist: ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
@@ -92,23 +97,20 @@ class MCPOAuthConsentView(APIView):
 
         # Validate before creating anything, so a bad request leaves no endpoint.
         try:
-            validate_query(request, request.user, data["query"])
+            _, credentials = validate_query(request, request.user, data["query"])
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
         endpoint = None
         if data["allow"]:
-            if "new_endpoint" in data:
-                workspace = CoreHandler().get_workspace(
-                    data["new_endpoint"]["workspace_id"]
-                )
-                endpoint = MCPEndpointHandler().create_endpoint(
-                    request.user, workspace, data["new_endpoint"]["name"]
-                )
-            else:
-                endpoint = MCPEndpointHandler().get_endpoint(
-                    request.user, data["endpoint_id"]
-                )
+            workspace = CoreHandler().get_workspace(data["workspace_id"])
+            client_name = _client_info(credentials)["client_name"]
+            endpoint = MCPEndpointHandler().grant_oauth_client(
+                request.user,
+                workspace,
+                client_name[: MCPEndpoint._meta.get_field("name").max_length],
+                data["tools"],
+            )
 
         try:
             redirect_url = issue_code(

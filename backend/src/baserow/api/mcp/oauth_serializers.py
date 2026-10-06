@@ -1,20 +1,38 @@
 from rest_framework import serializers
 
-
-class NewEndpointSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    workspace_id = serializers.IntegerField()
+from baserow.core.mcp.registries import mcp_tool_registry
 
 
 class ConsentSerializer(serializers.Serializer):
     query = serializers.CharField()
     allow = serializers.BooleanField()
-    endpoint_id = serializers.IntegerField(required=False)
-    new_endpoint = NewEndpointSerializer(required=False)
+    workspace_id = serializers.IntegerField(required=False)
+    tools = serializers.ListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
-        if data["allow"] and "endpoint_id" not in data and "new_endpoint" not in data:
+        if not data["allow"]:
+            return data
+
+        if "workspace_id" not in data:
             raise serializers.ValidationError(
-                "Either endpoint_id or new_endpoint is required when allowing."
+                {"workspace_id": "This field is required when allowing."}
             )
+
+        tools = data.get("tools")
+        if not tools:
+            raise serializers.ValidationError(
+                {"tools": "Select at least one tool when allowing."}
+            )
+        if len(set(tools)) != len(tools):
+            raise serializers.ValidationError({"tools": "Tools must be unique."})
+
+        enabled = [tool.name for tool in mcp_tool_registry.get_enabled_tools()]
+        unknown = sorted(set(tools) - set(enabled))
+        if unknown:
+            raise serializers.ValidationError(
+                {"tools": f"Unknown tools: {', '.join(unknown)}."}
+            )
+
+        # Stored in registry order so the grant doesn't depend on the client's.
+        data["tools"] = [name for name in enabled if name in set(tools)]
         return data

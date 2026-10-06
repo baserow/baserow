@@ -8,7 +8,7 @@ from asgiref.sync import async_to_sync
 from httpx import ASGITransport, AsyncClient
 
 from baserow.core.mcp import BaserowMCPServer, current_key
-from tests.baserow.core.mcp.oauth.helpers import obtain_tokens
+from tests.baserow.core.mcp.oauth.helpers import enabled_tool_names, obtain_tokens
 
 INIT = {
     "jsonrpc": "2.0",
@@ -21,6 +21,17 @@ INIT = {
     },
 }
 LIST = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
+
+
+def _call(name, arguments=None):
+    return {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {"name": name, "arguments": arguments or {}},
+    }
+
+
 HEADERS = {"Accept": "application/json, text/event-stream"}
 
 
@@ -104,11 +115,68 @@ def test_trailing_slash_is_served(data_fixture):
 def test_oauth_token_lists_tools(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, endpoint)
+    tokens = obtain_tokens(client, api_client, token, workspace)
     response = _post(LIST, tokens["access_token"])
     assert response.status_code == 200
-    assert response.json()["result"]["tools"]
+    names = [t["name"] for t in response.json()["result"]["tools"]]
+    assert names == enabled_tool_names()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_oauth_token_only_lists_and_calls_granted_tools(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace, ["list_databases"])
+    response = _post(LIST, tokens["access_token"])
+    assert [t["name"] for t in response.json()["result"]["tools"]] == ["list_databases"]
+    result = _post(_call("list_databases"), tokens["access_token"]).json()["result"]
+    assert result["isError"] is False
+    result = _post(_call("list_tables"), tokens["access_token"]).json()["result"]
+    assert result["isError"] is True
+    assert result["content"][0]["text"] == "Tool 'list_tables' not found."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_endpoint_key_honours_allowed_tools(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_tables"]
+    )
+    response = _post(LIST, endpoint.key)
+    assert [t["name"] for t in response.json()["result"]["tools"]] == ["list_tables"]
+    result = _post(_call("list_databases"), endpoint.key).json()["result"]
+    assert result["isError"] is True
+    assert result["content"][0]["text"] == "Tool 'list_databases' not found."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_endpoint_without_allowed_tools_gets_all_enabled_tools(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    assert endpoint.allowed_tools is None
+    response = _post(LIST, endpoint.key)
+    names = [t["name"] for t in response.json()["result"]["tools"]]
+    assert names == enabled_tool_names()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_disabled_tool_cannot_be_called_by_name(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    response = _post(
+        _call("create_table", {"database_id": database.id, "name": "Nope"}),
+        endpoint.key,
+    )
+    result = response.json()["result"]
+    assert result["isError"] is True
+    assert result["content"][0]["text"] == "Tool 'create_table' not found."
+    assert not database.table_set.exists()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -117,9 +185,8 @@ def test_token_bound_to_endpoint_after_refresh(client, api_client, data_fixture)
 
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    endpoint_a = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, endpoint_a)
+    tokens = obtain_tokens(client, api_client, token, workspace)
     response = client.post(
         "/oauth/token/",
         {
@@ -131,7 +198,7 @@ def test_token_bound_to_endpoint_after_refresh(client, api_client, data_fixture)
     )
     assert response.status_code == 200
     endpoint, error = async_to_sync(resolve_bearer)(response.json()["access_token"])
-    assert error is None and endpoint.id == endpoint_a.id
+    assert error is None and endpoint.id == tokens["endpoint_id"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -139,8 +206,7 @@ def test_token_after_user_left_workspace_gets_401(client, api_client, data_fixtu
     owner = data_fixture.create_user()
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=owner, members=[user])
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, endpoint)
+    tokens = obtain_tokens(client, api_client, token, workspace)
     workspace.workspaceuser_set.filter(user=user).delete()
     response = _post(LIST, tokens["access_token"])
     assert response.status_code == 401
