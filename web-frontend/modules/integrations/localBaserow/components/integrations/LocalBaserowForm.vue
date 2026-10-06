@@ -1,17 +1,17 @@
 <template>
   <div>
     <FormGroup :label="$t('localBaserowForm.subject')" required small-label>
-      <Dropdown v-model="authenticationSubject" :disabled="loadingAgents">
+      <Dropdown v-model="authenticationSubject" :disabled="loadingSubjects">
         <DropdownItem
           :name="$t('localBaserowForm.currentUser')"
           value="user"
           icon="iconoir-user"
         />
         <DropdownItem
-          v-for="agent in agents"
-          :key="agent.id"
-          :name="agent.name"
-          :value="agent.id"
+          v-for="subject in subjects"
+          :key="subject.id"
+          :name="subject.name"
+          :value="subject.id"
           icon="baserow-icon-agent"
         />
       </Dropdown>
@@ -24,8 +24,7 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import AgentService from '@baserow/modules/core/services/agent'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import SubjectService from '@baserow/modules/core/services/subject'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -39,40 +38,49 @@ export default {
   data() {
     return {
       values: {
-        authorized_agent_id: this.defaultValues.authorized_agent?.id || null,
+        authorized_subject_id:
+          this.defaultValues.authorized_subject?.id || null,
+        authorized_subject_type:
+          this.defaultValues.authorized_subject?.type || 'auth.User',
       },
-      allowedValues: ['authorized_agent_id'],
-      agents: [],
-      loadingAgents: false,
+      allowedValues: ['authorized_subject_id', 'authorized_subject_type'],
+      subjects: [],
+      loadingSubjects: false,
     }
   },
   computed: {
-    agentsEnabled() {
-      return this.$featureFlagIsEnabled(FF_AGENTS)
-    },
     authenticationSubject: {
       get() {
-        return this.values.authorized_agent_id || 'user'
+        return this.values.authorized_subject_type === 'auth.User' &&
+          !this.defaultValues.authorized_subject
+          ? 'user'
+          : `${this.values.authorized_subject_type}:${this.values.authorized_subject_id}`
       },
       set(value) {
-        this.values.authorized_agent_id = value === 'user' ? null : value
+        if (value === 'user') {
+          this.values.authorized_subject_id = null
+          this.values.authorized_subject_type = 'auth.User'
+        } else {
+          const subject = this.subjects.find((subject) => subject.id === value)
+          this.values.authorized_subject_id = subject.subject_id
+          this.values.authorized_subject_type = subject.subject_type
+        }
       },
     },
   },
   async mounted() {
-    if (!this.agentsEnabled) {
-      return
-    }
-    this.loadingAgents = true
+    this.loadingSubjects = true
     try {
-      const { data } = await AgentService(this.$client).list(
+      const { data } = await SubjectService(this.$client).list(
         this.application.workspace.id
       )
-      this.agents = data.results
+      this.subjects = data.results.filter(
+        (subject) => subject.subject_type === 'core.Agent'
+      )
     } catch (error) {
-      notifyIf(error, 'agent')
+      notifyIf(error, 'subject')
     } finally {
-      this.loadingAgents = false
+      this.loadingSubjects = false
     }
   },
 }

@@ -1,5 +1,5 @@
+from django.conf import settings
 from django.db import migrations, models
-import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
@@ -9,16 +9,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterField(
+            model_name="localbaserowintegration",
+            name="authorized_user",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=models.SET_NULL,
+                to=settings.AUTH_USER_MODEL,
+            ),
+        ),
         migrations.AddField(
             model_name="localbaserowintegration",
-            name="authorized_agent",
-            field=models.ForeignKey(
-                blank=True,
-                db_default=None,
-                default=None,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                to="core.agent",
-            ),
+            name="authorized_subject_type",
+            field=models.CharField(blank=True, max_length=255, null=True),
+        ),
+        migrations.AddField(
+            model_name="localbaserowintegration",
+            name="authorized_subject_id",
+            field=models.BigIntegerField(blank=True, null=True),
         ),
     ]

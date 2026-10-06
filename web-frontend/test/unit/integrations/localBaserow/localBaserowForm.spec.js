@@ -8,13 +8,23 @@ describe('LocalBaserowForm', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
-    testApp.mock.onGet('/agents/workspace/1/').reply(200, {
+    testApp.mock.onGet('/subjects/').reply(200, {
       count: 2,
       next: null,
       previous: null,
       results: [
-        { id: 10, name: 'Writer agent' },
-        { id: 11, name: 'Reader agent' },
+        {
+          id: 'core.Agent:10',
+          subject_id: 10,
+          subject_type: 'core.Agent',
+          name: 'Writer agent',
+        },
+        {
+          id: 'core.Agent:11',
+          subject_id: 11,
+          subject_type: 'core.Agent',
+          name: 'Reader agent',
+        },
       ],
     })
   })
@@ -32,7 +42,7 @@ describe('LocalBaserowForm', () => {
     })
   }
 
-  test('lists agents and emits the selected agent id', async () => {
+  test('lists agents and emits the selected typed subject', async () => {
     const wrapper = await mountComponent()
     await flushPromises()
 
@@ -47,13 +57,14 @@ describe('LocalBaserowForm', () => {
     await flushPromises()
 
     expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
-      authorized_agent_id: 10,
+      authorized_subject_id: 10,
+      authorized_subject_type: 'core.Agent',
     })
   })
 
   test('shows the saved agent as selected', async () => {
     const wrapper = await mountComponent({
-      authorized_agent: { id: 11, name: 'Reader agent' },
+      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
     })
     await flushPromises()
 
