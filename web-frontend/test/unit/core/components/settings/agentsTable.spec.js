@@ -62,13 +62,19 @@ describe('AgentsTable', () => {
     })
 
     const wrapper = await testApp.mount(AgentsTable, {
+      global: {
+        mocks: {
+          $t: (key, params) =>
+            key === 'agents.title' ? `${params.count} agents` : key,
+        },
+      },
       props: {
         workspace: { id: 1, name: 'Workspace', _: { roles: [] } },
       },
     })
     await flushPromises()
 
-    expect(wrapper.vm.count).toBe(250)
+    expect(wrapper.get('h1').text()).toBe('250 agents')
   })
 
   test('passes realtime updates to the selected editor through its agent prop', async () => {

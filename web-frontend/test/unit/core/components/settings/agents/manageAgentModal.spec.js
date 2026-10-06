@@ -238,9 +238,11 @@ describe('ManageAgentModal', () => {
       await wrapper.find('form').trigger('submit')
       expect(dispatch).toHaveBeenCalledTimes(3)
       await pages[2].trigger('click')
-      expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
-        'action.close',
-      ])
+      expect(
+        wrapper
+          .findAll('.manage-agent-modal__footer button')
+          .map((button) => button.text())
+      ).toEqual(['action.close'])
     } finally {
       wrapper.unmount()
     }

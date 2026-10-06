@@ -1,44 +1,53 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`ManageAgentModal > hides commercial information in its role selector 1`] = `
-"<div left-sidebar-scrollable="false" content-padding="true">
+"<div class="manage-agent-modal" left-sidebar-scrollable="false" box-padding="false" content-padding="false">
   <!--v-if-->
   <main>
-    <h2 class="box__title">agents.createTitle</h2>
-    <error-stub error="[object Object]"></error-stub>
-    <!--v-if-->
-    <form>
-      <div label="agents.name" required="" class="margin-bottom-2">
-        <form-input-stub model-value="" required="" maxlength="160"></form-input-stub>
-      </div>
-      <div label="agents.workspaceRole" required="">
-        <div class="workspace-role-selector" workspace="[object Object]" roles="">
-          <!--v-if-->
+    <h2 class="manage-agent-modal__title">agents.createTitle</h2>
+    <form class="manage-agent-modal__form">
+      <div class="manage-agent-modal__body">
+        <error-stub error="[object Object]"></error-stub>
+        <!--v-if-->
+        <div label="agents.name" required="" class="margin-bottom-2">
+          <form-input-stub model-value="" required="" maxlength="160"></form-input-stub>
+        </div>
+        <div label="agents.workspaceRole" required="">
+          <div class="workspace-role-selector" workspace="[object Object]" roles="" show-role-icons="">
+            <!--v-if-->
+          </div>
         </div>
       </div>
-      <div class="actions"><button type="secondary">action.cancel</button><button type="primary" loading="false" disabled="">agents.create</button></div>
+      <div class="manage-agent-modal__footer"><button type="secondary">action.cancel</button><button type="primary" loading="false" disabled="">agents.create</button></div>
     </form>
   </main>
 </div>"
 `;
 
 exports[`ManageAgentModal > shows registered settings in a sidebar when editing 1`] = `
-"<div left-sidebar-scrollable="true" content-padding="true">
+"<div class="manage-agent-modal manage-agent-modal--edit" left-sidebar-scrollable="true" box-padding="false" content-padding="false">
   <aside>
-    <div class="modal-sidebar__title">agents.updateTitle</div>
+    <div class="modal-sidebar__head">
+      <div class="avatar avatar--medium avatar--purple" aria-hidden="true"><i class="baserow-icon-agent avatar__icon"></i>
+        <!--v-if-->
+        <!--v-if-->
+      </div><span class="manage-agent-modal__name">Researcher</span>
+    </div>
     <ul class="modal-sidebar__nav">
-      <li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-settings"></i> General</a></li>
-      <li><a class="modal-sidebar__nav-link active"><i class="modal-sidebar__nav-icon iconoir-community"></i> Teams</a></li>
-      <li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-magic-wand"></i> MCP server</a></li>
+      <li><button type="button" class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-settings" aria-hidden="true"></i> General</button></li>
+      <li><button type="button" class="modal-sidebar__nav-link active" aria-current="page"><i class="modal-sidebar__nav-icon iconoir-community" aria-hidden="true"></i> Teams</button></li>
+      <li><button type="button" class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-magic-wand" aria-hidden="true"></i> MCP server</button></li>
     </ul>
   </aside>
   <main>
-    <h2 class="box__title">Teams</h2>
-    <error-stub error="[object Object]"></error-stub>
-    <!--v-if-->
-    <form>
-      <div class="teams-settings" modelvalue="[object Object]" workspace="[object Object]" agent="[object Object]" roles=""></div>
-      <div class="actions"><button type="secondary">action.close</button><button type="primary" loading="false" disabled="">agents.save</button></div>
+    <h2 class="manage-agent-modal__title">Teams</h2>
+    <form class="manage-agent-modal__form">
+      <div class="manage-agent-modal__body">
+        <error-stub error="[object Object]"></error-stub>
+        <!--v-if-->
+        <div class="teams-settings" modelvalue="[object Object]" workspace="[object Object]" agent="[object Object]" roles=""></div>
+      </div>
+      <div class="manage-agent-modal__footer"><button type="secondary">action.close</button><button type="primary" loading="false" disabled="">agents.save</button></div>
     </form>
   </main>
 </div>"

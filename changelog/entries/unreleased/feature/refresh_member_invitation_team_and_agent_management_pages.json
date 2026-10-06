@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Refresh member, invitation, team and agent management pages",
+    "issue_origin": "github",
+    "issue_number": 6143,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-06"
+}

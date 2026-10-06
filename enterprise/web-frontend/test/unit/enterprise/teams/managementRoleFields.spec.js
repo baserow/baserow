@@ -1,0 +1,58 @@
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { describe, expect, test, vi } from 'vitest'
+import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
+import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
+import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
+
+const roles = [{ uid: 'VIEWER', name: 'Viewer', isVisible: true }]
+const workspace = { id: 1, _: { roles } }
+const row = {
+  id: 10,
+  user_id: 7,
+  role_uid: 'VIEWER',
+  default_role: 'VIEWER',
+  permissions: 'VIEWER',
+}
+
+describe('Enterprise management role controls', () => {
+  test.each([
+    [MembersRoleField, false, 42, true],
+    [MembersRoleField, true, 7, true],
+    [MembersRoleField, true, 42, false],
+    [TeamRoleField, false, 42, true],
+    [TeamRoleField, true, 42, false],
+    [InvitesRoleField, true, 42, false],
+  ])(
+    '%s preserves permission=%s and current user=%s',
+    async (component, permitted, currentUserId, disabled) => {
+      const toggle = vi.fn()
+      const wrapper = await mountSuspended(component, {
+        props: {
+          row,
+          column: { key: 'role_uid', additionalProps: { workspaceId: 1 } },
+        },
+        global: {
+          mocks: {
+            $hasPermission: () => permitted,
+            $store: {
+              getters: {
+                'workspace/get': () => workspace,
+                'auth/getUserId': currentUserId,
+              },
+            },
+          },
+          stubs: {
+            EditRoleContext: { template: '<div />', methods: { toggle } },
+          },
+        },
+      })
+      const button = wrapper.get('button')
+      expect(button.text()).toBe('Viewer')
+      expect(button.element.disabled).toBe(disabled)
+      await button.trigger('click')
+      if (disabled) expect(toggle).not.toHaveBeenCalled()
+      else expect(toggle).toHaveBeenCalledWith(button.element)
+      wrapper.unmount()
+    }
+  )
+})

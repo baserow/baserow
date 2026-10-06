@@ -58,6 +58,8 @@ total result count (or the array length for non-paginated services). Search and
 view's main creation or invitation button in `primary-action`: it appears in
 the header and below the unfiltered empty-state content, with the same event
 handlers and permission checks. Keep other controls in `header-right-side`.
+Use `search-placeholder` for a contextual search prompt (for example, "Search
+members"); omitting it keeps the shared search label.
 The `empty` slot supplies the unfiltered empty-state content; do not repeat the
 primary action there. Unmatched search and filters show the shared no-results
 message instead, with the primary action available in the header.
@@ -69,3 +71,8 @@ Columns scroll horizontally rather than disappearing. Mark row action columns
 with `stickyRight` in their `CrudTableColumn` definition so their controls stay
 accessible while scrolling. Keep the same sticky class on any expanded action
 cells, as demonstrated by the expandable Storybook story.
+
+The **Baserow / Management pages** stories demonstrate the member, invitation,
+team and agent layouts, including narrow tables, empty agents and agent dialogs.
+They use in-memory fixtures; role changes and agent form submissions stay local
+to the preview.
