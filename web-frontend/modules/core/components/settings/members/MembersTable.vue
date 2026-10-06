@@ -6,9 +6,19 @@
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('membersSettings.membersTable.search')"
+      :row-expandable="memberRowExpansion?.isExpandable"
+      :expand-column-key="memberRowExpansion?.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template v-if="memberRowExpansion" #expanded-row="{ row, columns }">
+        <component
+          :is="memberRowExpansion.component"
+          :member="row"
+          :columns="columns"
+          :workspace="workspace"
+        />
+      </template>
       <template #title="{ count }">
         {{
           $t('membersSettings.membersTable.title', {
@@ -133,6 +143,15 @@ export default {
     },
     membersPagePlugins() {
       return Object.values(this.$registry.getAll('membersPagePlugins'))
+    },
+    memberRowExpansion() {
+      for (const plugin of this.membersPagePlugins) {
+        if (!plugin.isDeactivated(this.workspace.id)) {
+          const expansion = plugin.getMemberRowExpansion()
+          if (expansion) return expansion
+        }
+      }
+      return null
     },
     columns() {
       let columns = [

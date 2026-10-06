@@ -15,6 +15,7 @@ import {
 } from '@baserow/modules/core/agentSettingsTypes'
 import AgentTeamsFormField from '@baserow_enterprise/components/agents/AgentTeamsFormField'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
+import MemberRoleSummaryRows from '@baserow_enterprise/components/member-roles/MemberRoleSummaryRows'
 import SubjectSampleField from '@baserow_enterprise/components/crudTable/fields/SubjectSampleField'
 import Button from '@baserow/modules/core/components/Button'
 import Tabs from '@baserow/modules/core/components/Tabs'
@@ -89,7 +90,7 @@ const RolePreviewField = {
     <RoleSelectorButton :role-uid="row.role" :role-name="roles.find(role => role.uid === row.role)?.name || row.role"
       :read-only="row.user_id === 1" @click="$refs.menu.toggle($event.currentTarget)" />
     <EditRoleContext ref="menu" :subject="row" :roles="roles" :workspace="workspace" role-value-column="role"
-      @update-role="$emit('row-update', { ...row, role: $event.uid })" />
+      @update-role="$emit('row-update', { ...row, role: $event.uid, role_uid: $event.uid })" />
   </div>`,
 }
 const members = [
@@ -101,6 +102,8 @@ const members = [
     role: 'ADMIN',
     teams: [teams[0]],
     highest_role: 'Admin',
+    role_uid: 'ADMIN',
+    highest_role_uid: 'ADMIN',
     two_factor_auth: { is_enabled: true },
   },
   {
@@ -111,6 +114,8 @@ const members = [
     role: 'EDITOR',
     teams: [teams[1], teams[2], teams[3]],
     highest_role: 'Builder',
+    role_uid: 'EDITOR',
+    highest_role_uid: 'BUILDER',
     two_factor_auth: { is_enabled: false },
   },
   {
@@ -121,6 +126,8 @@ const members = [
     role: 'VIEWER',
     teams: [],
     highest_role: 'Viewer',
+    role_uid: 'VIEWER',
+    highest_role_uid: 'VIEWER',
     two_factor_auth: { is_enabled: true },
   },
 ]
@@ -159,7 +166,7 @@ function columnsFor(page) {
         : { userId: 1 }
   )
   const email = new CrudTableColumn('email', 'Email', SimpleField, true)
-  const role = new CrudTableColumn('role', 'Default role', RolePreviewField)
+  const role = new CrudTableColumn('role_uid', 'Default role', RolePreviewField)
   const team = new CrudTableColumn('teams', 'Teams', UserTeamsField)
   const more = new CrudTableColumn('more', '', MoreField, false, false, true)
   if (page === 'Agents')
@@ -197,7 +204,7 @@ function columnsFor(page) {
 const renderPage =
   (initialPage = 'Members', empty = false, width = '100%') =>
   () => ({
-    components: { CrudTable, Tabs, Tab, Button, Context, AgentModalPreview },
+    components: { CrudTable, Tabs, Tab, Button, Context, AgentModalPreview, MemberRoleSummaryRows },
     setup() {
       const selected = ref(pages.indexOf(initialPage))
       const page = computed(() => pages[selected.value])
@@ -282,7 +289,8 @@ const renderPage =
     template: `<div :style="{ position: 'relative', height: '700px', width, maxWidth: '100%' }" class="management-pages">
     <Tabs :selected-index="selected" full-height large-offset @update:selected-index="selected = $event">
       <Tab v-for="name in pages" :key="name" :title="name" :badge="name === 'Agents' ? 'New' : null">
-        <CrudTable :key="page" :service="service" :columns="columns" row-id-key="id" :search-placeholder="'Search ' + page.toLowerCase()" @row-context="openContext">
+        <CrudTable :key="page" :service="service" :columns="columns" row-id-key="id" expand-column-key="role_uid" :row-expandable="row => Boolean(row.highest_role_uid) && row.highest_role_uid !== row.role_uid" :search-placeholder="'Search ' + page.toLowerCase()" @row-context="openContext">
+          <template v-if="page === 'Members'" #expanded-row="{ row, columns }"><MemberRoleSummaryRows :member="row" :columns="columns" :workspace="workspace" /></template>
           <template #title="{ count }">{{ count }} {{ page.toLowerCase() }} in Widelab</template>
           <template #primary-action><Button icon="iconoir-plus" @click="page === 'Agents' && $refs.create.show()">{{ action }}</Button></template>
           <template #empty><div class="placeholder"><div class="placeholder__icon"><i :class="page === 'Agents' ? 'baserow-icon-agent' : 'iconoir-group'" /></div><h2 class="placeholder__header">{{ $t(emptyPrefix + '.emptyTitle') }}</h2><p class="placeholder__content">{{ $t(emptyPrefix + '.emptyDescription') }}</p></div></template>

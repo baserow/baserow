@@ -943,5 +943,9 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "memberRoleSummary": {
+    "highestRole": "Highest role in {workspace}",
+    "description": "The highest role assigned directly or through a team anywhere in this workspace."
   }
 }

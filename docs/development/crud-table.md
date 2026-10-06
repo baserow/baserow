@@ -76,3 +76,9 @@ The **Baserow / Management pages** stories demonstrate the member, invitation,
 team and agent layouts, including narrow tables, empty agents and agent dialogs.
 They use in-memory fixtures; role changes and agent form submissions stay local
 to the preview.
+
+Members-page plugins can supply `getMemberRowExpansion()` with a `component`,
+`columnKey` and `isExpandable(member)` predicate. The component renders table rows
+and receives `member`, `columns` and `workspace`. The Enterprise member summary
+uses only the existing default and highest role values: expansion is offered when
+they differ. It does not infer per-scope or per-team assignments from that summary.
