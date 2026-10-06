@@ -627,8 +627,8 @@ def test_builder_application_export(data_fixture):
         ],
         "integrations": [
             {
-                "authorized_agent": None,
-                "authorized_user": None,
+                "authorized_subject_type": None,
+                "authorized_subject_id": None,
                 "id": integration.id,
                 "name": "test",
                 "order": "1.00000000000000000000",
@@ -1143,7 +1143,7 @@ def test_builder_application_import(data_fixture):
 
     assert builder.integrations.count() == 1
     first_integration = builder.integrations.first().specific
-    assert first_integration.authorized_user.id == user.id
+    assert first_integration.authorized_subject == user
 
     assert builder.user_sources.count() == 1
 

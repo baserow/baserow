@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
@@ -12,6 +13,7 @@ from baserow.contrib.integrations.api.local_baserow.serializers import (
     LocalBaserowContextDataSerializer,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
@@ -19,6 +21,7 @@ from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, subject_type_registry
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class AuthorizedSubjectSerializerField(serializers.Field):
@@ -142,6 +145,23 @@ class LocalBaserowIntegrationType(IntegrationType):
     ):
         """Preserve canonical authorization only in same-workspace publications."""
 
+        if import_export_config and import_export_config.is_publishing:
+            subject = None
+            if instance.authorized_subject_type and instance.authorized_subject_id:
+                subject_type = subject_type_registry.get(
+                    instance.authorized_subject_type
+                )
+                manager = getattr(
+                    subject_type.model_class,
+                    "objects_and_trash",
+                    subject_type.model_class.objects,
+                )
+                subject = manager.filter(id=instance.authorized_subject_id).first()
+            if getattr(subject, "trashed", False):
+                raise IntegrationImproperlyConfigured(
+                    "The authorized subject is trashed."
+                )
+
         serialized = super().export_serialized(
             instance,
             import_export_config=import_export_config,
@@ -161,6 +181,13 @@ class LocalBaserowIntegrationType(IntegrationType):
         After an application has been successfully imported, run all integration
         specific post-import logic.
         """
+
+        if (
+            instance.application.workspace_id is None
+            and instance.authorized_subject_type
+            and instance.authorized_subject_id
+        ):
+            return
 
         # Imports from another workspace are always reauthorized to the importer.
         instance.authorized_subject_type = subject_type_registry.get_by_model(user).type
@@ -188,17 +215,29 @@ class LocalBaserowIntegrationType(IntegrationType):
         Import a serialized integration, accepting legacy user authorization.
 
         Workspace exports made before typed subjects stored the user email in
-        ``authorized_user``. Imports are always reauthorized in ``after_import``,
-        so the legacy value is intentionally discarded here.
+        ``authorized_user``. Resolve it to the matching workspace user so the model
+        save can migrate it to the canonical subject pair.
         """
 
         if cache is None:
             cache = {}
 
         serialized_values = serialized_values.copy()
-        serialized_values.pop("authorized_user", None)
+        legacy_authorized_user = None
+        username = serialized_values.pop("authorized_user", None)
+        if username:
+            workspace_users = cache.setdefault(
+                "local_baserow_workspace_users",
+                {
+                    user.username: user
+                    for user in User.objects.filter(
+                        workspaceuser__workspace_id=id_mapping["import_workspace_id"]
+                    )
+                },
+            )
+            legacy_authorized_user = workspace_users.get(username)
 
-        return super().import_serialized(
+        integration = super().import_serialized(
             application,
             serialized_values,
             id_mapping,
@@ -207,6 +246,10 @@ class LocalBaserowIntegrationType(IntegrationType):
             storage=storage,
             cache=cache,
         )
+        if legacy_authorized_user:
+            integration.authorized_user = legacy_authorized_user
+            integration.save(update_fields=["authorized_user"])
+        return integration
 
     def enhance_queryset(self, queryset):
         return queryset.select_related("authorized_user")
