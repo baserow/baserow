@@ -1,0 +1,112 @@
+from urllib.parse import urlparse
+
+from django.db import transaction
+from django.http import QueryDict
+
+from oauth2_provider.exceptions import OAuthToolkitError
+from oauth2_provider.models import get_application_model
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from baserow.api.decorators import map_exceptions
+from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.handler import CoreHandler
+from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
+from baserow.core.mcp.handler import MCPEndpointHandler
+from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.mcp.oauth.authorize import issue_code, validate_query
+
+from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
+from .oauth_serializers import ConsentSerializer
+
+
+def _invalid_request(error: OAuthToolkitError) -> Response:
+    oauthlib_error = error.oauthlib_error
+    return Response(
+        {
+            "error": oauthlib_error.error,
+            "detail": oauthlib_error.description,
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _client_info(query: str) -> dict:
+    params = QueryDict(query)
+    application = get_application_model().objects.get(client_id=params["client_id"])
+    return {
+        "client_id": application.client_id,
+        "client_name": application.name,
+        "redirect_host": urlparse(params["redirect_uri"]).hostname,
+        "registration_source": application.registration_source,
+    }
+
+
+class MCPOAuthConsentView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        query = request.query_params.get("query", "")
+        try:
+            validate_query(request, request.user, query)
+        except OAuthToolkitError as error:
+            return _invalid_request(error)
+
+        endpoints = MCPEndpoint.objects.filter(user=request.user).select_related(
+            "workspace"
+        )
+        return Response(
+            {
+                **_client_info(query),
+                "endpoints": [
+                    {
+                        "id": endpoint.id,
+                        "name": endpoint.name,
+                        "workspace_id": endpoint.workspace_id,
+                        "workspace_name": endpoint.workspace.name,
+                    }
+                    for endpoint in endpoints
+                ],
+            }
+        )
+
+    @transaction.atomic
+    @map_exceptions(
+        {
+            MCPEndpointDoesNotExist: ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def post(self, request):
+        serializer = ConsentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # Validate before creating anything, so a bad request leaves no endpoint.
+        try:
+            validate_query(request, request.user, data["query"])
+        except OAuthToolkitError as error:
+            return _invalid_request(error)
+
+        endpoint = None
+        if data["allow"]:
+            if "new_endpoint" in data:
+                workspace = CoreHandler().get_workspace(
+                    data["new_endpoint"]["workspace_id"]
+                )
+                endpoint = MCPEndpointHandler().create_endpoint(
+                    request.user, workspace, data["new_endpoint"]["name"]
+                )
+            else:
+                endpoint = MCPEndpointHandler().get_endpoint(
+                    request.user, data["endpoint_id"]
+                )
+
+        redirect_url = issue_code(
+            request, request.user, data["query"], endpoint, data["allow"]
+        )
+        return Response({"redirect_url": redirect_url})

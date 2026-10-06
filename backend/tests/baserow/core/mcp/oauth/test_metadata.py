@@ -10,6 +10,8 @@ def test_authorization_server_metadata(client):
     assert "none" in data["token_endpoint_auth_methods_supported"]
     assert data["registration_endpoint"].endswith("/oauth/register/")
     assert data["token_endpoint"].endswith("/oauth/token/")
+    assert data["authorization_endpoint"].endswith("/oauth/authorize/")
+    assert data["code_challenge_methods_supported"] == ["S256"]
 
 
 @pytest.mark.django_db
