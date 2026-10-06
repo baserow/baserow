@@ -24,7 +24,7 @@ describe('Management pages', () => {
       {
         id: 10,
         user_id: 42,
-        name: 'Alex Morgan',
+        name: 'Alex Taylor Morgan',
         email: 'alex@example.com',
         permissions: 'ADMIN',
         two_factor_auth: { is_enabled: true },
@@ -50,7 +50,10 @@ describe('Management pages', () => {
 
     expect(wrapper.get('h1').text()).toBe('1 members')
     expect(wrapper.get('.management-name-field').text()).toContain(
-      'Alex Morgan'
+      'Alex Taylor Morgan'
+    )
+    expect(wrapper.get('.management-name-field .avatar__initials').text()).toBe(
+      'AM'
     )
     expect(wrapper.get('.management-name-field .badge').text()).toBe(
       'managementPages.you'

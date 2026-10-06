@@ -23,18 +23,12 @@
 import { computed } from 'vue'
 import Avatar from '@baserow/modules/core/components/Avatar'
 import Badge from '@baserow/modules/core/components/Badge'
+import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 const props = defineProps({
   row: { type: Object, required: true },
   column: { type: Object, required: true },
 })
 
-const initials = computed(() =>
-  (props.row[props.column.key] || '')
-    .split(' ')
-    .map((part) => part.slice(0, 1))
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-)
+const initials = computed(() => nameAbbreviation(props.row[props.column.key]))
 </script>
