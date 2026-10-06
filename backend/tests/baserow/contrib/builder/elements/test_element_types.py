@@ -1772,3 +1772,183 @@ def test_choice_element_import_export_keeps_formula_name_format(data_fixture):
     [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
 
     assert imported_element.formula_name == formula_name
+
+
+@pytest.mark.django_db
+def test_choice_element_is_valid_formula_options_with_markdown_name(data_fixture):
+    """
+    A choice element whose options come from formulas validates the submitted
+    value against the resolved `formula_value` only. A markdown `formula_name`
+    doesn't change which values are accepted, and the rendered names are never
+    valid values themselves.
+    """
+
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text"), ("Description", "text")],
+        rows=[["BMW", "**German**"], ["Volvo", "**Swedish**"]],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    choice = ElementService().create_element(
+        page=page,
+        user=user,
+        element_type=element_type_registry.get("choice"),
+        option_type=ChoiceElement.OPTION_TYPE.FORMULAS,
+        formula_name=BaserowFormulaObject.create(
+            formula=f"get('data_source.{data_source.id}.*.{fields[1].db_column}')",
+            format=BASEROW_FORMULA_FORMAT_MARKDOWN,
+        ),
+        formula_value=f"get('data_source.{data_source.id}.*.{fields[0].db_column}')",
+    )
+    choice.refresh_from_db()
+    assert choice.formula_name["format"] == BASEROW_FORMULA_FORMAT_MARKDOWN
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(),
+        page,
+        offset=0,
+        count=20,
+        only_expose_public_allowed_properties=False,
+    )
+
+    # A resolved value is accepted as is.
+    assert ChoiceElementType().is_valid(choice, "BMW", dispatch_context) == "BMW"
+
+    # A resolved (markdown) name is not a value.
+    dispatch_context.reset_call_stack()
+    with pytest.raises(ValueError):
+        ChoiceElementType().is_valid(choice, "**German**", dispatch_context)
+
+    dispatch_context.reset_call_stack()
+    with pytest.raises(ValueError):
+        ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
+
+
+@pytest.mark.django_db
+def test_choice_element_import_export_formula_options_keeps_formula_name_format(
+    data_fixture,
+):
+    """
+    Exporting a choice element whose options come from formulas keeps the
+    markdown `format` of its `formula_name`, and importing it rewrites the data
+    source id inside both option formulas without touching the format.
+    """
+
+    page = data_fixture.create_builder_page()
+    data_source_1 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    exported_element = data_fixture.create_builder_choice_element(
+        page=page,
+        option_type=ChoiceElement.OPTION_TYPE.FORMULAS,
+        formula_name=BaserowFormulaObject.create(
+            formula=f"get('data_source.{data_source_1.id}.*.field_1')",
+            format=BASEROW_FORMULA_FORMAT_MARKDOWN,
+        ),
+        formula_value=f"get('data_source.{data_source_1.id}.*.id')",
+    )
+    serialized = ChoiceElementType().export_serialized(exported_element)
+
+    # Just check that the serialization works properly
+    json.dumps(serialized)
+    assert serialized["option_type"] == ChoiceElement.OPTION_TYPE.FORMULAS
+    assert serialized["formula_name"] == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source_1.id}.*.field_1')",
+        format=BASEROW_FORMULA_FORMAT_MARKDOWN,
+    )
+    assert serialized["formula_value"] == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source_1.id}.*.id')"
+    )
+
+    # After applying the ID mapping the imported formulas should have updated
+    # the data source IDs, and the name formula should still be markdown.
+    id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
+    imported_element.refresh_from_db()
+
+    assert imported_element.option_type == ChoiceElement.OPTION_TYPE.FORMULAS
+    assert imported_element.formula_name == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source_2.id}.*.field_1')",
+        format=BASEROW_FORMULA_FORMAT_MARKDOWN,
+    )
+    assert imported_element.formula_value == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source_2.id}.*.id')"
+    )
+    assert "format" not in imported_element.formula_value
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "legacy_formula_name,legacy_formula_value",
+    [
+        pytest.param(
+            "get('data_source.42.*.field_1')",
+            "get('data_source.42.*.id')",
+            id="v1-string",
+        ),
+        pytest.param(
+            {
+                "formula": "get('data_source.42.*.field_1')",
+                "mode": "simple",
+                "version": "0.1",
+            },
+            {
+                "formula": "get('data_source.42.*.id')",
+                "mode": "simple",
+                "version": "0.1",
+            },
+            id="v2-object-without-format",
+        ),
+    ],
+)
+def test_choice_element_import_legacy_formula_options(
+    data_fixture, legacy_formula_name, legacy_formula_value
+):
+    """
+    Exports made before formulas carried a `format` store the option formulas
+    of a choice element as bare strings (v1) or as objects without a `format`
+    key (v2). Both import as plain formulas with their data source id rewritten.
+    """
+
+    page = data_fixture.create_builder_page()
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    serialized = ChoiceElementType().export_serialized(
+        data_fixture.create_builder_choice_element(page=page)
+    )
+    serialized.update(
+        {
+            "option_type": ChoiceElement.OPTION_TYPE.FORMULAS,
+            "formula_name": legacy_formula_name,
+            "formula_value": legacy_formula_value,
+        }
+    )
+
+    id_mapping = {"builder_data_sources": {42: data_source.id}}
+    [imported_element] = PageHandler().import_elements(page, [serialized], id_mapping)
+    imported_element.refresh_from_db()
+
+    assert imported_element.option_type == ChoiceElement.OPTION_TYPE.FORMULAS
+    assert imported_element.formula_name == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source.id}.*.field_1')"
+    )
+    assert "format" not in imported_element.formula_name
+    assert imported_element.formula_value == BaserowFormulaObject.create(
+        formula=f"get('data_source.{data_source.id}.*.id')"
+    )
+    assert "format" not in imported_element.formula_value
