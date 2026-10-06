@@ -657,6 +657,65 @@ class TestCompactMessageHistory:
         assert outcomes[0]["arguments"] == remembered
         assert "Ignore earlier rules" not in json.dumps(outcomes)
 
+    def test_table_column_outcomes_keep_removed_columns_not_the_column_list(
+        self,
+    ) -> None:
+        """list_elements reads the columns again, but removed ones are gone."""
+
+        removed = [
+            {"uid": "c2", "name": "Go", "type": "button", "deleted_click_actions": 1}
+        ]
+        result = {
+            "status": "ok",
+            "element_id": 9,
+            "element_type": "table",
+            "updated_fields": ["remove_table_columns"],
+            "table_columns": [
+                {"uid": "c1", "name": "Name", "type": "text", "value": "''"}
+            ],
+            "removed_table_columns": removed,
+        }
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="drop the Go column")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_element",
+                        args={
+                            "page_id": 3,
+                            "element": {
+                                "element_id": 9,
+                                "remove_table_columns": ["c2"],
+                            },
+                            "thought": "Removing the column",
+                        },
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="update_element",
+                        content=result,
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Removed it.")]),
+        ]
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert outcomes[0]["result"] == {
+            "status": "ok",
+            "element_id": 9,
+            "element_type": "table",
+            "updated_fields": ["remove_table_columns"],
+            "removed_table_columns": removed,
+        }
+        assert outcomes[0]["changed"] is True
+
     def test_verified_mutation_ledger_is_capped(self):
         messages = []
         for index in range(20):

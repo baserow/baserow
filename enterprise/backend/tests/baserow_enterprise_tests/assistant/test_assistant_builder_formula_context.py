@@ -21,6 +21,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     DisplayElementCreate,
     ElementUpdate,
     LayoutElementCreate,
+    TableColumnAdd,
     TableFieldConfig,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
@@ -495,10 +496,10 @@ def test_record_selector_default_formula_reports_saved_value(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("field_type", ["text", "button"])
-def test_table_field_update_rejects_implicit_generation_before_changes(
-    repeated_rows, field_type
-):
+@pytest.mark.parametrize("column_type", ["text", "button"])
+def test_new_table_column_rejects_implicit_generation_before_changes(
+    repeated_rows: tuple, column_type: str
+) -> None:
     ctx, page, field, ds_id = repeated_rows
     created = create_collection_elements(
         ctx,
@@ -516,24 +517,30 @@ def test_table_field_update_rejects_implicit_generation_before_changes(
     table = Element.objects.get(id=created["created_elements"][0]["id"]).specific
     original_fields = list(table.fields.values("id", "name", "config"))
     original_page_size = table.items_per_page
-    value_field = "label" if field_type == "button" else "value"
-    with pytest.raises(ToolInputError, match="explicit formula"):
+    key = "label" if column_type == "button" else "value"
+    with pytest.raises(ToolInputError) as raised:
         update_element(
             ctx,
             page_id=page.id,
             element=ElementUpdate(
                 element_id=table.id,
                 items_per_page=2,
-                fields=[
-                    TableFieldConfig(
+                add_table_columns=[
+                    TableColumnAdd(
                         name="Computed",
-                        type=field_type,
-                        **{value_field: "$formula: combine the values from this row"},
+                        type=column_type,
+                        **{key: "$formula: combine the values from this row"},
                     )
                 ],
             ),
             thought="Change the table.",
         )
+    assert str(raised.value) == (
+        f"Column 'Computed' has a {key} that is not a valid formula. For fixed "
+        "text, put it in single quotes; to show data, use a runtime formula such as "
+        "get('current_record.field_<id>'). \"$formula:\" descriptions are generated "
+        "only when a table is created. No changes were applied."
+    )
     table.refresh_from_db()
     assert table.items_per_page == original_page_size
     assert list(table.fields.values("id", "name", "config")) == original_fields
@@ -544,15 +551,13 @@ def test_table_field_update_rejects_implicit_generation_before_changes(
         page_id=page.id,
         element=ElementUpdate(
             element_id=table.id,
-            fields=[
-                TableFieldConfig(
-                    name="Computed",
-                    type=field_type,
-                    **{value_field: f"$formula: {formula}"},
+            add_table_columns=[
+                TableColumnAdd(
+                    name="Computed", type=column_type, **{key: f"$formula: {formula}"}
                 )
             ],
         ),
         thought="Apply the explicit row expression.",
     )
-    assert result["updated_fields"] == ["fields"]
-    assert table.fields.get().config[value_field]["formula"] == formula
+    assert result["updated_fields"] == ["add_table_columns"]
+    assert table.fields.get(name="Computed").config[key]["formula"] == formula

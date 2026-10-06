@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Kuma keeps the table columns it doesn't change, including their styles and click actions",
+    "message": "Kuma changes table columns one by one, so the columns it doesn't name keep their settings, styles and click actions",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "builder",

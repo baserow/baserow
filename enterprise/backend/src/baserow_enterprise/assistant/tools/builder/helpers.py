@@ -6,7 +6,7 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 """
 
 from collections import Counter
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
@@ -20,8 +20,11 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element
-from baserow.contrib.builder.elements.operations import ReadElementOperationType
+from baserow.contrib.builder.elements.models import Element, TableElement
+from baserow.contrib.builder.elements.operations import (
+    ReadElementOperationType,
+    UpdateElementOperationType,
+)
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
@@ -47,6 +50,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
 )
 
+from .table_column_changes import merge_table_columns
 from .types import (
     ActionCreate,
     ActionItem,
@@ -61,8 +65,11 @@ from .types import (
     PageCreate,
     PageItem,
     PageUpdate,
+    RemovedTableColumn,
+    TableColumnItem,
 )
-from .types.element import BUTTON_NAVIGATION_GUIDANCE
+from .types.element import BUTTON_NAVIGATION_GUIDANCE, TABLE_COLUMN_PROPERTIES
+from .types.table_columns import table_column_items
 
 if TYPE_CHECKING:
     pass
@@ -528,18 +535,35 @@ def move_element(
     )
 
 
+class ElementUpdateOutcome(NamedTuple):
+    """An updated element, and for table column changes the columns afterwards."""
+
+    element: Element
+    element_type: str
+    table_columns: list[TableColumnItem] | None
+    removed_table_columns: list[RemovedTableColumn] | None
+
+
 def update_element(
     user: AbstractUser,
     element_update: ElementUpdate,
-) -> tuple[Any, str]:
+) -> ElementUpdateOutcome:
     """
     Update an existing element by ID.
 
     If the element is a header/footer and ``menu_items`` are provided,
     automatically finds or creates a child menu element and sets the
-    items on it (headers are containers, not menus themselves).
+    items on it (headers are containers, not menus themselves). Table column
+    changes are merged into the stored columns, so the columns they don't name
+    are saved unchanged.
 
-    Returns ``(orm_element, element_type_str)``.
+    :param user: The user updating the element.
+    :param element_update: The properties to change.
+    :return: The updated element and its type, plus the table's columns after the
+        write and the removed columns when the update changes table columns.
+    :raises ToolInputError: When the element doesn't exist or a property can't be
+        applied. Nothing is saved then.
+    :raises PermissionDenied: When the user can't update the element.
     """
 
     try:
@@ -552,6 +576,23 @@ def update_element(
 
     element_type = element.get_type().type
     kwargs = element_update.to_update_kwargs(element_type)
+    removed_columns = None
+    if element_type == "table" and element_update.changes_table_columns():
+        CoreHandler().check_permissions(
+            user,
+            UpdateElementOperationType.type,
+            workspace=element.page.builder.workspace,
+            context=element,
+        )
+        change = merge_table_columns(
+            element.specific,
+            add=element_update.add_table_columns or [],
+            update=element_update.update_table_columns or [],
+            reorder=element_update.reorder_table_columns,
+            remove=element_update.remove_table_columns or [],
+        )
+        kwargs["fields"] = change.fields
+        removed_columns = change.removed
     allowed = set(ElementHandler.allowed_fields_update) | set(
         element.get_type().allowed_fields
     )
@@ -570,6 +611,8 @@ def update_element(
                 ElementUpdate.model_fields
             )
             allowed.update(("visibility", "role_type", "roles"))
+            if element_type == "table":
+                allowed.update(TABLE_COLUMN_PROPERTIES)
             guidance = f"Supported properties include: {', '.join(sorted(allowed))}."
         raise ToolInputError(
             f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
@@ -589,7 +632,14 @@ def update_element(
     if element_type in ("header", "footer") and element_update.menu_items is not None:
         _ensure_child_menu(user, element, element_update)
 
-    return element, element_type
+    table_columns = (
+        table_column_items(
+            TableElement.objects.prefetch_related("fields").get(id=element.id)
+        )
+        if element_update.changes_table_columns()
+        else None
+    )
+    return ElementUpdateOutcome(element, element_type, table_columns, removed_columns)
 
 
 def _ensure_child_menu(

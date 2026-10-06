@@ -812,19 +812,29 @@ def update_element(
     """\
     Update an existing element's properties.
 
-    WHEN to use: User wants to change properties of an existing element (text, label, settings, etc.).
-    WHAT it does: Updates the specified fields on an element. Only non-null fields are applied.
-    RETURNS: Updated element ID and list of changed fields.
+    WHEN to use: User wants to change properties of an existing element (text, label, settings, table columns, etc.).
+    WHAT it does: Updates the specified properties on an element. Only non-null properties are applied.
+    RETURNS: Updated element ID and list of changed properties. Table column changes also return the table's columns afterwards and the removed columns.
     DO NOT USE when: You need to move elements, change data sources, or modify styles — use other tools for those.
 
     ## Usage
     - element_id: ID of the element to update (from list_elements).
-    - Only set the fields you want to change — unset fields are left unchanged.
-    - Unsupported fields reject the update without applying any changes.
+    - Only set the properties you want to change — unset properties are left unchanged.
+    - Unsupported properties reject the update without applying any changes.
     - Button navigation belongs in create_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
-    - Table fields accept literal values or explicit runtime expressions on update;
-      natural-language formula generation for table fields is creation-only.
+
+    ## Table Columns
+    - list_elements shows each table's columns with uid, name, type, and value or label.
+      Change them by uid with add_table_columns, update_table_columns,
+      reorder_table_columns and remove_table_columns; columns you don't list stay
+      exactly as they are.
+    - value and label take fixed text or a runtime formula such as
+      get('current_record.field_<id>'). "$formula:" descriptions work only when
+      creating a table.
+    - A column's type can't change: remove it and add a new one.
+    - There is no hidden column: hiding one means removing it, and undo can't bring
+      it back, so confirm with the user first.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
@@ -849,7 +859,8 @@ def update_element(
     )
 
     with transaction.atomic():
-        orm_element, element_type = helpers.update_element(user, element)
+        outcome = helpers.update_element(user, element)
+    orm_element, element_type = outcome.element, outcome.element_type
 
     # Handle formula generation for $formula: fields (separate transaction)
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
@@ -881,6 +892,10 @@ def update_element(
         "element_type": element_type,
         "updated_fields": updated_fields,
     }
+    if element.changes_table_columns():
+        result["table_columns"] = outcome.table_columns
+        if outcome.removed_table_columns:
+            result["removed_table_columns"] = outcome.removed_table_columns
     if errors:
         result["errors"] = errors
     return result

@@ -1,11 +1,25 @@
 """Table element columns as Kuma reads and changes them."""
 
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
+
+from pydantic import Field, model_validator
+
+from baserow_enterprise.assistant.types import BaseModel
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.elements.models import CollectionField, TableElement
 
 VALUE_COLUMN_TYPES: frozenset[str] = frozenset({"text", "boolean", "rating"})
+COLUMN_NAME_MAX_LENGTH = 225
+
+# Mirrors LocalBaserowListRowsUserServiceType.get_default_collection_fields().
+FORMULA_PATH_SUFFIX: dict[str, str] = {
+    "last_modified_by": ".name",
+    "created_by": ".name",
+    "single_select": ".value",
+    "multiple_collaborators": ".*.name",
+}
+ARRAY_FIELD_TYPES = {"multiple_select", "link_row"}
 
 
 class TableColumnItem(TypedDict):
@@ -16,6 +30,73 @@ class TableColumnItem(TypedDict):
     type: str
     value: NotRequired[str]
     label: NotRequired[str]
+
+
+class TableColumnAdd(BaseModel):
+    """A new table column. Only text and button columns can be added."""
+
+    name: str = Field(
+        ...,
+        max_length=COLUMN_NAME_MAX_LENGTH,
+        description="Column header. It must differ from the other columns' headers.",
+    )
+    type: Literal["text", "button"] = Field(
+        default="text", description="'text' (default) or 'button'."
+    )
+    value: str | None = Field(
+        default=None,
+        description="(text) Fixed text or a runtime formula such as get('current_record.field_<id>'); '' leaves the cells empty. Omit it to show the data source field named like the column.",
+    )
+    label: str | None = Field(
+        default=None,
+        description="(button) Button caption. Defaults to name. Attach click actions with create_actions.",
+    )
+    before_uid: str | None = Field(
+        default=None,
+        description="Insert before this column (uid from list_elements). Omit to add it last.",
+    )
+
+
+class TableColumnUpdate(BaseModel):
+    """A change to one existing table column. Keys you omit keep their current value."""
+
+    uid: str = Field(..., description="The column's uid, from list_elements.")
+    name: str | None = Field(
+        default=None,
+        max_length=COLUMN_NAME_MAX_LENGTH,
+        description="New header. Renaming doesn't change what the column shows.",
+    )
+    value: str | None = Field(
+        default=None,
+        description="(text, boolean, rating) New fixed text or runtime formula.",
+    )
+    label: str | None = Field(default=None, description="(button) New button caption.")
+
+    @model_validator(mode="after")
+    def _require_a_change(self) -> "TableColumnUpdate":
+        if self.name is None and self.value is None and self.label is None:
+            raise ValueError(f"Column {self.uid} needs a new name, value or label.")
+        return self
+
+
+class RemovedTableColumn(TypedDict):
+    """A column an update removed."""
+
+    uid: str
+    name: str
+    type: str
+    deleted_click_actions: NotRequired[int]
+
+
+def column_name_key(name: str) -> str:
+    """
+    Compare column and field names ignoring case and surrounding spaces.
+
+    :param name: A column or field name.
+    :return: The comparison key.
+    """
+
+    return name.strip().casefold()
 
 
 def stored_formula_text(config: Any, key: str) -> str:
@@ -60,3 +141,45 @@ def table_column_items(element: "TableElement") -> list[TableColumnItem]:
 
     columns = sorted(element.fields.all(), key=lambda column: (column.order, column.id))
     return [table_column_item(column) for column in columns]
+
+
+def data_source_fields(data_source_id: int | None) -> dict[str, tuple[int, str]]:
+    """
+    Read the fields of the database table a data source reads.
+
+    :param data_source_id: The data source, or None.
+    :return: (field id, field type) by the column_name_key of each field name. Empty
+        when there is no data source or it reads no table.
+    """
+
+    if not data_source_id:
+        return {}
+    try:
+        from baserow.contrib.builder.data_sources.models import DataSource
+
+        ds = DataSource.objects.select_related("service").get(id=data_source_id)
+        table = ds.service.specific.table
+        if table is None:
+            return {}
+        return {
+            column_name_key(f.name): (f.id, f.get_type().type)
+            for f in table.field_set.select_related("content_type").all()
+        }
+    except Exception:
+        return {}
+
+
+def field_formula(field_id: int, field_type: str) -> str:
+    """
+    Build the runtime formula that shows a database field in a column.
+
+    :param field_id: The database field.
+    :param field_type: The database field's type.
+    :return: get('current_record.field_<id><suffix>'), where the suffix reads the
+        names or values of select, link and collaborator fields.
+    """
+
+    suffix = FORMULA_PATH_SUFFIX.get(field_type, "")
+    if not suffix and field_type in ARRAY_FIELD_TYPES:
+        suffix = ".*.value"
+    return f"get('current_record.field_{field_id}{suffix}')"

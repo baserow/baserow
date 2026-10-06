@@ -333,6 +333,23 @@ def _remembered_arguments(tool_name: str, arguments: dict[str, Any]) -> dict[str
     return {"row_count": len(rows), **({"row_ids": row_ids} if row_ids else {})}
 
 
+def _remembered_result(tool_name: str, result: Any) -> Any:
+    """
+    Leave out the table columns an element update returns.
+
+    list_elements reads them again, and a 7-column list takes about a quarter of
+    the memory.
+
+    :param tool_name: The executed tool's name.
+    :param result: The tool result.
+    :return: The result to remember for later turns.
+    """
+
+    if tool_name != "update_element" or not isinstance(result, dict):
+        return result
+    return {key: value for key, value in result.items() if key != "table_columns"}
+
+
 def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:
     arguments = dict(execution.arguments)
     arguments.pop("thought", None)
@@ -342,7 +359,9 @@ def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:
         "arguments": _compact_value(
             _remembered_arguments(execution.tool_name, arguments)
         ),
-        "result": _compact_value(execution.result),
+        "result": _compact_value(
+            _remembered_result(execution.tool_name, execution.result)
+        ),
         "changed": evidence.changed,
         "completed": evidence.completed,
         "failed": _is_failed_result(execution.result, execution.outcome),

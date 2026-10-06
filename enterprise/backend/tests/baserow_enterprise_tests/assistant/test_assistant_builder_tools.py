@@ -15,7 +15,11 @@ import pytest
 from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 
-from baserow.contrib.builder.elements.models import ButtonElement, HeadingElement
+from baserow.contrib.builder.elements.models import (
+    ButtonElement,
+    HeadingElement,
+    TableElement,
+)
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -73,6 +77,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     PageCreate,
     PagePathParam,
     PageUpdate,
+    TableColumnAdd,
     TableFieldConfig,
     TypographyStyleOverride,
 )
@@ -3202,8 +3207,10 @@ def test_table_element_auto_enables_filter_sort_search(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_update_table_element_replace_columns(data_fixture):
-    """Updating a table element's fields replaces all columns."""
+def test_update_table_columns_by_the_uids_list_elements_shows(
+    data_fixture: Fixtures,
+) -> None:
+    """Columns created with the table can be removed and added by uid."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
@@ -3212,12 +3219,11 @@ def test_update_table_element_replace_columns(data_fixture):
     table = data_fixture.create_database_table(user=user, database=database)
     data_fixture.create_text_field(table=table, name="Name")
     data_fixture.create_text_field(table=table, name="Email")
-    data_fixture.create_text_field(table=table, name="Phone")
+    phone = data_fixture.create_text_field(table=table, name="Phone")
 
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
-    # Create data source
     ds_result = create_data_sources(
         ctx,
         page_id=page.id,
@@ -3230,7 +3236,6 @@ def test_update_table_element_replace_columns(data_fixture):
     )
     ds_id = ds_result["ref_to_id_map"]["ds1"]
 
-    # Create table with 2 columns
     el_result = create_collection_elements(
         ctx,
         page_id=page.id,
@@ -3248,288 +3253,41 @@ def test_update_table_element_replace_columns(data_fixture):
         thought="test",
     )
     table_element_id = el_result["ref_to_id_map"]["tbl"]
+    listed = list_elements(ctx, page_id=page.id, thought="test")
+    columns = next(
+        el["table_columns"] for el in listed["elements"] if el["id"] == table_element_id
+    )
+    email_uid = next(column["uid"] for column in columns if column["name"] == "Email")
 
-    from baserow.contrib.builder.elements.handler import ElementHandler
-
-    element = ElementHandler().get_element(table_element_id).specific
-
-    # Verify initial state: 2 columns
-    fields_before = list(element.fields.order_by("order"))
-    assert len(fields_before) == 2
-    assert fields_before[0].name == "Name"
-    assert fields_before[1].name == "Email"
-
-    # Update: replace with 3 columns (add Phone, remove Email)
-    update_element(
+    result = update_element(
         ctx,
         page_id=page.id,
         element=ElementUpdate(
             element_id=table_element_id,
-            fields=[
-                TableFieldConfig(name="Name", type="text"),
-                TableFieldConfig(name="Phone", type="text"),
-                TableFieldConfig(name="Actions", type="button", label="Edit"),
+            remove_table_columns=[email_uid],
+            add_table_columns=[
+                TableColumnAdd(name="Phone"),
+                TableColumnAdd(name="Actions", type="button", label="Edit"),
             ],
         ),
         thought="test",
     )
 
-    element = ElementHandler().get_element(table_element_id).specific
-    fields_after = list(element.fields.order_by("order"))
-    assert len(fields_after) == 3
-    assert fields_after[0].name == "Name"
-    assert fields_after[1].name == "Phone"
-    assert fields_after[2].name == "Actions"
-    assert fields_after[2].type == "button"
-
-
-@pytest.mark.django_db(transaction=True)
-def test_update_table_element_add_fields(data_fixture):
-    """add_fields appends columns without touching existing ones."""
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    data_fixture.create_text_field(table=table, name="Name")
-    data_fixture.create_text_field(table=table, name="Email")
-
-    tool_helpers = create_fake_tool_helpers()
-    ctx = make_test_ctx(user, workspace, tool_helpers)
-
-    ds_result = create_data_sources(
-        ctx,
-        page_id=page.id,
-        data_sources=[
-            DataSourceCreate(
-                ref="ds1", name="People", type="list_rows", table_id=table.id
-            ),
-        ],
-        thought="test",
+    fields = list(
+        TableElement.objects.get(id=table_element_id).fields.order_by("order")
     )
-    ds_id = ds_result["ref_to_id_map"]["ds1"]
-
-    # Create table with 1 column
-    el_result = create_collection_elements(
-        ctx,
-        page_id=page.id,
-        elements=[
-            CollectionElementCreate(
-                ref="tbl",
-                type="table",
-                data_source=ds_id,
-                fields=[TableFieldConfig(name="Name", type="text")],
-            ),
-        ],
-        thought="test",
+    assert [(field.name, field.type) for field in fields] == [
+        ("Name", "text"),
+        ("Phone", "text"),
+        ("Actions", "button"),
+    ]
+    assert fields[1].config["value"]["formula"] == (
+        f"get('current_record.field_{phone.id}')"
     )
-    table_element_id = el_result["ref_to_id_map"]["tbl"]
-
-    from baserow.contrib.builder.elements.handler import ElementHandler
-
-    element = ElementHandler().get_element(table_element_id).specific
-    assert element.fields.count() == 1
-
-    # Add Email column — Name should be preserved
-    update_element(
-        ctx,
-        page_id=page.id,
-        element=ElementUpdate(
-            element_id=table_element_id,
-            add_fields=[TableFieldConfig(name="Email", type="text")],
-        ),
-        thought="test",
-    )
-
-    element = ElementHandler().get_element(table_element_id).specific
-    fields = list(element.fields.order_by("order"))
-    assert len(fields) == 2
-    assert fields[0].name == "Name"
-    assert fields[1].name == "Email"
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize(
-    "update",
-    [
-        {
-            "fields": [
-                TableFieldConfig(name="Name", type="text", value="B"),
-                TableFieldConfig(name="Go", type="button", label="Go"),
-            ]
-        },
-        {"add_fields": [TableFieldConfig(name="Email", type="text", value="C")]},
-    ],
-)
-def test_update_table_columns_keeps_the_columns_it_resends(data_fixture, update):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder)
-    styles = {"cell": {"cell_font_color": "red"}}
-    table_element = data_fixture.create_builder_table_element(
-        page=page,
-        fields=[
-            {"name": "Name", "type": "text", "config": {}, "styles": styles},
-            {"name": "Go", "type": "button", "config": {}},
-        ],
-    )
-    go_uid = table_element.fields.get(name="Go").uid
-    click_action = data_fixture.create_notification_workflow_action(
-        element=table_element, event=f"{go_uid}_click"
-    )
-
-    update_element(
-        make_test_ctx(user, workspace),
-        page_id=page.id,
-        element=ElementUpdate(element_id=table_element.id, **update),
-        thought="test",
-    )
-
-    assert table_element.fields.get(name="Go").uid == go_uid
-    assert table_element.fields.get(name="Name").styles == styles
-    assert BuilderWorkflowAction.objects.filter(id=click_action.id).exists()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_update_table_element_remove_fields(data_fixture):
-    """remove_fields removes columns by name, preserving the rest."""
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    data_fixture.create_text_field(table=table, name="Name")
-    data_fixture.create_text_field(table=table, name="Email")
-
-    tool_helpers = create_fake_tool_helpers()
-    ctx = make_test_ctx(user, workspace, tool_helpers)
-
-    ds_result = create_data_sources(
-        ctx,
-        page_id=page.id,
-        data_sources=[
-            DataSourceCreate(
-                ref="ds1", name="People", type="list_rows", table_id=table.id
-            ),
-        ],
-        thought="test",
-    )
-    ds_id = ds_result["ref_to_id_map"]["ds1"]
-
-    # Create table with 2 columns
-    el_result = create_collection_elements(
-        ctx,
-        page_id=page.id,
-        elements=[
-            CollectionElementCreate(
-                ref="tbl",
-                type="table",
-                data_source=ds_id,
-                fields=[
-                    TableFieldConfig(name="Name", type="text"),
-                    TableFieldConfig(name="Email", type="text"),
-                ],
-            ),
-        ],
-        thought="test",
-    )
-    table_element_id = el_result["ref_to_id_map"]["tbl"]
-
-    from baserow.contrib.builder.elements.handler import ElementHandler
-
-    element = ElementHandler().get_element(table_element_id).specific
-    assert element.fields.count() == 2
-
-    # Remove Email by name — Name should be preserved
-    update_element(
-        ctx,
-        page_id=page.id,
-        element=ElementUpdate(
-            element_id=table_element_id,
-            remove_fields=["Email"],
-        ),
-        thought="test",
-    )
-
-    element = ElementHandler().get_element(table_element_id).specific
-    fields = list(element.fields.order_by("order"))
-    assert len(fields) == 1
-    assert fields[0].name == "Name"
-
-
-@pytest.mark.django_db(transaction=True)
-def test_update_table_element_add_and_remove_fields(data_fixture):
-    """add_fields and remove_fields can be combined in a single update."""
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    data_fixture.create_text_field(table=table, name="Name")
-    data_fixture.create_text_field(table=table, name="Email")
-    data_fixture.create_text_field(table=table, name="Phone")
-
-    tool_helpers = create_fake_tool_helpers()
-    ctx = make_test_ctx(user, workspace, tool_helpers)
-
-    ds_result = create_data_sources(
-        ctx,
-        page_id=page.id,
-        data_sources=[
-            DataSourceCreate(
-                ref="ds1", name="People", type="list_rows", table_id=table.id
-            ),
-        ],
-        thought="test",
-    )
-    ds_id = ds_result["ref_to_id_map"]["ds1"]
-
-    el_result = create_collection_elements(
-        ctx,
-        page_id=page.id,
-        elements=[
-            CollectionElementCreate(
-                ref="tbl",
-                type="table",
-                data_source=ds_id,
-                fields=[
-                    TableFieldConfig(name="Name", type="text"),
-                    TableFieldConfig(name="Email", type="text"),
-                ],
-            ),
-        ],
-        thought="test",
-    )
-    table_element_id = el_result["ref_to_id_map"]["tbl"]
-
-    # Remove Email, add Phone + button — in one call
-    update_element(
-        ctx,
-        page_id=page.id,
-        element=ElementUpdate(
-            element_id=table_element_id,
-            remove_fields=["Email"],
-            add_fields=[
-                TableFieldConfig(name="Phone", type="text"),
-                TableFieldConfig(name="Actions", type="button", label="Edit"),
-            ],
-        ),
-        thought="test",
-    )
-
-    from baserow.contrib.builder.elements.handler import ElementHandler
-
-    element = ElementHandler().get_element(table_element_id).specific
-    fields = list(element.fields.order_by("order"))
-    assert len(fields) == 3
-    assert fields[0].name == "Name"
-    assert fields[1].name == "Phone"
-    assert fields[2].name == "Actions"
-    assert fields[2].type == "button"
+    assert fields[2].config["label"]["formula"] == "'Edit'"
+    assert result["removed_table_columns"] == [
+        {"uid": email_uid, "name": "Email", "type": "text"}
+    ]
 
 
 # ===========================================================================

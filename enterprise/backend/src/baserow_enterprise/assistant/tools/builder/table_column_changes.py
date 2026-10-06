@@ -1,0 +1,403 @@
+"""Turn Kuma's table column changes into the full column list core saves."""
+
+import uuid
+from collections import Counter
+from collections.abc import Iterable
+from copy import deepcopy
+from typing import Any, NamedTuple
+
+from baserow.contrib.builder.elements.models import TableElement
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    formula_desc,
+    formula_object,
+    is_valid_formula,
+    needs_formula,
+    wrap_static_string,
+)
+
+from .types.table_columns import (
+    VALUE_COLUMN_TYPES,
+    RemovedTableColumn,
+    TableColumnAdd,
+    TableColumnUpdate,
+    column_name_key,
+    data_source_fields,
+    field_formula,
+    stored_formula_text,
+)
+
+NO_CHANGES = "No changes were applied."
+MAX_LISTED_COLUMNS = 25
+
+Column = dict[str, Any]
+
+_LABEL_COLUMN_TYPES = frozenset({"button"})
+_NEW_VALUE_COLUMN_TYPES = frozenset({"text"})
+
+
+class TableColumnsChange(NamedTuple):
+    """The columns to save for a table, and the stored columns they leave out."""
+
+    fields: list[Column]
+    removed: list[RemovedTableColumn]
+
+
+def column_uid(raw: str) -> str:
+    """
+    Canonicalize a uid the model sent so it compares equal to stored uids.
+
+    :param raw: The uid as sent.
+    :return: The lower-case hyphenated uid, or the stripped input if it isn't a UUID.
+    """
+
+    try:
+        return str(uuid.UUID(raw.strip()))
+    except ValueError:
+        return raw.strip()
+
+
+def column_formula(text: str, column_name: str, key: str) -> str:
+    """
+    Turn a value or label the model sent into the formula to store.
+
+    :param text: Fixed text or a runtime formula.
+    :param column_name: The column's header, for the error message.
+    :param key: "value" or "label", for the error message.
+    :return: "''" for empty text, a quoted literal for fixed text, or the formula.
+    :raises ToolInputError: When the text needs a formula that doesn't parse.
+    """
+
+    if text == "":
+        return "''"
+    if not needs_formula(text):
+        return wrap_static_string(text)
+    formula = formula_desc(text)
+    if not is_valid_formula(formula):
+        raise ToolInputError(
+            f"Column '{column_name}' has a {key} that is not a valid formula. For "
+            "fixed text, put it in single quotes; to show data, use a runtime formula "
+            "such as get('current_record.field_<id>'). \"$formula:\" descriptions are "
+            f"generated only when a table is created. {NO_CHANGES}"
+        )
+    return formula
+
+
+def merge_table_columns(
+    element: TableElement,
+    add: list[TableColumnAdd],
+    update: list[TableColumnUpdate],
+    reorder: list[str] | None,
+    remove: list[str],
+) -> TableColumnsChange:
+    """
+    Merge column changes into the full column list core saves for a table.
+
+    Columns the changes don't name are resent exactly as stored, so they keep their
+    uid, settings, styles and click actions.
+
+    :param element: The table element, locked for update.
+    :param add: New columns.
+    :param update: Changes to existing columns, by uid.
+    :param reorder: The uids of every column that stays in the new order, or None to
+        keep the stored order.
+    :param remove: The uids of the columns to delete.
+    :return: The columns to save and the columns removed.
+    :raises ToolInputError: When a change can't be applied; nothing is saved.
+    """
+
+    stored = _stored_columns(element)
+    by_uid = {column["uid"]: column for column in stored}
+    update_uids = [column_uid(change.uid) for change in update]
+    remove_uids = [column_uid(uid) for uid in remove]
+    order = [column_uid(uid) for uid in reorder] if reorder is not None else None
+    anchors = [column_uid(new.before_uid) for new in add if new.before_uid is not None]
+
+    _check_references(
+        element, stored, [*update_uids, *remove_uids, *(order or []), *anchors]
+    )
+    removed_uids = set(remove_uids)
+    _check_changed_once(update_uids, removed_uids)
+    _check_types_fit(update, update_uids, add, by_uid)
+
+    kept = [column for column in stored if column["uid"] not in removed_uids]
+    if order is not None:
+        _check_order(kept, order, removed_uids, by_uid)
+        position = {uid: index for index, uid in enumerate(order)}
+        kept.sort(key=lambda column: position[column["uid"]])
+    _check_anchors_stay(anchors, removed_uids)
+
+    changes = dict(zip(update_uids, update))
+    merged = [_changed(column, changes.get(column["uid"])) for column in kept]
+    fields_by_name = data_source_fields(element.data_source_id) if add else {}
+    for new in add:
+        merged.insert(
+            _insert_index(merged, new.before_uid), _new_column(new, fields_by_name)
+        )
+
+    removed = [column for column in stored if column["uid"] in removed_uids]
+    _check_names(merged, stored)
+    _check_not_added_again(add, removed)
+    if not merged:
+        raise ToolInputError(
+            f"Table element {element.id} would have no columns left. Keep a column, or "
+            f"add one with add_table_columns in the same call. {NO_CHANGES}"
+        )
+    if merged == stored:
+        raise ToolInputError(
+            f"No column of table element {element.id} would change: the names, values "
+            "and labels you sent are already stored, and the order is the same. "
+            "Columns you don't list stay as they are; to move columns, use "
+            f"reorder_table_columns. {NO_CHANGES}"
+        )
+    return TableColumnsChange(merged, _removed_items(element, removed))
+
+
+def _stored_columns(element: TableElement) -> list[Column]:
+    return [
+        {
+            "uid": str(column.uid),
+            "name": column.name,
+            "type": column.type,
+            "config": column.config,
+            "styles": column.styles,
+        }
+        for column in sorted(
+            element.fields.all(), key=lambda column: (column.order, column.id)
+        )
+    ]
+
+
+def _unique(uids: Iterable[str]) -> list[str]:
+    return list(dict.fromkeys(uids))
+
+
+def _listing(columns: list[Column]) -> str:
+    listed = ", ".join(
+        f"{column['uid']} '{column['name']}' ({column['type']})"
+        for column in columns[:MAX_LISTED_COLUMNS]
+    )
+    hidden = len(columns) - MAX_LISTED_COLUMNS
+    return f"{listed}, and {hidden} more (see list_elements)" if hidden > 0 else listed
+
+
+def _named(uids: list[str], by_uid: dict[str, Column]) -> str:
+    return ", ".join(f"{uid} '{by_uid[uid]['name']}'" for uid in uids)
+
+
+def _check_references(
+    element: TableElement, stored: list[Column], uids: list[str]
+) -> None:
+    counts = Counter(column["uid"] for column in stored)
+    unknown = _unique(uid for uid in uids if uid not in counts)
+    if unknown:
+        raise ToolInputError(
+            f"Columns {unknown} are not columns of table element {element.id}. Its "
+            f"columns are: {_listing(stored)}. Use these uids. {NO_CHANGES}"
+        )
+    shared = _unique(uid for uid in uids if counts[uid] > 1)
+    if shared:
+        raise ToolInputError(
+            f"Columns {shared} of table element {element.id} share a uid with another "
+            "column, so they can't be told apart. Remove one of them in the table's "
+            f"editor, then retry. {NO_CHANGES}"
+        )
+
+
+def _check_changed_once(update_uids: list[str], removed_uids: set[str]) -> None:
+    repeated = [uid for uid, count in Counter(update_uids).items() if count > 1]
+    if repeated:
+        raise ToolInputError(
+            f"Columns {repeated} are changed more than once. Put all changes to a "
+            f"column in one update_table_columns entry. {NO_CHANGES}"
+        )
+    both = _unique(uid for uid in update_uids if uid in removed_uids)
+    if both:
+        raise ToolInputError(
+            f"Columns {both} cannot be changed and removed. {NO_CHANGES}"
+        )
+
+
+def _misfit_keys(
+    entry: TableColumnAdd | TableColumnUpdate,
+    column_type: str,
+    value_types: frozenset[str],
+) -> list[str]:
+    fitting_types = {"value": value_types, "label": _LABEL_COLUMN_TYPES}
+    return [
+        key
+        for key, types in fitting_types.items()
+        if getattr(entry, key) is not None and column_type not in types
+    ]
+
+
+def _check_types_fit(
+    update: list[TableColumnUpdate],
+    update_uids: list[str],
+    add: list[TableColumnAdd],
+    by_uid: dict[str, Column],
+) -> None:
+    misfits = [
+        f"column {uid} '{by_uid[uid]['name']}' is a {by_uid[uid]['type']} column, "
+        f"so {key} does not apply"
+        for change, uid in zip(update, update_uids)
+        for key in _misfit_keys(change, by_uid[uid]["type"], VALUE_COLUMN_TYPES)
+    ]
+    misfits += [
+        f"the new column '{new.name}' is a {new.type} column, so {key} does not apply"
+        for new in add
+        for key in _misfit_keys(new, new.type, _NEW_VALUE_COLUMN_TYPES)
+    ]
+    if misfits:
+        raise ToolInputError(
+            f"These changes don't fit the column type: {'; '.join(misfits)}. value is "
+            "for text, boolean and rating columns, and label for button columns; link, "
+            "tags and image columns can only be renamed, reordered or removed here. "
+            f"{NO_CHANGES}"
+        )
+
+
+def _check_order(
+    kept: list[Column],
+    order: list[str],
+    removed_uids: set[str],
+    by_uid: dict[str, Column],
+) -> None:
+    listed = Counter(order)
+    problems = {
+        "Missing": [column["uid"] for column in kept if column["uid"] not in listed],
+        "Listed more than once": [uid for uid, count in listed.items() if count > 1],
+        "Removed in this call": [uid for uid in listed if uid in removed_uids],
+    }
+    details = "".join(
+        f" {problem}: {_named(uids, by_uid)}."
+        for problem, uids in problems.items()
+        if uids
+    )
+    if details:
+        raise ToolInputError(
+            "reorder_table_columns must list every column that stays exactly once."
+            f"{details} {NO_CHANGES}"
+        )
+
+
+def _check_anchors_stay(anchors: list[str], removed_uids: set[str]) -> None:
+    removed_anchors = _unique(uid for uid in anchors if uid in removed_uids)
+    if removed_anchors:
+        raise ToolInputError(
+            f"Columns {removed_anchors} are removed in this call, so new columns "
+            f"can't be placed before them. {NO_CHANGES}"
+        )
+
+
+def _changed(column: Column, change: TableColumnUpdate | None) -> Column:
+    if change is None:
+        return column
+    config = deepcopy(column["config"]) if isinstance(column["config"], dict) else {}
+    for key in ("value", "label"):
+        text = getattr(change, key)
+        stored_text = stored_formula_text(column["config"], key)
+        if text is not None and text.strip() != stored_text.strip():
+            config[key] = formula_object(
+                column_formula(text, column["name"], key),
+                mode=BASEROW_FORMULA_MODE_ADVANCED,
+            )
+    name = change.name if change.name is not None else column["name"]
+    return {**column, "name": name, "config": config}
+
+
+def _insert_index(merged: list[Column], before_uid: str | None) -> int:
+    if before_uid is None:
+        return len(merged)
+    anchor = column_uid(before_uid)
+    return next(
+        index for index, column in enumerate(merged) if column.get("uid") == anchor
+    )
+
+
+def _new_column(
+    new: TableColumnAdd, fields_by_name: dict[str, tuple[int, str]]
+) -> Column:
+    if new.type == "button":
+        key = "label"
+        formula = column_formula(new.label or new.name, new.name, key)
+    elif new.value is not None:
+        key = "value"
+        formula = column_formula(new.value, new.name, key)
+    else:
+        key = "value"
+        match = fields_by_name.get(column_name_key(new.name))
+        formula = field_formula(*match) if match else "''"
+    return {
+        "name": new.name,
+        "type": new.type,
+        "config": {key: formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)},
+    }
+
+
+def _is_new_or_renamed(column: Column, stored_names: set[tuple[str, str]]) -> bool:
+    return "uid" not in column or (column["uid"], column["name"]) not in stored_names
+
+
+def _name_owner(column: Column, stored_names: set[tuple[str, str]]) -> str:
+    if "uid" not in column:
+        return f"the new column '{column['name']}'"
+    if (column["uid"], column["name"]) not in stored_names:
+        return f"column {column['uid']} renamed to '{column['name']}'"
+    return f"column {column['uid']} '{column['name']}'"
+
+
+def _check_names(merged: list[Column], stored: list[Column]) -> None:
+    stored_names = {(column["uid"], column["name"]) for column in stored}
+    groups: dict[str, list[Column]] = {}
+    for column in merged:
+        if key := column_name_key(column["name"]):
+            groups.setdefault(key, []).append(column)
+    clashes = [
+        " and ".join(_name_owner(column, stored_names) for column in group)
+        for group in groups.values()
+        if len(group) > 1
+        and any(_is_new_or_renamed(column, stored_names) for column in group)
+    ]
+    if clashes:
+        raise ToolInputError(
+            "These columns would share a name (case and surrounding spaces are "
+            f"ignored): {'; '.join(clashes)}. Leave out columns that already exist to "
+            "keep them, or change them with update_table_columns by uid. "
+            f"{NO_CHANGES}"
+        )
+
+
+def _check_not_added_again(add: list[TableColumnAdd], removed: list[Column]) -> None:
+    removed_by_name = {
+        (column_name_key(column["name"]), column["type"]): column
+        for column in removed
+        if column_name_key(column["name"])
+    }
+    for new in add:
+        column = removed_by_name.get((column_name_key(new.name), new.type))
+        if column is not None:
+            raise ToolInputError(
+                f"Column {column['uid']} '{column['name']}' is removed and added "
+                "again, which would give it a new uid and drop its styles and click "
+                "actions. To move it, use reorder_table_columns; to change it, use "
+                f"update_table_columns. {NO_CHANGES}"
+            )
+
+
+def _removed_items(
+    element: TableElement, removed: list[Column]
+) -> list[RemovedTableColumn]:
+    items = []
+    for column in removed:
+        item = RemovedTableColumn(
+            uid=column["uid"], name=column["name"], type=column["type"]
+        )
+        if column["type"] == "button":
+            item["deleted_click_actions"] = BuilderWorkflowAction.objects.filter(
+                element=element, event=f"{column['uid']}_click"
+            ).count()
+        items.append(item)
+    return items
