@@ -20,7 +20,9 @@ Not all tables need entries — only add to those relevant for the new type.
 """
 
 import uuid
-from typing import TYPE_CHECKING, Any, Literal
+from collections import defaultdict
+from operator import attrgetter
+from typing import TYPE_CHECKING, Any, Iterable, Literal
 
 from pydantic import Field, field_validator, model_validator
 
@@ -50,7 +52,11 @@ from .table_columns import (
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
-    from baserow.contrib.builder.elements.models import Element
+    from baserow.contrib.builder.elements.models import (
+        Element,
+        MenuElement,
+        MenuItemElement,
+    )
     from baserow.contrib.builder.pages.models import Page
     from baserow_enterprise.assistant.tools.builder.agents import BuilderFormulaContext
 
@@ -148,6 +154,72 @@ class MenuItemCreate(BaseModel):
 
     name: str = Field(..., description="Display text.")
     page_id: int = Field(..., description="Target page ID.")
+
+
+class MenuSubLinkUpdate(BaseModel):
+    """A sub-link to keep, change or add. A kept item keeps what isn't sent."""
+
+    uid: str | None = Field(
+        default=None,
+        description="uid of an existing item, from list_elements. Omit to add a new page link.",
+    )
+    name: str | None = Field(
+        default=None,
+        description="Display text. Required for a new item; renames a kept one.",
+    )
+    page_id: int | None = Field(
+        default=None,
+        description="Target page ID. Required for a new item; points a kept link to this page.",
+    )
+
+
+class MenuItemUpdate(MenuSubLinkUpdate):
+    """A top-level menu item to keep, change or add. A kept item keeps what isn't sent."""
+
+    children: list[MenuSubLinkUpdate] | None = Field(
+        default=None,
+        description="Sub-links, replacing the current ones. Omit to keep them. Only links can have sub-links.",
+    )
+
+
+def new_menu_link(name: str, page_id: int) -> dict[str, Any]:
+    """
+    Return the values of a new menu item that links to a page.
+
+    :param name: The item's display text.
+    :param page_id: The page the item links to.
+    :return: The values, keyed like a menu's ``menu_items`` input.
+    """
+
+    return {
+        "uid": str(uuid.uuid4()),
+        "type": "link",
+        "variant": "link",
+        "name": name,
+        "navigation_type": "page",
+        "navigate_to_page_id": page_id,
+        "target": "self",
+    }
+
+
+def group_menu_items(
+    items: Iterable["MenuItemElement"],
+) -> tuple[list["MenuItemElement"], defaultdict[int, list["MenuItemElement"]]]:
+    """
+    Split a menu's items into its top-level items and the sub-links of each.
+
+    :param items: All the items of one menu.
+    :return: The top-level items and the sub-links by parent id, in menu order.
+    """
+
+    top_level = []
+    sub_links = defaultdict(list)
+    for item in sorted(items, key=attrgetter("menu_item_order")):
+        if item.parent_menu_item_id is None:
+            top_level.append(item)
+        else:
+            sub_links[item.parent_menu_item_id].append(item)
+    return top_level, sub_links
 
 
 class TableFieldConfig(BaseModel):
@@ -447,16 +519,7 @@ def _menu_orm(el: "ElementItemCreate", user, page) -> dict:
     }
     if el.menu_items:
         kwargs["menu_items"] = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
+            new_menu_link(item.name, item.page_id) for item in el.menu_items
         ]
     return kwargs
 
@@ -524,16 +587,7 @@ def _header_footer_post_create(
         from baserow.contrib.builder.elements.registries import element_type_registry
 
         menu_items_orm = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
+            new_menu_link(item.name, item.page_id) for item in el.menu_items
         ]
         menu_type = element_type_registry.get("menu")
         CreateElementActionType.do(
@@ -1558,19 +1612,6 @@ def _menu_update(el: "ElementUpdate") -> dict:
         kwargs["orientation"] = el.menu_orientation
     if el.menu_alignment is not None:
         kwargs["alignment"] = el.menu_alignment
-    if el.menu_items is not None:
-        kwargs["menu_items"] = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
-        ]
     return kwargs
 
 
@@ -1796,9 +1837,9 @@ class ElementUpdate(BaseModel):
     menu_alignment: Literal["left", "center", "right", "justify"] | None = Field(
         default=None, description="(menu) Menu alignment."
     )
-    menu_items: list[MenuItemCreate] | None = Field(
+    menu_items: list[MenuItemUpdate] | None = Field(
         default=None,
-        description="(menu) Replace all menu items. Each item has name + page_id.",
+        description="(menu, header, footer) The whole menu, in order: items left out are removed. Pass uid to keep an item.",
     )
 
     # -- Dispatch -------------------------------------------------------------
@@ -1894,6 +1935,35 @@ class ElementUpdate(BaseModel):
         ]
 
 
+def _describe_menu_item(item: "MenuItemElement") -> dict[str, Any]:
+    return {
+        "uid": str(item.uid),
+        "name": item.name,
+        "type": item.type,
+        "page_id": item.navigate_to_page_id,
+    }
+
+
+def describe_menu_items(menu: "MenuElement") -> list[dict[str, Any]]:
+    """
+    Describe a menu's items with the uids update_element needs to keep them.
+
+    :param menu: The menu element.
+    :return: The top-level items in order, each with its sub-links as children.
+    """
+
+    top_level, sub_links = group_menu_items(menu.menu_items.all())
+    items = []
+    for item in top_level:
+        values = _describe_menu_item(item)
+        if sub_links[item.id]:
+            values["children"] = [
+                _describe_menu_item(sub_link) for sub_link in sub_links[item.id]
+            ]
+        items.append(values)
+    return items
+
+
 class ElementItem(BaseModel):
     """Existing element with ID."""
 
@@ -1915,7 +1985,7 @@ class ElementItem(BaseModel):
     )
     menu_items: list[dict] | None = Field(
         default=None,
-        description="(menu) Current menu items with name and page_id.",
+        description="(menu) Menu items in order, with uid, name, type, page_id and sub-links (children).",
     )
     data_source_id: int | None = Field(
         default=None,
@@ -1940,17 +2010,6 @@ class ElementItem(BaseModel):
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
-        menu_items = None
-        if element_type == "menu":
-            specific = element.specific
-            menu_items = [
-                {
-                    "name": item.name,
-                    "page_id": item.navigate_to_page_id,
-                    "type": item.type,
-                }
-                for item in specific.menu_items.all().order_by("menu_item_order")
-            ]
         hooks = assistant_element_type_registry.get_for(element_type)
         return cls(
             id=element.id,
@@ -1960,7 +2019,6 @@ class ElementItem(BaseModel):
             is_container=element_type in CONTAINER_ELEMENT_TYPES,
             label=cls._extract_label(element),
             page_name=page_name,
-            menu_items=menu_items,
             **hooks.item_details(element),
         )
 

@@ -6,11 +6,15 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.elements.models import Element, TableElement
 
-from .helpers import ensure_child_menu, keep_existing_menu_items
+from .helpers import ensure_child_menu, resolve_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
-from .types.element import BUTTON_NAVIGATION_GUIDANCE, TABLE_COLUMN_PROPERTIES
+from .types.element import (
+    BUTTON_NAVIGATION_GUIDANCE,
+    TABLE_COLUMN_PROPERTIES,
+    describe_menu_items,
+)
 from .types.table_columns import table_column_items
 
 
@@ -116,24 +120,31 @@ class MenuAssistantElementType(AssistantElementType):
         self, user: AbstractUser, element: Element, update: ElementUpdate
     ) -> PreparedElementUpdate:
         """
-        Keep the menu items the update resends, so they keep their click actions,
-        settings and sub-links.
+        Resolve the sent menu items against the menu's items by uid, so the items
+        the update keeps keep their click actions, settings and sub-links.
 
         :param user: The user updating the menu, who may update it.
         :param element: The menu element, locked for update.
         :param update: The properties to change.
         :return: The menu items to save.
+        :raises ToolInputError: When an item can't be applied as sent. Nothing is
+            saved.
         """
 
         if update.menu_items is None:
             return PreparedElementUpdate(kwargs={}, result={})
-        menu_items = update.to_update_kwargs(self.type)["menu_items"]
-        return PreparedElementUpdate(
-            kwargs={
-                "menu_items": keep_existing_menu_items(element.specific, menu_items)
-            },
-            result={},
-        )
+        menu_items = resolve_menu_items(element.specific, update.menu_items)
+        return PreparedElementUpdate(kwargs={"menu_items": menu_items}, result={})
+
+    def item_details(self, element: Element) -> dict[str, Any]:
+        """
+        Show the menu's items with the uids update_element needs to keep them.
+
+        :param element: The listed menu element.
+        :return: Its menu_items.
+        """
+
+        return {"menu_items": describe_menu_items(element.specific)}
 
 
 class MultiPageContainerAssistantElementType(AssistantElementType):

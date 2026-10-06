@@ -852,9 +852,12 @@ def update_element(
       Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
-    - To add/replace menu items on a menu element, set menu_items with the full list.
-    - Each item needs name (display text) and page_id (target page).
-    - This REPLACES all existing items — include existing items you want to keep.
+    - menu_items (menu, header or footer) is the whole menu, in order: items left out are removed.
+    - Keep an item by passing its uid from list_elements. It keeps its type, settings,
+      click actions and sub-links; set name to rename it, page_id to point a link to a page.
+    - Items without uid are new page links and need name and page_id.
+    - children replaces an item's sub-links; leave it out to keep them.
+    - A button can't link to a page: give it an open_page action with create_actions.
     """
 
     user = ctx.deps.user

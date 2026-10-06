@@ -70,10 +70,13 @@ from .types import (
     ElementMove,
     ElementStyleUpdate,
     ElementUpdate,
+    MenuItemUpdate,
+    MenuSubLinkUpdate,
     PageCreate,
     PageItem,
     PageUpdate,
 )
+from .types.element import group_menu_items, new_menu_link
 
 if TYPE_CHECKING:
     pass
@@ -648,8 +651,6 @@ def ensure_child_menu(
 ) -> None:
     """Find or create a menu element inside a header/footer, then set its items."""
 
-    import uuid
-
     handler = ElementHandler()
     children = handler.get_elements(header_element.page)
     menu_child = None
@@ -661,23 +662,18 @@ def ensure_child_menu(
             menu_child = child
             break
 
-    menu_items_orm = [
-        {
-            "uid": str(uuid.uuid4()),
-            "type": "link",
-            "variant": "link",
-            "name": item.name,
-            "navigation_type": "page",
-            "navigate_to_page_id": item.page_id,
-            "target": "self",
-        }
-        for item in element_update.menu_items
-    ]
+    menu = menu_child.specific if menu_child is not None else None
+    menu_items_orm = resolve_menu_items(menu, element_update.menu_items)
 
     if menu_child is not None:
-        menu_items_orm = keep_existing_menu_items(menu_child.specific, menu_items_orm)
         UpdateElementActionType.do(user, menu_child, {"menu_items": menu_items_orm})
     else:
+        sub_links = [item.pop("children") for item in menu_items_orm]
+        if any(sub_links):
+            raise ToolInputError(
+                "Sub-links can only be added to an existing menu. Add the items "
+                "first, then send their children in a second update."
+            )
         menu_type = element_type_registry.get("menu")
         CreateElementActionType.do(
             user,
@@ -713,50 +709,183 @@ def _menu_item_values(item: MenuItemElement) -> dict[str, Any]:
     }
 
 
-def keep_existing_menu_items(
-    menu: MenuElement, menu_items: list[dict[str, Any]]
+def resolve_menu_items(
+    menu: MenuElement | None, items: list[MenuItemUpdate]
 ) -> list[dict[str, Any]]:
     """
-    Keep the menu items Kuma resends as they are, instead of recreating them.
+    Check the menu items Kuma sends against the menu and build its new items.
 
-    Items are matched by name to the menu's top-level items. A kept item keeps its
-    uid, so its click actions survive, and its type, settings and children; only a
-    page link takes the requested page. Children of kept items are not added again.
-
-    :param menu: The menu whose items are replaced.
-    :param menu_items: The requested items built from Kuma's input.
-    :return: The items to save on the menu.
+    :param menu: The menu to update, or None when it doesn't exist yet.
+    :param items: The top-level items Kuma sent, in menu order.
+    :return: The menu's new ``menu_items``, each with its sub-links as children.
+    :raises ToolInputError: If an item can't be applied as sent.
     """
 
-    top_level = {
-        item.name: item for item in menu.menu_items.filter(parent_menu_item=None)
-    }
-    kept_child_names = {
-        child.name
-        for item in menu_items
-        if item["name"] in top_level
-        for child in top_level[item["name"]].menu_item_children.all()
-    }
+    return _MenuItemsResolver(menu, items).resolve()
 
-    items = []
-    for item in menu_items:
-        existing = top_level.pop(item["name"], None)
-        if existing is None:
-            if item["name"] not in kept_child_names:
-                items.append(item)
-            continue
-        values = _menu_item_values(existing)
-        if (
-            existing.type == MenuItemElement.TYPES.LINK
-            and existing.navigation_type == MenuItemElement.NAVIGATION_TYPES.PAGE
+
+class _MenuItemsResolver:
+    """
+    Turns the menu items Kuma sends into the values the menu saves.
+
+    An item with a uid keeps the existing item and whatever Kuma doesn't change, so a
+    button keeps its click actions and a link its sub-links. An item without a uid is
+    a new page link. Anything the menu can't apply raises before it is saved.
+    """
+
+    def __init__(self, menu: MenuElement | None, items: list[MenuItemUpdate]) -> None:
+        """
+        :param menu: The menu to update, or None when it doesn't exist yet.
+        :param items: The top-level items Kuma sent, in menu order.
+        """
+
+        self.menu = menu
+        self.items = items
+        # Query again: a cached menu can hold items prefetched before they changed.
+        current = (
+            list(menu.menu_items.order_by("menu_item_order"))
+            if menu is not None
+            else []
+        )
+        self.current = {str(item.uid): item for item in current}
+        _, self.sub_links = group_menu_items(current)
+        self.sent = Counter(
+            sent.uid
+            for item in items
+            for sent in (item, *(item.children or []))
+            if sent.uid is not None
+        )
+
+    def resolve(self) -> list[dict[str, Any]]:
+        """
+        Check the sent items against the menu and build its new items.
+
+        :return: The menu's new ``menu_items``, each with its sub-links as children.
+        :raises ToolInputError: If an item can't be applied as sent.
+        """
+
+        self._check_uids()
+        menu_items = [self._top_level_item(item) for item in self.items]
+        self._check_nothing_is_recreated(menu_items)
+        return menu_items
+
+    def _check_uids(self) -> None:
+        for uid, count in self.sent.items():
+            if uid not in self.current:
+                raise ToolInputError(
+                    f"Menu item uid '{uid}' is not in this menu. {self._listing()} "
+                    "Omit uid to add a new page link."
+                )
+            if count > 1:
+                raise ToolInputError(
+                    f"Menu item '{self.current[uid].name}' (uid {uid}) is sent more "
+                    "than once. Send each item once."
+                )
+
+    def _listing(self) -> str:
+        if not self.current:
+            return "The menu has no items yet."
+        items = ", ".join(
+            f"'{item.name}' (uid {uid})" for uid, item in self.current.items()
+        )
+        return f"Its items are: {items}."
+
+    def _top_level_item(self, item: MenuItemUpdate) -> dict[str, Any]:
+        values = self._item(item)
+        if item.children and values["type"] != MenuItemElement.TYPES.LINK:
+            raise ToolInputError(
+                f"'{values['name']}' is a {values['type']}: only links can have "
+                "sub-links."
+            )
+        if item.children is not None:
+            values["children"] = [self._sub_link(child) for child in item.children]
+        elif item.uid is not None:
+            values["children"] = [
+                _menu_item_values(sub_link)
+                for sub_link in self.sub_links[self.current[item.uid].id]
+                if str(sub_link.uid) not in self.sent
+            ]
+        else:
+            values["children"] = []
+        return values
+
+    def _sub_link(self, item: MenuSubLinkUpdate) -> dict[str, Any]:
+        values = self._item(item)
+        if values["type"] != MenuItemElement.TYPES.LINK:
+            raise ToolInputError(
+                f"'{values['name']}' is a {values['type']}: only links can be "
+                "sub-links."
+            )
+        if item.uid is not None and any(
+            str(sub_link.uid) not in self.sent
+            for sub_link in self.sub_links[self.current[item.uid].id]
         ):
-            values["navigate_to_page_id"] = item["navigate_to_page_id"]
-        values["children"] = [
-            _menu_item_values(child)
-            for child in existing.menu_item_children.order_by("menu_item_order")
+            raise ToolInputError(
+                f"'{values['name']}' has sub-links, so it can't become a sub-link. "
+                "Place its sub-links elsewhere in the menu, or remove them first."
+            )
+        return values
+
+    def _item(self, item: MenuSubLinkUpdate) -> dict[str, Any]:
+        """Return a new page link, or the kept item with what Kuma changed."""
+
+        if item.uid is None:
+            if item.name is None or item.page_id is None:
+                raise ToolInputError(
+                    "A new menu item needs a name and a page_id. To keep an "
+                    f"existing item, pass its uid. {self._listing()}"
+                )
+            return new_menu_link(item.name, item.page_id)
+
+        current = self.current[item.uid]
+        values = _menu_item_values(current)
+        if item.name is not None:
+            values["name"] = item.name
+        if item.page_id is not None and not (
+            current.navigation_type == MenuItemElement.NAVIGATION_TYPES.PAGE
+            and current.navigate_to_page_id == item.page_id
+        ):
+            self._check_can_link_to_page(current)
+            # The parameters belong to the previous destination.
+            values.update(
+                navigation_type=MenuItemElement.NAVIGATION_TYPES.PAGE,
+                navigate_to_page_id=item.page_id,
+                page_parameters=[],
+                query_parameters=[],
+            )
+        return values
+
+    def _check_can_link_to_page(self, item: MenuItemElement) -> None:
+        if item.type == MenuItemElement.TYPES.BUTTON:
+            raise ToolInputError(
+                f"'{item.name}' is a button, so it can't link to a page. To make it "
+                "open a page, use create_actions with type='open_page', "
+                f"element={self.menu.id}, event='{item.uid}_click'."
+            )
+        if item.type != MenuItemElement.TYPES.LINK:
+            raise ToolInputError(
+                f"'{item.name}' is a {item.type}, so it can't link to a page."
+            )
+
+    def _check_nothing_is_recreated(self, menu_items: list[dict[str, Any]]) -> None:
+        """A new item named like an item being removed means Kuma forgot its uid."""
+
+        resolved = [
+            values for item in menu_items for values in (item, *item["children"])
         ]
-        items.append(values)
-    return items
+        kept = {values["uid"] for values in resolved}
+        new_names = {
+            values["name"].strip().casefold()
+            for values in resolved
+            if values["uid"] not in self.current
+        }
+        for uid, item in self.current.items():
+            if uid not in kept and item.name.strip().casefold() in new_names:
+                raise ToolInputError(
+                    f"'{item.name}' already exists (uid {uid}) and would be removed "
+                    "and added again, losing its settings and click actions. Pass "
+                    "its uid to keep it, or remove it in a separate call first."
+                )
 
 
 # ---------------------------------------------------------------------------

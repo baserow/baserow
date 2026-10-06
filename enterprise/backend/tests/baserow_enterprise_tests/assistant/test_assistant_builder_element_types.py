@@ -32,6 +32,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ElementUpdate,
     LayoutElementCreate,
     MenuItemCreate,
+    MenuItemUpdate,
 )
 from baserow_enterprise.assistant.tools.builder.types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
@@ -270,7 +271,7 @@ def test_a_header_or_footer_without_a_menu_gets_one_with_its_menu_items(
         page_id=seeded.page.id,
         element=ElementUpdate(
             element_id=container_id,
-            menu_items=[MenuItemCreate(name="Home", page_id=seeded.page.id)],
+            menu_items=[MenuItemUpdate(name="Home", page_id=seeded.page.id)],
         ),
         thought="Add the navigation.",
     )
@@ -312,7 +313,7 @@ def test_a_header_or_footer_replaces_the_items_of_the_menu_inside(
         page_id=seeded.page.id,
         element=ElementUpdate(
             element_id=container_id,
-            menu_items=[MenuItemCreate(name="About", page_id=about.id)],
+            menu_items=[MenuItemUpdate(name="About", page_id=about.id)],
         ),
         thought="Point the navigation to the about page.",
     )
@@ -336,7 +337,7 @@ def test_a_menu_update_saves_its_menu_items_with_its_other_properties(
         element=ElementUpdate(
             element_id=menu.id,
             menu_orientation="vertical",
-            menu_items=[MenuItemCreate(name="Home", page_id=seeded.page.id)],
+            menu_items=[MenuItemUpdate(name="Home", page_id=seeded.page.id)],
         ),
         thought="Add the navigation.",
     )
