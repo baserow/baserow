@@ -453,7 +453,7 @@ def test_publish_returns_published_workflow(data_fixture):
 
 
 @pytest.mark.django_db
-def test_publish_preserves_local_baserow_authorized_agent(data_fixture):
+def test_publish_preserves_local_baserow_authorized_subject(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
@@ -470,7 +470,6 @@ def test_publish_preserves_local_baserow_authorized_agent(data_fixture):
     published_workflow = AutomationWorkflowHandler().publish(workflow)
 
     published_integration = published_workflow.automation.integrations.get().specific
-    assert published_integration.authorized_agent == agent
     assert published_integration.authorized_subject == agent
 
 

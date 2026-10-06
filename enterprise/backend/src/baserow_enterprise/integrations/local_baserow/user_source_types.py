@@ -490,7 +490,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         )
 
         CoreHandler().check_permissions(
-            integration.authorized_user,
+            integration.authorized_subject,
             ReadDatabaseRowOperationType.type,
             workspace=table.database.workspace,
             context=table,
@@ -709,7 +709,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         try:
             # Use the action to keep track on what's going on
             (user,) = CreateRowsActionType.do(
-                user=integration.authorized_user,
+                user=integration.authorized_subject,
                 table=user_source.table,
                 rows_values=[values],
                 model=model,

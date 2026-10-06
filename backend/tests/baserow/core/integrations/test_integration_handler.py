@@ -111,10 +111,13 @@ def test_update_integration(data_fixture):
     integration_type = integration_type_registry.get("local_baserow")
 
     integration_updated = IntegrationHandler().update_integration(
-        integration_type, integration, authorized_user=user2
+        integration_type,
+        integration,
+        authorized_subject_type="auth.User",
+        authorized_subject_id=user2.id,
     )
 
-    assert integration_updated.authorized_user.id == user2.id
+    assert integration_updated.authorized_subject == user2
 
 
 @pytest.mark.django_db

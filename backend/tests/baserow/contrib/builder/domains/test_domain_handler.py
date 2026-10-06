@@ -266,7 +266,6 @@ def test_domain_publishing_preserves_local_baserow_authorized_agent(data_fixture
     domain = DomainHandler().publish(domain)
 
     published_integration = domain.published_to.integrations.get().specific
-    assert published_integration.authorized_agent == agent
     assert published_integration.authorized_subject == agent
 
 
@@ -286,7 +285,7 @@ def test_domain_publishing_rejects_trashed_local_baserow_agent(data_fixture):
     domain = data_fixture.create_builder_custom_domain(builder=builder)
 
     with pytest.raises(
-        IntegrationImproperlyConfigured, match="authorized agent is missing or trashed"
+        IntegrationImproperlyConfigured, match="authorized subject is trashed"
     ):
         DomainHandler().publish(domain)
 
