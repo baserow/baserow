@@ -1,10 +1,10 @@
 <template>
-  <template v-if="isInline">{{ value }}</template>
-  <template v-else>
+  <span v-if="isInline">{{ value }}</span>
+  <div v-else>
     <ABParagraph v-for="paragraph in paragraphs" :key="paragraph.id">
       {{ paragraph.content }}
     </ABParagraph>
-  </template>
+  </div>
 </template>
 
 <script>
@@ -18,8 +18,9 @@ import { generateHash } from '@baserow/modules/core/utils/hashing'
  */
 
 /**
- * The plain text renderer of `ABFormattedText`: the value as it is in the
- * inline profile, one paragraph per line in the block profile.
+ * The plain text renderer of `ABFormattedText`: the value as it is in a `span`
+ * in the inline profile, one paragraph per line in a `div` in the block
+ * profile.
  */
 export default {
   name: 'ABPlainText',

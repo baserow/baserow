@@ -1,19 +1,10 @@
 <template>
   <component
-    :is="isInline ? 'span' : 'div'"
-    class="ab-formatted-text"
-    :class="{
-      'ab-formatted-text--inline': isInline,
-      'ab-formatted-text--block': !isInline,
-    }"
-  >
-    <component
-      :is="renderer"
-      :value="value"
-      :profile="profile"
-      :allow-links="allowLinks"
-    />
-  </component>
+    :is="renderer"
+    :value="value"
+    :profile="profile"
+    :allow-links="allowLinks"
+  />
 </template>
 
 <script>
@@ -28,8 +19,8 @@ import {
 
 /**
  * The renderer of each format. Every renderer takes the props of the
- * `formattedTextRenderer` mixin. A new format only needs its constant and an
- * entry here.
+ * `formattedTextRenderer` mixin and renders its own root element. A new format
+ * only needs its constant and an entry here.
  */
 const FORMAT_RENDERERS = {
   [BASEROW_FORMULA_FORMAT_PLAIN]: ABPlainText,
@@ -45,9 +36,10 @@ const FORMAT_RENDERERS = {
  *   typography and never breaks the line.
  * - `block`: for text that stands on its own, like the Text element.
  *
- * This component only provides the root element and picks the renderer of the
- * format, see `FORMAT_RENDERERS`; what a profile means for a format is up to
- * its renderer.
+ * This component only picks the renderer of the format, see
+ * `FORMAT_RENDERERS`. The renderer is the root: it owns the element the text
+ * is rendered in, so the attributes set on this component land on that
+ * element. What a profile means for a format is up to its renderer.
  */
 export default {
   name: 'ABFormattedText',

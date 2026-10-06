@@ -13,13 +13,14 @@ import formattedTextRenderer from '@baserow/modules/builder/mixins/formattedText
 import { createApplicationBuilderMarkdownRules } from '@baserow/modules/builder/utils/markdown'
 
 /**
- * The markdown renderer of `ABFormattedText`. The inline profile only uses the
- * inline syntax: it never breaks the line and never shows an image. Links
- * follow the Application Builder rules (internal `/` links go through the
- * router, nothing navigates in editing mode) and can be switched off with
- * `allowLinks`. Outside editing mode a click on a link stops here, so that an
- * ancestor with a click handler of its own (a drop zone, a row) doesn't react
- * to it as well.
+ * The markdown renderer of `ABFormattedText`. `MarkdownIt` is its root: a
+ * `span` in the inline profile, a `div` in the block profile. The inline
+ * profile only uses the inline syntax: it never breaks the line and never
+ * shows an image. Links follow the Application Builder rules (internal `/`
+ * links go through the router, nothing navigates in editing mode) and can be
+ * switched off with `allowLinks`. Outside editing mode a click on a link stops
+ * here, so that an ancestor with a click handler of its own (a drop zone, a
+ * row) doesn't react to it as well.
  */
 export default {
   name: 'ABMarkdownText',

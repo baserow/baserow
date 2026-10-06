@@ -116,9 +116,7 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
               for="ab-checkbox-v-0-0-1"
             >
               
-              <span
-                class="ab-formatted-text ab-formatted-text--inline"
-              >
+              <span>
                 First
               </span>
               
@@ -138,9 +136,7 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
               for="ab-checkbox-v-0-0-2"
             >
               
-              <span
-                class="ab-formatted-text ab-formatted-text--inline"
-              >
+              <span>
                 Second
               </span>
               
@@ -225,9 +221,7 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                     >
                       <!--v-if-->
                       
-                      <span
-                        class="ab-formatted-text ab-formatted-text--inline"
-                      >
+                      <span>
                         First
                       </span>
                       
@@ -249,9 +243,7 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                     >
                       <!--v-if-->
                       
-                      <span
-                        class="ab-formatted-text ab-formatted-text--inline"
-                      >
+                      <span>
                         Second
                       </span>
                       
@@ -321,9 +313,7 @@ exports[`ChoiceElement > as manual radio 1`] = `
               class="ab-radio__label"
             >
               
-              <span
-                class="ab-formatted-text ab-formatted-text--inline"
-              >
+              <span>
                 First
               </span>
               
@@ -341,9 +331,7 @@ exports[`ChoiceElement > as manual radio 1`] = `
               class="ab-radio__label"
             >
               
-              <span
-                class="ab-formatted-text ab-formatted-text--inline"
-              >
+              <span>
                 Second
               </span>
               

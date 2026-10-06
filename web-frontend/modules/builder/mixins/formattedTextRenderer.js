@@ -1,7 +1,11 @@
 /**
  * The contract between `ABFormattedText` and the renderer of a format (see its
  * `FORMAT_RENDERERS` map): every renderer takes the same props, whatever the
- * format does with them.
+ * format does with them, and renders its own single root element, so that the
+ * attributes set on `ABFormattedText` fall through to it. That root must be
+ * valid where the profile puts it: phrasing content (`span`, `code`) in the
+ * inline profile, which sits inside labels and table cells, and flow content
+ * (`div`, `pre`) in the block profile, whose renderers emit paragraphs.
  */
 
 export const FORMATTED_TEXT_PROFILES = ['inline', 'block']
