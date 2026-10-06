@@ -56,10 +56,11 @@
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
 
-  // A plain message is split into paragraphs; space them like the
-  // markdown ones without a margin above the first.
-  .ab-text + .ab-text {
-    margin-top: 1em;
+  // The message is rendered as paragraphs, which the global `p` rule gives a
+  // 170% line height. They keep the line height of the toast instead, so the
+  // lines sit as close as the single block of text they replace.
+  .ab-text {
+    line-height: inherit;
   }
 }
 
