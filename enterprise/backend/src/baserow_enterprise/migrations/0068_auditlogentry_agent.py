@@ -85,13 +85,26 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
-        migrations.AddField(
-            model_name="auditlogentry",
-            name="actor_type",
-            field=models.CharField(
-                db_default="auth.User",
-                max_length=255,
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    'ALTER TABLE "baserow_enterprise_auditlogentry" '
+                    'ADD COLUMN IF NOT EXISTS "actor_type" varchar(255) '
+                    "NOT NULL DEFAULT 'auth.User'",
+                    'ALTER TABLE "baserow_enterprise_auditlogentry" '
+                    'DROP COLUMN IF EXISTS "actor_type"',
+                )
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name="auditlogentry",
+                    name="actor_type",
+                    field=models.CharField(
+                        db_default="auth.User",
+                        max_length=255,
+                    ),
+                )
+            ],
         ),
         migrations.SeparateDatabaseAndState(
             database_operations=[],
@@ -112,16 +125,29 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
-        migrations.AddField(
-            model_name="auditlogexportjob",
-            name="filter_actor_type",
-            field=models.CharField(
-                default=None,
-                db_default="auth.User",
-                help_text="Optional: The actor type to filter the audit log by.",
-                max_length=255,
-                null=True,
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    'ALTER TABLE "baserow_enterprise_auditlogexportjob" '
+                    'ADD COLUMN IF NOT EXISTS "filter_actor_type" varchar(255) '
+                    "DEFAULT 'auth.User'",
+                    'ALTER TABLE "baserow_enterprise_auditlogexportjob" '
+                    'DROP COLUMN IF EXISTS "filter_actor_type"',
+                )
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name="auditlogexportjob",
+                    name="filter_actor_type",
+                    field=models.CharField(
+                        default=None,
+                        db_default="auth.User",
+                        help_text="Optional: The actor type to filter the audit log by.",
+                        max_length=255,
+                        null=True,
+                    ),
+                )
+            ],
         ),
         migrations.SeparateDatabaseAndState(
             database_operations=[
