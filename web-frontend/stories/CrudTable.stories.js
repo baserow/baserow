@@ -6,29 +6,34 @@ import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreFie
 import Avatar from '@baserow/modules/core/components/Avatar'
 import Button from '@baserow/modules/core/components/Button'
 import Context from '@baserow/modules/core/components/Context'
-import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
-import { getRoleIcon } from '@baserow/modules/core/utils/roles'
 import './crudTable.scss'
 
 // Interactive fixtures only: role edits stay in this story's in-memory service.
 const RolePicker = {
-  components: { RoleSelectorButton, Context },
+  components: { Button, Context },
   props: ['modelValue'],
   emits: ['update:modelValue'],
   setup() {
     return {
       roles: ['Admin', 'Builder', 'Editor', 'Commenter', 'Viewer'],
-      getRoleIcon,
+      roleIcons: {
+        Admin: 'iconoir-crown',
+        Builder: 'iconoir-tools',
+        Editor: 'iconoir-edit-pencil',
+        Commenter: 'iconoir-chat-bubble',
+        Viewer: 'iconoir-eye-empty',
+      },
     }
   },
   template: `<div>
-    <RoleSelectorButton :role-uid="modelValue.toUpperCase()" :role-name="modelValue"
-      @click="$refs.menu.toggle($event.currentTarget)" />
+    <Button type="secondary" button-type="button" class="crud-table-story__role"
+      :icon="roleIcons[modelValue]" append-icon="iconoir-nav-arrow-down" aria-haspopup="true"
+      @click="$refs.menu.toggle($event.currentTarget)">{{ modelValue }}</Button>
     <Context ref="menu">
       <ul class="context__menu">
         <li v-for="role in roles" :key="role" class="context__menu-item">
           <a href="#" class="context__menu-item-link" @click.prevent="$emit('update:modelValue', role); $refs.menu.hide()">
-            <i class="context__menu-item-icon" :class="getRoleIcon(role.toUpperCase())" />{{ role }}
+            <i class="context__menu-item-icon" :class="roleIcons[role]" />{{ role }}
           </a>
         </li>
       </ul>
