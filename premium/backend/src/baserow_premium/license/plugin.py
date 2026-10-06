@@ -1,4 +1,4 @@
-from typing import Dict, Generator, List, Optional, Set, Tuple
+from typing import Dict, Generator, Iterable, List, Optional, Set, Tuple
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -318,6 +318,54 @@ class LicensePlugin:
         return most_relevant_license_type.get_application_user_usage_and_limit(
             workspace
         )
+
+    def is_application_user_limit_instance_wide(self) -> bool:
+        """
+        Whether the application user limit applies to the instance as a whole, like
+        the license based limit of a self-hosted install, rather than to each
+        workspace separately, like a per workspace subscription quota.
+
+        This drives which workspaces the periodic application user limit check
+        notifies, and how the notification is worded. With an instance wide limit,
+        every workspace with a user source is told when the instance reaches a
+        threshold, even when it isn't the one using the application users, because
+        its own logins are affected by it. A license plugin with per workspace limits
+        should override this and return `False`, so that only the workspaces that
+        have application users of their own, i.e. a user source in a published
+        application, are checked, and so that the notification talks about the
+        workspace instead of the instance.
+        """
+
+        return True
+
+    def get_application_user_usage_and_limit_for_workspaces(
+        self, workspaces: Iterable[Workspace]
+    ) -> Dict[int, Tuple[int, Optional[int]]]:
+        """
+        Bulk variant of `get_application_user_usage_and_limit_for_workspace` for
+        callers that check many workspaces at once, like the periodic application
+        user limit check.
+
+        This implementation resolves the workspaces one by one, which is cheap here
+        because neither the usage (instance wide and cached) nor the limit depends on
+        the workspace. A license plugin that resolves the usage or the limit per
+        workspace, e.g. from a per workspace subscription, should override this and
+        resolve them in bulk instead, because its per workspace queries add up over
+        the workspaces of a large instance.
+        `ApplicationUserUsageHandler.aggregate_user_source_counts_per_workspace`
+        resolves the usage of many workspaces in a single pass for that purpose.
+
+        :param workspaces: The workspaces to resolve the usage and limit for.
+        :return: A `{workspace_id: (usage, limit)}` dict with an entry for every
+            given workspace.
+        """
+
+        return {
+            workspace.id: self.get_application_user_usage_and_limit_for_workspace(
+                workspace
+            )
+            for workspace in workspaces
+        }
 
     def get_seat_usage_for_specific_users(
         self, user_ids: List[int]

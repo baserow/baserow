@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from itertools import batched
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.utils.dateparse import parse_datetime
@@ -8,18 +9,26 @@ from django.utils.timezone import now
 
 from baserow.core.cache import global_cache
 from baserow.core.models import Workspace
+from baserow.core.notifications.models import Notification
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.application_users.notification_types import (
+    ApplicationUserLimitNotificationType,
     clear_application_user_threshold,
     notify_application_user_threshold,
 )
+from baserow_premium.application_user_usage.handler import ApplicationUserUsageHandler
 from baserow_premium.plugins import PremiumPlugin
 
 logger = logging.getLogger(__name__)
 
 OVER_LIMIT_CACHE_KEY_PREFIX = "application_user_over_limit"
+
+# The periodic check resolves the usage and limit of this many workspaces at a time
+# before acting on them, so that a run cut short by the task time limit has still
+# dealt with the earlier batches rather than with nothing at all.
+APPLICATION_USER_LIMIT_CHECK_BATCH_SIZE = 100
 
 # The over limit moment is re-stamped by the hourly `check_application_user_limits`
 # task, so this only has to outlive a couple of missed runs. It also makes sure the
@@ -45,7 +54,42 @@ def get_application_user_usage_and_limit(
     return license_plugin.get_application_user_usage_and_limit_for_workspace(workspace)
 
 
-def check_application_user_limit(workspace: Workspace) -> None:
+def get_application_user_usage_and_limits(
+    workspaces: List[Workspace],
+) -> Dict[int, Tuple[int, Optional[int]]]:
+    """
+    Bulk variant of `get_application_user_usage_and_limit` for the periodic check,
+    which resolves the usage and limit of every workspace it checks in one go instead
+    of querying per workspace.
+
+    :param workspaces: The workspaces to resolve the usage and limit for.
+    :return: A `{workspace_id: (usage, limit)}` dict with an entry for every given
+        workspace.
+    """
+
+    license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
+    return license_plugin.get_application_user_usage_and_limit_for_workspaces(
+        workspaces
+    )
+
+
+def is_application_user_limit_instance_wide() -> bool:
+    """
+    Whether the application user limit of this deployment applies to the instance as
+    a whole (a license based limit) rather than to each workspace separately (a
+    subscription quota). See
+    `LicensePlugin.is_application_user_limit_instance_wide`.
+
+    :return: `True` when the limit is instance wide.
+    """
+
+    license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
+    return license_plugin.is_application_user_limit_instance_wide()
+
+
+def check_application_user_limit(
+    workspace: Workspace, usage: int, limit: Optional[int], instance_wide: bool
+) -> None:
     """
     Sends an in-app notification to the workspace admins when the application user
     usage reaches one of the configured warning thresholds or the limit itself
@@ -55,9 +99,13 @@ def check_application_user_limit(workspace: Workspace) -> None:
     workspace went over its limit, which drives the login enforcement grace period.
 
     :param workspace: The workspace to check.
+    :param usage: The current application user usage that applies to the workspace.
+    :param limit: The current application user limit that applies to the workspace,
+        or `None` when there is none.
+    :param instance_wide: Whether the usage and limit are the instance's rather than
+        the workspace's own, which the notification says.
     """
 
-    usage, limit = get_application_user_usage_and_limit(workspace)
     update_application_user_over_limit_state(workspace, usage, limit)
     if not limit:
         return
@@ -69,7 +117,9 @@ def check_application_user_limit(workspace: Workspace) -> None:
     ]
     for threshold in thresholds:
         if usage >= limit * threshold / 100:
-            notify_application_user_threshold(workspace, usage, limit, threshold)
+            notify_application_user_threshold(
+                workspace, usage, limit, threshold, instance_wide
+            )
         else:
             clear_application_user_threshold(workspace, threshold)
 
@@ -154,22 +204,70 @@ def update_application_user_over_limit_state(
 
 def notify_workspaces_approaching_application_user_limit() -> None:
     """
-    Loops over every workspace that has at least one user source and notifies its
-    admins when it reaches a warning threshold or its application user limit. This is
-    driven by the `check_application_user_limits` periodic task, which runs
+    Loops over the workspaces that have application users and notifies their admins
+    when they reach a warning threshold or their application user limit. Which
+    workspaces those are depends on whose limit it is:
+
+    - With an instance wide limit (self-hosted, from the licenses), every workspace
+      with a user source is checked, whether or not its application is published.
+      The instance reaching a threshold affects the logins of all of them, also the
+      ones that didn't contribute to the usage, so they are all told.
+    - With a per workspace limit (a subscription quota), only the workspaces with a
+      user source in a published application are checked, because only published
+      applications count towards the usage: the other workspaces have no
+      application users and can't be over a threshold. This keeps the run
+      proportional to the workspaces that can be, rather than to every workspace
+      that ever got a user source (e.g. from a template), which is what made the
+      hourly run exceed its time limit on large instances.
+
+    This is driven by the `check_application_user_limits` periodic task, which runs
     independently of the licenses because unlicensed installs have a limit too. It
     reads the user source counts that are periodically refreshed by
     `count_all_user_source_users`, so that application users added directly (e.g.
     as table rows) are also taken into account.
     """
 
-    workspace_ids = (
-        UserSource.objects.values_list("application__workspace_id", flat=True)
-        .order_by("application__workspace_id")
-        .distinct()
-    )
-    for workspace in Workspace.objects.filter(id__in=workspace_ids):
-        check_application_user_limit(workspace)
+    instance_wide = is_application_user_limit_instance_wide()
+    if instance_wide:
+        user_sources = UserSource.objects.all()
+    else:
+        user_sources = (
+            ApplicationUserUsageHandler().get_user_sources_in_published_applications()
+        )
+    workspace_ids = user_sources.values_list(
+        "application__workspace_id", flat=True
+    ).distinct()
+    # Ordered so that a run that doesn't get through all of them (the time limit)
+    # skips a predictable tail instead of a different set of workspaces every time.
+    workspaces = list(Workspace.objects.filter(id__in=workspace_ids).order_by("id"))
+
+    # A workspace that is no longer checked has no application users anymore, so the
+    # threshold notifications it was sent while it had some are stale. Clear them in
+    # bulk, which also re-arms the dedup for when it crosses a threshold again. Its
+    # over limit stamp, if any, is left to expire by itself: nobody can log in
+    # without a published user source, and the login check re-resolves the real
+    # usage before refusing anything.
+    # A trashed workspace isn't checked either, but its notifications are left alone
+    # like they always were, so that restoring it doesn't notify its admins a second
+    # time about the same ongoing condition.
+    # Every notification of this type carries a `threshold`, and filtering on that
+    # key lets the query use the GIN index on `data` to find the few rows of this
+    # type, instead of scanning the whole notifications table for the `type` column,
+    # which has no index of its own.
+    Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type,
+        data__has_key="threshold",
+        workspace__trashed=False,
+    ).exclude(workspace_id__in=[workspace.id for workspace in workspaces]).delete()
+
+    # Resolved and acted upon in batches rather than resolving everything first, so
+    # that a run cut short by the time limit has still notified and stamped the
+    # earlier batches.
+    for batch in batched(workspaces, APPLICATION_USER_LIMIT_CHECK_BATCH_SIZE):
+        usage_and_limits = get_application_user_usage_and_limits(list(batch))
+        for workspace in batch:
+            usage, limit = usage_and_limits[workspace.id]
+            check_application_user_limit(workspace, usage, limit, instance_wide)
 
 
 def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
