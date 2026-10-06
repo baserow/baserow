@@ -392,6 +392,13 @@ def create_element(
     ds = element_create.data_source
     if isinstance(ds, str) and ds in data_source_ref_to_id_map:
         element_create.data_source = data_source_ref_to_id_map[ds]
+    # An id sent as text, such as "12", still names an existing data source.
+    elif isinstance(ds, str) and not ds.strip().isdecimal():
+        raise ToolInputError(
+            f"Data source ref '{ds}' not found. Create the data source with "
+            "create_data_sources first, or use an id from list_data_sources. No "
+            "changes were applied."
+        )
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
 
@@ -576,8 +583,11 @@ def update_element(
 
     element_type = element.get_type().type
     kwargs = element_update.to_update_kwargs(element_type)
+    changes_table_columns = (
+        element_type == "table" and element_update.changes_table_columns()
+    )
     removed_columns = None
-    if element_type == "table" and element_update.changes_table_columns():
+    if changes_table_columns:
         CoreHandler().check_permissions(
             user,
             UpdateElementOperationType.type,
@@ -636,7 +646,7 @@ def update_element(
         table_column_items(
             TableElement.objects.prefetch_related("fields").get(id=element.id)
         )
-        if element_update.changes_table_columns()
+        if changes_table_columns
         else None
     )
     return ElementUpdateOutcome(element, element_type, table_columns, removed_columns)

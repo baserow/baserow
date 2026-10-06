@@ -21,6 +21,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 
 from .types.table_columns import (
+    NO_CHANGES,
     VALUE_COLUMN_TYPES,
     RemovedTableColumn,
     TableColumnAdd,
@@ -29,9 +30,9 @@ from .types.table_columns import (
     data_source_table,
     field_formula,
     stored_formula_text,
+    table_fields,
 )
 
-NO_CHANGES = "No changes were applied."
 MAX_LISTED_COLUMNS = 25
 
 Column = dict[str, Any]
@@ -147,9 +148,12 @@ def merge_table_columns(
     changes = dict(zip(update_uids, update))
     _check_names(_merged_names(kept, changes, add), stored)
 
+    binds_a_field = _binds_a_field(add, update)
+    if binds_a_field:
+        _check_rows_are_records(element)
     source = (
         _source_table(element.data_source_id)
-        if _binds_a_field(add, update)
+        if binds_a_field
         else SourceTable(None, {}, {})
     )
     _check_field_ids(element, source, update, add)
@@ -166,10 +170,10 @@ def merge_table_columns(
         )
     if merged == stored:
         raise ToolInputError(
-            f"No column of table element {element.id} would change: the names, values "
-            "and labels you sent are already stored, and the order is the same. "
-            "Columns you don't list stay as they are; to move columns, use "
-            f"reorder_table_columns. {NO_CHANGES}"
+            f"No column of table element {element.id} would change: the names, "
+            "values, field ids and labels you sent are already stored, and the order "
+            "is the same. Columns you don't list stay as they are; to move columns, "
+            f"use reorder_table_columns. {NO_CHANGES}"
         )
     return TableColumnsChange(merged, _removed_items(element, removed))
 
@@ -183,9 +187,7 @@ def _stored_columns(element: TableElement) -> list[Column]:
             "config": column.config,
             "styles": column.styles,
         }
-        for column in sorted(
-            element.fields.all(), key=lambda column: (column.order, column.id)
-        )
+        for column in element.fields.all()
     ]
 
 
@@ -262,6 +264,19 @@ def _check_types_fit(
     add: list[TableColumnAdd],
     by_uid: dict[str, Column],
 ) -> None:
+    retyped = [
+        f"Column {uid} '{by_uid[uid]['name']}' is a {by_uid[uid]['type']} column, and "
+        "a column's type can't change."
+        for change, uid in zip(update, update_uids)
+        if change.type is not None
+        and change.type.strip().casefold() != by_uid[uid]["type"]
+    ]
+    if retyped:
+        raise ToolInputError(
+            f"{' '.join(retyped)} Only remove it and add a new column of another type "
+            "if the user asked for that: its settings and click actions are lost. "
+            f"{NO_CHANGES}"
+        )
     misfits = [
         f"column {uid} '{by_uid[uid]['name']}' is a {by_uid[uid]['type']} column, "
         f"so {key} does not apply"
@@ -277,8 +292,9 @@ def _check_types_fit(
         raise ToolInputError(
             f"These changes don't fit the column type: {'; '.join(misfits)}. value and "
             "field_id are for text, boolean and rating columns, and label for button "
-            "columns; link, tags and image columns can only be renamed, reordered or "
-            f"removed here. {NO_CHANGES}"
+            "columns; link, tags and image columns can only be renamed or reordered "
+            "here; their other settings are changed in the table's editor. "
+            f"{NO_CHANGES}"
         )
 
 
@@ -299,9 +315,8 @@ def _check_value_or_field_id(
         if new.value is not None and new.field_id is not None
     ]
     if refs:
-        raise ToolInputError(
-            f"{refs[0]} has both value and field_id. Set only one. {NO_CHANGES}"
-        )
+        both = " ".join(f"{ref} has both value and field_id." for ref in refs)
+        raise ToolInputError(f"{both} Set only one. {NO_CHANGES}")
 
 
 def _check_order(
@@ -347,9 +362,18 @@ def _binds_a_field(add: list[TableColumnAdd], update: list[TableColumnUpdate]) -
     )
 
 
+def _check_rows_are_records(element: TableElement) -> None:
+    if element.schema_property:
+        raise ToolInputError(
+            f"Table element {element.id} lists the items of its data source's "
+            f"'{element.schema_property}' property, so columns can't be bound to "
+            f"database fields. Set value instead. {NO_CHANGES}"
+        )
+
+
 def _source_table(data_source_id: int | None) -> SourceTable:
     table = data_source_table(data_source_id)
-    fields = list(table.field_set.select_related("content_type")) if table else []
+    fields = table_fields(table) if table else []
     return SourceTable(
         table,
         {field.id: field for field in fields},
@@ -388,23 +412,27 @@ def _check_field_ids(
 def _check_new_columns_not_empty(
     element: TableElement, source: SourceTable, add: list[TableColumnAdd]
 ) -> None:
-    for new in filter(_bound_by_name, add):
-        if source.table is None:
-            raise ToolInputError(
-                f"The new column '{new.name}' would be empty because table element "
-                f"{element.id} has no data source. Set value. {NO_CHANGES}"
-            )
-        if column_name_key(new.name) not in source.fields_by_name:
-            raise ToolInputError(
-                f"The new column '{new.name}' would be empty: table {source.table.id} "
-                f"'{source.table.name}' has no field named '{new.name}'. Set field_id "
-                "(from get_tables_schema) or value; value '' keeps it empty on "
-                f"purpose. {NO_CHANGES}"
-            )
-
-
-def _formula_showing(field: Field) -> str:
-    return field_formula(field.id, field.get_type().type)
+    names = [new.name for new in add if _bound_by_name(new)]
+    if source.table is None:
+        empty = [
+            f"The new column '{name}' would be empty because table element "
+            f"{element.id} has no data source with a database table."
+            for name in names
+        ]
+        remedy = "Set value."
+    else:
+        empty = [
+            f"The new column '{name}' would be empty: table {source.table.id} "
+            f"'{source.table.name}' has no field named '{name}'."
+            for name in names
+            if column_name_key(name) not in source.fields_by_name
+        ]
+        remedy = (
+            "Set field_id (from get_tables_schema) or value; value '' keeps it empty "
+            "on purpose."
+        )
+    if empty:
+        raise ToolInputError(f"{' '.join(empty)} {remedy} {NO_CHANGES}")
 
 
 def _new_name(column: Column, change: TableColumnUpdate | None) -> str:
@@ -419,14 +447,14 @@ def _changed(
     config = deepcopy(column["config"]) if isinstance(column["config"], dict) else {}
     sent = {"value": change.value, "label": change.label}
     if change.field_id is not None:
-        sent["value"] = _formula_showing(source.fields_by_id[change.field_id])
+        sent["value"] = field_formula(source.fields_by_id[change.field_id])
     for key, text in sent.items():
-        stored_text = stored_formula_text(column["config"], key)
-        if text is not None and text.strip() != stored_text.strip():
-            config[key] = formula_object(
-                column_formula(text, column["name"], key),
-                mode=BASEROW_FORMULA_MODE_ADVANCED,
-            )
+        stored_text = stored_formula_text(column["config"], key).strip()
+        if text is None or text.strip() == stored_text:
+            continue
+        formula = column_formula(text, column["name"], key)
+        if formula.strip() != stored_text:
+            config[key] = formula_object(formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
     return {**column, "name": _new_name(column, change), "config": config}
 
 
@@ -443,8 +471,8 @@ def _new_value(new: TableColumnAdd, source: SourceTable) -> str:
     if new.value is not None:
         return new.value
     if new.field_id is not None:
-        return _formula_showing(source.fields_by_id[new.field_id])
-    return _formula_showing(source.fields_by_name[column_name_key(new.name)])
+        return field_formula(source.fields_by_id[new.field_id])
+    return field_formula(source.fields_by_name[column_name_key(new.name)])
 
 
 def _new_column(new: TableColumnAdd, source: SourceTable) -> Column:

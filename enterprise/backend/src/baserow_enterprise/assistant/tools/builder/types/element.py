@@ -573,11 +573,10 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
             continue
         match = table_fields.get(column_name_key(field_cfg.name))
         if match:
-            field_id, _ = match
             property_options.append(
                 CollectionElementPropertyOptions(
                     element=orm_element,
-                    schema_property=f"field_{field_id}",
+                    schema_property=f"field_{match.id}",
                     filterable=True,
                     sortable=True,
                     searchable=True,
@@ -766,7 +765,7 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
                 value_formula = wrap_static_string(value)
             else:
                 match = table_fields.get(column_name_key(field_cfg.name))
-                value_formula = field_formula(*match) if match else "''"
+                value_formula = field_formula(match) if match else "''"
             result.append(
                 {
                     "name": field_cfg.name,
@@ -1650,8 +1649,8 @@ class ElementUpdate(BaseModel):
     """
     Flat model for updating an existing builder UI element.
 
-    All fields are optional. Only non-None fields are sent to the service layer.
-    The element type is read from the database, not passed by the LLM.
+    All properties are optional. Only non-None properties are sent to the service
+    layer. The element type is read from the database, not passed by the LLM.
     """
 
     element_id: int = Field(..., description="ID of the element to update.")
@@ -1779,7 +1778,7 @@ class ElementUpdate(BaseModel):
     )
     remove_table_columns: list[str] | None = Field(
         default=None,
-        description="(table) Uids of columns to delete, from list_elements. Undo can't restore removed columns or their click actions.",
+        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Undo doesn't restore them or their click actions.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1920,6 +1919,11 @@ class ElementItem(BaseModel):
         default=None,
         description="(menu) Current menu items with name and page_id.",
     )
+    data_source_id: int | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="(table) The data source the table reads; field_id takes fields of its database table.",
+    )
     table_columns: list[TableColumnItem] | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
@@ -1949,9 +1953,7 @@ class ElementItem(BaseModel):
                 }
                 for item in specific.menu_items.all().order_by("menu_item_order")
             ]
-        table_columns = (
-            table_column_items(element.specific) if element_type == "table" else None
-        )
+        table_element = element.specific if element_type == "table" else None
         return cls(
             id=element.id,
             type=element_type,
@@ -1961,7 +1963,8 @@ class ElementItem(BaseModel):
             label=cls._extract_label(element),
             page_name=page_name,
             menu_items=menu_items,
-            table_columns=table_columns,
+            data_source_id=table_element.data_source_id if table_element else None,
+            table_columns=table_column_items(table_element) if table_element else None,
         )
 
     @staticmethod

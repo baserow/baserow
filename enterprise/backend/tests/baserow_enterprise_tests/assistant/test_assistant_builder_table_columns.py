@@ -15,6 +15,7 @@ from baserow.contrib.builder.elements.models import TableElement
 from baserow.contrib.builder.elements.operations import UpdateElementOperationType
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRows
@@ -40,8 +41,9 @@ UNKNOWN_UID = "00000000-0000-0000-0000-000000000000"
 STYLES = {"cell": {"cell_font_color": "red"}}
 TYPE_MISFIT_GUIDANCE = (
     "value and field_id are for text, boolean and rating columns, and label for "
-    "button columns; link, tags and image columns can only be renamed, reordered or "
-    "removed here. No changes were applied."
+    "button columns; link, tags and image columns can only be renamed or reordered "
+    "here; their other settings are changed in the table's editor. No changes were "
+    "applied."
 )
 NAME_CLASH_GUIDANCE = (
     "Leave out columns that already exist to keep them, or change them with "
@@ -137,6 +139,17 @@ def seeded(data_fixture: Fixtures) -> SeededTable:
 @pytest.fixture
 def people_fields(seeded: SeededTable, data_fixture: Fixtures) -> dict[str, Field]:
     people = seeded.people
+    user = seeded.ctx.deps.user
+    classes = data_fixture.create_database_table(
+        database=people.database, name="Classes"
+    )
+    class_name = data_fixture.create_text_field(
+        table=classes, name="Class", primary=True
+    )
+    handler = FieldHandler()
+    classes_link = handler.create_field(
+        user, people, "link_row", name="Classes", link_row_table=classes
+    )
     return {
         "text": data_fixture.create_text_field(table=people, name="Title"),
         "single_select": data_fixture.create_single_select_field(
@@ -145,12 +158,28 @@ def people_fields(seeded: SeededTable, data_fixture: Fixtures) -> dict[str, Fiel
         "multiple_select": data_fixture.create_multiple_select_field(
             table=people, name="Tags"
         ),
-        "link_row": data_fixture.create_link_row_field(table=people, name="Friends"),
+        "link_row": classes_link,
+        "lookup": handler.create_field(
+            user,
+            people,
+            "lookup",
+            name="Class names",
+            through_field_id=classes_link.id,
+            target_field_id=class_name.id,
+        ),
+        "array_formula": handler.create_field(
+            user,
+            people,
+            "formula",
+            name="Class list",
+            formula="lookup('Classes', 'Class')",
+        ),
         "created_by": data_fixture.create_created_by_field(table=people, name="Author"),
         "multiple_collaborators": data_fixture.create_multiple_collaborators_field(
             table=people, name="Owners"
         ),
         "number": data_fixture.create_number_field(table=people, name="Score"),
+        "file": data_fixture.create_file_field(table=people, name="Photo"),
     }
 
 
@@ -183,6 +212,16 @@ def _assert_refused(seeded: SeededTable, message: str, **properties: Any) -> Non
     assert str(raised.value) == message
     assert _columns(seeded.table) == before
     assert _action_exists(seeded.go_action)
+
+
+def _not_its_columns_message(seeded: SeededTable, unknown: str) -> str:
+    uids = seeded.uids
+    return (
+        f"Columns ['{unknown}'] are not columns of table element {seeded.table.id}. "
+        f"Its columns are: {uids['Name']} 'Name' (text), {uids['Note']} 'Note' "
+        f"(text), {uids['Site']} 'Site' (link), {uids['Go']} 'Go' (button), "
+        f"{uids['Stars']} 'Stars' (rating). Use these uids. No changes were applied."
+    )
 
 
 @pytest.mark.django_db
@@ -298,6 +337,75 @@ def test_a_value_equal_to_the_stored_formula_keeps_it_as_stored(
 
     note = seeded.table.fields.get(uid=seeded.uids["Note"])
     assert (note.name, note.config) == ("Shout", {"value": stored})
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "column,value",
+    [
+        ("Note", "hello"),
+        ("Name", "$formula: get('current_record.field_1')"),
+        ("Go", "Go"),
+    ],
+    ids=["unquoted-text", "formula-prefix", "unquoted-label"],
+)
+def test_a_value_that_becomes_the_stored_formula_keeps_it_as_stored(
+    seeded: SeededTable, column: str, value: str
+) -> None:
+    uid = seeded.uids[column]
+    key = "label" if column == "Go" else "value"
+    before = {stored[0]: stored for stored in _columns(seeded.table)}
+
+    _update(seeded, update_table_columns=[{"uid": uid, "name": "Renamed", key: value}])
+
+    after = {stored[0]: stored for stored in _columns(seeded.table)}
+    assert after == {**before, uid: (uid, "Renamed", *before[uid][2:])}
+
+
+@pytest.mark.django_db
+def test_an_update_that_echoes_a_listed_column_changes_only_what_differs(
+    seeded: SeededTable,
+) -> None:
+    before = _columns(seeded.table)
+    listed = {
+        "uid": seeded.uids["Name"],
+        "name": "Full name",
+        "type": "text",
+        "value": "get('current_record.field_1')",
+    }
+
+    _update(seeded, update_table_columns=[listed])
+
+    uid, _, column_type, config, styles = before[0]
+    assert _columns(seeded.table) == [
+        (uid, "Full name", column_type, config, styles),
+        *before[1:],
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "column,change",
+    [
+        ("Site", {"type": "button", "label": "Visit"}),
+        ("Note", {"type": "rating", "name": "Memo"}),
+    ],
+    ids=["link-to-button", "text-to-rating"],
+)
+def test_changing_a_column_type_is_refused(
+    seeded: SeededTable, column: str, change: dict[str, Any]
+) -> None:
+    uid = seeded.uids[column]
+    stored_type = seeded.table.fields.get(uid=uid).type
+
+    _assert_refused(
+        seeded,
+        f"Column {uid} '{column}' is a {stored_type} column, and a column's type "
+        "can't change. Only remove it and add a new column of another type if the "
+        "user asked for that: its settings and click actions are lost. No changes "
+        "were applied.",
+        update_table_columns=[{"uid": uid, **change}],
+    )
 
 
 @pytest.mark.django_db
@@ -432,6 +540,78 @@ def test_removing_a_button_column_deletes_its_click_actions(
     assert not _action_exists(seeded.go_action)
     assert result["removed_table_columns"] == [
         {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 1}
+    ]
+
+
+@pytest.mark.django_db
+def test_removing_a_button_column_without_click_actions_reports_none(
+    seeded: SeededTable,
+) -> None:
+    go = seeded.uids["Go"]
+    seeded.go_action.delete()
+
+    result = _update(seeded, remove_table_columns=[go])
+
+    assert result["removed_table_columns"] == [
+        {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 0}
+    ]
+
+
+@pytest.mark.django_db
+def test_a_column_removed_and_added_again_with_another_type_is_allowed(
+    seeded: SeededTable,
+) -> None:
+    go = seeded.uids["Go"]
+    before = _columns(seeded.table)
+
+    result = _update(
+        seeded,
+        remove_table_columns=[go],
+        add_table_columns=[{"name": "Go", "value": "x"}],
+    )
+
+    *kept, added = _columns(seeded.table)
+    assert kept == [column for column in before if column[0] != go]
+    assert added[0] != go
+    assert added[1:] == ("Go", "text", {"value": _advanced("'x'")}, {})
+    assert not _action_exists(seeded.go_action)
+    assert result["removed_table_columns"] == [
+        {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 1}
+    ]
+
+
+@pytest.mark.django_db
+def test_changing_the_value_of_a_boolean_column(
+    seeded: SeededTable, data_fixture: Fixtures
+) -> None:
+    flags = data_fixture.create_builder_table_element(
+        page=seeded.page,
+        fields=[
+            {"name": "Done", "type": "boolean", "config": {"value": _formula("'true'")}}
+        ],
+    )
+    done = str(flags.fields.get().uid)
+
+    update_element(
+        seeded.ctx,
+        page_id=seeded.page.id,
+        element=ElementUpdate(
+            element_id=flags.id,
+            update_table_columns=[
+                TableColumnUpdate(uid=done, value="get('current_record.field_4')")
+            ],
+        ),
+        thought="Show whether each row is done.",
+    )
+
+    assert _columns(flags) == [
+        (
+            done,
+            "Done",
+            "boolean",
+            {"value": _advanced("get('current_record.field_4')")},
+            {},
+        )
     ]
 
 
@@ -583,15 +763,40 @@ def test_blank_names_never_clash(seeded: SeededTable) -> None:
 def test_an_unknown_uid_is_refused_with_the_columns_to_use(
     seeded: SeededTable, properties: dict[str, Any], unknown: str
 ) -> None:
-    uids = seeded.uids
-    _assert_refused(
-        seeded,
-        f"Columns ['{unknown}'] are not columns of table element {seeded.table.id}. "
-        f"Its columns are: {uids['Name']} 'Name' (text), {uids['Note']} 'Note' "
-        f"(text), {uids['Site']} 'Site' (link), {uids['Go']} 'Go' (button), "
-        f"{uids['Stars']} 'Stars' (rating). Use these uids. No changes were applied.",
-        **properties,
+    _assert_refused(seeded, _not_its_columns_message(seeded, unknown), **properties)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("named_in", ["update", "remove", "reorder", "before_uid"])
+def test_a_uid_of_another_table_is_refused_and_leaves_that_table_alone(
+    seeded: SeededTable, data_fixture: Fixtures, named_in: str
+) -> None:
+    other = data_fixture.create_builder_table_element(
+        page=seeded.page,
+        fields=[
+            {"name": "Go", "type": "button", "config": {"label": _formula("'Go'")}}
+        ],
     )
+    other_uid = str(other.fields.get().uid)
+    other_action = data_fixture.create_notification_workflow_action(
+        element=other, event=f"{other_uid}_click"
+    )
+    other_before = _columns(other)
+    properties = {
+        "update": {"update_table_columns": [{"uid": other_uid, "name": "X"}]},
+        "remove": {"remove_table_columns": [other_uid]},
+        "reorder": {"reorder_table_columns": [*seeded.uids.values(), other_uid]},
+        "before_uid": {
+            "add_table_columns": [
+                {"name": "New", "value": "n", "before_uid": other_uid}
+            ]
+        },
+    }[named_in]
+
+    _assert_refused(seeded, _not_its_columns_message(seeded, other_uid), **properties)
+
+    assert _columns(other) == other_before
+    assert _action_exists(other_action)
 
 
 @pytest.mark.django_db
@@ -793,27 +998,36 @@ def test_removing_every_column_is_refused(seeded: SeededTable) -> None:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("change", ["echo", "same-order"])
+@pytest.mark.parametrize("change", ["echo", "unquoted-echo", "same-order"])
 def test_a_call_that_changes_nothing_is_refused(
     seeded: SeededTable, change: str
 ) -> None:
     uids = seeded.uids
-    properties = (
-        {
+    properties = {
+        "echo": {
             "update_table_columns": [
                 {"uid": uids["Note"], "name": "Note", "value": " 'hello' "},
-                {"uid": uids["Go"], "label": "'Go'"},
+                {"uid": uids["Go"], "label": "'Go'", "type": "button"},
             ]
-        }
-        if change == "echo"
-        else {"reorder_table_columns": list(uids.values())}
-    )
+        },
+        "unquoted-echo": {
+            "update_table_columns": [
+                {"uid": uids["Note"], "value": "hello"},
+                {
+                    "uid": uids["Name"],
+                    "value": "$formula: get('current_record.field_1')",
+                },
+                {"uid": uids["Go"], "label": "Go"},
+            ]
+        },
+        "same-order": {"reorder_table_columns": list(uids.values())},
+    }[change]
 
     _assert_refused(
         seeded,
         f"No column of table element {seeded.table.id} would change: the names, "
-        "values and labels you sent are already stored, and the order is the same. "
-        "Columns you don't list stay as they are; to move columns, use "
+        "values, field ids and labels you sent are already stored, and the order is "
+        "the same. Columns you don't list stay as they are; to move columns, use "
         "reorder_table_columns. No changes were applied.",
         **properties,
     )
@@ -920,11 +1134,14 @@ def test_column_lists_cannot_be_replaced_by_name(replaced: str) -> None:
         ElementUpdate.model_validate({"element_id": 1, replaced: []})
 
 
-def test_a_column_update_must_change_something() -> None:
+@pytest.mark.parametrize(
+    "update", [{"uid": "c1"}, {"uid": "c1", "type": "text"}], ids=["uid", "type"]
+)
+def test_a_column_update_must_change_something(update: dict[str, Any]) -> None:
     with pytest.raises(
         ValidationError, match="Column c1 needs a new name, value, field_id or label."
     ):
-        TableColumnUpdate.model_validate({"uid": "c1"})
+        TableColumnUpdate.model_validate(update)
 
 
 def test_a_field_id_alone_is_a_column_change() -> None:
@@ -933,24 +1150,26 @@ def test_a_field_id_alone_is_a_column_change() -> None:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_type,path_suffix",
+    "field_kind,path_suffix",
     [
         ("text", ""),
         ("single_select", ".value"),
         ("multiple_select", ".*.value"),
         ("link_row", ".*.value"),
+        ("lookup", ".*.value"),
+        ("array_formula", ".*.value"),
         ("created_by", ".name"),
         ("multiple_collaborators", ".*.name"),
     ],
 )
-def test_a_field_id_shows_the_field_with_the_path_its_type_needs(
+def test_a_field_id_shows_the_field_with_the_path_its_values_need(
     seeded: SeededTable,
     people_fields: dict[str, Field],
-    field_type: str,
+    field_kind: str,
     path_suffix: str,
 ) -> None:
     note = seeded.uids["Note"]
-    field_id = people_fields[field_type].id
+    field_id = people_fields[field_kind].id
     before = _columns(seeded.table)
 
     _update(seeded, update_table_columns=[{"uid": note, "field_id": field_id}])
@@ -959,6 +1178,57 @@ def test_a_field_id_shows_the_field_with_the_path_its_type_needs(
     after = _columns(seeded.table)
     assert after[1] == (note, "Note", "text", {"value": shown}, {})
     assert after[:1] + after[2:] == before[:1] + before[2:]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bound_by", ["field_id", "name"])
+def test_a_field_holding_files_is_refused(
+    seeded: SeededTable, people_fields: dict[str, Field], bound_by: str
+) -> None:
+    photo = people_fields["file"]
+    properties = (
+        {"update_table_columns": [{"uid": seeded.uids["Note"], "field_id": photo.id}]}
+        if bound_by == "field_id"
+        else {"add_table_columns": [{"name": "photo"}]}
+    )
+
+    _assert_refused(
+        seeded,
+        f"Field {photo.id} 'Photo' holds files, which a text column can't show. Show "
+        "another field, or add an image column in the table's editor. No changes were "
+        "applied.",
+        **properties,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bound_by", ["field_id", "name"])
+def test_columns_of_a_table_listing_a_property_cannot_show_fields(
+    seeded: SeededTable,
+    people_fields: dict[str, Field],
+    data_fixture: Fixtures,
+    bound_by: str,
+) -> None:
+    classes = people_fields["link_row"]
+    one_person = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=seeded.page, table=seeded.people
+    )
+    TableElement.objects.filter(id=seeded.table.id).update(
+        data_source=one_person, schema_property=classes.db_column
+    )
+    properties = (
+        {"update_table_columns": [{"uid": seeded.uids["Note"], "field_id": classes.id}]}
+        if bound_by == "field_id"
+        else {"add_table_columns": [{"name": "Classes"}]}
+    )
+
+    _assert_refused(
+        seeded,
+        f"Table element {seeded.table.id} lists the items of its data source's "
+        f"'{classes.db_column}' property, so columns can't be bound to database "
+        "fields. Set value instead. No changes were applied.",
+        **properties,
+    )
 
 
 @pytest.mark.django_db
@@ -1049,6 +1319,26 @@ def test_a_new_column_with_a_value_and_a_field_id_is_refused(
         add_table_columns=[
             {"name": "Memo", "value": "x", "field_id": people_fields["text"].id}
         ],
+    )
+
+
+@pytest.mark.django_db
+def test_every_column_with_a_value_and_a_field_id_is_named(
+    seeded: SeededTable, people_fields: dict[str, Field]
+) -> None:
+    uids = seeded.uids
+    title_id = people_fields["text"].id
+
+    _assert_refused(
+        seeded,
+        f"Column {uids['Note']} 'Note' has both value and field_id. Column "
+        f"{uids['Stars']} 'Stars' has both value and field_id. The new column 'Memo' "
+        "has both value and field_id. Set only one. No changes were applied.",
+        update_table_columns=[
+            {"uid": uids["Note"], "value": "x", "field_id": title_id},
+            {"uid": uids["Stars"], "value": "3", "field_id": title_id},
+        ],
+        add_table_columns=[{"name": "Memo", "value": "x", "field_id": title_id}],
     )
 
 
@@ -1165,16 +1455,43 @@ def test_a_new_text_column_without_a_field_named_like_it_is_refused(
 
 
 @pytest.mark.django_db
-def test_a_new_text_column_without_a_data_source_is_refused(
-    seeded: SeededTable, data_fixture: Fixtures
+def test_every_new_text_column_without_a_field_named_like_it_is_named(
+    seeded: SeededTable,
 ) -> None:
-    _remove_the_data_source(seeded, data_fixture)
+    people = f"table {seeded.people.id} 'People'"
 
     _assert_refused(
         seeded,
-        f"The new column 'Email' would be empty because table element "
-        f"{seeded.table.id} has no data source. Set value. No changes were applied.",
-        add_table_columns=[{"name": "Email"}],
+        f"The new column 'Phone' would be empty: {people} has no field named "
+        f"'Phone'. The new column 'Fax' would be empty: {people} has no field named "
+        "'Fax'. Set field_id (from get_tables_schema) or value; value '' keeps it "
+        "empty on purpose. No changes were applied.",
+        add_table_columns=[{"name": "Phone"}, {"name": "Email"}, {"name": "Fax"}],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "drop_table",
+    [_remove_the_data_source, _switch_to_an_http_request_service],
+    ids=["no-data-source", "http-request"],
+)
+def test_new_text_columns_without_a_data_source_table_are_refused(
+    seeded: SeededTable,
+    data_fixture: Fixtures,
+    drop_table: Callable[[SeededTable, Fixtures], None],
+) -> None:
+    drop_table(seeded, data_fixture)
+    no_table = (
+        f"would be empty because table element {seeded.table.id} has no data source "
+        "with a database table."
+    )
+
+    _assert_refused(
+        seeded,
+        f"The new column 'Email' {no_table} The new column 'Phone' {no_table} Set "
+        "value. No changes were applied.",
+        add_table_columns=[{"name": "Email"}, {"name": "Phone"}],
     )
 
 

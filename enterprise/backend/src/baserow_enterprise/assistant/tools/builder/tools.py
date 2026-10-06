@@ -468,7 +468,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -834,9 +834,13 @@ def update_element(
       creating a table.
     - To show a database field, set field_id (from get_tables_schema). Renaming a
       column doesn't change what it shows.
-    - A column's type can't change: remove it and add a new one.
-    - There is no hidden column: hiding one means removing it, and undo can't bring
-      it back, so confirm with the user first.
+    - Only text and button columns can be created. Never remove a column to rebuild
+      it or to work around a setting you can't change (a link's target, styles,
+      link, tags or image settings): tell the user to change it in the table's
+      editor.
+    - Remove a column only when the user asked for it, and confirm first: undo
+      doesn't revert column changes, and removed columns and their click actions
+      are gone for good.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
@@ -894,7 +898,7 @@ def update_element(
         "element_type": element_type,
         "updated_fields": updated_fields,
     }
-    if element.changes_table_columns():
+    if outcome.table_columns is not None:
         result["table_columns"] = outcome.table_columns
         if outcome.removed_table_columns:
             result["removed_table_columns"] = outcome.removed_table_columns

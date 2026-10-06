@@ -29,6 +29,7 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.services.models import Service
@@ -1069,6 +1070,47 @@ def test_list_elements_leaves_table_columns_out_for_other_elements(
     [element] = result["elements"]
     assert element["id"] == heading.id
     assert "table_columns" not in element
+
+
+@pytest.mark.django_db
+def test_list_elements_shows_a_table_without_columns(data_fixture: Fixtures) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    table_element = data_fixture.create_builder_table_element(page=page, fields=[])
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    [table] = result["elements"]
+    assert (table["id"], table["table_columns"]) == (table_element.id, [])
+
+
+@pytest.mark.django_db
+def test_list_elements_shows_the_data_source_a_table_reads(
+    data_fixture: Fixtures,
+) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    reading = data_fixture.create_builder_table_element(
+        page=page, data_source=data_source
+    )
+    unbound = data_fixture.create_builder_table_element(page=page, data_source=None)
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    tables = {element["id"]: element for element in result["elements"]}
+    assert tables[reading.id]["data_source_id"] == data_source.id
+    assert "data_source_id" not in tables[unbound.id]
 
 
 @pytest.mark.parametrize(
@@ -3288,6 +3330,124 @@ def test_update_table_columns_by_the_uids_list_elements_shows(
     assert result["removed_table_columns"] == [
         {"uid": email_uid, "name": "Email", "type": "text"}
     ]
+
+
+def _page_listing_people(data_fixture: Fixtures) -> tuple[Any, Page, int, dict]:
+    """
+    Seed a page whose data source lists People, with their class names and photo.
+
+    :param data_fixture: Creates the seed.
+    :return: The tool context, the page, its data source id, and People's class
+        names and photo fields by name.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    people = data_fixture.create_database_table(database=database, name="People")
+    classes = data_fixture.create_database_table(database=database, name="Classes")
+    class_name = data_fixture.create_text_field(
+        table=classes, name="Class", primary=True
+    )
+    handler = FieldHandler()
+    classes_link = handler.create_field(
+        user, people, "link_row", name="Classes", link_row_table=classes
+    )
+    fields = {
+        "Class names": handler.create_field(
+            user,
+            people,
+            "lookup",
+            name="Class names",
+            through_field_id=classes_link.id,
+            target_field_id=class_name.id,
+        ),
+        "Photo": data_fixture.create_file_field(table=people, name="Photo"),
+    }
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=people
+    )
+    return make_test_ctx(user, workspace), page, data_source.id, fields
+
+
+def _create_table(
+    ctx: Any, page: Page, data_source: int | str, column_name: str
+) -> dict[str, Any]:
+    return create_collection_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            CollectionElementCreate(
+                ref="tbl",
+                type="table",
+                data_source=data_source,
+                fields=[TableFieldConfig(name=column_name, type="text")],
+            )
+        ],
+        thought="Show the people.",
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_table_shows_each_item_of_a_list_field_named_like_a_column(
+    data_fixture: Fixtures,
+) -> None:
+    ctx, page, data_source_id, fields = _page_listing_people(data_fixture)
+
+    result = _create_table(ctx, page, data_source_id, "Class names")
+
+    table = TableElement.objects.get(id=result["ref_to_id_map"]["tbl"])
+    assert table.fields.get().config["value"]["formula"] == (
+        f"get('current_record.field_{fields['Class names'].id}.*.value')"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_table_refuses_a_text_column_named_like_a_file_field(
+    data_fixture: Fixtures,
+) -> None:
+    ctx, page, data_source_id, fields = _page_listing_people(data_fixture)
+
+    result = _create_table(ctx, page, data_source_id, "Photo")
+
+    assert result["created_elements"] == []
+    assert result["errors"] == [
+        f"tbl: Field {fields['Photo'].id} 'Photo' holds files, which a text column "
+        "can't show. Show another field, or add an image column in the table's "
+        "editor. No changes were applied."
+    ]
+    assert not TableElement.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_table_with_an_unknown_data_source_ref_is_refused(
+    data_fixture: Fixtures,
+) -> None:
+    ctx, page, _, _ = _page_listing_people(data_fixture)
+
+    result = _create_table(ctx, page, "people", "Class names")
+
+    assert result["created_elements"] == []
+    assert result["errors"] == [
+        "tbl: Data source ref 'people' not found. Create the data source with "
+        "create_data_sources first, or use an id from list_data_sources. No changes "
+        "were applied."
+    ]
+    assert not TableElement.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_table_takes_a_data_source_id_sent_as_text(
+    data_fixture: Fixtures,
+) -> None:
+    ctx, page, data_source_id, _ = _page_listing_people(data_fixture)
+
+    result = _create_table(ctx, page, str(data_source_id), "Class names")
+
+    table = TableElement.objects.get(id=result["ref_to_id_map"]["tbl"])
+    assert table.data_source_id == data_source_id
 
 
 # ===========================================================================
