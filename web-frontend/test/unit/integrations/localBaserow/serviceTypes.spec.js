@@ -384,7 +384,12 @@ describe('Local baserow service types', () => {
     const integration = {
       id: 5,
       type: 'local_baserow',
-      authorized_agent: { id: 9, name: 'Writer', trashed: true },
+      authorized_subject: {
+        id: 9,
+        type: 'core.Agent',
+        name: 'Writer',
+        trashed: true,
+      },
     }
     const application = { id: 1, integrations: [integration] }
     const registry = testApp.getRegistry()

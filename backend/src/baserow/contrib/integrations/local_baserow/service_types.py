@@ -178,15 +178,12 @@ class LocalBaserowServiceType(ServiceType):
 
         if service.integration_id:
             integration = service.integration.specific
-            if (
-                integration.authorized_agent is not None
-                and integration.authorized_agent.trashed
-            ):
+            authorized_subject = integration.authorized_subject
+            if getattr(authorized_subject, "trashed", False):
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration's authorized agent is trashed"
                 )
 
-            authorized_subject = integration.authorized_subject
             # Nullable, and an import can leave the authorized user null. Refuse
             # rather than let a `None` reach a permission check as anonymous.
             if authorized_subject is None:
@@ -221,13 +218,13 @@ class LocalBaserowServiceType(ServiceType):
     ) -> None:
         """Record when this service uses an authorized agent."""
 
-        agent = (
-            service.integration.specific.authorized_agent
+        subject = (
+            service.integration.specific.authorized_subject
             if service.integration_id
             else None
         )
-        if agent is not None:
-            AgentHandler().update_last_active(agent)
+        if subject is not None and subject.__class__.__name__ == "Agent":
+            AgentHandler().update_last_active(subject)
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]

@@ -47,8 +47,9 @@ def test_local_baserow_create_rows_service_dispatch_data(
         application=page.builder, user=user
     )
     agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
-    integration.authorized_agent = agent
-    integration.save(update_fields=["authorized_agent"])
+    integration.authorized_subject_type = "core.Agent"
+    integration.authorized_subject_id = agent.id
+    integration.save(update_fields=["authorized_subject_type", "authorized_subject_id"])
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
     )

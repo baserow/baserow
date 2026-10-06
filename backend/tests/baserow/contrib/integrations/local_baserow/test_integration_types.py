@@ -25,7 +25,60 @@ def test_create_local_baserow_integration_with_user(data_fixture):
         user, integration_type, application=application
     )
 
-    assert integration.authorized_user.id == user.id
+    assert integration.authorized_subject == user
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id
+    assert integration.authorized_user is None
+
+
+@pytest.mark.django_db
+def test_legacy_authorized_user_is_read_until_the_integration_is_saved(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    LocalBaserowIntegration = integration.__class__
+
+    LocalBaserowIntegration.objects.filter(id=integration.id).update(
+        authorized_subject_type=None,
+        authorized_subject_id=None,
+        authorized_user=user,
+    )
+    integration.refresh_from_db()
+
+    assert integration.authorized_subject == user
+
+    integration.save()
+    integration.refresh_from_db()
+
+    assert integration.authorized_subject == user
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id
+    assert integration.authorized_user is None
+
+
+@pytest.mark.django_db
+def test_import_legacy_authorized_user_reauthorizes_the_importing_user(data_fixture):
+    importing_user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=importing_user)
+    integration_type = integration_type_registry.get("local_baserow")
+
+    imported = integration_type.import_serialized(
+        application,
+        {
+            "id": 1,
+            "name": "Legacy local Baserow",
+            "order": "1.00000000000000000000",
+            "type": "local_baserow",
+            "authorized_user": "former-user@example.com",
+        },
+        {"import_workspace_id": application.workspace_id},
+    )
+    integration_type.after_import(importing_user, imported)
+    imported.refresh_from_db()
+
+    assert imported.authorized_subject == importing_user
+    assert imported.authorized_subject_type == "auth.User"
+    assert imported.authorized_subject_id == importing_user.id
+    assert imported.authorized_user is None
 
 
 @pytest.mark.django_db
@@ -285,6 +338,8 @@ def test_after_import(data_fixture):
         user, integration_type, application=application
     )
 
+    integration.authorized_subject_type = None
+    integration.authorized_subject_id = None
     integration.authorized_user = None
     integration.save()
 
@@ -294,4 +349,7 @@ def test_after_import(data_fixture):
 
     integration.refresh_from_db()
 
-    assert integration.authorized_user == user
+    assert integration.authorized_user is None
+    assert integration.authorized_subject == user
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id

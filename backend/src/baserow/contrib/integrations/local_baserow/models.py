@@ -11,6 +11,7 @@ from baserow.contrib.database.views.models import (
     SORT_ORDER_CHOICES,
     View,
 )
+from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import (
@@ -30,21 +31,48 @@ class LocalBaserowIntegration(Integration):
     accessible by the associated user can be accessed with this integration.
     """
 
-    authorized_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-    authorized_agent = models.ForeignKey(
-        "core.Agent",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        default=None,
-        db_default=None,
-    )
+    # Kept only to read integrations created before typed subjects were introduced.
+    # TODO ZDM: remove this field in the next version.
+    authorized_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    authorized_subject_type = models.CharField(max_length=255, null=True, blank=True)
+    authorized_subject_id = models.BigIntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        """Migrate legacy authorization whenever this integration is saved."""
+
+        migrated_fields = set()
+        if self.authorized_subject_type and self.authorized_subject_id:
+            self.authorized_user = None
+            migrated_fields.add("authorized_user")
+        elif self.authorized_user_id:
+            self.authorized_subject_type = "auth.User"
+            self.authorized_subject_id = self.authorized_user_id
+            self.authorized_user = None
+            migrated_fields.update(
+                {
+                    "authorized_subject_type",
+                    "authorized_subject_id",
+                    "authorized_user",
+                }
+            )
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | migrated_fields
+        super().save(*args, **kwargs)
 
     @property
     def authorized_subject(self):
         """Return the subject whose permissions are used by this integration."""
 
-        return self.authorized_agent or self.authorized_user
+        if self.authorized_subject_type and self.authorized_subject_id:
+            from baserow.core.registries import subject_type_registry
+
+            try:
+                return subject_type_registry.get_subject(
+                    self.authorized_subject_type, self.authorized_subject_id
+                )
+            except SubjectTypeNotExist:
+                return None
+        return self.authorized_user
 
 
 class LocalBaserowTableService(Service):

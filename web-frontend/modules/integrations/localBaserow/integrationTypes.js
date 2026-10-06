@@ -20,20 +20,21 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   getSummary(integration) {
-    if (integration.authorized_agent) {
+    const subject = integration.authorized_subject
+    if (subject?.type === 'core.Agent') {
       return this.app.$i18n.t(
         'localBaserowIntegrationType.localBaserowAgentSummary',
-        { name: integration.authorized_agent.name }
+        { name: subject.name }
       )
     }
 
-    if (!integration.authorized_user) {
+    if (!subject) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
 
     return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
-      name: integration.authorized_user.first_name,
-      username: integration.authorized_user.username,
+      name: subject.first_name,
+      username: subject.username,
     })
   }
 
@@ -48,14 +49,22 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   getDefaultValues() {
     const user = this.app.$store.getters['auth/getUserObject']
     return {
-      authorized_user: { username: user.username, first_name: user.first_name },
-      authorized_agent: null,
-      authorized_agent_id: null,
+      authorized_subject: {
+        id: user.id,
+        type: 'auth.User',
+        username: user.username,
+        first_name: user.first_name,
+      },
+      authorized_subject_id: user.id,
+      authorized_subject_type: 'auth.User',
     }
   }
 
   getErrorMessage(integration) {
-    if (integration.authorized_agent?.trashed) {
+    if (
+      integration.authorized_subject?.type === 'core.Agent' &&
+      integration.authorized_subject.trashed
+    ) {
       return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
     }
     return super.getErrorMessage(integration)
