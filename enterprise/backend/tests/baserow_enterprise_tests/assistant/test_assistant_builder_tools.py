@@ -3122,7 +3122,7 @@ def test_update_menu_items_resending_the_listed_menu_changes_nothing(data_fixtur
                 navigate_to_url="'https://docs.example.com'",
                 target="blank",
             ),
-            _menu_item("button", "Help"),
+            {**_menu_item("button", "Help"), "variant": "button"},
             _menu_item("spacer", "Gap"),
             _menu_link("Company", site.home),
         ],
