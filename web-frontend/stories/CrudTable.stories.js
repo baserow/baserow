@@ -1,4 +1,4 @@
-import { h, ref } from 'vue'
+import { h, reactive, ref } from 'vue'
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
@@ -6,6 +6,47 @@ import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreFie
 import Avatar from '@baserow/modules/core/components/Avatar'
 import Button from '@baserow/modules/core/components/Button'
 import Context from '@baserow/modules/core/components/Context'
+import './crudTable.scss'
+
+// Interactive fixtures only: role edits stay in this story's in-memory service.
+const RolePicker = {
+  components: { Button, Context },
+  props: ['modelValue'],
+  emits: ['update:modelValue'],
+  setup() {
+    return {
+      roles: ['Admin', 'Builder', 'Editor', 'Commenter', 'Viewer'],
+      roleIcons: {
+        Admin: 'iconoir-crown',
+        Builder: 'iconoir-tools',
+        Editor: 'iconoir-edit-pencil',
+        Commenter: 'iconoir-chat-bubble',
+        Viewer: 'iconoir-eye-empty',
+      },
+    }
+  },
+  template: `<div>
+    <Button type="secondary" button-type="button" class="crud-table-story__role"
+      :icon="roleIcons[modelValue]" append-icon="iconoir-nav-arrow-down" aria-haspopup="true"
+      @click="$refs.menu.toggle($event.currentTarget)">{{ modelValue }}</Button>
+    <Context ref="menu">
+      <ul class="context__menu">
+        <li v-for="role in roles" :key="role" class="context__menu-item">
+          <a href="#" class="context__menu-item-link" @click.prevent="$emit('update:modelValue', role); $refs.menu.hide()">
+            <i class="context__menu-item-icon" :class="roleIcons[role]" />{{ role }}
+          </a>
+        </li>
+      </ul>
+    </Context>
+  </div>`,
+}
+
+const RoleField = {
+  components: { RolePicker },
+  props: ['row'],
+  emits: ['row-update'],
+  template: `<RolePicker :model-value="row.role" @update:model-value="$emit('row-update', { ...row, role: $event })" />`,
+}
 
 const NameField = {
   props: ['row'],
@@ -24,10 +65,33 @@ const NameField = {
 const rows = [
   {
     id: 1,
-    name: 'Alex Morgan',
-    email: 'alex@example.com',
-    role: 'Admin',
-    team: 'Design',
+    name: 'Arlene McCoy',
+    email: 'a.mccoy@outlook.com',
+    role: 'Editor',
+    team: 'Front-End Team',
+    assignments: [
+      {
+        id: 1,
+        name: 'Projects',
+        scope: 'Database in Widelab',
+        icon: 'iconoir-db',
+        role: 'Builder',
+      },
+      {
+        id: 2,
+        name: 'Tasks',
+        scope: 'Table in Projects',
+        icon: 'iconoir-table',
+        role: 'Builder',
+      },
+      {
+        id: 3,
+        name: 'Kanban - Q3',
+        scope: 'View in Projects / Tasks',
+        icon: 'baserow-icon-kanban',
+        role: 'Editor',
+      },
+    ],
   },
   {
     id: 2,
@@ -55,19 +119,19 @@ const rows = [
 const columns = [
   new CrudTableColumn('name', 'Name', NameField, true),
   new CrudTableColumn('email', 'Email', SimpleField, true),
-  new CrudTableColumn('role', 'Role', SimpleField),
+  new CrudTableColumn('role', 'Role', RoleField),
   new CrudTableColumn('team', 'Team', SimpleField),
   new CrudTableColumn('more', '', MoreField, false, false, true),
 ]
 
-function createService(state) {
+function createService(state, records) {
   return {
     options: { isPaginated: true, baseUrl: '/storybook/rows/' },
     async fetch(_url, _page, search, sorts) {
       if (state === 'loading') {
         return new Promise(() => {})
       }
-      let results = state === 'empty' ? [] : [...rows]
+      let results = state === 'empty' ? [] : [...records]
       if (search) {
         results = results.filter((row) =>
           `${row.name} ${row.email}`
@@ -90,8 +154,9 @@ function createService(state) {
 const renderTable =
   (state = 'populated', width = '100%', expansion = null) =>
   (args) => ({
-    components: { CrudTable, Button, Context },
+    components: { CrudTable, Button, Context, Avatar, RolePicker },
     setup() {
+      const records = reactive(structuredClone(rows))
       const count = ref(0)
       const context = ref(null)
       const selectedRow = ref(null)
@@ -109,14 +174,14 @@ const renderTable =
         openContext,
         width,
         expansion,
-        service: createService(state),
+        service: createService(state, records),
       }
     },
     template: `
     <div :style="{ position: 'relative', height: '640px', width, maxWidth: '100%' }">
       <CrudTable v-bind="args" :service="service" :columns="columns" row-id-key="id"
         :expand-column-key="expansion ? 'role' : null"
-        :row-expandable="row => row.id !== 3"
+        :row-expandable="row => expansion === 'aligned' ? Boolean(row.assignments?.length) : row.id !== 3"
         @total-count-update="count = $event" @row-context="openContext">
         <template #title>{{ count }} members</template>
         <template #primary-action>
@@ -131,18 +196,23 @@ const renderTable =
             <p class="placeholder__content">{{ $t('membersSettings.membersTable.emptyDescription') }}</p>
           </div>
         </template>
-        <template v-if="expansion" #row-expansion-toggle>+2</template>
+        <template v-if="expansion === 'aligned'" #row-expansion-toggle="{ row }">+{{ row.assignments.length }}</template>
         <template v-if="expansion" #expanded-row="{ row, columns }">
           <template v-if="expansion === 'aligned'">
-            <tr v-for="detail in ['Projects', 'Tasks']" :key="detail" class="data-table__table-row">
+            <tr v-for="detail in row.assignments" :key="detail.id" class="data-table__table-row">
               <td colspan="2" class="data-table__table-cell">
-                <div class="data-table__table-cell-content">{{ detail }} · {{ row.name }}</div>
+                <div class="data-table__table-cell-content crud-table-story__resource">
+                  <Avatar :icon="detail.icon" color="neutral" size="large" rounded class="crud-table-story__resource-icon" />
+                  <span>{{ detail.name }}</span>
+                  <span class="crud-table-story__separator" aria-hidden="true">·</span>
+                  <span class="crud-table-story__scope">{{ detail.scope }}</span>
+                </div>
               </td>
               <td class="data-table__table-cell">
-                <div class="data-table__table-cell-content">{{ row.role }}</div>
+                <div class="data-table__table-cell-content"><RolePicker v-model="detail.role" /></div>
               </td>
               <td class="data-table__table-cell">
-                <div class="data-table__table-cell-content">{{ row.team }}</div>
+                <div class="data-table__table-cell-content"></div>
               </td>
               <td class="data-table__table-cell data-table__table-cell--sticky-right">
                 <div class="data-table__table-cell-content"></div>
