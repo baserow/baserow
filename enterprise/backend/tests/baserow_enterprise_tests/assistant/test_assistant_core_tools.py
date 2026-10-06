@@ -1,6 +1,7 @@
 import pytest
 from pydantic_ai import ModelRetry
 
+from baserow.core.action.scopes import WorkspaceActionScopeType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.builder.themes import (
     apply_theme,
@@ -16,7 +17,13 @@ from baserow_enterprise.assistant.tools.core.types import (
     BuilderUpdate,
 )
 
-from .utils import make_test_ctx
+from .utils import (
+    actions_in_message,
+    make_test_ctx,
+    redo_message,
+    start_message,
+    undo_message,
+)
 
 
 @pytest.mark.django_db
@@ -340,6 +347,32 @@ def test_update_builder_renames_an_application(data_fixture):
     )
 
     assert result == {"id": database.id, "name": "New Name", "changed": True}
+    database.refresh_from_db()
+    assert database.name == "New Name"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_builder_is_undoable(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Old Name"
+    )
+    start_message(user)
+
+    update_builder(
+        make_test_ctx(user, workspace),
+        builder_id=database.id,
+        update=BuilderUpdate(name="New Name"),
+        thought="rename",
+    )
+
+    assert actions_in_message(user) == ["update_application"]
+    scopes = [WorkspaceActionScopeType.value(workspace.id)]
+    undo_message(user, scopes)
+    database.refresh_from_db()
+    assert database.name == "Old Name"
+    redo_message(user, scopes)
     database.refresh_from_db()
     assert database.name == "New Name"
 
