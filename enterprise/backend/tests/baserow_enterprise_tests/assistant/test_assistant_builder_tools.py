@@ -5,6 +5,12 @@ Tests cover pages, data sources, elements, and workflow actions using
 the RunContext + FunctionToolset pattern.
 """
 
+from copy import deepcopy
+from typing import Any
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 from pydantic import ValidationError
 from pydantic_ai import ModelRetry
@@ -14,6 +20,7 @@ from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
 )
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
@@ -21,6 +28,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.services.models import Service
+from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.agents import (
     update_element_formulas,
     update_single_element_formulas,
@@ -67,6 +75,9 @@ from baserow_enterprise.assistant.tools.builder.types import (
     PageUpdate,
     TableFieldConfig,
     TypographyStyleOverride,
+)
+from baserow_enterprise.assistant.tools.builder.types.table_columns import (
+    stored_formula_text,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
@@ -913,6 +924,207 @@ def test_list_elements(data_fixture):
     result = list_elements(ctx, page_id=page.id, thought="test")
 
     assert result["elements"] == []
+
+
+@pytest.mark.django_db
+def test_list_elements_shows_table_columns(data_fixture: Fixtures) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": "get('current_record.field_1')"},
+            },
+            {"name": "Price", "type": "text", "config": {"value": "'42 USD'"}},
+            {"name": "Empty", "type": "text", "config": {"value": ""}},
+            {"name": "Go", "type": "button", "config": {"label": "'Go'"}},
+            {
+                "name": "Site",
+                "type": "link",
+                "config": {"navigate_to_url": "'https://baserow.io'"},
+            },
+            {
+                "name": "Stars",
+                "type": "rating",
+                "config": {"value": "get('current_record.field_2')", "max_value": 5},
+            },
+            {
+                "name": "Done",
+                "type": "boolean",
+                "config": {"value": "get('current_record.field_3')"},
+            },
+        ],
+    )
+    uids = [
+        str(uid)
+        for uid in table_element.fields.order_by("order").values_list("uid", flat=True)
+    ]
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    table = next(el for el in result["elements"] if el["id"] == table_element.id)
+    assert table["table_columns"] == [
+        {
+            "uid": uids[0],
+            "name": "Name",
+            "type": "text",
+            "value": "get('current_record.field_1')",
+        },
+        {"uid": uids[1], "name": "Price", "type": "text", "value": "'42 USD'"},
+        {"uid": uids[2], "name": "Empty", "type": "text", "value": ""},
+        {"uid": uids[3], "name": "Go", "type": "button", "label": "'Go'"},
+        {"uid": uids[4], "name": "Site", "type": "link"},
+        {
+            "uid": uids[5],
+            "name": "Stars",
+            "type": "rating",
+            "value": "get('current_record.field_2')",
+        },
+        {
+            "uid": uids[6],
+            "name": "Done",
+            "type": "boolean",
+            "value": "get('current_record.field_3')",
+        },
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("config", [{"value": None}, {}], ids=["null", "missing"])
+def test_list_elements_reads_columns_without_a_formula(
+    data_fixture: Fixtures, config: dict[str, Any]
+) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    table_element = data_fixture.create_builder_table_element(
+        page=page, fields=[{"name": "Name", "type": "text", "config": config}]
+    )
+    uid = str(table_element.fields.get().uid)
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    table = next(el for el in result["elements"] if el["id"] == table_element.id)
+    assert table["table_columns"] == [
+        {"uid": uid, "name": "Name", "type": "text", "value": ""}
+    ]
+
+
+@pytest.mark.django_db
+def test_list_elements_orders_table_columns_by_position(data_fixture: Fixtures) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {"name": name, "type": "text", "config": {"value": ""}}
+            for name in ("First", "Second", "Third")
+        ],
+    )
+    table_element.fields.filter(name="First").update(order=5)
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    table = next(el for el in result["elements"] if el["id"] == table_element.id)
+    assert [column["name"] for column in table["table_columns"]] == [
+        "Second",
+        "Third",
+        "First",
+    ]
+
+
+@pytest.mark.django_db
+def test_list_elements_leaves_table_columns_out_for_other_elements(
+    data_fixture: Fixtures,
+) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    heading = data_fixture.create_builder_heading_element(page=page, value="'Title'")
+
+    result = list_elements(
+        make_test_ctx(user, workspace), page_id=page.id, thought="test"
+    )
+
+    [element] = result["elements"]
+    assert element["id"] == heading.id
+    assert "table_columns" not in element
+
+
+@pytest.mark.parametrize(
+    "config,key,expected",
+    [
+        pytest.param(
+            {"value": {"formula": "get('a')", "mode": "advanced", "version": "0.1"}},
+            "value",
+            "get('a')",
+            id="formula-object",
+        ),
+        pytest.param({"value": "get('a')"}, "value", "get('a')", id="plain-string"),
+        pytest.param({"label": {"formula": "'Go'"}}, "label", "'Go'", id="label-key"),
+        pytest.param({"label": {"formula": "'Go'"}}, "value", "", id="other-key"),
+        pytest.param({"value": {"formula": None}}, "value", "", id="null-formula"),
+        pytest.param({"value": {}}, "value", "", id="empty-object"),
+        pytest.param({"value": None}, "value", "", id="null-value"),
+        pytest.param({"value": 5}, "value", "", id="number"),
+        pytest.param({}, "value", "", id="empty-config"),
+        pytest.param(None, "value", "", id="null-config"),
+        pytest.param("get('a')", "value", "", id="string-config"),
+    ],
+)
+def test_stored_formula_text_reads_what_a_column_holds(
+    config: Any, key: str, expected: str
+) -> None:
+    assert stored_formula_text(config, key) == expected
+
+
+@pytest.mark.django_db
+def test_list_elements_reads_table_columns_without_extra_queries(
+    data_fixture: Fixtures,
+) -> None:
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    columns = [
+        {"name": f"Column {index}", "type": "text", "config": {"value": "'x'"}}
+        for index in range(3)
+    ]
+    # Both pages hold four elements of the same two types, so only the tables differ.
+    many_tables = data_fixture.create_builder_page(builder=builder)
+    for _ in range(3):
+        data_fixture.create_builder_table_element(
+            page=many_tables, fields=deepcopy(columns)
+        )
+    data_fixture.create_builder_heading_element(page=many_tables, value="'Title'")
+    one_table = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_table_element(page=one_table, fields=deepcopy(columns))
+    for _ in range(3):
+        data_fixture.create_builder_heading_element(page=one_table, value="'Title'")
+    ctx = make_test_ctx(user, workspace)
+
+    def count_queries(page: Page) -> int:
+        # A cold first call runs extra queries that fill the caches.
+        list_elements(ctx, page_id=page.id, thought="test")
+        with CaptureQueriesContext(connection) as captured:
+            list_elements(ctx, page_id=page.id, thought="test")
+        return len(captured)
+
+    assert count_queries(many_tables) == count_queries(one_table)
 
 
 @pytest.mark.django_db(transaction=True)

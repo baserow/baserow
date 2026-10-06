@@ -27,6 +27,7 @@ from .element import (
     TypographyStyleOverride,
 )
 from .page import PageCreate, PageItem, PagePathParam, PageQueryParam, PageUpdate
+from .table_columns import TableColumnItem
 from .workflow_action import (
     ActionCreate,
     ActionItem,
@@ -67,6 +68,7 @@ __all__ = [
     "PageQueryParam",
     "PageUpdate",
     "ParameterMapping",
+    "TableColumnItem",
     "TableFieldConfig",
     "TableStyleOverride",
     "TypographyStyleOverride",

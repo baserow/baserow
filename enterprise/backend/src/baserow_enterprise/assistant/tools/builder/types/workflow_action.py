@@ -379,9 +379,9 @@ class ActionCreate(BaseModel):
         description=(
             "Event that triggers the action: click for standalone buttons/links, "
             "submit for forms, after_login for login forms. Table button columns: "
-            "use '<column name>_click' (e.g. 'Edit_click') or the exact '<uid>_click' "
-            "if known. Bare click is valid only with one button column; "
-            "duplicate column names require the UID event."
+            "use '<column name>_click' (e.g. 'Edit_click') or '<uid>_click' with the "
+            "column uid from list_elements. Bare click is valid only with one button "
+            "column; duplicate column names require the uid event."
         ),
     )
 

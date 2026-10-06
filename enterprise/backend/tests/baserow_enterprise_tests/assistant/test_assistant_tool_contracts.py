@@ -409,6 +409,12 @@ def _check_list_elements(result: Any, seed: SeededWorkspace) -> None:
     assert any(el["page_name"] == "[shared]" for el in elements)
     menu = next(el for el in elements if el["type"] == "menu")
     assert_items(menu["menu_items"], {"name": str, "type": str}, "list_elements.menu")
+    table = next(el for el in elements if el["type"] == "table")
+    assert_items(
+        table["table_columns"],
+        {"uid": str, "name": str, "type": str},
+        "list_elements.table",
+    )
 
 
 def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:

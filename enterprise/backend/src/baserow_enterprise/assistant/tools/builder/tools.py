@@ -468,7 +468,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, parent_element_id, is_container.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -783,7 +783,7 @@ def create_collection_elements(
 
     ## Table
     - data_source: the data source ID or ref.
-    - fields: column configurations — always specify which columns to show. Each field has name, type ("text" or "button"), and value ($formula: for dynamic content).
+    - fields: the table's columns — always specify which columns to show. Each column has name and type ("text" or "button"); text columns take value ($formula: for dynamic content), button columns take label.
 
     ## Repeat
     - data_source: the data source ID or ref.
@@ -1086,7 +1086,7 @@ def create_actions(
     ## Attaching Actions
     - element: a ref from the same batch, or an existing element ID (from list_elements)
     - event: "click" for buttons/links, "submit" for form containers
-    - Per-row buttons: add columns with type "button" to the table element, then attach each action to the table element with event "<column name>_click" (e.g. "View_click", "Delete_click"). Use the column name, not its button label. Bare "click" works only for a table with one button column; duplicate names require the exact "<uid>_click" event listed in validation errors. Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: get('current_record.id')"}.
+    - Per-row buttons: add a button column to the table element, then attach each action to the table element with event "<column name>_click" (e.g. "View_click", "Delete_click") or "<uid>_click" with the column uid from list_elements. Use the column name, not its button label. Bare "click" works only for a table with one button column; duplicate column names require the "<uid>_click" event. Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: get('current_record.id')"}.
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
@@ -1444,7 +1444,7 @@ def setup_page(
     - input_text: label, placeholder, default_value, required, validation_type, is_multiline
     - choice: label, choice_options, multiple
     - checkbox: label, default_value
-    - table: data_source (ref), fields [{name, type ("text"/"button"), value}]
+    - table: data_source (ref), fields [{name, type ("text"/"button"), value (text) or label (button)}]
     - repeat: data_source (ref), orientation
 
     ## Refs

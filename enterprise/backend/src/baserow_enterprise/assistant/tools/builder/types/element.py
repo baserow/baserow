@@ -37,6 +37,8 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 from baserow_enterprise.assistant.types import BaseModel
 
+from .table_columns import TableColumnItem, table_column_items
+
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
@@ -143,9 +145,9 @@ class TableFieldConfig(BaseModel):
     - type="button": ``label`` is the button caption. Its click actions attach
       to the table element (see create_actions).
 
-    These are the only column types, and ``name``, ``type``, ``value``,
-    ``label`` are the only accepted keys; any other key is rejected. Column
-    keys are not interchangeable with element keys.
+    These are the only column types you can create, and ``name``, ``type``,
+    ``value``, ``label`` are the only accepted keys; any other key is rejected.
+    Column keys are not interchangeable with element keys.
     """
 
     name: str = Field(..., description="Column header name.")
@@ -2021,9 +2023,14 @@ class ElementItem(BaseModel):
         default=None,
         description="(menu) Current menu items with name and page_id.",
     )
+    table_columns: list[TableColumnItem] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="(table) Columns in display order with uid, name, type, and value or label.",
+    )
 
     @classmethod
-    def from_orm(cls, element) -> "ElementItem":
+    def from_orm(cls, element: "Element") -> "ElementItem":
         """
         Create ElementItem from ORM Element instance.
 
@@ -2045,6 +2052,9 @@ class ElementItem(BaseModel):
                 }
                 for item in specific.menu_items.all().order_by("menu_item_order")
             ]
+        table_columns = (
+            table_column_items(element.specific) if element_type == "table" else None
+        )
         return cls(
             id=element.id,
             type=element_type,
@@ -2054,6 +2064,7 @@ class ElementItem(BaseModel):
             label=cls._extract_label(element),
             page_name=page_name,
             menu_items=menu_items,
+            table_columns=table_columns,
         )
 
     @staticmethod
