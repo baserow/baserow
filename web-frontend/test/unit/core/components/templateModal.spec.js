@@ -18,9 +18,8 @@ describe('TemplateModal', () => {
             props: ['keepContent', 'fullScreen', 'closeButton'],
             template: '<div><slot /></div>',
           }),
-          TemplateHeader: true,
-          TemplateCategories: true,
-          TemplatePreview: true,
+          TemplateList: true,
+          TemplateDetails: true,
         },
       },
     })

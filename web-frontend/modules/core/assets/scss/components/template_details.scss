@@ -1,0 +1,112 @@
+.template-details__sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: $palette-neutral-0;
+  border-right: solid 1px $palette-neutral-200;
+}
+
+.template-details__back {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 52px;
+  padding: 0 16px;
+  border-bottom: solid 1px $palette-neutral-200;
+}
+
+.template-details__back-link {
+  @include flex-align-items(6px);
+
+  font-size: 13px;
+  color: $palette-neutral-900;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1200;
+  }
+}
+
+.template-details__info {
+  flex: 0 0 auto;
+  padding: 20px 16px;
+  border-bottom: solid 1px $palette-neutral-200;
+}
+
+.template-details__title {
+  @include flex-align-items(12px);
+}
+
+.template-details__icon {
+  display: flex;
+  flex: 0 0 40px;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  font-size: 16px;
+  color: $palette-neutral-900;
+  border: solid 1px $palette-neutral-200;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 rgba($palette-neutral-1200, 0.06);
+}
+
+.template-details__name {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  color: $palette-neutral-1200;
+  overflow-wrap: anywhere;
+}
+
+.template-details__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.template-details__category {
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+  background-color: $palette-neutral-100;
+  border-radius: 12px;
+}
+
+.template-details__contents {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 8px;
+  overflow-y: auto;
+}
+
+.template-details__contents-title {
+  padding: 0 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.template-details__foot {
+  flex: 0 0 auto;
+  padding: 16px;
+  border-top: solid 1px $palette-neutral-200;
+}
+
+.template-install {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-install__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.template-install__use {
+  flex: 1 1 auto;
+  min-width: 0;
+}
