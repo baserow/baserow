@@ -117,6 +117,7 @@ class MCPEndpointHandler:
         workspace: Workspace,
         name: str,
         allowed_tools: list[str] | None = None,
+        oauth_client_id: str | None = None,
     ) -> MCPEndpoint:
         """
         Creates a new MCP endpoint.
@@ -129,6 +130,8 @@ class MCPEndpointHandler:
         :type name: str
         :param allowed_tools: The tool names the endpoint may use, None for all
             enabled tools.
+        :param oauth_client_id: The OAuth client the endpoint is created for, None
+            for an endpoint the user creates.
         :return: The created endpoint instance.
         :rtype: MCPEndpoint
         """
@@ -146,6 +149,7 @@ class MCPEndpointHandler:
             user=user,
             workspace=workspace,
             allowed_tools=allowed_tools,
+            oauth_client_id=oauth_client_id,
         )
 
         return endpoint
@@ -154,29 +158,38 @@ class MCPEndpointHandler:
         self,
         user: AbstractUser,
         workspace: Workspace,
+        client_id: str,
         name: str,
         allowed_tools: list[str],
     ) -> MCPEndpoint:
         """
         Returns the endpoint backing an OAuth client's access to a workspace,
         creating it on first consent and updating its allowed tools afterwards. The
-        endpoint is matched on user, workspace and name (the client name).
+        endpoint is matched on user, workspace and OAuth client id, so endpoints the
+        user created themselves are never reused.
 
         :param user: The user giving consent.
         :param workspace: The workspace the client gets access to.
-        :param name: The client name, used as the endpoint name.
+        :param client_id: The OAuth client id.
+        :param name: The client name, used as the endpoint name when creating.
         :param allowed_tools: The tool names the client may use.
         :return: The created or updated endpoint.
         """
 
         endpoint = (
-            MCPEndpoint.objects.filter(user=user, workspace=workspace, name=name)
+            MCPEndpoint.objects.filter(
+                user=user, workspace=workspace, oauth_client_id=client_id
+            )
             .order_by("id")
             .first()
         )
         if endpoint is None:
             return self.create_endpoint(
-                user, workspace, name, allowed_tools=allowed_tools
+                user,
+                workspace,
+                name,
+                allowed_tools=allowed_tools,
+                oauth_client_id=client_id,
             )
 
         CoreHandler().check_permissions(

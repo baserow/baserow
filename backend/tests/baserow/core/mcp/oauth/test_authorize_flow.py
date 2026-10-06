@@ -305,17 +305,73 @@ def test_consent_reuses_grant_for_same_client_and_workspace(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     other_workspace = data_fixture.create_workspace(user=user)
-    first = obtain_tokens(client, api_client, token, workspace, ["list_tables"])
+    client_id = register_dcr_client(client)
+    first = obtain_tokens(
+        client, api_client, token, workspace, ["list_tables"], client_id=client_id
+    )
     second = obtain_tokens(
-        client, api_client, token, workspace, ["list_databases", "list_tables"]
+        client,
+        api_client,
+        token,
+        workspace,
+        ["list_databases", "list_tables"],
+        client_id=client_id,
     )
     assert first["endpoint_id"] == second["endpoint_id"]
     endpoint = MCPEndpoint.objects.get(user=user)
+    assert endpoint.oauth_client_id == client_id
     assert endpoint.allowed_tools == ["list_databases", "list_tables"]
     # Another workspace gets its own grant.
-    third = obtain_tokens(client, api_client, token, other_workspace)
+    third = obtain_tokens(
+        client, api_client, token, other_workspace, client_id=client_id
+    )
     assert third["endpoint_id"] != first["endpoint_id"]
     assert MCPEndpoint.objects.filter(user=user).count() == 2
+
+
+@pytest.mark.django_db
+def test_consent_never_reuses_a_manual_endpoint(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    manual = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, name="Test MCP client"
+    )
+    tokens = obtain_tokens(client, api_client, token, workspace, ["list_tables"])
+    assert tokens["endpoint_id"] != manual.id
+    manual.refresh_from_db()
+    assert manual.allowed_tools is None
+    assert manual.oauth_client_id is None
+    assert MCPEndpoint.objects.filter(user=user).count() == 2
+
+
+@pytest.mark.django_db
+def test_clients_with_the_same_name_get_separate_grants(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    first = obtain_tokens(client, api_client, token, workspace, ["list_tables"])
+    second = obtain_tokens(client, api_client, token, workspace, ["list_databases"])
+    assert first["client_id"] != second["client_id"]
+    assert first["endpoint_id"] != second["endpoint_id"]
+    first_endpoint = MCPEndpoint.objects.get(id=first["endpoint_id"])
+    second_endpoint = MCPEndpoint.objects.get(id=second["endpoint_id"])
+    assert first_endpoint.name == second_endpoint.name == "Test MCP client"
+    assert first_endpoint.oauth_client_id == first["client_id"]
+    assert first_endpoint.allowed_tools == ["list_tables"]
+    assert second_endpoint.oauth_client_id == second["client_id"]
+    assert second_endpoint.allowed_tools == ["list_databases"]
+
+
+@pytest.mark.django_db
+def test_long_client_name_is_cut_to_the_endpoint_name_length(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = register_dcr_client(client, name="x" * 150)
+    obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+    assert MCPEndpoint.objects.get(user=user).name == "x" * 100
 
 
 @pytest.mark.parametrize(
@@ -399,9 +455,11 @@ def test_consent_cannot_reuse_grant_after_leaving_workspace(
     owner = data_fixture.create_user()
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=owner, members=[user])
-    obtain_tokens(client, api_client, token, workspace, ["list_tables"])
-    workspace.workspaceuser_set.filter(user=user).delete()
     client_id = register_dcr_client(client)
+    obtain_tokens(
+        client, api_client, token, workspace, ["list_tables"], client_id=client_id
+    )
+    workspace.workspaceuser_set.filter(user=user).delete()
     _, challenge = pkce_pair()
     response = post_consent(
         api_client,

@@ -104,11 +104,12 @@ class MCPOAuthConsentView(APIView):
         endpoint = None
         if data["allow"]:
             workspace = CoreHandler().get_workspace(data["workspace_id"])
-            client_name = _client_info(credentials)["client_name"]
+            client = _client_info(credentials)
             endpoint = MCPEndpointHandler().grant_oauth_client(
                 request.user,
                 workspace,
-                client_name[: MCPEndpoint._meta.get_field("name").max_length],
+                client["client_id"],
+                client["client_name"][: MCPEndpoint._meta.get_field("name").max_length],
                 data["tools"],
             )
 

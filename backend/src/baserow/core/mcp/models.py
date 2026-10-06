@@ -46,6 +46,14 @@ class MCPEndpoint(
         help_text="Names of the MCP tools this endpoint may use. Null allows every "
         "enabled tool.",
     )
+    oauth_client_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="The OAuth client this endpoint was created for by consent. Null "
+        "for endpoints created by the user.",
+    )
 
     class Meta:
         ordering = ("id",)

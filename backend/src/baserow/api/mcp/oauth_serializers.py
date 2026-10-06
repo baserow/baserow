@@ -34,5 +34,6 @@ class ConsentSerializer(serializers.Serializer):
             )
 
         # Stored in registry order so the grant doesn't depend on the client's.
-        data["tools"] = [name for name in enabled if name in set(tools)]
+        requested = set(tools)
+        data["tools"] = [name for name in enabled if name in requested]
         return data

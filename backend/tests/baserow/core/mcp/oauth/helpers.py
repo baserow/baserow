@@ -19,11 +19,11 @@ def pkce_pair():
     return verifier, challenge
 
 
-def register_dcr_client(client, redirect_uri=REDIRECT_URI):
+def register_dcr_client(client, redirect_uri=REDIRECT_URI, name="Test MCP client"):
     response = client.post(
         "/oauth/register/",
         {
-            "client_name": "Test MCP client",
+            "client_name": name,
             "redirect_uris": [redirect_uri],
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
@@ -56,14 +56,15 @@ def enabled_tool_names():
     return [tool.name for tool in mcp_tool_registry.get_enabled_tools()]
 
 
-def obtain_tokens(client, api_client, token, workspace, tools=None):
+def obtain_tokens(client, api_client, token, workspace, tools=None, client_id=None):
     """
     Runs DCR -> consent -> token. `token` is the user's JWT, `tools=None` grants
-    every enabled tool. The result carries the `endpoint_id` consent picked.
+    every enabled tool, `client_id=None` registers a new client. The result
+    carries the `endpoint_id` consent picked.
     """
 
     verifier, challenge = pkce_pair()
-    client_id = register_dcr_client(client)
+    client_id = client_id or register_dcr_client(client)
     query = authorize_query(client_id, challenge)
     response = api_client.post(
         reverse("api:mcp:oauth_consent"),
