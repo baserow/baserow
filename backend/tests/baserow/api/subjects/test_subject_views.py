@@ -80,3 +80,31 @@ def test_workspace_subject_options_are_scoped(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert [result["subject_id"] for result in response.json()["results"]] == [agent.id]
+
+
+@pytest.mark.django_db
+def test_workspace_subject_options_exclude_inactive_and_deletion_scheduled_users(
+    api_client, data_fixture
+):
+    """Normal subject options remain limited to users who can receive access."""
+
+    admin, token = data_fixture.create_user_and_token(email="admin@example.com")
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user(
+        workspace=workspace, email="disabled@example.com", is_active=False
+    )
+    data_fixture.create_user(
+        workspace=workspace, email="scheduled@example.com", to_be_deleted=True
+    )
+
+    response = api_client.get(
+        reverse("api:subjects:list"),
+        {
+            "workspace_id": workspace.id,
+            "subject_types": UserSubjectType.type,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [result["subject_id"] for result in response.json()["results"]] == [admin.id]

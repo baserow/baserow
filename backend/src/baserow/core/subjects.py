@@ -68,12 +68,13 @@ class UserSubjectType(SubjectType):
         workspace: Workspace | None = None,
         search: str = "",
         exclude_ids: List[int] | None = None,
+        include_inactive_and_scheduled_for_deletion: bool = False,
     ):
         """Return searchable user options, optionally scoped to a workspace."""
 
-        queryset = User.objects.filter(
-            is_active=True, profile__to_be_deleted=False
-        ).exclude(id__in=exclude_ids or [])
+        queryset = User.objects.exclude(id__in=exclude_ids or [])
+        if not include_inactive_and_scheduled_for_deletion:
+            queryset = queryset.filter(is_active=True, profile__to_be_deleted=False)
         if workspace is not None:
             queryset = queryset.filter(workspaceuser__workspace=workspace)
         if search:

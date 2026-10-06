@@ -174,6 +174,40 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_workspace_audit_log_actor_filter_includes_disabled_and_deletion_scheduled_users(
+    api_client, enterprise_data_fixture
+):
+    """Historical user actors remain selectable when their access is removed."""
+
+    enterprise_data_fixture.enable_enterprise()
+    admin, token = enterprise_data_fixture.create_user_and_token(email="admin@test.com")
+    disabled_user = enterprise_data_fixture.create_user(
+        email="disabled@test.com", is_active=False
+    )
+    scheduled_user = enterprise_data_fixture.create_user(
+        email="scheduled@test.com", to_be_deleted=True
+    )
+    workspace = enterprise_data_fixture.create_workspace(
+        user=admin,
+        members=[disabled_user, scheduled_user],
+    )
+
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:actors") + f"?workspace_id={workspace.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert {(actor["actor_type"], actor["actor_id"]) for actor in response.json()["results"]} == {
+        (UserSubjectType.type, admin.id),
+        (UserSubjectType.type, disabled_user.id),
+        (UserSubjectType.type, scheduled_user.id),
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 @pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 def test_staff_member_can_access_audit_log_for_their_own_workspace(
     api_client,
