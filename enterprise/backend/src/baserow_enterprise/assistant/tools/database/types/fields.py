@@ -40,13 +40,15 @@ OptionColor = Literal[
 
 
 class SelectOptionCreate(BaseModel):
-    value: str
+    value: str = Field(..., max_length=255)
     color: OptionColor | None = None
 
 
 class SelectOptionUpdate(BaseModel):
     id: int = Field(..., description="ID of the option, from get_tables_schema.")
-    value: str | None = Field(None, description="New value. Omit to keep it.")
+    value: str | None = Field(
+        None, max_length=255, description="New value. Omit to keep it."
+    )
     color: OptionColor | None = Field(None, description="New color. Omit to keep it.")
 
     @model_validator(mode="after")
@@ -592,8 +594,6 @@ def _merge_select_options(
     :param update: The options to change. A missing value or color stays as stored.
     :param remove_ids: The ids of the options to delete.
     :return: The select_options to pass to UpdateFieldActionType.
-    :raises ValueError: If an id is invalid, or an added value matches a kept option
-        while ignoring case and outer spaces.
     """
 
     _check_option_ids({option.id for option in existing}, update, remove_ids)
@@ -603,18 +603,11 @@ def _merge_select_options(
         for option in existing
         if option.id not in remove_ids
     ]
-
-    taken = {option_value_key(entry["value"]): entry["id"] for entry in kept}
-    clashes = [
-        f"'{option.value}' (option {taken[option_value_key(option.value)]})"
-        for option in add
-        if option_value_key(option.value) in taken
-    ]
-    if clashes:
-        raise ValueError(
-            f"These options already exist: {', '.join(clashes)}. Use update_options "
-            "with an option's id to change it."
-        )
+    renamed_ids = {
+        option.id
+        for option in existing
+        if option.id in changes and changes[option.id].value not in (None, option.value)
+    }
 
     used_colors = {entry["color"] for entry in kept}
     used_colors.update(option.color for option in add if option.color)
@@ -623,7 +616,48 @@ def _merge_select_options(
         color = option.color or _unused_color(used_colors, index)
         used_colors.add(color)
         added.append({"value": option.value, "color": color})
+
+    _check_unique_values(kept, added, renamed_ids)
     return [*kept, *added]
+
+
+def _describe_option(entry: dict[str, Any], renamed_ids: set[int]) -> str:
+    if "id" not in entry:
+        return f"the new option '{entry['value']}'"
+    if entry["id"] in renamed_ids:
+        return f"option {entry['id']} renamed to '{entry['value']}'"
+    return f"option {entry['id']} '{entry['value']}'"
+
+
+def _check_unique_values(
+    kept: list[dict[str, Any]], added: list[dict[str, Any]], renamed_ids: set[int]
+) -> None:
+    """
+    Reject values Kuma sets that repeat another option's value, ignoring case and
+    surrounding spaces, because Kuma picks options by value when it writes cells.
+    Duplicates already in the field are left alone.
+
+    :param kept: The field's remaining options, with the updates applied.
+    :param added: The options to add.
+    :param renamed_ids: The ids of the kept options whose value changes.
+    :raises ValueError: If an added or renamed value repeats another option's value.
+    """
+
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for entry in [*kept, *added]:
+        groups.setdefault(option_value_key(entry["value"]), []).append(entry)
+    clashes = [
+        " and ".join(_describe_option(entry, renamed_ids) for entry in group)
+        for group in groups.values()
+        if len(group) > 1
+        and any("id" not in entry or entry["id"] in renamed_ids for entry in group)
+    ]
+    if clashes:
+        raise ValueError(
+            "These options would share a value (case and surrounding spaces are "
+            f"ignored): {'; '.join(clashes)}. Leave out options that already exist "
+            "to keep them, or change them with update_options by id."
+        )
 
 
 def _changed_default(field: BaserowField, kept_ids: set[int]) -> dict[str, Any]:

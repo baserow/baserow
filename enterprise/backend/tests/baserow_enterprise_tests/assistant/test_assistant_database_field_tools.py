@@ -224,12 +224,99 @@ def test_update_select_options_rejects_adding_a_value_that_exists(
 
     (error,) = result["errors"]
     existing = status.open if value == "Open" else status.closed
-    assert f"'{value}' (option {existing.id})" in error
-    assert "update_options" in error
+    assert (
+        f"option {existing.id} '{existing.value}' and the new option '{value}'" in error
+    )
+    assert "case and surrounding spaces are ignored" in error
+    assert "Leave out options that already exist" in error
     assert _options(status) == [
         (status.open.id, "Open", "light-red"),
         (status.closed.id, "Closed", "blue"),
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "case", ["added_twice", "renamed_onto_another", "renamed_onto_added"]
+)
+def test_update_select_options_rejects_values_that_would_repeat(data_fixture, case):
+    status = _create_status_field(data_fixture, "single_select")
+    payload, message = {
+        "added_twice": (
+            {"add_options": ["New", "new "]},
+            "the new option 'New' and the new option 'new '",
+        ),
+        "renamed_onto_another": (
+            {"update_options": [{"id": status.closed.id, "value": "open"}]},
+            f"option {status.open.id} 'Open' and option {status.closed.id} renamed "
+            "to 'open'",
+        ),
+        "renamed_onto_added": (
+            {
+                "update_options": [{"id": status.open.id, "value": "Doing"}],
+                "add_options": ["Doing"],
+            },
+            f"option {status.open.id} renamed to 'Doing' and the new option 'Doing'",
+        ),
+    }[case]
+
+    result = update_fields(
+        status.ctx,
+        fields=[
+            FieldItemUpdate.model_validate({"field_id": status.field.id, **payload})
+        ],
+        thought="repeat a value",
+    )
+
+    (error,) = result["errors"]
+    assert message in error
+    assert _options(status) == [
+        (status.open.id, "Open", "light-red"),
+        (status.closed.id, "Closed", "blue"),
+    ]
+
+
+@pytest.mark.django_db
+def test_update_select_options_leaves_existing_duplicates_alone(data_fixture):
+    status = _create_status_field(data_fixture, "single_select")
+    twin = data_fixture.create_select_option(
+        field=status.field, value="open", color="gray", order=2
+    )
+
+    result = update_fields(
+        status.ctx,
+        fields=[
+            FieldItemUpdate(
+                field_id=status.field.id,
+                add_options=[SelectOptionCreate(value="New")],
+                update_options=[
+                    SelectOptionUpdate(id=twin.id, value="open", color="pink")
+                ],
+            )
+        ],
+        thought="add an option next to existing duplicates",
+    )
+
+    assert "errors" not in result
+    assert [value for _, value, _ in _options(status)] == [
+        "Open",
+        "Closed",
+        "open",
+        "New",
+    ]
+
+
+@pytest.mark.parametrize(
+    "model,kwargs",
+    [
+        (SelectOptionCreate, {}),
+        (SelectOptionUpdate, {"id": 1}),
+    ],
+)
+def test_select_option_values_fit_the_database_column(model, kwargs):
+    model(value="x" * 255, **kwargs)
+    with pytest.raises(ValidationError, match="at most 255 characters"):
+        model(value="x" * 256, **kwargs)
 
 
 @pytest.mark.django_db

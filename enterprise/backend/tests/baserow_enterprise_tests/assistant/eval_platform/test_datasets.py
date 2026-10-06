@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.datasets.core import (
     _check_creates_automation,
@@ -51,6 +52,47 @@ def test_create_automation_check_ignores_previous_runs(data_fixture):
             workspace=scenario.workspace, name="Overdue Task Reminder"
         )
         assert all(check.passed for check in case.checks(case, scenario, output))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change,failing_checks",
+    [
+        ("keep", set()),
+        ("recolor", {"existing options preserved"}),
+        ("recreate", {"existing options preserved", "row keeps its option"}),
+    ],
+)
+def test_updates_select_options_check_catches_lost_ids_colors_and_cells(
+    change, failing_checks
+):
+    (case,) = [c for c in all_cases() if c.id == "database/updates-select-options"]
+    output = EvalRunOutput(
+        answer="Added it",
+        messages=[],
+        tool_calls=["update_fields"],
+        tool_error_count=0,
+        tool_error_hint="",
+        sources=[],
+        request_count=1,
+        duration_s=0,
+    )
+    scenario = get_scenario(case.scenario)(make_fixtures())
+    existing = []
+    for option_id, value, color in scenario.refs["existing_options"]:
+        option = {"value": value, "color": "red" if change == "recolor" else color}
+        if change != "recreate":
+            option["id"] = option_id
+        existing.append(option)
+    FieldHandler().update_field(
+        scenario.user,
+        scenario.refs["status_field"],
+        select_options=[*existing, {"value": "In Progress", "color": "blue"}],
+    )
+
+    checks = case.checks(case, scenario, output)
+
+    assert {check.name for check in checks if not check.passed} == failing_checks
 
 
 _OUR_DATASETS = {
