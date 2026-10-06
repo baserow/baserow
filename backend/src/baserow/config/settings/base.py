@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "oauth2_provider",
     "drf_spectacular",
     "djcelery_email",
     "health_check",
@@ -868,6 +869,44 @@ else:
     PUBLIC_WEB_FRONTEND_URL = os.getenv(
         "PUBLIC_WEB_FRONTEND_URL", "http://localhost:3000"
     )
+
+BASEROW_MCP_OAUTH_ENABLED = str_to_bool(
+    os.getenv("BASEROW_MCP_OAUTH_ENABLED") or "false"
+)
+MCP_RESOURCE_URL = f"{PUBLIC_BACKEND_URL}/mcp"
+
+OAUTH2_PROVIDER = {
+    "OAUTH2_VALIDATOR_CLASS": "baserow.core.mcp.oauth.validators.MCPOAuth2Validator",
+    "SCOPES": {"mcp": "Use Baserow through an MCP endpoint"},
+    "DEFAULT_SCOPES": ["mcp"],
+    "PKCE_REQUIRED": True,
+    "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
+    "COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS": True,
+    "ROTATE_REFRESH_TOKEN": True,
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+    "ALLOW_LOCALHOST_LOOPBACK": True,
+    "ALLOWED_REDIRECT_URI_SCHEMES": ["http", "https"],
+    "OIDC_ISS_ENDPOINT": PUBLIC_BACKEND_URL,
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": [
+        "none",
+        "client_secret_post",
+        "client_secret_basic",
+    ],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+    "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+    "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": MCP_RESOURCE_URL,
+    "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [PUBLIC_BACKEND_URL],
+    "OAUTH2_PROTECTED_RESOURCE_NAME": "Baserow MCP",
+    "DCR_ENABLED": True,
+    "DCR_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.dcr.AllowAllDCRPermission",
+    ),
+    "CIMD_ENABLED": True,
+    "CIMD_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.cimd.HostAllowlistCIMDPermission",
+    ),
+    "CIMD_ALLOWED_HOSTS": ["claude.ai", "claude.com", "chatgpt.com", "openai.com"],
+}
 
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:

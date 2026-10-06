@@ -30,4 +30,7 @@ urlpatterns = (
 if settings.DEBUG and "silk" in settings.INSTALLED_APPS:
     urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 
+if settings.BASEROW_MCP_OAUTH_ENABLED:
+    urlpatterns += [path("", include("baserow.core.mcp.oauth.urls"))]
+
 handler400 = "baserow.api.exceptions.bad_request"
