@@ -1,8 +1,8 @@
 <template>
   <div>
     <RoleSelectorButton
-      :role-uid="row.role_uid"
-      :role-name="roleName"
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || row.role_uid"
       :read-only="isReadOnly"
       @click="$refs.editRoleContext.toggle($event.currentTarget)"
     />
@@ -43,11 +43,8 @@ export default {
     isReadOnly() {
       return !this.$hasPermission('agent.update', this.row, this.workspace.id)
     },
-    roleName() {
-      return (
-        this.roles.find((role) => role.uid === this.row.role_uid)?.name ||
-        this.row.role_uid
-      )
+    selectedRole() {
+      return this.roles.find((role) => role.uid === this.row.role_uid)
     },
   },
   methods: {

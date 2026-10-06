@@ -1,7 +1,7 @@
 <template>
   <RoleSelectorButton
-    :role-uid="row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'"
-    :role-name="roleName(column.additionalProps.roles, row)"
+    :icon="selectedRole?.icon"
+    :role-name="selectedRole?.name || ''"
     :read-only="isReadOnly"
     @click="onClick"
   />
@@ -25,6 +25,12 @@ export default {
   },
   emits: ['edit-role-context'],
   computed: {
+    selectedRole() {
+      const permissions = this.row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'
+      return this.column.additionalProps.roles.find(
+        (role) => role.uid === permissions
+      )
+    },
     isReadOnly() {
       const { additionalProps } = this.column
       return (
@@ -38,11 +44,6 @@ export default {
     },
   },
   methods: {
-    roleName(roles, row) {
-      const permissions = row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'
-      const role = roles.find((r) => r.uid === permissions)
-      return role?.name || ''
-    },
     onClick(event) {
       this.$emit('edit-role-context', {
         row: this.row,

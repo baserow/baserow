@@ -9,8 +9,8 @@ import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 describe('Management pages', () => {
   let app
   const roles = [
-    { uid: 'ADMIN', name: 'Admin' },
-    { uid: 'MEMBER', name: 'Member' },
+    { uid: 'ADMIN', name: 'Admin', icon: 'iconoir-crown' },
+    { uid: 'MEMBER', name: 'Member', icon: 'iconoir-group' },
   ]
   const workspace = { id: 1, name: 'Design', users: [], _: { roles } }
 

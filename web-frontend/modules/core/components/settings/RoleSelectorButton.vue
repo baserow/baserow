@@ -3,7 +3,7 @@
     type="secondary"
     button-type="button"
     class="member-role-field__link"
-    :icon="getRoleIcon(roleUid)"
+    :icon="icon"
     append-icon="iconoir-nav-arrow-down"
     :disabled="readOnly"
     aria-haspopup="true"
@@ -15,10 +15,9 @@
 
 <script setup>
 import Button from '@baserow/modules/core/components/Button'
-import { getRoleIcon } from '@baserow/modules/core/utils/roles'
 
 defineProps({
-  roleUid: { type: String, required: true },
+  icon: { type: String, default: 'iconoir-shield' },
   roleName: { type: String, required: true },
   readOnly: { type: Boolean, default: false },
 })

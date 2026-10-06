@@ -1,8 +1,8 @@
 <template>
   <div>
     <RoleSelectorButton
-      :role-uid="rowSanitised.permissions"
-      :role-name="roleName(roles, rowSanitised)"
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
       @click="$refs.editRoleContext.toggle($event.currentTarget)"
     />
     <EditRoleContext
@@ -40,6 +40,11 @@ export default {
     },
   },
   computed: {
+    selectedRole() {
+      return this.roles.find(
+        (role) => role.uid === this.rowSanitised.permissions
+      )
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     workspace() {
       return this.$store.getters['workspace/get'](
@@ -61,10 +66,6 @@ export default {
     },
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.permissions)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: invitation }) {
       const oldInvitation = clone(invitation)
       const newInvitation = clone(invitation)

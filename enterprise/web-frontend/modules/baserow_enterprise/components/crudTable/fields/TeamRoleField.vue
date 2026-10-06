@@ -1,8 +1,8 @@
 <template>
   <div>
     <RoleSelectorButton
-      :role-uid="row.default_role"
-      :role-name="roleName(roles, row)"
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
       :read-only="
         !$hasPermission(
           'enterprise.teams.team.update',
@@ -48,6 +48,9 @@ export default {
     },
   },
   computed: {
+    selectedRole() {
+      return this.roles.find((role) => role.uid === this.row.default_role)
+    },
     workspace() {
       return this.$store.getters['workspace/get'](
         this.column.additionalProps.workspaceId
@@ -68,10 +71,6 @@ export default {
     ...mapGetters({ userId: 'auth/getUserId' }),
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.default_role)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: team }) {
       const oldTeam = clone(team)
       const newTeam = clone(team)

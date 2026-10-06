@@ -3,8 +3,12 @@ import { describe, expect, test, vi } from 'vitest'
 import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
 import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
+import { NoRoleLowPriorityRoleType } from '@baserow_enterprise/roleTypes'
+import RolesService from '@baserow/modules/core/services/roles'
 
-const roles = [{ uid: 'VIEWER', name: 'Viewer', isVisible: true }]
+const roles = [
+  { uid: 'VIEWER', name: 'Viewer', icon: 'iconoir-star', isVisible: true },
+]
 const workspace = { id: 1, _: { roles } }
 const row = {
   id: 10,
@@ -48,6 +52,7 @@ describe('Enterprise management role controls', () => {
       })
       const button = wrapper.get('button')
       expect(button.text()).toBe('Viewer')
+      expect(button.find('.iconoir-star').exists()).toBe(true)
       expect(button.element.disabled).toBe(disabled)
       await button.trigger('click')
       if (disabled) expect(toggle).not.toHaveBeenCalled()
@@ -55,4 +60,34 @@ describe('Enterprise management role controls', () => {
       wrapper.unmount()
     }
   )
+})
+
+test('renders the registered No role icon in the member role control', async () => {
+  const roleType = new NoRoleLowPriorityRoleType({
+    app: { $i18n: { t: (key) => key }, $hasFeature: () => true },
+  })
+  const registry = { getAll: () => ({ noRoleLowPriority: roleType }) }
+  const { data } = RolesService(null, null, registry).get({ id: 1 })
+  const roles = data.map((role) => ({ ...role, name: 'No role' }))
+  const wrapper = await mountSuspended(MembersRoleField, {
+    props: {
+      row: { ...row, role_uid: 'NO_ROLE_LOW_PRIORITY' },
+      column: { key: 'role_uid', additionalProps: { workspaceId: 1 } },
+    },
+    global: {
+      mocks: {
+        $hasPermission: () => true,
+        $store: {
+          getters: {
+            'workspace/get': () => ({ id: 1, _: { roles } }),
+            'auth/getUserId': 42,
+          },
+        },
+      },
+      stubs: { EditRoleContext: true },
+    },
+  })
+  expect(wrapper.get('button').text()).toBe('No role')
+  expect(wrapper.find('button .iconoir-minus').exists()).toBe(true)
+  wrapper.unmount()
 })
