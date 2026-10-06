@@ -318,13 +318,7 @@ def update_field(
 
     # Verify workspace access
     filter_tables(user, workspace).filter(id=base_field.table_id).get()
-    field_type = field_type_registry.get_by_model(field).type
-    kwargs = field_update.to_update_kwargs(field_type)
-    if "select_options" in kwargs:
-        # Reused ids keep the cells, filters and defaults that point at them.
-        unused_ids = {option.value: option.id for option in field.select_options.all()}
-        for option in kwargs["select_options"]:
-            option["id"] = unused_ids.pop(option["value"], option["id"])
+    kwargs = field_update.to_update_kwargs(field)
     previous = FieldItem.from_django_orm(field)
 
     if not kwargs:

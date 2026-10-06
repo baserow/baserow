@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Kuma no longer clears select cell values when it adds or changes options of a field",
+    "message": "Kuma keeps existing select options, their colors and cell values when it changes a field's options",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",

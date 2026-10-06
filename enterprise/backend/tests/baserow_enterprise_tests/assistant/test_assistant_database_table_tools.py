@@ -212,6 +212,7 @@ def test_reused_table_detects_field_setting_mismatches():
     }
     assert mismatches["Status"]["option_color_mismatches"] == [
         {
+            "id": 5,
             "value": "Pending",
             "actual_color": "blue",
             "requested_color": "yellow",

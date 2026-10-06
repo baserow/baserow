@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from faker import Faker
 
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.models import Workspace
@@ -28,6 +29,13 @@ class _EvalFixtures(Fixtures):
         # users persist across scenarios and runs in the same database.
         kwargs.setdefault("email", f"kuma-eval-{uuid4().hex}@example.com")
         return super().create_user(**kwargs)
+
+    def create_select_option(
+        self, user: AbstractUser | None = None, **kwargs
+    ) -> SelectOption:
+        # Kuma shows stored colors as they are, so a fake name would reach the model.
+        kwargs.setdefault("color", "blue")
+        return super().create_select_option(user=user, **kwargs)
 
 
 def make_fixtures() -> Fixtures:
