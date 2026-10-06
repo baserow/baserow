@@ -71,17 +71,20 @@ def _recalculate_formula_metadata_dependencies_first_order(
         field.save(field_cache=field_cache, raise_if_invalid=False)
         if recalculate_cell_values or force_recreate_columns:
             try:
-                model = field_cache.get_model(field.table)
-                expr = FormulaHandler.recalculate_formula_and_get_update_expression(
-                    field,
-                    old_field,
-                    field_cache,
-                    force_recreate_column=force_recreate_columns,
-                )
-                with jit_disabled():
-                    model.objects_and_trash.all().update(
-                        **{f"{field.db_column}": expr}
+                # The savepoint lets the formula be marked as invalid below when a
+                # query fails, instead of aborting the whole batch.
+                with transaction.atomic():
+                    model = field_cache.get_model(field.table)
+                    expr = FormulaHandler.recalculate_formula_and_get_update_expression(
+                        field,
+                        old_field,
+                        field_cache,
+                        force_recreate_column=force_recreate_columns,
                     )
+                    with jit_disabled():
+                        model.objects_and_trash.all().update(
+                            **{f"{field.db_column}": expr}
+                        )
                 fields_type_changed.send(
                     _recalculate_formula_metadata_dependencies_first_order,
                     fields=[field]

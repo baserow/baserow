@@ -71,25 +71,67 @@ class FormulaMigrations(list):
 
 
 FIELD_REFERENCE_PATTERN = re.compile(r"field_(\d+)")
+LINKED_PRIMARY_FIELD_REFERENCE_PATTERN = re.compile(r"field_(\d+)__field_(\d+)")
 
 
-def formulas_referencing_deleted_fields(formulas: QuerySet) -> Q:
-    from baserow.contrib.database.fields.models import Field
+def formulas_with_stale_field_references(formulas: QuerySet) -> Q:
+    """
+    Matches the formulas whose internal formula references a field that is trashed
+    or deleted, or reaches through a link field to a field that is no longer the
+    primary field of the linked table.
+    """
 
+    from django.db.models import OuterRef, Subquery
+
+    from baserow.contrib.database.fields.models import Field, LinkRowField
+
+    internal_formulas = dict(formulas.values_list("id", "internal_formula"))
     referenced_field_ids = {
         formula_id: {int(i) for i in FIELD_REFERENCE_PATTERN.findall(internal)}
-        for formula_id, internal in formulas.values_list("id", "internal_formula")
+        for formula_id, internal in internal_formulas.items()
     }
+    linked_primary_field_references = {
+        formula_id: {
+            (int(link_id), int(primary_id))
+            for link_id, primary_id in LINKED_PRIMARY_FIELD_REFERENCE_PATTERN.findall(
+                internal
+            )
+        }
+        for formula_id, internal in internal_formulas.items()
+    }
+
     existing_field_ids = set(
-        Field.objects_and_trash.filter(
+        Field.objects.filter(
             id__in=set().union(*referenced_field_ids.values())
         ).values_list("id", flat=True)
     )
+    current_primary_field_ids = dict(
+        LinkRowField.objects.filter(
+            id__in={
+                link_id
+                for references in linked_primary_field_references.values()
+                for link_id, _ in references
+            }
+        )
+        .annotate(
+            primary_field_id=Subquery(
+                Field.objects.filter(
+                    table_id=OuterRef("link_row_table_id"), primary=True
+                ).values("id")[:1]
+            )
+        )
+        .values_list("id", "primary_field_id")
+    )
+
     return Q(
         id__in=[
             formula_id
-            for formula_id, field_ids in referenced_field_ids.items()
-            if field_ids - existing_field_ids
+            for formula_id in internal_formulas
+            if referenced_field_ids[formula_id] - existing_field_ids
+            or any(
+                current_primary_field_ids.get(link_id) != primary_id
+                for link_id, primary_id in linked_primary_field_references[formula_id]
+            )
         ]
     )
 
@@ -170,13 +212,11 @@ FORMULA_MIGRATIONS = FormulaMigrations(
         ),
         FormulaMigration(
             version=7,
-            # v7 retypes formulas whose internal formula still references a field
-            # that no longer exists. Lookups of a link field could be typed against
-            # an outdated cached primary field, fixed in #6254, and formulas inlining
-            # them kept the stale reference too.
-            recalculate_formula_attributes_for=formulas_referencing_deleted_fields,
-            recalculate_field_dependencies_for=NO_FORMULAS,
-            recalculate_cell_values_for=formulas_referencing_deleted_fields,
+            # v7 recalculates formulas with stale field references, see
+            # `formulas_with_stale_field_references`.
+            recalculate_formula_attributes_for=NO_FORMULAS,
+            recalculate_field_dependencies_for=formulas_with_stale_field_references,
+            recalculate_cell_values_for=formulas_with_stale_field_references,
             force_recreate_formula_columns_for=NO_FORMULAS,
         ),
     ]

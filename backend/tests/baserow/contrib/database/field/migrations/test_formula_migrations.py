@@ -1,7 +1,9 @@
 from unittest.mock import patch
 
+from django.core.exceptions import FieldDoesNotExist
 from django.db import connection
 from django.db.models import Q
+from django.db.models.expressions import RawSQL
 
 import pytest
 
@@ -17,7 +19,7 @@ from baserow.contrib.database.formula.migrations.migrations import (
     NO_FORMULAS,
     FormulaMigration,
     FormulaMigrations,
-    formulas_referencing_deleted_fields,
+    formulas_with_stale_field_references,
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
@@ -921,6 +923,7 @@ def test_migration_recalculates_cell_values_without_jit(data_fixture):
     assert_all_rows_are_not_none(data_fixture, formula_field)
 
 
+
 def _lookup_of_a_link_field(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
@@ -945,36 +948,70 @@ def _lookup_of_a_link_field(data_fixture):
         through_field_id=link.id,
         target_field_id=link_of_link.id,
     )
-    return user, table, lookup, old_primary, new_primary
+    further_row = RowHandler().create_row(
+        user,
+        further,
+        {old_primary.db_column: "old", new_primary.db_column: "new"},
+    )
+    linked_row = RowHandler().create_row(
+        user, linked, {link_of_link.db_column: [further_row.id]}
+    )
+    row = RowHandler().create_row(user, table, {link.db_column: [linked_row.id]})
+    return user, table, lookup, row, further_row, old_primary, new_primary
+
+
+def _cell(table, row, field):
+    return str(getattr(table.get_model().objects.get(id=row.id), field.db_column))
 
 
 @pytest.mark.django_db
-def test_v7_retypes_a_lookup_of_a_link_field_whose_primary_field_was_deleted(
-    data_fixture,
+@pytest.mark.parametrize("old_primary_state", ["deleted", "trashed", "kept"])
+def test_v7_recalculates_a_lookup_of_a_link_field_with_an_outdated_primary_field(
+    data_fixture, old_primary_state
 ):
-    user, table, lookup, old_primary, new_primary = _lookup_of_a_link_field(
-        data_fixture
-    )
+    (
+        user,
+        table,
+        lookup,
+        row,
+        further_row,
+        old_primary,
+        new_primary,
+    ) = _lookup_of_a_link_field(data_fixture)
     stale_internal_formula = lookup.internal_formula
     assert old_primary.db_column in stale_internal_formula
 
-    # The linked table's primary field changes and the old one is deleted, while
-    # the lookup keeps referencing the old one, as an outdated cached primary
-    # field used to cause.
     FieldHandler().change_primary_field(user, new_primary.table, new_primary)
-    old_primary.delete()
+    old_primary.refresh_from_db()
+    if old_primary_state == "deleted":
+        old_primary.delete()
+    elif old_primary_state == "trashed":
+        FieldHandler().delete_field(user, old_primary)
+    FormulaField.objects.update(version=6)
     FormulaField.objects.filter(id=lookup.id).update(
-        internal_formula=stale_internal_formula, version=BASEROW_FORMULA_VERSION - 1
+        internal_formula=stale_internal_formula
     )
     invalidate_table_in_model_cache(table.id)
-    with pytest.raises(Exception):
-        RowHandler().create_row(user, table, {})
+    if old_primary_state == "deleted":
+        with pytest.raises(FieldDoesNotExist, match=old_primary.db_column):
+            RowHandler().create_row(user, table, {})
+    elif old_primary_state == "trashed":
+        with pytest.raises(ValueError, match=old_primary.db_column):
+            RowHandler().create_row(user, table, {})
+    else:
+        RowHandler().update_row_by_id(
+            user, new_primary.table, further_row.id, {new_primary.db_column: "new"}
+        )
+        assert "old" in _cell(table, row, lookup)
 
     FormulaMigrationHandler.migrate_formulas_to_latest_version()
 
     lookup.refresh_from_db()
     assert new_primary.db_column in lookup.internal_formula
     assert lookup.formula_type == "array"
+    assert lookup.version == 7
+    assert "new" in _cell(table, row, lookup)
+    assert "old" not in _cell(table, row, lookup)
     RowHandler().create_row(user, table, {})
 
 
@@ -1002,12 +1039,12 @@ def test_v7_marks_a_formula_inlining_a_deleted_link_field_as_invalid(data_fixtur
     )
     assert link.db_column in count.internal_formula
 
-    # The link field disappears without its dependants being updated.
+    # The link field is deleted without its dependants being updated.
     link.link_row_related_field.delete()
     link.delete()
-    FormulaField.objects.update(version=BASEROW_FORMULA_VERSION - 1)
+    FormulaField.objects.update(version=6)
     invalidate_table_in_model_cache(table.id)
-    with pytest.raises(Exception):
+    with pytest.raises(FieldDoesNotExist, match=link.db_column):
         RowHandler().create_row(user, table, {})
 
     FormulaMigrationHandler.migrate_formulas_to_latest_version()
@@ -1016,20 +1053,23 @@ def test_v7_marks_a_formula_inlining_a_deleted_link_field_as_invalid(data_fixtur
     count.refresh_from_db()
     assert lookup.formula_type == "invalid"
     assert count.formula_type == "invalid"
+    assert FieldDependency.objects.filter(
+        dependant=lookup, broken_reference_field_name="link"
+    ).exists()
     RowHandler().create_row(user, table, {})
 
 
 @pytest.mark.django_db
-def test_v7_selector_matches_formulas_referencing_deleted_fields_only(data_fixture):
-    user, table, lookup, old_primary, _ = _lookup_of_a_link_field(data_fixture)
+def test_v7_selector_matches_formulas_with_stale_field_references_only(
+    data_fixture,
+):
+    user, table, lookup, _, _, old_primary, _ = _lookup_of_a_link_field(data_fixture)
+    healthy = FieldHandler().create_field(
+        user, table, "formula", name="healthy", formula="lookup('link', 'link_of_link')"
+    )
     unrelated = FieldHandler().create_field(
         user, table, "formula", name="unrelated", formula="'a' + 'b'"
     )
-    trashed = data_fixture.create_text_field(table=table, name="trashed")
-    references_trashed = FieldHandler().create_field(
-        user, table, "formula", name="references_trashed", formula="field('trashed')"
-    )
-    FieldHandler().delete_field(user, trashed)
     FormulaField.objects.filter(id=lookup.id).update(
         internal_formula=lookup.internal_formula.replace(
             old_primary.db_column, "field_999999999"
@@ -1038,11 +1078,50 @@ def test_v7_selector_matches_formulas_referencing_deleted_fields_only(data_fixtu
 
     formulas = FormulaField.objects.all()
     matched = set(
-        formulas.filter(formulas_referencing_deleted_fields(formulas)).values_list(
+        formulas.filter(formulas_with_stale_field_references(formulas)).values_list(
             "id", flat=True
         )
     )
 
     assert matched == {lookup.id}
+    assert healthy.id not in matched
     assert unrelated.id not in matched
-    assert references_trashed.id not in matched
+
+
+@pytest.mark.django_db
+def test_migration_marks_a_formula_invalid_when_its_cell_update_fails(data_fixture):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[]])
+    failing = data_fixture.create_formula_field(table=table, formula="'a'")
+    FormulaField.objects.update(version=1)
+
+    with patch(
+        "baserow.contrib.database.formula.migrations.handler.FormulaHandler"
+        ".recalculate_formula_and_get_update_expression",
+        return_value=RawSQL("(1 / 0)::text", []),
+    ):
+        FormulaMigrationHandler.migrate_formulas(
+            FormulaMigrations(
+                [
+                    FormulaMigration(
+                        version=1,
+                        recalculate_formula_attributes_for=NO_FORMULAS,
+                        recalculate_field_dependencies_for=NO_FORMULAS,
+                        recalculate_cell_values_for=NO_FORMULAS,
+                        force_recreate_formula_columns_for=NO_FORMULAS,
+                    ),
+                    FormulaMigration(
+                        version=2,
+                        recalculate_formula_attributes_for=NO_FORMULAS,
+                        recalculate_field_dependencies_for=NO_FORMULAS,
+                        recalculate_cell_values_for=ALL_FORMULAS,
+                        force_recreate_formula_columns_for=NO_FORMULAS,
+                    ),
+                ]
+            )
+        )
+
+    failing.refresh_from_db()
+    assert failing.formula_type == "invalid"
+    assert failing.error == "Failed to recalculate cell values after formula update."
+    assert failing.version == 2
