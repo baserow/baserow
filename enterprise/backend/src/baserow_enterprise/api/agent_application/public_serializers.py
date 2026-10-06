@@ -8,7 +8,10 @@ status. Realtime events are filtered by `realtime.public_chat_event`.
 
 from rest_framework import serializers
 
-from baserow_enterprise.agent_application.channels.web import public_chat_status
+from baserow_enterprise.agent_application.channels.web import (
+    PUBLIC_STATUS,
+    public_chat_status,
+)
 from baserow_enterprise.agent_application.models import AgentChatMessage
 
 
@@ -29,6 +32,27 @@ class PublicAgentChatAuthResponseSerializer(serializers.Serializer):
 
 class PublicAgentChatSendMessageSerializer(serializers.Serializer):
     content = serializers.CharField(max_length=8000, trim_whitespace=True)
+
+
+class PublicAgentChatMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    role = serializers.ChoiceField(choices=("human", "ai"))
+    content = serializers.CharField()
+    created_on = serializers.DateTimeField()
+
+
+class PublicAgentChatConversationSerializer(serializers.Serializer):
+    uuid = serializers.UUIDField()
+    status = serializers.ChoiceField(
+        choices=sorted(set(PUBLIC_STATUS.values())),
+        help_text="A coarse status: the visitor never sees why a run paused.",
+    )
+    messages = PublicAgentChatMessageSerializer(many=True)
+
+
+class PublicAgentChatMessageSentSerializer(serializers.Serializer):
+    message_id = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=("working",))
 
 
 def serialize_public_message(message: AgentChatMessage) -> dict | None:
@@ -53,12 +77,14 @@ def serialize_public_message(message: AgentChatMessage) -> dict | None:
 
 
 def serialize_public_conversation(chat, messages) -> dict:
-    return {
-        "uuid": str(chat.uuid),
-        "status": public_chat_status(chat.status),
-        "messages": [
-            data
-            for data in (serialize_public_message(message) for message in messages)
-            if data is not None
-        ],
-    }
+    return PublicAgentChatConversationSerializer(
+        {
+            "uuid": chat.uuid,
+            "status": public_chat_status(chat.status),
+            "messages": [
+                data
+                for data in (serialize_public_message(message) for message in messages)
+                if data is not None
+            ],
+        }
+    ).data

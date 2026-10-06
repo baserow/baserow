@@ -36,7 +36,6 @@ def test_is_write_tool_classification():
         "get_tables_schema",
         "list_rows",
         "generate_formula",
-        "search_user_docs",
         "list_builders",
         "list_elements",
     ]:
@@ -367,4 +366,6 @@ def test_catalog_excludes_application_builder_tools():
     groups = {tool["group"] for tool in list_workspace_tools()}
     assert "builder" not in groups
     assert "navigation" not in groups
-    assert {"core", "database", "automation", "search_user_docs"} <= groups
+    # Kuma's documentation search is not a workspace tool for agents.
+    assert "search_user_docs" not in groups
+    assert {"core", "database", "automation"} <= groups

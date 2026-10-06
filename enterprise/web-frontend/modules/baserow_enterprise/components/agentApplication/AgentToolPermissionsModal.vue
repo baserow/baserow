@@ -4,7 +4,12 @@
     <p class="agent-tool-permissions__description">
       {{ $t('agentToolPermissions.description', { name: agentName }) }}
     </p>
-    <Tabs :key="tabsKey" v-model:selected-index="selectedIndex">
+    <Tabs
+      :key="tabsKey"
+      v-model:selected-index="selectedIndex"
+      :header-no-padding="true"
+      :content-no-padding="true"
+    >
       <Tab
         v-for="group in groups"
         :key="group.key"
@@ -238,7 +243,6 @@ const GROUP_ICONS = {
   database: 'iconoir-db',
   automation: 'baserow-icon-automation',
   core: 'iconoir-settings',
-  search_user_docs: 'iconoir-search',
 }
 
 export default {

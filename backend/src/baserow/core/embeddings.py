@@ -4,15 +4,27 @@ the Kuma knowledge base and the vector search of database fields. Vectors are
 padded to `DEFAULT_EMBEDDING_DIMENSIONS` so every pgvector column has one shape.
 """
 
+from urllib.parse import urlparse
+
 from django.conf import settings
 
+import httpx
 from httpx import Client as httpxClient
+from loguru import logger
 
 from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS, is_pgvector_enabled
 
 # The service truncates its input to the model's context anyway (MiniLM reads
 # roughly this many characters), so longer texts only cost bandwidth.
 EMBEDDING_TEXT_LIMIT = 1000
+
+
+class EmbeddingsServiceError(Exception):
+    """
+    The embeddings service failed or could not be reached. The underlying
+    `httpx` error is only logged because its message carries the service's
+    internal URL, which must not reach whoever triggered the request.
+    """
 
 
 class BaserowEmbedder:
@@ -30,6 +42,11 @@ class BaserowEmbedder:
                 )
                 response.raise_for_status()
                 embeddings.extend(response.json()["embeddings"])
+        except httpx.HTTPError as exc:
+            logger.warning("Embeddings service request failed: {!r}", exc)
+            raise EmbeddingsServiceError(
+                "The embeddings service is unavailable."
+            ) from None
         finally:
             client.close()
         return embeddings
@@ -73,6 +90,18 @@ def vector_search_available() -> bool:
     """
 
     return embeddings_configured() and is_pgvector_enabled()
+
+
+def embedding_model_key() -> str:
+    """
+    Identifies the embedding space the stored vectors live in. It is mixed into
+    the per-cell `embedding_hash`, so pointing the instance at another
+    embeddings service re-embeds every cell instead of comparing vectors of
+    different models against each other.
+    """
+
+    host = urlparse(settings.BASEROW_EMBEDDINGS_API_URL or "").netloc
+    return f"{host}/{DEFAULT_EMBEDDING_DIMENSIONS}"
 
 
 def get_embedder() -> BaserowEmbedder:

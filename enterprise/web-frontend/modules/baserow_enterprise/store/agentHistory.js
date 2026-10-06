@@ -1,6 +1,5 @@
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
 
-const RUNNING_STATUSES = ['in_progress', 'canceling']
 const PAGE_SIZE = 50
 
 function sortChats(chats) {
@@ -13,7 +12,6 @@ function sortChats(chats) {
 
 export const state = () => ({
   chats: [],
-  usage: null,
   loading: false,
   // Pagination of the fetched pages; realtime upserts can grow `chats`
   // independently, so the fetched offset is tracked separately.
@@ -51,9 +49,6 @@ export const mutations = {
     if (index !== -1) {
       state.chats.splice(index, 1)
     }
-  },
-  SET_USAGE(state, usage) {
-    state.usage = usage
   },
   SET_LOADING(state, value) {
     state.loading = value
@@ -107,13 +102,6 @@ export const actions = {
       commit('SET_LOADING', false)
     }
   },
-  async fetchUsage({ commit }, { applicationId }) {
-    const { data } = await AgentApplicationService(this.$client).getUsage(
-      applicationId
-    )
-    commit('SET_USAGE', data)
-    return data
-  },
   forceUpdateChat({ commit }, { chat }) {
     commit('UPSERT_CHAT', chat)
   },
@@ -156,9 +144,6 @@ export const getters = {
   getChats: (state) => state.chats,
   getPinnedChats: (state) => state.chats.filter((chat) => chat.pinned),
   getRecentChats: (state) => state.chats.filter((chat) => !chat.pinned),
-  getRunningChats: (state) =>
-    state.chats.filter((chat) => RUNNING_STATUSES.includes(chat.status)),
-  getUsage: (state) => state.usage,
   isLoading: (state) => state.loading,
   hasMore: (state) => state.hasMore,
 }

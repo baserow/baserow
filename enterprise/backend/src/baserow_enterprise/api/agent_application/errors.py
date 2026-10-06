@@ -1,6 +1,7 @@
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_429_TOO_MANY_REQUESTS,
 )
@@ -81,6 +82,6 @@ ERROR_PUBLIC_CHAT_RATE_LIMIT_EXCEEDED = (
 )
 ERROR_AGENT_CHAT_NOT_OWNED = (
     "ERROR_AGENT_CHAT_NOT_OWNED",
-    403,
+    HTTP_403_FORBIDDEN,
     "Only the user who started this conversation can continue it.",
 )

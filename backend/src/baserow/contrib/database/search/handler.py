@@ -38,6 +38,7 @@ from django.db.models import (
     TextField,
     Value,
 )
+from django.db.models.functions import Left
 from django.db.models.sql.constants import LOUTER
 from django.utils.encoding import force_str
 
@@ -60,7 +61,11 @@ from baserow.contrib.database.search.regexes import (
 )
 from baserow.contrib.database.search.tasks import schedule_update_search_data
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
-from baserow.core.embeddings import EMBEDDING_TEXT_LIMIT, get_embedder
+from baserow.core.embeddings import (
+    EMBEDDING_TEXT_LIMIT,
+    embedding_model_key,
+    get_embedder,
+)
 from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS, is_pgvector_enabled
 from baserow.core.psycopg import errors, sql
 from baserow.core.utils import to_camel_case
@@ -110,6 +115,10 @@ def _workspace_search_table_exists(workspace_id: int) -> bool:
 
 # Rows of the search table are embedded this many at a time.
 EMBEDDING_BATCH_ROWS = 100
+
+# pgvector's default `hnsw.ef_search`, and the largest value it accepts.
+HNSW_DEFAULT_EF_SEARCH = 40
+HNSW_MAX_EF_SEARCH = 1000
 
 
 def _embedding_fields() -> dict:
@@ -196,14 +205,45 @@ def _generate_search_table_model(
     return model
 
 
+def _index_is_unusable(cursor, index_name: str, table_name: str) -> bool:
+    """
+    Whether the index exists but was left half-built, which is what an
+    interrupted `CREATE INDEX CONCURRENTLY` produces.
+    """
+
+    cursor.execute(
+        """
+        SELECT 1
+        FROM pg_index i
+        JOIN pg_class c ON c.oid = i.indexrelid
+        JOIN pg_class t ON t.oid = i.indrelid
+        WHERE c.relname = %s AND t.relname = %s
+          AND NOT (i.indisvalid AND i.indisready)
+        """,
+        [index_name, table_name],
+    )
+    return cursor.fetchone() is not None
+
+
 def _add_embedding_columns(workspace_id: int):
     """
     Adds the vector columns and the cosine HNSW index to a workspace search
     table. Every statement is idempotent so a race between tables of the same
     workspace is harmless.
+
+    The columns are a catalog-only change, but a plain index build holds a
+    SHARE lock on the search table of the whole workspace until it finishes, so
+    the index is built CONCURRENTLY whenever the caller is not inside a
+    transaction, which is the case for the search task. Inside one (tests, or
+    a direct call from a request) Postgres refuses CONCURRENTLY and the plain
+    build is used; the embedding column is still all NULL at that point, so the
+    build only scans the table.
     """
 
-    table = sql.Identifier(SearchHandler.get_workspace_search_table_name(workspace_id))
+    table_name = SearchHandler.get_workspace_search_table_name(workspace_id)
+    table = sql.Identifier(table_name)
+    index_name = f"database_search_workspace_{workspace_id}_embedding_idx"
+    index = sql.Identifier(index_name)
     with connection.cursor() as cursor:
         cursor.execute(
             sql.SQL(
@@ -212,15 +252,23 @@ def _add_embedding_columns(workspace_id: int):
                 "ADD COLUMN IF NOT EXISTS embedding_hash varchar(32) NULL"
             ).format(table=table, dims=sql.Literal(DEFAULT_EMBEDDING_DIMENSIONS))
         )
+
+    concurrently = not connection.in_atomic_block
+    with connection.cursor() as cursor:
+        if concurrently and _index_is_unusable(cursor, index_name, table_name):
+            # `IF NOT EXISTS` would step over the half-built index and leave the
+            # table maintaining an index no query can use.
+            cursor.execute(
+                sql.SQL("DROP INDEX CONCURRENTLY {index}").format(index=index)
+            )
         cursor.execute(
             sql.SQL(
-                "CREATE INDEX IF NOT EXISTS {index} ON {table} "
+                "CREATE INDEX {concurrently} IF NOT EXISTS {index} ON {table} "
                 "USING hnsw (embedding vector_cosine_ops) "
                 "WITH (m=16, ef_construction=64)"
             ).format(
-                index=sql.Identifier(
-                    f"database_search_workspace_{workspace_id}_embedding_idx"
-                ),
+                concurrently=sql.SQL("CONCURRENTLY" if concurrently else ""),
+                index=index,
                 table=table,
             )
         )
@@ -292,10 +340,13 @@ class SearchHandler:
         changed = []
         for flag, add_columns in SEARCH_TABLE_COLUMN_MIGRATIONS:
             if not getattr(state, flag):
-                with transaction.atomic():
-                    add_columns(workspace_id)
-                    setattr(state, flag, True)
-                    changed.append(flag)
+                # Not wrapped in a transaction on purpose: that would force the
+                # index build to take its lock for the whole block instead of
+                # running concurrently. The statements are idempotent, so a
+                # failure halfway is simply retried on the next call.
+                add_columns(workspace_id)
+                setattr(state, flag, True)
+                changed.append(flag)
         if changed:
             state.save(update_fields=changed)
         return state.embedding_columns_added
@@ -475,9 +526,14 @@ class SearchHandler:
         :param workspace_id: The ID of the workspace for which the search table should
         """
 
+        from baserow.contrib.database.search.models import WorkspaceSearchTable
+
         search_table = cls.get_workspace_search_table_model(workspace_id, managed=True)
         with safe_django_schema_editor(classes=[SearchDatabaseSchemaEditor]) as se:
             se.delete_model(search_table)
+        # The dropped table took its optional columns with it, so a re-created
+        # table must get them added again.
+        WorkspaceSearchTable.objects.filter(workspace_id=workspace_id).delete()
 
         _workspace_search_table_exists.cache_clear()
 
@@ -1013,7 +1069,15 @@ class SearchHandler:
             return True
 
         workspace_id = table.database.workspace_id
-        if not cls.ensure_workspace_search_table_columns(workspace_id):
+        if any(field.vector_search_enabled for field in fields.values()):
+            ready = cls.ensure_workspace_search_table_columns(workspace_id)
+        else:
+            # A full-field run includes the disabled fields so stale embeddings
+            # get cleared, but a workspace that never enabled vector search
+            # must not get the columns and the index build for that: there is
+            # nothing to clear unless the columns already exist.
+            ready = cls.vector_search_ready(workspace_id)
+        if not ready:
             # Without pgvector there is nothing to store; the option can't be
             # enabled in that case either.
             return True
@@ -1029,13 +1093,19 @@ class SearchHandler:
             qs = model.objects_and_trash.all().order_by("id")
             if row_ids is not None:
                 qs = qs.filter(id__in=list(row_ids))
-            expression = field.get_type().get_vector_search_expression(field, qs)
+            # Truncated in SQL so a large cell never travels to the worker only
+            # to be cut down here.
+            expression = Left(
+                field.get_type().get_vector_search_expression(field, qs),
+                EMBEDDING_TEXT_LIMIT,
+                output_field=TextField(),
+            )
             cells = qs.annotate(vector_search_text=expression).values_list(
                 "id", "vector_search_text"
             )
             batch: list[tuple[int, str]] = []
             for row_id, text in cells.iterator(chunk_size=EMBEDDING_BATCH_ROWS):
-                batch.append((row_id, (text or "")[:EMBEDDING_TEXT_LIMIT]))
+                batch.append((row_id, text or ""))
                 if len(batch) >= EMBEDDING_BATCH_ROWS:
                     if deadline is not None and time.monotonic() > deadline:
                         return False
@@ -1065,8 +1135,11 @@ class SearchHandler:
             stored = dict(cursor.fetchall())
 
         changed = []
+        model_key = embedding_model_key()
         for row_id, text in batch:
-            digest = hashlib.md5(text.encode("utf-8")).hexdigest()  # noqa: S324
+            digest = hashlib.md5(  # noqa: S324
+                f"{model_key}\n{text}".encode("utf-8")
+            ).hexdigest()
             if stored.get(row_id) != digest:
                 changed.append((row_id, text, digest))
         if not changed:
@@ -1158,12 +1231,24 @@ class SearchHandler:
 
         embedder = embedder or get_embedder()
         query_vector = embedder([query[:EMBEDDING_TEXT_LIMIT]])[0]
-        semantic = list(
-            search_model.objects.filter(field_id=field.id, embedding__isnull=False)
-            .annotate(distance=CosineDistance("embedding", query_vector))
-            .order_by("distance")
-            .values_list("row_id", "distance")[:candidates]
-        )
+        # The HNSW scan yields at most `hnsw.ef_search` rows before the
+        # `field_id` filter applies, and the index covers every vector field of
+        # the workspace, so the default of 40 would leave a field sharing the
+        # table with others short of candidates.
+        ef_search = min(max(candidates, HNSW_DEFAULT_EF_SEARCH), HNSW_MAX_EF_SEARCH)
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("SET LOCAL hnsw.ef_search = {}").format(
+                        sql.Literal(ef_search)
+                    )
+                )
+            semantic = list(
+                search_model.objects.filter(field_id=field.id, embedding__isnull=False)
+                .annotate(distance=CosineDistance("embedding", query_vector))
+                .order_by("distance")
+                .values_list("row_id", "distance")[:candidates]
+            )
 
         lexical = []
         sanitized = cls.escape_postgres_query(query)

@@ -322,7 +322,7 @@ describe('AIProviderModelFormModal', () => {
       providerId: 1,
       values: {
         model_identifier: 'claude-sonnet-5',
-        feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+        feature_types: ['ai_agent', 'ai_fields', 'kuma', 'agent_builder'],
       },
     })
     expect(dispatch).not.toHaveBeenCalledWith(
@@ -398,7 +398,7 @@ describe('AIProviderModelFormModal', () => {
       providerId: 1,
       values: {
         model_identifier: 'custom-model',
-        feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+        feature_types: ['ai_agent', 'ai_fields', 'kuma', 'agent_builder'],
       },
     })
     expect(dispatch).not.toHaveBeenCalledWith(

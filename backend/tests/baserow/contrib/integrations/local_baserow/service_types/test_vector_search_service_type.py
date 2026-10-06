@@ -8,9 +8,12 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
+from baserow.core.embeddings import EmbeddingsServiceError
 from baserow.core.pgvector import is_pgvector_enabled
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -135,3 +138,96 @@ def test_vector_search_service_needs_a_field(setup):
     service = ServiceHandler().create_service(service_type, **values)
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.resolve_service_formulas(service, FakeDispatchContext())
+
+
+def _create_service(setup):
+    user, table, name, notes, rows, integration, service_type = setup
+    values = service_type.prepare_values(
+        {
+            "table_id": table.id,
+            "integration_id": integration.id,
+            "field_id": notes.id,
+            "included_field_ids": [name.id],
+            "search_query": "'fruit'",
+        },
+        user,
+    )
+    return ServiceHandler().create_service(service_type, **values)
+
+
+def _reimport(service_type, service, id_mapping, **config):
+    exported = service_type.export_serialized(service)
+    return service_type.import_serialized(
+        service.integration,
+        exported,
+        id_mapping,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False, **config
+        ),
+    )
+
+
+@pytest.mark.django_db
+def test_vector_search_service_import_drops_unmapped_fields(setup, data_fixture):
+    user, table, name, notes, rows, integration, service_type = setup
+    service = _create_service(setup)
+
+    # A template was written on another installation: its field ids are
+    # collisions, not references, and keeping them would break the import.
+    imported = _reimport(
+        service_type,
+        service,
+        {"database_fields": {}},
+        is_duplicate=True,
+        is_template=True,
+    )
+    assert imported.field_id is None
+    assert imported.included_field_ids == []
+
+    # An import into another workspace that only mapped some of the fields.
+    other_name = data_fixture.create_text_field(table=table)
+    imported = _reimport(
+        service_type, service, {"database_fields": {name.id: other_name.id}}
+    )
+    assert imported.field_id is None
+    assert imported.included_field_ids == [other_name.id]
+
+
+@pytest.mark.django_db
+def test_vector_search_service_duplicate_keeps_unmapped_fields(setup):
+    user, table, name, notes, rows, integration, service_type = setup
+    service = _create_service(setup)
+
+    imported = _reimport(
+        service_type, service, {"database_fields": {}}, is_duplicate=True
+    )
+    assert imported.field_id == notes.id
+    assert imported.included_field_ids == [name.id]
+
+
+@pytest.mark.django_db
+def test_vector_search_service_needs_a_field_that_is_not_trashed(setup):
+    user, table, name, notes, rows, integration, service_type = setup
+    service = _create_service(setup)
+
+    FieldHandler().delete_field(user, notes)
+    service = service_type.model_class.objects.get(id=service.id)
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        service_type.resolve_service_formulas(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_vector_search_service_reports_an_unavailable_embeddings_service(setup):
+    user, table, name, notes, rows, integration, service_type = setup
+    service = _create_service(setup)
+
+    with patch.object(
+        SearchHandler,
+        "vector_search",
+        side_effect=EmbeddingsServiceError("The embeddings service is unavailable."),
+    ):
+        with pytest.raises(UnexpectedDispatchException) as exc_info:
+            service_type.dispatch_data(
+                service, {"search_query": "fruit"}, FakeDispatchContext()
+            )
+    assert str(exc_info.value) == "The embeddings service is unavailable."

@@ -113,6 +113,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.cache import global_cache
+from baserow.core.embeddings import EmbeddingsServiceError
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -131,6 +132,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     PermissionDeniedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import (
     DispatchTypes,
@@ -3260,15 +3262,25 @@ class LocalBaserowVectorSearchServiceType(LocalBaserowTableServiceType):
         cache=None,
         **kwargs,
     ):
-        database_fields = id_mapping.get("database_fields", {})
-        if prop_name == "field_id":
-            return database_fields.get(value, value)
-        if prop_name == "included_field_ids":
-            return [
-                database_fields.get(field_id, field_id)
+        if (
+            prop_name in ("field_id", "included_field_ids")
+            and "database_fields" in id_mapping
+        ):
+            # Same rule as `table_id`: a duplicate stays in the workspace, so
+            # an unmapped field is still the one somebody chose. Anywhere else
+            # a kept id is a field of another workspace or installation.
+            config = kwargs.get("import_export_config")
+            keep_unmapped = getattr(config, "is_duplicate", False) and not getattr(
+                config, "is_template", False
+            )
+            database_fields = id_mapping["database_fields"]
+            if prop_name == "field_id":
+                return database_fields.get(value, value if keep_unmapped else None)
+            mapped = [
+                database_fields.get(field_id, field_id if keep_unmapped else None)
                 for field_id in value
-                if not database_fields or database_fields.get(field_id) is not None
             ]
+            return [field_id for field_id in mapped if field_id is not None]
         return super().deserialize_property(
             prop_name,
             value,
@@ -3321,6 +3333,10 @@ class LocalBaserowVectorSearchServiceType(LocalBaserowTableServiceType):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No field selected to search in."
             )
+        if service.field.trashed:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected field has been deleted."
+            )
         if not service.field.vector_search_enabled:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The selected field no longer has vector search enabled."
@@ -3337,12 +3353,15 @@ class LocalBaserowVectorSearchServiceType(LocalBaserowTableServiceType):
         model = self.get_table_model(service)
         queryset = self.build_queryset(service, table, dispatch_context, model)
 
-        hits = SearchHandler.vector_search(
-            table,
-            service.field,
-            resolved_values.get("search_query") or "",
-            limit=service.max_results * self.candidate_multiplier,
-        )
+        try:
+            hits = SearchHandler.vector_search(
+                table,
+                service.field,
+                resolved_values.get("search_query") or "",
+                limit=service.max_results * self.candidate_multiplier,
+            )
+        except EmbeddingsServiceError as exc:
+            raise UnexpectedDispatchException(str(exc)) from exc
         rows_by_id = {
             row.id: row
             for row in queryset.filter(id__in=[row_id for row_id, _ in hits])

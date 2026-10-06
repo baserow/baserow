@@ -19,6 +19,10 @@ class ReadAgentTriggerOperationType(AgentApplicationOperationType):
     type = "agent_application.read_trigger"
 
 
+class DeleteAgentTriggerOperationType(AgentApplicationOperationType):
+    type = "agent_application.delete_trigger"
+
+
 class UpdateAgentTriggerOperationType(AgentApplicationOperationType):
     type = "agent_application.update_trigger"
 
@@ -73,6 +77,10 @@ class DecideAgentToolApprovalOperationType(AgentApplicationOperationType):
 
 class ReadAgentChatChannelOperationType(AgentApplicationOperationType):
     type = "agent_application.read_chat_channel"
+
+
+class DeleteAgentChatChannelOperationType(AgentApplicationOperationType):
+    type = "agent_application.delete_chat_channel"
 
 
 class UpdateAgentChatChannelOperationType(AgentApplicationOperationType):

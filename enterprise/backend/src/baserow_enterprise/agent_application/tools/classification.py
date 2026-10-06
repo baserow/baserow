@@ -24,8 +24,6 @@ READ_ASSISTANT_TOOLS = {
     "list_data_sources",
     "list_elements",
     "list_actions",
-    # docs
-    "search_user_docs",
 }
 
 READ_TOOL_PREFIXES = ("list_", "get_", "search_")

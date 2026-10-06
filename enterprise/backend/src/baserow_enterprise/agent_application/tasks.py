@@ -48,7 +48,9 @@ def _execute_agent_chat_turn(chat_id: int, prompt_message_id: int | None):
     chat.started_on = timezone.now()
     chat.completed_on = None
     chat.error = ""
-    chat.save(update_fields=["status", "started_on", "completed_on", "error"])
+    chat.save(
+        update_fields=["status", "started_on", "completed_on", "error", "updated_on"]
+    )
     broadcast_chat_updated(chat)
 
     runner = None
@@ -207,10 +209,14 @@ def clean_up_old_agent_chats(self):
     stuck_cutoff = timezone.now() - timedelta(
         minutes=settings.AGENT_APPLICATION_CHAT_STUCK_TIMEOUT_MINUTES
     )
-    stuck_chats = AgentChat.objects.filter(
-        status__in=[AgentChat.Status.IN_PROGRESS, AgentChat.Status.CANCELING],
-        updated_on__lt=stuck_cutoff,
-    ).select_related("agent")
+    stuck_chats = (
+        AgentChat.objects.filter(
+            status__in=[AgentChat.Status.IN_PROGRESS, AgentChat.Status.CANCELING],
+            updated_on__lt=stuck_cutoff,
+        )
+        .defer("message_history")
+        .select_related("agent")
+    )
     for chat in stuck_chats:
         chat.status = AgentChat.Status.ERROR
         chat.error = "The run did not finish and has been marked as failed."
@@ -228,7 +234,10 @@ def clean_up_old_agent_chats(self):
     # Deleted one by one through the handler so open conversation lists and
     # approval counters learn about it, like a deletion by a user.
     def delete_chats(queryset):
-        for chat in queryset.select_related("agent__application"):
+        # The history can be megabytes per chat and is of no use to a delete.
+        for chat in queryset.defer("message_history").select_related(
+            "agent__application"
+        ):
             AgentChatHandler().delete_chat(chat)
 
     delete_chats(automated_chats.filter(updated_on__lt=cutoff))

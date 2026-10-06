@@ -8,13 +8,15 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.schemas import get_error_schema
 from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.exceptions import RateLimitExceededException
 from baserow.throttling.handler import rate_limit
@@ -54,7 +56,9 @@ from .errors import (
 from .public_serializers import (
     PublicAgentChatAuthRequestSerializer,
     PublicAgentChatAuthResponseSerializer,
+    PublicAgentChatConversationSerializer,
     PublicAgentChatInfoSerializer,
+    PublicAgentChatMessageSentSerializer,
     PublicAgentChatSendMessageSerializer,
     serialize_public_conversation,
 )
@@ -66,6 +70,21 @@ PUBLIC_CHAT_ERRORS = {
 }
 # Password attempts per IP, independent of the message limit.
 AUTH_RATE_LIMIT = RateLimit.from_string("10/m")
+
+SLUG_PARAMETER = OpenApiParameter(
+    name="slug",
+    location=OpenApiParameter.PATH,
+    type=OpenApiTypes.STR,
+    description="The public link of the web chat channel.",
+)
+CHAT_UUID_PARAMETER = OpenApiParameter(
+    name="chat_uuid",
+    location=OpenApiParameter.PATH,
+    type=OpenApiTypes.UUID,
+    description="The conversation, as returned when it was started.",
+)
+ERROR_401 = get_error_schema(["ERROR_PUBLIC_CHAT_AUTHORIZATION_REQUIRED"])
+ERROR_429 = get_error_schema(["ERROR_PUBLIC_CHAT_RATE_LIMIT_EXCEEDED"])
 
 
 def _get_token(request) -> str | None:
@@ -111,13 +130,18 @@ class PublicAgentChatView(APIView):
     authentication_classes = ()
 
     @extend_schema(
+        parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
         operation_id="get_public_agent_chat",
         description=(
             "Returns the title and welcome text of an agent's public web chat. "
             "Requires the chat's access token when it is password protected."
         ),
-        responses={200: PublicAgentChatInfoSerializer, 401: None, 404: None},
+        responses={
+            200: PublicAgentChatInfoSerializer,
+            401: ERROR_401,
+            404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
+        },
     )
     @map_exceptions(PUBLIC_CHAT_ERRORS)
     def get(self, request, slug):
@@ -139,6 +163,7 @@ class PublicAgentChatAuthView(APIView):
     authentication_classes = ()
 
     @extend_schema(
+        parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
         operation_id="authorize_public_agent_chat",
         description=(
@@ -147,7 +172,13 @@ class PublicAgentChatAuthView(APIView):
             "`Baserow-Agent-Chat-Authorization: JWT <token>` header."
         ),
         request=PublicAgentChatAuthRequestSerializer,
-        responses={200: PublicAgentChatAuthResponseSerializer, 401: None},
+        responses={
+            200: PublicAgentChatAuthResponseSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            401: ERROR_401,
+            404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
+            429: ERROR_429,
+        },
     )
     @map_exceptions(PUBLIC_CHAT_ERRORS)
     @validate_body(PublicAgentChatAuthRequestSerializer, return_validated=True)
@@ -170,16 +201,27 @@ class PublicAgentChatConversationsView(APIView):
     authentication_classes = ()
 
     @extend_schema(
+        parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
         operation_id="create_public_agent_chat_conversation",
         description="Starts a new conversation with the agent behind a public link.",
-        responses={201: None, 401: None, 404: None},
+        request=None,
+        responses={
+            201: PublicAgentChatConversationSerializer,
+            401: ERROR_401,
+            404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
+            429: ERROR_429,
+        },
     )
     @map_exceptions(PUBLIC_CHAT_ERRORS)
     def post(self, request, slug):
         channel = _get_channel(slug, request)
 
         def create():
+            # Empty conversations count against the channel like messages do;
+            # otherwise one visitor could fill the agent's history on their own.
+            if WebAgentChatChannelType().is_rate_limited(channel):
+                raise RateLimitExceededException("Channel limit exceeded")
             return AgentChatHandler().create_public_chat(channel)
 
         chat = rate_limit(
@@ -196,6 +238,7 @@ class PublicAgentChatConversationView(APIView):
     authentication_classes = ()
 
     @extend_schema(
+        parameters=[SLUG_PARAMETER, CHAT_UUID_PARAMETER],
         tags=["Agent public chat"],
         operation_id="get_public_agent_chat_conversation",
         description=(
@@ -203,7 +246,16 @@ class PublicAgentChatConversationView(APIView):
             "conversation status. Used to load the page and as the polling "
             "fallback when realtime is unavailable."
         ),
-        responses={200: None, 401: None, 404: None},
+        responses={
+            200: PublicAgentChatConversationSerializer,
+            401: ERROR_401,
+            404: get_error_schema(
+                [
+                    "ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST",
+                    "ERROR_AGENT_CHAT_DOES_NOT_EXIST",
+                ]
+            ),
+        },
     )
     @map_exceptions(
         {**PUBLIC_CHAT_ERRORS, AgentChatDoesNotExist: ERROR_AGENT_CHAT_DOES_NOT_EXIST}
@@ -220,11 +272,30 @@ class PublicAgentChatMessagesView(APIView):
     authentication_classes = ()
 
     @extend_schema(
+        parameters=[SLUG_PARAMETER, CHAT_UUID_PARAMETER],
         tags=["Agent public chat"],
         operation_id="send_public_agent_chat_message",
         description="Sends a visitor message and starts the agent's answer.",
         request=PublicAgentChatSendMessageSerializer,
-        responses={202: None, 401: None, 404: None, 409: None, 429: None},
+        responses={
+            202: PublicAgentChatMessageSentSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_AGENT_CHAT_ALREADY_RUNNING",
+                    "ERROR_AGENT_CHAT_AWAITING_APPROVAL",
+                    "ERROR_PUBLIC_CHAT_MESSAGE_LIMIT_REACHED",
+                ]
+            ),
+            401: ERROR_401,
+            404: get_error_schema(
+                [
+                    "ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST",
+                    "ERROR_AGENT_CHAT_DOES_NOT_EXIST",
+                ]
+            ),
+            429: ERROR_429,
+        },
     )
     @map_exceptions(
         {
@@ -248,12 +319,13 @@ class PublicAgentChatMessagesView(APIView):
         human_messages = chat.messages.filter(role=AgentChatMessage.Role.HUMAN).count()
         if human_messages >= settings.AGENT_PUBLIC_CHAT_MAX_MESSAGES:
             raise PublicChatMessageLimitReached()
-        # The channel-wide limit protects the agent from a flood across all
-        # visitors; it counts like a visitor's own limit.
-        if WebAgentChatChannelType().is_rate_limited(channel):
-            raise RateLimitExceededException("Channel limit exceeded")
 
         def send():
+            # The channel-wide limit protects the agent from a flood across all
+            # visitors; checked once the visitor's own limit let the request
+            # through so rejected requests don't spend the channel's budget.
+            if WebAgentChatChannelType().is_rate_limited(channel):
+                raise RateLimitExceededException("Channel limit exceeded")
             with transaction.atomic():
                 message = handler.create_message(
                     chat, AgentChatMessage.Role.HUMAN, data["content"]
@@ -266,7 +338,10 @@ class PublicAgentChatMessagesView(APIView):
             key=f"public_chat_message:{_visitor_key(request)}",
         )(send)()
         return Response(
-            {"message_id": message.id, "status": "working"}, status=HTTP_202_ACCEPTED
+            PublicAgentChatMessageSentSerializer(
+                {"message_id": message.id, "status": "working"}
+            ).data,
+            status=HTTP_202_ACCEPTED,
         )
 
 
@@ -281,19 +356,30 @@ class PublicAgentWidgetScriptView(APIView):
     authentication_classes = ()
 
     @extend_schema(
-        tags=["Agent application"],
+        parameters=[SLUG_PARAMETER],
+        tags=["Agent public chat"],
         operation_id="get_agent_widget_script",
         description=(
             "Returns the JavaScript that embeds the agent chat widget of a "
             "website channel. Only channels of that type serve a script."
         ),
-        responses={200: None, 404: None},
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.STR,
+                description="The embed script, served as "
+                "`application/javascript; charset=utf-8`.",
+            ),
+            404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {AgentChatChannelDoesNotExist: ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST}
     )
     def get(self, request, slug):
         channel = AgentChatHandler().get_public_web_channel(slug)
         channel_type = WebsiteWidgetAgentChatChannelType()
         if channel is None or channel.type != channel_type.type:
-            return HttpResponse(status=404)
+            raise AgentChatChannelDoesNotExist(f"No widget for slug {slug}.")
         response = HttpResponse(
             channel_type.build_script(channel),
             content_type="application/javascript; charset=utf-8",

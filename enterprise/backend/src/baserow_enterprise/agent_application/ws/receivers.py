@@ -45,22 +45,32 @@ def _broadcast(application_id: int, payload: dict, user) -> None:
 
 @receiver(agent_trigger_created)
 def agent_trigger_created_receiver(sender, trigger, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_trigger
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentTriggerSerializer,
+    )
 
     _broadcast(
         trigger.application_id,
-        {"type": "agent_trigger_created", "trigger": _serialize_trigger(trigger)},
+        {
+            "type": "agent_trigger_created",
+            "trigger": AgentTriggerSerializer(trigger).data,
+        },
         user,
     )
 
 
 @receiver(agent_trigger_updated)
 def agent_trigger_updated_receiver(sender, trigger, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_trigger
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentTriggerSerializer,
+    )
 
     _broadcast(
         trigger.application_id,
-        {"type": "agent_trigger_updated", "trigger": _serialize_trigger(trigger)},
+        {
+            "type": "agent_trigger_updated",
+            "trigger": AgentTriggerSerializer(trigger).data,
+        },
         user,
     )
 
@@ -78,22 +88,26 @@ def agent_trigger_deleted_receiver(
 
 @receiver(agent_tool_created)
 def agent_tool_created_receiver(sender, tool, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_tool
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentToolSerializer,
+    )
 
     _broadcast(
         tool.agent.application_id,
-        {"type": "agent_tool_created", "tool": _serialize_tool(tool)},
+        {"type": "agent_tool_created", "tool": AgentToolSerializer(tool).data},
         user,
     )
 
 
 @receiver(agent_tool_updated)
 def agent_tool_updated_receiver(sender, tool, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_tool
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentToolSerializer,
+    )
 
     _broadcast(
         tool.agent.application_id,
-        {"type": "agent_tool_updated", "tool": _serialize_tool(tool)},
+        {"type": "agent_tool_updated", "tool": AgentToolSerializer(tool).data},
         user,
     )
 
@@ -105,13 +119,15 @@ def agent_tool_deleted_receiver(sender, tool_id, application, user=None, **kwarg
 
 @receiver(agent_chat_channel_created)
 def agent_chat_channel_created_receiver(sender, channel, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_channel
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentChatChannelSerializer,
+    )
 
     _broadcast(
         channel.application_id,
         {
             "type": "agent_chat_channel_created",
-            "channel": _serialize_channel(channel),
+            "channel": AgentChatChannelSerializer(channel).data,
         },
         user,
     )
@@ -119,13 +135,15 @@ def agent_chat_channel_created_receiver(sender, channel, user=None, **kwargs):
 
 @receiver(agent_chat_channel_updated)
 def agent_chat_channel_updated_receiver(sender, channel, user=None, **kwargs):
-    from baserow_enterprise.api.agent_application.views import _serialize_channel
+    from baserow_enterprise.api.agent_application.serializers import (
+        AgentChatChannelSerializer,
+    )
 
     _broadcast(
         channel.application_id,
         {
             "type": "agent_chat_channel_updated",
-            "channel": _serialize_channel(channel),
+            "channel": AgentChatChannelSerializer(channel).data,
         },
         user,
     )

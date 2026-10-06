@@ -15,7 +15,7 @@
 </template>
 
 <script>
-import { computed, reactive } from 'vue'
+import { computed, reactive, toRef } from 'vue'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
@@ -52,15 +52,10 @@ export default {
   },
   emits: ['values-changed'],
   provide() {
-    const self = this
     return {
       formulaComponent: AutomationBuilderFormulaInput,
       dataProvidersAllowed: this.tool ? ['tool_input'] : [],
-      applicationContext: reactive({
-        get tool() {
-          return self.tool
-        },
-      }),
+      applicationContext: reactive({ tool: toRef(this, 'tool') }),
       workspace: computed(() => this.application.workspace),
     }
   },

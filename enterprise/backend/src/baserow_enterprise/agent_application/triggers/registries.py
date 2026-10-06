@@ -19,6 +19,41 @@ from ..models import AgentChatMessage, AgentTrigger
 
 _EVENT_PAYLOAD_PROMPT_LIMIT = 8000
 
+# A bulk import can fire a trigger with thousands of rows; the stored payload
+# backs the conversation's preview and the opening prompt only, so lists are
+# cut to what a person would look at and long strings to what the prompt
+# would show.
+_EVENT_PAYLOAD_LIST_LIMIT = 50
+
+
+def cap_event_payload(payload, depth: int = 0):
+    if isinstance(payload, dict):
+        return {
+            key: cap_event_payload(value, depth + 1) for key, value in payload.items()
+        }
+    if isinstance(payload, list):
+        return [
+            cap_event_payload(value, depth + 1)
+            for value in payload[:_EVENT_PAYLOAD_LIST_LIMIT]
+        ]
+    if isinstance(payload, str) and len(payload) > _EVENT_PAYLOAD_PROMPT_LIMIT:
+        return payload[:_EVENT_PAYLOAD_PROMPT_LIMIT] + "… (truncated)"
+    return payload
+
+
+def _count_in_window(cache_key: str) -> int:
+    """
+    Counts within a 60s window aligned to the first hit. The key can expire
+    between `add` and `incr`, in which case this hit opens a new window.
+    """
+
+    cache.add(cache_key, 0, timeout=60)
+    try:
+        return cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, timeout=60)
+        return 1
+
 
 class AgentTriggerType(Instance):
     """
@@ -116,8 +151,7 @@ class AgentTriggerType(Instance):
         cache_key = f"agent_application:trigger:{trigger.id}:rate"
         # `add` only sets the key (and its 60s window) when absent, so the
         # window is aligned to the first run within it.
-        cache.add(cache_key, 0, timeout=60)
-        count = cache.incr(cache_key)
+        count = _count_in_window(cache_key)
         if count > limit:
             logger.warning(
                 "Agent trigger {} exceeded the rate limit of {} runs per minute",
@@ -163,7 +197,7 @@ class AgentTriggerType(Instance):
             )
 
             chat = chat_handler.create_triggered_chat(
-                main_agent, self.type, service_payload
+                main_agent, self.type, cap_event_payload(service_payload)
             )
             message = chat_handler.create_message(
                 chat,

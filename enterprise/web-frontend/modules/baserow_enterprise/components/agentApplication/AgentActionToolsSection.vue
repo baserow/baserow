@@ -206,6 +206,7 @@
               <SegmentControl
                 :segments="beforeRunningSegments"
                 :active-index="toolDrafts[tool.id].requireApproval ? 0 : 1"
+                :disabled="!canUpdateTool"
                 @update:active-index="
                   onRequireApprovalChanged(tool, $event === 0)
                 "

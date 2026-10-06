@@ -281,16 +281,26 @@ const startPolling = () => {
 }
 watch(busy, (value) => (value ? startPolling() : stopPolling()))
 
+// Restarting opens a new conversation while the previous one is still
+// subscribed; it is dropped first so its late events don't land in the new one.
+let realtimePage = null
 const subscribe = () => {
   if ($config.public.disableAnonymousPublicViewWsConnections) {
     return
   }
   $realtime.connect(true, true)
-  $realtime.subscribe('public_agent_chat', {
-    slug,
-    token: $store.getters['publicAgentChat/getToken'],
-    conversation: $store.getters['publicAgentChat/getConversationUuid'],
-  })
+  if (realtimePage !== null) {
+    $realtime.unsubscribe(realtimePage.page, realtimePage.params)
+  }
+  realtimePage = {
+    page: 'public_agent_chat',
+    params: {
+      slug,
+      token: $store.getters['publicAgentChat/getToken'],
+      conversation: $store.getters['publicAgentChat/getConversationUuid'],
+    },
+  }
+  $realtime.subscribe(realtimePage.page, realtimePage.params)
 }
 
 const startConversation = async () => {

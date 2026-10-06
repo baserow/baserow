@@ -182,8 +182,10 @@ class BaserowEnterpriseConfig(AppConfig):
             CancelAgentChatOperationType,
             CreateAgentToolOperationType,
             DecideAgentToolApprovalOperationType,
+            DeleteAgentChatChannelOperationType,
             DeleteAgentChatOperationType,
             DeleteAgentToolOperationType,
+            DeleteAgentTriggerOperationType,
             ListAgentChatsOperationType,
             ListAgentToolsOperationType,
             ReadAgentChatChannelOperationType,
@@ -273,12 +275,8 @@ class BaserowEnterpriseConfig(AppConfig):
             from baserow_enterprise.agent_application.tools.workspace import (
                 BaserowWorkspaceAgentToolType,
             )
-            from baserow_enterprise.agent_application.tools.workspace_search import (
-                WorkspaceSearchAgentToolType,
-            )
 
             agent_tool_type_registry.register(BaserowWorkspaceAgentToolType())
-            agent_tool_type_registry.register(WorkspaceSearchAgentToolType())
             agent_tool_type_registry.register(WebSearchAgentToolType())
             agent_tool_type_registry.register(ServiceAgentToolType())
 
@@ -339,6 +337,8 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(UpdateAgentDefinitionOperationType())
         operation_type_registry.register(ReadAgentTriggerOperationType())
         operation_type_registry.register(UpdateAgentTriggerOperationType())
+        operation_type_registry.register(DeleteAgentTriggerOperationType())
+        operation_type_registry.register(DeleteAgentChatChannelOperationType())
         operation_type_registry.register(ListAgentToolsOperationType())
         operation_type_registry.register(CreateAgentToolOperationType())
         operation_type_registry.register(UpdateAgentToolOperationType())

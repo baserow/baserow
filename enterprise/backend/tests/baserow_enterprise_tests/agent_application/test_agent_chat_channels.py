@@ -287,9 +287,9 @@ def test_send_response_posts_to_slack_thread(channel_setup):
     kwargs = request_mock.call_args.kwargs
     assert kwargs["url"] == "https://slack.com/api/chat.postMessage"
     assert kwargs["headers"]["Authorization"] == f"Bearer {BOT_TOKEN}"
-    assert kwargs["params"]["channel"] == "C42"
-    assert kwargs["params"]["thread_ts"] == "111.222"
-    assert kwargs["params"]["text"] == "The answer"
+    assert kwargs["json"]["channel"] == "C42"
+    assert kwargs["json"]["thread_ts"] == "111.222"
+    assert kwargs["json"]["text"] == "The answer"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -319,10 +319,10 @@ def test_channel_chat_run_posts_answer_back(channel_setup):
     # answer replaced it in the Slack conversation.
     calls = [call.kwargs for call in request_mock.call_args_list]
     assert calls[0]["url"] == "https://slack.com/api/chat.postMessage"
-    assert calls[0]["params"]["text"] == "_Working on it…_"
+    assert calls[0]["json"]["text"] == "_Working on it…_"
     assert calls[-1]["url"] == "https://slack.com/api/chat.update"
-    assert calls[-1]["params"]["ts"] == "7.7"
-    assert calls[-1]["params"]["text"] == ai_message.content
+    assert calls[-1]["json"]["ts"] == "7.7"
+    assert calls[-1]["json"]["text"] == ai_message.content
 
 
 @pytest.mark.django_db
@@ -512,14 +512,14 @@ def test_slack_placeholder_is_replaced_by_the_answer(channel_setup):
         channel_type.on_run_starting(channel, chat)
         placeholder = request_mock.call_args.kwargs
         assert placeholder["url"] == "https://slack.com/api/chat.postMessage"
-        assert placeholder["params"]["thread_ts"] == "1.0"
+        assert placeholder["json"]["thread_ts"] == "1.0"
 
         request_mock.return_value.json.return_value = {"ok": True}
         channel_type.send_response(channel, chat, "**Done**: see [docs](https://x.y)")
         update = request_mock.call_args.kwargs
         assert update["url"] == "https://slack.com/api/chat.update"
-        assert update["params"]["ts"] == "9.9"
-        assert update["params"]["text"] == "*Done*: see <https://x.y|docs>"
+        assert update["json"]["ts"] == "9.9"
+        assert update["json"]["text"] == "*Done*: see <https://x.y|docs>"
 
         # A later answer in the same thread has no placeholder left to update.
         channel_type.send_response(channel, chat, "More")
@@ -594,9 +594,7 @@ def test_message_while_awaiting_approval_is_answered_without_being_stored(
         assert start_channel_chat(channel, "D123|1.0", "Hurry up") is None
 
     assert chat.messages.count() == 0
-    assert (
-        "waiting for a team member" in request_mock.call_args.kwargs["params"]["text"]
-    )
+    assert "waiting for a team member" in request_mock.call_args.kwargs["json"]["text"]
 
 
 @pytest.mark.django_db

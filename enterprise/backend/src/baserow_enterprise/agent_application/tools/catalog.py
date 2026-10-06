@@ -16,7 +16,10 @@ from .classification import is_write_tool
 # Tool groups that only make sense in the interactive assistant: navigating
 # the UI, and authoring Application Builder pages, which is design work the
 # user wants to watch in the editor rather than approve from a background run.
-EXCLUDED_GROUPS = {"navigation", "builder"}
+# Kuma's own documentation search answers questions about Baserow itself; an
+# agent built for a workspace's data has no use for it, and it competes with
+# vector search tools a builder adds for their own documentation.
+EXCLUDED_GROUPS = {"navigation", "builder", "search_user_docs"}
 # Mode switching only exists for the assistant's mode-filtered toolset.
 # Kuma-only conversation controls; an agent run has no live user to route to.
 EXCLUDED_TOOLS = {"switch_mode", "ask_user"}
@@ -33,22 +36,21 @@ GROUP_LABELS = {
     "core": "Workspace",
     "database": "Databases",
     "automation": "Automations",
-    "search_user_docs": "Search",
 }
 
 TOOL_METADATA: dict[str, tuple[str, str]] = {
     # core
     "list_builders": (
-        "List applications",
+        "List builders",
         "See the databases, applications, automations and dashboards",
     ),
     "create_builders": (
-        "Create applications",
-        "Add a new database, application or automation",
+        "Create builders",
+        "Add a new database, application, automation or dashboard",
     ),
     "update_builder": (
-        "Edit application settings",
-        "Rename an application or change its settings",
+        "Edit builder settings",
+        "Rename a database, application, automation or dashboard",
     ),
     # database
     "list_tables": ("List tables", "See the tables inside a database"),
@@ -73,7 +75,6 @@ TOOL_METADATA: dict[str, tuple[str, str]] = {
     "update_nodes": ("Edit steps", "Change the settings of a step"),
     "delete_nodes": ("Delete steps", "Remove steps from a workflow"),
     # docs
-    "search_user_docs": ("Search Baserow docs", "Look up feature guides"),
 }
 
 _DYNAMIC_ROW_TOOL_RE = re.compile(r"^(create|update|delete)_rows_in_table_\d+$")

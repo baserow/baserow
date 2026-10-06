@@ -7,6 +7,7 @@
       'segment-control--small': size === 'small',
       'segment-control--large': size === 'large',
       'segment-control--rounded': type === 'rounded',
+      'segment-control--disabled': disabled,
     }"
   >
     <button
@@ -16,6 +17,7 @@
         'segment-control__button--active': index === currentActiveIndex,
       }"
       :title="segment.label"
+      :disabled="disabled"
       class="segment-control__button"
       @click.prevent="setActiveIndex(index)"
     >
@@ -88,6 +90,11 @@ export default {
       validator: function (value) {
         return ['regular', 'rounded'].includes(value)
       },
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   emits: ['update:activeIndex'],

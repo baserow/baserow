@@ -2,6 +2,7 @@ from typing import cast
 
 from django.core.files.storage import Storage
 from django.db import transaction
+from django.db.models import Prefetch
 from django.db.transaction import Atomic
 from django.urls import include, path
 from django.utils import translation
@@ -38,6 +39,7 @@ from .models import (
     AgentTool,
     AgentTrigger,
 )
+from .triggers.handler import schedule_periodic_service
 from .types import AgentApplicationDict
 
 
@@ -328,8 +330,11 @@ class AgentApplicationType(ApplicationType):
                 agent=agent, pinned=True, source=AgentChat.Source.MANUAL
             )
             .exclude(status=AgentChat.Status.IN_PROGRESS)
+            .defer("message_history")
             .order_by("id")
-            .prefetch_related("messages")
+            .prefetch_related(
+                Prefetch("messages", queryset=AgentChatMessage.objects.order_by("id"))
+            )
         )
         return [
             {
@@ -340,7 +345,7 @@ class AgentApplicationType(ApplicationType):
                         "content": message.content,
                         "artifacts": message.artifacts,
                     }
-                    for message in chat.messages.order_by("id")
+                    for message in chat.messages.all()
                     if message.role
                     in (AgentChatMessage.Role.HUMAN, AgentChatMessage.Role.AI)
                 ],
@@ -441,7 +446,8 @@ class AgentApplicationType(ApplicationType):
 
         # Chat channel configs contain external credentials (e.g. Slack
         # tokens), so they only survive a duplicate within the same
-        # workspace; templates and snapshots must never carry them.
+        # workspace (snapshots included: they are hidden copies of it);
+        # templates and exports must never carry them.
         serialized_channels = (
             [
                 {
@@ -470,8 +476,8 @@ class AgentApplicationType(ApplicationType):
         return AgentApplicationDict(
             description=agent_application.description,
             # The identity is a workspace level subject, so it only survives a
-            # duplicate within the same workspace; templates and snapshots
-            # must never carry it.
+            # duplicate within the same workspace (snapshots included);
+            # templates and exports must never carry it.
             agent_identity_id=(
                 agent_application.agent_identity_id
                 if import_export_config.is_duplicate
@@ -618,6 +624,14 @@ class AgentApplicationType(ApplicationType):
         same_workspace = (
             import_export_config.is_duplicate and not import_export_config.is_template
         )
+        # A snapshot is imported with `workspace=None` (it hangs off no
+        # workspace while stored); its skills and identities still belong to
+        # the workspace it is taken from and restored into.
+        scope_workspace_id = (
+            workspace.id
+            if workspace is not None
+            else id_mapping.get("import_workspace_id")
+        )
 
         agents_by_exported_id = {}
         for serialized_agent in serialized_agents:
@@ -638,7 +652,7 @@ class AgentApplicationType(ApplicationType):
             # Only skills that still exist in this workspace are relinked.
             skill_ids = set(
                 WorkspaceSkill.objects.filter(
-                    workspace=workspace,
+                    workspace_id=scope_workspace_id,
                     id__in=[s["skill_id"] for s in serialized_skills],
                 ).values_list("id", flat=True)
             )
@@ -686,9 +700,13 @@ class AgentApplicationType(ApplicationType):
             )
 
         for serialized_trigger in serialized_triggers:
+            trigger_service = import_child_service(serialized_trigger["service"])
+            # Imports skip the publish step that schedules automation
+            # triggers, so the first run is scheduled here.
+            schedule_periodic_service(trigger_service)
             AgentTrigger.objects.create(
                 application=application,
-                service=import_child_service(serialized_trigger["service"]),
+                service=trigger_service,
                 # The per-trigger state is preserved; an imported copy still
                 # never runs invisibly because `active` is not exported and
                 # defaults to off, so the user activates it deliberately.
@@ -702,7 +720,9 @@ class AgentApplicationType(ApplicationType):
                 application, name=application.name, description=description
             )
         workspace_identity_ids = set(
-            Agent.objects.filter(workspace=workspace).values_list("id", flat=True)
+            Agent.objects.filter(workspace_id=scope_workspace_id).values_list(
+                "id", flat=True
+            )
         )
         for serialized_tool in serialized_tools:
             service = None
@@ -741,7 +761,7 @@ class AgentApplicationType(ApplicationType):
 
         if agent_identity_id is not None and same_workspace:
             identity = Agent.objects.filter(
-                id=agent_identity_id, workspace=workspace
+                id=agent_identity_id, workspace_id=scope_workspace_id
             ).first()
             if identity is not None:
                 application.agent_identity = identity

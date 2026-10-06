@@ -35,6 +35,7 @@
 import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
+import { isChatRunning } from '@baserow_enterprise/utils/agentChatStatus'
 
 export default {
   name: 'AgentConversationContext',
@@ -63,7 +64,7 @@ export default {
     },
     canDelete() {
       return (
-        !this.chat.status?.startsWith('in_progress') &&
+        !isChatRunning(this.chat.status) &&
         this.hasAgentPermission(
           'agent_application.delete_chat',
           this.application,

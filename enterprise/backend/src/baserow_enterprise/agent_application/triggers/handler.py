@@ -8,7 +8,9 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from baserow.contrib.integrations.core.models import (
     CoreHTTPTriggerService,
     CoreInboundEmailTriggerService,
+    CorePeriodicService,
 )
+from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -21,6 +23,43 @@ from ..exceptions import AgentTriggerDoesNotExist
 from ..models import AgentApplication, AgentTrigger
 from ..signals import agent_trigger_created, agent_trigger_updated
 from .registries import agent_trigger_type_registry
+
+
+def check_service_table_in_workspace(prepared_values: dict, application) -> None:
+    """
+    A table outside the application's workspace would feed that workspace's
+    rows into this one's conversations, readable by everyone who may read
+    chats here, for as long as the creator happens to be a member there.
+
+    :raises DRFValidationError: When the resolved table belongs elsewhere.
+    """
+
+    table = prepared_values.get("table")
+    if table is not None and table.database.workspace_id != application.workspace_id:
+        raise DRFValidationError(
+            detail="The table must belong to the application's workspace.",
+            code="invalid_table",
+        )
+
+
+def schedule_periodic_service(service) -> None:
+    """
+    Agent triggers have no publish step, so the first run of a periodic
+    service is scheduled when it is created or edited; without `next_run_at`
+    the scheduler treats it as due at its next tick.
+    """
+
+    if not isinstance(service, CorePeriodicService):
+        return
+    service.next_run_at = calculate_next_periodic_run(
+        interval=service.interval,
+        minute=service.minute,
+        hour=service.hour,
+        day_of_week=service.day_of_week,
+        day_of_month=service.day_of_month,
+        tz=service.timezone,
+    )
+    service.save(update_fields=["next_run_at"])
 
 
 class AgentTriggerHandler:
@@ -93,9 +132,11 @@ class AgentTriggerHandler:
         service_values = dict(service_values or {})
         service_values = self._validate_integration(application, service_values)
         prepared_values = service_type.prepare_values(service_values, user)
+        check_service_table_in_workspace(prepared_values, application)
 
         service = ServiceHandler().create_service(service_type, **prepared_values)
         self._publish_service(service)
+        schedule_periodic_service(service)
 
         trigger = AgentTrigger.objects.create(
             application=application, service=service, enabled=enabled
@@ -138,7 +179,9 @@ class AgentTriggerHandler:
             prepared_values = service_type.prepare_values(
                 service_values, user, instance=service
             )
+            check_service_table_in_workspace(prepared_values, trigger.application)
             ServiceHandler().update_service(service_type, service, **prepared_values)
+            schedule_periodic_service(service)
 
         if enabled is not None and enabled != trigger.enabled:
             trigger.enabled = enabled

@@ -394,7 +394,9 @@
     "localBaserowGroupedAggregateRowsDescription": "Group rows from a Baserow table and calculate summaries.",
     "errorNoAggregationSeriesDefined": "No summary series defined.",
     "errorIncompleteAggregationSeries": "One or more summary series are incomplete.",
-    "errorTrashedAggregationField": "At least one configured field has been trashed."
+    "errorTrashedAggregationField": "At least one configured field has been trashed.",
+    "localBaserowRowCommentCreated": "Row comment created",
+    "localBaserowRowCommentCreatedDescription": "Starts when a comment is placed on a row in the selected table."
   },
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
@@ -455,10 +457,6 @@
   "aiProviderModelFeature": {
     "aiFields": "AI fields",
     "aiFieldsDescription": "Generate values in AI fields."
-  },
-  "serviceType": {
-    "localBaserowRowCommentCreated": "Row comment created",
-    "localBaserowRowCommentCreatedDescription": "Starts when a comment is placed on a row in the selected table."
   },
   "nodeType": {
     "localBaserowRowCommentCreatedLabel": "A comment is placed in {tableName}"

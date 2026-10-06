@@ -1,5 +1,6 @@
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
+import { isChatRunning } from '@baserow_enterprise/utils/agentChatStatus'
 
 export const EVENT_TYPE = {
   HUMAN: 'human',
@@ -257,10 +258,7 @@ export const actions = {
     commit('SET_CHAT_ID', data.chat.id)
     commit('SET_TOOL_APPROVALS', toolApprovals)
     commit('SET_EVENTS', messagesToEvents(data.messages, toolApprovals))
-    commit(
-      'SET_RUNNING',
-      ['in_progress', 'canceling'].includes(data.chat.status)
-    )
+    commit('SET_RUNNING', isChatRunning(data.chat.status))
     commit('SET_AWAITING_APPROVAL', data.chat.status === 'awaiting_approval')
     commit('SET_HAS_ERROR', data.chat.status === 'error')
     commit('SET_RUNNING_MESSAGE', '')

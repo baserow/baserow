@@ -69,7 +69,8 @@
 <script>
 import { defineComponent, ref, computed, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp, useI18n } from '#imports'
+import { useNuxtApp, useI18n, useCookie } from '#imports'
+import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { summarizeAccess } from '@baserow_enterprise/utils/agentToolPermissions'
 
 import AgentConfigurationSubpage from '@baserow_enterprise/components/agentApplication/AgentConfigurationSubpage'
@@ -83,7 +84,7 @@ import AgentMemorySection from '@baserow_enterprise/components/agentApplication/
 import AgentAgentSettingsSection from '@baserow_enterprise/components/agentApplication/AgentAgentSettingsSection'
 import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
-const WIDTH_STORAGE_KEY = 'agentConfigurationPanelWidth'
+const WIDTH_COOKIE_NAME = 'agent_configuration_width'
 const DEFAULT_WIDTH = 400
 const MIN_WIDTH = 360
 const MAX_WIDTH = 720
@@ -128,7 +129,7 @@ export default defineComponent({
   setup(props) {
     const store = useStore()
     const { storePrefix, hasPermission } = useAgentContext()
-    const { $registry } = useNuxtApp()
+    const { $registry, $config } = useNuxtApp()
     const { t } = useI18n()
 
     const agent = computed(
@@ -289,17 +290,20 @@ export default defineComponent({
       rows.value.find((row) => row.key === activeSection.value)
     )
 
-    // Resizable width, persisted per browser.
-    const readStoredWidth = () => {
-      try {
-        const stored = parseInt(localStorage.getItem(WIDTH_STORAGE_KEY))
-        if (!isNaN(stored)) {
-          return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, stored))
-        }
-      } catch {}
-      return DEFAULT_WIDTH
-    }
-    const width = ref(readStoredWidth())
+    // The resizable width lives in a cookie (not local storage) so the server
+    // renders the panel at the same width as the client and hydration does
+    // not have to patch the inline style.
+    const widthCookie = useCookie(getCookieName($config, WIDTH_COOKIE_NAME), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    })
+    const storedWidth = parseInt(widthCookie.value)
+    const width = ref(
+      isNaN(storedWidth)
+        ? DEFAULT_WIDTH
+        : Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, storedWidth))
+    )
 
     let panelRight = 0
     const onResizeMove = (event) => {
@@ -312,9 +316,7 @@ export default defineComponent({
       window.removeEventListener('mousemove', onResizeMove)
       window.removeEventListener('mouseup', stopResize)
       document.body.classList.remove('agent-configuration-resizing')
-      try {
-        localStorage.setItem(WIDTH_STORAGE_KEY, `${width.value}`)
-      } catch {}
+      widthCookie.value = `${width.value}`
     }
     const startResize = (event) => {
       panelRight = event.target

@@ -1,6 +1,9 @@
 import json
 from unittest.mock import patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
@@ -24,6 +27,7 @@ from baserow_enterprise.agent_application.models import (
     AgentTool,
 )
 from baserow_enterprise.agent_application.tasks import run_agent_chat
+from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
 from baserow_enterprise.agent_application.tools.registries import (
     agent_tool_type_registry,
 )
@@ -277,3 +281,51 @@ def test_error_handling_toolset_translates_exceptions():
     # Assistant-only tools are hidden from the agent.
     tools = asyncio.run(ErrorHandlingToolset(FakeInner(None)).get_tools(None))
     assert set(tools) == {"list_tables"}
+
+
+@pytest.mark.django_db
+def test_tool_list_query_count_does_not_grow_with_the_number_of_tools(
+    api_client, data_fixture, django_assert_num_queries
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = (
+        CoreHandler()
+        .create_application(user, workspace, "agent", init_with_data=True, name="Agent")
+        .specific
+    )
+    agent = AgentApplicationHandler().get_main_agent(application)
+    handler = AgentToolHandler()
+    list_url = f"/api/agent_application/{application.id}/tools/"
+
+    def list_tools():
+        response = api_client.get(list_url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == 200
+        return response.json()
+
+    handler.create_tool(user, agent, "web_search")
+    # Warms the per-process caches (content types, settings) so both
+    # measurements compare like for like.
+    list_tools()
+    with CaptureQueriesContext(connection) as single:
+        assert len(list_tools()) == 1
+
+    handler.create_tool(user, agent, "web_search")
+    for name in ("Mail", "Mail 2", "Mail 3"):
+        handler.create_tool(
+            user, agent, "service", name=name, service_type_str="smtp_email"
+        )
+
+    # The specific services are loaded per service type, not per tool, so the
+    # three mail tools cost one query together.
+    with django_assert_num_queries(len(single.captured_queries) + 1):
+        listed = list_tools()
+    assert [(t["type"], t["service_type"]) for t in listed] == [
+        ("web_search", None),
+        ("web_search", None),
+        ("service", "smtp_email"),
+        ("service", "smtp_email"),
+        ("service", "smtp_email"),
+    ]
+    assert listed[-1]["service"] is not None
+    assert listed[0]["service"] is None

@@ -66,6 +66,22 @@ describe('agentChat store', () => {
     expect(store.getters['agentChat/isRunning']).toBe(false)
   })
 
+  test('a channel conversation keeps its source until a new one is started', async () => {
+    mock.onGet('agent_application/42/chats/uuid-3/messages/').replyOnce(200, {
+      chat: { id: 3, uuid: 'uuid-3', status: 'idle', source: 'channel' },
+      messages: [],
+    })
+
+    await store.dispatch('agentChat/openConversation', {
+      applicationId: 42,
+      chatUuid: 'uuid-3',
+    })
+    expect(store.getters['agentChat/getSource']).toBe('channel')
+
+    store.dispatch('agentChat/newConversation')
+    expect(store.getters['agentChat/getSource']).toBe('manual')
+  })
+
   test('openConversation exposes the loading uuid while the transcript is fetched', async () => {
     let resolveRequest = null
     mock.onGet('agent_application/42/chats/uuid-9/messages/').replyOnce(

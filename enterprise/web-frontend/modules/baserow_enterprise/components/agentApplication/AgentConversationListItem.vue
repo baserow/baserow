@@ -42,8 +42,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentConversationContext from '@baserow_enterprise/components/agentApplication/AgentConversationContext'
 import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
-
-const RUNNING_STATUSES = ['in_progress', 'canceling']
+import { isChatRunning } from '@baserow_enterprise/utils/agentChatStatus'
 
 export default {
   name: 'AgentConversationListItem',
@@ -81,7 +80,7 @@ export default {
       )
     },
     statusModifier() {
-      if (RUNNING_STATUSES.includes(this.chat.status)) {
+      if (isChatRunning(this.chat.status)) {
         return 'agent-conversation-list__item-status--running'
       }
       return `agent-conversation-list__item-status--${this.chat.status.replace(
@@ -93,7 +92,7 @@ export default {
       if (this.chat.status === 'awaiting_approval') {
         return this.$t('agentConversationList.awaitingApproval')
       }
-      if (RUNNING_STATUSES.includes(this.chat.status)) {
+      if (isChatRunning(this.chat.status)) {
         return this.$t('agentConversationList.running')
       }
       return null

@@ -1,3 +1,4 @@
+from django.contrib.contenttypes.models import ContentType
 from django.dispatch import receiver
 
 from baserow.core.signals import application_deleted
@@ -15,7 +16,12 @@ def cancel_runs_of_trashed_agent(sender, application, user=None, **kwargs):
 
     from .handler import AgentChatHandler
 
-    if not isinstance(application.specific, AgentApplication):
+    # Every application type passes through here; the content type check
+    # avoids loading the specific instance for the others.
+    if (
+        application.content_type_id
+        != ContentType.objects.get_for_model(AgentApplication).id
+    ):
         return
 
     handler = AgentChatHandler()

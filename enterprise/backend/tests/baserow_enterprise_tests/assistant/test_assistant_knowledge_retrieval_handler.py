@@ -3,6 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from baserow.core.embeddings import EmbeddingsServiceError
 from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS
 from baserow_enterprise.assistant.models import (
     KnowledgeBaseCategory,
@@ -597,7 +598,9 @@ def test_embedder_closes_client_on_failed_batch():
     with patch("baserow.core.embeddings.httpxClient") as client:
         response = client.return_value.post.return_value
         response.raise_for_status.side_effect = error
-        with pytest.raises(HTTPStatusError):
+        # The provider error is replaced by a generic one so the service URL
+        # never reaches callers; the client must still be closed.
+        with pytest.raises(EmbeddingsServiceError):
             BaserowEmbedder("http://test")(["one passage"])
         response.json.assert_not_called()
         client.return_value.close.assert_called_once()

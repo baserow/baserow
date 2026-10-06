@@ -61,9 +61,6 @@ export default (client) => {
     deleteChat(chatUuid) {
       return client.delete(`agent_application/chats/${chatUuid}/`)
     },
-    getUsage(applicationId) {
-      return client.get(`agent_application/${applicationId}/usage/`)
-    },
     getTriggers(applicationId) {
       return client.get(`agent_application/${applicationId}/triggers/`)
     },

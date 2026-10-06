@@ -1,9 +1,7 @@
-from django.conf import settings
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from loguru import logger
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED, HTTP_204_NO_CONTENT
@@ -13,11 +11,16 @@ from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.pagination import LimitOffsetPagination
-from baserow.api.schemas import get_error_schema
+from baserow.api.schemas import (
+    CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+    CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+    get_error_schema,
+)
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.skills.errors import ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST
 from baserow.api.user_files.errors import ERROR_INVALID_USER_FILE_NAME_ERROR
 from baserow.core.action.registries import action_type_registry
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     UserNotInWorkspace,
@@ -25,7 +28,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import CreateApplicationsWorkspaceOperationType
-from baserow.core.services.registries import service_type_registry
+from baserow.core.services.models import Service
 from baserow.core.skills.exceptions import WorkspaceSkillDoesNotExist
 from baserow.core.user_files.exceptions import InvalidUserFileNameError
 from baserow_enterprise.agent_application.actions import (
@@ -79,8 +82,10 @@ from baserow_enterprise.agent_application.operations import (
     CancelAgentChatOperationType,
     CreateAgentToolOperationType,
     DecideAgentToolApprovalOperationType,
+    DeleteAgentChatChannelOperationType,
     DeleteAgentChatOperationType,
     DeleteAgentToolOperationType,
+    DeleteAgentTriggerOperationType,
     ListAgentChatsOperationType,
     ListAgentToolsOperationType,
     ReadAgentChatChannelOperationType,
@@ -123,12 +128,17 @@ from .errors import (
 )
 from .serializers import (
     AgentApplicationToolApprovalSerializer,
-    AgentChatMessageSerializer,
+    AgentChatChannelSerializer,
+    AgentChatRunStartedSerializer,
     AgentChatSerializer,
     AgentChatToolApprovalSerializer,
-    AgentChatWithPayloadSerializer,
+    AgentChatTranscriptSerializer,
     AgentDefinitionSerializer,
     AgentInstructionsSerializer,
+    AgentToolSerializer,
+    AgentTriggerSerializer,
+    AgentUsageSerializer,
+    AgentWorkspaceToolSerializer,
     CreateAgentChatChannelSerializer,
     CreateAgentToolSerializer,
     CreateAgentTriggerSerializer,
@@ -144,30 +154,22 @@ from .serializers import (
 )
 
 
-def _serialize_trigger(trigger) -> dict:
-    from baserow_enterprise.agent_application.triggers.registries import (
-        agent_trigger_type_registry,
-    )
+def _with_specific_services(items: list) -> list:
+    """
+    Serializing a trigger or tool needs its specific service. Loading them in
+    bulk costs one query per service type instead of one per item, and
+    `.specific` on the assigned instance is then a no-op.
+    """
 
-    service = trigger.service.specific
-    service_type = service.get_type().type
-    tokens = []
-    sample_payload = None
-    try:
-        trigger_type = agent_trigger_type_registry.get_by_service_type(service_type)
-        tokens = trigger_type.get_tokens(trigger)
-        sample_payload = trigger_type.get_sample_payload(trigger)
-    except Exception:
-        # The example is a convenience; a trigger must still list without it.
-        logger.exception("Failed to build the trigger example for {}", trigger.id)
-    return {
-        "id": trigger.id,
-        "enabled": trigger.enabled,
-        "service_type": service_type,
-        "service": service_type_registry.get_serializer(service).data,
-        "tokens": tokens,
-        "sample_payload": sample_payload,
+    services = [item.service for item in items if item.service_id is not None]
+    specific_by_id = {
+        service.id: service
+        for service in specific_iterator(services, base_model=Service)
     }
+    for item in items:
+        if item.service_id is not None:
+            item.service = specific_by_id[item.service_id]
+    return items
 
 
 def _get_application_and_check(request, application_id, operation_type):
@@ -223,6 +225,7 @@ class AgentDefinitionView(APIView):
         responses={
             200: AgentDefinitionSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_APPLICATION_DOES_NOT_EXIST",
@@ -264,6 +267,8 @@ class UpdateAgentDefinitionView(APIView):
                 type=OpenApiTypes.INT,
                 description="The agent to update.",
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="update_agent_application_agent",
@@ -271,8 +276,16 @@ class UpdateAgentDefinitionView(APIView):
         request=UpdateAgentDefinitionSerializer,
         responses={
             200: AgentDefinitionSerializer,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_AGENT_DEFINITION_DOES_NOT_EXIST"]),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
+                    "ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
@@ -311,7 +324,13 @@ class AgentChatsView(APIView):
         responses={
             200: get_example_pagination_serializer_class(AgentChatSerializer),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
@@ -355,10 +374,14 @@ class AgentChatMessagesView(APIView):
         ],
         tags=["Agent"],
         operation_id="list_agent_application_chat_messages",
-        description="Lists the messages of an agent conversation.",
+        description=(
+            "Returns the transcript of an agent conversation: the chat with its "
+            "trigger payload, its messages and its tool approvals."
+        ),
         responses={
-            200: AgentChatMessageSerializer(many=True),
+            200: AgentChatTranscriptSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -373,13 +396,9 @@ class AgentChatMessagesView(APIView):
         messages = AgentChatHandler().list_messages(chat)
         approvals = AgentChatHandler().list_tool_approvals(chat)
         return Response(
-            {
-                "chat": AgentChatWithPayloadSerializer(chat).data,
-                "messages": AgentChatMessageSerializer(messages, many=True).data,
-                "tool_approvals": AgentChatToolApprovalSerializer(
-                    approvals, many=True
-                ).data,
-            }
+            AgentChatTranscriptSerializer(
+                {"chat": chat, "messages": messages, "tool_approvals": approvals}
+            ).data
         )
 
     @extend_schema(
@@ -404,17 +423,23 @@ class AgentChatMessagesView(APIView):
         ),
         request=SendAgentChatMessageSerializer,
         responses={
-            202: AgentChatSerializer,
+            202: AgentChatRunStartedSerializer,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_AGENT_CHAT_ALREADY_RUNNING",
+                    "ERROR_AGENT_CHAT_AWAITING_APPROVAL",
                     "ERROR_AGENT_MODEL_NOT_CONFIGURED",
+                    "ERROR_INVALID_USER_FILE_NAME_ERROR",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            403: get_error_schema(["ERROR_AGENT_CHAT_NOT_OWNED"]),
             404: get_error_schema(
                 [
                     "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
                     "ERROR_AGENT_CHAT_DOES_NOT_EXIST",
                 ]
             ),
@@ -465,9 +490,12 @@ class AgentChatMessagesView(APIView):
             )
             handler.start_chat_run(chat, message)
 
-        response_data = AgentChatSerializer(chat).data
-        response_data["prompt_message_id"] = message.id
-        return Response(response_data, status=HTTP_202_ACCEPTED)
+        return Response(
+            AgentChatRunStartedSerializer(
+                chat, context={"prompt_message": message}
+            ).data,
+            status=HTTP_202_ACCEPTED,
+        )
 
 
 class AgentChatRetryView(APIView):
@@ -480,6 +508,8 @@ class AgentChatRetryView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.UUID,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="retry_agent_application_chat",
@@ -487,8 +517,9 @@ class AgentChatRetryView(APIView):
             "Re-runs the turn of a conversation that ended in an error, "
             "using its last prompt message."
         ),
+        request=None,
         responses={
-            202: AgentChatSerializer,
+            202: AgentChatRunStartedSerializer,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -496,6 +527,8 @@ class AgentChatRetryView(APIView):
                     "ERROR_AGENT_CHAT_ALREADY_RUNNING",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            403: get_error_schema(["ERROR_AGENT_CHAT_NOT_OWNED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -517,9 +550,12 @@ class AgentChatRetryView(APIView):
                 request.user, chat
             )
 
-        response_data = AgentChatSerializer(chat).data
-        response_data["prompt_message_id"] = message.id
-        return Response(response_data, status=HTTP_202_ACCEPTED)
+        return Response(
+            AgentChatRunStartedSerializer(
+                chat, context={"prompt_message": message}
+            ).data,
+            status=HTTP_202_ACCEPTED,
+        )
 
 
 class AgentChatCancelView(APIView):
@@ -532,13 +568,17 @@ class AgentChatCancelView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.UUID,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="cancel_agent_application_chat",
         description="Cancels the running turn of an agent conversation.",
+        request=None,
         responses={
             204: None,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -550,6 +590,16 @@ class AgentChatCancelView(APIView):
     )
     def post(self, request, chat_uuid):
         chat = _get_chat_and_check(request, chat_uuid, CancelAgentChatOperationType)
+        if chat.is_awaiting_approval:
+            # Cancelling a paused run rejects its pending steps, which is a
+            # decision reserved to those who may decide approvals.
+            application = chat.agent.application
+            CoreHandler().check_permissions(
+                request.user,
+                DecideAgentToolApprovalOperationType.type,
+                workspace=application.workspace,
+                context=application.application_ptr,
+            )
         with transaction.atomic():
             action_type_registry.get_by_type(CancelAgentChatRunActionType).do(
                 request.user, chat
@@ -567,6 +617,8 @@ class AgentChatView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.UUID,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="delete_agent_application_chat",
@@ -576,6 +628,7 @@ class AgentChatView(APIView):
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_CHAT_ALREADY_RUNNING"]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -606,6 +659,8 @@ class AgentChatView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.UUID,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="update_agent_application_chat",
@@ -613,7 +668,10 @@ class AgentChatView(APIView):
         request=UpdateAgentChatSerializer,
         responses={
             200: AgentChatSerializer,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -664,11 +722,13 @@ class AgentInstructionsDraftView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                     "ERROR_ASSISTANT_MODEL_DISABLED",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
@@ -717,11 +777,13 @@ class AgentInstructionsImproveView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                     "ERROR_ASSISTANT_MODEL_DISABLED",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_DEFINITION_DOES_NOT_EXIST"]),
         },
     )
@@ -754,6 +816,8 @@ class AgentRunOnceView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="run_agent_application_once",
@@ -761,14 +825,17 @@ class AgentRunOnceView(APIView):
             "Starts a conversation for the application's first enabled trigger "
             "as if it had fired now, without event data."
         ),
+        request=None,
         responses={
             202: AgentChatSerializer,
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_MODEL_NOT_CONFIGURED"]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
                     "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST",
                 ]
             ),
@@ -814,9 +881,15 @@ class AgentUsageView(APIView):
         operation_id="get_agent_application_usage",
         description="Returns the aggregated token usage of the agent.",
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: AgentUsageSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
@@ -831,7 +904,9 @@ class AgentUsageView(APIView):
             request, application_id, ReadAgentUsageOperationType
         )
         agent = AgentApplicationHandler().get_main_agent(application)
-        return Response(AgentChatHandler().get_agent_usage(agent))
+        return Response(
+            AgentUsageSerializer(AgentChatHandler().get_agent_usage(agent)).data
+        )
 
 
 class AgentTriggersView(APIView):
@@ -849,8 +924,9 @@ class AgentTriggersView(APIView):
         operation_id="list_agent_application_triggers",
         description="Lists the triggers of the agent application.",
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: AgentTriggerSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
@@ -864,8 +940,10 @@ class AgentTriggersView(APIView):
         application = _get_application_and_check(
             request, application_id, ReadAgentTriggerOperationType
         )
-        triggers = AgentTriggerHandler().list_triggers(application)
-        return Response([_serialize_trigger(trigger) for trigger in triggers])
+        triggers = _with_specific_services(
+            list(AgentTriggerHandler().list_triggers(application))
+        )
+        return Response(AgentTriggerSerializer(triggers, many=True).data)
 
     @extend_schema(
         parameters=[
@@ -874,20 +952,32 @@ class AgentTriggersView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="create_agent_application_trigger",
         description="Adds a trigger to the agent application.",
         request=CreateAgentTriggerSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            200: AgentTriggerSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            # Raised for a trigger service type no agent trigger type handles.
+            AgentTriggerDoesNotExist: ERROR_AGENT_TRIGGER_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
@@ -906,7 +996,7 @@ class AgentTriggersView(APIView):
                 enabled=data.get("enabled", True),
             )
 
-        return Response(_serialize_trigger(trigger))
+        return Response(AgentTriggerSerializer(trigger).data)
 
 
 class AgentTriggerView(APIView):
@@ -919,14 +1009,19 @@ class AgentTriggerView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="update_agent_application_trigger",
         description="Updates a trigger of the agent application.",
         request=UpdateAgentTriggerSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            200: AgentTriggerSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"]),
         },
     )
@@ -955,7 +1050,7 @@ class AgentTriggerView(APIView):
                 enabled=data.get("enabled"),
             )
 
-        return Response(_serialize_trigger(trigger))
+        return Response(AgentTriggerSerializer(trigger).data)
 
     @extend_schema(
         parameters=[
@@ -964,6 +1059,8 @@ class AgentTriggerView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="delete_agent_application_trigger",
@@ -971,6 +1068,7 @@ class AgentTriggerView(APIView):
         responses={
             204: None,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"]),
         },
     )
@@ -985,7 +1083,7 @@ class AgentTriggerView(APIView):
         application = trigger.application
         CoreHandler().check_permissions(
             request.user,
-            UpdateAgentTriggerOperationType.type,
+            DeleteAgentTriggerOperationType.type,
             workspace=application.workspace,
             context=application.application_ptr,
         )
@@ -996,25 +1094,6 @@ class AgentTriggerView(APIView):
             )
 
         return Response(status=HTTP_204_NO_CONTENT)
-
-
-def _serialize_tool(tool) -> dict:
-    service_data = None
-    service_type = None
-    if tool.service_id is not None:
-        service = tool.service.specific
-        service_type = service.get_type().type
-        service_data = service_type_registry.get_serializer(service).data
-    return {
-        "id": tool.id,
-        "type": tool.type,
-        "name": tool.name,
-        "config": tool.config,
-        "order": tool.order,
-        "identity_id": tool.identity_id,
-        "service_type": service_type,
-        "service": service_data,
-    }
 
 
 class AgentToolsView(APIView):
@@ -1032,9 +1111,15 @@ class AgentToolsView(APIView):
         operation_id="list_agent_application_tools",
         description="Lists the tools enabled for the application's agent.",
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: AgentToolSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
@@ -1049,8 +1134,8 @@ class AgentToolsView(APIView):
             request, application_id, ListAgentToolsOperationType
         )
         agent = AgentApplicationHandler().get_main_agent(application)
-        tools = AgentToolHandler().list_tools(agent)
-        return Response([_serialize_tool(tool) for tool in tools])
+        tools = _with_specific_services(list(AgentToolHandler().list_tools(agent)))
+        return Response(AgentToolSerializer(tools, many=True).data)
 
     @extend_schema(
         parameters=[
@@ -1059,15 +1144,25 @@ class AgentToolsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="create_agent_application_tool",
         description="Enables a tool for the application's agent.",
         request=CreateAgentToolSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+            200: AgentToolSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_DEFINITION_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
@@ -1095,7 +1190,7 @@ class AgentToolsView(APIView):
                 service_values=data.get("service"),
             )
 
-        return Response(_serialize_tool(tool))
+        return Response(AgentToolSerializer(tool).data)
 
 
 class AgentToolView(APIView):
@@ -1108,14 +1203,19 @@ class AgentToolView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="update_agent_application_tool",
         description="Updates a tool of the application's agent.",
         request=UpdateAgentToolSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            200: AgentToolSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_TOOL_DOES_NOT_EXIST"]),
         },
     )
@@ -1150,7 +1250,7 @@ class AgentToolView(APIView):
                 ),
             )
 
-        return Response(_serialize_tool(tool))
+        return Response(AgentToolSerializer(tool).data)
 
     @extend_schema(
         parameters=[
@@ -1159,6 +1259,8 @@ class AgentToolView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="delete_agent_application_tool",
@@ -1166,6 +1268,7 @@ class AgentToolView(APIView):
         responses={
             204: None,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_TOOL_DOES_NOT_EXIST"]),
         },
     )
@@ -1213,6 +1316,7 @@ class AgentApplicationApprovalsView(APIView):
         responses={
             200: AgentApplicationToolApprovalSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
@@ -1250,8 +1354,9 @@ class AgentWorkspaceToolsView(APIView):
             "access to, with its group and whether it changes data."
         ),
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: AgentWorkspaceToolSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
@@ -1269,7 +1374,9 @@ class AgentWorkspaceToolsView(APIView):
         _get_application_and_check(
             request, application_id, ReadAgentDefinitionOperationType
         )
-        return Response(list_workspace_tools())
+        return Response(
+            AgentWorkspaceToolSerializer(list_workspace_tools(), many=True).data
+        )
 
 
 class AgentChatApprovalsView(APIView):
@@ -1289,6 +1396,7 @@ class AgentChatApprovalsView(APIView):
         responses={
             200: AgentChatToolApprovalSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
         },
     )
@@ -1310,6 +1418,8 @@ class AgentChatApprovalsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.UUID,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="decide_agent_application_chat_approvals",
@@ -1321,7 +1431,10 @@ class AgentChatApprovalsView(APIView):
         request=DecideAgentToolApprovalsSerializer,
         responses={
             200: AgentChatToolApprovalSerializer(many=True),
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(
                 [
                     "ERROR_AGENT_CHAT_DOES_NOT_EXIST",
@@ -1361,23 +1474,6 @@ class AgentChatApprovalsView(APIView):
         return Response(AgentChatToolApprovalSerializer(decided, many=True).data)
 
 
-def _serialize_channel(channel) -> dict:
-    channel_type = agent_chat_channel_type_registry.get(channel.type)
-    events_url = (
-        f"{settings.PUBLIC_BACKEND_URL}/api/agent_application/channels/"
-        f"{channel.uid}/events/"
-    )
-    return {
-        "id": channel.id,
-        "type": channel.type,
-        "name": channel.name,
-        "enabled": channel.enabled,
-        "config": channel_type.get_public_config(channel),
-        "events_url": events_url,
-        "manifest": channel_type.get_manifest(channel, events_url),
-    }
-
-
 class AgentChatChannelsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -1393,8 +1489,9 @@ class AgentChatChannelsView(APIView):
         operation_id="list_agent_application_chat_channels",
         description="Lists the external chat channels of the agent application.",
         responses={
-            200: OpenApiTypes.OBJECT,
+            200: AgentChatChannelSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
@@ -1409,7 +1506,7 @@ class AgentChatChannelsView(APIView):
             request, application_id, ReadAgentChatChannelOperationType
         )
         channels = AgentChatChannelHandler().list_channels(application)
-        return Response([_serialize_channel(channel) for channel in channels])
+        return Response(AgentChatChannelSerializer(channels, many=True).data)
 
     @extend_schema(
         parameters=[
@@ -1418,14 +1515,19 @@ class AgentChatChannelsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="create_agent_application_chat_channel",
         description="Connects an external chat channel to the agent application.",
         request=CreateAgentChatChannelSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            200: AgentChatChannelSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
@@ -1453,7 +1555,7 @@ class AgentChatChannelsView(APIView):
                 enabled=data.get("enabled", True),
             )
 
-        return Response(_serialize_channel(channel))
+        return Response(AgentChatChannelSerializer(channel).data)
 
 
 class AgentChatChannelView(APIView):
@@ -1466,14 +1568,19 @@ class AgentChatChannelView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="update_agent_application_chat_channel",
         description="Updates an external chat channel of the agent application.",
         request=UpdateAgentChatChannelSerializer,
         responses={
-            200: OpenApiTypes.OBJECT,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            200: AgentChatChannelSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
         },
     )
@@ -1505,7 +1612,7 @@ class AgentChatChannelView(APIView):
                 enabled=data.get("enabled"),
             )
 
-        return Response(_serialize_channel(channel))
+        return Response(AgentChatChannelSerializer(channel).data)
 
     @extend_schema(
         parameters=[
@@ -1514,6 +1621,8 @@ class AgentChatChannelView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
             ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Agent"],
         operation_id="delete_agent_application_chat_channel",
@@ -1521,6 +1630,7 @@ class AgentChatChannelView(APIView):
         responses={
             204: None,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
         },
     )
@@ -1535,7 +1645,7 @@ class AgentChatChannelView(APIView):
         application = channel.application
         CoreHandler().check_permissions(
             request.user,
-            UpdateAgentChatChannelOperationType.type,
+            DeleteAgentChatChannelOperationType.type,
             workspace=application.workspace,
             context=application.application_ptr,
         )
@@ -1558,7 +1668,38 @@ class AgentChatChannelEventsView(APIView):
     permission_classes = (AllowAny,)
     authentication_classes = ()
 
-    @extend_schema(exclude=True)
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="channel_uid",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.UUID,
+                description="The unguessable uid of the channel.",
+            ),
+        ],
+        tags=["Agent"],
+        operation_id="receive_agent_application_chat_channel_event",
+        description=(
+            "Inbound webhook for the external service of a chat channel, for "
+            "example Slack's Events API. The request and the response body "
+            "follow the external service's protocol, which the channel type "
+            "verifies and answers. Unknown channels are acknowledged without "
+            "content so the URL reveals nothing."
+        ),
+        request=OpenApiTypes.OBJECT,
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.OBJECT,
+                description="The protocol answer of the channel type, such as "
+                "Slack's URL verification challenge.",
+            ),
+            204: OpenApiResponse(
+                description="The event was accepted, or no such channel exists."
+            ),
+            400: OpenApiResponse(description="The payload is malformed."),
+            401: OpenApiResponse(description="The request signature is invalid."),
+        },
+    )
     def post(self, request, channel_uid):
         try:
             channel = AgentChatChannelHandler().get_channel_by_uid(channel_uid)
@@ -1575,13 +1716,34 @@ class AgentChatChannelRotateSlugView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="channel_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
         tags=["Agent"],
         operation_id="rotate_agent_chat_channel_slug",
-        description="Replaces the public link of a web chat channel.",
-        responses={200: None, 404: None},
+        description=(
+            "Replaces the public link of a web chat channel; the old link stops "
+            "working at once."
+        ),
+        request=None,
+        responses={
+            200: AgentChatChannelSerializer,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(["ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST"]),
+        },
     )
     @map_exceptions(
-        {AgentChatChannelDoesNotExist: ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST}
+        {
+            AgentChatChannelDoesNotExist: ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
     )
     @transaction.atomic
     def post(self, request, channel_id: int):
@@ -1595,11 +1757,11 @@ class AgentChatChannelRotateSlugView(APIView):
             request.user,
             UpdateAgentChatChannelOperationType.type,
             workspace=application.workspace,
-            context=application,
+            context=application.application_ptr,
         )
         if channel.type != WebAgentChatChannelType.type:
             raise AgentChatChannelDoesNotExist("Only web chat channels have a link.")
         channel = action_type_registry.get_by_type(
             RotateAgentChatChannelLinkActionType
         ).do(request.user, channel)
-        return Response(_serialize_channel(channel))
+        return Response(AgentChatChannelSerializer(channel).data)

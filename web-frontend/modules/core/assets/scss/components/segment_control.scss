@@ -29,6 +29,10 @@
   background: none;
 }
 
+.segment-control--disabled {
+  opacity: 0.5;
+}
+
 .segment-control__button {
   flex: 1;
   overflow: hidden;
@@ -48,6 +52,10 @@
 
   .segment-control--rounded & {
     border-radius: 80px;
+  }
+
+  .segment-control--disabled & {
+    cursor: not-allowed;
   }
 
   &:hover {

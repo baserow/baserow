@@ -3,7 +3,7 @@
     <FormTextarea
       v-model="value"
       :rows="14"
-      :disabled="!canUpdate"
+      :disabled="!canUpdate || improving"
       :placeholder="$t('agentInstructions.placeholder')"
       @input="onInput"
     ></FormTextarea>

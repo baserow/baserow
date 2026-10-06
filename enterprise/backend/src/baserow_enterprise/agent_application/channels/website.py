@@ -8,6 +8,7 @@ config and are baked into the script when it is served, so changing them in
 Baserow updates every site without touching the embed code.
 """
 
+import functools
 import json
 import re
 from pathlib import Path
@@ -25,6 +26,22 @@ DEFAULT_BUTTON_TEXT = "Chat with us"
 BUTTON_TEXT_MAX_LENGTH = 60
 _HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 _SCRIPT_TEMPLATE = Path(__file__).with_name("website_widget.js")
+
+
+@functools.lru_cache(maxsize=1)
+def _script_source() -> str:
+    return _SCRIPT_TEMPLATE.read_text()
+
+
+def _safe_color(value) -> str:
+    """
+    The colour is written into CSS text on third-party pages; an imported
+    config did not pass the API validation, so it is checked again here.
+    """
+
+    if isinstance(value, str) and _HEX_COLOR.match(value):
+        return value
+    return DEFAULT_BUTTON_COLOR
 
 
 class WebsiteWidgetAgentChatChannelType(WebAgentChatChannelType):
@@ -100,7 +117,7 @@ class WebsiteWidgetAgentChatChannelType(WebAgentChatChannelType):
         widget_config = {
             "slug": channel.config.get("slug", ""),
             "chat_url": self.get_chat_url(channel),
-            "color": channel.config.get("button_color", DEFAULT_BUTTON_COLOR),
+            "color": _safe_color(channel.config.get("button_color")),
             "position": channel.config.get("button_position", BUTTON_POSITIONS[0]),
             "text": channel.config.get("button_text", DEFAULT_BUTTON_TEXT),
             "title": channel.config.get("title", "") or channel.application.name,
@@ -108,4 +125,4 @@ class WebsiteWidgetAgentChatChannelType(WebAgentChatChannelType):
         # `</` can't appear in the JSON; it would end a surrounding script
         # tag if the file were ever inlined.
         encoded = json.dumps(widget_config).replace("</", "<\\/")
-        return _SCRIPT_TEMPLATE.read_text().replace("__WIDGET_CONFIG__", encoded)
+        return _script_source().replace("__WIDGET_CONFIG__", encoded)

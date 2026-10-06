@@ -2,6 +2,16 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def remove_workspace_search_tools(apps, schema_editor):
+    """
+    The built-in "workspace search" tool was dropped before release; rows of
+    that type would make the tool registry raise for the agents holding them.
+    """
+
+    AgentTool = apps.get_model("baserow_enterprise", "AgentTool")
+    AgentTool.objects.filter(type="workspace_search").delete()
+
+
 class Migration(migrations.Migration):
     dependencies = [
         (
@@ -109,4 +119,5 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
+        migrations.RunPython(remove_workspace_search_tools, migrations.RunPython.noop),
     ]

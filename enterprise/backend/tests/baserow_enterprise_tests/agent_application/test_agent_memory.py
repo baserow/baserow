@@ -21,9 +21,7 @@ from .test_agent_runner import register_runner_test_model_type
 def _ctx(agent):
     # A run always knows who it acts as; the memory tools audit that actor.
     # The prompt test passes an unsaved agent that has no application.
-    user = (
-        agent.application.workspace.users.first() if agent.application_id else None
-    )
+    user = agent.application.workspace.users.first() if agent.application_id else None
     return SimpleNamespace(deps=SimpleNamespace(agent=agent, user=user))
 
 

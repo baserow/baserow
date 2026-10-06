@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet, Sum
+from django.utils import timezone
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -359,11 +360,20 @@ class AgentChatHandler:
         self-configure tools check that person's permissions. Someone else may
         read it, but continuing it would borrow those permissions.
 
-        :raises AgentChatNotOwned: When the chat was started by another user.
+        A channel conversation belongs to the outside party on Slack or the
+        public web chat: a message typed here would be answered there and the
+        visitor would read it, so it stays read-only inside Baserow.
+
+        :raises AgentChatNotOwned: When the chat was started by another user
+            or came in through a chat channel.
         """
 
         from .exceptions import AgentChatNotOwned
 
+        if chat.source == AgentChat.Source.CHANNEL:
+            raise AgentChatNotOwned(
+                f"The chat {chat.id} belongs to a chat channel conversation."
+            )
         if (
             chat.user_id is not None
             and user is not None
@@ -383,9 +393,9 @@ class AgentChatHandler:
                 )
             self.check_chat_can_be_continued_by(chat, user)
             if chat.user_id is None:
-                # A triggered or channel conversation that a person picks up
-                # runs as that person from here on, never as whoever happened
-                # to start the agent.
+                # A triggered conversation that a person picks up runs as that
+                # person from here on, never as whoever happened to start the
+                # agent.
                 chat.user = user
                 chat.save(update_fields=["user", "updated_on"])
             return chat
@@ -606,7 +616,10 @@ class AgentChatHandler:
                     AgentChat.Status.AWAITING_APPROVAL,
                 ]
             )
-            .update(status=AgentChat.Status.IN_PROGRESS)
+            # `updated_on` marks the run as alive: the stuck-run cleanup looks
+            # at it, and a resumed conversation would otherwise still carry the
+            # timestamp of its last message.
+            .update(status=AgentChat.Status.IN_PROGRESS, updated_on=timezone.now())
         )
 
         if not updated:
@@ -672,6 +685,12 @@ class AgentChatHandler:
                         for approval_id in pending
                     ],
                 )
+            else:
+                # Nothing left to decide, yet the chat never resumed (e.g. the
+                # decision raced the pause); cancelling frees it up again.
+                chat.status = AgentChat.Status.IDLE
+                chat.save(update_fields=["status", "updated_on"])
+                broadcast_chat_updated(chat)
             return
 
         if not chat.is_running:

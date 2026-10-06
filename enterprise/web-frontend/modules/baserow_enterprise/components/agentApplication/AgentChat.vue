@@ -147,7 +147,11 @@
     >
       <i class="iconoir-lock"></i>
       <span class="agent-chat__banner-text">
-        {{ $t('agentChat.startedByOtherUser') }}
+        {{
+          isChannelChat
+            ? $t('agentChat.channelConversation')
+            : $t('agentChat.startedByOtherUser')
+        }}
       </span>
     </div>
     <div v-else-if="canRunChat" class="agent-chat__composer">
@@ -503,7 +507,7 @@ export default defineComponent({
     // A conversation another person started is readable, but only its owner
     // may continue it: the run acts as the owner when the agent has no
     // identity, so continuing it would borrow their permissions. Triggered
-    // and channel conversations have no owner yet and can be picked up.
+    // conversations have no owner yet and can be picked up.
     const chatOwnerId = computed(() => {
       const chatId = store.getters[`${storePrefix}agentChat/getChatId`]
       if (chatId === null) {
@@ -514,9 +518,16 @@ export default defineComponent({
       )
       return chat?.user_id ?? null
     })
+    // Conversations that came in through a chat channel (Slack, website
+    // widget, ...) belong to that channel: the backend rejects replies from
+    // Baserow, so they are read-only here.
+    const isChannelChat = computed(
+      () => store.getters[`${storePrefix}agentChat/getSource`] === 'channel'
+    )
     const canContinueChat = computed(
       () =>
         canRunChat.value &&
+        !isChannelChat.value &&
         (chatOwnerId.value === null ||
           chatOwnerId.value === store.getters['auth/getUserId'])
     )
@@ -613,7 +624,7 @@ export default defineComponent({
       const computedStyle = window.getComputedStyle(textarea)
       const lineHeight = parseInt(computedStyle.lineHeight) || 20
 
-      // Reset height to auto to get the correct scrollHeight.
+      // Otherwise scrollHeight never shrinks below the current height.
       textarea.style.height = 'auto'
       const minHeight = lineHeight * MIN_ROWS
       const maxHeight = lineHeight * MAX_ROWS
@@ -798,7 +809,8 @@ export default defineComponent({
 
     const onFileInputChange = (event) => {
       addFiles(event.target.files)
-      // Reset so the same file can be selected again later.
+      // The input only fires `change` when its value differs, so keeping the
+      // selection would make re-attaching the same file impossible.
       event.target.value = ''
     }
 
@@ -833,6 +845,7 @@ export default defineComponent({
       canDecide,
       canUpdateAgent,
       canContinueChat,
+      isChannelChat,
       hasError,
       retrying,
       retry,

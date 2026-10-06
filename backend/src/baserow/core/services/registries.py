@@ -789,7 +789,7 @@ class TriggerServiceTypeMixin(ABC):
         services: Iterable[Service],
         event_payload: Optional[Union[Dict, Callable]] = None,
         user=None,
-    ) -> None:
+    ) -> list:
         """
         Notifies every registered listener that the trigger's event occurred.
 
@@ -799,10 +799,18 @@ class TriggerServiceTypeMixin(ABC):
         responsible for filtering `services` down to its own consumers. When
         `event_payload` is a callable it may be invoked once per listener per
         service, so it must be idempotent.
+
+        Returns whatever the listeners started, flattened: the HTTP trigger
+        waits on the workflow history an automation listener returns to answer
+        the webhook with the workflow's response.
         """
 
+        started = []
         for listener in list(self.listeners):
-            listener(services, event_payload, user=user)
+            result = listener(services, event_payload, user=user)
+            if isinstance(result, (list, tuple)):
+                started.extend(result)
+        return started
 
     def can_be_immediately_dispatched(self, service: Service):
         """

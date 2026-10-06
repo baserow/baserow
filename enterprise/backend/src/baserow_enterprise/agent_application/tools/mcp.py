@@ -74,6 +74,31 @@ class McpServerAgentToolType(AgentToolType):
     """
 
     type = "mcp"
+    secret_config_keys = ("headers",)
+
+    def prepare_config(self, config: dict) -> dict:
+        from django.core.exceptions import ValidationError
+        from django.core.validators import URLValidator
+
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+
+        from baserow.contrib.database.webhooks.validators import url_validator
+
+        url = (config.get("url") or "").strip()
+        if url:
+            # The worker connects to this URL on every run, so it is held to
+            # the same policy as webhooks: no private or loopback addresses
+            # unless the instance explicitly allows them.
+            try:
+                URLValidator(schemes=["http", "https"])(url)
+                url_validator(url)
+            except ValidationError as error:
+                raise DRFValidationError(
+                    detail=f"The MCP server URL {url!r} is not allowed.",
+                    code="invalid_url",
+                ) from error
+        return config
+
     is_configurable = True
 
     def can_enable(self, agent: "AgentDefinition") -> tuple[bool, Optional[str]]:

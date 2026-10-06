@@ -121,7 +121,7 @@
             </FormGroup>
           </div>
         </Expandable>
-        <template v-if="!readOnly" #footer>
+        <template v-if="!readOnly && canDeleteTrigger" #footer>
           <ButtonText
             icon="iconoir-bin"
             :loading="deletingIds.includes(trigger.id)"
@@ -208,6 +208,13 @@ export default {
     },
   },
   computed: {
+    canDeleteTrigger() {
+      return this.hasAgentPermission(
+        'agent_application.delete_trigger',
+        this.application,
+        this.application.workspace.id
+      )
+    },
     triggers() {
       return this.$store.getters[
         `${this.storePrefix}agentApplication/getTriggers`

@@ -46,4 +46,22 @@ describe('SegmentControl.vue', () => {
 
     expect(wrapper.emitted('update:activeIndex')[0]).toEqual([2])
   })
+
+  it('disables every segment when disabled', async () => {
+    const wrapper = await testApp.mount(SegmentControl, {
+      propsData: {
+        segments: [{ label: 'One' }, { label: 'Two' }],
+        disabled: true,
+      },
+    })
+
+    expect(wrapper.classes()).toContain('segment-control--disabled')
+    expect(
+      wrapper
+        .findAll('.segment-control__button')
+        .every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
+    await wrapper.findAll('.segment-control__button').at(1).trigger('click')
+    expect(wrapper.emitted('update:activeIndex')).toBeUndefined()
+  })
 })

@@ -305,7 +305,7 @@
             </template>
           </ReadOnlyForm>
         </template>
-        <template v-if="canUpdateChannel" #footer>
+        <template v-if="canDeleteChannel" #footer>
           <ButtonText
             icon="iconoir-bin"
             :loading="deletingIds.includes(channel.id)"
@@ -488,6 +488,13 @@ export default {
     canUpdateChannel() {
       return this.hasAgentPermission(
         'agent_application.update_chat_channel',
+        this.application,
+        this.application.workspace.id
+      )
+    },
+    canDeleteChannel() {
+      return this.hasAgentPermission(
+        'agent_application.delete_chat_channel',
         this.application,
         this.application.workspace.id
       )

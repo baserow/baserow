@@ -9,6 +9,15 @@ if TYPE_CHECKING:
     from ..models import AgentDefinition, AgentTool
 
 
+SECRET_MASK = "••••••••"
+
+
+def _mask(value):
+    if isinstance(value, dict):
+        return {name: SECRET_MASK for name in value}
+    return SECRET_MASK if value else value
+
+
 class AgentToolType(Instance):
     """
     A kind of tool that can be enabled for an agent. Simple tool types are
@@ -20,6 +29,57 @@ class AgentToolType(Instance):
     # Whether users can add multiple configured instances of this tool type
     # (e.g. services as tools) instead of a single on/off toggle.
     is_configurable = False
+
+    # Config keys holding credentials (e.g. MCP request headers). They never
+    # leave the server: API and realtime payloads mask their values, the undo
+    # history drops them, and a masked value sent back is read as "unchanged".
+    secret_config_keys: tuple = ()
+
+    def prepare_config(self, config: dict) -> dict:
+        """
+        Validates and normalizes a config before it is stored.
+
+        :raises rest_framework.exceptions.ValidationError: When invalid.
+        """
+
+        return config
+
+    def get_public_config(self, tool: "AgentTool") -> dict:
+        config = dict(tool.config or {})
+        for key in self.secret_config_keys:
+            if key in config:
+                config[key] = _mask(config[key])
+        return config
+
+    def get_undoable_config(self, tool: "AgentTool") -> dict:
+        return {
+            key: value
+            for key, value in (tool.config or {}).items()
+            if key not in self.secret_config_keys
+        }
+
+    def merge_secret_config(self, tool: "AgentTool", config: dict) -> dict:
+        """
+        Restores the stored secrets a client could not have sent back: a
+        missing key or a masked value both mean "keep what is stored".
+        """
+
+        merged = dict(config)
+        stored = tool.config or {}
+        for key in self.secret_config_keys:
+            if key not in merged:
+                if key in stored:
+                    merged[key] = stored[key]
+                continue
+            incoming, kept = merged[key], stored.get(key)
+            if isinstance(incoming, dict) and isinstance(kept, dict):
+                merged[key] = {
+                    name: kept.get(name, "") if value == SECRET_MASK else value
+                    for name, value in incoming.items()
+                }
+            elif incoming == SECRET_MASK:
+                merged[key] = kept
+        return merged
 
     def can_enable(self, agent: "AgentDefinition") -> tuple[bool, Optional[str]]:
         """

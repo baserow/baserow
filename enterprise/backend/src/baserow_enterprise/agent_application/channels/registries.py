@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 
 from baserow.core.registry import Instance, Registry
@@ -9,6 +10,17 @@ if TYPE_CHECKING:
 
 
 class AgentChatChannelType(Instance):
+    """
+    An external chat surface (Slack, Telegram, ...) through which users can
+    talk to an agent. A channel type receives inbound webhook requests from
+    the external service, turns them into agent chat messages, and posts the
+    agent's answers back.
+
+    Adding a new integration means implementing this interface and
+    registering it; the inbound webhook URL, chat session bookkeeping and run
+    lifecycle are shared.
+    """
+
     # Whether people talking through this channel may change the agent's
     # memory (`remember`). Internal channels like Slack may; public ones not.
     allows_memory_updates = True
@@ -40,31 +52,20 @@ class AgentChatChannelType(Instance):
         """
 
         from django.conf import settings
-        from django.core.cache import cache
 
         from loguru import logger
 
         limit = settings.AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE
         cache_key = f"agent_application:channel:{channel.id}:rate"
-        cache.add(cache_key, 0, timeout=60)
-        count = cache.incr(cache_key)
+        from ..triggers.registries import _count_in_window
+
+        count = _count_in_window(cache_key)
         if count > limit:
             logger.warning(
                 "Chat channel {} exceeded {} messages per minute", channel.id, limit
             )
             return True
         return False
-
-    """
-    An external chat surface (Slack, Telegram, ...) through which users can
-    talk to an agent. A channel type receives inbound webhook requests from
-    the external service, turns them into agent chat messages, and posts the
-    agent's answers back.
-
-    Adding a new integration means implementing this interface and
-    registering it; the inbound webhook URL, chat session bookkeeping and run
-    lifecycle are shared.
-    """
 
     def prepare_config(self, config: dict, existing_config: dict | None = None) -> dict:
         """
@@ -178,19 +179,23 @@ def start_channel_chat(
     chat_handler = AgentChatHandler()
     channel_type = agent_chat_channel_type_registry.get(channel.type)
 
-    chat = AgentChat.objects.filter(
-        channel=channel, channel_session_key=session_key
-    ).first()
-    if chat is None:
-        chat = AgentChat.objects.create(
-            agent=agent,
-            source=AgentChat.Source.CHANNEL,
-            channel=channel,
-            channel_session_key=session_key,
-            title=f"{channel.name or channel.type}: {text}"[
-                : AgentChat.TITLE_MAX_LENGTH
-            ],
-        )
+    # Two quick replies in a new thread arrive as two tasks; the lock on the
+    # channel row makes the second one find the chat the first created.
+    with transaction.atomic():
+        list(type(channel).objects.select_for_update().filter(id=channel.id))
+        chat = AgentChat.objects.filter(
+            channel=channel, channel_session_key=session_key
+        ).first()
+        if chat is None:
+            chat = AgentChat.objects.create(
+                agent=agent,
+                source=AgentChat.Source.CHANNEL,
+                channel=channel,
+                channel_session_key=session_key,
+                title=f"{channel.name or channel.type}: {text}"[
+                    : AgentChat.TITLE_MAX_LENGTH
+                ],
+            )
 
     # Checked up front so nothing is stored or posted for a message the
     # chat cannot take yet; the run start below guards the remaining race.

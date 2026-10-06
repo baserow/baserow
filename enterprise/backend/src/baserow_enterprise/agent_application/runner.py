@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from django.core.cache import cache
+from django.db import transaction
 
 from asgiref.sync import sync_to_async
 from loguru import logger
@@ -848,7 +849,7 @@ class AgentRunner:
         run_result,
         messages_json,
     ):
-        from .models import AgentChatToolApproval
+        from .models import AgentChat, AgentChatToolApproval
 
         def create_approvals():
             from .approval_preview import build_approval_preview
@@ -887,9 +888,17 @@ class AgentRunner:
                         else None,
                     )
                 )
+            # The decision endpoint only resumes a chat that is awaiting
+            # approval, so the status must be in place before the request is
+            # broadcast, otherwise a quick decision leaves the chat paused for
+            # good.
+            AgentChat.objects.filter(id=self.chat.id).update(
+                status=AgentChat.Status.AWAITING_APPROVAL
+            )
+            self.chat.status = AgentChat.Status.AWAITING_APPROVAL
             return approvals
 
-        approvals = await sync_to_async(create_approvals)()
+        approvals = await sync_to_async(transaction.atomic(create_approvals))()
         serialized = [
             {
                 "id": approval.id,

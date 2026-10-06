@@ -82,9 +82,6 @@ describe('agentHistory store', () => {
     expect(
       store.getters['agentHistory/getChats'].map((c) => c.id)
     ).toStrictEqual([2, 3, 1])
-    expect(
-      store.getters['agentHistory/getRunningChats'].map((c) => c.id)
-    ).toStrictEqual([3])
   })
 
   test('forceUpdateChat updates an existing chat and resorts the list', async () => {

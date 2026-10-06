@@ -93,9 +93,12 @@ def system_notes(ctx: RunContext[AgentRunDeps]) -> str:
 @agent_run_agent.toolset
 def dynamic_toolset(ctx: RunContext[AgentRunDeps]):
     from .tools.gating import wrap_workspace_toolset
+    from .tools.workspace import ErrorHandlingToolset
 
     # Tools can be appended to `deps.dynamic_tools` while a run is in
     # progress (e.g. per-table row tools loaded by the database tools).
-    # Those are workspace tools, so the same tool rules as the workspace
-    # toolset apply.
-    return wrap_workspace_toolset(FunctionToolset(ctx.deps.dynamic_tools), ctx.deps)
+    # Those are workspace tools, so the same tool rules and error handling
+    # as the workspace toolset apply.
+    return wrap_workspace_toolset(
+        ErrorHandlingToolset(FunctionToolset(ctx.deps.dynamic_tools)), ctx.deps
+    )

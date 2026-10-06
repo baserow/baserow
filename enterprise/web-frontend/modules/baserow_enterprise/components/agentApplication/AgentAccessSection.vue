@@ -113,6 +113,7 @@
           class="agent-configuration__segment"
           :segments="accessSegments"
           :active-index="accessIndex"
+          :disabled="!canUpdateTool"
           @update:active-index="onAccessChange"
         ></SegmentControl>
         <a
@@ -214,7 +215,6 @@ const GROUP_ICONS = {
   database: 'iconoir-db',
   automation: 'baserow-icon-automation',
   core: 'iconoir-settings',
-  search_user_docs: 'iconoir-search',
 }
 
 export default {
@@ -397,12 +397,6 @@ export default {
           icon: 'iconoir-globe',
           label: this.$t('agentAccess.webSearch'),
           description: this.$t('agentAccess.webSearchDescription'),
-        },
-        {
-          type: 'workspace_search',
-          icon: 'iconoir-search',
-          label: this.$t('agentAccess.workspaceSearch'),
-          description: this.$t('agentAccess.workspaceSearchDescription'),
         },
       ]
     },

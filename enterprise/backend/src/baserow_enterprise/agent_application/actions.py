@@ -25,6 +25,7 @@ from .models import (
 )
 from .service import AgentApplicationService
 from .tools.handler import AgentToolHandler
+from .tools.registries import agent_tool_type_registry
 from .trash_types import (
     AgentChatChannelTrashableItemType,
     AgentToolTrashableItemType,
@@ -33,6 +34,26 @@ from .trash_types import (
 from .triggers.handler import AgentTriggerHandler
 
 AGENT_ACTION_CONTEXT = _('in application "%(application_name)s" (%(application_id)s).')
+
+
+def _without_deleted_skills(values: dict) -> dict:
+    """
+    A skill deleted since the action was recorded cannot be linked again; the
+    rest of the undo must still apply instead of failing on it.
+    """
+
+    if "skills" not in values:
+        return values
+    from baserow.core.skills.models import WorkspaceSkill
+
+    skill_ids = [entry["skill_id"] for entry in values["skills"]]
+    existing = set(
+        WorkspaceSkill.objects.filter(id__in=skill_ids).values_list("id", flat=True)
+    )
+    return {
+        **values,
+        "skills": [e for e in values["skills"] if e["skill_id"] in existing],
+    }
 
 
 class UpdateAgentDefinitionActionType(UndoableActionType):
@@ -106,13 +127,13 @@ class UpdateAgentDefinitionActionType(UndoableActionType):
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
         AgentApplicationService().update_agent(
-            user, params.agent_id, **params.original_values
+            user, params.agent_id, **_without_deleted_skills(params.original_values)
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
         AgentApplicationService().update_agent(
-            user, params.agent_id, **params.new_values
+            user, params.agent_id, **_without_deleted_skills(params.new_values)
         )
 
 
@@ -222,7 +243,9 @@ class UpdateAgentToolActionType(UndoableActionType):
     def _values(cls, tool: AgentTool, with_service: bool) -> dict:
         values: dict[str, Any] = {
             "name": tool.name,
-            "config": tool.config,
+            # Credentials stay out of the action params (undo history, audit
+            # log); the handler keeps the stored ones when a config omits them.
+            "config": agent_tool_type_registry.get(tool.type).get_undoable_config(tool),
             "identity_id": tool.identity_id,
         }
         if with_service and tool.service_id is not None:

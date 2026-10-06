@@ -2,7 +2,8 @@ from datetime import datetime
 from datetime import timezone as dt_timezone
 from unittest.mock import patch
 
-from django.db import transaction
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
@@ -307,7 +308,7 @@ def test_row_comment_created_trigger_starts_agent_chat(
 @pytest.mark.django_db(transaction=True)
 def test_multiple_triggers_fire_independently(data_fixture, agent_with_table):
     user, token, workspace, application, agent, table, field = agent_with_table
-    other_table = data_fixture.create_database_table(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=table.database)
     other_field = data_fixture.create_text_field(user, table=other_table)
     integration = application.integrations.first().specific
 
@@ -569,3 +570,43 @@ def test_http_trigger_webhook_starts_agent_chat(api_client, agent_with_table):
     assert "webhook" in system_message.content
     assert "hello" in system_message.content
     delay_mock.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_trigger_list_query_count_does_not_grow_with_the_number_of_triggers(
+    api_client, data_fixture, agent_with_table, django_assert_num_queries
+):
+    user, token, workspace, application, agent, table, field = agent_with_table
+    handler = AgentTriggerHandler()
+    list_url = reverse("api:agent:triggers", kwargs={"application_id": application.id})
+
+    def list_triggers():
+        response = api_client.get(list_url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        return response.json()
+
+    handler.create_trigger(user, application, "http_trigger")
+    # Warms the per-process caches (content types, settings) so both
+    # measurements compare like for like.
+    list_triggers()
+    with CaptureQueriesContext(connection) as single:
+        assert len(list_triggers()) == 1
+
+    for _ in range(2):
+        handler.create_trigger(user, application, "http_trigger")
+    for _ in range(2):
+        handler.create_trigger(user, application, "periodic")
+
+    # The specific services are loaded per service type, not per trigger, so
+    # the one new type costs one query however many triggers there are.
+    with django_assert_num_queries(len(single.captured_queries) + 1):
+        listed = list_triggers()
+    assert [t["service_type"] for t in listed] == [
+        "http_trigger",
+        "http_trigger",
+        "http_trigger",
+        "periodic",
+        "periodic",
+    ]
+    assert "interval" in listed[-1]["service"]
+    assert "triggered_at" in listed[-1]["sample_payload"]

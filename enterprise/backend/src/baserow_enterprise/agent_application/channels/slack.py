@@ -181,7 +181,7 @@ class SlackAgentChatChannelType(AgentChatChannelType):
         ):
             return
 
-        if self._is_rate_limited(channel):
+        if self.is_rate_limited(channel):
             return
 
         text = slack_text_to_plain(
@@ -197,9 +197,6 @@ class SlackAgentChatChannelType(AgentChatChannelType):
 
         session_key = f"{slack_channel}|{thread_ts}"
         process_agent_channel_message.delay(channel.id, session_key, text, sender_name)
-
-    def _is_rate_limited(self, channel: "AgentChatChannel") -> bool:
-        return self.is_rate_limited(channel)
 
     def on_run_starting(self, channel: "AgentChatChannel", chat: "AgentChat") -> None:
         # Slack has no typing indicator for bots, so a placeholder reply is
@@ -244,14 +241,25 @@ class SlackAgentChatChannelType(AgentChatChannelType):
         if thread_ts and method == "chat.postMessage":
             params["thread_ts"] = thread_ts
 
-        response = send_http_request(
-            method="POST",
-            url=f"https://slack.com/api/{method}",
-            deadline=time.monotonic() + _SLACK_REQUEST_TIMEOUT_SECONDS,
-            headers={"Authorization": f"Bearer {channel.config.get('bot_token', '')}"},
-            params=params,
-        )
-        response_data = response.json()
+        # A JSON body: query parameters would put the whole answer in the URL,
+        # past what Slack and proxies accept and into their access logs. A
+        # Slack outage must not lose the inbound message, so transport errors
+        # are logged and the caller carries on without the post.
+        try:
+            response = send_http_request(
+                method="POST",
+                url=f"https://slack.com/api/{method}",
+                deadline=time.monotonic() + _SLACK_REQUEST_TIMEOUT_SECONDS,
+                headers={
+                    "Authorization": f"Bearer {channel.config.get('bot_token', '')}",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                json=params,
+            )
+            response_data = response.json()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Slack {} call for chat {} failed: {}", method, chat.id, exc)
+            return None
         if not response_data.get("ok"):
             logger.warning(
                 "Slack {} failed for channel {}: {}",

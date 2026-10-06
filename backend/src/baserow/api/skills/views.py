@@ -89,9 +89,9 @@ class WorkspaceSkillsView(APIView):
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @validate_body(WorkspaceSkillRequestSerializer)
     @map_exceptions(SKILL_ERRORS)
+    @transaction.atomic
     def post(self, request, data, workspace_id):
         workspace = CoreHandler().get_workspace(workspace_id)
         skill = action_type_registry.get_by_type(CreateWorkspaceSkillActionType).do(
@@ -135,9 +135,9 @@ class WorkspaceSkillView(APIView):
             404: get_error_schema(["ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @validate_body(UpdateWorkspaceSkillRequestSerializer)
     @map_exceptions(SKILL_ERRORS)
+    @transaction.atomic
     def patch(self, request, data, skill_id):
         service = WorkspaceSkillService()
         skill = service.get_skill(request.user, skill_id)
@@ -156,8 +156,8 @@ class WorkspaceSkillView(APIView):
             404: get_error_schema(["ERROR_WORKSPACE_SKILL_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @map_exceptions(SKILL_ERRORS)
+    @transaction.atomic
     def delete(self, request, skill_id):
         service = WorkspaceSkillService()
         skill = service.get_skill(request.user, skill_id)

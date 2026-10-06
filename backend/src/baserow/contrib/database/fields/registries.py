@@ -810,6 +810,7 @@ class FieldType(
         values = {
             "name": field.name,
             "db_index": field.db_index,
+            "vector_search_enabled": field.vector_search_enabled,
             "field_constraints": [
                 {"type_name": c.type_name} for c in field.field_constraints.all()
             ],
@@ -1189,6 +1190,7 @@ class FieldType(
             "primary": field.primary,
             "read_only": field.read_only,
             "db_index": field.db_index,
+            "vector_search_enabled": field.vector_search_enabled,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
             "field_constraints": field_constraints,

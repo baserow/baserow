@@ -217,7 +217,9 @@ watch(persistedChatUuid, (uuid) => {
   }
 })
 
-// URL -> store: browser back/forward navigates between conversations.
+// URL -> store: the param is written with `router.replace`, so this does not
+// react to back/forward between conversations; it handles a `chat` param
+// changed by hand or by a link to another conversation of the same agent.
 watch(chatQueryParam, async (uuid) => {
   if (!querySyncReady.value || !routeIsMine()) {
     return
@@ -231,11 +233,18 @@ watch(chatQueryParam, async (uuid) => {
   }
 })
 
+// The middleware selects the next agent before this page unmounts, so the
+// subscription is remembered and exactly that one is removed instead of
+// whatever is selected at unmount time.
+let realtimePage = null
+
 onMounted(() => {
   if (application.value) {
-    $realtime.subscribe('agent_application', {
-      agent_application_id: application.value.id,
-    })
+    realtimePage = {
+      page: 'agent_application',
+      params: { agent_application_id: application.value.id },
+    }
+    $realtime.subscribe(realtimePage.page, realtimePage.params)
   }
 })
 
@@ -255,10 +264,9 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  if (application.value) {
-    $realtime.unsubscribe('agent_application', {
-      agent_application_id: application.value.id,
-    })
+  if (realtimePage !== null) {
+    $realtime.unsubscribe(realtimePage.page, realtimePage.params)
+    realtimePage = null
   }
 })
 </script>

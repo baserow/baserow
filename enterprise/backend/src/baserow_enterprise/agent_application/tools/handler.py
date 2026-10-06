@@ -12,6 +12,7 @@ from baserow.core.services.registries import DispatchTypes, service_type_registr
 from ..exceptions import AgentToolDoesNotExist
 from ..models import AgentDefinition, AgentTool
 from ..signals import agent_tool_created, agent_tool_updated
+from ..triggers.handler import check_service_table_in_workspace
 from .registries import agent_tool_type_registry
 
 _NOT_PROVIDED = object()
@@ -167,8 +168,8 @@ class AgentToolHandler:
         service_type_str: Optional[str] = None,
         service_values: Optional[dict] = None,
     ) -> AgentTool:
-        # Validates the tool type exists.
-        agent_tool_type_registry.get(tool_type_str)
+        tool_type = agent_tool_type_registry.get(tool_type_str)
+        config = tool_type.prepare_config(config or {})
 
         service = None
         if service_type_str is not None:
@@ -177,6 +178,7 @@ class AgentToolHandler:
                 self._prepare_service_values(agent, dict(service_values or {})),
                 user,
             )
+            check_service_table_in_workspace(prepared_values, agent.application)
             service = ServiceHandler().create_service(service_type, **prepared_values)
 
         last_tool = agent.tools.order_by("-order").first()
@@ -213,6 +215,10 @@ class AgentToolHandler:
             tool.name = name
             update_fields.append("name")
         if config is not None:
+            tool_type = agent_tool_type_registry.get(tool.type)
+            config = tool_type.prepare_config(
+                tool_type.merge_secret_config(tool, config)
+            )
             if tool.type == "workspace":
                 config = self._validate_tool_identities(tool.agent, config)
             tool.config = config
@@ -235,6 +241,7 @@ class AgentToolHandler:
                 user,
                 instance=service,
             )
+            check_service_table_in_workspace(prepared_values, tool.agent.application)
             ServiceHandler().update_service(service_type, service, **prepared_values)
 
         agent_tool_updated.send(self, tool=tool, user=user)

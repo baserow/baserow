@@ -86,7 +86,9 @@ class ActionHandler:
         except Exception as exc:
             tb = traceback.format_exc()
             logger.warning(
-                "Undoing {action} failed because of: \n" + str(tb), action=action.type
+                "Undoing {action} failed because of: \n{tb}",
+                action=action.type,
+                tb=tb,
             )
             raise exc
 
@@ -169,7 +171,9 @@ class ActionHandler:
         except Exception as exc:
             tb = traceback.format_exc()
             logger.warning(
-                "Redoing {action} failed because of: \n" + str(tb), action=action
+                "Redoing {action} failed because of: \n{tb}",
+                action=action.type,
+                tb=tb,
             )
             raise exc
 

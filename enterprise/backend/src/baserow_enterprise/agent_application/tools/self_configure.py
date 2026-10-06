@@ -14,7 +14,7 @@ from ..deps import AgentRunDeps
 
 # Tool types a chat can toggle; configurable tool types (services) carry too
 # much schema surface to be managed from a conversation.
-TOGGLEABLE_TOOL_TYPES = ["workspace", "workspace_search", "web_search"]
+TOGGLEABLE_TOOL_TYPES = ["workspace", "web_search"]
 
 _THOUGHT = Annotated[str, Field(description="Brief reasoning for calling this tool.")]
 
@@ -313,7 +313,7 @@ async def enable_own_tools(
         Field(
             description=(
                 "The tool types to enable: workspace (Baserow tools acting "
-                "as the agent identity), workspace_search, web_search."
+                "as the agent identity), web_search."
             )
         ),
     ],

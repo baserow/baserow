@@ -62,6 +62,7 @@
       <SegmentControl
         :segments="styleSegments"
         :active-index="styleIndex"
+        :disabled="readOnly"
         @update:active-index="onStyleChange"
       ></SegmentControl>
     </FormGroup>

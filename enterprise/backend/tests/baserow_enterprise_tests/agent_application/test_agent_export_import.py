@@ -153,8 +153,9 @@ def test_snapshot_and_restore_agent_application(configured_application):
 
         snapshot.refresh_from_db()
         snapshotted = snapshot.snapshot_to_application.specific
-        # The snapshot copy must not carry the identity and must be off.
-        assert snapshotted.agent_identity_id is None
+        # The snapshot is a hidden copy within the same workspace, so it keeps
+        # the identity (and brings it back on restore) but must be off.
+        assert snapshotted.agent_identity_id == identity.id
         assert snapshotted.active is False
 
         restored = (
@@ -163,7 +164,7 @@ def test_snapshot_and_restore_agent_application(configured_application):
 
     assert restored.workspace_id == workspace.id
     _assert_children_copied(restored, table.id)
-    assert restored.agent_identity_id is None
+    assert restored.agent_identity_id == identity.id
 
 
 @pytest.mark.django_db
