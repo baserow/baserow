@@ -8,6 +8,35 @@
   margin-bottom: 24px;
 }
 
+.mcp-authorize__empty {
+  color: $palette-neutral-900;
+}
+
+.mcp-authorize__tool-group {
+  &:not(:last-child) {
+    margin-bottom: 16px;
+  }
+}
+
+.mcp-authorize__tool-group-title {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.mcp-authorize__tool {
+  &:not(:last-child) {
+    margin-bottom: 8px;
+  }
+}
+
+.mcp-authorize__tool-hint {
+  color: $palette-red-700;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
 .mcp-authorize__actions {
   display: flex;
   justify-content: flex-end;

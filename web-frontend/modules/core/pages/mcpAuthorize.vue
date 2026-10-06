@@ -14,32 +14,50 @@
       <p class="mcp-authorize__redirect">
         {{ $t('mcpAuthorize.redirect', { host: consent.redirect_host }) }}
       </p>
-      <FormGroup :label="$t('mcpAuthorize.endpoint')" required>
-        <Dropdown v-model="selected" :show-search="false">
+      <FormGroup :label="$t('mcpAuthorize.workspace')" required>
+        <p
+          v-if="!consent.workspaces.length"
+          class="mcp-authorize__empty"
+          data-test="mcp-authorize-no-workspaces"
+        >
+          {{ $t('mcpAuthorize.noWorkspaces') }}
+        </p>
+        <Dropdown v-else v-model="workspaceId" :show-search="false">
           <DropdownItem
-            v-for="endpoint in consent.endpoints"
-            :key="endpoint.id"
-            :name="`${endpoint.name} (${endpoint.workspace_name})`"
-            :value="endpoint.id"
+            v-for="workspace in consent.workspaces"
+            :key="workspace.id"
+            :name="workspace.name"
+            :value="workspace.id"
           />
-          <DropdownItem :name="$t('mcpAuthorize.createNew')" :value="NEW" />
         </Dropdown>
       </FormGroup>
-      <template v-if="selected === NEW">
-        <FormGroup :label="$t('mcpAuthorize.newName')" required>
-          <FormInput v-model="newName" />
-        </FormGroup>
-        <FormGroup :label="$t('mcpAuthorize.newWorkspace')" required>
-          <Dropdown v-model="newWorkspaceId" :show-search="false">
-            <DropdownItem
-              v-for="workspace in workspaces"
-              :key="workspace.id"
-              :name="workspace.name"
-              :value="workspace.id"
-            />
-          </Dropdown>
-        </FormGroup>
-      </template>
+      <FormGroup :label="$t('mcpAuthorize.tools')" required>
+        <p v-if="!consent.tools.length" class="mcp-authorize__empty">
+          {{ $t('mcpAuthorize.noTools') }}
+        </p>
+        <div
+          v-for="group in toolGroups"
+          :key="group.key"
+          class="mcp-authorize__tool-group"
+          :data-test="`mcp-authorize-tools-${group.key}`"
+        >
+          <div class="mcp-authorize__tool-group-title">
+            {{ $t(group.label) }}
+          </div>
+          <Checkbox
+            v-for="tool in group.tools"
+            :key="tool.name"
+            v-model="ticked[tool.name]"
+            class="mcp-authorize__tool"
+            :data-test="`mcp-authorize-tool-${tool.name}`"
+          >
+            {{ tool.title }}
+            <span v-if="tool.destructive" class="mcp-authorize__tool-hint">{{
+              $t('mcpAuthorize.destructiveHint')
+            }}</span>
+          </Checkbox>
+        </div>
+      </FormGroup>
       <div class="mcp-authorize__actions">
         <Button
           type="secondary"
@@ -62,9 +80,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 definePageMeta({
@@ -72,7 +89,6 @@ definePageMeta({
   middleware: ['settings', 'authenticated'],
 })
 
-const NEW = 'new'
 const route = useRoute()
 const { $client } = useNuxtApp()
 const { t } = useI18n()
@@ -99,9 +115,9 @@ function decodeRequest(value) {
 // The raw query string of the original authorize request.
 const query = decodeRequest(route.query.request)
 
-const selected = ref(null)
-const newName = ref('')
-const newWorkspaceId = ref(null)
+const workspaceId = ref(null)
+// Tool name -> whether the user leaves it ticked.
+const ticked = reactive({})
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
 
@@ -118,35 +134,45 @@ const { data: consent } = await useAsyncData('mcp-consent', async () => {
     return null
   }
 })
-selected.value = consent.value?.endpoints.length
-  ? consent.value.endpoints[0].id
-  : NEW
+workspaceId.value = consent.value?.workspaces[0]?.id ?? null
+for (const tool of consent.value?.tools || []) {
+  ticked[tool.name] = true
+}
 
-const { data: workspaces } = await useAsyncData(
-  'mcp-consent-workspaces',
-  async () => {
-    const { data } = await WorkspaceService($client).fetchAll()
-    return data
-  }
+const toolGroups = computed(() => {
+  const tools = consent.value?.tools || []
+  return [
+    {
+      key: 'read',
+      label: 'mcpAuthorize.toolsRead',
+      tools: tools.filter((tool) => tool.read_only),
+    },
+    {
+      key: 'change',
+      label: 'mcpAuthorize.toolsChange',
+      tools: tools.filter((tool) => !tool.read_only),
+    },
+  ].filter((group) => group.tools.length)
+})
+
+// Ticked tool names, in the order the API listed them.
+const selectedTools = computed(() =>
+  (consent.value?.tools || [])
+    .map((tool) => tool.name)
+    .filter((name) => ticked[name])
 )
 
-const canAllow = computed(() =>
-  selected.value === NEW
-    ? newName.value.trim() !== '' && newWorkspaceId.value !== null
-    : selected.value !== null
+const canAllow = computed(
+  () => workspaceId.value !== null && selectedTools.value.length > 0
 )
 
 async function submit(allow) {
   loading.value = true
   error.value = { visible: false, title: '', message: '' }
   const values = { query, allow }
-  if (allow && selected.value === NEW) {
-    values.new_endpoint = {
-      name: newName.value.trim(),
-      workspace_id: newWorkspaceId.value,
-    }
-  } else if (allow) {
-    values.endpoint_id = selected.value
+  if (allow) {
+    values.workspace_id = workspaceId.value
+    values.tools = selectedTools.value
   }
   try {
     const { data } = await MCPOAuthService($client).submitConsent(values)

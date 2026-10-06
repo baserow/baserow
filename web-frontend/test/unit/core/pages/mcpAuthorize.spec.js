@@ -10,8 +10,32 @@ describe('MCP authorize page', () => {
     client_name: 'Claude',
     redirect_host: 'claude.ai',
     registration_source: 'cimd',
-    endpoints: [{ id: 7, name: 'Main', workspace_id: 1, workspace_name: 'W' }],
+    workspaces: [
+      { id: 1, name: 'W' },
+      { id: 2, name: 'Other' },
+    ],
+    tools: [
+      {
+        name: 'list_tables',
+        title: 'List tables',
+        read_only: true,
+        destructive: false,
+      },
+      {
+        name: 'create_rows',
+        title: 'Create rows',
+        read_only: false,
+        destructive: false,
+      },
+      {
+        name: 'delete_rows',
+        title: 'Delete rows',
+        read_only: false,
+        destructive: true,
+      },
+    ],
   }
+  const allTools = ['list_tables', 'create_rows', 'delete_rows']
 
   // A real authorize query: percent-encoded values and a PKCE challenge whose
   // base64url form contains `-` and `_`.
@@ -27,7 +51,6 @@ describe('MCP authorize page', () => {
     testApp = new TestApp()
     testApp.authenticate({ id: 1, preferences: {} })
     testApp.mock.onGet('/settings/').reply(200, {})
-    testApp.mock.onGet('/workspaces/').reply(200, [{ id: 1, name: 'W' }])
   })
 
   afterEach(async () => {
@@ -35,26 +58,81 @@ describe('MCP authorize page', () => {
     await testApp.afterEach()
   })
 
-  test('lists endpoints and posts the selection with the full query', async () => {
+  async function mountWithConsent() {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
+    const assign = vi.fn()
+    vi.stubGlobal('location', { assign })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    return { wrapper, assign }
+  }
+
+  function toolCheckbox(wrapper, name) {
+    return wrapper.find(`[data-test="mcp-authorize-tool-${name}"] input`)
+  }
+
+  test('shows workspaces and tools grouped and ticked', async () => {
+    const { wrapper } = await mountWithConsent()
+    // The test i18n returns message keys, so only API values are visible.
+    expect(wrapper.text()).toContain('W')
+    const read = wrapper.find('[data-test="mcp-authorize-tools-read"]')
+    const change = wrapper.find('[data-test="mcp-authorize-tools-change"]')
+    expect(read.text()).toContain('List tables')
+    expect(read.text()).not.toContain('Create rows')
+    expect(change.text()).toContain('Create rows')
+    expect(change.text()).toContain('Delete rows')
+    expect(
+      change.findAll('.mcp-authorize__tool-hint').map((hint) => hint.text())
+    ).toEqual(['mcpAuthorize.destructiveHint'])
+    for (const name of allTools) {
+      expect(toolCheckbox(wrapper, name).element.checked).toBe(true)
+    }
+  })
+
+  test('allow posts the workspace and every ticked tool', async () => {
     testApp.mock
-      .onPost('/mcp/oauth/consent/', { query, allow: true, endpoint_id: 7 })
+      .onPost('/mcp/oauth/consent/', {
+        query,
+        allow: true,
+        workspace_id: 1,
+        tools: allTools,
+      })
       .reply(200, {
         redirect_url: 'https://claude.ai/api/mcp/auth_callback?code=x',
       })
-    const assign = vi.fn()
-    vi.stubGlobal('location', { assign })
-
-    const wrapper = await testApp.mount(MCPAuthorize, { route })
-    // The test i18n returns message keys, so only the endpoint label is visible.
-    expect(wrapper.text()).toContain('Main (W)')
+    const { wrapper, assign } = await mountWithConsent()
     await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
     await flushPromises()
     expect(assign).toHaveBeenCalledWith(
       'https://claude.ai/api/mcp/auth_callback?code=x'
     )
+  })
+
+  test('unticking a tool leaves it out of the request', async () => {
+    testApp.mock
+      .onPost('/mcp/oauth/consent/', {
+        query,
+        allow: true,
+        workspace_id: 1,
+        tools: ['list_tables', 'delete_rows'],
+      })
+      .reply(200, { redirect_url: 'https://claude.ai/cb?code=y' })
+    const { wrapper, assign } = await mountWithConsent()
+    await toolCheckbox(wrapper, 'create_rows').setValue(false)
+    await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
+    await flushPromises()
+    expect(assign).toHaveBeenCalledWith('https://claude.ai/cb?code=y')
+  })
+
+  test('allow is disabled when no tool is ticked', async () => {
+    const { wrapper } = await mountWithConsent()
+    const allow = wrapper.find('[data-test="mcp-authorize-allow"]')
+    expect(allow.attributes('disabled')).toBeUndefined()
+    for (const name of allTools) {
+      await toolCheckbox(wrapper, name).setValue(false)
+    }
+    expect(allow.attributes('disabled')).toBeDefined()
   })
 
   test('deny posts allow false', async () => {
@@ -96,7 +174,7 @@ describe('MCP authorize page', () => {
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
     const wrapper = await testApp.mount(MCPAuthorize, { route: back })
-    expect(wrapper.text()).toContain('Main (W)')
+    expect(wrapper.text()).toContain('List tables')
   })
 
   test('an invalid request value sends an empty query', async () => {
@@ -106,6 +184,6 @@ describe('MCP authorize page', () => {
     const wrapper = await testApp.mount(MCPAuthorize, {
       route: '/mcp-authorize?request=%25%25',
     })
-    expect(wrapper.text()).not.toContain('Main (W)')
+    expect(wrapper.text()).not.toContain('List tables')
   })
 })
