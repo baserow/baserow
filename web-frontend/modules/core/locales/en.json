@@ -1385,7 +1385,24 @@
     "createEndpoint": "Create endpoint",
     "createNewTitle": "Create MCP server endpoint",
     "backToOverview": "Back",
-    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started."
+    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started.",
+    "endpointKeys": "Endpoint keys"
+  },
+  "mcpOAuthConnections": {
+    "title": "Connect an AI tool",
+    "description": "One URL for every tool. You sign in and choose the workspace and tools when you connect.",
+    "copyURL": "Copy URL",
+    "claudeInstructions": "In claude.ai or Claude Desktop, open **Settings → Connectors**, click **Add custom connector** and paste the URL above.",
+    "claudeCodeInstructions": "Run this in your terminal, then run `/mcp` in Claude Code to sign in.",
+    "chatGptInstructions": "In ChatGPT, open **Settings → Apps & Connectors**, turn on developer mode under **Advanced settings** and click **Create**. Paste the URL above and pick **OAuth** as authentication.",
+    "cursorInstructions": "Add this to `~/.cursor/mcp.json`. Cursor asks you to sign in when it connects.",
+    "connectedApps": "Connected apps",
+    "noConnections": "No apps connected yet.",
+    "verified": "✓ {host}",
+    "tools": "{count} tool | {count} tools",
+    "connectedOn": "Connected {date}",
+    "disconnect": "Disconnect",
+    "confirmDisconnect": "Click again to disconnect"
   },
   "mcpEndpointForm": {
     "nameLabel": "Name",

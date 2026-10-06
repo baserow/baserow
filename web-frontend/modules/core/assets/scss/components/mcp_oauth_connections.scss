@@ -1,0 +1,64 @@
+.mcp-oauth-connections {
+  margin-bottom: 32px;
+}
+
+.mcp-oauth-connections__title {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.mcp-oauth-connections__description,
+.mcp-oauth-connections__empty {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.mcp-oauth-connections__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: solid 1px $palette-neutral-200;
+}
+
+.mcp-oauth-connections__avatar {
+  @extend %mcp-client-avatar;
+
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.mcp-oauth-connections__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcp-oauth-connections__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mcp-oauth-connections__client {
+  @extend %ellipsis;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.mcp-oauth-connections__meta {
+  @extend %ellipsis;
+
+  font-size: 12px;
+  color: $palette-neutral-900;
+}

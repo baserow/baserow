@@ -6,5 +6,11 @@ export default (client) => {
     submitConsent(values) {
       return client.post('/mcp/oauth/consent/', values)
     },
+    fetchConnections() {
+      return client.get('/mcp/oauth/connections/')
+    },
+    disconnect(connectionId) {
+      return client.delete(`/mcp/oauth/connections/${connectionId}/`)
+    },
   }
 }

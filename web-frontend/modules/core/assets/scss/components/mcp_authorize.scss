@@ -27,7 +27,8 @@
   margin-bottom: 8px;
 }
 
-.mcp-authorize__avatar {
+// Shared with the connected apps list in the MCP server settings.
+%mcp-client-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,8 +38,13 @@
   color: $white;
   font-size: 18px;
   font-weight: 700;
+  background-color: $palette-red-700;
 
   @include rounded($rounded-md);
+}
+
+.mcp-authorize__avatar {
+  @extend %mcp-client-avatar;
 
   &--client {
     background-color: $palette-red-700;
