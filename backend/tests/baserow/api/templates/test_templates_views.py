@@ -16,7 +16,7 @@ from rest_framework.status import (
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Application, Template
+from baserow.core.models import Application, Template, official_template_uuid
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
 
@@ -33,6 +33,7 @@ def test_list_templates(api_client, data_fixture):
         category=category_1,
         keywords="test1,test2",
         slug="project-tracker",
+        uuid=official_template_uuid("project-tracker"),
         open_application=None,
     )
     template_2 = data_fixture.create_template(
@@ -43,6 +44,11 @@ def test_list_templates(api_client, data_fixture):
     )
     template_3 = data_fixture.create_template(
         name="Template 3", icon="document", categories=[category_2, category_3]
+    )
+    # User templates and categories only they use are not listed.
+    user_category = data_fixture.create_template_category(name="User only")
+    data_fixture.create_user_template(
+        listing_state="public", categories=[category_1, user_category]
     )
 
     response = api_client.get(reverse("api:templates:list"))
@@ -56,6 +62,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_1.id,
+                    "uuid": str(official_template_uuid("project-tracker")),
                     "name": "Template 1",
                     "slug": template_1.slug,
                     "icon": "document",
@@ -72,6 +79,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_2.id,
+                    "uuid": None,
                     "name": "Template 2",
                     "slug": template_2.slug,
                     "icon": "document",
@@ -82,6 +90,7 @@ def test_list_templates(api_client, data_fixture):
                 },
                 {
                     "id": template_3.id,
+                    "uuid": None,
                     "name": "Template 3",
                     "slug": template_3.slug,
                     "icon": "document",
@@ -98,6 +107,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_3.id,
+                    "uuid": None,
                     "name": "Template 3",
                     "slug": template_3.slug,
                     "icon": "document",
@@ -109,6 +119,59 @@ def test_list_templates(api_client, data_fixture):
             ],
         },
     ]
+
+
+@pytest.mark.django_db
+def test_get_template(api_client, data_fixture):
+    category = data_fixture.create_template_category(name="Cat")
+    official = data_fixture.create_template(
+        slug="project-tracker",
+        category=category,
+        uuid=official_template_uuid("project-tracker"),
+    )
+    # Same slug as the official template, must not shadow or break it.
+    data_fixture.create_user_template(slug="project-tracker", listing_state="public")
+    data_fixture.create_user_template(slug="only-user", listing_state="public")
+
+    response = api_client.get(
+        reverse("api:templates:item", kwargs={"slug": "project-tracker"})
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["id"] == official.id
+    assert response_json["uuid"] == str(official_template_uuid("project-tracker"))
+
+    response = api_client.get(
+        reverse("api:templates:item", kwargs={"slug": "only-user"})
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+@pytest.mark.parametrize(
+    "url_name", ["api:templates:install", "api:templates:install_async"]
+)
+def test_install_user_template_does_not_exist(api_client, data_fixture, url_name):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    # The slug matches a template file, so without the scope the official content
+    # would be installed.
+    user_template = data_fixture.create_user_template(
+        author=user, slug="example-template", listing_state="public"
+    )
+
+    response = api_client.post(
+        reverse(
+            url_name,
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+    assert Application.objects.filter(workspace=workspace).count() == 0
 
 
 @pytest.mark.django_db

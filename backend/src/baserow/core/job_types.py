@@ -63,6 +63,7 @@ from baserow.core.models import (
     ImportApplicationsJob,
     ImportExportResource,
     InstallTemplateJob,
+    Template,
 )
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
@@ -197,7 +198,9 @@ class InstallTemplateJobType(JobType):
 
         # ensure everything is ok for the installation, otherwise
         # raise an exception immediately without submitting the job
-        template = handler.get_template(values["template_id"])
+        template = handler.get_template(
+            values["template_id"], base_queryset=Template.objects.official()
+        )
         handler.get_valid_template_path_or_raise(template)
 
         return {

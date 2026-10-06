@@ -328,7 +328,7 @@ class UserView(APIView):
         )
 
         template = (
-            Template.objects.get(pk=data["template_id"])
+            Template.objects.official().get(pk=data["template_id"])
             if data["template_id"]
             else None
         )

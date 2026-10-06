@@ -31,6 +31,7 @@ from baserow.core.operations import (
     UpdateWorkspaceOperationType,
 )
 from baserow.core.permission_manager import (
+    AllowIfTemplatePermissionManagerType,
     BasicPermissionManagerType,
     CorePermissionManagerType,
     StaffOnlyPermissionManagerType,
@@ -1431,3 +1432,17 @@ def test_all_scope_types_query_methods():
 
         for parent in scope_type.get_parent_scopes():
             assert isinstance(scope_type.get_filter_for_scope_type(parent, []), Q)
+
+
+@pytest.mark.django_db
+def test_allow_if_template_permissions_object_lists_official_templates_only(
+    data_fixture,
+):
+    official = data_fixture.create_template()
+    data_fixture.create_user_template(listing_state="public")
+
+    permissions = AllowIfTemplatePermissionManagerType().get_permissions_object(
+        AnonymousUser()
+    )
+
+    assert permissions["workspace_template_ids"] == [official.workspace_id]

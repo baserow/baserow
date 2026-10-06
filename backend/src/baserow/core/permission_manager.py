@@ -186,7 +186,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
             "workspace_template_ids": list(
-                Template.objects.values_list("workspace_id", flat=True)
+                Template.objects.official().values_list("workspace_id", flat=True)
             ),
         }
 

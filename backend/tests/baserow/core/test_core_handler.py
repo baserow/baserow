@@ -3,10 +3,12 @@ from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.db import OperationalError, transaction
+from django.utils import timezone
 
 import pytest
 from itsdangerous.exc import BadSignature
@@ -46,9 +48,11 @@ from baserow.core.models import (
     Settings,
     Template,
     TemplateCategory,
+    TemplateType,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
+    official_template_uuid,
 )
 from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
@@ -1428,6 +1432,95 @@ def test_sync_templates_mapped_open_application_id(data_fixture, tmpdir):
     assert template_2.open_application == application.id
 
     settings.APPLICATION_TEMPLATES_DIR = old_templates
+
+
+TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
+
+
+@pytest.mark.django_db
+def test_sync_templates_leaves_user_templates_untouched(data_fixture, tmpdir, settings):
+    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    user_category = data_fixture.create_template_category(name="User category")
+    # No JSON file with this slug exists, an official one would be deleted.
+    no_file = data_fixture.create_user_template(
+        slug="has-no-json-file", category=user_category
+    )
+    # Same slug as an official template file.
+    same_slug = data_fixture.create_user_template(
+        slug="example-template",
+        name="My copy",
+        icon="star",
+        export_hash="USER_HASH",
+        keywords="mine",
+        category=user_category,
+    )
+
+    CoreHandler().sync_templates(storage=storage)
+
+    for user_template in [no_file, same_slug]:
+        refreshed = Template.objects.get(id=user_template.id)
+        assert refreshed.template_type == TemplateType.USER
+        assert refreshed.uuid is None
+        assert refreshed.workspace_id == user_template.workspace_id
+        assert refreshed.workspace.application_set.count() == 0
+        assert list(refreshed.categories.all()) == [user_category]
+
+    refreshed_same_slug = Template.objects.get(id=same_slug.id)
+    assert refreshed_same_slug.name == "My copy"
+    assert refreshed_same_slug.icon == "star"
+    assert refreshed_same_slug.export_hash == "USER_HASH"
+    assert refreshed_same_slug.keywords == "mine"
+
+    official = Template.objects.official().get(slug="example-template")
+    assert official.id != same_slug.id
+    assert official.uuid == official_template_uuid("example-template")
+    assert official.workspace_id != same_slug.workspace_id
+
+    # The category is only used by user templates, so it is kept.
+    assert TemplateCategory.objects.filter(id=user_category.id).exists()
+
+
+@pytest.mark.django_db
+def test_sync_templates_corrects_official_uuids(data_fixture, tmpdir, settings):
+    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    # Created by an older version during the rollout, so without uuid. The export
+    # hash matches, so the content is not reimported.
+    without_uuid = data_fixture.create_template(
+        slug="example-template-2",
+        export_hash="f086c9b4b0dfea6956d0bb32af210277bb645ff3faebc5fb37a9eae85c433f2d",
+    )
+    wrong_uuid = data_fixture.create_template(slug="example-template", uuid=uuid4())
+
+    CoreHandler().sync_templates(storage=storage)
+
+    without_uuid.refresh_from_db()
+    wrong_uuid.refresh_from_db()
+    assert without_uuid.uuid == official_template_uuid("example-template-2")
+    assert wrong_uuid.uuid == official_template_uuid("example-template")
+
+
+@pytest.mark.django_db
+def test_sync_templates_does_not_recreate_marked_for_deletion_official(
+    data_fixture, tmpdir, settings
+):
+    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    marked = data_fixture.create_template(
+        slug="example-template", marked_for_deletion_at=timezone.now()
+    )
+
+    CoreHandler().sync_templates(storage=storage)
+
+    assert list(
+        Template.objects_and_trash.filter(slug="example-template").values_list(
+            "id", flat=True
+        )
+    ) == [marked.id]
 
 
 @pytest.mark.django_db

@@ -22,6 +22,7 @@ class TemplateSerializer(serializers.ModelSerializer):
         model = Template
         fields = (
             "id",
+            "uuid",
             "name",
             "slug",
             "icon",

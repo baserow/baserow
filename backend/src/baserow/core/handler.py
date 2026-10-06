@@ -61,9 +61,11 @@ from .models import (
     Settings,
     Template,
     TemplateCategory,
+    TemplateType,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
+    official_template_uuid,
 )
 from .operations import (
     CreateApplicationsWorkspaceOperationType,
@@ -2085,10 +2087,16 @@ class CoreHandler:
             # We clean the template list only if we have the full list of templates
             clean_templates = True
 
+        # Only official templates come from the templates dir, user templates are
+        # never read, updated or deleted here. The unfiltered manager is used so a
+        # row marked for deletion is not created a second time with the same uuid.
+        # Ordered by id so the oldest row wins if a slug is duplicated, matching the
+        # uuid backfill.
         installed_templates = (
-            Template.objects.all()
+            Template.objects_and_trash.official()
             .prefetch_related("categories")
             .select_related("workspace")
+            .order_by("id")
         )
         installed_categories = list(TemplateCategory.objects.all())
 
@@ -2135,12 +2143,15 @@ class CoreHandler:
                 for template_file_path in template_files_paths
             ]
 
-            for template in Template.objects.filter(~Q(slug__in=slugs)):
+            for template in Template.objects_and_trash.official().filter(
+                ~Q(slug__in=slugs)
+            ):
                 with transaction.atomic():
                     TrashHandler.permanently_delete(template.workspace)
                     template.delete()
 
-            # Delete all the categories that don't have any templates anymore.
+            # Delete all the categories that don't have any templates of any type
+            # anymore.
             TemplateCategory.objects.annotate(num_templates=Count("templates")).filter(
                 num_templates=0
             ).delete()
@@ -2244,6 +2255,9 @@ class CoreHandler:
             "export_hash": export_hash,
             "keywords": keywords,
             "workspace": workspace,
+            "template_type": TemplateType.OFFICIAL,
+            # Written on every sync, so rows created without a uuid self-heal.
+            "uuid": official_template_uuid(slug),
         }
 
         # If the template was imported, then we'll map the desired open_application
