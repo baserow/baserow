@@ -403,17 +403,12 @@ class FieldItemCreate(BaseModel):
             if old_key in data and new_key not in data:
                 data[new_key] = data.pop(old_key)
 
-        # Convert string options to SelectOptionCreate dicts
-        if "options" in data and isinstance(data["options"], list):
-            normalized = []
-            for i, opt in enumerate(data["options"]):
-                if isinstance(opt, str):
-                    normalized.append(
-                        {"value": opt, "color": _SELECT_COLORS[i % len(_SELECT_COLORS)]}
-                    )
-                else:
-                    normalized.append(opt)
-            data["options"] = normalized
+        # A string carries no color, so a reused table never reports one as requested
+        if isinstance(data.get("options"), list):
+            data["options"] = [
+                {"value": opt} if isinstance(opt, str) else opt
+                for opt in data["options"]
+            ]
 
         return data
 
@@ -633,9 +628,7 @@ def _merge_select_options(
 
 def _changed_default(field: BaserowField, kept_ids: set[int]) -> dict[str, Any]:
     """
-    Drop removed options from the field's default. Sending the default along with
-    the options lets undo restore it, and stops core from failing when every default
-    option of a multiple select is removed.
+    Drop removed options from the field's default, so undo restores it.
 
     :param field: The select field being updated.
     :param kept_ids: The ids of the options that remain.

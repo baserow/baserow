@@ -7,6 +7,7 @@ from baserow.contrib.database.table.models import Table
 from .types import (
     FieldItem,
     FieldItemCreate,
+    SelectOption,
     TableItem,
     TableItemCreate,
     option_value_key,
@@ -86,15 +87,20 @@ def plan_table_creation(
     )
 
 
+def _find_option(options: list[SelectOption], value: str) -> SelectOption | None:
+    exact = next((option for option in options if option.value == value), None)
+    if exact is not None:
+        return exact
+    key = option_value_key(value)
+    return next((o for o in options if option_value_key(o.value) == key), None)
+
+
 def _select_option_conflicts(
     requested: FieldItemCreate, actual: FieldItem
 ) -> dict[str, Any]:
-    actual_by_key = {
-        option_value_key(option.value): option for option in actual.options or []
-    }
     missing, wrong_colors = [], []
     for option in requested.options or []:
-        match = actual_by_key.get(option_value_key(option.value))
+        match = _find_option(actual.options or [], option.value)
         if match is None:
             missing.append(option.model_dump())
         elif option.color is not None and match.color != option.color:

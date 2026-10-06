@@ -205,9 +205,12 @@ def test_update_select_options_adds_without_changing_existing_ones(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("field_type", ["single_select", "multiple_select"])
 @pytest.mark.parametrize("value", ["Open", "closed "])
-def test_update_select_options_rejects_adding_a_value_that_exists(data_fixture, value):
-    status = _create_status_field(data_fixture, "single_select")
+def test_update_select_options_rejects_adding_a_value_that_exists(
+    data_fixture, field_type, value
+):
+    status = _create_status_field(data_fixture, field_type)
 
     result = update_fields(
         status.ctx,
@@ -344,6 +347,7 @@ def test_update_select_options_removing_the_default_option_clears_it_until_undo(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("field_type", ["single_select", "multiple_select"])
 @pytest.mark.parametrize(
     "case,message",
     [
@@ -353,8 +357,10 @@ def test_update_select_options_removing_the_default_option_clears_it_until_undo(
         ("changed_and_removed", "cannot be changed and removed"),
     ],
 )
-def test_update_select_options_rejects_invalid_ids(data_fixture, case, message):
-    status = _create_status_field(data_fixture, "single_select")
+def test_update_select_options_rejects_invalid_ids(
+    data_fixture, field_type, case, message
+):
+    status = _create_status_field(data_fixture, field_type)
     other_id = data_fixture.create_select_option().id
     closed = {"id": status.closed.id, "value": "Done"}
     payload = {
