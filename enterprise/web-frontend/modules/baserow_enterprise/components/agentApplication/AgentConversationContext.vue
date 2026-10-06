@@ -34,10 +34,11 @@
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 export default {
   name: 'AgentConversationContext',
-  mixins: [context],
+  mixins: [AgentContextMixin, context],
   props: {
     application: {
       type: Object,
@@ -54,7 +55,7 @@ export default {
   },
   computed: {
     canUpdate() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.update_chat',
         this.application,
         this.application.workspace.id
@@ -63,7 +64,7 @@ export default {
     canDelete() {
       return (
         !this.chat.status?.startsWith('in_progress') &&
-        this.$hasPermission(
+        this.hasAgentPermission(
           'agent_application.delete_chat',
           this.application,
           this.application.workspace.id
@@ -75,10 +76,13 @@ export default {
     async togglePinned() {
       this.hide()
       try {
-        await this.$store.dispatch('agentHistory/updateChat', {
-          chatUuid: this.chat.uuid,
-          values: { pinned: !this.chat.pinned },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentHistory/updateChat`,
+          {
+            chatUuid: this.chat.uuid,
+            values: { pinned: !this.chat.pinned },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -93,9 +97,12 @@ export default {
       }
       this.deleting = true
       try {
-        await this.$store.dispatch('agentHistory/deleteChat', {
-          chat: this.chat,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentHistory/deleteChat`,
+          {
+            chat: this.chat,
+          }
+        )
         this.hide()
       } catch (error) {
         notifyIf(error, 'application')

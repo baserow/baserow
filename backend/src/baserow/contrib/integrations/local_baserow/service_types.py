@@ -561,7 +561,10 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             # another workspace, where a kept id would reach a table the
             # importer cannot see.
             config = kwargs.get("import_export_config")
-            unmapped = value if getattr(config, "is_duplicate", False) else None
+            keep_unmapped = getattr(config, "is_duplicate", False) and not getattr(
+                config, "is_template", False
+            )
+            unmapped = value if keep_unmapped else None
             return id_mapping["database_tables"].get(value, unmapped)
 
         return super().deserialize_property(

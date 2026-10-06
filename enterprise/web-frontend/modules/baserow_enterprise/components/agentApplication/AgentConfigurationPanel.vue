@@ -81,6 +81,7 @@ import AgentActionToolsSection from '@baserow_enterprise/components/agentApplica
 import AgentChatChannelsSection from '@baserow_enterprise/components/agentApplication/AgentChatChannelsSection'
 import AgentMemorySection from '@baserow_enterprise/components/agentApplication/AgentMemorySection'
 import AgentAgentSettingsSection from '@baserow_enterprise/components/agentApplication/AgentAgentSettingsSection'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 const WIDTH_STORAGE_KEY = 'agentConfigurationPanelWidth'
 const DEFAULT_WIDTH = 400
@@ -126,33 +127,39 @@ export default defineComponent({
   emits: ['close', 'update:section'],
   setup(props) {
     const store = useStore()
-    const { $hasPermission, $registry } = useNuxtApp()
+    const { storePrefix, hasPermission } = useAgentContext()
+    const { $registry } = useNuxtApp()
     const { t } = useI18n()
 
-    const agent = computed(() => store.getters['agentApplication/getAgent'])
-    const triggers = computed(
-      () => store.getters['agentApplication/getTriggers']
+    const agent = computed(
+      () => store.getters[`${storePrefix}agentApplication/getAgent`]
     )
-    const tools = computed(() => store.getters['agentApplication/getTools'])
+    const triggers = computed(
+      () => store.getters[`${storePrefix}agentApplication/getTriggers`]
+    )
+    const tools = computed(
+      () => store.getters[`${storePrefix}agentApplication/getTools`]
+    )
     const channels = computed(
-      () => store.getters['agentApplication/getChannels']
+      () => store.getters[`${storePrefix}agentApplication/getChannels`]
     )
     const catalog = computed(
-      () => store.getters['agentApplication/getWorkspaceToolCatalog']
+      () =>
+        store.getters[`${storePrefix}agentApplication/getWorkspaceToolCatalog`]
     )
     const workspace = computed(() =>
       store.getters['workspace/get'](props.application.workspace.id)
     )
 
     const canUpdateAgent = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.update_agent',
         props.application,
         props.application.workspace.id
       )
     )
     const canUpdateTrigger = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.update_trigger',
         props.application,
         props.application.workspace.id

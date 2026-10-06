@@ -37,7 +37,7 @@ definePageMeta({
 const store = useStore()
 const route = useRoute()
 const router = useRouter()
-const { $realtime } = useNuxtApp()
+const { $realtime, $hasPermission } = useNuxtApp()
 
 // The middleware already selected the workspace and the application, so the
 // page paints its skeleton right away and fetches the agent, conversations
@@ -69,9 +69,13 @@ const { data, loading } = await usePageAsyncData(
         store.dispatch('agentApplication/fetchTools', {
           applicationId: application.id,
         }),
-        store.dispatch('agentApplication/fetchChannels', {
-          applicationId: application.id,
-        }),
+        // Channels carry integration settings; a role that may not read
+        // them still gets the rest of the page.
+        store
+          .dispatch('agentApplication/fetchChannels', {
+            applicationId: application.id,
+          })
+          .catch(() => {}),
         // Labels for tool names and the identity name are cosmetic; the page
         // must still work when either of these fails.
         store
@@ -79,7 +83,11 @@ const { data, loading } = await usePageAsyncData(
             applicationId: application.id,
           })
           .catch(() => {}),
-        store.dispatch('agent/fetchAll', workspace.id).catch(() => {}),
+        // Listing identities is an admin operation; other roles only see
+        // the identity name the agent definition already carries.
+        $hasPermission('workspace.list_agents', workspace, workspace.id)
+          ? store.dispatch('agent/fetchAll', workspace.id).catch(() => {})
+          : Promise.resolve(),
       ])
 
       const chatUuid = Array.isArray(route.query.chat)

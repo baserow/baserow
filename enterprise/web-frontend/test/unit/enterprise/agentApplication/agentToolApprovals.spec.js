@@ -116,6 +116,21 @@ describe('AgentToolApprovals', () => {
     )
   })
 
+  test('arguments without a stored preview are shown as a table', async () => {
+    const wrapper = await mount([approval(1)])
+    await wrapper.find('.agent-tool-approvals__details-toggle').trigger('click')
+
+    expect(wrapper.find('.agent-key-value').text()).toContain('table_id')
+    const cells = wrapper.findAll('.agent-preview-table__cell')
+    expect(cells.map((cell) => cell.text())).toEqual(['Name', 'Acme'])
+    expect(wrapper.find('.agent-tool-approvals__args').exists()).toBe(false)
+
+    await wrapper.findAll('.agent-chat-segment button').at(1).trigger('click')
+    expect(wrapper.find('.agent-tool-approvals__args').text()).toContain(
+      '"rows"'
+    )
+  })
+
   test('a table preview renders the rows to write', async () => {
     const wrapper = await mount([
       approval(1, {

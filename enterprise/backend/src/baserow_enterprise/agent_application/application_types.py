@@ -25,11 +25,13 @@ from baserow.core.skills.models import WorkspaceSkill
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
 
+from .channels.registries import agent_chat_channel_type_registry
 from .handler import AgentApplicationHandler
 from .models import (
     AgentApplication,
     AgentChat,
     AgentChatChannel,
+    AgentChatMessage,
     AgentChatToolApproval,
     AgentDefinition,
     AgentSkill,
@@ -203,6 +205,26 @@ class AgentApplicationType(ApplicationType):
     def export_safe_transaction_context(self, application: Application) -> Atomic:
         return transaction.atomic()
 
+    def pre_delete(self, application: Application) -> None:
+        """
+        Deletes the trigger and tool services through their handlers before
+        the application cascade runs, so every service type's `before_delete`
+        hook fires (periodic schedules, public webhook uids, inbound email
+        addresses) and no orphaned service rows are left behind.
+        """
+
+        from .tools.handler import AgentToolHandler
+        from .triggers.handler import AgentTriggerHandler
+
+        for trigger in AgentTrigger.objects_and_trash.filter(
+            application_id=application.id
+        ).select_related("service"):
+            AgentTriggerHandler().delete_trigger(trigger)
+        for tool in AgentTool.objects_and_trash.filter(
+            agent__application_id=application.id
+        ).select_related("service"):
+            AgentToolHandler().delete_tool(tool)
+
     def prepare_value_for_db(
         self, values: dict, instance: "Application | None" = None
     ) -> dict:
@@ -270,6 +292,62 @@ class AgentApplicationType(ApplicationType):
             application, name=application.name, description=application.description
         )
 
+    def _export_tool_config(
+        self, tool: AgentTool, import_export_config: ImportExportConfig
+    ) -> dict:
+        """
+        A tool config can hold workspace subject ids (which identity runs a
+        workspace tool) and credentials (MCP headers). Both only make sense
+        for a duplicate within the same workspace; anything leaving the
+        workspace gets them stripped.
+        """
+
+        config = dict(tool.config or {})
+        if import_export_config.is_duplicate:
+            return config
+        config.pop("tool_identities", None)
+        if tool.type == "mcp" and config.get("headers"):
+            config["headers"] = {}
+        return config
+
+    def _export_example_chats(
+        self, agent: AgentDefinition, import_export_config: ImportExportConfig
+    ) -> list[dict]:
+        """
+        Pinned manual conversations travel along with exports and templates as
+        example conversations, so a template can show what talking to the
+        agent looks like. A duplicate copies configuration only, so it skips
+        them. Only what a reader needs is exported: the messages, never the
+        model history, the author, approvals or token counts.
+        """
+
+        if import_export_config.is_duplicate:
+            return []
+        chats = (
+            AgentChat.objects.filter(
+                agent=agent, pinned=True, source=AgentChat.Source.MANUAL
+            )
+            .exclude(status=AgentChat.Status.IN_PROGRESS)
+            .order_by("id")
+            .prefetch_related("messages")
+        )
+        return [
+            {
+                "title": chat.title,
+                "messages": [
+                    {
+                        "role": message.role,
+                        "content": message.content,
+                        "artifacts": message.artifacts,
+                    }
+                    for message in chat.messages.order_by("id")
+                    if message.role
+                    in (AgentChatMessage.Role.HUMAN, AgentChatMessage.Role.AI)
+                ],
+            }
+            for chat in chats
+        ]
+
     def export_serialized(
         self,
         agent_application: AgentApplication,
@@ -286,9 +364,11 @@ class AgentApplicationType(ApplicationType):
                 files_zip=files_zip,
                 storage=storage,
                 cache=self.cache,
+                import_export_config=import_export_config,
             )
             for i in IntegrationHandler().get_integrations(agent_application)
         ]
+        is_duplicate = import_export_config.is_duplicate
 
         serialized_agents = [
             {
@@ -300,6 +380,9 @@ class AgentApplicationType(ApplicationType):
                 "ai_generative_ai_type": agent.ai_generative_ai_type,
                 "ai_generative_ai_model": agent.ai_generative_ai_model,
                 "ai_temperature": agent.ai_temperature,
+                "example_chats": self._export_example_chats(
+                    agent, import_export_config
+                ),
                 # Skills are workspace level, so the links only survive a
                 # duplicate within the same workspace.
                 "skills": (
@@ -335,8 +418,11 @@ class AgentApplicationType(ApplicationType):
                 "id": tool.id,
                 "type": tool.type,
                 "name": tool.name,
-                "config": tool.config,
+                "config": self._export_tool_config(tool, import_export_config),
                 "order": tool.order,
+                # The identity is a workspace level subject, like the
+                # application's own identity below.
+                "identity_id": tool.identity_id if is_duplicate else None,
                 "service": (
                     ServiceHandler().export_service(
                         tool.service.specific,
@@ -399,6 +485,76 @@ class AgentApplicationType(ApplicationType):
             **serialized_application,
         )
 
+    def _importable_model(
+        self,
+        workspace: Workspace,
+        serialized_agent: dict,
+        import_export_config: ImportExportConfig,
+    ) -> dict:
+        """
+        A template author's model is replaced by the workspace's default when
+        this workspace cannot use it, so an installed agent runs out of the
+        box. Duplicates and exported applications keep the model as is.
+        """
+
+        from baserow.core.ai_provider.constants import (
+            AI_PROVIDER_FEATURE_AGENT_BUILDER,
+        )
+        from baserow.core.generative_ai.registries import (
+            generative_ai_model_type_registry,
+        )
+
+        exported = {
+            "ai_generative_ai_type": serialized_agent.get("ai_generative_ai_type"),
+            "ai_generative_ai_model": serialized_agent.get("ai_generative_ai_model"),
+        }
+        if not import_export_config.is_template:
+            return exported
+        ai_type, ai_model = exported.values()
+        enabled = generative_ai_model_type_registry.get_enabled_models_per_type(
+            workspace, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
+        )
+        if ai_type and ai_model in enabled.get(ai_type, []):
+            return exported
+        default = AgentApplicationHandler().pick_default_model(workspace)
+        if default is None:
+            return exported
+        return {
+            "ai_generative_ai_type": default[0],
+            "ai_generative_ai_model": default[1],
+        }
+
+    def _import_example_chats(self, agent: AgentDefinition, serialized_chats: list):
+        """
+        Example conversations come back as finished, ownerless conversations
+        without model history: readable in the history, and continuing one
+        simply starts the model fresh from the visible messages.
+        """
+
+        for serialized_chat in serialized_chats:
+            chat = AgentChat.objects.create(
+                agent=agent,
+                title=(serialized_chat.get("title") or "")[
+                    : AgentChat.TITLE_MAX_LENGTH
+                ],
+                source=AgentChat.Source.MANUAL,
+                status=AgentChat.Status.IDLE,
+                pinned=True,
+            )
+            AgentChatMessage.objects.bulk_create(
+                [
+                    AgentChatMessage(
+                        chat=chat,
+                        role=message["role"],
+                        content=message.get("content", ""),
+                        artifacts=message.get("artifacts") or {},
+                    )
+                    for message in serialized_chat.get("messages", [])
+                    if message.get("role")
+                    in (AgentChatMessage.Role.HUMAN, AgentChatMessage.Role.AI)
+                ]
+            )
+
     def import_serialized(
         self,
         workspace: Workspace,
@@ -452,8 +608,16 @@ class AgentApplicationType(ApplicationType):
                 cache=self.cache,
                 files_zip=files_zip,
                 storage=storage,
+                import_export_config=import_export_config,
             )
             children_progress.increment()
+
+        # Workspace level references (skills, identities) only hold within
+        # the workspace they came from; a template install is a duplicate of
+        # the template's workspace, not of this one.
+        same_workspace = (
+            import_export_config.is_duplicate and not import_export_config.is_template
+        )
 
         agents_by_exported_id = {}
         for serialized_agent in serialized_agents:
@@ -463,15 +627,19 @@ class AgentApplicationType(ApplicationType):
                 description=serialized_agent.get("description", ""),
                 instructions=serialized_agent.get("instructions", ""),
                 memory=serialized_agent.get("memory", ""),
-                ai_generative_ai_type=serialized_agent.get("ai_generative_ai_type"),
-                ai_generative_ai_model=serialized_agent.get("ai_generative_ai_model"),
+                **self._importable_model(
+                    workspace, serialized_agent, import_export_config
+                ),
                 ai_temperature=serialized_agent.get("ai_temperature"),
+            )
+            serialized_skills = (
+                serialized_agent.get("skills", []) if same_workspace else []
             )
             # Only skills that still exist in this workspace are relinked.
             skill_ids = set(
                 WorkspaceSkill.objects.filter(
                     workspace=workspace,
-                    id__in=[s["skill_id"] for s in serialized_agent.get("skills", [])],
+                    id__in=[s["skill_id"] for s in serialized_skills],
                 ).values_list("id", flat=True)
             )
             AgentSkill.objects.bulk_create(
@@ -482,10 +650,11 @@ class AgentApplicationType(ApplicationType):
                         mode=entry.get("mode") or AgentSkill.Mode.ALWAYS,
                         order=index,
                     )
-                    for index, entry in enumerate(serialized_agent.get("skills", []))
+                    for index, entry in enumerate(serialized_skills)
                     if entry["skill_id"] in skill_ids
                 ]
             )
+            self._import_example_chats(agent, serialized_agent.get("example_chats", []))
             agents_by_exported_id[serialized_agent["id"]] = agent
             children_progress.increment()
 
@@ -496,7 +665,12 @@ class AgentApplicationType(ApplicationType):
                 integration_id = id_mapping.get("integrations", {}).get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
+                # The source integration may have been trashed since, or the
+                # unmapped id may point at another application's integration;
+                # the service then imports without one, like automation does.
+                integration = Integration.objects_and_trash.filter(
+                    id=integration_id, application_id=application.id
+                ).first()
 
             return ServiceHandler().import_service(
                 integration,
@@ -523,10 +697,20 @@ class AgentApplicationType(ApplicationType):
             children_progress.increment()
 
         main_agent = application.agents.first()
+        if main_agent is None:
+            main_agent = AgentApplicationHandler().create_main_agent(
+                application, name=application.name, description=description
+            )
+        workspace_identity_ids = set(
+            Agent.objects.filter(workspace=workspace).values_list("id", flat=True)
+        )
         for serialized_tool in serialized_tools:
             service = None
             if serialized_tool.get("service") is not None:
                 service = import_child_service(serialized_tool["service"])
+            identity_id = serialized_tool.get("identity_id")
+            if not same_workspace or identity_id not in workspace_identity_ids:
+                identity_id = None
             AgentTool.objects.create(
                 agent=main_agent,
                 type=serialized_tool["type"],
@@ -534,20 +718,28 @@ class AgentApplicationType(ApplicationType):
                 config=serialized_tool.get("config", {}),
                 order=serialized_tool.get("order", 1),
                 service=service,
+                identity_id=identity_id,
             )
             children_progress.increment()
 
-        for serialized_channel in serialized_channels:
-            # A fresh uid is generated so the copy gets its own webhook URL.
-            AgentChatChannel.objects.create(
-                application=application,
-                type=serialized_channel["type"],
-                name=serialized_channel.get("name", ""),
-                config=serialized_channel.get("config", {}),
-                enabled=serialized_channel.get("enabled", True),
-            )
+        if same_workspace:
+            for serialized_channel in serialized_channels:
+                channel_type = agent_chat_channel_type_registry.get(
+                    serialized_channel["type"]
+                )
+                AgentChatChannel.objects.create(
+                    application=application,
+                    type=serialized_channel["type"],
+                    name=serialized_channel.get("name", ""),
+                    # A fresh uid is generated by the model; public links and
+                    # other per-channel identifiers are renewed by the type.
+                    config=channel_type.prepare_imported_config(
+                        serialized_channel.get("config", {})
+                    ),
+                    enabled=serialized_channel.get("enabled", True),
+                )
 
-        if agent_identity_id is not None and import_export_config.is_duplicate:
+        if agent_identity_id is not None and same_workspace:
             identity = Agent.objects.filter(
                 id=agent_identity_id, workspace=workspace
             ).first()

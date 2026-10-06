@@ -44,6 +44,7 @@ class SlackAgentChatChannelType(AgentChatChannelType):
     """
 
     type = "slack"
+    secret_config_keys = ("bot_token", "signing_secret")
 
     def prepare_config(self, config: dict, existing_config: dict | None = None) -> dict:
         existing_config = existing_config or {}

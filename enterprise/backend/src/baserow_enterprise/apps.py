@@ -155,7 +155,25 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
         from baserow_enterprise.agent_application.actions import (
+            CancelAgentChatRunActionType,
+            CreateAgentChatChannelActionType,
+            CreateAgentToolActionType,
+            CreateAgentTriggerActionType,
+            DecideAgentToolApprovalActionType,
+            DeleteAgentChatActionType,
+            DeleteAgentChatChannelActionType,
+            DeleteAgentToolActionType,
+            DeleteAgentTriggerActionType,
+            DispatchAgentToolActionType,
+            RetryAgentChatRunActionType,
+            RotateAgentChatChannelLinkActionType,
+            RunAgentOnceActionType,
+            UpdateAgentChatActionType,
+            UpdateAgentChatChannelActionType,
             UpdateAgentDefinitionActionType,
+            UpdateAgentMemoryActionType,
+            UpdateAgentToolActionType,
+            UpdateAgentTriggerActionType,
         )
         from baserow_enterprise.agent_application.application_types import (
             AgentApplicationType,
@@ -179,6 +197,11 @@ class BaserowEnterpriseConfig(AppConfig):
             UpdateAgentDefinitionOperationType,
             UpdateAgentToolOperationType,
             UpdateAgentTriggerOperationType,
+        )
+        from baserow_enterprise.agent_application.trash_types import (
+            AgentChatChannelTrashableItemType,
+            AgentToolTrashableItemType,
+            AgentTriggerTrashableItemType,
         )
 
         if feature_flag_is_enabled(FF_AGENTS):
@@ -287,6 +310,30 @@ class BaserowEnterpriseConfig(AppConfig):
             )
 
         action_type_registry.register(UpdateAgentDefinitionActionType())
+        for agent_action_type in (
+            CreateAgentToolActionType,
+            UpdateAgentToolActionType,
+            DeleteAgentToolActionType,
+            CreateAgentTriggerActionType,
+            UpdateAgentTriggerActionType,
+            DeleteAgentTriggerActionType,
+            CreateAgentChatChannelActionType,
+            UpdateAgentChatChannelActionType,
+            DeleteAgentChatChannelActionType,
+            RotateAgentChatChannelLinkActionType,
+            DecideAgentToolApprovalActionType,
+            CancelAgentChatRunActionType,
+            RetryAgentChatRunActionType,
+            RunAgentOnceActionType,
+            DeleteAgentChatActionType,
+            UpdateAgentChatActionType,
+            DispatchAgentToolActionType,
+            UpdateAgentMemoryActionType,
+        ):
+            action_type_registry.register(agent_action_type())
+        trash_item_type_registry.register(AgentToolTrashableItemType())
+        trash_item_type_registry.register(AgentTriggerTrashableItemType())
+        trash_item_type_registry.register(AgentChatChannelTrashableItemType())
 
         operation_type_registry.register(ReadAgentDefinitionOperationType())
         operation_type_registry.register(UpdateAgentDefinitionOperationType())
@@ -587,6 +634,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         page_registry.register(PublicAgentChatPageType())
 
+        import baserow_enterprise.agent_application.receivers  # noqa: F401
         import baserow_enterprise.agent_application.tasks  # noqa: F401
         import baserow_enterprise.agent_application.ws.receivers  # noqa: F401
         from baserow_enterprise.assistant.tools.automation.tool_types import (

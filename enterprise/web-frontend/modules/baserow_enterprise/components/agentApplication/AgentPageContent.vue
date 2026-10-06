@@ -46,6 +46,7 @@ import AgentHeader from '@baserow_enterprise/components/agentApplication/AgentHe
 import AgentConversationList from '@baserow_enterprise/components/agentApplication/AgentConversationList'
 import AgentChat from '@baserow_enterprise/components/agentApplication/AgentChat'
 import AgentConfigurationPanel from '@baserow_enterprise/components/agentApplication/AgentConfigurationPanel'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 export default defineComponent({
   name: 'AgentPageContent',
@@ -77,6 +78,7 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore()
+    const { storePrefix } = useAgentContext()
     const { $config } = useNuxtApp()
 
     // Whether the panel is open is remembered in a cookie (not local storage)
@@ -118,9 +120,12 @@ export default defineComponent({
       }
       runningOnce.value = true
       try {
-        const chat = await store.dispatch('agentApplication/runOnce', {
-          applicationId: props.application.id,
-        })
+        const chat = await store.dispatch(
+          `${storePrefix}agentApplication/runOnce`,
+          {
+            applicationId: props.application.id,
+          }
+        )
         await openConversation(chat.uuid, chat.id)
       } catch (error) {
         notifyIf(error, 'application')
@@ -131,7 +136,7 @@ export default defineComponent({
 
     const openConversation = async (chatUuid, chatId = null) => {
       try {
-        await store.dispatch('agentChat/openConversation', {
+        await store.dispatch(`${storePrefix}agentChat/openConversation`, {
           applicationId: props.application.id,
           chatUuid,
           chatId,

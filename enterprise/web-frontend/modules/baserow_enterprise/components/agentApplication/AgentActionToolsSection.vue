@@ -296,7 +296,7 @@
               </template>
               <div class="agent-configuration__expand-body">
                 <AgentServiceForm
-                  :key="`${tool.id}-${tool.service_type}`"
+                  :key="serviceFormKey(tool)"
                   :application="application"
                   :service-type="serviceType(tool)"
                   :service="tool.service || {}"
@@ -350,6 +350,11 @@ import AgentServiceForm from '@baserow_enterprise/components/agentApplication/Ag
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
 import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  serviceFollowState,
+  serviceFollowMethods,
+} from '@baserow_enterprise/utils/agentServiceFollow'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 /**
  * Only the workflow action services whose configuration forms work outside the
@@ -372,6 +377,7 @@ const INPUT_TYPES = ['string', 'number', 'boolean']
 
 export default {
   name: 'AgentActionToolsSection',
+  mixins: [AgentContextMixin],
   components: {
     AgentConfigurationCard,
     AgentGroupedAddMenu,
@@ -391,36 +397,38 @@ export default {
       // Local editable copies of the name/config fields per tool id, so a
       // save response can never clobber what the user is still typing.
       toolDrafts: {},
+      toolSeeds: {},
       // Unsaved values per tool id, flushed by a per-tool debounced save.
       pendingToolValues: {},
+      ...serviceFollowState(),
       savingIdentityIds: [],
       inputTypes: INPUT_TYPES,
     }
   },
   computed: {
     canCreateTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.create_tool',
         this.application,
         this.application.workspace.id
       )
     },
     canUpdateTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.update_tool',
         this.application,
         this.application.workspace.id
       )
     },
     canDeleteTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.delete_tool',
         this.application,
         this.application.workspace.id
       )
     },
     tools() {
-      return this.$store.getters['agentApplication/getTools']
+      return this.$store.getters[`${this.storePrefix}agentApplication/getTools`]
     },
     actionTools() {
       return this.tools.filter((tool) => ['service', 'mcp'].includes(tool.type))
@@ -501,9 +509,18 @@ export default {
     this.debouncedToolSaves = {}
   },
   async mounted() {
-    this.actionTools.forEach((tool) => this.ensureDraft(tool))
     // Local Baserow action forms pick a table through the application's
-    // integrations in the store, which only the trigger section loaded so far.
+    // integrations in the store, which only the trigger section loaded so
+    // far. Listing them is a builder operation, so readers skip it.
+    if (
+      !this.hasAgentPermission(
+        'application.list_integrations',
+        this.application,
+        this.application.workspace.id
+      )
+    ) {
+      return
+    }
     try {
       await this.$store.dispatch('integration/fetch', {
         application: this.application,
@@ -513,8 +530,14 @@ export default {
     }
   },
   watch: {
-    actionTools(tools) {
-      tools.forEach((tool) => this.ensureDraft(tool))
+    actionTools: {
+      handler(tools) {
+        tools.forEach((tool) => {
+          this.ensureDraft(tool)
+          this.followService(tool)
+        })
+      },
+      immediate: true,
     },
   },
   beforeUnmount() {
@@ -545,12 +568,9 @@ export default {
       }
       return this.serviceType(tool)?.name || tool.service_type
     },
-    ensureDraft(tool) {
-      if (this.toolDrafts[tool.id]) {
-        return
-      }
+    seedFor(tool) {
       if (tool.type === 'mcp') {
-        this.toolDrafts[tool.id] = {
+        return {
           name: tool.name || '',
           url: tool.config?.url || '',
           headers: Object.entries(tool.config?.headers || {}).map(
@@ -558,14 +578,26 @@ export default {
           ),
           requireApproval: tool.config?.require_approval !== false,
         }
-      } else {
-        this.toolDrafts[tool.id] = {
-          name: tool.name || '',
-          description: tool.config?.description || '',
-          inputs: (tool.config?.inputs || []).map((input) => ({ ...input })),
-          requireApproval: tool.config?.require_approval !== false,
-        }
       }
+      return {
+        name: tool.name || '',
+        description: tool.config?.description || '',
+        inputs: (tool.config?.inputs || []).map((input) => ({ ...input })),
+        requireApproval: tool.config?.require_approval !== false,
+      }
+    },
+    // A draft follows the server value (another user's edit, an undo) as
+    // long as this user hasn't changed it; their own typing always wins.
+    ensureDraft(tool) {
+      const seed = this.seedFor(tool)
+      const serialized = JSON.stringify(seed)
+      const draft = this.toolDrafts[tool.id]
+      const untouched =
+        draft === undefined || JSON.stringify(draft) === this.toolSeeds[tool.id]
+      if (untouched && serialized !== this.toolSeeds[tool.id]) {
+        this.toolDrafts[tool.id] = seed
+      }
+      this.toolSeeds[tool.id] = serialized
     },
     onAddToolSelect(item) {
       if (item.value === 'mcp') {
@@ -578,14 +610,17 @@ export default {
       this.$refs.addToolContext.hide()
       this.addLoading = true
       try {
-        const tool = await this.$store.dispatch('agentApplication/createTool', {
-          applicationId: this.application.id,
-          values: {
-            type: 'mcp',
-            name: '',
-            config: { url: '', headers: {}, require_approval: true },
-          },
-        })
+        const tool = await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/createTool`,
+          {
+            applicationId: this.application.id,
+            values: {
+              type: 'mcp',
+              name: '',
+              config: { url: '', headers: {}, require_approval: true },
+            },
+          }
+        )
         this.ensureDraft(tool)
       } catch (error) {
         notifyIf(error, 'application')
@@ -619,10 +654,13 @@ export default {
           }
           values.service = { search_query: "get('tool_input.query')" }
         }
-        const tool = await this.$store.dispatch('agentApplication/createTool', {
-          applicationId: this.application.id,
-          values,
-        })
+        const tool = await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/createTool`,
+          {
+            applicationId: this.application.id,
+            values,
+          }
+        )
         this.ensureDraft(tool)
       } catch (error) {
         notifyIf(error, 'application')
@@ -638,9 +676,12 @@ export default {
       delete this.debouncedToolSaves[tool.id]
       this.deletingIds = [...this.deletingIds, tool.id]
       try {
-        await this.$store.dispatch('agentApplication/deleteTool', {
-          toolId: tool.id,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/deleteTool`,
+          {
+            toolId: tool.id,
+          }
+        )
         delete this.toolDrafts[tool.id]
       } catch (error) {
         notifyIf(error, 'application')
@@ -681,10 +722,13 @@ export default {
       }
       this.savingIdentityIds = [...this.savingIdentityIds, tool.id]
       try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId: tool.id,
-          values: { identity_id: identityId },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTool`,
+          {
+            toolId: tool.id,
+            values: { identity_id: identityId },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -715,7 +759,13 @@ export default {
       }
       this.queueSave(tool, { config: true })
     },
+    ...serviceFollowMethods({
+      pendingFor(item) {
+        return this.pendingToolValues[item.id]?.service || {}
+      },
+    }),
     onServiceValuesChanged(tool, newValues) {
+      this.formValues[tool.id] = newValues
       if (!this.canUpdateTool) {
         return
       }
@@ -789,10 +839,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId,
-          values,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTool`,
+          {
+            toolId,
+            values,
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }

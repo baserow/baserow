@@ -10,6 +10,10 @@ class AgentChatAlreadyRunning(Exception):
     """Raised when a message is sent to a chat that is still running."""
 
 
+class AgentChatNotOwned(Exception):
+    """Raised when a user tries to continue a conversation another user started."""
+
+
 class AgentTriggerDoesNotExist(Exception):
     """Raised when the application has no trigger configured."""
 

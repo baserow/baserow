@@ -76,7 +76,7 @@
           <AgentToolApprovals
             v-else-if="block.type === 'approval_set'"
             :approvals="approvalsForIds(block.ids)"
-            :can-decide="canRunChat"
+            :can-decide="canDecide"
             :disabled="decidingApprovals"
             :agent-name="agent?.name || application.name"
             :tool-label="toolLabel"
@@ -86,7 +86,7 @@
           />
         </template>
         <Alert
-          v-if="modelMissing && canRunChat"
+          v-if="modelMissing && canUpdateAgent"
           type="warning"
           class="agent-chat__model-notice"
         >
@@ -106,7 +106,7 @@
           <div class="loading"></div>
         </div>
         <div
-          v-if="hasError && canRunChat && !running"
+          v-if="hasError && canContinueChat && !running"
           class="agent-chat__retry"
         >
           <Button
@@ -139,6 +139,16 @@
       >
         {{ $t('agentChat.cancel') }}
       </Button>
+    </div>
+    <div
+      v-else-if="canRunChat && !canContinueChat"
+      class="agent-chat__banner"
+      data-banner-type="other-user"
+    >
+      <i class="iconoir-lock"></i>
+      <span class="agent-chat__banner-text">
+        {{ $t('agentChat.startedByOtherUser') }}
+      </span>
     </div>
     <div v-else-if="canRunChat" class="agent-chat__composer">
       <div class="agent-chat__column">
@@ -283,6 +293,7 @@ import AgentChatMessage from '@baserow_enterprise/components/agentApplication/Ag
 import AgentChatReasoning from '@baserow_enterprise/components/agentApplication/AgentChatReasoning'
 import AgentChatTriggerRow from '@baserow_enterprise/components/agentApplication/AgentChatTriggerRow'
 import AgentChatToolGroup from '@baserow_enterprise/components/agentApplication/AgentChatToolGroup'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 const MIN_ROWS = 1
 const MAX_ROWS = 6
@@ -317,7 +328,8 @@ export default defineComponent({
   emits: ['run-once', 'open-configuration'],
   setup(props) {
     const store = useStore()
-    const { $hasPermission, $client, $registry } = useNuxtApp()
+    const { storePrefix, hasPermission } = useAgentContext()
+    const { $client, $registry } = useNuxtApp()
     const { t, locale } = useI18n()
 
     const message = ref('')
@@ -328,40 +340,54 @@ export default defineComponent({
     const dragCount = ref(0)
     const decidingApprovals = ref(false)
 
-    const events = computed(() => store.getters['agentChat/getEvents'])
-    const running = computed(() => store.getters['agentChat/isRunning'])
-    const canceling = computed(() => store.getters['agentChat/isCanceling'])
+    const events = computed(
+      () => store.getters[`${storePrefix}agentChat/getEvents`]
+    )
+    const running = computed(
+      () => store.getters[`${storePrefix}agentChat/isRunning`]
+    )
+    const canceling = computed(
+      () => store.getters[`${storePrefix}agentChat/isCanceling`]
+    )
     // Another conversation is being fetched: the old transcript is replaced
     // by a loader instead of lingering with no sign that anything happens.
     const loadingConversation = computed(
-      () => store.getters['agentChat/getLoadingChatUuid'] !== null
+      () => store.getters[`${storePrefix}agentChat/getLoadingChatUuid`] !== null
     )
-    const hasError = computed(() => store.getters['agentChat/hasError'])
+    const hasError = computed(
+      () => store.getters[`${storePrefix}agentChat/hasError`]
+    )
     const retrying = ref(false)
     const retry = async () => {
       retrying.value = true
       try {
-        await store.dispatch('agentChat/retryChat')
+        await store.dispatch(`${storePrefix}agentChat/retryChat`)
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
         retrying.value = false
       }
     }
-    const sending = computed(() => store.getters['agentChat/isSending'])
+    const sending = computed(
+      () => store.getters[`${storePrefix}agentChat/isSending`]
+    )
     const runningMessage = computed(
-      () => store.getters['agentChat/getRunningMessage']
+      () => store.getters[`${storePrefix}agentChat/getRunningMessage`]
     )
     const currentChatUuid = computed(
-      () => store.getters['agentChat/getCurrentChatUuid']
+      () => store.getters[`${storePrefix}agentChat/getCurrentChatUuid`]
     )
-    const source = computed(() => store.getters['agentChat/getSource'])
-    const agent = computed(() => store.getters['agentApplication/getAgent'])
+    const source = computed(
+      () => store.getters[`${storePrefix}agentChat/getSource`]
+    )
+    const agent = computed(
+      () => store.getters[`${storePrefix}agentApplication/getAgent`]
+    )
     const triggers = computed(
-      () => store.getters['agentApplication/getTriggers']
+      () => store.getters[`${storePrefix}agentApplication/getTriggers`]
     )
     const toolLabel = computed(
-      () => store.getters['agentApplication/getToolLabel']
+      () => store.getters[`${storePrefix}agentApplication/getToolLabel`]
     )
     const identityName = computed(
       () =>
@@ -381,13 +407,14 @@ export default defineComponent({
     }
     const triggerLabel = computed(
       () =>
-        triggerNodeLabel(store.getters['agentChat/getTriggerType']) ||
-        t('agentChat.startedByTrigger')
+        triggerNodeLabel(
+          store.getters[`${storePrefix}agentChat/getTriggerType`]
+        ) || t('agentChat.startedByTrigger')
     )
     // The identity name a tool runs as when it differs from the agent's own,
     // shown under email previews so the sender is clear.
     const runsAs = (toolName) => {
-      const tools = store.getters['agentApplication/getTools']
+      const tools = store.getters[`${storePrefix}agentApplication/getTools`]
       const identities = store.getters['agent/getAllInWorkspace'](
         props.application.workspace.id
       )
@@ -409,10 +436,10 @@ export default defineComponent({
       )
     }
     const triggerType = computed(
-      () => store.getters['agentChat/getTriggerType']
+      () => store.getters[`${storePrefix}agentChat/getTriggerType`]
     )
     const eventPayload = computed(
-      () => store.getters['agentChat/getEventPayload'] ?? null
+      () => store.getters[`${storePrefix}agentChat/getEventPayload`] ?? null
     )
     const firstTriggerLabel = computed(() => {
       const trigger = triggers.value.find((item) => item.enabled)
@@ -439,28 +466,62 @@ export default defineComponent({
           !agent.value.ai_generative_ai_model)
     )
     const awaitingApproval = computed(
-      () => store.getters['agentChat/isAwaitingApproval']
+      () => store.getters[`${storePrefix}agentChat/isAwaitingApproval`]
     )
     const toolApprovals = computed(
-      () => store.getters['agentChat/getToolApprovals']
+      () => store.getters[`${storePrefix}agentChat/getToolApprovals`]
     )
 
     const canRunChat = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.run_chat',
         props.application,
         props.application.workspace.id
       )
     )
     const canCancelChat = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.cancel_chat',
         props.application,
         props.application.workspace.id
       )
     )
+    const canDecide = computed(() =>
+      hasPermission(
+        'agent_application.decide_tool_approval',
+        props.application,
+        props.application.workspace.id
+      )
+    )
+    const canUpdateAgent = computed(() =>
+      hasPermission(
+        'agent_application.update_agent',
+        props.application,
+        props.application.workspace.id
+      )
+    )
+    // A conversation another person started is readable, but only its owner
+    // may continue it: the run acts as the owner when the agent has no
+    // identity, so continuing it would borrow their permissions. Triggered
+    // and channel conversations have no owner yet and can be picked up.
+    const chatOwnerId = computed(() => {
+      const chatId = store.getters[`${storePrefix}agentChat/getChatId`]
+      if (chatId === null) {
+        return null
+      }
+      const chat = store.getters[`${storePrefix}agentHistory/getChats`].find(
+        (item) => item.id === chatId
+      )
+      return chat?.user_id ?? null
+    })
+    const canContinueChat = computed(
+      () =>
+        canRunChat.value &&
+        (chatOwnerId.value === null ||
+          chatOwnerId.value === store.getters['auth/getUserId'])
+    )
     const canUpdateTools = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.update_tool',
         props.application,
         props.application.workspace.id
@@ -486,7 +547,7 @@ export default defineComponent({
     })
 
     const pendingToolApprovals = computed(
-      () => store.getters['agentChat/getPendingToolApprovals']
+      () => store.getters[`${storePrefix}agentChat/getPendingToolApprovals`]
     )
     const composerStatus = computed(() => {
       if (awaitingApproval.value) {
@@ -586,7 +647,7 @@ export default defineComponent({
       adjustHeight()
       scrollToBottom()
       try {
-        await store.dispatch('agentChat/sendMessage', {
+        await store.dispatch(`${storePrefix}agentChat/sendMessage`, {
           application: props.application,
           content,
           userFiles,
@@ -600,7 +661,7 @@ export default defineComponent({
 
     const cancel = async () => {
       try {
-        await store.dispatch('agentChat/cancel', {
+        await store.dispatch(`${storePrefix}agentChat/cancel`, {
           chatUuid: currentChatUuid.value,
         })
       } catch (error) {
@@ -644,7 +705,7 @@ export default defineComponent({
       }
       decidingApprovals.value = true
       try {
-        await store.dispatch('agentChat/decideApprovals', {
+        await store.dispatch(`${storePrefix}agentChat/decideApprovals`, {
           decisions,
           dontAskAgain,
         })
@@ -657,7 +718,7 @@ export default defineComponent({
           // the latest decisions become visible.
           error.handler.handled()
           try {
-            await store.dispatch('agentChat/openConversation', {
+            await store.dispatch(`${storePrefix}agentChat/openConversation`, {
               applicationId: props.application.id,
               chatUuid: currentChatUuid.value,
             })
@@ -769,6 +830,9 @@ export default defineComponent({
     })
 
     return {
+      canDecide,
+      canUpdateAgent,
+      canContinueChat,
       hasError,
       retrying,
       retry,

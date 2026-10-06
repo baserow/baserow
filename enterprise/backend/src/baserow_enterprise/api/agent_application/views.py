@@ -28,7 +28,25 @@ from baserow.core.operations import CreateApplicationsWorkspaceOperationType
 from baserow.core.services.registries import service_type_registry
 from baserow.core.skills.exceptions import WorkspaceSkillDoesNotExist
 from baserow.core.user_files.exceptions import InvalidUserFileNameError
-from baserow_enterprise.agent_application.actions import UpdateAgentDefinitionActionType
+from baserow_enterprise.agent_application.actions import (
+    CancelAgentChatRunActionType,
+    CreateAgentChatChannelActionType,
+    CreateAgentToolActionType,
+    CreateAgentTriggerActionType,
+    DecideAgentToolApprovalActionType,
+    DeleteAgentChatActionType,
+    DeleteAgentChatChannelActionType,
+    DeleteAgentToolActionType,
+    DeleteAgentTriggerActionType,
+    RetryAgentChatRunActionType,
+    RotateAgentChatChannelLinkActionType,
+    RunAgentOnceActionType,
+    UpdateAgentChatActionType,
+    UpdateAgentChatChannelActionType,
+    UpdateAgentDefinitionActionType,
+    UpdateAgentToolActionType,
+    UpdateAgentTriggerActionType,
+)
 from baserow_enterprise.agent_application.channels.handler import (
     AgentChatChannelHandler,
 )
@@ -40,6 +58,7 @@ from baserow_enterprise.agent_application.exceptions import (
     AgentChatAwaitingApproval,
     AgentChatChannelDoesNotExist,
     AgentChatDoesNotExist,
+    AgentChatNotOwned,
     AgentChatNotRetryable,
     AgentDefinitionDoesNotExist,
     AgentModelNotConfigured,
@@ -76,9 +95,6 @@ from baserow_enterprise.agent_application.operations import (
     UpdateAgentToolOperationType,
     UpdateAgentTriggerOperationType,
 )
-from baserow_enterprise.agent_application.realtime import (
-    broadcast_configuration_updated,
-)
 from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
 from baserow_enterprise.agent_application.triggers.handler import AgentTriggerHandler
 from baserow_enterprise.api.assistant.errors import (
@@ -97,6 +113,7 @@ from .errors import (
     ERROR_AGENT_CHAT_AWAITING_APPROVAL,
     ERROR_AGENT_CHAT_CHANNEL_DOES_NOT_EXIST,
     ERROR_AGENT_CHAT_DOES_NOT_EXIST,
+    ERROR_AGENT_CHAT_NOT_OWNED,
     ERROR_AGENT_CHAT_NOT_RETRYABLE,
     ERROR_AGENT_DEFINITION_DOES_NOT_EXIST,
     ERROR_AGENT_MODEL_NOT_CONFIGURED,
@@ -410,6 +427,7 @@ class AgentChatMessagesView(APIView):
             AgentChatDoesNotExist: ERROR_AGENT_CHAT_DOES_NOT_EXIST,
             AgentChatAlreadyRunning: ERROR_AGENT_CHAT_ALREADY_RUNNING,
             AgentChatAwaitingApproval: ERROR_AGENT_CHAT_AWAITING_APPROVAL,
+            AgentChatNotOwned: ERROR_AGENT_CHAT_NOT_OWNED,
             AgentModelNotConfigured: ERROR_AGENT_MODEL_NOT_CONFIGURED,
             InvalidUserFileNameError: ERROR_INVALID_USER_FILE_NAME_ERROR,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -483,6 +501,7 @@ class AgentChatRetryView(APIView):
     )
     @map_exceptions(
         {
+            AgentChatNotOwned: ERROR_AGENT_CHAT_NOT_OWNED,
             AgentChatDoesNotExist: ERROR_AGENT_CHAT_DOES_NOT_EXIST,
             AgentChatNotRetryable: ERROR_AGENT_CHAT_NOT_RETRYABLE,
             AgentChatAlreadyRunning: ERROR_AGENT_CHAT_ALREADY_RUNNING,
@@ -491,9 +510,12 @@ class AgentChatRetryView(APIView):
     )
     def post(self, request, chat_uuid):
         chat = _get_chat_and_check(request, chat_uuid, RunAgentChatOperationType)
+        AgentChatHandler().check_chat_can_be_continued_by(chat, request.user)
 
         with transaction.atomic():
-            message = AgentChatHandler().retry_chat_run(chat)
+            message = action_type_registry.get_by_type(RetryAgentChatRunActionType).do(
+                request.user, chat
+            )
 
         response_data = AgentChatSerializer(chat).data
         response_data["prompt_message_id"] = message.id
@@ -529,7 +551,9 @@ class AgentChatCancelView(APIView):
     def post(self, request, chat_uuid):
         chat = _get_chat_and_check(request, chat_uuid, CancelAgentChatOperationType)
         with transaction.atomic():
-            AgentChatHandler().cancel_chat_run(chat, request.user)
+            action_type_registry.get_by_type(CancelAgentChatRunActionType).do(
+                request.user, chat
+            )
         return Response(status=HTTP_204_NO_CONTENT)
 
 
@@ -570,7 +594,9 @@ class AgentChatView(APIView):
                 f"The chat {chat.id} is running and cannot be deleted."
             )
 
-        AgentChatHandler().delete_chat(chat)
+        action_type_registry.get_by_type(DeleteAgentChatActionType).do(
+            request.user, chat
+        )
         return Response(status=HTTP_204_NO_CONTENT)
 
     @extend_schema(
@@ -600,7 +626,9 @@ class AgentChatView(APIView):
     @validate_body(UpdateAgentChatSerializer, return_validated=True)
     def patch(self, request, chat_uuid, data: dict):
         chat = _get_chat_and_check(request, chat_uuid, UpdateAgentChatOperationType)
-        chat = AgentChatHandler().update_chat(chat, **data)
+        chat = action_type_registry.get_by_type(UpdateAgentChatActionType).do(
+            request.user, chat, **data
+        )
         return Response(AgentChatSerializer(chat).data)
 
 
@@ -765,7 +793,9 @@ class AgentRunOnceView(APIView):
             raise AgentModelNotConfigured(
                 "The agent has no generative AI model configured."
             )
-        chat = AgentChatHandler().run_trigger_once(request.user, application)
+        chat = action_type_registry.get_by_type(RunAgentOnceActionType).do(
+            request.user, application
+        )
         return Response(AgentChatSerializer(chat).data, status=HTTP_202_ACCEPTED)
 
 
@@ -868,7 +898,7 @@ class AgentTriggersView(APIView):
         )
 
         with transaction.atomic():
-            trigger = AgentTriggerHandler().create_trigger(
+            trigger = action_type_registry.get_by_type(CreateAgentTriggerActionType).do(
                 request.user,
                 application,
                 data["service_type"],
@@ -876,7 +906,6 @@ class AgentTriggersView(APIView):
                 enabled=data.get("enabled", True),
             )
 
-        broadcast_configuration_updated(application)
         return Response(_serialize_trigger(trigger))
 
 
@@ -919,14 +948,13 @@ class AgentTriggerView(APIView):
         )
 
         with transaction.atomic():
-            trigger = AgentTriggerHandler().update_trigger(
+            trigger = action_type_registry.get_by_type(UpdateAgentTriggerActionType).do(
                 request.user,
                 trigger,
                 service_values=data.get("service"),
                 enabled=data.get("enabled"),
             )
 
-        broadcast_configuration_updated(application)
         return Response(_serialize_trigger(trigger))
 
     @extend_schema(
@@ -963,9 +991,10 @@ class AgentTriggerView(APIView):
         )
 
         with transaction.atomic():
-            AgentTriggerHandler().delete_trigger(trigger)
+            action_type_registry.get_by_type(DeleteAgentTriggerActionType).do(
+                request.user, trigger
+            )
 
-        broadcast_configuration_updated(application)
         return Response(status=HTTP_204_NO_CONTENT)
 
 
@@ -1056,7 +1085,7 @@ class AgentToolsView(APIView):
         agent = AgentApplicationHandler().get_main_agent(application)
 
         with transaction.atomic():
-            tool = AgentToolHandler().create_tool(
+            tool = action_type_registry.get_by_type(CreateAgentToolActionType).do(
                 request.user,
                 agent,
                 data["type"],
@@ -1066,7 +1095,6 @@ class AgentToolsView(APIView):
                 service_values=data.get("service"),
             )
 
-        broadcast_configuration_updated(application)
         return Response(_serialize_tool(tool))
 
 
@@ -1109,7 +1137,7 @@ class AgentToolView(APIView):
         )
 
         with transaction.atomic():
-            tool = AgentToolHandler().update_tool(
+            tool = action_type_registry.get_by_type(UpdateAgentToolActionType).do(
                 request.user,
                 tool,
                 name=data.get("name"),
@@ -1122,7 +1150,6 @@ class AgentToolView(APIView):
                 ),
             )
 
-        broadcast_configuration_updated(application.specific)
         return Response(_serialize_tool(tool))
 
     @extend_schema(
@@ -1159,9 +1186,10 @@ class AgentToolView(APIView):
         )
 
         with transaction.atomic():
-            AgentToolHandler().delete_tool(tool)
+            action_type_registry.get_by_type(DeleteAgentToolActionType).do(
+                request.user, tool
+            )
 
-        broadcast_configuration_updated(application.specific)
         return Response(status=HTTP_204_NO_CONTENT)
 
 
@@ -1326,9 +1354,9 @@ class AgentChatApprovalsView(APIView):
             )
 
         with transaction.atomic():
-            decided = AgentChatHandler().decide_tool_approvals(
-                chat, request.user, data["decisions"]
-            )
+            decided = action_type_registry.get_by_type(
+                DecideAgentToolApprovalActionType
+            ).do(request.user, chat, data["decisions"])
 
         return Response(AgentChatToolApprovalSerializer(decided, many=True).data)
 
@@ -1414,7 +1442,10 @@ class AgentChatChannelsView(APIView):
         )
 
         with transaction.atomic():
-            channel = AgentChatChannelHandler().create_channel(
+            channel = action_type_registry.get_by_type(
+                CreateAgentChatChannelActionType
+            ).do(
+                request.user,
                 application,
                 data["type"],
                 name=data.get("name", ""),
@@ -1422,7 +1453,6 @@ class AgentChatChannelsView(APIView):
                 enabled=data.get("enabled", True),
             )
 
-        broadcast_configuration_updated(application)
         return Response(_serialize_channel(channel))
 
 
@@ -1465,14 +1495,16 @@ class AgentChatChannelView(APIView):
         )
 
         with transaction.atomic():
-            channel = AgentChatChannelHandler().update_channel(
+            channel = action_type_registry.get_by_type(
+                UpdateAgentChatChannelActionType
+            ).do(
+                request.user,
                 channel,
                 name=data.get("name"),
                 config=data.get("config"),
                 enabled=data.get("enabled"),
             )
 
-        broadcast_configuration_updated(application)
         return Response(_serialize_channel(channel))
 
     @extend_schema(
@@ -1509,9 +1541,10 @@ class AgentChatChannelView(APIView):
         )
 
         with transaction.atomic():
-            AgentChatChannelHandler().delete_channel(channel)
+            action_type_registry.get_by_type(DeleteAgentChatChannelActionType).do(
+                request.user, channel
+            )
 
-        broadcast_configuration_updated(application)
         return Response(status=HTTP_204_NO_CONTENT)
 
 
@@ -1566,6 +1599,7 @@ class AgentChatChannelRotateSlugView(APIView):
         )
         if channel.type != WebAgentChatChannelType.type:
             raise AgentChatChannelDoesNotExist("Only web chat channels have a link.")
-        channel = WebAgentChatChannelType().rotate_slug(channel)
-        broadcast_configuration_updated(application)
+        channel = action_type_registry.get_by_type(
+            RotateAgentChatChannelLinkActionType
+        ).do(request.user, channel)
         return Response(_serialize_channel(channel))

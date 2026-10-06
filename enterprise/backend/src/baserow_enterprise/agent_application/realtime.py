@@ -132,21 +132,6 @@ def broadcast_agent_definition_updated(agent) -> None:
     )
 
 
-def broadcast_configuration_updated(application) -> None:
-    """
-    Signals that the application's trigger or tools changed, so open clients
-    refetch them.
-    """
-
-    broadcast_to_channel_group.delay(
-        get_agent_application_group_name(application.id),
-        {
-            "type": "agent_configuration_updated",
-            "application_id": application.id,
-        },
-    )
-
-
 def broadcast_chat_deleted(application_id: int, chat_id: int) -> None:
     broadcast_to_channel_group.delay(
         get_agent_application_group_name(application_id),

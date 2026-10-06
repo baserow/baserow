@@ -84,9 +84,9 @@
 <script>
 import { defineComponent, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentConversationListItem from '@baserow_enterprise/components/agentApplication/AgentConversationListItem'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 export default defineComponent({
   name: 'AgentConversationList',
@@ -107,31 +107,35 @@ export default defineComponent({
     // Varied title lengths so the placeholder reads as a list of titles.
     const skeletonWidths = [70, 45, 60, 80, 50]
     const store = useStore()
-    const { $hasPermission } = useNuxtApp()
+    const { storePrefix, hasPermission } = useAgentContext()
 
     const canRunChat = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.run_chat',
         props.application,
         props.application.workspace.id
       )
     )
     const pinnedChats = computed(
-      () => store.getters['agentHistory/getPinnedChats']
+      () => store.getters[`${storePrefix}agentHistory/getPinnedChats`]
     )
     const recentChats = computed(
-      () => store.getters['agentHistory/getRecentChats']
+      () => store.getters[`${storePrefix}agentHistory/getRecentChats`]
     )
     const currentChatUuid = computed(
-      () => store.getters['agentChat/getCurrentChatUuid']
+      () => store.getters[`${storePrefix}agentChat/getCurrentChatUuid`]
     )
     const isCurrent = (chat) => chat.uuid === currentChatUuid.value
 
-    const hasMore = computed(() => store.getters['agentHistory/hasMore'])
-    const loading = computed(() => store.getters['agentHistory/isLoading'])
+    const hasMore = computed(
+      () => store.getters[`${storePrefix}agentHistory/hasMore`]
+    )
+    const loading = computed(
+      () => store.getters[`${storePrefix}agentHistory/isLoading`]
+    )
     const loadMore = async () => {
       try {
-        await store.dispatch('agentHistory/fetchMore', {
+        await store.dispatch(`${storePrefix}agentHistory/fetchMore`, {
           applicationId: props.application.id,
         })
       } catch (error) {
@@ -140,7 +144,7 @@ export default defineComponent({
     }
 
     const loadingChatUuid = computed(
-      () => store.getters['agentChat/getLoadingChatUuid']
+      () => store.getters[`${storePrefix}agentChat/getLoadingChatUuid`]
     )
     const isLoading = (chat) => chat.uuid === loadingChatUuid.value
     const selectChat = async (chat) => {
@@ -148,7 +152,7 @@ export default defineComponent({
         return
       }
       try {
-        await store.dispatch('agentChat/openConversation', {
+        await store.dispatch(`${storePrefix}agentChat/openConversation`, {
           applicationId: props.application.id,
           chatUuid: chat.uuid,
         })
@@ -157,7 +161,7 @@ export default defineComponent({
       }
     }
     const newConversation = () => {
-      store.dispatch('agentChat/newConversation')
+      store.dispatch(`${storePrefix}agentChat/newConversation`)
     }
 
     return {

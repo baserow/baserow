@@ -351,6 +351,15 @@ class CoreConfig(AppConfig):
         )
 
         action_type_registry.register(CreateWorkspaceActionType())
+        from .skills.actions import (
+            CreateWorkspaceSkillActionType,
+            DeleteWorkspaceSkillActionType,
+            UpdateWorkspaceSkillActionType,
+        )
+
+        action_type_registry.register(CreateWorkspaceSkillActionType())
+        action_type_registry.register(UpdateWorkspaceSkillActionType())
+        action_type_registry.register(DeleteWorkspaceSkillActionType())
         action_type_registry.register(DeleteWorkspaceActionType())
         action_type_registry.register(UpdateWorkspaceActionType())
         action_type_registry.register(OrderWorkspacesActionType())

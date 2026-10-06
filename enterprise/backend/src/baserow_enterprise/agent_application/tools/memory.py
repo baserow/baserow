@@ -16,6 +16,12 @@ AGENT_MEMORY_MAX_LENGTH = 10000
 _THOUGHT = Annotated[str, Field(description="Brief reasoning for calling this tool.")]
 
 
+def _audit(ctx: RunContext[AgentRunDeps], mode: str) -> None:
+    from ..actions import UpdateAgentMemoryActionType
+
+    UpdateAgentMemoryActionType.do(ctx.deps.user, ctx.deps.agent, mode)
+
+
 def _broadcast(agent_id: int) -> None:
     from ..models import AgentDefinition
     from ..realtime import broadcast_agent_definition_updated
@@ -68,6 +74,7 @@ async def remember(
             )
         )
         ctx.deps.agent.refresh_from_db(fields=["memory"])
+        _audit(ctx, "appended")
         _broadcast(ctx.deps.agent.id)
         return {"success": True}
 
@@ -100,6 +107,7 @@ async def rewrite_memory(
 
         AgentDefinition.objects.filter(id=ctx.deps.agent.id).update(memory=new_memory)
         ctx.deps.agent.refresh_from_db(fields=["memory"])
+        _audit(ctx, "rewritten")
         _broadcast(ctx.deps.agent.id)
         return {"success": True}
 

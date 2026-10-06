@@ -57,7 +57,7 @@
         <ReadOnlyForm :read-only="readOnly">
           <AgentServiceForm
             v-if="triggerNodeType(trigger)"
-            :key="`${trigger.id}-${trigger.service_type}`"
+            :key="serviceFormKey(trigger)"
             :application="application"
             :service-type="triggerNodeType(trigger).serviceType"
             :service="trigger.service || {}"
@@ -161,9 +161,15 @@ import AgentConfigurationCard from '@baserow_enterprise/components/agentApplicat
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { formatToolPayload } from '@baserow_enterprise/utils/agentChatEvents'
+import {
+  serviceFollowState,
+  serviceFollowMethods,
+} from '@baserow_enterprise/utils/agentServiceFollow'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 export default {
   name: 'AgentTriggerSection',
+  mixins: [AgentContextMixin],
   components: {
     AgentConfigurationCard,
     AgentGroupedAddMenu,
@@ -189,11 +195,23 @@ export default {
       // Unsaved service values per trigger id, flushed by a per-trigger
       // debounced save.
       pendingServiceValues: {},
+      ...serviceFollowState(),
     }
+  },
+  watch: {
+    triggers: {
+      handler(triggers) {
+        triggers.forEach((trigger) => this.followService(trigger))
+      },
+      deep: true,
+      immediate: true,
+    },
   },
   computed: {
     triggers() {
-      return this.$store.getters['agentApplication/getTriggers']
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getTriggers`
+      ]
     },
     triggerNodeTypes() {
       return this.$registry
@@ -229,7 +247,17 @@ export default {
   async mounted() {
     // The triggers themselves are fetched by the page; only the integrations
     // are needed here, because Local Baserow trigger forms pick a table
-    // through the application's integrations in the store.
+    // through the application's integrations in the store. Listing them is
+    // a builder operation, so readers skip it.
+    if (
+      !this.hasAgentPermission(
+        'application.list_integrations',
+        this.application,
+        this.application.workspace.id
+      )
+    ) {
+      return
+    }
     this.loading = true
     try {
       await this.$store.dispatch('integration/fetch', {
@@ -269,10 +297,13 @@ export default {
       this.$refs.addTriggerContext.hide()
       this.addLoading = true
       try {
-        await this.$store.dispatch('agentApplication/createTrigger', {
-          applicationId: this.application.id,
-          values: { service_type: nodeType.getType() },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/createTrigger`,
+          {
+            applicationId: this.application.id,
+            values: { service_type: nodeType.getType() },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -281,10 +312,13 @@ export default {
     },
     async onEnabledChange(trigger, enabled) {
       try {
-        await this.$store.dispatch('agentApplication/updateTrigger', {
-          triggerId: trigger.id,
-          values: { enabled },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTrigger`,
+          {
+            triggerId: trigger.id,
+            values: { enabled },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -297,16 +331,25 @@ export default {
       delete this.debouncedServiceSaves[trigger.id]
       this.deletingIds = [...this.deletingIds, trigger.id]
       try {
-        await this.$store.dispatch('agentApplication/deleteTrigger', {
-          triggerId: trigger.id,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/deleteTrigger`,
+          {
+            triggerId: trigger.id,
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
         this.deletingIds = this.deletingIds.filter((id) => id !== trigger.id)
       }
     },
+    ...serviceFollowMethods({
+      pendingFor(item) {
+        return this.pendingServiceValues[item.id] || {}
+      },
+    }),
     onServiceValuesChanged(trigger, newValues) {
+      this.formValues[trigger.id] = newValues
       if (this.readOnly) {
         return
       }
@@ -347,10 +390,13 @@ export default {
       }
       delete this.pendingServiceValues[triggerId]
       try {
-        await this.$store.dispatch('agentApplication/updateTrigger', {
-          triggerId,
-          values: { service },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTrigger`,
+          {
+            triggerId,
+            values: { service },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }

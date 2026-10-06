@@ -6,6 +6,7 @@ from baserow.core.registries import PermissionManagerType
 from .operations import (
     ListAgentChatsOperationType,
     ListAgentToolsOperationType,
+    ReadAgentChatChannelOperationType,
     ReadAgentChatOperationType,
     ReadAgentDefinitionOperationType,
     ReadAgentTriggerOperationType,
@@ -25,6 +26,7 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
         ListAgentToolsOperationType.type,
         ListAgentChatsOperationType.type,
         ReadAgentChatOperationType.type,
+        ReadAgentChatChannelOperationType.type,
         ReadAgentUsageOperationType.type,
     ]
 

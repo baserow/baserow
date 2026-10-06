@@ -5,6 +5,8 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 import AgentApplicationForm from '@baserow_enterprise/components/agentApplication/AgentApplicationForm'
 import SidebarComponentAgent from '@baserow_enterprise/components/agentApplication/SidebarComponentAgent'
+import AgentTemplateSidebar from '@baserow_enterprise/components/agentApplication/AgentTemplateSidebar'
+import AgentTemplate from '@baserow_enterprise/components/agentApplication/AgentTemplate'
 
 export class AgentApplicationType extends ApplicationType {
   populate(application) {
@@ -61,8 +63,25 @@ export class AgentApplicationType extends ApplicationType {
     return SidebarComponentAgent
   }
 
+  getTemplateSidebarComponent() {
+    return AgentTemplateSidebar
+  }
+
+  getTemplatesPageComponent() {
+    return AgentTemplate
+  }
+
+  getTemplatePage(application) {
+    return { application }
+  }
+
   delete(application, { $router }) {
-    $router.push({ name: 'dashboard' })
+    if (application._.selected) {
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
+    }
   }
 
   async select(application, { $router }) {

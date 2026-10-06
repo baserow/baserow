@@ -12,6 +12,17 @@ class AgentChatChannelType(Instance):
     # Whether people talking through this channel may change the agent's
     # memory (`remember`). Internal channels like Slack may; public ones not.
     allows_memory_updates = True
+    # Config keys that must never leave the backend, not even into the undo
+    # history. `prepare_config` keeps a stored secret when it is omitted, so
+    # undoing a config change can simply leave them out.
+    secret_config_keys: tuple = ()
+
+    def get_undoable_config(self, channel: "AgentChatChannel") -> dict:
+        return {
+            key: value
+            for key, value in (channel.config or {}).items()
+            if key not in self.secret_config_keys
+        }
 
     def get_system_notes(self, channel: "AgentChatChannel") -> list[str]:
         """
@@ -75,6 +86,15 @@ class AgentChatChannelType(Instance):
         """
 
         return channel.config
+
+    def prepare_imported_config(self, config: dict) -> dict:
+        """
+        The configuration for a copy of the channel (duplicate, snapshot
+        restore). Types with per-channel identifiers renew them here so the
+        copy never answers to the original's address.
+        """
+
+        return dict(config or {})
 
     def handle_inbound(
         self, channel: "AgentChatChannel", request: HttpRequest
@@ -146,7 +166,12 @@ def start_channel_chat(
     from ..models import AgentChat, AgentChatMessage
 
     application = channel.application
-    if not channel.enabled or not application.active:
+    if (
+        not channel.enabled
+        or not application.active
+        or application.trashed
+        or application.workspace.trashed
+    ):
         return None
 
     agent = AgentApplicationHandler().get_main_agent(application)

@@ -19,6 +19,18 @@ TOGGLEABLE_TOOL_TYPES = ["workspace", "workspace_search", "web_search"]
 _THOUGHT = Annotated[str, Field(description="Brief reasoning for calling this tool.")]
 
 
+def _update_agent_definition(user, agent_id: int, **values):
+    """
+    The agent changing its own instructions or model is a configuration
+    change like any other: undoable by the person in the conversation and
+    recorded in the audit log.
+    """
+
+    from ..actions import UpdateAgentDefinitionActionType
+
+    return UpdateAgentDefinitionActionType.do(user, agent_id, values)
+
+
 def _chat_user(ctx: RunContext[AgentRunDeps]):
     """
     Self-configuration always acts as the human in the conversation, so
@@ -50,13 +62,9 @@ async def update_own_instructions(
     what you should do, or during setup to write your own instructions.
     """
 
-    from ..service import AgentApplicationService
-
     def update():
         user = _chat_user(ctx)
-        AgentApplicationService().update_agent(
-            user, ctx.deps.agent.id, instructions=instructions
-        )
+        _update_agent_definition(user, ctx.deps.agent.id, instructions=instructions)
         ctx.deps.agent.instructions = instructions
         return {"success": True}
 
@@ -97,8 +105,6 @@ async def update_own_model(
     turn. The model must be one of the workspace's enabled models.
     """
 
-    from ..service import AgentApplicationService
-
     def update():
         enabled = generative_ai_model_type_registry.get_enabled_models_per_type(
             ctx.deps.workspace, feature_type=AI_PROVIDER_FEATURE_AGENT_BUILDER
@@ -110,7 +116,7 @@ async def update_own_model(
                 "list_available_models to see the options."
             }
         user = _chat_user(ctx)
-        AgentApplicationService().update_agent(
+        _update_agent_definition(
             user,
             ctx.deps.agent.id,
             ai_generative_ai_type=ai_generative_ai_type,
@@ -174,7 +180,6 @@ async def add_own_trigger(
     )
 
     from ..operations import UpdateAgentTriggerOperationType
-    from ..realtime import broadcast_configuration_updated
     from ..triggers.handler import AgentTriggerHandler
 
     def resolve_table(user, workspace) -> int | dict:
@@ -232,7 +237,6 @@ async def add_own_trigger(
         trigger = AgentTriggerHandler().create_trigger(
             user, application, service_type, service_values=service_values
         )
-        broadcast_configuration_updated(application)
         return {"success": True, "trigger_id": trigger.id}
 
     try:
@@ -277,7 +281,6 @@ async def remove_own_trigger(
 
     from ..exceptions import AgentTriggerDoesNotExist
     from ..operations import UpdateAgentTriggerOperationType
-    from ..realtime import broadcast_configuration_updated
     from ..triggers.handler import AgentTriggerHandler
 
     def remove():
@@ -292,8 +295,7 @@ async def remove_own_trigger(
         trigger = AgentTriggerHandler().get_trigger(trigger_id)
         if trigger.application_id != application.id:
             raise AgentTriggerDoesNotExist()
-        AgentTriggerHandler().delete_trigger(trigger)
-        broadcast_configuration_updated(application)
+        AgentTriggerHandler().trash_trigger(user, trigger)
         return {"success": True}
 
     try:
@@ -324,7 +326,6 @@ async def enable_own_tools(
 
     from ..models import AgentTool
     from ..operations import CreateAgentToolOperationType
-    from ..realtime import broadcast_configuration_updated
 
     def enable():
         user = _chat_user(ctx)
@@ -343,11 +344,16 @@ async def enable_own_tools(
                 f"{TOGGLEABLE_TOOL_TYPES}."
             }
 
-        for tool_type in types:
-            AgentTool.objects.get_or_create(
-                agent=ctx.deps.agent, type=tool_type, defaults={"config": {}}
+        from .handler import AgentToolHandler
+
+        existing = set(
+            AgentTool.objects.filter(agent=ctx.deps.agent, type__in=types).values_list(
+                "type", flat=True
             )
-        broadcast_configuration_updated(application)
+        )
+        for tool_type in types:
+            if tool_type not in existing:
+                AgentToolHandler().create_tool(user, ctx.deps.agent, tool_type)
         return {"success": True}
 
     try:
@@ -368,7 +374,6 @@ async def disable_own_tools(
 
     from ..models import AgentTool
     from ..operations import DeleteAgentToolOperationType
-    from ..realtime import broadcast_configuration_updated
 
     def disable():
         user = _chat_user(ctx)
@@ -379,11 +384,13 @@ async def disable_own_tools(
             workspace=application.workspace,
             context=application.application_ptr,
         )
-        AgentTool.objects.filter(
+        from .handler import AgentToolHandler
+
+        for tool in AgentTool.objects.filter(
             agent=ctx.deps.agent,
             type__in=[t for t in types if t in TOGGLEABLE_TOOL_TYPES],
-        ).delete()
-        broadcast_configuration_updated(application)
+        ).select_related("agent__application"):
+            AgentToolHandler().trash_tool(user, tool)
         return {"success": True}
 
     try:

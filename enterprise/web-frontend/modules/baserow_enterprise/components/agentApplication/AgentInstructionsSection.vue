@@ -8,6 +8,7 @@
       @input="onInput"
     ></FormTextarea>
     <PromptAttachments
+      v-if="workspace"
       :workspace="workspace"
       :attachments="skillAttachments"
       :disabled="!canUpdate"
@@ -49,6 +50,7 @@ import { useStore } from 'vuex'
 import PromptAttachments from '@baserow/modules/core/components/promptAttachments/PromptAttachments'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { useSeededAgentField } from '@baserow_enterprise/composables/useSeededAgentField'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 export default defineComponent({
   name: 'AgentInstructionsSection',
@@ -65,6 +67,7 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore()
+    const { storePrefix } = useAgentContext()
     const { agent, value, onInput, setValue, flush } = useSeededAgentField(
       'instructions',
       { canUpdate: toRef(props, 'canUpdate') }
@@ -80,7 +83,7 @@ export default defineComponent({
         // Persist what the user typed before asking for the improved version.
         flush()
         const instructions = await store.dispatch(
-          'agentApplication/improveInstructions',
+          `${storePrefix}agentApplication/improveInstructions`,
           { agentId: agent.value.id, instructions: value.value }
         )
         setValue(instructions)
@@ -106,7 +109,7 @@ export default defineComponent({
     )
     const saveSkills = async (attachments) => {
       try {
-        await store.dispatch('agentApplication/update', {
+        await store.dispatch(`${storePrefix}agentApplication/update`, {
           agentId: agent.value.id,
           values: {
             skills: attachments.map(({ id, mode }) => ({

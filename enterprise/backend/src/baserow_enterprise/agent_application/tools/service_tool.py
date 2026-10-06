@@ -88,7 +88,15 @@ def build_service_tool(tool: "AgentTool", deps: "AgentRunDeps") -> Tool:
         )
 
         def dispatch():
-            return ServiceHandler().dispatch_service(service, dispatch_context)
+            from ..actions import DispatchAgentToolActionType
+
+            result = ServiceHandler().dispatch_service(service, dispatch_context)
+            # Audited as whoever the tool acted as, like the row actions the
+            # local Baserow services already register themselves.
+            DispatchAgentToolActionType.do(
+                dispatch_context.actor, tool, service_type.type, ctx.deps.chat
+            )
+            return result
 
         try:
             result = await sync_to_async(dispatch)()

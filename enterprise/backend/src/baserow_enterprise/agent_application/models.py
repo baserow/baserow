@@ -7,6 +7,7 @@ from baserow.core.mixins import (
     BigAutoFieldMixin,
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
+    TrashableModelMixin,
 )
 from baserow.core.models import Agent, Application
 from baserow.core.services.models import Service
@@ -143,7 +144,9 @@ class AgentSkill(models.Model):
         ]
 
 
-class AgentTrigger(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+class AgentTrigger(
+    HierarchicalModelMixin, CreatedAndUpdatedOnMixin, TrashableModelMixin, models.Model
+):
     """
     Connects an agent application to a trigger service. The trigger's service
     type determines when a new agent chat is started automatically. An
@@ -169,7 +172,9 @@ class AgentTrigger(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Mode
         return self.application
 
 
-class AgentTool(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+class AgentTool(
+    HierarchicalModelMixin, CreatedAndUpdatedOnMixin, TrashableModelMixin, models.Model
+):
     """
     A tool enabled for an agent. The `type` refers to an agent tool type in
     the registry; service-backed tools additionally point at a configured
@@ -215,7 +220,9 @@ class AgentTool(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         return self.agent
 
 
-class AgentChatChannel(HierarchicalModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+class AgentChatChannel(
+    HierarchicalModelMixin, CreatedAndUpdatedOnMixin, TrashableModelMixin, models.Model
+):
     """
     Connects an agent application to an external chat surface (e.g. Slack)
     through which conversations with the agent can be started. The `type`

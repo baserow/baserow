@@ -154,6 +154,14 @@ export default defineNuxtPlugin({
     $store.registerModuleNuxtSafe('agentApplication', agentApplicationStore)
     $store.registerModuleNuxtSafe('agentChat', agentChatStore)
     $store.registerModuleNuxtSafe('agentHistory', agentHistoryStore)
+    // The template preview shows an agent with the real page components,
+    // backed by these copies so an agent the user has open is left alone.
+    $store.registerModuleNuxtSafe(
+      'template/agentApplication',
+      agentApplicationStore
+    )
+    $store.registerModuleNuxtSafe('template/agentChat', agentChatStore)
+    $store.registerModuleNuxtSafe('template/agentHistory', agentHistoryStore)
     $store.registerModuleNuxtSafe('publicAgentChat', publicAgentChatStore)
 
     $registry.register('application', new AgentApplicationType(context))

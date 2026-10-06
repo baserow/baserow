@@ -2,6 +2,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import debounce from 'lodash/debounce'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 /**
  * A locally editable copy of a text field of the agent definition that is
@@ -11,7 +12,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
  */
 export function useSeededAgentField(field, { canUpdate }) {
   const store = useStore()
-  const agent = computed(() => store.getters['agentApplication/getAgent'])
+  const { storePrefix } = useAgentContext()
+  const agent = computed(
+    () => store.getters[`${storePrefix}agentApplication/getAgent`]
+  )
 
   const value = ref(agent.value?.[field] || '')
   let seeded = agent.value?.[field] || ''
@@ -39,7 +43,7 @@ export function useSeededAgentField(field, { canUpdate }) {
       return
     }
     try {
-      await store.dispatch('agentApplication/update', {
+      await store.dispatch(`${storePrefix}agentApplication/update`, {
         agentId: agent.value.id,
         values: { [field]: value.value },
       })

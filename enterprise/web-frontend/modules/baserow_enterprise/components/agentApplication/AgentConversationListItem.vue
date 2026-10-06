@@ -21,6 +21,7 @@
       ></Editable>
     </span>
     <a
+      v-if="canOpenMenu"
       ref="menuButton"
       class="agent-conversation-list__item-menu"
       :title="$t('agentConversationList.menu')"
@@ -40,11 +41,13 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentConversationContext from '@baserow_enterprise/components/agentApplication/AgentConversationContext'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 const RUNNING_STATUSES = ['in_progress', 'canceling']
 
 export default {
   name: 'AgentConversationListItem',
+  mixins: [AgentContextMixin],
   components: { AgentConversationContext },
   props: {
     application: {
@@ -68,6 +71,15 @@ export default {
   },
   emits: ['select'],
   computed: {
+    canOpenMenu() {
+      return ['update_chat', 'delete_chat'].some((operation) =>
+        this.hasAgentPermission(
+          `agent_application.${operation}`,
+          this.application,
+          this.application.workspace.id
+        )
+      )
+    },
     statusModifier() {
       if (RUNNING_STATUSES.includes(this.chat.status)) {
         return 'agent-conversation-list__item-status--running'
@@ -95,10 +107,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentHistory/updateChat', {
-          chatUuid: this.chat.uuid,
-          values: { title },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentHistory/updateChat`,
+          {
+            chatUuid: this.chat.uuid,
+            values: { title },
+          }
+        )
       } catch (error) {
         this.$refs.rename.set(this.chat.title || '')
         notifyIf(error, 'application')

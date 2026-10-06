@@ -115,6 +115,7 @@ import {
   STYLE_TEMPERATURES,
   snapStyle,
 } from '@baserow_enterprise/utils/agentSettings'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 const STYLES = ['precise', 'balanced', 'creative']
 
@@ -134,7 +135,8 @@ export default defineComponent({
   },
   setup(props) {
     const store = useStore()
-    const { $hasPermission, $registry, $client } = useNuxtApp()
+    const { storePrefix, hasPermission } = useAgentContext()
+    const { $registry, $client } = useNuxtApp()
     const { t } = useI18n()
     const canUpdate = computed(() => !props.readOnly)
     const {
@@ -149,8 +151,16 @@ export default defineComponent({
     const enabledModels = computed(() =>
       getEnabledModelsForAIProviderFeature(workspace.value, 'agent_builder')
     )
-    const aiTypes = computed(() =>
-      Object.keys(enabledModels.value)
+    // The configured provider and model are listed even when the workspace
+    // no longer enables them (or isn't loaded, as in a template preview), so
+    // the dropdowns always show what the agent actually uses.
+    const aiTypes = computed(() => {
+      const types = Object.keys(enabledModels.value)
+      const current = agent.value?.ai_generative_ai_type
+      if (current && !types.includes(current)) {
+        types.push(current)
+      }
+      return types
         .map((type) => {
           try {
             return $registry.get('generativeAIModel', type)
@@ -159,17 +169,24 @@ export default defineComponent({
           }
         })
         .filter((aiType) => aiType !== null)
-    )
-    const modelsForType = computed(
-      () => enabledModels.value[agent.value?.ai_generative_ai_type] || []
-    )
+    })
+    const modelsForType = computed(() => {
+      const models = [
+        ...(enabledModels.value[agent.value?.ai_generative_ai_type] || []),
+      ]
+      const current = agent.value?.ai_generative_ai_model
+      if (current && !models.includes(current)) {
+        models.unshift(current)
+      }
+      return models
+    })
 
     const saveModel = async (values) => {
       if (!agent.value || props.readOnly) {
         return
       }
       try {
-        await store.dispatch('agentApplication/update', {
+        await store.dispatch(`${storePrefix}agentApplication/update`, {
           agentId: agent.value.id,
           values,
         })
@@ -205,14 +222,14 @@ export default defineComponent({
     }
 
     const canDuplicate = computed(() =>
-      $hasPermission(
+      hasPermission(
         'application.duplicate',
         props.application,
         props.application.workspace.id
       )
     )
     const canDelete = computed(() =>
-      $hasPermission(
+      hasPermission(
         'application.delete',
         props.application,
         props.application.workspace.id

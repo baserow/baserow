@@ -13,12 +13,18 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.schemas import get_error_schema
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import (
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.skills.actions import (
+    CreateWorkspaceSkillActionType,
+    DeleteWorkspaceSkillActionType,
+    UpdateWorkspaceSkillActionType,
+)
 from baserow.core.skills.exceptions import (
     WorkspaceSkillDoesNotExist,
     WorkspaceSkillNameNotUnique,
@@ -88,7 +94,9 @@ class WorkspaceSkillsView(APIView):
     @map_exceptions(SKILL_ERRORS)
     def post(self, request, data, workspace_id):
         workspace = CoreHandler().get_workspace(workspace_id)
-        skill = WorkspaceSkillService().create_skill(request.user, workspace, **data)
+        skill = action_type_registry.get_by_type(CreateWorkspaceSkillActionType).do(
+            request.user, workspace, **data
+        )
         return Response(WorkspaceSkillSerializer(skill).data)
 
 
@@ -133,7 +141,9 @@ class WorkspaceSkillView(APIView):
     def patch(self, request, data, skill_id):
         service = WorkspaceSkillService()
         skill = service.get_skill(request.user, skill_id)
-        skill = service.update_skill(request.user, skill, **data)
+        skill = action_type_registry.get_by_type(UpdateWorkspaceSkillActionType).do(
+            request.user, skill, **data
+        )
         return Response(WorkspaceSkillSerializer(skill).data)
 
     @extend_schema(
@@ -151,5 +161,7 @@ class WorkspaceSkillView(APIView):
     def delete(self, request, skill_id):
         service = WorkspaceSkillService()
         skill = service.get_skill(request.user, skill_id)
-        service.delete_skill(request.user, skill)
+        action_type_registry.get_by_type(DeleteWorkspaceSkillActionType).do(
+            request.user, skill
+        )
         return Response(status=HTTP_204_NO_CONTENT)

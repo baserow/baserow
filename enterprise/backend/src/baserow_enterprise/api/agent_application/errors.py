@@ -79,3 +79,8 @@ ERROR_PUBLIC_CHAT_RATE_LIMIT_EXCEEDED = (
     HTTP_429_TOO_MANY_REQUESTS,
     "Too many messages, please wait a moment.",
 )
+ERROR_AGENT_CHAT_NOT_OWNED = (
+    "ERROR_AGENT_CHAT_NOT_OWNED",
+    403,
+    "Only the user who started this conversation can continue it.",
+)

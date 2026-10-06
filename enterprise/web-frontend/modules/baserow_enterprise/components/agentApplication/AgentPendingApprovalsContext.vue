@@ -63,11 +63,26 @@
                 approval.tool_name
               }}</code>
             </div>
-            <pre
-              v-if="expandedArgs[approval.id]"
-              class="agent-tool-approvals__args"
-              >{{ formatArgs(approval) }}</pre
-            >
+            <template v-if="expandedArgs[approval.id]">
+              <template v-if="detailPreview(approval)">
+                <SegmentControl
+                  class="agent-chat-segment agent-tool-approvals__segment"
+                  :segments="detailSegments"
+                  :active-index="rawShown[approval.id] ? 1 : 0"
+                  @update:active-index="rawShown[approval.id] = $event === 1"
+                ></SegmentControl>
+                <AgentApprovalPreview
+                  v-if="!rawShown[approval.id]"
+                  :preview="detailPreview(approval)"
+                />
+                <pre v-else class="agent-tool-approvals__args">{{
+                  formatArgs(approval)
+                }}</pre>
+              </template>
+              <pre v-else class="agent-tool-approvals__args">{{
+                formatArgs(approval)
+              }}</pre>
+            </template>
           </div>
           <div v-if="canDecide" class="agent-tool-approvals__item-side">
             <div class="agent-tool-approvals__item-actions">
@@ -100,13 +115,17 @@
 <script>
 import { defineComponent, ref, computed, reactive } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp } from '#imports'
+import { useNuxtApp, useI18n } from '#imports'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
 import { summarizeToolArgs } from '@baserow_enterprise/utils/agentChatEvents'
+import { buildApprovalPreview } from '@baserow_enterprise/utils/agentApprovalPreview'
+import AgentApprovalPreview from '@baserow_enterprise/components/agentApplication/AgentApprovalPreview'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 export default defineComponent({
   name: 'AgentPendingApprovalsContext',
+  components: { AgentApprovalPreview },
   props: {
     application: {
       type: Object,
@@ -116,7 +135,9 @@ export default defineComponent({
   emits: ['open-conversation'],
   setup(props, { emit }) {
     const store = useStore()
-    const { $client, $hasPermission } = useNuxtApp()
+    const { storePrefix, hasPermission } = useAgentContext()
+    const { $client } = useNuxtApp()
+    const { t } = useI18n()
 
     const context = ref(null)
     const approvals = ref([])
@@ -124,8 +145,8 @@ export default defineComponent({
     const deciding = ref(false)
 
     const canDecide = computed(() =>
-      $hasPermission(
-        'agent_application.run_chat',
+      hasPermission(
+        'agent_application.decide_tool_approval',
         props.application,
         props.application.workspace.id
       )
@@ -149,12 +170,19 @@ export default defineComponent({
     }
 
     const humanToolName = (name) =>
-      store.getters['agentApplication/getToolLabel'](name)
+      store.getters[`${storePrefix}agentApplication/getToolLabel`](name)
 
     const summary = (approval) => summarizeToolArgs(approval.tool_args)
     const formatArgs = (approval) =>
       JSON.stringify(approval.tool_args ?? {}, null, 2)
     const expandedArgs = reactive({})
+    const rawShown = reactive({})
+    const detailSegments = computed(() => [
+      { label: t('agentToolApprovals.preview') },
+      { label: t('agentToolApprovals.rawData') },
+    ])
+    const detailPreview = (approval) =>
+      approval.preview || buildApprovalPreview(approval.tool_args)
     const toggleDetails = (approval) => {
       expandedArgs[approval.id] = !expandedArgs[approval.id]
     }
@@ -227,6 +255,9 @@ export default defineComponent({
       summary,
       formatArgs,
       expandedArgs,
+      rawShown,
+      detailSegments,
+      detailPreview,
       toggleDetails,
       decide,
       openConversation,

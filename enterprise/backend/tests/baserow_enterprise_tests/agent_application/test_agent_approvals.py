@@ -386,7 +386,7 @@ def test_approve_with_dont_ask_again_disables_future_approvals(approval_setup):
         approval = chat.tool_approvals.get()
 
         with patch(
-            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+            "baserow_enterprise.agent_application.ws.receivers.broadcast_to_channel_group"
         ) as broadcast:
             AgentChatHandler().decide_tool_approvals(
                 chat,
@@ -396,10 +396,16 @@ def test_approve_with_dont_ask_again_disables_future_approvals(approval_setup):
 
         tool = agent.tools.get(type="approval_test")
         assert tool.config["require_approval"] is False
-        assert any(
-            call.args[1].get("type") == "agent_configuration_updated"
+        # Flipping the rule is a configuration change every open client sees,
+        # including the deciding session, which did not make it itself.
+        updates = [
+            call
             for call in broadcast.delay.call_args_list
-        )
+            if call.args[1].get("type") == "agent_tool_updated"
+        ]
+        assert len(updates) == 1
+        assert updates[0].args[1]["tool"]["id"] == tool.id
+        assert updates[0].args[2] is None
 
         # The next run executes the tool without pausing.
         second_chat = _start_run(agent, user)

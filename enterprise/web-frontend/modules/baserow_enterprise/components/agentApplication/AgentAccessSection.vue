@@ -7,7 +7,7 @@
     >
       <Dropdown
         v-model="agentIdentity"
-        :disabled="readOnly || saving"
+        :disabled="readOnly || saving || !canUpdateApplication"
         :show-search="false"
         :show-footer="canCreateIdentity"
       >
@@ -207,6 +207,7 @@ import {
   RULE_ASK,
   RULE_OFF,
 } from '@baserow_enterprise/utils/agentToolPermissions'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 const ACCESS_ORDER = [ACCESS_EVERYTHING, ACCESS_READ_ONLY, ACCESS_CUSTOM]
 const GROUP_ICONS = {
@@ -218,6 +219,7 @@ const GROUP_ICONS = {
 
 export default {
   name: 'AgentAccessSection',
+  mixins: [AgentContextMixin],
   components: {
     ManageAgentModal,
     AgentConfigurationSectionRow,
@@ -246,6 +248,15 @@ export default {
     }
   },
   computed: {
+    // The identity lives on the application row, so changing it is an
+    // application update rather than an agent update.
+    canUpdateApplication() {
+      return this.hasAgentPermission(
+        'application.update',
+        this.application,
+        this.application.workspace.id
+      )
+    },
     // The application's workspace object doesn't carry the roles needed by
     // the manage agent modal and the role badges, so the full workspace
     // comes from the store.
@@ -266,7 +277,11 @@ export default {
       return (
         !this.readOnly &&
         this.workspace !== undefined &&
-        this.$hasPermission('agent.create', this.workspace, this.workspace.id)
+        this.hasAgentPermission(
+          'agent.create',
+          this.workspace,
+          this.workspace.id
+        )
       )
     },
     agentIdentity: {
@@ -282,21 +297,21 @@ export default {
       },
     },
     canCreateTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.create_tool',
         this.application,
         this.application.workspace.id
       )
     },
     canUpdateTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.update_tool',
         this.application,
         this.application.workspace.id
       )
     },
     canDeleteTool() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.delete_tool',
         this.application,
         this.application.workspace.id
@@ -307,13 +322,17 @@ export default {
       return this.canCreateTool && this.canDeleteTool
     },
     tools() {
-      return this.$store.getters['agentApplication/getTools']
+      return this.$store.getters[`${this.storePrefix}agentApplication/getTools`]
     },
     workspaceTool() {
-      return this.$store.getters['agentApplication/getWorkspaceTool']
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getWorkspaceTool`
+      ]
     },
     catalog() {
-      return this.$store.getters['agentApplication/getWorkspaceToolCatalog']
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getWorkspaceToolCatalog`
+      ]
     },
     config() {
       return normalizeWorkspaceConfig(this.workspaceTool?.config)
@@ -435,18 +454,24 @@ export default {
         // against a delete.
         while (this.pendingBuiltIn[type] !== this.hasBuiltInTool(type)) {
           if (this.pendingBuiltIn[type]) {
-            await this.$store.dispatch('agentApplication/createTool', {
-              applicationId: this.application.id,
-              values: { type },
-            })
+            await this.$store.dispatch(
+              `${this.storePrefix}agentApplication/createTool`,
+              {
+                applicationId: this.application.id,
+                values: { type },
+              }
+            )
           } else {
             const tool = this.tools.find((t) => t.type === type)
             if (!tool) {
               break
             }
-            await this.$store.dispatch('agentApplication/deleteTool', {
-              toolId: tool.id,
-            })
+            await this.$store.dispatch(
+              `${this.storePrefix}agentApplication/deleteTool`,
+              {
+                toolId: tool.id,
+              }
+            )
           }
         }
       } catch (error) {
@@ -462,10 +487,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId: tool.id,
-          values: { config: { ...this.config, ...values } },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTool`,
+          {
+            toolId: tool.id,
+            values: { config: { ...this.config, ...values } },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }

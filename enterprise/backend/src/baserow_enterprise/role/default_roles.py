@@ -468,6 +468,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListWorkspaceSkillsOperationType,
         ListAgentChatsOperationType,
         ReadAgentChatOperationType,
+        ReadAgentChatChannelOperationType,
         ReadAgentUsageOperationType,
     ]
 )
@@ -509,7 +510,6 @@ default_roles[EDITOR_ROLE_UID].extend(
         DispatchDatabaseWorkflowActionOperationType,
         RunAgentChatOperationType,
         CancelAgentChatOperationType,
-        DecideAgentToolApprovalOperationType,
         UpdateAgentChatOperationType,
     ]
 )
@@ -517,6 +517,9 @@ default_roles[BUILDER_ROLE_UID].extend(
     default_roles[EDITOR_ROLE_UID]
     + [
         ListAgentsWorkspaceOperationType,
+        # Approving a step lets the agent act with its identity's rights, so
+        # it is a builder decision, not an editor's.
+        DecideAgentToolApprovalOperationType,
         CreateWorkspaceSkillOperationType,
         UpdateWorkspaceSkillOperationType,
         DeleteWorkspaceSkillOperationType,

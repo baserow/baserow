@@ -201,6 +201,17 @@ export const actions = {
       throw error
     }
   },
+  forceCreateTrigger({ commit, state }, { trigger }) {
+    if (!state.triggers.some((existing) => existing.id === trigger.id)) {
+      commit('ADD_TRIGGER', trigger)
+    }
+  },
+  forceUpdateTrigger({ commit }, { trigger }) {
+    commit('UPDATE_TRIGGER', { triggerId: trigger.id, values: trigger })
+  },
+  forceDeleteTrigger({ commit }, { triggerId }) {
+    commit('REMOVE_TRIGGER', triggerId)
+  },
   async deleteTrigger({ commit }, { triggerId }) {
     await AgentApplicationService(this.$client).deleteTrigger(triggerId)
     commit('REMOVE_TRIGGER', triggerId)
@@ -244,6 +255,17 @@ export const actions = {
       }
       throw error
     }
+  },
+  forceCreateTool({ commit, state }, { tool }) {
+    if (!state.tools.some((existing) => existing.id === tool.id)) {
+      commit('ADD_TOOL', tool)
+    }
+  },
+  forceUpdateTool({ commit }, { tool }) {
+    commit('UPDATE_TOOL', { toolId: tool.id, values: tool })
+  },
+  forceDeleteTool({ commit }, { toolId }) {
+    commit('REMOVE_TOOL', toolId)
   },
   async deleteTool({ commit }, { toolId }) {
     await AgentApplicationService(this.$client).deleteTool(toolId)
@@ -304,6 +326,17 @@ export const actions = {
     ).rotateChannelSlug(channelId)
     commit('UPDATE_CHANNEL', { channelId, values: data })
     return data
+  },
+  forceCreateChannel({ commit, state }, { channel }) {
+    if (!state.channels.some((existing) => existing.id === channel.id)) {
+      commit('ADD_CHANNEL', channel)
+    }
+  },
+  forceUpdateChannel({ commit }, { channel }) {
+    commit('UPDATE_CHANNEL', { channelId: channel.id, values: channel })
+  },
+  forceDeleteChannel({ commit }, { channelId }) {
+    commit('REMOVE_CHANNEL', channelId)
   },
   async deleteChannel({ commit }, { channelId }) {
     await AgentApplicationService(this.$client).deleteChannel(channelId)

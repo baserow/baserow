@@ -19,6 +19,7 @@ from baserow.core.services.registries import (
 
 from ..exceptions import AgentTriggerDoesNotExist
 from ..models import AgentApplication, AgentTrigger
+from ..signals import agent_trigger_created, agent_trigger_updated
 from .registries import agent_trigger_type_registry
 
 
@@ -32,7 +33,11 @@ class AgentTriggerHandler:
         try:
             return AgentTrigger.objects.select_related(
                 "application__workspace", "service"
-            ).get(id=trigger_id)
+            ).get(
+                id=trigger_id,
+                application__trashed=False,
+                application__workspace__trashed=False,
+            )
         except AgentTrigger.DoesNotExist:
             raise AgentTriggerDoesNotExist(
                 f"The trigger with id {trigger_id} does not exist."
@@ -92,9 +97,11 @@ class AgentTriggerHandler:
         service = ServiceHandler().create_service(service_type, **prepared_values)
         self._publish_service(service)
 
-        return AgentTrigger.objects.create(
+        trigger = AgentTrigger.objects.create(
             application=application, service=service, enabled=enabled
         )
+        agent_trigger_created.send(self, trigger=trigger, user=user)
+        return trigger
 
     def _publish_service(self, service) -> None:
         """
@@ -137,9 +144,24 @@ class AgentTriggerHandler:
             trigger.enabled = enabled
             trigger.save(update_fields=["enabled", "updated_on"])
 
+        agent_trigger_updated.send(self, trigger=trigger, user=user)
         return trigger
 
+    def trash_trigger(self, user: AbstractUser, trigger: AgentTrigger) -> None:
+        """
+        Moves the trigger to the trash so the deletion can be undone. A
+        trashed trigger never fires: every trigger lookup goes through the
+        default manager, which excludes trashed rows.
+        """
+
+        from baserow.core.trash.handler import TrashHandler
+
+        application = trigger.application
+        TrashHandler.trash(user, application.workspace, application, trigger)
+
     def delete_trigger(self, trigger: AgentTrigger) -> None:
+        """Permanently deletes the trigger and its service."""
+
         service = trigger.service.specific
         trigger.delete()
         ServiceHandler().delete_service(service.get_type(), service)

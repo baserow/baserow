@@ -57,7 +57,9 @@ class AgentApplicationHandler:
         queryset = (
             base_queryset
             if base_queryset is not None
-            else AgentDefinition.objects.all()
+            else AgentDefinition.objects.filter(
+                application__trashed=False, application__workspace__trashed=False
+            )
         )
 
         try:
@@ -324,8 +326,14 @@ class AgentChatHandler:
     def get_chat_by_uuid(
         self, chat_uuid, base_queryset: Optional[QuerySet] = None
     ) -> AgentChat:
+        # A trashed agent is gone for its users, conversations included.
         queryset = (
-            base_queryset if base_queryset is not None else AgentChat.objects.all()
+            base_queryset
+            if base_queryset is not None
+            else AgentChat.objects.filter(
+                agent__application__trashed=False,
+                agent__application__workspace__trashed=False,
+            )
         )
 
         try:
@@ -344,6 +352,25 @@ class AgentChatHandler:
                 f"The chat with uuid {chat_uuid} does not exist."
             )
 
+    def check_chat_can_be_continued_by(self, chat: AgentChat, user) -> None:
+        """
+        A manual conversation belongs to the person who started it: the run
+        acts as that person when the agent has no identity, and the agent's
+        self-configure tools check that person's permissions. Someone else may
+        read it, but continuing it would borrow those permissions.
+
+        :raises AgentChatNotOwned: When the chat was started by another user.
+        """
+
+        from .exceptions import AgentChatNotOwned
+
+        if (
+            chat.user_id is not None
+            and user is not None
+            and chat.user_id != getattr(user, "id", None)
+        ):
+            raise AgentChatNotOwned(f"The chat {chat.id} was started by another user.")
+
     def get_or_create_manual_chat(
         self, agent: AgentDefinition, user: AbstractUser, chat_uuid
     ) -> AgentChat:
@@ -354,6 +381,13 @@ class AgentChatHandler:
                 raise AgentChatDoesNotExist(
                     f"The chat with uuid {chat_uuid} does not exist for this agent."
                 )
+            self.check_chat_can_be_continued_by(chat, user)
+            if chat.user_id is None:
+                # A triggered or channel conversation that a person picks up
+                # runs as that person from here on, never as whoever happened
+                # to start the agent.
+                chat.user = user
+                chat.save(update_fields=["user", "updated_on"])
             return chat
 
         return AgentChat.objects.create(
@@ -424,7 +458,12 @@ class AgentChatHandler:
         ]
         channel = (
             AgentChatChannel.objects.select_related("application__workspace")
-            .filter(type__in=public_types, config__slug=slug)
+            .filter(
+                type__in=public_types,
+                config__slug=slug,
+                application__trashed=False,
+                application__workspace__trashed=False,
+            )
             .first()
         )
         if channel is None or not WebAgentChatChannelType().is_accessible(channel):
@@ -693,7 +732,6 @@ class AgentChatHandler:
         from .realtime import (
             broadcast_chat_event,
             broadcast_chat_updated,
-            broadcast_configuration_updated,
         )
         from .tasks import resume_agent_chat
         from .tools.handler import AgentToolHandler
@@ -738,16 +776,11 @@ class AgentChatHandler:
                     id=approval.id, status=approval.status, reason=approval.reason
                 ).model_dump(),
             )
-        configuration_changed = False
         if dont_ask_again_names:
             tool_handler = AgentToolHandler()
             tools = list(tool_handler.list_tools(chat.agent))
             for tool_name in dont_ask_again_names:
-                if tool_handler.dont_ask_again(chat.agent, tool_name, tools=tools):
-                    configuration_changed = True
-
-        if configuration_changed:
-            broadcast_configuration_updated(chat.agent.application)
+                tool_handler.dont_ask_again(chat.agent, tool_name, tools=tools)
 
         has_pending = chat.tool_approvals.filter(
             status=AgentChatToolApproval.Status.PENDING
@@ -769,12 +802,22 @@ class AgentChatHandler:
         return decided
 
     def delete_chat(self, chat: AgentChat) -> None:
-        from .realtime import broadcast_chat_deleted
+        from .realtime import (
+            broadcast_chat_deleted,
+            broadcast_pending_approvals_updated,
+        )
 
-        application_id = chat.agent.application_id
+        application = chat.agent.application
         chat_id = chat.id
+        # Deleting a conversation that still waits for a decision changes
+        # the header and sidebar counters of everyone in the workspace.
+        had_pending = chat.tool_approvals.filter(
+            status=AgentChatToolApproval.Status.PENDING
+        ).exists()
         chat.delete()
-        broadcast_chat_deleted(application_id, chat_id)
+        broadcast_chat_deleted(application.id, chat_id)
+        if had_pending:
+            broadcast_pending_approvals_updated(application)
 
     def get_agent_usage(self, agent: AgentDefinition) -> dict:
         from django.db.models import Count

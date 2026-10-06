@@ -6,6 +6,7 @@
         {{ application.name }}
       </span>
       <ul
+        v-if="!template"
         v-skeleton="loading"
         data-allow-mismatch="class,style,attribute"
         class="header__filter agent-page__header-approvals"
@@ -32,6 +33,7 @@
         </li>
       </ul>
       <AgentPendingApprovalsContext
+        v-if="!template"
         ref="approvalsContext"
         :application="application"
         @open-conversation="$emit('open-conversation', $event)"
@@ -39,6 +41,7 @@
     </div>
     <div class="header__right">
       <span
+        v-if="!template"
         v-skeleton="loading"
         data-allow-mismatch="class,style,attribute"
         class="agent-page__header-status"
@@ -58,6 +61,7 @@
       </span>
       <div class="header__buttons header__buttons--with-separator">
         <span
+          v-if="!template"
           v-skeleton="loading"
           data-allow-mismatch="class,style,attribute"
           class="agent-page__header-last-run"
@@ -91,10 +95,10 @@
 <script>
 import { defineComponent, computed, ref } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp } from '#imports'
 import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentPendingApprovalsContext from '@baserow_enterprise/components/agentApplication/AgentPendingApprovalsContext'
+import { useAgentContext } from '@baserow_enterprise/composables/useAgentContext'
 
 export default defineComponent({
   name: 'AgentHeader',
@@ -123,11 +127,13 @@ export default defineComponent({
   emits: ['toggle-configuration', 'open-conversation', 'run-once'],
   setup(props) {
     const store = useStore()
-    const { $hasPermission } = useNuxtApp()
+    const { storePrefix, template, hasPermission } = useAgentContext()
 
-    const agent = computed(() => store.getters['agentApplication/getAgent'])
+    const agent = computed(
+      () => store.getters[`${storePrefix}agentApplication/getAgent`]
+    )
     const triggers = computed(
-      () => store.getters['agentApplication/getTriggers']
+      () => store.getters[`${storePrefix}agentApplication/getTriggers`]
     )
 
     // Driven by the application object in the core store, so the workspace
@@ -143,7 +149,7 @@ export default defineComponent({
     }
 
     const canRunChat = computed(() =>
-      $hasPermission(
+      hasPermission(
         'agent_application.run_chat',
         props.application,
         props.application.workspace.id
@@ -158,7 +164,7 @@ export default defineComponent({
     )
 
     const canUpdateApplication = computed(() =>
-      $hasPermission(
+      hasPermission(
         'application.update',
         props.application,
         props.application.workspace.id
@@ -197,6 +203,7 @@ export default defineComponent({
     }
 
     return {
+      template,
       agent,
       canRunOnce,
       lastRun,

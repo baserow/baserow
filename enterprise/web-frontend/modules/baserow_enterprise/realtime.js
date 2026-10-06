@@ -53,7 +53,15 @@ export const registerRealtimeEvents = (realtime) => {
     }
   )
 
+  // While the next agent's page loads, the previous page is still
+  // subscribed; events of another agent must not land in the new stores.
+  const isCurrentAgent = (store, agentId) =>
+    store.getters['agentApplication/getAgent']?.id === agentId
+
   realtime.registerEvent('agent_chat_updated', ({ store }, { chat }) => {
+    if (!isCurrentAgent(store, chat.agent_id)) {
+      return
+    }
     store.dispatch('agentHistory/forceUpdateChat', { chat })
     store.dispatch('agentChat/handleChatUpdated', { chat })
     // A finished triggered run moves the application's "last run".
@@ -106,18 +114,56 @@ export const registerRealtimeEvents = (realtime) => {
   )
 
   realtime.registerEvent('agent_definition_updated', ({ store }, { agent }) => {
-    store.dispatch('agentApplication/forceUpdate', { values: agent })
+    if (isCurrentAgent(store, agent.id)) {
+      store.dispatch('agentApplication/forceUpdate', { values: agent })
+    }
   })
 
+  // The link rows are deleted with the skill; drop them from the open agent
+  // so a later save does not resend a skill that no longer exists.
   realtime.registerEvent(
-    'agent_configuration_updated',
-    ({ store }, { application_id: applicationId }) => {
+    'workspace_skill_deleted',
+    ({ store }, { skill_id: skillId }) => {
       const agent = store.getters['agentApplication/getAgent']
-      if (agent?.application_id === applicationId) {
-        store.dispatch('agentApplication/fetchTriggers', { applicationId })
-        store.dispatch('agentApplication/fetchTools', { applicationId })
-        store.dispatch('agentApplication/fetchChannels', { applicationId })
+      if (agent?.skills?.some((entry) => entry.skill_id === skillId)) {
+        store.dispatch('agentApplication/forceUpdate', {
+          values: {
+            skills: agent.skills.filter((entry) => entry.skill_id !== skillId),
+          },
+        })
       }
+    }
+  )
+
+  // Trigger, tool and channel changes arrive with the changed object, so the
+  // stores apply them without refetching. The session that made the change
+  // is left out by the backend, except for undo and redo.
+  const isCurrentApplication = (store, applicationId) =>
+    store.getters['agentApplication/getAgent']?.application_id === applicationId
+  const configurationEvents = {
+    agent_trigger_created: ['forceCreateTrigger', 'trigger'],
+    agent_trigger_updated: ['forceUpdateTrigger', 'trigger'],
+    agent_trigger_deleted: ['forceDeleteTrigger', 'trigger_id', 'triggerId'],
+    agent_tool_created: ['forceCreateTool', 'tool'],
+    agent_tool_updated: ['forceUpdateTool', 'tool'],
+    agent_tool_deleted: ['forceDeleteTool', 'tool_id', 'toolId'],
+    agent_chat_channel_created: ['forceCreateChannel', 'channel'],
+    agent_chat_channel_updated: ['forceUpdateChannel', 'channel'],
+    agent_chat_channel_deleted: [
+      'forceDeleteChannel',
+      'channel_id',
+      'channelId',
+    ],
+  }
+  Object.entries(configurationEvents).forEach(
+    ([event, [action, payloadKey, argumentKey = payloadKey]]) => {
+      realtime.registerEvent(event, ({ store }, payload) => {
+        if (isCurrentApplication(store, payload.application_id)) {
+          store.dispatch(`agentApplication/${action}`, {
+            [argumentKey]: payload[payloadKey],
+          })
+        }
+      })
     }
   )
 }

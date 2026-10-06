@@ -190,3 +190,32 @@ def test_import_serialized_sets_is_public(data_fixture, is_publishing):
     )
 
     assert instance.is_public is is_publishing
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("is_publishing", [True, False])
+def test_import_serialized_renews_the_uid_unless_publishing(
+    data_fixture, is_publishing
+):
+    trigger_node = data_fixture.create_http_trigger_node()
+    service = trigger_node.service
+    service_type = CoreHTTPTriggerServiceType()
+    serialized_service = service_type.export_serialized(service)
+
+    import_export_config = ImportExportConfig(
+        include_permission_data=True,
+        reduce_disk_space_usage=False,
+        exclude_sensitive_data=False,
+        is_publishing=is_publishing,
+    )
+    instance = service_type.import_serialized(
+        None,
+        serialized_service,
+        {},
+        import_export_config,
+        import_formula=fake_import_formula,
+    )
+
+    # Only a published copy shares the draft's address; any other import of
+    # the exported data would otherwise take over the webhook.
+    assert (str(instance.uid) == str(service.uid)) is is_publishing

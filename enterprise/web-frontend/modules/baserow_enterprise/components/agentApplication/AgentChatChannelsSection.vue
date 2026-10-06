@@ -430,6 +430,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { downloadJson } from '@baserow_enterprise/utils/download'
 import slackImage from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 const BUTTON_POSITIONS = [
   'bottom-right',
@@ -440,6 +441,7 @@ const BUTTON_POSITIONS = [
 
 export default {
   name: 'AgentChatChannelsSection',
+  mixins: [AgentContextMixin],
   components: {
     AgentConfigurationCard,
     AgentGroupedAddMenu,
@@ -473,6 +475,7 @@ export default {
       // clobber what the user is still typing. The secret fields are always
       // seeded empty because the server only returns whether they are set.
       channelDrafts: {},
+      channelSeeds: {},
     }
   },
   computed: {
@@ -483,19 +486,21 @@ export default {
       }))
     },
     canUpdateChannel() {
-      return this.$hasPermission(
+      return this.hasAgentPermission(
         'agent_application.update_chat_channel',
         this.application,
         this.application.workspace.id
       )
     },
     channels() {
-      return this.$store.getters['agentApplication/getChannels']
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getChannels`
+      ]
     },
     agentName() {
       return (
-        this.$store.getters['agentApplication/getAgent']?.name ||
-        this.application.name
+        this.$store.getters[`${this.storePrefix}agentApplication/getAgent`]
+          ?.name || this.application.name
       )
     },
     channelMenuItems() {
@@ -560,19 +565,31 @@ export default {
       const draftName = this.channelDrafts[channel.id]?.name
       return (draftName ?? channel.name) || this.$t('agentChannels.slack')
     },
-    ensureDraft(channel) {
-      if (!this.channelDrafts[channel.id]) {
-        this.channelDrafts[channel.id] = {
-          name: channel.name || '',
-          botToken: '',
-          signingSecret: '',
-          title: channel.config?.title || '',
-          welcomeText: channel.config?.welcome_text || '',
-          buttonText: channel.config?.button_text || '',
-          buttonColor: channel.config?.button_color || '#5190ef',
-          buttonPosition: channel.config?.button_position || 'bottom-right',
-        }
+    seedFor(channel) {
+      return {
+        name: channel.name || '',
+        botToken: '',
+        signingSecret: '',
+        title: channel.config?.title || '',
+        welcomeText: channel.config?.welcome_text || '',
+        buttonText: channel.config?.button_text || '',
+        buttonColor: channel.config?.button_color || '#5190ef',
+        buttonPosition: channel.config?.button_position || 'bottom-right',
       }
+    },
+    // A draft follows the server value (another user's edit, an undo) as
+    // long as this user hasn't changed it; their own typing always wins.
+    ensureDraft(channel) {
+      const seed = this.seedFor(channel)
+      const serialized = JSON.stringify(seed)
+      const draft = this.channelDrafts[channel.id]
+      const untouched =
+        draft === undefined ||
+        JSON.stringify(draft) === this.channelSeeds[channel.id]
+      if (untouched && serialized !== this.channelSeeds[channel.id]) {
+        this.channelDrafts[channel.id] = seed
+      }
+      this.channelSeeds[channel.id] = serialized
     },
     channelTypeName(channel) {
       return this.$t(`agentChannels.${channel.type}`)
@@ -612,9 +629,12 @@ export default {
       }
       this.rotating = true
       try {
-        await this.$store.dispatch('agentApplication/rotateChannelSlug', {
-          channelId: this.rotateChannel.id,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/rotateChannelSlug`,
+          {
+            channelId: this.rotateChannel.id,
+          }
+        )
         this.$refs.rotateModal.hide()
       } catch (error) {
         notifyIf(error, 'application')
@@ -630,10 +650,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId: channel.id,
-          values: { config: { password: '' } },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId: channel.id,
+            values: { config: { password: '' } },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -644,10 +667,13 @@ export default {
       }
       this.savingPassword = true
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId: this.passwordChannel.id,
-          values: { config: { password: this.passwordDraft } },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId: this.passwordChannel.id,
+            values: { config: { password: this.passwordDraft } },
+          }
+        )
         this.$refs.passwordModal.hide()
       } catch (error) {
         notifyIf(error, 'application')
@@ -686,10 +712,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId,
-          values: { config: values },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId,
+            values: { config: values },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -713,7 +742,7 @@ export default {
       this.createLoading = true
       try {
         const channel = await this.$store.dispatch(
-          'agentApplication/createChannel',
+          `${this.storePrefix}agentApplication/createChannel`,
           {
             applicationId: this.application.id,
             values: {
@@ -733,10 +762,13 @@ export default {
     },
     async onEnabledChange(channel, enabled) {
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId: channel.id,
-          values: { enabled },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId: channel.id,
+            values: { enabled },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -748,9 +780,12 @@ export default {
       delete this.debouncedNameSaves[channel.id]
       this.deletingIds = [...this.deletingIds, channel.id]
       try {
-        await this.$store.dispatch('agentApplication/deleteChannel', {
-          channelId: channel.id,
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/deleteChannel`,
+          {
+            channelId: channel.id,
+          }
+        )
         delete this.channelDrafts[channel.id]
       } catch (error) {
         notifyIf(error, 'application')
@@ -777,10 +812,13 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId,
-          values: { name: draft.name },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId,
+            values: { name: draft.name },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       }
@@ -798,10 +836,13 @@ export default {
       }
       this.savingSecrets = [...this.savingSecrets, key]
       try {
-        await this.$store.dispatch('agentApplication/updateChannel', {
-          channelId: channel.id,
-          values: { config: { [configKey]: value } },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateChannel`,
+          {
+            channelId: channel.id,
+            values: { config: { [configKey]: value } },
+          }
+        )
         // The response only reports that the secret is set, so clear the
         // input back to the saved placeholder state.
         draft[draftKey] = ''

@@ -232,6 +232,7 @@ import {
   listToolIdentityExceptions,
   hasMoreAccess,
 } from '@baserow_enterprise/utils/agentToolIdentities'
+import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentContext'
 
 const GROUP_ICONS = {
   database: 'iconoir-db',
@@ -242,7 +243,7 @@ const GROUP_ICONS = {
 
 export default {
   name: 'AgentToolPermissionsModal',
-  mixins: [modal],
+  mixins: [AgentContextMixin, modal],
   props: {
     application: {
       type: Object,
@@ -272,12 +273,14 @@ export default {
   computed: {
     agentName() {
       return (
-        this.$store.getters['agentApplication/getAgent']?.name ||
-        this.application.name
+        this.$store.getters[`${this.storePrefix}agentApplication/getAgent`]
+          ?.name || this.application.name
       )
     },
     catalog() {
-      return this.$store.getters['agentApplication/getWorkspaceToolCatalog']
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getWorkspaceToolCatalog`
+      ]
     },
     workspace() {
       return this.$store.getters['workspace/get'](this.application.workspace.id)
@@ -296,9 +299,9 @@ export default {
       return this.canUpdate
     },
     actionTools() {
-      return this.$store.getters['agentApplication/getTools'].filter((tool) =>
-        ['service', 'mcp'].includes(tool.type)
-      )
+      return this.$store.getters[
+        `${this.storePrefix}agentApplication/getTools`
+      ].filter((tool) => ['service', 'mcp'].includes(tool.type))
     },
     exceptions() {
       return listToolIdentityExceptions({
@@ -460,10 +463,13 @@ export default {
       // right away instead of waiting for Done.
       this.removingKeys = [...this.removingKeys, exception.key]
       try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId: exception.tool.id,
-          values: { identity_id: null },
-        })
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTool`,
+          {
+            toolId: exception.tool.id,
+            values: { identity_id: null },
+          }
+        )
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -475,19 +481,22 @@ export default {
     async save() {
       this.saving = true
       try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId: this.tool.id,
-          values: {
-            config: {
-              ...buildPermissionsPayload(
-                this.tool.config,
-                this.rules,
-                this.catalog
-              ),
-              tool_identities: this.identities,
+        await this.$store.dispatch(
+          `${this.storePrefix}agentApplication/updateTool`,
+          {
+            toolId: this.tool.id,
+            values: {
+              config: {
+                ...buildPermissionsPayload(
+                  this.tool.config,
+                  this.rules,
+                  this.catalog
+                ),
+                tool_identities: this.identities,
+              },
             },
-          },
-        })
+          }
+        )
         this.hide()
       } catch (error) {
         notifyIf(error, 'application')

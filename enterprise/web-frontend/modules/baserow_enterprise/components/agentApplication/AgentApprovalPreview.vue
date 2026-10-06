@@ -31,6 +31,13 @@
       </div>
     </template>
     <AgentPreviewTable v-else-if="preview.kind === 'table'" :table="preview" />
+    <template v-else-if="preview.kind === 'args'">
+      <AgentKeyValueList
+        v-if="preview.fields.length > 0"
+        :fields="preview.fields"
+      />
+      <AgentPreviewTable v-if="preview.table" :table="preview.table" />
+    </template>
     <AgentKeyValueList
       v-else-if="preview.kind === 'fields' && preview.fields.length > 0"
       :fields="preview.fields"
@@ -45,8 +52,9 @@ import AgentPreviewTable from '@baserow_enterprise/components/agentApplication/A
 const EMAIL_FIELDS = ['from', 'to', 'cc', 'bcc', 'subject']
 
 /**
- * The stored preview of a tool approval: a mail card for email actions, a
- * table for row writes, label/value rows otherwise.
+ * The preview of a tool approval: a mail card for email actions, a table for
+ * row writes, label/value rows otherwise, or the arguments themselves when
+ * the tool stored no preview.
  */
 export default {
   name: 'AgentApprovalPreview',

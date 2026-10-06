@@ -43,6 +43,21 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
+        migrations.AddField(
+            model_name="agenttool",
+            name="trashed",
+            field=models.BooleanField(db_index=True, default=False),
+        ),
+        migrations.AddField(
+            model_name="agenttrigger",
+            name="trashed",
+            field=models.BooleanField(db_index=True, default=False),
+        ),
+        migrations.AddField(
+            model_name="agentchatchannel",
+            name="trashed",
+            field=models.BooleanField(db_index=True, default=False),
+        ),
         migrations.CreateModel(
             name="AgentSkill",
             fields=[

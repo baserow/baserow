@@ -29,6 +29,15 @@ def _execute_agent_chat_turn(chat_id: int, prompt_message_id: int | None):
         # longer be lazily loaded (public web chat filtering needs it).
         "channel",
     ).get(id=chat_id)
+    application = chat.agent.application
+    if application.trashed or application.workspace.trashed:
+        # Queued or resumed after the agent was trashed: nothing runs for a
+        # trashed agent, and the chat is left idle for a possible restore.
+        if chat.status != AgentChat.Status.AWAITING_APPROVAL:
+            chat.status = AgentChat.Status.IDLE
+            chat.save(update_fields=["status", "updated_on"])
+            broadcast_chat_updated(chat)
+        return
     prompt_message = (
         chat.messages.get(id=prompt_message_id)
         if prompt_message_id is not None
@@ -155,7 +164,11 @@ def process_agent_channel_message(
 
     channel = (
         AgentChatChannel.objects.select_related("application__workspace")
-        .filter(id=channel_id)
+        .filter(
+            id=channel_id,
+            application__trashed=False,
+            application__workspace__trashed=False,
+        )
         .first()
     )
     if channel is None:
@@ -187,6 +200,7 @@ def clean_up_old_agent_chats(self):
     new messages. Manual conversations are only deleted by users.
     """
 
+    from .handler import AgentChatHandler
     from .models import AgentChat
     from .realtime import broadcast_chat_updated
 
@@ -211,7 +225,13 @@ def clean_up_old_agent_chats(self):
         status__in=[AgentChat.Status.IN_PROGRESS, AgentChat.Status.CANCELING]
     )
 
-    automated_chats.filter(updated_on__lt=cutoff).delete()
+    # Deleted one by one through the handler so open conversation lists and
+    # approval counters learn about it, like a deletion by a user.
+    def delete_chats(queryset):
+        for chat in queryset.select_related("agent__application"):
+            AgentChatHandler().delete_chat(chat)
+
+    delete_chats(automated_chats.filter(updated_on__lt=cutoff))
 
     max_entries = settings.AGENT_APPLICATION_CHAT_HISTORY_MAX_ENTRIES
     agent_ids = automated_chats.values_list("agent_id", flat=True).order_by().distinct()
@@ -219,7 +239,9 @@ def clean_up_old_agent_chats(self):
         ids_to_keep = automated_chats.filter(agent_id=agent_id).order_by("-updated_on")[
             :max_entries
         ]
-        automated_chats.filter(agent_id=agent_id).exclude(id__in=ids_to_keep).delete()
+        delete_chats(
+            automated_chats.filter(agent_id=agent_id).exclude(id__in=ids_to_keep)
+        )
 
 
 @app.on_after_finalize.connect

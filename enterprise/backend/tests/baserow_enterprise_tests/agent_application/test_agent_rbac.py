@@ -24,19 +24,19 @@ READ_OPS = [
     ReadAgentTriggerOperationType,
     ListAgentChatsOperationType,
     ReadAgentChatOperationType,
+    ReadAgentChatChannelOperationType,
     ReadAgentUsageOperationType,
 ]
 RUN_OPS = [
     RunAgentChatOperationType,
     CancelAgentChatOperationType,
-    DecideAgentToolApprovalOperationType,
 ]
 CONFIGURE_OPS = [
+    DecideAgentToolApprovalOperationType,
     UpdateAgentDefinitionOperationType,
     UpdateAgentTriggerOperationType,
     CreateAgentToolOperationType,
     DeleteAgentChatOperationType,
-    ReadAgentChatChannelOperationType,
     UpdateAgentChatChannelOperationType,
 ]
 

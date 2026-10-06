@@ -13,11 +13,11 @@ const ROW_TRIGGERS = [
 const MAX_ROWS = 20
 const MAX_COLUMNS = 8
 
-function isObject(value) {
+export function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function formatValue(value) {
+export function formatValue(value) {
   if (value === null || value === undefined || value === '') {
     return ''
   }
@@ -27,7 +27,7 @@ function formatValue(value) {
   return String(value)
 }
 
-function rowsTable(rows) {
+export function rowsTable(rows) {
   const list = (Array.isArray(rows) ? rows : [])
     .filter(isObject)
     .slice(0, MAX_ROWS)

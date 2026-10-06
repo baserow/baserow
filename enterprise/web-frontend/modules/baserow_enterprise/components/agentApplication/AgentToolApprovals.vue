@@ -84,7 +84,7 @@
           }}</code>
         </div>
         <template v-if="expandedArgs[approval.id]">
-          <template v-if="approval.preview">
+          <template v-if="detailPreview(approval)">
             <SegmentControl
               class="agent-chat-segment agent-tool-approvals__segment"
               :segments="detailSegments"
@@ -93,7 +93,7 @@
             ></SegmentControl>
             <AgentApprovalPreview
               v-if="!rawShown[approval.id]"
-              :preview="approval.preview"
+              :preview="detailPreview(approval)"
               :footnote="footnote(approval)"
             />
             <pre v-else class="agent-tool-approvals__args">{{
@@ -166,6 +166,7 @@ import { useI18n } from '#imports'
 import { summarizeToolArgs } from '@baserow_enterprise/utils/agentChatEvents'
 import AgentRejectApprovalModal from '@baserow_enterprise/components/agentApplication/AgentRejectApprovalModal'
 import AgentApprovalPreview from '@baserow_enterprise/components/agentApplication/AgentApprovalPreview'
+import { buildApprovalPreview } from '@baserow_enterprise/utils/agentApprovalPreview'
 
 export default defineComponent({
   name: 'AgentToolApprovals',
@@ -259,6 +260,8 @@ export default defineComponent({
     }
     const formatArgs = (approval) =>
       JSON.stringify(approval.tool_args ?? {}, null, 2)
+    const detailPreview = (approval) =>
+      approval.preview || buildApprovalPreview(approval.tool_args)
     const toggleDetails = (approval) => {
       expandedArgs[approval.id] = !expandedArgs[approval.id]
     }
@@ -322,6 +325,7 @@ export default defineComponent({
       summary,
       formatArgs,
       toggleDetails,
+      detailPreview,
       approve,
       startReject,
       confirmReject,

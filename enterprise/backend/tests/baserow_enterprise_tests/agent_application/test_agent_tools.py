@@ -188,7 +188,9 @@ def test_agent_dispatch_context_data_providers(data_fixture):
     )
 
 
-@pytest.mark.django_db
+# The tool runs its dispatch in a worker thread with its own connection; a real
+# transaction keeps the audit entry it writes from outliving the test.
+@pytest.mark.django_db(transaction=True)
 def test_service_tool_dispatches_service(data_fixture, workspace_tool_setup):
     import asyncio
 
@@ -215,10 +217,15 @@ def test_service_tool_dispatches_service(data_fixture, workspace_tool_setup):
         captured["runtime_inputs"] = dispatch_context.runtime_inputs
         return DispatchResult(data={"status_code": 200})
 
+    # A run always happens inside a conversation and acts as someone; the
+    # dispatch is audited against both.
+    conversation = AgentChat.objects.create(agent=agent, user=user)
+    acting_user = user
+
     class FakeCtx:
         class deps:
-            chat = None
-            user = None
+            chat = conversation
+            user = acting_user
 
             class tool_helpers:
                 @staticmethod

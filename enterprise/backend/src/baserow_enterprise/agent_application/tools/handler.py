@@ -11,6 +11,7 @@ from baserow.core.services.registries import DispatchTypes, service_type_registr
 
 from ..exceptions import AgentToolDoesNotExist
 from ..models import AgentDefinition, AgentTool
+from ..signals import agent_tool_created, agent_tool_updated
 from .registries import agent_tool_type_registry
 
 _NOT_PROVIDED = object()
@@ -105,13 +106,18 @@ class AgentToolHandler:
             return None
         tool.config = config
         tool.save(update_fields=["config", "updated_on"])
+        agent_tool_updated.send(self, tool=tool, user=None)
         return tool
 
     def get_tool(self, tool_id: int) -> AgentTool:
         try:
             return AgentTool.objects.select_related(
                 "agent__application__workspace", "service"
-            ).get(id=tool_id)
+            ).get(
+                id=tool_id,
+                agent__application__trashed=False,
+                agent__application__workspace__trashed=False,
+            )
         except AgentTool.DoesNotExist:
             raise AgentToolDoesNotExist(f"The tool with id {tool_id} does not exist.")
 
@@ -175,7 +181,7 @@ class AgentToolHandler:
 
         last_tool = agent.tools.order_by("-order").first()
 
-        return AgentTool.objects.create(
+        tool = AgentTool.objects.create(
             agent=agent,
             type=tool_type_str,
             name=name,
@@ -183,6 +189,8 @@ class AgentToolHandler:
             service=service,
             order=(last_tool.order + 1) if last_tool else 1,
         )
+        agent_tool_created.send(self, tool=tool, user=user)
+        return tool
 
     def update_tool(
         self,
@@ -229,9 +237,20 @@ class AgentToolHandler:
             )
             ServiceHandler().update_service(service_type, service, **prepared_values)
 
+        agent_tool_updated.send(self, tool=tool, user=user)
         return tool
 
+    def trash_tool(self, user: AbstractUser, tool: AgentTool) -> None:
+        """Moves the tool to the trash so the deletion can be undone."""
+
+        from baserow.core.trash.handler import TrashHandler
+
+        application = tool.agent.application
+        TrashHandler.trash(user, application.workspace, application, tool)
+
     def delete_tool(self, tool: AgentTool) -> None:
+        """Permanently deletes the tool and its service."""
+
         service = tool.service.specific if tool.service_id else None
         tool.delete()
         if service is not None:

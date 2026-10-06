@@ -560,6 +560,7 @@
   "agentChat": {
     "emptyMessageReadOnly": "You can view this agent's conversations, but you don't have permission to start one.",
     "externalRunBanner": "Triggered run in progress — watching live",
+    "startedByOtherUser": "This conversation was started by someone else. You can read it, but only they can continue it.",
     "statusThinking": "Thinking...",
     "send": "Send",
     "cancel": "Stop",

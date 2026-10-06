@@ -53,6 +53,9 @@ class WebAgentChatChannelType(AgentChatChannelType):
     type = "web"
     # Visitors are strangers; the agent's memory is not theirs to edit.
     allows_memory_updates = False
+    # The hash is a secret and the slug is the link itself; rotating a link
+    # is deliberately not undoable.
+    secret_config_keys = ("password", "slug")
 
     def prepare_config(self, config: dict, existing_config: dict | None = None) -> dict:
         existing = existing_config or {}
@@ -80,6 +83,11 @@ class WebAgentChatChannelType(AgentChatChannelType):
             "title": channel.config.get("title", ""),
             "welcome_text": channel.config.get("welcome_text", ""),
         }
+
+    def prepare_imported_config(self, config: dict) -> dict:
+        # A copy must get its own public link, or the original's link would
+        # resolve to whichever of the two is found first.
+        return {**dict(config or {}), "slug": secrets.token_urlsafe()}
 
     def rotate_slug(self, channel: AgentChatChannel) -> AgentChatChannel:
         """
