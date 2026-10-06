@@ -8,6 +8,10 @@ Contains schema helpers, lenient argument validation, and the
 from __future__ import annotations
 
 import json
+import re
+from collections import Counter
+from collections.abc import Iterator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
@@ -296,6 +300,107 @@ def _render_tool_arg_errors(
     )
 
 
+_SEPARATORS = re.compile(r"[\s_-]+")
+
+
+def _parse_number(text: str) -> int | float | None:
+    """
+    Read text as a number, keeping whole numbers exact beyond float precision.
+
+    :param text: Text that may hold a number.
+    :return: The number, or None when the text is not one.
+    """
+
+    for parse in (int, float):
+        with suppress(ValueError):
+            return parse(text)
+    return None
+
+
+def _comparable(value: Any) -> str:
+    """
+    Text that survives the type, case and separator changes a repair may make.
+
+    Numbers, also when written as text, compare by value so that a sign is never
+    lost. Other text ignores case, whitespace, underscores and hyphens.
+
+    :param value: A scalar from the tool arguments.
+    :return: The text to compare it by.
+    """
+
+    if isinstance(value, str):
+        number = _parse_number(value)
+        if number is None:
+            return _SEPARATORS.sub("", value.casefold())
+        value = number
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).casefold()
+
+
+def _scalar_values(node: Any, path: str = "") -> Iterator[tuple[str, Any]]:
+    """
+    List the non-empty scalar values in tool arguments.
+
+    A string holding a JSON object or array counts as the values inside it.
+
+    :param node: The arguments, or a part of them.
+    :param path: The dotted path of ``node``.
+    :return: (path, value) for every scalar that is not None or "".
+    """
+
+    if isinstance(node, str) and node.lstrip()[:1] in ("{", "["):
+        with suppress(ValueError):
+            node = json.loads(node)
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from _scalar_values(value, f"{path}.{key}" if path else str(key))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _scalar_values(value, f"{path}.{index}" if path else str(index))
+    elif node is not None and node != "":
+        yield path, node
+
+
+def _dropped_values(original: Any, repaired: Any) -> list[tuple[str, Any]]:
+    """
+    Find the values of the original arguments that a repair left out or changed.
+
+    Values are matched wherever they moved, so a renamed key is not a drop. Only
+    conversions that keep the value pass: case, separators in text, and numbers
+    written as text.
+
+    :param original: The arguments the model sent.
+    :param repaired: The arguments the fixer returned.
+    :return: (path, value) for each original value missing from the repair.
+    """
+
+    available = Counter(_comparable(value) for _, value in _scalar_values(repaired))
+    dropped: list[tuple[str, Any]] = []
+    for path, value in _scalar_values(original):
+        key = _comparable(value)
+        if available[key]:
+            available[key] -= 1
+        else:
+            dropped.append((path, value))
+    return dropped
+
+
+def _render_dropped_values(dropped: list[tuple[str, Any]]) -> str:
+    """
+    Render dropped values as ``path=value`` entries, capped like the error report.
+
+    :param dropped: The (path, value) pairs a repair left out.
+    :return: The entries, followed by ", and N more" when some were left out.
+    """
+
+    shown = ", ".join(
+        f"{path}={_short(value)}" for path, value in dropped[:_MAX_REPORTED_ERRORS]
+    )
+    hidden = len(dropped) - _MAX_REPORTED_ERRORS
+    return f"{shown}, and {hidden} more" if hidden > 0 else shown
+
+
 # ---------------------------------------------------------------------------
 # Lenient validator & fixer
 # ---------------------------------------------------------------------------
@@ -413,7 +518,8 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        can parse them directly.
     2. **Fix broken tool args** via a lightweight structured-output call
        instead of going through the full agent retry loop (which is slow
-       and rarely succeeds).
+       and rarely succeeds). A fix that drops or changes a value the model
+       sent is sent back to the model instead of run.
     """
 
     def __init__(
@@ -543,8 +649,9 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         :param error: The validation error they produced.
         :return: The repaired arguments, validated against the original schema.
         :raises ModelRetry: When the fixer fails, declares the arguments
-            unfixable, or its fix also fails validation, so pydantic-ai can
-            handle the retry normally.
+            unfixable, its fix also fails validation, or its fix drops or
+            changes a value the model sent, so pydantic-ai can handle the
+            retry normally.
         """
 
         schema = self._schemas.get(tool_name, {})
@@ -620,5 +727,19 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             raise ModelRetry(
                 format_tool_arg_errors(tool_name, schema, fixed_args, retry_errors)
             ) from e2
+
+        dropped = _dropped_values(wrong_args, fixed_args)
+        if dropped:
+            logger.warning(
+                "[assistant] Repair for tool '{}' would drop values ({} in total): {}",
+                tool_name,
+                len(dropped),
+                _render_dropped_values(dropped),
+            )
+            raise ModelRetry(
+                f"{report}\nA repair would drop or change these values, so the call "
+                f"did not run: {_render_dropped_values(dropped)}. Send each one under "
+                "an accepted key with an accepted value, or leave it out on purpose."
+            )
 
         return validated

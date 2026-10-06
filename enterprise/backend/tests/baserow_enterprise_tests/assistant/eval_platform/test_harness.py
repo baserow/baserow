@@ -312,10 +312,10 @@ class TestBuildAgentRunContext:
             ctx.toolset._schemas["example"] = ToolArgs.model_json_schema()
             ctx.toolset._original_validators["example"] = validator
             with pytest.raises(ValidationError) as exc_info:
-                validator.validate_python({"count": "invalid"})
+                validator.validate_python({"total": 2})
 
             fixed = async_to_sync(ctx.toolset._fix_tool_args)(
-                "example", {"count": "invalid"}, exc_info.value
+                "example", {"total": 2}, exc_info.value
             )
 
         assert fixed == ToolArgs(count=2)

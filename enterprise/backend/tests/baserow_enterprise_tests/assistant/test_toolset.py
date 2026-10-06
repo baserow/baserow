@@ -1,9 +1,11 @@
 import json
+from collections.abc import Awaitable, Callable, Iterator
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from loguru import logger
 from pydantic import AfterValidator, ValidationError
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.messages import (
@@ -42,7 +44,12 @@ from baserow_enterprise.assistant.tools.registries import (
 )
 from baserow_enterprise.assistant.tools.routing import ModeAwareToolset
 from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
-from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
+from baserow_enterprise.assistant.tools.toolset import (
+    _MAX_REPORTED_ERRORS,
+    InlineRefsToolset,
+    _dropped_values,
+)
+from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
 
 from .utils import make_test_ctx
 
@@ -495,3 +502,212 @@ async def test_malformed_type_is_repaired_before_running_the_tool(monkeypatch):
     repair.assert_awaited_once()
     assert result == "list_rows"
     assert executed == [DataSourceCreate(**fields, type="list_rows")]
+
+
+class _Column(AssistantBaseModel):
+    name: str
+    label: str | None = None
+
+
+async def _save_column_toolset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Callable[[dict[str, Any]], Awaitable[Any]], AsyncMock, list[_Column]]:
+    """
+    Build a ``save_column`` toolset whose repair always answers with the column "Go".
+
+    :param monkeypatch: Replaces the repair call.
+    :return: A function that calls the tool, the repair mock and the saved columns.
+    """
+
+    saved: list[_Column] = []
+
+    def save_column(column: _Column) -> None:
+        saved.append(column)
+
+    model = TestModel()
+    toolset = InlineRefsToolset(
+        FunctionToolset([save_column]), model=model, model_profile=MagicMock()
+    )
+    ctx = RunContext(deps=None, model=model, usage=RunUsage(), prompt="Save")
+    tools = await toolset.get_tools(ctx)
+    repair = AsyncMock(
+        return_value=SimpleNamespace(output=json.dumps({"column": {"name": "Go"}}))
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.toolset.run_agent_with_model", repair
+    )
+
+    async def call(arguments: dict[str, Any]) -> Any:
+        return await toolset.call_tool(
+            "save_column", arguments, ctx, tools["save_column"]
+        )
+
+    return call, repair, saved
+
+
+@pytest.mark.asyncio
+async def test_repair_that_drops_a_value_does_not_run_the_tool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_column_toolset(monkeypatch)
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"name": "Go", "navigation_type": "page"}})
+
+    repair.assert_awaited_once()
+    assert "did NOT run" in str(exc.value)
+    assert (
+        "A repair would drop or change these values, so the call did not run: "
+        'column.navigation_type="page". Send each one under an accepted key with an '
+        "accepted value, or leave it out on purpose."
+    ) in str(exc.value)
+    assert saved == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sent",
+    [
+        pytest.param({"column": {"title": "Go"}}, id="moved-value"),
+        pytest.param(
+            {"column": {"name": "Go", "caption": ""}}, id="dropped-empty-value"
+        ),
+        pytest.param({"column": '{"name": "Go"}'}, id="decoded-json-string"),
+    ],
+)
+async def test_repair_that_keeps_every_value_runs_the_tool(
+    monkeypatch: pytest.MonkeyPatch, sent: dict[str, Any]
+) -> None:
+    call, repair, saved = await _save_column_toolset(monkeypatch)
+
+    await call(sent)
+
+    repair.assert_awaited_once()
+    assert saved == [_Column(name="Go")]
+
+
+@pytest.mark.asyncio
+async def test_retry_message_lists_a_limited_number_of_dropped_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, _, saved = await _save_column_toolset(monkeypatch)
+    extras = {f"extra_{n}": f"value {n}" for n in range(_MAX_REPORTED_ERRORS + 2)}
+
+    with pytest.raises(ModelRetry) as exc:
+        await call({"column": {"name": "Go", **extras}})
+
+    last_shown = _MAX_REPORTED_ERRORS - 1
+    assert f'column.extra_{last_shown}="value {last_shown}"' in str(exc.value)
+    assert f"column.extra_{_MAX_REPORTED_ERRORS}" not in str(exc.value)
+    assert ", and 2 more." in str(exc.value)
+    assert saved == []
+
+
+@pytest.fixture
+def logged_warnings() -> Iterator[list[str]]:
+    messages: list[str] = []
+    sink_id = logger.add(
+        lambda message: messages.append(message.record["message"]), level="WARNING"
+    )
+    yield messages
+    logger.remove(sink_id)
+
+
+@pytest.mark.asyncio
+async def test_warning_for_a_rejected_repair_lists_a_limited_number_of_values(
+    monkeypatch: pytest.MonkeyPatch, logged_warnings: list[str]
+) -> None:
+    call, _, _ = await _save_column_toolset(monkeypatch)
+    extras = {f"extra_{n}": f"value {n}" for n in range(_MAX_REPORTED_ERRORS + 2)}
+
+    with pytest.raises(ModelRetry):
+        await call({"column": {"name": "Go", **extras}})
+
+    (warning,) = [text for text in logged_warnings if "would drop" in text]
+    assert f"{len(extras)} in total" in warning
+    assert f'column.extra_{_MAX_REPORTED_ERRORS - 1}="' in warning
+    assert f"column.extra_{_MAX_REPORTED_ERRORS}" not in warning
+    assert ", and 2 more" in warning
+
+
+def test_dropped_values_compares_values_not_keys() -> None:
+    original = {"a": {"x": "Go", "n": 5, "flag": True, "ratio": 2.0, "empty": None}}
+    repaired = {"b": ["go"], "n": "5", "flag": "true", "ratio": 2}
+
+    assert _dropped_values(original, repaired) == []
+    assert _dropped_values({"a": "Go", "b": "Go"}, {"a": "Go"}) == [("b", "Go")]
+
+
+def test_dropped_values_reports_list_paths_and_falsy_values() -> None:
+    original = {"columns": [{"name": "A"}, {"name": "B", "hidden": False, "width": 0}]}
+    repaired = {"columns": [{"name": "A"}, {"name": "B"}]}
+
+    assert _dropped_values(original, repaired) == [
+        ("columns.1.hidden", False),
+        ("columns.1.width", 0),
+    ]
+
+
+@pytest.mark.parametrize(
+    "sent, repaired",
+    [
+        pytest.param("Single Select", "single_select", id="space-to-underscore"),
+        pytest.param("single-select", "SINGLE SELECT", id="hyphen-to-space"),
+        pytest.param("single_select", "Single-Select", id="underscore-to-hyphen"),
+        pytest.param("page\tname\n", "Page-Name", id="tab-and-newline"),
+    ],
+)
+def test_dropped_values_ignores_case_and_separators(sent: str, repaired: str) -> None:
+    assert _dropped_values({"type": sent}, {"type": repaired}) == []
+    assert _dropped_values({"type": sent}, {"type": "multiple_select"}) == [
+        ("type", sent)
+    ]
+
+
+@pytest.mark.parametrize(
+    "sent, repaired",
+    [
+        pytest.param("19.90", 19.9, id="decimal-text-to-float"),
+        pytest.param("-3", -3, id="negative-text-to-int"),
+        pytest.param("2.0", 2, id="whole-decimal-text-to-int"),
+        pytest.param(-2.5, "-2.50", id="negative-float-to-text"),
+        pytest.param("9007199254740993", 9007199254740993, id="large-integer-text"),
+    ],
+)
+def test_dropped_values_compares_numbers_as_numbers(sent: Any, repaired: Any) -> None:
+    assert _dropped_values({"n": sent}, {"n": repaired}) == []
+
+
+@pytest.mark.parametrize(
+    "sent, repaired",
+    [
+        pytest.param(-5, 5, id="sign-of-int"),
+        pytest.param(-2.5, 2.5, id="sign-of-float"),
+        pytest.param("-10", 10, id="sign-of-text-to-int"),
+        pytest.param("-10", "10", id="sign-of-text-to-text"),
+        pytest.param("19.90", 19, id="truncated-decimal"),
+        pytest.param("9007199254740993", 9007199254740992, id="last-digit-of-integer"),
+    ],
+)
+def test_dropped_values_reports_numbers_that_differ(sent: Any, repaired: Any) -> None:
+    assert _dropped_values({"n": sent}, {"n": repaired}) == [("n", sent)]
+
+
+def test_dropped_values_reads_json_strings_as_the_values_they_hold() -> None:
+    assert _dropped_values({"c": '[{"name": "A"}]'}, {"c": [{"name": "A"}]}) == []
+    assert _dropped_values({"c": "[]"}, {"c": []}) == []
+    assert _dropped_values(
+        {"c": ' {"name": "A", "label": "B"}'}, {"c": {"name": "A"}}
+    ) == [("c.label", "B")]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("[draft] notes", id="bracket-text"),
+        pytest.param("{not json", id="broken-json"),
+        pytest.param("null", id="json-null"),
+    ],
+)
+def test_dropped_values_keeps_other_strings_whole(text: str) -> None:
+    assert _dropped_values({"c": text}, {}) == [("c", text)]
