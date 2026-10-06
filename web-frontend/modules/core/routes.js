@@ -28,7 +28,7 @@ export const routes = [
       },
       {
         name: 'mcp-authorize',
-        path: '/mcp/authorize',
+        path: '/mcp-authorize',
         file: path.resolve(__dirname, 'pages/mcpAuthorize.vue'),
       },
       {

@@ -13,7 +13,15 @@ describe('MCP authorize page', () => {
     endpoints: [{ id: 7, name: 'Main', workspace_id: 1, workspace_name: 'W' }],
   }
 
-  const route = '/mcp/authorize?client_id=abc&scope=a&scope=b'
+  // A real authorize query: percent-encoded values and a PKCE challenge whose
+  // base64url form contains `-` and `_`.
+  const query =
+    'response_type=code&client_id=abc' +
+    '&redirect_uri=http%3A%2F%2F127.0.0.1%3A33418%2Fcallback' +
+    '&code_challenge=x-_y%2B~&code_challenge_method=S256&scope=mcp&scope=b' +
+    '&state=s%C3%A9&resource=http%3A%2F%2Flocalhost%3A8000%2Fmcp'
+  const request = Buffer.from(query).toString('base64url')
+  const route = `/mcp-authorize?request=${request}`
 
   beforeEach(() => {
     testApp = new TestApp()
@@ -28,7 +36,6 @@ describe('MCP authorize page', () => {
   })
 
   test('lists endpoints and posts the selection with the full query', async () => {
-    const query = 'client_id=abc&scope=a&scope=b'
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
@@ -51,7 +58,6 @@ describe('MCP authorize page', () => {
   })
 
   test('deny posts allow false', async () => {
-    const query = 'client_id=abc&scope=a&scope=b'
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
@@ -67,5 +73,39 @@ describe('MCP authorize page', () => {
     expect(assign).toHaveBeenCalledWith(
       'https://claude.ai/cb?error=access_denied'
     )
+  })
+
+  test('the query survives the logged-out login round trip', async () => {
+    // The `authenticated` middleware sends the user to
+    // `/login?original=<encodeURI(fullPath)>` and login pushes `original`
+    // back. The request value must reach the page unchanged even when
+    // encoded once more along the way.
+    expect(request).toMatch(/^[A-Za-z0-9_-]+$/)
+    const original = encodeURI(route)
+    const router = useRouter()
+    const loginPath = router.resolve({
+      path: '/login',
+      query: { original },
+    }).fullPath
+    const back = router.resolve(loginPath).query.original
+    for (const path of [back, encodeURI(back)]) {
+      expect(path).toBe(route)
+    }
+
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, consent)
+    const wrapper = await testApp.mount(MCPAuthorize, { route: back })
+    expect(wrapper.text()).toContain('Main (W)')
+  })
+
+  test('an invalid request value sends an empty query', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query: '' } })
+      .reply(400, { error: 'invalid_request' })
+    const wrapper = await testApp.mount(MCPAuthorize, {
+      route: '/mcp-authorize?request=%25%25',
+    })
+    expect(wrapper.text()).not.toContain('Main (W)')
   })
 })

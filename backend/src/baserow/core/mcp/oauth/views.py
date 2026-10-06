@@ -1,3 +1,5 @@
+import base64
+
 from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.views import View
@@ -26,7 +28,11 @@ class MCPAuthorizeRedirectView(View):
                 )
             return HttpResponseRedirect(error_redirect_url(request, error))
 
+        # The consent page gets the query as unpadded base64url: the login redirect
+        # passes it through encodeURI and the router, which would re-encode a plain
+        # query string, but leave base64url characters alone.
         query = request.META.get("QUERY_STRING", "")
+        encoded = base64.urlsafe_b64encode(query.encode()).rstrip(b"=").decode()
         return HttpResponseRedirect(
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/mcp/authorize?{query}"
+            f"{settings.PUBLIC_WEB_FRONTEND_URL}/mcp-authorize?request={encoded}"
         )

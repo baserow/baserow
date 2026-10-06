@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import re
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from django.conf import settings
@@ -37,8 +39,15 @@ def test_authorize_redirects_to_frontend_consent(client):
     assert response.status_code == 302
     location = urlparse(response["Location"])
     assert response["Location"].startswith(settings.PUBLIC_WEB_FRONTEND_URL)
-    assert location.path == "/mcp/authorize"
-    assert parse_qs(location.query)["client_id"] == [client_id]
+    assert location.path == "/mcp-authorize"
+    # The query travels base64url-encoded, unpadded, so the login round trip
+    # (encodeURI + router) can't re-encode it.
+    params = parse_qs(location.query)
+    assert list(params) == ["request"]
+    encoded = params["request"][0]
+    assert re.fullmatch(r"[A-Za-z0-9_-]+", encoded)
+    padded = encoded + "=" * (-len(encoded) % 4)
+    assert base64.urlsafe_b64decode(padded).decode() == query
 
 
 def without_param(query, name):
@@ -50,7 +59,7 @@ def without_param(query, name):
 def assert_redirects_with_error(response, error):
     assert response.status_code == 302
     assert response["Location"].startswith(REDIRECT_URI)
-    assert "/mcp/authorize" not in response["Location"]
+    assert "/mcp-authorize" not in response["Location"]
     query = parse_qs(urlparse(response["Location"]).query)
     assert query["error"] == [error]
     assert query["state"] == ["s1"]

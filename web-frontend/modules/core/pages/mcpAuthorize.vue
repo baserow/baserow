@@ -77,9 +77,27 @@ const route = useRoute()
 const { $client } = useNuxtApp()
 const { t } = useI18n()
 
-// The raw query string of the original authorize request. `fullPath` keeps
-// repeated params and encoding intact, on the server and the client.
-const query = route.fullPath.split('#')[0].split('?').slice(1).join('?')
+/**
+ * Decodes the unpadded base64url `request` param the backend puts the original
+ * authorize query string in. base64url survives the login redirect's
+ * `encodeURI` and the router untouched, unlike a plain query string.
+ */
+function decodeRequest(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) {
+    return ''
+  }
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+  try {
+    const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return ''
+  }
+}
+
+// The raw query string of the original authorize request.
+const query = decodeRequest(route.query.request)
 
 const selected = ref(null)
 const newName = ref('')

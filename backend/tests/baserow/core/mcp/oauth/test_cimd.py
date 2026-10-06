@@ -31,7 +31,7 @@ def test_cimd_allowlisted_host_reaches_consent(client):
         response = client.get(f"/oauth/authorize/?{query}")
 
     assert response.status_code == 302
-    assert "/mcp/authorize" in response["Location"]
+    assert "/mcp-authorize" in response["Location"]
     application = Application.objects.get(client_id=CLAUDE_CLIENT)
     assert application.redirect_uris == CLAUDE_REDIRECT
 
@@ -47,7 +47,7 @@ def test_cimd_other_host_is_rejected(client):
 
     fetch.assert_not_called()
     location = response.get("Location", "")
-    assert "/mcp/authorize" not in location
+    assert "/mcp-authorize" not in location
     assert not location.startswith(EVIL_REDIRECT)
     assert "code=" not in location
     assert not Application.objects.filter(client_id=EVIL_CLIENT).exists()
