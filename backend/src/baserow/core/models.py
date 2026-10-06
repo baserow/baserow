@@ -9,6 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Q, QuerySet, UniqueConstraint
+from django.db.models.functions import Now
 from django.db.models.manager import BaseManager
 
 from baserow.core.jobs.mixins import (
@@ -50,6 +51,7 @@ __all__ = [
     "Application",
     "TemplateCategory",
     "Template",
+    "TemplateLinkAccess",
     "UserLogEntry",
     "TrashEntry",
     "UserFile",
@@ -508,6 +510,52 @@ class TemplateCategory(models.Model):
         ordering = ("name",)
 
 
+# Never change this value: official template uuids are derived from it, so the
+# same official template has the same uuid on every instance.
+OFFICIAL_TEMPLATE_UUID_NAMESPACE = uuid.UUID("cf2443f4-126b-44f1-a746-0700d8c4034c")
+
+
+def official_template_uuid(slug: str) -> uuid.UUID:
+    """
+    Returns the deterministic uuid of the official template with the given slug.
+    """
+
+    return uuid.uuid5(OFFICIAL_TEMPLATE_UUID_NAMESPACE, slug)
+
+
+class TemplateType(models.TextChoices):
+    OFFICIAL = "official", "Official"
+    USER = "user", "User"
+
+
+class TemplateListingState(models.TextChoices):
+    PRIVATE = "private", "Private"
+    PENDING = "pending", "Pending"
+    PUBLIC = "public", "Public"
+    REJECTED = "rejected", "Rejected"
+    BLOCKED = "blocked", "Blocked"
+
+
+TEMPLATE_STATE_BEFORE_BLOCK_CHOICES = [
+    choice
+    for choice in TemplateListingState.choices
+    if choice[0] != TemplateListingState.BLOCKED
+]
+
+
+class TemplateQuerySet(models.QuerySet):
+    def official(self):
+        return self.filter(template_type=TemplateType.OFFICIAL)
+
+    def user_templates(self):
+        return self.filter(template_type=TemplateType.USER)
+
+
+class DefaultTemplateManager(models.Manager.from_queryset(TemplateQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().filter(marked_for_deletion_at__isnull=True)
+
+
 class Template(models.Model):
     name = models.CharField(max_length=64)
     slug = models.SlugField(
@@ -543,12 +591,134 @@ class Template(models.Model):
         help_text="The application ID that must be opened when the template is "
         "previewed. If null, then the first will automatically be chosen.",
     )
+    uuid = models.UUIDField(
+        null=True,
+        unique=True,
+        editable=False,
+        help_text="Stable identifier of the template. Official templates derive it "
+        "from their slug, so it is the same on every instance.",
+    )
+    template_type = models.CharField(
+        max_length=16,
+        choices=TemplateType.choices,
+        default=TemplateType.OFFICIAL,
+        db_default=TemplateType.OFFICIAL,
+        help_text="Official templates are synced from the repository, user templates "
+        "are created by users. Set on create, never changed.",
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="authored_templates",
+        help_text="The user who created the template. Null for official templates.",
+    )
+    description = models.TextField(
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The description shown in the template browser.",
+    )
+    private_link_token = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="The token of the private link. Null when the template has no "
+        "private link.",
+    )
+    listing_state = models.CharField(
+        max_length=16,
+        choices=TemplateListingState.choices,
+        default=TemplateListingState.PUBLIC,
+        db_default=TemplateListingState.PUBLIC,
+        help_text="Who can find the template in the template browser.",
+    )
+    state_changed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the listing state last changed.",
+    )
+    state_changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Who last changed the listing state.",
+    )
+    state_note = models.TextField(
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The reason given with the last listing state change, for example "
+        "when rejecting or blocking.",
+    )
+    state_before_block = models.CharField(
+        max_length=16,
+        choices=TEMPLATE_STATE_BEFORE_BLOCK_CHOICES,
+        null=True,
+        blank=True,
+        help_text="The listing state the template returns to when it is unblocked.",
+    )
+    install_count = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many times the template has been installed.",
+    )
+    created_on = models.DateTimeField(auto_now_add=True, db_default=Now())
+    updated_on = models.DateTimeField(auto_now=True, db_default=Now())
+    last_updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Who last changed the details or content of the template.",
+    )
+    marked_for_deletion_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When set, the template is unavailable and will be removed later.",
+    )
+
+    objects_and_trash = TemplateQuerySet.as_manager()
+    objects = DefaultTemplateManager()
 
     class Meta:
         ordering = ("name",)
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(template_type=TemplateType.USER) | Q(author__isnull=False),
+                name="template_user_type_requires_author",
+            )
+        ]
 
     def __str__(self):
         return self.name
+
+
+class TemplateLinkAccess(models.Model):
+    """
+    Records that a user opened the private link of a template. Access lasts until
+    the link is revoked.
+    """
+
+    template = models.ForeignKey(
+        Template, on_delete=models.CASCADE, related_name="link_accesses"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="template_link_accesses"
+    )
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["template", "user"], name="unique_template_link_access"
+            )
+        ]
 
 
 class UserLogEntry(models.Model):

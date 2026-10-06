@@ -1,3 +1,5 @@
+from uuid import UUID, uuid5
+
 from django.db import IntegrityError, connection
 from django.utils import timezone
 
@@ -336,3 +338,35 @@ def test_0125_imports_legacy_ai_provider_settings(
         (workspace.id, instance_provider.id),
         (trashed_workspace.id, instance_provider.id),
     }
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0128_backfills_official_template_uuids(migrator, teardown_table_metadata):
+    old_state = migrator.migrate(
+        [("core", "0126_alter_aiproviderconfig_api_key_max_length")]
+    )
+    Template = old_state.apps.get_model("core", "Template")
+    first = Template.objects.create(name="First", slug="project-tracker", icon="a")
+    second = Template.objects.create(name="Second", slug="crm", icon="b")
+    duplicate = Template.objects.create(name="Duplicate", slug="crm", icon="c")
+
+    new_state = migrator.migrate([("core", "0128_template_uuid_backfill")])
+    NewTemplate = new_state.apps.get_model("core", "Template")
+    templates = {template.id: template for template in NewTemplate._default_manager.all()}
+
+    assert templates[first.id].uuid == UUID("914af5fe-6f50-51ec-8493-afde6b4ce39e")
+    assert templates[second.id].uuid == uuid5(
+        UUID("cf2443f4-126b-44f1-a746-0700d8c4034c"), "crm"
+    )
+    # Slugs are not unique; only the oldest row with a slug gets its uuid.
+    assert templates[duplicate.id].uuid is None
+    for template in templates.values():
+        assert template.template_type == "official"
+        assert template.listing_state == "public"
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT convalidated FROM pg_constraint "
+            "WHERE conname = 'template_user_type_requires_author'"
+        )
+        assert cursor.fetchone() == (True,)
