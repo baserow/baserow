@@ -199,7 +199,9 @@ def test_workspace_audit_log_actor_filter_includes_disabled_and_deletion_schedul
     )
 
     assert response.status_code == HTTP_200_OK
-    assert {(actor["actor_type"], actor["actor_id"]) for actor in response.json()["results"]} == {
+    assert {
+        (actor["actor_type"], actor["actor_id"]) for actor in response.json()["results"]
+    } == {
         (UserSubjectType.type, admin.id),
         (UserSubjectType.type, disabled_user.id),
         (UserSubjectType.type, scheduled_user.id),
