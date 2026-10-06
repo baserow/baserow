@@ -126,6 +126,41 @@ class BaserowMCPServer:
             return []
         return await mcp_tool_registry.list_all_tools(endpoint)
 
+    async def _handle_streamable_http(self, scope, receive, send) -> None:
+        """
+        Serves one Streamable HTTP request with its own stateless transport, like
+        `StreamableHTTPSessionManager._handle_stateless_request`. The session manager
+        itself needs an ASGI lifespan, which Channels' ProtocolTypeRouter does not
+        forward.
+        """
+
+        import anyio
+        from mcp.server.streamable_http import StreamableHTTPServerTransport
+
+        transport = StreamableHTTPServerTransport(
+            mcp_session_id=None, is_json_response_enabled=True
+        )
+
+        async def run_server(*, task_status=anyio.TASK_STATUS_IGNORED):
+            async with transport.connect() as (read_stream, write_stream):
+                task_status.started()
+                try:
+                    await self._mcp_server.run(
+                        read_stream,
+                        write_stream,
+                        self._mcp_server.create_initialization_options(),
+                        stateless=True,
+                    )
+                except Exception:
+                    logger.exception("Stateless MCP request crashed")
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(run_server)
+            try:
+                await transport.handle_request(scope, receive, send)
+            finally:
+                await transport.terminate()
+
     def sse_app(self) -> "Starlette":
         """
         Returns an ASGI application that can handle MCP SSE connections.
@@ -135,7 +170,7 @@ class BaserowMCPServer:
 
         from starlette.applications import Starlette
         from starlette.requests import Request
-        from starlette.responses import Response
+        from starlette.responses import JSONResponse, Response
         from starlette.routing import Mount, Route
 
         sse_path = "/mcp/{key}/sse"
@@ -203,6 +238,50 @@ class BaserowMCPServer:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)
 
+        server = self
+
+        class _StreamableHTTPApp:
+            """
+            Stateless Streamable HTTP on `/mcp`, authenticated with an OAuth access
+            token or an endpoint key as bearer. A class so Starlette's `Route` treats
+            it as a raw ASGI app instead of a `func(request)` endpoint.
+            """
+
+            async def __call__(self, scope, receive, send) -> None:
+                from baserow.core.mcp.auth import (
+                    INSUFFICIENT_SCOPE,
+                    INVALID_TOKEN,
+                    resolve_bearer,
+                    www_authenticate,
+                )
+
+                request = Request(scope, receive)
+                authorization = request.headers.get("authorization", "")
+                scheme, _, value = authorization.partition(" ")
+                value = value.strip()
+                endpoint, error = None, None
+                if scheme.lower() == "bearer" and value:
+                    endpoint, error = await resolve_bearer(value)
+
+                key_ctx = current_key.set(endpoint.key if endpoint else "")
+                try:
+                    if endpoint is not None and await server.get_endpoint() is None:
+                        endpoint, error = None, INVALID_TOKEN
+                    if endpoint is None:
+                        status_code = 403 if error == INSUFFICIENT_SCOPE else 401
+                        response = JSONResponse(
+                            {"error": error or INVALID_TOKEN},
+                            status_code=status_code,
+                            headers={"WWW-Authenticate": www_authenticate(error)},
+                        )
+                        await response(scope, receive, send)
+                        return
+                    await server._handle_streamable_http(scope, receive, send)
+                finally:
+                    current_key.reset(key_ctx)
+
+        streamable_http_app = _StreamableHTTPApp()
+
         # It might seem a bit hacky to use Starlette here instead of the existing
         # Django logic. However, it made more sense to stay as close to the recommended
         # code of the MCP library
@@ -213,6 +292,10 @@ class BaserowMCPServer:
         return Starlette(
             debug=False,
             routes=[
+                # Only POST: a stateless server has no stream to offer on GET, and
+                # the spec allows answering that with 405.
+                Route("/mcp", endpoint=streamable_http_app, methods=["POST"]),
+                Route("/mcp/", endpoint=streamable_http_app, methods=["POST"]),
                 Route(sse_path, endpoint=handle_sse),
                 Mount(messages_path, app=sse.handle_post_message),
             ],
