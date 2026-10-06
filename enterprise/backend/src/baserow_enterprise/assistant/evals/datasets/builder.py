@@ -1270,6 +1270,10 @@ def _record_field_formula(field: Field) -> BaserowFormulaObject:
     return BaserowFormulaObject.create(f"get('current_record.field_{field.id}')")
 
 
+def _edit_action_exists(refs: dict[str, Any]) -> bool:
+    return BuilderWorkflowAction.objects.filter(id=refs["edit_action_id"]).exists()
+
+
 def _opens_page_with_row_id(action: OpenPageWorkflowAction, page: Page) -> bool:
     return (
         action.navigation_type == "page"
@@ -1413,10 +1417,9 @@ def _check_edits_table_columns(
     name_now = by_uid.get(uids["Name"])
     adding_date = by_uid.get(uids["Adding date"])
     website = by_uid.get(uids["Website"])
+    email = by_uid.get(uids["Email"])
     edit = by_uid.get(uids["Edit"])
-    edit_action_exists = BuilderWorkflowAction.objects.filter(
-        id=refs["edit_action_id"]
-    ).exists()
+    edit_action_exists = _edit_action_exists(refs)
 
     return [
         CheckResult("table has 5 columns", len(after) == 5, hint=f"columns: {names}"),
@@ -1439,6 +1442,11 @@ def _check_edits_table_columns(
             hint=f"columns: {names}",
         ),
         CheckResult(
+            "Email column is unchanged apart from its position",
+            email == before[uids["Email"]],
+            hint=f"Email column now: {email}",
+        ),
+        CheckResult(
             "Adding date column keeps its uid and reads the Joined field",
             adding_date is not None
             and _references_field(adding_date.config, refs["joined_field"].id),
@@ -1450,8 +1458,8 @@ def _check_edits_table_columns(
             hint=f"Website column now: {website}",
         ),
         CheckResult(
-            "Edit column keeps its uid and its click action",
-            edit is not None and edit_action_exists,
+            "Edit column is unchanged and keeps its click action",
+            edit == before[uids["Edit"]] and edit_action_exists,
             hint=f"Edit column now: {edit}, click action exists: {edit_action_exists}",
         ),
     ]
@@ -1486,11 +1494,12 @@ def _check_keeps_link_column_settings(
     after = _table_column_snapshot(scenario.refs["table_element_id"])
 
     return [
+        CheckResult("called list_elements", tool_called(output, "list_elements") >= 1),
         CheckResult(
             "no table column was changed, moved, added or removed",
             after == before,
             hint=_column_differences(before, after),
-        )
+        ),
     ]
 
 
@@ -1518,9 +1527,7 @@ def _check_adds_edit_button_column(
             element_id=refs["table_element_id"]
         ).values_list("event", flat=True)
     )
-    edit_action_exists = BuilderWorkflowAction.objects.filter(
-        id=refs["edit_action_id"]
-    ).exists()
+    edit_action_exists = _edit_action_exists(refs)
 
     return [
         CheckResult(
@@ -1584,6 +1591,8 @@ register_case(
         checks=_check_keeps_link_column_settings,
         mode=AgentMode.APPLICATION,
         max_iters=20,
+        # A refused attempt is fine here: the columns' state decides the case.
+        max_tool_errors=2,
     )
 )
 

@@ -29,6 +29,8 @@ CASE_CHECKS = {
     "builder/adds-edit-button-column": _check_adds_edit_button_column,
 }
 
+EDITED_ORDER = ["Name", "Adding date", "Website", "Edit", "Email"]
+
 Columns = list[dict[str, Any]]
 
 
@@ -36,11 +38,11 @@ def _seed(data_fixture: Fixtures) -> EvalScenario:
     return get_scenario(SCENARIO_NAME)(data_fixture)
 
 
-def _empty_output() -> EvalRunOutput:
+def _run_output(*tool_calls: str) -> EvalRunOutput:
     return EvalRunOutput(
         answer="",
         messages=[],
-        tool_calls=[],
+        tool_calls=list(tool_calls),
         tool_error_count=0,
         tool_error_hint="",
         sources=[],
@@ -93,7 +95,7 @@ def test_untouched_seed_passes_keep_checks_and_fails_change_checks(
     data_fixture: Fixtures,
 ) -> None:
     scenario = _seed(data_fixture)
-    output = _empty_output()
+    output = _run_output("list_elements")
 
     keeps = _check_keeps_link_column_settings(None, scenario, output)
     moves = _check_moves_table_column(None, scenario, output)
@@ -116,8 +118,18 @@ def test_moves_check_passes_when_email_goes_after_website(
 
     _save_columns(scenario, [columns[name] for name in order])
 
-    checks = _check_moves_table_column(None, scenario, _empty_output())
+    checks = _check_moves_table_column(None, scenario, _run_output())
     assert all(check.passed for check in checks), checks
+
+
+def _edited_as_asked(scenario: EvalScenario) -> dict[str, dict[str, Any]]:
+    joined_id = scenario.refs["joined_field"].id
+    columns = _by_name(_stored_columns(scenario))
+    columns["Name"]["name"] = "Full name"
+    columns["Adding date"]["config"] = {
+        "value": BaserowFormulaObject.create(f"get('current_record.field_{joined_id}')")
+    }
+    return columns
 
 
 @pytest.mark.django_db
@@ -125,18 +137,36 @@ def test_edits_check_passes_when_the_columns_change_as_asked(
     data_fixture: Fixtures,
 ) -> None:
     scenario = _seed(data_fixture)
-    joined_id = scenario.refs["joined_field"].id
-    columns = _by_name(_stored_columns(scenario))
-    columns["Name"]["name"] = "Full name"
-    columns["Adding date"]["config"] = {
-        "value": BaserowFormulaObject.create(f"get('current_record.field_{joined_id}')")
-    }
-    order = ["Name", "Adding date", "Website", "Edit", "Email"]
+    columns = _edited_as_asked(scenario)
 
-    _save_columns(scenario, [columns[name] for name in order])
+    _save_columns(scenario, [columns[name] for name in EDITED_ORDER])
 
-    checks = _check_edits_table_columns(None, scenario, _empty_output())
+    checks = _check_edits_table_columns(None, scenario, _run_output())
     assert all(check.passed for check in checks), checks
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "column,key,value",
+    [
+        ("Email", "config", {"value": BaserowFormulaObject.create("'hidden'")}),
+        ("Email", "styles", {"cell": {"cell_font_color": "blue"}}),
+        ("Edit", "name", "Open"),
+        ("Edit", "config", {"label": BaserowFormulaObject.create("'Open'")}),
+    ],
+    ids=["email-value", "email-styles", "edit-name", "edit-label"],
+)
+def test_edits_check_fails_when_email_or_edit_change(
+    data_fixture: Fixtures, column: str, key: str, value: Any
+) -> None:
+    scenario = _seed(data_fixture)
+    columns = _edited_as_asked(scenario)
+    columns[column][key] = value
+
+    _save_columns(scenario, [columns[name] for name in EDITED_ORDER])
+
+    checks = _check_edits_table_columns(None, scenario, _run_output())
+    assert not all(check.passed for check in checks)
 
 
 @pytest.mark.django_db
@@ -167,7 +197,7 @@ def test_adds_check_passes_when_an_editar_button_opens_the_edit_page(
         ],
     )
 
-    checks = _check_adds_edit_button_column(None, scenario, _empty_output())
+    checks = _check_adds_edit_button_column(None, scenario, _run_output())
     assert all(check.passed for check in checks), checks
 
 
@@ -189,8 +219,25 @@ def test_keeps_check_fails_when_the_table_columns_are_damaged(
 
     _save_columns(scenario, damage(_stored_columns(scenario)))
 
-    checks = _check_keeps_link_column_settings(None, scenario, _empty_output())
+    checks = _check_keeps_link_column_settings(
+        None, scenario, _run_output("list_elements")
+    )
     assert not all(check.passed for check in checks)
+
+
+@pytest.mark.django_db
+def test_keeps_check_fails_when_the_columns_were_never_read(
+    data_fixture: Fixtures,
+) -> None:
+    scenario = _seed(data_fixture)
+
+    checks = _check_keeps_link_column_settings(None, scenario, _run_output())
+
+    assert not all(check.passed for check in checks)
+
+
+def test_keeps_case_allows_two_refused_attempts() -> None:
+    assert get_case("builder/keeps-link-column-settings").max_tool_errors == 2
 
 
 @pytest.mark.django_db
@@ -202,7 +249,7 @@ def test_checks_fail_instead_of_raising_when_the_table_element_is_deleted(
     table_element = TableElement.objects.get(id=scenario.refs["table_element_id"])
     ElementService().delete_element(scenario.user, table_element)
 
-    checks = CASE_CHECKS[case_id](None, scenario, _empty_output())
+    checks = CASE_CHECKS[case_id](None, scenario, _run_output())
 
     assert not all(check.passed for check in checks)
 
