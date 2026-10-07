@@ -111,6 +111,7 @@ class WorkspacesView(RealtimeRecoveryPrimaryReadMixin, APIView):
             CoreHandler()
             .get_workspaceuser_workspace_queryset()
             .filter(user=request.user)
+            .order_by("order", "id")
         )
 
         workspaceuser_workspaces = (
