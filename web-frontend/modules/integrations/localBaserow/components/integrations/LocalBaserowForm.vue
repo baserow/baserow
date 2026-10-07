@@ -49,6 +49,9 @@ export default {
     }
   },
   computed: {
+    currentUserId() {
+      return this.$store.getters['auth/getUserId']
+    },
     authenticationSubject: {
       get() {
         return this.values.authorized_subject_type === 'auth.User' &&
@@ -58,7 +61,7 @@ export default {
       },
       set(value) {
         if (value === 'user') {
-          this.values.authorized_subject_id = null
+          this.values.authorized_subject_id = this.currentUserId
           this.values.authorized_subject_type = 'auth.User'
         } else {
           const subject = this.subjects.find((subject) => subject.id === value)

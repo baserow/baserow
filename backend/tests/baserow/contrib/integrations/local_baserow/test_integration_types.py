@@ -3,6 +3,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
+from rest_framework import serializers
 from rest_framework.status import HTTP_200_OK
 from tqdm import tqdm
 
@@ -29,6 +30,40 @@ def test_create_local_baserow_integration_with_user(data_fixture):
     assert integration.authorized_subject_type == "auth.User"
     assert integration.authorized_subject_id == user.id
     assert integration.authorized_user is None
+
+
+@pytest.mark.django_db
+def test_update_local_baserow_integration_authorizes_current_user_only(data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    agent = Agent.objects.create(
+        workspace=application.workspace, name="Writer", role_uid="ADMIN"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, authorized_agent=agent
+    )
+
+    updated_integration = (
+        IntegrationService()
+        .update_integration(
+            user,
+            integration,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=user.id,
+        )
+        .integration
+    )
+
+    assert updated_integration.authorized_subject == user
+
+    with pytest.raises(serializers.ValidationError):
+        IntegrationService().update_integration(
+            user,
+            updated_integration,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=other_user.id,
+        )
 
 
 @pytest.mark.django_db
