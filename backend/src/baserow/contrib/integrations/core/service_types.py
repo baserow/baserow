@@ -7,7 +7,12 @@ import time
 import uuid
 from datetime import datetime
 from functools import partial
-from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
+from smtplib import (
+    SMTPAuthenticationError,
+    SMTPConnectError,
+    SMTPNotSupportedError,
+    SMTPServerDisconnected,
+)
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
@@ -111,6 +116,7 @@ from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
     RemoteRefusedDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
@@ -780,7 +786,8 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
         except ConnectionError as e:
-            raise UnexpectedDispatchException(
+            # A lookup, refused or reset connection: transient, so retryable.
+            raise RuntimeDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
         except request_exceptions.Timeout:
@@ -794,7 +801,9 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 }
             }
         except request_exceptions.RequestException as e:
-            raise UnexpectedDispatchException(str(e)) from e
+            # Dropped connection, broken chunked encoding and the like, which a
+            # later attempt may not hit again.
+            raise RuntimeDispatchException(str(e)) from e
         except Exception as e:
             # Not `logger.exception`: loguru prints the frame locals beside the
             # traceback, and this frame holds the URL, every resolved header
@@ -1221,9 +1230,13 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
-            raise UnexpectedDispatchException(
+            # The server answered the connection with a refusal greeting,
+            # typically because it is restarting or overloaded.
+            raise RuntimeDispatchException(
                 "Unable to connect to the SMTP server"
             ) from e
+        except (SMTPServerDisconnected, TimeoutError) as e:
+            raise RuntimeDispatchException("The SMTP server did not answer") from e
         except Exception as e:
             raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
 
