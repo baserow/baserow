@@ -578,11 +578,21 @@ def test_formula_update_denial_preserves_previous_value(
     )
     RoleAssignmentHandler._init = False
     RoleAssignmentHandler().assign_role(
-        user, workspace, role=role, scope=builder.application_ptr
+        user,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=builder.application_ptr,
     )
+
+    def generate_after_losing_update_permission(*args: Any) -> dict[str, str]:
+        RoleAssignmentHandler().assign_role(
+            user, workspace, role=role, scope=builder.application_ptr
+        )
+        return {"value": "'Changed'"}
+
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
-        lambda *args: lambda *args: {"value": "'Changed'"},
+        lambda *args: generate_after_losing_update_permission,
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",

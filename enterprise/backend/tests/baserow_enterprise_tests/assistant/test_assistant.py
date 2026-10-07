@@ -69,6 +69,7 @@ from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import (
     AGENT_SYSTEM_PROMPT,
 )
+from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
@@ -715,6 +716,44 @@ class TestCompactMessageHistory:
             "removed_table_columns": removed,
         }
         assert outcomes[0]["changed"] is True
+
+    @pytest.mark.parametrize(
+        "tool_name", ["update_builder", "update_fields", "update_nodes"]
+    )
+    def test_tool_groups_without_an_override_remember_whole_results(
+        self, tool_name: str
+    ) -> None:
+        """Only the builder group leaves table columns out of what it remembers."""
+
+        result = {
+            "status": "ok",
+            "table_columns": [{"uid": "c1", "name": "Name", "type": "text"}],
+        }
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="rename it")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name=tool_name,
+                        args={"thought": "Renaming it"},
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name=tool_name, content=result, tool_call_id="tc1"
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Renamed it.")]),
+        ]
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert assistant_tool_registry.get_by_tool_name(tool_name) is not None
+        assert outcomes[0]["result"] == result
 
     def test_verified_mutation_ledger_is_capped(self):
         messages = []

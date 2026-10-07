@@ -26,6 +26,9 @@ from pydantic import Field, field_validator, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
+from baserow_enterprise.assistant.tools.builder.registries import (
+    assistant_element_type_registry,
+)
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     formula_object,
@@ -42,7 +45,6 @@ from .table_columns import (
     column_name_key,
     data_source_fields,
     field_formula,
-    table_column_items,
 )
 
 if TYPE_CHECKING:
@@ -1867,16 +1869,19 @@ class ElementUpdate(BaseModel):
             if name not in skip and getattr(self, name) is not None
         ]
 
-    def unsupported_fields(self, element_type: str, kwargs: dict) -> list[str]:
-        """Identify requested properties that the type's converter did not apply."""
+    def unsupported_fields(
+        self, element_type: str, kwargs: dict[str, Any], aliases: dict[str, str]
+    ) -> list[str]:
+        """
+        Identify requested properties that the type's converter did not apply.
 
-        aliases = {
-            "button": {"label": "value"},
-            "link": {"link_variant": "variant", "link_target": "target"},
-            "column": {"column_alignment": "alignment"},
-            "menu": {"menu_orientation": "orientation", "menu_alignment": "alignment"},
-            "table": dict.fromkeys(TABLE_COLUMN_PROPERTIES, "fields"),
-        }.get(element_type, {})
+        :param element_type: The type of the element being updated.
+        :param kwargs: The update kwargs that will be saved.
+        :param aliases: The properties the element type saves under another kwarg,
+            each mapped to that kwarg.
+        :return: The requested properties that no kwarg saves.
+        """
+
         handled = set(kwargs)
         if element_type in ("header", "footer"):
             # These are applied to a child menu by the helper's post-update step.
@@ -1953,7 +1958,7 @@ class ElementItem(BaseModel):
                 }
                 for item in specific.menu_items.all().order_by("menu_item_order")
             ]
-        table_element = element.specific if element_type == "table" else None
+        hooks = assistant_element_type_registry.get_for(element_type)
         return cls(
             id=element.id,
             type=element_type,
@@ -1963,8 +1968,7 @@ class ElementItem(BaseModel):
             label=cls._extract_label(element),
             page_name=page_name,
             menu_items=menu_items,
-            data_source_id=table_element.data_source_id if table_element else None,
-            table_columns=table_column_items(table_element) if table_element else None,
+            **hooks.item_details(element),
         )
 
     @staticmethod

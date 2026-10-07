@@ -16,6 +16,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 
 MAX_VERIFIED_TOOL_OUTCOMES = 12
@@ -335,19 +336,18 @@ def _remembered_arguments(tool_name: str, arguments: dict[str, Any]) -> dict[str
 
 def _remembered_result(tool_name: str, result: Any) -> Any:
     """
-    Leave out the table columns an element update returns.
-
-    list_elements reads them again, and a 7-column list takes about a quarter of
-    the memory.
+    Ask the tool group that owns a tool what to remember of its result.
 
     :param tool_name: The executed tool's name.
     :param result: The tool result.
-    :return: The result to remember for later turns.
+    :return: The result to remember for later turns, all of it when no group owns
+        the tool.
     """
 
-    if tool_name != "update_element" or not isinstance(result, dict):
+    tool_type = assistant_tool_registry.get_by_tool_name(tool_name)
+    if tool_type is None:
         return result
-    return {key: value for key, value in result.items() if key != "table_columns"}
+    return tool_type.remembered_result(tool_name, result)
 
 
 def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:

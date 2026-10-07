@@ -425,6 +425,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )
+        from baserow_enterprise.assistant.tools.builder.assistant_element_types import (
+            TableAssistantElementType,
+        )
+        from baserow_enterprise.assistant.tools.builder.registries import (
+            assistant_element_type_registry,
+        )
         from baserow_enterprise.assistant.tools.builder.tool_types import (
             BuilderToolType,
         )
@@ -459,6 +465,7 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(AutomationToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
+        assistant_element_type_registry.register(TableAssistantElementType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

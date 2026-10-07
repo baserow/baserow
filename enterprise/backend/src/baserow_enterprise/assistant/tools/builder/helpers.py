@@ -20,7 +20,7 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element, TableElement
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -50,7 +50,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
 )
 
-from .table_column_changes import merge_table_columns
+from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
     ActionItem,
@@ -65,11 +65,8 @@ from .types import (
     PageCreate,
     PageItem,
     PageUpdate,
-    RemovedTableColumn,
-    TableColumnItem,
 )
-from .types.element import BUTTON_NAVIGATION_GUIDANCE, TABLE_COLUMN_PROPERTIES
-from .types.table_columns import table_column_items
+from .types.element import BUTTON_NAVIGATION_GUIDANCE
 
 if TYPE_CHECKING:
     pass
@@ -543,12 +540,11 @@ def move_element(
 
 
 class ElementUpdateOutcome(NamedTuple):
-    """An updated element, and for table column changes the columns afterwards."""
+    """An updated element, its type, and the keys its type adds to the result."""
 
     element: Element
     element_type: str
-    table_columns: list[TableColumnItem] | None
-    removed_table_columns: list[RemovedTableColumn] | None
+    result: dict[str, Any]
 
 
 def update_element(
@@ -560,14 +556,13 @@ def update_element(
 
     If the element is a header/footer and ``menu_items`` are provided,
     automatically finds or creates a child menu element and sets the
-    items on it (headers are containers, not menus themselves). Table column
-    changes are merged into the stored columns, so the columns they don't name
-    are saved unchanged.
+    items on it (headers are containers, not menus themselves). The element
+    type's hooks check the update, add what they save with it, and report on it.
 
     :param user: The user updating the element.
     :param element_update: The properties to change.
-    :return: The updated element and its type, plus the table's columns after the
-        write and the removed columns when the update changes table columns.
+    :return: The updated element, its type, and the keys its type's hooks add to
+        update_element's result.
     :raises ToolInputError: When the element doesn't exist or a property can't be
         applied. Nothing is saved then.
     :raises PermissionDenied: When the user can't update the element.
@@ -582,37 +577,26 @@ def update_element(
         )
 
     element_type = element.get_type().type
-    kwargs = element_update.to_update_kwargs(element_type)
-    changes_table_columns = (
-        element_type == "table" and element_update.changes_table_columns()
+    hooks = assistant_element_type_registry.get_for(element_type)
+    CoreHandler().check_permissions(
+        user,
+        UpdateElementOperationType.type,
+        workspace=element.page.builder.workspace,
+        context=element,
     )
-    removed_columns = None
-    if changes_table_columns:
-        CoreHandler().check_permissions(
-            user,
-            UpdateElementOperationType.type,
-            workspace=element.page.builder.workspace,
-            context=element,
-        )
-        change = merge_table_columns(
-            element.specific,
-            add=element_update.add_table_columns or [],
-            update=element_update.update_table_columns or [],
-            reorder=element_update.reorder_table_columns,
-            remove=element_update.remove_table_columns or [],
-        )
-        kwargs["fields"] = change.fields
-        removed_columns = change.removed
+    kwargs = element_update.to_update_kwargs(element_type)
     allowed = set(ElementHandler.allowed_fields_update) | set(
         element.get_type().allowed_fields
     )
     # These relations are consumed by the element type's after_update hook,
     # rather than assigned as model fields by ElementHandler.
-    allowed.update(
-        {"table": {"fields"}, "menu": {"menu_items"}}.get(element_type, set())
-    )
+    allowed.update({"menu": {"menu_items"}}.get(element_type, set()))
     kwargs = {name: value for name, value in kwargs.items() if name in allowed}
-    unsupported = element_update.unsupported_fields(element_type, kwargs)
+    prepared = hooks.prepare_update(user, element, element_update)
+    kwargs.update(prepared.kwargs)
+    unsupported = element_update.unsupported_fields(
+        element_type, kwargs, hooks.property_aliases
+    )
     if unsupported:
         if element_type == "button":
             guidance = BUTTON_NAVIGATION_GUIDANCE
@@ -621,8 +605,7 @@ def update_element(
                 ElementUpdate.model_fields
             )
             allowed.update(("visibility", "role_type", "roles"))
-            if element_type == "table":
-                allowed.update(TABLE_COLUMN_PROPERTIES)
+            allowed.update(hooks.property_aliases.keys())
             guidance = f"Supported properties include: {', '.join(sorted(allowed))}."
         raise ToolInputError(
             f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
@@ -642,14 +625,8 @@ def update_element(
     if element_type in ("header", "footer") and element_update.menu_items is not None:
         _ensure_child_menu(user, element, element_update)
 
-    table_columns = (
-        table_column_items(
-            TableElement.objects.prefetch_related("fields").get(id=element.id)
-        )
-        if changes_table_columns
-        else None
-    )
-    return ElementUpdateOutcome(element, element_type, table_columns, removed_columns)
+    result = hooks.updated_result(element, element_update) | prepared.result
+    return ElementUpdateOutcome(element, element_type, result)
 
 
 def _ensure_child_menu(

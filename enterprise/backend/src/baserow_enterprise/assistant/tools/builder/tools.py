@@ -897,11 +897,8 @@ def update_element(
         "element_id": element.element_id,
         "element_type": element_type,
         "updated_fields": updated_fields,
+        **outcome.result,
     }
-    if outcome.table_columns is not None:
-        result["table_columns"] = outcome.table_columns
-        if outcome.removed_table_columns:
-            result["removed_table_columns"] = outcome.removed_table_columns
     if errors:
         result["errors"] = errors
     return result

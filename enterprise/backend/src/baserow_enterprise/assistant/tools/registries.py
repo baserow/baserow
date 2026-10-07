@@ -65,9 +65,41 @@ class AssistantToolType(Instance):
 
         raise NotImplementedError
 
+    def remembered_result(self, tool_name: str, result: Any) -> Any:
+        """
+        Choose what action memory keeps of a result of one of this group's tools.
+
+        :param tool_name: The name of the tool that ran.
+        :param result: The tool's result.
+        :return: The result to remember for later turns, by default all of it.
+        """
+
+        return result
+
 
 class AssistantToolRegistry(Registry[AssistantToolType]):
     name = "assistant_tool"
+
+    def get_by_tool_name(self, tool_name: str) -> AssistantToolType | None:
+        """
+        Find the tool group that owns a tool.
+
+        :param tool_name: The tool function's name.
+        :return: The group whose tool functions include it, or None when no group
+            has a tool of that name.
+        """
+
+        return next(
+            (
+                tool_type
+                for tool_type in self.get_all()
+                if any(
+                    function.__name__ == tool_name
+                    for function in tool_type.get_tool_functions()
+                )
+            ),
+            None,
+        )
 
     def build_toolset(
         self,
