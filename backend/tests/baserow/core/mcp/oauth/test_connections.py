@@ -99,10 +99,11 @@ def test_list_connections_hides_grants_in_workspaces_the_user_left(
 
 @pytest.mark.django_db
 def test_list_connections_when_oauth_disabled(api_client, data_fixture, settings):
+    url = reverse(LIST_URL)
     settings.BASEROW_MCP_OAUTH_ENABLED = False
     user, token = data_fixture.create_user_and_token()
     data_fixture.create_mcp_endpoint(user=user, oauth_client_id="https://x/y.json")
-    response = api_client.get(reverse(LIST_URL), HTTP_AUTHORIZATION=f"JWT {token}")
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == 200
     assert response.json() == {
         "oauth_enabled": False,
