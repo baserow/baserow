@@ -228,6 +228,7 @@ class BaserowMCPServer:
             if not endpoint:
                 # If there is no endpoint, then there is no need to start a
                 # connection. It's valid to immediately respond with a 401 error.
+                current_key.reset(key_ctx)
                 return Response("Endpoint not found.", status_code=401)
 
             self.capture_event(endpoint, "mcp_connected", {})
