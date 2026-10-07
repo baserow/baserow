@@ -252,7 +252,10 @@ def test_update_integration(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["authorized_subject"]["username"] == user.username
+    assert (
+        response.json()["authorized_subject"]["username"]
+        == integration1.authorized_subject.username
+    )
 
 
 @pytest.mark.django_db
