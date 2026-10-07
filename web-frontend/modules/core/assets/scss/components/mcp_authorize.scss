@@ -88,11 +88,12 @@
 .mcp-authorize__warning {
   margin-bottom: 16px;
   padding: 12px;
-  border-radius: 6px;
   background-color: $palette-yellow-50;
   color: $palette-yellow-900;
   font-size: 13px;
   line-height: 20px;
+
+  @include rounded($rounded-md);
 }
 
 .mcp-authorize__empty {

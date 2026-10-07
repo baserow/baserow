@@ -85,10 +85,6 @@
 
   @include scrollable-overflow;
   @include rounded($rounded);
-
-  &.view-sharing__shared-link-box--short {
-    width: 484px;
-  }
 }
 
 .mcp-oauth-connections__url-copy {
@@ -96,7 +92,6 @@
   position: relative;
   width: 32px;
   height: 32px;
-  vertical-align: center;
   margin-left: 4px;
   line-height: 32px;
   font-size: 14px;
