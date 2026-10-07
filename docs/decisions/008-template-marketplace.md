@@ -1,12 +1,11 @@
 # ADR 008: User Templates
 
-|         |                                                                                      |
-| ------- | ------------------------------------------------------------------------------------ |
-| Status  | Proposed                                                                             |
-| Date    | 2026-10-01                                                                           |
-| Issue   | https://github.com/baserow/baserow/issues/1446                                       |
-| Designs | https://www.figma.com/design/nI1Bt4mHkBs0T04vV6zze0/Template-marketplace?node-id=1-2 |
-| Author  | Przemyslaw Kukulski (@DimmuR)                                                        |
+|        |                                                |
+| ------ | ---------------------------------------------- |
+| Status | Proposed                                       |
+| Date   | 2026-10-01                                     |
+| Issue  | https://github.com/baserow/baserow/issues/1446 |
+| Author | Przemyslaw Kukulski (@DimmuR)                  |
 
 ## Problem and scope
 
@@ -21,14 +20,14 @@ Official templates keep working as they do today.
 
 ## Terms
 
-| Term              | Meaning                                                                                                                                              |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Official template | Shipped in the repository. Works as today, see [Create a template](../development/create-a-template.md).                                             |
-| User template     | Created by a user of this instance, who is its author.                                                                                               |
-| Private / public  | Whether a user template is listed. Every user template starts private; making it public is an explicit action.                                       |
-| Template link     | Permanent, non-secret address of a template.                                                                                                         |
-| Private link      | Optional secret, rotatable, login-only link the author can create to share a template. Opening it grants the signed-in user access to that template. |
-| Template archive  | The frozen export a user template is built from. Kept until the template is deleted or its content updated.                                          |
+| Term               | Meaning                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Official template  | Shipped in the repository. Works as today, see [Create a template](../development/create-a-template.md).                                             |
+| User template      | Created by a user of this instance, who is its author.                                                                                               |
+| Private / public   | Whether a user template is listed. Every user template starts private; making it public is an explicit action.                                       |
+| Template link      | Permanent, non-secret address of a template.                                                                                                         |
+| Private link       | Optional secret, rotatable, login-only link the author can create to share a template. Opening it grants the signed-in user access to that template. |
+| Template workspace | Hidden, memberless workspace holding a user template's content.                                                                                      |
 
 ## Decision
 
@@ -45,26 +44,55 @@ managed independently and never affect each other; repository synchronization on
 manages official templates. For viewers they offer the same functionality: they use the
 same categories and are previewed and installed the same way.
 
-### 2. The archive is the content
+### 2. The content is a hidden workspace
 
-A user template's content is a signed archive in the existing export format, kept for
-as long as the template uses it. Preview, install and download all derive from it.
+A user template's content is a hidden, memberless workspace with a copy of the selected
+applications, made like a snapshot but following the content rules below. It is the same
+kind of workspace as an installed official template, marked as a user template so
+repository synchronization and official template entry points ignore it. Preview reads
+it, install copies from it, and download exports it.
 
-- Creating or updating content requires export permission on the source workspace.
-- The archive contains no integration credentials, no password values and no data
-  identifying members of the source workspace. Ordinary cell values are kept as they
-  are; the author is responsible for what they share.
-- Updating content produces a new archive. The template keeps its identity and links,
-  and a failed or cancelled update leaves the previous content in place.
-- Archives stay installable after Baserow upgrades within the same export format major
-  version. Items an instance cannot import are skipped and the rest still installs;
-  this applies to workspace import too.
+- Creating or updating content requires export permission on the source workspace,
+  since the copy includes every table of the selected applications.
+- The copy follows the content rules below. Before creating or updating content, the
+  author is told which kinds of data the copy removes and that everything else is shared
+  as it is.
+- Updating content replaces the copy. The template keeps its identity and links, and a
+  failed or cancelled update leaves the previous content in place.
+- The template workspace is migrated like every other workspace, so installs always
+  start from current data.
+- A template workspace does not count toward the usage of any workspace, like an
+  installed official template.
 
-### 3. Preview is a rendering of the archive
+The copy keeps the author's content, and only content of the source workspace, but
+nothing that grants access, identifies people
+of the source workspace, or stays connected to the author's resources, and nothing in it
+runs. These rules apply to everything read from a template: preview, install and
+download. Data added to Baserow later follows the same rules.
 
-Each user template gets its own hidden, memberless preview workspace imported from its
-archive, the same mechanism official templates use. It can be rebuilt from the archive
-at any time and is never read by install or download.
+| Data                            | Examples                                                                                                                                                                    | Decision                                                                                                                                                                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Integration credentials         | SMTP password, AI provider key, Slack token                                                                                                                                 | Removed                                                                                                                                                                                                                        |
+| Secrets in service settings     | HTTP request and response headers, query parameters and body                                                                                                                | Removed. Request and link URLs are handled as in a workspace export                                                                                                                                                            |
+| Login provider secrets          | Builder OIDC client secret, SAML identity provider metadata                                                                                                                 | Removed                                                                                                                                                                                                                        |
+| Data sync connections           | Postgres host and user, Jira URL and username, iCal URL, last sync error                                                                                                    | Connection settings and credentials removed. Tables stay data syncs with their last synced rows; scheduled and two-way sync are off until the installer connects them. A sync from a table in the template needs no connection |
+| Trigger addresses               | HTTP trigger URL, inbound email address                                                                                                                                     | Kept, with a new address in the template and in every installed copy; the author's addresses never appear in the template                                                                                                      |
+| Test run data                   | Recorded webhook bodies and API responses                                                                                                                                   | Removed                                                                                                                                                                                                                        |
+| Passwords                       | Password field cells, builder app users' passwords                                                                                                                          | Removed                                                                                                                                                                                                                        |
+| People of the source workspace  | Created by and last modified by, collaborators, view owners, user filters and conditions, mentions, role assignments, notification recipients, the user AI fields update as | Removed. Personal views are not copied                                                                                                                                                                                         |
+| Who services run as             | The integration user or agent of data sources, workflows and data syncs                                                                                                     | Nobody in the template; the installer in an installed copy                                                                                                                                                                     |
+| References outside the template | A builder page, dashboard, button or data sync pointing to an application not included                                                                                      | Cleared                                                                                                                                                                                                                        |
+| Shared views and forms          | Public grid view, form, password-protected view                                                                                                                             | Not shared, in the template or installed copies, as when duplicating a view                                                                                                                                                    |
+| Running services                | Active workflows, periodic triggers                                                                                                                                         | Never run in the template; installed copies start stopped                                                                                                                                                                      |
+| Files                           | Images, attachments                                                                                                                                                         | Kept, as copies that belong to the template and are deleted with it. A file link someone already opened keeps working until then                                                                                               |
+| Active content                  | IFrame embedded HTML                                                                                                                                                        | Kept. Never runs with Baserow's origin in the preview; in installed copies it is off, like custom code, until the installer turns it on                                                                                        |
+| Custom code                     | Builder custom JavaScript, CSS and external scripts, server-side code                                                                                                       | Kept. Never runs in the preview; off in installed copies until the installer turns it on                                                                                                                                       |
+| Cell values and other content   | Rows, names, descriptions, request URLs, code, form redirect URLs, logos                                                                                                    | Kept as is; the author is responsible for what they share                                                                                                                                                                      |
+
+### 3. Preview reads the template workspace
+
+As for official templates, the preview reads the template workspace, for users with
+access to the template.
 
 The preview is read-only and inert: viewers cannot write into it, reach it through
 public views or forms, sign in as its users, or make it run the author's services. As a
@@ -77,55 +105,59 @@ copies work fully. Official template previews are unchanged.
 Public or private decides only whether a template is listed. Who can open it is decided
 by its state, the private link and the actor's role:
 
-| Actor                                  | Private                    | Public                     | Blocked                    |
-| -------------------------------------- | -------------------------- | -------------------------- | -------------------------- |
-| Anonymous                              | —                          | preview                    | —                          |
-| Signed-in user                         | —                          | preview, install           | —                          |
-| Signed-in user who opened private link | preview, install           | preview, install           | —                          |
-| Author                                 | preview, install, manage   | preview, install, manage   | preview, delete            |
-| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate |
+| Actor                                  | Private                    | Public                     | Blocked                                    |
+| -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------ |
+| Anonymous                              | —                          | preview                    | —                                          |
+| Signed-in user                         | —                          | preview, install           | —                                          |
+| Signed-in user who opened private link | preview, install           | preview, install           | —                                          |
+| Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, delete |
+| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                 |
 
-- **Preview** covers the template's details and its preview workspace. Public templates
+- **Preview** covers the template's details and its template workspace. Public templates
   also appear in the "Shared templates" section, like official templates.
-- **Install** covers install and download, and always requires login.
-- **Manage** is editing, sharing, making public or private, and deleting.
-- **Moderate** is the instance admin actions in section 5.
+- **Install** also covers download, and always requires login.
+- **Manage** is editing details and content; creating, rotating or removing the private
+  link; making public or private; and deleting.
+- **Moderate** is the instance admin actions in section 5 and deleting.
 
 Pending and rejected (section 5) count as private. Without access, a template behaves as
 if it does not exist.
 
-- Access applies to every way of reading a template: its details, preview and archive.
+- Access applies to every way of reading a template: its details, preview and download.
+  Being a template grants no access to its workspace by itself.
 - A new template has no private link; the author can create, rotate or remove one.
   Access gained through it lasts until revoked.
 - Rotating or removing the private link revokes access for everyone who opened it; the
   template link stays the same.
 - Blocking suspends the private link and granted access; unblocking restores them.
-- Rejecting disables the private link and granted access; the author cannot create a
-  new one while the template is rejected.
-- While the author is deactivated or pending deletion, their templates behave as
-  blocked.
+- Deactivating the author or scheduling their account deletion does not change their
+  templates; deleting the author deletes them (section 7).
 - Access changes take effect immediately.
 
 ### 5. Making public, approval and moderation
 
-- **Approval** is an instance-wide setting chosen by instance admins, off by default.
-  Turning it on keeps public templates public. Turning it off makes pending templates
-  public; rejected ones stay private.
-- **Making public** is an explicit author action. Without approval, the template becomes
-  public at once. With approval, it stays pending until approved (public) or rejected
-  (private, optional reason), and any edit of a public template sends it back to review.
-  Making private withdraws the listing; links keep working.
-- **Block** is instance admin moderation, in any state. The author can only view and
-  delete a blocked template; only instance admins unblock it, back to private. Unlike
+- **Approval** is an instance-wide setting chosen by instance admins, on by default.
+- **Making public** is an explicit author action, in which the author accepts that the
+  template and their name are listed for everyone on the instance. If the instance does
+  not require approval, the template becomes public at once.
+- **If the instance requires approval**, the template stays pending until an instance
+  admin approves it (public) or rejects it (private, with a reason). Any edit of a public
+  template sends it back to review; an approval covers only what the admin reviewed. An
+  instance admin can also reject a public template to take it out of the listing. The
+  author can resubmit a rejected template, and an instance admin can still approve it.
+- **Making private** withdraws the listing; the private link keeps working.
+- **Block** is instance admin moderation, in any state, with a reason. The author can
+  view and delete a blocked template and change its details or content; it stays
+  blocked until an instance admin unblocks it, back to the state it had before. Unlike
   reject, it does not invite a resubmit.
 - **Abuse reports** use the existing abuse report flow.
-- Authors are notified of moderation decisions; instance admins of templates awaiting
-  approval.
 
 ### 6. Install and download
 
-- Install works the same way as installing an official template.
-- Download works the same way as downloading a workspace export.
+- Install works the same way as installing an official template, and the installed copy
+  follows section 2.
+- Download works the same way as downloading a workspace export: a signed archive that
+  another instance can import.
 - Installed copies are independent: later changes to the template never affect them.
 
 ### 7. Deletion
@@ -133,51 +165,22 @@ if it does not exist.
 Deleting a template, or its author, makes it unavailable at once and removes it
 permanently later; downloaded archives and installed copies are unaffected.
 
-### 8. Other rules
-
-- Template actions are not undoable; their effects reach beyond the actor's workspace.
-  Each one that matters has an explicit inverse.
-- Every template action is recorded in the audit log.
-- Telemetry carries ids and states only, never a user template's name, description or
-  content.
-- Existing template entry points keep serving only official templates; user templates
-  are reachable only under the access rules in section 4.
-
 ## Options considered
 
-| Option                                         | Why not                                                                                                                     |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Render preview from the archive in the browser | Computed values are not exported and builder and dashboard need backend execution; weeks of work for a schema-only preview. |
-| Add viewers as read-only workspace members     | Preview shows up among the user's workspaces, counts toward seats and triggers member notifications.                        |
-| One link as both address and secret            | Rotating a leaked link would also change the address of a public template already shared elsewhere.                         |
-| Trash with restore                             | Workspace trash does not fit memberless preview workspaces, and restore has no current need.                                |
+| Option                                       | Why not                                                                                                                     |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Render preview from an export in the browser | Computed values are not exported and builder and dashboard need backend execution; weeks of work for a schema-only preview. |
+| Add viewers as read-only workspace members   | Preview shows up among the user's workspaces, counts toward seats and triggers member notifications.                        |
+| One link as both address and secret          | Rotating a leaked link would also change the address of a public template already shared elsewhere.                         |
+| Store an export archive as the content       | Not migrated with workspaces, so installs start from an outdated copy; needs version-tolerant import.                       |
+| Let the author choose what the copy keeps    | Installers could no longer rely on section 2, and import would need to know what was kept on purpose.                       |
+| Trash with restore                           | Workspace trash does not fit memberless template workspaces, and restore has no current need.                               |
 
 ## Consequences
 
-- Most of the work reuses export, import, signing, the install job, the preview UI and
-  usage exclusions.
-- Each user template costs one archive plus a full database copy of its tables. Size and
-  count limits are the lever if storage grows.
+- Each user template costs a full copy of its tables and files. There are no size or
+  count limits; instance admins can delete templates, and limits are the lever if
+  storage grows.
 - User template previews cannot demonstrate every behavior (section 3).
-- Long-lived archives create an ongoing compatibility obligation.
-- Installed applications with app user logins need their users' passwords set again.
-
-## Unresolved decisions
-
-These questions affect user templates and are not decided yet.
-
-| Decision                          | Question                                                                                                                                                                                                 |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Usage and billing outside Baserow | Are preview workspaces excluded from usage and billing in systems outside Baserow?                                                                                                                       |
-| Public views on import            | Install keeps public views the installer did not choose to expose. Keep or reset?                                                                                                                        |
-| Import report                     | How skipped items (section 2) are reported to the installer. Until then, they are logged.                                                                                                                |
-| Cross-application dependencies    | Applications referencing others not included in the template keep broken references, as with workspace export today. Block, warn or accept?                                                              |
-| Media cleanup                     | Media files are shared between workspaces and nothing tracks their use, so files of deleted previews stay in storage, as with deleted workspaces today. Accept, or track file usage and clean up?        |
-| Template limits                   | Each template copies its rows and files, and creating or publishing one needs no approval by default. Limit templates per user, rows and file size per template? In place from the first release?        |
-| Leaving rejected                  | Can the author make a rejected template private again and re-enable its private link, or only resubmit it? Either way, the author can create a new template from the same source and share it privately. |
-
-## Technical plan
-
-Schemas, endpoints, permission integration, background jobs, concurrency, cleanup,
-migrations and rollout steps are described in a companion technical plan.
-Implementation changes that keep these decisions update the plan, not this ADR.
+- Installed copies need their credentials, request secrets, data sync connections and
+  app user passwords set again, and their custom code and embedded HTML turned on.
