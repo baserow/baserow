@@ -274,7 +274,6 @@ export default {
 export const Populated = { render: renderTable() }
 export const Empty = { render: renderTable('empty') }
 export const Loading = { render: renderTable('loading') }
-export const NarrowViewport = { render: renderTable('populated', '390px') }
 
 const openFirstRow = async ({ canvas, userEvent }) => {
   const buttons = await canvas.findAllByRole('button', {
@@ -288,7 +287,7 @@ export const ExpandableRows = {
   play: openFirstRow,
 }
 
-export const NarrowExpandableRows = {
+export const NarrowViewport = {
   render: renderTable('populated', '390px', true),
   play: openFirstRow,
 }
