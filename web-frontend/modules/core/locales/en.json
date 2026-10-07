@@ -901,6 +901,10 @@
     "searchPlaceholder": "Find ...",
     "selectedAmountLabel": "{count} selected"
   },
+  "inviteType": {
+    "email": "Email",
+    "link": "Invite link"
+  },
   "memberAssignmentModalFooter": {
     "invite": "Invite {count}",
     "deselectAll": "Deselect all",

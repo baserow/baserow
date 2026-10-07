@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
+import WorkspaceEmailInvite from '@baserow/modules/core/components/workspace/WorkspaceEmailInvite'
 
 const workspace = {
   id: 1,
@@ -56,7 +57,9 @@ describe('WorkspaceMemberInviteModal', () => {
       .reply(200, { id: 1, workspace: 1, email: 'test@example.com' })
 
     const wrapper = await mountAndFillForm()
-    wrapper.vm.captchaToken = 'a-captcha-token'
+    wrapper
+      .findComponent(WorkspaceEmailInvite)
+      .vm.onCaptchaToken('a-captcha-token')
     await wrapper.find('form').trigger('submit.prevent')
     await flushPromises()
 
@@ -88,15 +91,15 @@ describe('WorkspaceMemberInviteModal', () => {
     expect(wrapper.html()).not.toContain('margin-top-2"><!--v-if-->')
   })
 
-  test('clears the captcha token when shown again', async () => {
-    const wrapper = await testApp.mount(WorkspaceMemberInviteModal, {
-      propsData: { workspace },
-    })
-    wrapper.vm.captchaToken = 'consumed-token'
+  test('renders the email invite type from the registry', async () => {
+    const wrapper = await mountAndFillForm()
 
-    await wrapper.vm.show()
-
-    expect(wrapper.vm.captchaToken).toBe('')
+    expect(wrapper.find('.modal-sidebar__nav-link').text()).toBe(
+      'inviteType.email'
+    )
+    expect(wrapper.find('.modal-sidebar__nav-link').classes()).toContain(
+      'active'
+    )
   })
 
   test('shows an invitation specific message when rate limited', async () => {

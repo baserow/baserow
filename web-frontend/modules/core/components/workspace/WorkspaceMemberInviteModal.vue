@@ -1,53 +1,45 @@
 <template>
-  <Modal ref="modal">
-    <h2 class="box__title">
-      {{ $t('membersSettings.membersInviteModal.title') }}
-    </h2>
-    <Error :error="error"></Error>
-    <WorkspaceInviteForm
-      ref="inviteForm"
-      :workspace="workspace"
-      @submitted="inviteSubmitted"
-    >
-      <template #default>
-        <CaptchaWidget
-          ref="captchaWidget"
-          class="col col-12 margin-top-2"
-          context="workspace_invitation"
-          @token="onCaptchaToken"
-        />
-        <div class="col col-12 align-right margin-top-2">
-          <Button
-            type="primary"
-            :loading="inviteLoading"
-            :disabled="inviteLoading"
+  <Modal ref="modal" :left-sidebar="true">
+    <template #sidebar>
+      <div class="modal-sidebar__title">
+        {{ $t('membersSettings.membersInviteModal.title') }}
+      </div>
+      <ul class="modal-sidebar__nav">
+        <li v-for="inviteType in inviteTypes" :key="inviteType.type">
+          <a
+            class="modal-sidebar__nav-link"
+            :class="{ active: activeInviteType === inviteType.type }"
+            @click="activeInviteType = inviteType.type"
           >
-            {{ $t('membersSettings.membersInviteModal.submit') }}
-          </Button>
-        </div>
-      </template>
-      <template #roleSelectorLabel>
-        <HelpIcon
-          class="margin-right-1"
-          :tooltip="$t('membersSettings.membersInviteModal.helpIconText')"
-        />
-      </template>
-    </WorkspaceInviteForm>
+            <i
+              class="modal-sidebar__nav-icon"
+              :class="inviteType.getIconClass()"
+            ></i>
+            {{ inviteType.getName() }}
+          </a>
+        </li>
+      </ul>
+    </template>
+    <template #content>
+      <h2 class="box__title">
+        {{ $t('membersSettings.membersInviteModal.title') }}
+      </h2>
+      <component
+        :is="activeInviteComponent"
+        ref="invite"
+        :workspace="workspace"
+        @submitted="inviteSubmitted"
+      ></component>
+    </template>
   </Modal>
 </template>
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
-import error from '@baserow/modules/core/mixins/error'
-import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
-import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
-import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
   name: 'MembersInviteModal',
-  components: { WorkspaceInviteForm, CaptchaWidget },
-  mixins: [modal, error],
+  mixins: [modal],
   props: {
     workspace: {
       type: Object,
@@ -57,77 +49,30 @@ export default {
   emits: ['invite-submitted'],
   data() {
     return {
-      inviteLoading: false,
-      captchaToken: '',
+      activeInviteType: null,
     }
+  },
+  computed: {
+    inviteTypes() {
+      return this.$registry
+        .getOrderedList('invite')
+        .filter((inviteType) => inviteType.isVisible?.(this.workspace) ?? true)
+    },
+    activeInviteComponent() {
+      return this.inviteTypes
+        .find((inviteType) => inviteType.type === this.activeInviteType)
+        ?.getComponent()
+    },
   },
   methods: {
     show(...args) {
-      this.hideError()
-      // Captcha tokens are single use, so a token from a previous open could
-      // already be consumed or expired.
-      this.captchaToken = ''
-      this.$refs.captchaWidget?.reset()
+      this.activeInviteType = this.inviteTypes[0]?.type ?? null
+      this.$nextTick(() => this.$refs.invite?.reset?.())
       return modal.methods.show.call(this, ...args)
     },
-    async inviteSubmitted(values) {
-      this.inviteLoading = true
-      this.hideError()
-
-      try {
-        // The public accept url is the page where the user can publicly navigate too,
-        // to accept the workspace invitation.
-        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
-        const { data } = await WorkspaceService(this.$client).sendInvitation(
-          this.workspace.id,
-          acceptUrl,
-          { ...values, captchaToken: this.captchaToken }
-        )
-        this.$bus.$emit('invite-submitted', data)
-        this.$emit('invite-submitted')
-        this.hide()
-      } catch (error) {
-        // The captcha token can only be used once, so a new one must be solved
-        // before the invitation can be sent again.
-        if (this.$refs.captchaWidget) {
-          this.$refs.captchaWidget.reset()
-        }
-        // The backend responds with a generic throttled error, so it can't be
-        // matched on an error code like the ones below.
-        if (error.handler?.isTooManyRequests()) {
-          this.showError(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.text'
-            )
-          )
-          error.handler.handled()
-          this.inviteLoading = false
-          return
-        }
-
-        this.handleError(error, 'workspace', {
-          ERROR_GROUP_USER_ALREADY_EXISTS: new ResponseErrorMessage(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.text'
-            )
-          ),
-          ERROR_CAPTCHA_VERIFICATION_FAILED: new ResponseErrorMessage(
-            this.$t('error.captchaVerificationFailedTitle'),
-            this.$t('error.captchaVerificationFailedMessage')
-          ),
-        })
-      }
-
-      this.inviteLoading = false
-    },
-    onCaptchaToken(token) {
-      this.captchaToken = token
+    inviteSubmitted() {
+      this.$emit('invite-submitted')
+      this.hide()
     },
   },
 }
