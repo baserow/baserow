@@ -81,6 +81,16 @@ describe('MCP authorize page', () => {
     return { wrapper, assign }
   }
 
+  // The test i18n drops message params; this `$t` keeps them in the text.
+  const withParams = {
+    global: {
+      mocks: {
+        $t: (key, params) =>
+          params ? `${key} ${JSON.stringify(params)}` : key,
+      },
+    },
+  }
+
   function toolCheckbox(wrapper, name) {
     return wrapper.find(`[data-test="mcp-authorize-tool-${name}"] input`)
   }
@@ -150,6 +160,52 @@ describe('MCP authorize page', () => {
     expect(other.find('[data-test="mcp-authorize-verified"]').exists()).toBe(
       false
     )
+  })
+
+  test('a verified client is named by its host', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, consent)
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
+    await flushPromises()
+    const title = wrapper.find('[data-test="mcp-authorize-title"]').text()
+    expect(title).toContain('claude.ai')
+    expect(title).not.toContain('claude Code')
+  })
+
+  test('an unverified client is named by its own name', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, { ...consent, verified: false, verified_host: null })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="mcp-authorize-title"]').text()).toContain(
+      'claude Code'
+    )
+  })
+
+  test('marks a self-registered client as not verified', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, {
+        ...consent,
+        verified: false,
+        verified_host: null,
+        registration_source: 'dcr',
+      })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="mcp-authorize-verified"]').exists()).toBe(
+      false
+    )
+    expect(
+      wrapper.find('[data-test="mcp-authorize-unverified"]').text()
+    ).toContain('localhost')
   })
 
   test('shows the signed in user and a database count per workspace', async () => {

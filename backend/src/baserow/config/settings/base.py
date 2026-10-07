@@ -894,6 +894,23 @@ except ValueError as exc:
         f"BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS is invalid. It must be a comma "
         f"separated list of rate limits, for example '30/m,300/h'. {exc}"
     ) from exc
+BASEROW_MCP_OAUTH_DCR_ENABLED = str_to_bool(
+    os.getenv("BASEROW_MCP_OAUTH_DCR_ENABLED") or "true"
+)
+try:
+    BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS") or "10/m,60/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '10/m,60/h'. {exc}"
+    ) from exc
+MCP_OAUTH_UNUSED_DCR_CLIENT_DAYS = 1
 
 # django-oauth-toolkit's migrations declare swappable dependencies on these settings,
 # and `migrate` resolves them when it checks for model changes, so they must exist.
@@ -936,7 +953,12 @@ OAUTH2_PROVIDER = {
     "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": MCP_RESOURCE_URL,
     "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [MCP_AUTHORIZATION_SERVER_URL],
     "OAUTH2_PROTECTED_RESOURCE_NAME": "Baserow MCP",
-    "DCR_ENABLED": False,
+    "DCR_ENABLED": BASEROW_MCP_OAUTH_DCR_ENABLED,
+    # MCP clients register before the user signs in, so registration is open.
+    # MCPRegistrationView rate-limits it and restricts redirect URIs.
+    "DCR_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.dcr.AllowAllDCRPermission",
+    ),
     "CIMD_ENABLED": True,
     "CIMD_REGISTRATION_PERMISSION_CLASSES": (
         "oauth2_provider.cimd.HostAllowlistCIMDPermission",

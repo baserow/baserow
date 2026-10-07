@@ -6,6 +6,7 @@ from oauth2_provider.oauth2_validators import OAuth2Validator
 MCP_SCOPE = "mcp"
 OFFLINE_ACCESS_SCOPE = "offline_access"
 ENDPOINT_SCOPE_RE = re.compile(r"^endpoint:(\d+)$")
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 def endpoint_scope(endpoint_id: int) -> str:

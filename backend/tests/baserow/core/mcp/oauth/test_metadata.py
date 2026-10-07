@@ -8,7 +8,7 @@ def test_authorization_server_metadata(client):
     data = response.json()
     assert data["client_id_metadata_document_supported"] is True
     assert "none" in data["token_endpoint_auth_methods_supported"]
-    assert "registration_endpoint" not in data
+    assert data["registration_endpoint"].endswith("/oauth/register/")
     assert data["token_endpoint"].endswith("/oauth/token/")
     assert data["authorization_endpoint"].endswith("/oauth/authorize/")
     assert data["code_challenge_methods_supported"] == ["S256"]
@@ -28,13 +28,3 @@ def test_protected_resource_metadata(client, settings):
         assert data["scopes_supported"] == ["mcp"]
         assert "offline_access" not in data["scopes_supported"]
         assert data["bearer_methods_supported"] == ["header"]
-
-
-@pytest.mark.django_db
-def test_dynamic_client_registration_is_not_available(client):
-    response = client.post(
-        "/oauth/register/",
-        {"redirect_uris": ["http://127.0.0.1:33418/callback"]},
-        content_type="application/json",
-    )
-    assert response.status_code == 404

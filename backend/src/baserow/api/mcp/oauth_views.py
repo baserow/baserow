@@ -27,14 +27,13 @@ from baserow.core.mcp.oauth.authorize import (
     issue_code,
     validate_query,
 )
+from baserow.core.mcp.oauth.validators import LOOPBACK_HOSTS
 from baserow.core.mcp.operations import CreateMCPEndpointOperationType
 from baserow.core.mcp.registries import mcp_tool_registry
 from baserow.core.models import WorkspaceUser
 
 from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
 from .oauth_serializers import ConsentSerializer
-
-LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 def _require_oauth_enabled():

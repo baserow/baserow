@@ -35,7 +35,7 @@
             </div>
           </div>
           <h1 class="mcp-authorize__title" data-test="mcp-authorize-title">
-            {{ $t('mcpAuthorize.title', { client: consent.client_name }) }}
+            {{ $t('mcpAuthorize.title', { client: clientLabel }) }}
           </h1>
           <p class="mcp-authorize__subtitle">
             {{ $t('mcpAuthorize.subtitle') }}
@@ -48,6 +48,9 @@
               $t('mcpAuthorize.verified', { host: consent.verified_host })
             }}</Badge
           >
+          <Badge v-else color="yellow" data-test="mcp-authorize-unverified">{{
+            $t('mcpAuthorize.unverified', { host: consent.redirect_host })
+          }}</Badge>
           <p class="mcp-authorize__returns" data-test="mcp-authorize-returns">
             {{ $t('mcpAuthorize.returns', { host: consent.redirect_host }) }}
           </p>
@@ -243,8 +246,14 @@ function tickFor(id, value = consent.value) {
 watch(workspaceId, (id) => tickFor(id))
 
 const username = computed(() => store.getters['auth/getUsername'])
+// A verified client is named by its host; anything else is self-declared.
+const clientLabel = computed(() =>
+  consent.value?.verified
+    ? consent.value.verified_host
+    : consent.value?.client_name || ''
+)
 const clientInitial = computed(() =>
-  (consent.value?.client_name || '').trim().charAt(0).toUpperCase()
+  clientLabel.value.trim().charAt(0).toUpperCase()
 )
 
 function databasesLabel(count) {

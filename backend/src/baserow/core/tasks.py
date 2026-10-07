@@ -10,6 +10,10 @@ from .last_viewed.tasks import (
     mark_item_viewed,
     setup_periodic_last_viewed_tasks,
 )
+from .mcp.oauth.tasks import (
+    delete_unused_mcp_oauth_clients,
+    setup_periodic_mcp_oauth_tasks,
+)
 from .snapshots.tasks import delete_expired_snapshots
 from .telemetry.tasks import initialize_otel
 from .trash.tasks import (
@@ -39,6 +43,8 @@ def sync_templates_task(self):
 
 
 __all__ = [
+    "delete_unused_mcp_oauth_clients",
+    "setup_periodic_mcp_oauth_tasks",
     "permanently_delete_marked_trash",
     "mark_old_trash_for_permanent_deletion",
     "setup_period_trash_tasks",

@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.http import JsonResponse
 
+from baserow.api.exceptions import ThrottledAPIException
 from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.handler import RateLimitThrottle
 
@@ -17,3 +19,29 @@ class MCPOAuthTokenRateThrottle(RateLimitThrottle):
 
     def get_ident(self, request) -> str | None:
         return get_user_remote_ip_address_from_request(request)
+
+
+class MCPOAuthRegistrationRateThrottle(MCPOAuthTokenRateThrottle):
+    """Limits anonymous DCR registrations per client IP."""
+
+    scope = "mcp_oauth_registration"
+
+    def get_rate_limits(self, request):
+        return settings.BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS
+
+
+def rate_limited(throttle, request, view) -> JsonResponse | None:
+    """
+    The OAuth `slow_down` response when `throttle` refuses the request, else None.
+    """
+
+    try:
+        throttle.allow_request(request, view)
+    except ThrottledAPIException:
+        response = JsonResponse(
+            {"error": "slow_down", "error_description": "Too many requests."},
+            status=429,
+        )
+        response["Retry-After"] = str(throttle.wait())
+        return response
+    return None

@@ -3,6 +3,7 @@
     "title": "Connect {client}",
     "subtitle": "It will act as you in the workspace you choose.",
     "verified": "✓ Verified by {host}",
+    "unverified": "Not verified · sends you back to {host}",
     "returns": "Returns to {host}",
     "workspace": "Workspace",
     "databases": "{count} database | {count} databases",
