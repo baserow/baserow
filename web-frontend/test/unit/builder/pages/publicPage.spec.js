@@ -70,6 +70,7 @@ describe('PublicPage', () => {
     getTokenIfEnoughTimeLeft.mockReset()
     route.fullPath = '/builder/preview/missing'
     route.params.pathMatch = 'missing'
+    route.query = {}
     store.getters = {}
     useAsyncData.mockReturnValue({
       data: ref(null),
@@ -115,7 +116,7 @@ describe('PublicPage', () => {
     store.getters['application/getSelected'] = null
     store.getters['userSourceUser/isAuthenticated'] = () => false
     store.dispatch.mockImplementation((type) => {
-      if (type === 'publicBuilder/fetchPreview') {
+      if (type === 'publicBuilder/fetch') {
         return { id: builder.id }
       }
       if (type === 'application/selectById') {

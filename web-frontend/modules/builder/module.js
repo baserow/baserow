@@ -39,6 +39,10 @@ export default defineNuxtModule({
       name: 'exchangePreviewToken',
       path: resolve('./middleware/exchangePreviewToken.js'),
     })
+    addRouteMiddleware({
+      name: 'userSourceAuthProviderCallback',
+      path: resolve('./middleware/userSourceAuthProviderCallback.js'),
+    })
 
     // Add routes
     extendPages((pages) => {

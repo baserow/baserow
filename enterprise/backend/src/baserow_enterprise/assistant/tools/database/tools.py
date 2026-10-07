@@ -723,7 +723,7 @@ def update_fields(
     WHAT it does: Updates field properties. Cannot change field type or link_row targets — create a new field instead.
     RETURNS: Updated fields with id, name, type and current properties.
     DO NOT USE when: You need to change a field's type — delete and recreate it instead.
-    HOW: Call get_tables_schema first to see current field IDs and types.
+    HOW: Call get_tables_schema first to see current field IDs, types and option IDs. For select options, use add_options, update_options and remove_options; options you don't list stay as they are.
     """
 
     user = ctx.deps.user

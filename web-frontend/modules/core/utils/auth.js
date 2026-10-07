@@ -4,11 +4,15 @@ import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { jwtDecode } from 'jwt-decode'
 import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
+import {
+  USER_SOURCE_COOKIE_TOKEN_NAME,
+  REFRESH_TOKEN_MAX_AGE,
+  getRefreshTokenCookieOptions,
+} from '@baserow/modules/core/utils/userSourceAuth'
 
 const cookieTokenName = 'jwt_token'
-export const userSourceCookieTokenName = 'user_source_token'
+export const userSourceCookieTokenName = USER_SOURCE_COOKIE_TOKEN_NAME
 export const userSessionCookieName = 'user_session'
-const refreshTokenMaxAge = 60 * 60 * 24 * 7
 
 export const setToken = (
   appOrContext,
@@ -22,13 +26,15 @@ export const setToken = (
     const secure =
       configuration.secure ??
       isSecureURL(configuration.cookieUrl || config.public.publicWebFrontendUrl)
-    const cookie = useCookie(getCookieName(config, key), {
-      path: configuration.path || '/',
-      maxAge: refreshTokenMaxAge,
-      sameSite:
-        configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
-      secure,
-    })
+    const cookie = useCookie(
+      getCookieName(config, key),
+      getRefreshTokenCookieOptions({
+        path: configuration.path || '/',
+        sameSite:
+          configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
+        secure,
+      })
+    )
     cookie.value = token
   })
 }
@@ -68,7 +74,7 @@ export const setUserSessionCookie = (
 
     const cookie = useCookie(getCookieName(config, key), {
       path: '/',
-      maxAge: refreshTokenMaxAge,
+      maxAge: REFRESH_TOKEN_MAX_AGE,
       sameSite:
         configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
       secure,

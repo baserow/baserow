@@ -4,7 +4,14 @@ from typing import Any
 
 from baserow.contrib.database.table.models import Table
 
-from .types import FieldItem, FieldItemCreate, TableItem, TableItemCreate
+from .types import (
+    FieldItem,
+    FieldItemCreate,
+    SelectOption,
+    TableItem,
+    TableItemCreate,
+    option_value_key,
+)
 
 _FIELD_SETTINGS = {
     "long_text": ("rich_text",),
@@ -80,26 +87,31 @@ def plan_table_creation(
     )
 
 
+def _find_option(options: list[SelectOption], value: str) -> SelectOption | None:
+    exact = next((option for option in options if option.value == value), None)
+    if exact is not None:
+        return exact
+    key = option_value_key(value)
+    return next((o for o in options if option_value_key(o.value) == key), None)
+
+
 def _select_option_conflicts(
     requested: FieldItemCreate, actual: FieldItem
 ) -> dict[str, Any]:
-    actual_by_value = {option.value: option for option in actual.options or []}
-    missing = [
-        option.model_dump()
-        for option in requested.options or []
-        if option.value not in actual_by_value
-    ]
-    wrong_colors = [
-        {
-            "value": option.value,
-            "actual_color": actual_by_value[option.value].color,
-            "requested_color": option.color,
-        }
-        for option in requested.options or []
-        if option.value in actual_by_value
-        and option.color is not None
-        and actual_by_value[option.value].color != option.color
-    ]
+    missing, wrong_colors = [], []
+    for option in requested.options or []:
+        match = _find_option(actual.options or [], option.value)
+        if match is None:
+            missing.append(option.model_dump())
+        elif option.color is not None and match.color != option.color:
+            wrong_colors.append(
+                {
+                    "id": match.id,
+                    "value": match.value,
+                    "actual_color": match.color,
+                    "requested_color": option.color,
+                }
+            )
     conflicts: dict[str, Any] = {}
     if missing:
         conflicts["missing_options"] = missing
@@ -323,7 +335,8 @@ def reused_table_report(
             "whether to modify them or create separate tables with different names, "
             "then stop. Only after that authorization, call create_fields with "
             "each table id and its missing_fields payload; use update_fields for "
-            "supported field settings. "
+            "supported field settings, with missing_options as add_options and "
+            "option_color_mismatches as update_options by id. "
             "Field types and link/lookup relations cannot be changed in place. Do "
             "not claim completion while mismatches remain; report them accurately."
         ),

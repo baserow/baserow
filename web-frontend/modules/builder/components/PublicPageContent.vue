@@ -27,19 +27,12 @@ import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlRes
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
 import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
+import { resolveSafeNextPath } from '@baserow/modules/builder/utils/routing'
 
-import {
-  userSourceCookieTokenName,
-  setToken,
-} from '@baserow/modules/core/utils/auth'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
-import { useRoute, useRouter, useRuntimeConfig } from '#imports'
-import {
-  getBuilderPreviewCookiePath,
-  getBuilderPreviewUserSourceCookieName,
-} from '@baserow/modules/builder/utils/preview'
+import { useRoute, useRouter } from '#imports'
 
 defineOptions({
   name: 'PublicPageContent',
@@ -49,7 +42,6 @@ const store = useStore()
 const route = useRoute()
 const router = useRouter()
 const nuxtApp = useNuxtApp()
-const config = useRuntimeConfig()
 
 const { $registry, $i18n } = nuxtApp
 
@@ -311,7 +303,6 @@ watch(
 )
 
 onMounted(async () => {
-  await checkProviderAuthentication()
   checkProviderLoginError()
   await maybeRedirectUserToLoginPage()
 })
@@ -358,81 +349,9 @@ const maybeRedirectUserToLoginPage = async () => {
 }
 
 const maybeRedirectToNextPage = async () => {
-  if (route.query.next) {
-    const decodedNext = decodeURIComponent(route.query.next)
-    await router.push(decodedNext)
-  }
-}
-
-const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
-  await store.dispatch('userSourceUser/logoff', {
-    application: builder,
-  })
-  // Redirect to home page after logout
-  return redirect(
-    prefixInternalResolvedUrl('/', 'page', props.mode, builder.id)
-  )
-}
-
-const checkProviderAuthentication = async () => {
-  // Iterate over all auth providers to check if one can get a refresh token
-  let refreshTokenFromProvider = null
-
-  for (const userSource of props.builder.user_sources) {
-    for (const authProvider of userSource.auth_providers) {
-      refreshTokenFromProvider = $registry
-        .get('appAuthProvider', authProvider.type)
-        .getAuthToken(userSource, authProvider, route)
-      if (refreshTokenFromProvider) {
-        break
-      }
-    }
-    if (refreshTokenFromProvider) {
-      break
-    }
-  }
-
-  if (refreshTokenFromProvider) {
-    const previewUserSourceCookie = props.mode === 'preview'
-    const cookieUrl =
-      props.mode === 'preview'
-        ? config.public.builderPreviewUrl
-        : config.public.publicWebFrontendUrl
-    setToken(
-      nuxtApp,
-      refreshTokenFromProvider,
-      previewUserSourceCookie
-        ? getBuilderPreviewUserSourceCookieName()
-        : userSourceCookieTokenName,
-      {
-        sameSite: 'Lax',
-        cookieUrl,
-        path: previewUserSourceCookie
-          ? getBuilderPreviewCookiePath(props.builder.id)
-          : '/',
-      }
-    )
-    try {
-      await store.dispatch('userSourceUser/refreshAuth', {
-        application: props.builder,
-        token: refreshTokenFromProvider,
-      })
-      store.dispatch('builderToast/info', {
-        title: $i18n.t('publicPage.loginToastTitle'),
-        message: $i18n.t('publicPage.loginToastMessage'),
-      })
-    } catch (error) {
-      if (error.response?.status === 401) {
-        // We logoff as the token has probably expired or became invalid
-        await logOffAndReturnToLogin({
-          builder: props.builder,
-          store,
-          redirect: (...args) => router.push(...args),
-        })
-      } else {
-        throw error
-      }
-    }
+  const nextPath = resolveSafeNextPath(route.query.next)
+  if (nextPath) {
+    await router.push(nextPath)
   }
 }
 

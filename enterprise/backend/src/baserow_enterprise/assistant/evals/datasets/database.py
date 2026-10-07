@@ -1165,13 +1165,29 @@ register_case(
 def _updates_select_options_scenario(fx: Fixtures) -> EvalScenario:
     user, workspace, database, table = _make_tasks_table(fx)
     status_field = fx.create_single_select_field(table=table, name="Status")
-    fx.create_select_option(field=status_field, value="To Do", order=1)
-    fx.create_select_option(field=status_field, value="Done", order=2)
+    to_do = fx.create_select_option(
+        field=status_field, value="To Do", color="light-green", order=1
+    )
+    done = fx.create_select_option(
+        field=status_field, value="Done", color="dark-blue", order=2
+    )
+    row = (
+        RowHandler()
+        .force_create_rows(user, table, [{status_field.db_column: done.id}])
+        .created_rows[0]
+    )
     return EvalScenario(
         user=user,
         workspace=workspace,
         ui_context=build_database_ui_context(user, workspace, database, table),
-        refs={"status_field": status_field},
+        refs={
+            "status_field": status_field,
+            "existing_options": [
+                (option.id, option.value, option.color) for option in (to_do, done)
+            ],
+            "row_id": row.id,
+            "row_option_id": done.id,
+        },
     )
 
 
@@ -1179,18 +1195,26 @@ def _check_updates_select_options(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     status_field = scenario.refs["status_field"]
-    status_field.refresh_from_db()
-    options = list(status_field.select_options.values_list("value", flat=True))
+    options = list(status_field.select_options.values_list("id", "value", "color"))
+    values = [value for _, value, _ in options]
+    model = status_field.table.get_model()
+    row = model.objects.filter(id=scenario.refs["row_id"]).first()
+    row_option_id = getattr(row, f"{status_field.db_column}_id", None)
     return [
         CheckResult(
             "In Progress option added",
-            any("in progress" in o.lower() for o in options),
-            hint=f"options: {options}",
+            any("in progress" in value.lower() for value in values),
+            hint=f"options: {values}",
         ),
         CheckResult(
             "existing options preserved",
-            {"to do", "done"} <= {o.lower() for o in options},
+            set(scenario.refs["existing_options"]) <= set(options),
             hint=f"options: {options}",
+        ),
+        CheckResult(
+            "row keeps its option",
+            row_option_id == scenario.refs["row_option_id"],
+            hint=f"row option id: {row_option_id}",
         ),
     ]
 

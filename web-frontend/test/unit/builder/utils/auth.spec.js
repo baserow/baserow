@@ -1,4 +1,7 @@
-import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
+import {
+  consumeLoginError,
+  getLoginError,
+} from '@baserow/modules/builder/utils/auth'
 
 /**
  * Builds a registry returning an auth provider type that reports an error for the
@@ -7,10 +10,16 @@ import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
  */
 const registryFor = (userSourceIdWithError, message = 'Login failed') => ({
   get: () => ({
-    getLoginError(userSource, route) {
-      return route.query[`saml_error__${userSource.id}`] &&
+    getAuthProviderCallback(userSource, url) {
+      const queryParamName = `saml_error__${userSource.id}`
+      return url.searchParams.has(queryParamName) &&
         userSource.id === userSourceIdWithError
-        ? message
+        ? {
+            sourceId: userSource.id,
+            token: null,
+            error: { message },
+            queryParamNames: [queryParamName],
+          }
         : null
     },
   }),
@@ -29,6 +38,16 @@ describe('consumeLoginError', () => {
     expect(
       consumeLoginError(registryFor(42), [userSource(1), userSource(42)])
     ).toBe('Login failed')
+  })
+
+  test('finds an error without mutating its URL', () => {
+    const url = new URL('https://site.example/?saml_error__42=errorSomething')
+
+    expect(getLoginError(registryFor(42), [userSource(42)], url)).toEqual({
+      message: 'Login failed',
+      queryParamNames: ['saml_error__42'],
+    })
+    expect(url.searchParams.has('saml_error__42')).toBe(true)
   })
 
   test('returns null when no user source reports an error', () => {

@@ -318,8 +318,7 @@ def update_field(
 
     # Verify workspace access
     filter_tables(user, workspace).filter(id=base_field.table_id).get()
-    field_type = field_type_registry.get_by_model(field).type
-    kwargs = field_update.to_update_kwargs(field_type)
+    kwargs = field_update.to_update_kwargs(field)
     previous = FieldItem.from_django_orm(field)
 
     if not kwargs:
