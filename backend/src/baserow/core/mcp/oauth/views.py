@@ -33,6 +33,5 @@ class MCPAuthorizeRedirectView(View):
         # query string, but leave base64url characters alone.
         query = request.META.get("QUERY_STRING", "")
         encoded = base64.urlsafe_b64encode(query.encode()).rstrip(b"=").decode()
-        return HttpResponseRedirect(
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/mcp-authorize?request={encoded}"
-        )
+        frontend_url = settings.PUBLIC_WEB_FRONTEND_URL.rstrip("/")
+        return HttpResponseRedirect(f"{frontend_url}/mcp-authorize?request={encoded}")

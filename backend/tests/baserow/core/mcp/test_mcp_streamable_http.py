@@ -7,7 +7,7 @@ import pytest
 from asgiref.sync import async_to_sync
 from httpx import ASGITransport, AsyncClient
 
-from baserow.core.mcp import BaserowMCPServer, current_endpoint_id, current_key
+from baserow.core.mcp import BaserowMCPServer, current_endpoint, current_key
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import enabled_tool_names, obtain_tokens
 
@@ -48,7 +48,7 @@ def _post(body, auth=None, path="/mcp"):
             response = await client.post(path, json=body, headers=headers)
         # The handler must not leak the endpoint key into the caller's context.
         assert current_key.get(None) is None
-        assert current_endpoint_id.get(None) is None
+        assert current_endpoint.get(None) is None
         return response
 
     return async_to_sync(inner)()
@@ -104,13 +104,42 @@ def test_endpoint_key_lists_tools(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_trailing_slash_is_served(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    response = _post(LIST, endpoint.key, path="/mcp/")
+def test_membership_is_checked_once_per_request(data_fixture):
+    from unittest.mock import patch
+
+    from baserow.core.subjects import UserSubjectType
+
+    endpoint = data_fixture.create_mcp_endpoint()
+    with patch.object(
+        UserSubjectType, "is_in_workspace", autospec=True, return_value=True
+    ) as check:
+        response = _post(
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, auth=endpoint.key
+        )
     assert response.status_code == 200
-    assert response.json()["result"]["tools"]
+    assert check.call_count == 1
+
+
+@pytest.mark.django_db
+def test_trailing_slash_is_not_served(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint()
+    response = _post(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        auth=endpoint.key,
+        path="/mcp/",
+    )
+    assert response.status_code == 404
+
+
+def test_www_authenticate_uses_the_slash_free_server_url(settings):
+    from baserow.core.mcp.auth import www_authenticate
+
+    settings.PUBLIC_BACKEND_URL = "https://br.example/"
+    settings.MCP_AUTHORIZATION_SERVER_URL = "https://br.example"
+    assert (
+        'resource_metadata="https://br.example/.well-known/'
+        'oauth-protected-resource/mcp"'
+    ) in www_authenticate()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -346,4 +375,4 @@ def test_get_endpoint_resolves_grants_by_id_only(data_fixture):
     get = async_to_sync(lookup)
     assert grant.key is None
     assert get(current_key, manual.key).id == manual.id
-    assert get(current_endpoint_id, grant.id).id == grant.id
+    assert get(current_endpoint, grant).id == grant.id

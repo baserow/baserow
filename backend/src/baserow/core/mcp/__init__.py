@@ -10,11 +10,13 @@ if TYPE_CHECKING:
     from mcp.types import Tool
     from starlette.applications import Starlette
 
+    from baserow.core.mcp.models import MCPEndpoint
+
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
-# Set by `/mcp` once the bearer is resolved. It takes precedence over `current_key`,
-# so endpoints of OAuth grants, whose key is refused, still resolve for their tokens.
-current_endpoint_id: contextvars.ContextVar[int] = contextvars.ContextVar(
-    "current_endpoint_id"
+# Set by `/mcp` to the endpoint its bearer resolved to, membership already checked.
+# Takes precedence over `current_key`, which the SSE transport uses.
+current_endpoint: contextvars.ContextVar["MCPEndpoint"] = contextvars.ContextVar(
+    "current_endpoint"
 )
 
 
@@ -80,11 +82,10 @@ class BaserowMCPServer:
         from baserow.core.mcp.models import MCPEndpoint
         from baserow.core.subjects import UserSubjectType
 
-        endpoint_id = current_endpoint_id.get(None)
-        if endpoint_id is not None:
-            lookup = {"id": endpoint_id}
-        else:
-            lookup = {"key": current_key.get()}
+        endpoint = current_endpoint.get(None)
+        if endpoint is not None:
+            return endpoint
+        lookup = {"key": current_key.get()}
         try:
             endpoint = await MCPEndpoint.objects.select_related(
                 "user", "user__profile", "workspace"
@@ -297,10 +298,8 @@ class BaserowMCPServer:
                 if scheme.lower() == "bearer" and value:
                     endpoint, error = await resolve_bearer(value)
 
-                id_ctx = current_endpoint_id.set(endpoint.id if endpoint else None)
+                endpoint_ctx = current_endpoint.set(endpoint)
                 try:
-                    if endpoint is not None and await server.get_endpoint() is None:
-                        endpoint, error = None, INVALID_TOKEN
                     if endpoint is None:
                         status_code = 403 if error == INSUFFICIENT_SCOPE else 401
                         response = JSONResponse(
@@ -312,7 +311,7 @@ class BaserowMCPServer:
                         return
                     await server._handle_streamable_http(scope, receive, send)
                 finally:
-                    current_endpoint_id.reset(id_ctx)
+                    current_endpoint.reset(endpoint_ctx)
 
         streamable_http_app = _StreamableHTTPApp()
 
@@ -323,17 +322,19 @@ class BaserowMCPServer:
         # for compatibility reasons. If anything changes in the Python SDK, which seems
         # to be active development, then we should remain close in terms of
         # compatibility.
-        return Starlette(
+        app = Starlette(
             debug=False,
             routes=[
                 # Only POST: a stateless server has no stream to offer on GET, and
                 # the spec allows answering that with 405.
                 Route("/mcp", endpoint=streamable_http_app, methods=["POST"]),
-                Route("/mcp/", endpoint=streamable_http_app, methods=["POST"]),
                 Route(sse_path, endpoint=handle_sse),
                 Mount(messages_path, app=sse.handle_post_message),
             ],
         )
+        # The redirect would point clients to an http:// URL behind a TLS proxy.
+        app.router.redirect_slashes = False
+        return app
 
 
 _baserow_mcp = None

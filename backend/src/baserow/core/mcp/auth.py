@@ -16,13 +16,36 @@ def www_authenticate(error: str | None = None) -> str:
     clients at the protected resource metadata so they can start the OAuth flow.
     """
 
-    metadata = f"{settings.PUBLIC_BACKEND_URL}/.well-known/oauth-protected-resource/mcp"
+    metadata = (
+        f"{settings.MCP_AUTHORIZATION_SERVER_URL}"
+        "/.well-known/oauth-protected-resource/mcp"
+    )
     value = f'Bearer resource_metadata="{metadata}"'
     if error == INSUFFICIENT_SCOPE:
         value += f', error="{INSUFFICIENT_SCOPE}", scope="mcp"'
     elif error:
         value += f', error="{error}"'
     return value
+
+
+def _load_member_endpoint(**lookup) -> MCPEndpoint | None:
+    """
+    The endpoint with its user and workspace loaded, or None when it doesn't exist
+    or its user is no longer an active member of its workspace.
+    """
+
+    from baserow.core.subjects import UserSubjectType
+
+    endpoint = (
+        MCPEndpoint.objects.select_related("user", "user__profile", "workspace")
+        .filter(**lookup)
+        .first()
+    )
+    if endpoint is None:
+        return None
+    if not UserSubjectType().is_in_workspace(endpoint.user, endpoint.workspace):
+        return None
+    return endpoint
 
 
 def _resolve_oauth_token(value: str):
@@ -47,7 +70,7 @@ def _resolve_oauth_token(value: str):
     endpoint_id = endpoint_id_from_scopes(token.scope.split())
     if endpoint_id is None:
         return None, INSUFFICIENT_SCOPE
-    endpoint = MCPEndpoint.objects.filter(id=endpoint_id, user_id=token.user_id).first()
+    endpoint = _load_member_endpoint(id=endpoint_id, user_id=token.user_id)
     if endpoint is None:
         return None, INVALID_TOKEN
     return endpoint, None
@@ -59,7 +82,7 @@ def _resolve_bearer_sync(value: str):
         if result is not None:
             return result
 
-    endpoint = MCPEndpoint.objects.filter(key=value).first()
+    endpoint = _load_member_endpoint(key=value)
     if endpoint is None:
         return None, INVALID_TOKEN
     return endpoint, None
@@ -70,8 +93,8 @@ async def resolve_bearer(value: str) -> tuple[MCPEndpoint | None, str | None]:
     Resolves a bearer value to an MCP endpoint. The value is either an OAuth access
     token (when `BASEROW_MCP_OAUTH_ENABLED`) or an endpoint key. Returns the endpoint
     and `None`, or `None` and an error code (`invalid_token` or
-    `insufficient_scope`). Workspace membership is checked separately by
-    `BaserowMCPServer.get_endpoint()`.
+    `insufficient_scope`). The endpoint is returned only while its user is a member
+    of its workspace.
     """
 
     return await sync_to_async(_resolve_bearer_sync)(value)

@@ -518,3 +518,13 @@ def test_consent_get_manual_client_is_not_verified(api_client, data_fixture):
     assert response.status_code == 200, response.content
     assert response.json()["verified"] is False
     assert response.json()["verified_host"] is None
+
+
+@pytest.mark.django_db
+def test_authorize_redirect_has_no_double_slash(client, settings):
+    settings.PUBLIC_WEB_FRONTEND_URL = "https://br.example/"
+    _, challenge = pkce_pair()
+    query = authorize_query(cimd_client(client), challenge)
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert response.status_code == 302
+    assert response["Location"].startswith("https://br.example/mcp-authorize?")
