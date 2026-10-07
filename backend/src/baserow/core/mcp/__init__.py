@@ -53,7 +53,9 @@ class BaserowMCPServer:
 
     def _setup_handlers(self):
         self._mcp_server.list_tools()(self.list_tools)
-        self._mcp_server.call_tool()(self.call_tool)
+        # Each tool validates its own arguments with its pydantic input_schema, so
+        # invalid calls reach call_tool and are captured as failed.
+        self._mcp_server.call_tool(validate_input=False)(self.call_tool)
 
         # Return an empty list because there are no resources, prompts, and
         # resource_templates in Baserow.
@@ -107,13 +109,33 @@ class BaserowMCPServer:
                 isError=True,
             )
         try:
-            return await tool.call(endpoint, arguments)
+            result = await tool.call(endpoint, arguments)
         except Exception as e:
             logger.exception("Unhandled exception in MCP tool '{}'", name)
+            self.capture_event(
+                endpoint, "mcp_tool_called", {"tool": name, "success": False}
+            )
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Error: {e}")],
                 isError=True,
             )
+        self.capture_event(endpoint, "mcp_tool_called", {"tool": name, "success": True})
+        return result
+
+    def capture_event(self, endpoint, event: str, properties: dict):
+        """
+        Sends a PostHog event for the endpoint's user. Tool arguments and results
+        must never be passed in because they can hold row data.
+        """
+
+        from baserow.core.posthog import capture_user_event
+
+        capture_user_event(
+            endpoint.user,
+            event,
+            {"endpoint_id": endpoint.id, **properties},
+            workspace=endpoint.workspace,
+        )
 
     async def list_tools(self) -> list["Tool"]:
         from baserow.core.mcp.registries import mcp_tool_registry
@@ -162,6 +184,8 @@ class BaserowMCPServer:
                 # If there is no endpoint, then there is no need to start a
                 # connection. It's valid to immediately respond with a 401 error.
                 return Response("Endpoint not found.", status_code=401)
+
+            self.capture_event(endpoint, "mcp_connected", {})
 
             # connect_sse sends the response itself via the send callable. Wrap it to
             # track that, so we can return a no-op instead of one Starlette would send
