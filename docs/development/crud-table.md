@@ -72,7 +72,7 @@ with `stickyRight` in their `CrudTableColumn` definition so their controls stay
 accessible while scrolling. Keep the same sticky class on any expanded action
 cells, as demonstrated by the expandable Storybook story.
 
-The **Expandable Rows** and **Narrow Expandable Rows** stories demonstrate member
+The **Expandable Rows** and **Narrow Viewport** stories demonstrate member
 role details for Arlene, Sam and Robin, with three, two and one assignments
 respectively. Expand several members at once; Charlie has no assignments and
 cannot be expanded. The examples include Projects (database), Tasks (table)
