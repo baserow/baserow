@@ -376,3 +376,21 @@ def test_get_endpoint_resolves_grants_by_id_only(data_fixture):
     assert grant.key is None
     assert get(current_key, manual.key).id == manual.id
     assert get(current_endpoint, grant).id == grant.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_initialize_is_captured_as_connected(data_fixture):
+    from unittest.mock import patch
+
+    endpoint = data_fixture.create_mcp_endpoint()
+    with patch("baserow.core.posthog.capture_user_event") as mock_capture:
+        init = _post(INIT, auth=endpoint.key)
+        _post(LIST, auth=endpoint.key)
+
+    assert init.status_code == 200
+    mock_capture.assert_called_once_with(
+        endpoint.user,
+        "mcp_connected",
+        {"endpoint_id": endpoint.id},
+        workspace=endpoint.workspace,
+    )

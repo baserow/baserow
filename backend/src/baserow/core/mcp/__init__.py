@@ -1,4 +1,5 @@
 import contextvars
+import json
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
@@ -309,7 +310,27 @@ class BaserowMCPServer:
                         )
                         await response(scope, receive, send)
                         return
-                    await server._handle_streamable_http(scope, receive, send)
+
+                    body = await request.body()
+                    if _is_initialize(body):
+                        server.capture_event(endpoint, "mcp_connected", {})
+
+                    body_sent = False
+
+                    async def replay():
+                        # The transport gets the body again; afterwards the real
+                        # `receive` is used so it still sees `http.disconnect`.
+                        nonlocal body_sent
+                        if not body_sent:
+                            body_sent = True
+                            return {
+                                "type": "http.request",
+                                "body": body,
+                                "more_body": False,
+                            }
+                        return await receive()
+
+                    await server._handle_streamable_http(scope, replay, send)
                 finally:
                     current_endpoint.reset(endpoint_ctx)
 
@@ -335,6 +356,16 @@ class BaserowMCPServer:
         # The redirect would point clients to an http:// URL behind a TLS proxy.
         app.router.redirect_slashes = False
         return app
+
+
+def _is_initialize(body: bytes) -> bool:
+    """Whether a Streamable HTTP request body is the MCP `initialize` request."""
+
+    try:
+        message = json.loads(body)
+    except ValueError:
+        return False
+    return isinstance(message, dict) and message.get("method") == "initialize"
 
 
 _baserow_mcp = None
