@@ -633,9 +633,19 @@ async def test_deeply_nested_json_text_goes_back_without_running_the_tool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     call, repair, saved = await _save_column_toolset(monkeypatch)
+    nested = "[" * 100_000
+    decode = json.loads
+
+    def decode_or_overflow(text: str | bytes | bytearray, **kwargs: Any) -> Any:
+        if text == nested:
+            raise RecursionError
+        return decode(text, **kwargs)
+
+    # Whether json.loads overflows on this text depends on the stack size.
+    monkeypatch.setattr(json, "loads", decode_or_overflow)
 
     with pytest.raises(ModelRetry) as exc:
-        await call({"column": {"label": "[" * 100_000}})
+        await call({"column": {"label": nested}})
 
     repair.assert_awaited_once()
     assert str(exc.value).startswith("save_column did NOT run")
