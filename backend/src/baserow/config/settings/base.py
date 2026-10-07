@@ -940,6 +940,9 @@ OAUTH2_PROVIDER = {
     # OAuth 2.1 requires detecting refresh token replay for public clients.
     "REFRESH_TOKEN_REUSE_PROTECTION": True,
     "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+    # The management endpoint isn't mounted, so registration tokens are never used;
+    # expiring them lets the cleanup task delete them.
+    "DCR_REGISTRATION_TOKEN_EXPIRE_SECONDS": 3600,
     "ALLOW_LOCALHOST_LOOPBACK": True,
     "ALLOWED_REDIRECT_URI_SCHEMES": ["http", "https"],
     "OIDC_ISS_ENDPOINT": MCP_AUTHORIZATION_SERVER_URL,

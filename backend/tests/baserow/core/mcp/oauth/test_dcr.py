@@ -7,10 +7,13 @@ from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
-from oauth2_provider.models import get_application_model
+from oauth2_provider.models import get_access_token_model, get_application_model
 
 from baserow.core.mcp.models import MCPEndpoint
-from baserow.core.mcp.oauth.tasks import delete_unused_mcp_oauth_clients
+from baserow.core.mcp.oauth.tasks import (
+    clear_expired_mcp_oauth_tokens,
+    delete_unused_mcp_oauth_clients,
+)
 from baserow.throttling.types import RateLimit
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
@@ -226,3 +229,15 @@ def test_dcr_client_whose_grant_was_removed_is_deleted_with_its_tokens(
     delete_unused_mcp_oauth_clients()
 
     assert not Application.objects.filter(client_id=client_id).exists()
+
+
+@pytest.mark.django_db
+def test_registration_tokens_expire_and_are_cleared(client):
+    client_id = register(client).json()["client_id"]
+    tokens = get_access_token_model().objects.filter(application__client_id=client_id)
+    assert tokens.get().expires <= timezone.now() + timedelta(hours=1)
+
+    with freeze_time(timezone.now() + timedelta(hours=2)):
+        clear_expired_mcp_oauth_tokens()
+
+    assert not tokens.exists()

@@ -5,7 +5,11 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
-from oauth2_provider.models import get_access_token_model, get_application_model
+from oauth2_provider.models import (
+    clear_expired,
+    get_access_token_model,
+    get_application_model,
+)
 
 from baserow.config.celery import app
 from baserow.core.mcp.models import MCPEndpoint
@@ -33,6 +37,17 @@ def delete_unused_mcp_oauth_clients(self):
         unused.delete()
 
 
+@app.task(bind=True, queue="export")
+def clear_expired_mcp_oauth_tokens(self):
+    """
+    Deletes expired access tokens, registration tokens and authorization codes,
+    and refresh tokens that are revoked or expired, so rotation doesn't pile them up.
+    """
+
+    clear_expired()
+
+
 @app.on_after_finalize.connect
 def setup_periodic_mcp_oauth_tasks(sender, **kwargs):
     sender.add_periodic_task(timedelta(hours=6), delete_unused_mcp_oauth_clients.s())
+    sender.add_periodic_task(timedelta(hours=6), clear_expired_mcp_oauth_tokens.s())
