@@ -262,6 +262,62 @@ describe('MCP authorize page', () => {
     expect(allow.attributes('disabled')).toBeDefined()
   })
 
+  test('ticks the tools of the existing grant for the workspace', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, { ...consent, grants: { 2: ['list_tables'] } })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+
+    const checked = allTools.filter(
+      (name) => toolCheckbox(wrapper, name).element.checked
+    )
+    expect(checked).toEqual(['list_tables'])
+  })
+
+  test('keeps every tool ticked for a grant that allows all tools', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, { ...consent, grants: { 2: null } })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+
+    for (const name of allTools) {
+      expect(toolCheckbox(wrapper, name).element.checked).toBe(true)
+    }
+  })
+
+  test('warns when the client only redirects to loopback', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, { ...consent, loopback_only: true })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+
+    expect(
+      wrapper.find('[data-test="mcp-authorize-loopback-warning"]').exists()
+    ).toBe(true)
+  })
+
+  test('explains when no workspace can be connected', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, { ...consent, workspaces: [] })
+    vi.stubGlobal('location', { assign: vi.fn() })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+
+    expect(
+      wrapper.find('[data-test="mcp-authorize-no-workspaces"]').exists()
+    ).toBe(true)
+    expect(
+      wrapper.find('[data-test="mcp-authorize-allow"]').attributes('disabled')
+    ).toBeDefined()
+  })
+
   test('deny posts allow false', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })

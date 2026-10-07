@@ -3,7 +3,7 @@
 }
 
 .mcp-authorize__card {
-  background-color: $white;
+  background-color: $palette-neutral-0;
   border: 1px solid $palette-neutral-200;
   padding: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -35,7 +35,7 @@
   width: 40px;
   height: 40px;
   flex: none;
-  color: $white;
+  color: $palette-neutral-0;
   font-size: 18px;
   font-weight: 700;
   background-color: $palette-red-700;
@@ -83,6 +83,16 @@
   height: 1px;
   background-color: $palette-neutral-200;
   margin: 20px 0;
+}
+
+.mcp-authorize__warning {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: $palette-yellow-50;
+  color: $palette-yellow-900;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .mcp-authorize__empty {

@@ -53,6 +53,13 @@
           </p>
         </div>
         <div class="mcp-authorize__divider"></div>
+        <div
+          v-if="consent.loopback_only"
+          class="mcp-authorize__warning"
+          data-test="mcp-authorize-loopback-warning"
+        >
+          {{ $t('mcpAuthorize.loopbackWarning') }}
+        </div>
         <FormGroup :label="$t('mcpAuthorize.workspace')" required>
           <p
             v-if="!consent.workspaces.length"
@@ -151,7 +158,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -195,7 +202,7 @@ const error = ref({ visible: false, title: '', message: '' })
 // Client only: the defaults below are applied when the data arrives, so a
 // server-rendered form would ship unticked checkboxes that hydration can't fix.
 const { data: consent } = useAsyncData(
-  'mcp-consent',
+  `mcp-consent-${route.query.request}`,
   async () => {
     try {
       const { data } = await MCPOAuthService($client).getConsent(query)
@@ -221,10 +228,19 @@ function applyDefaults(value) {
     workspaces.find((workspace) => workspace.database_count > 0) ||
     workspaces[0]
   workspaceId.value = preferred?.id ?? null
+  tickFor(workspaceId.value, value)
+}
+
+// A workspace the client is already connected to starts from that grant's tools,
+// so reconnecting never widens access unnoticed. Otherwise every tool is ticked.
+function tickFor(id, value = consent.value) {
+  const existing = value?.grants?.[id]
   for (const tool of value?.tools || []) {
-    ticked[tool.name] = true
+    ticked[tool.name] = existing ? existing.includes(tool.name) : true
   }
 }
+
+watch(workspaceId, (id) => tickFor(id))
 
 const username = computed(() => store.getters['auth/getUsername'])
 const clientInitial = computed(() =>
