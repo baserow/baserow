@@ -27,6 +27,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.constants import AutomationNodeOnFailure
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMaxDispatchesExceeded,
@@ -46,11 +47,15 @@ from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
     resume_deferred_node_celery_task,
 )
-from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.nodes.types import (
+    AutomationNodeDict,
+    NodeDispatchRetry,
+)
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -424,7 +429,14 @@ class AutomationNodeHandler:
         node_history: AutomationNodeHistory,
         iteration_path: str,
         error: str,
+        result: Optional[Union[Dict, List[Dict]]] = None,
     ) -> None:
+        """
+        Marks the node history and the whole run as errored. `result` is stored
+        as the attempt's result when the node did produce data before it was
+        considered failed, so the data can still be inspected in the history.
+        """
+
         now = timezone.now()
         node_history.workflow_history.completed_on = now
         node_history.workflow_history.message = error
@@ -442,8 +454,103 @@ class AutomationNodeHandler:
 
         AutomationHistoryHandler().create_node_result(
             node_history=node_history,
+            result=result,
             iteration_path=iteration_path,
         )
+
+    def _retry_countdown(self, attempt: int) -> int:
+        """
+        Seconds to wait before the attempt following `attempt`. Same backoff as
+        the table webhook task: 1, 2, 4, 8, 16 s.
+        """
+
+        return 2 ** (attempt - 1)
+
+    def _can_retry(
+        self,
+        node: AutomationNode,
+        workflow_history: AutomationWorkflowHistory,
+        attempt: int,
+    ) -> bool:
+        """
+        Whether the node's error policy allows another attempt after `attempt`
+        failed. Simulations and test runs never retry.
+        """
+
+        return (
+            node.on_failure == AutomationNodeOnFailure.RETRY
+            and attempt <= node.max_retries
+            and workflow_history.simulate_until_node_id is None
+            and not workflow_history.is_test_run
+        )
+
+    def _handle_node_retry(
+        self,
+        node_history: AutomationNodeHistory,
+        iteration_path: str,
+        message: str,
+        result: Optional[Union[Dict, List[Dict]]] = None,
+    ) -> None:
+        """
+        Closes this attempt's history as `retried`. The run is left `started`:
+        the next attempt creates its own history entry when it runs.
+        """
+
+        now = timezone.now()
+        node_history.completed_on = now
+        node_history.message = message
+        node_history.status = HistoryStatusChoices.RETRIED
+        node_history.save()
+        # Written even when empty: the history API derives the iteration path
+        # from the result row. The next attempt writes its own row, and
+        # get_node_result() picks the most recent one.
+        AutomationHistoryHandler().create_node_result(
+            node_history=node_history,
+            result=result,
+            iteration_path=iteration_path,
+        )
+
+    def _handle_dispatch_failure(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        simulate_until_node: AutomationNode | None,
+        iteration_path: str,
+        attempt: int,
+        error: str,
+        retryable: bool,
+    ) -> NodeDispatchRetry | None:
+        """
+        Applies the node's error policy to a failed attempt. Only a `retryable`
+        failure (a transient `RuntimeDispatchException`) can be retried, and
+        only when the node opted into retrying unexpected failures; everything
+        else ends the run as before.
+
+        :return: A NodeDispatchRetry for the Celery task to schedule, or None
+            when the run was marked as errored.
+        """
+
+        if (
+            retryable
+            and node.retry_on_failure
+            and self._can_retry(node, workflow_history, attempt)
+        ):
+            self._handle_node_retry(
+                node_history,
+                iteration_path,
+                f"Attempt {attempt} failed and will be retried. {error}",
+            )
+            return NodeDispatchRetry(
+                node_id=node.id,
+                history_id=workflow_history.id,
+                attempt=attempt,
+                countdown=self._retry_countdown(attempt),
+            )
+
+        self._handle_workflow_error(node_history, iteration_path, error)
+        self._handle_simulation_notify(simulate_until_node, node)
+        return None
 
     def _node_dispatch_count_cache_key(self, history_id: int) -> str:
         return f"automation_node_dispatch_count_{history_id}"
@@ -527,7 +634,8 @@ class AutomationNodeHandler:
         node_id: int,
         history_id: int,
         current_iterations: Optional[Dict[int, int]] = None,
-    ) -> Signature | None:
+        attempt: int = 1,
+    ) -> Signature | NodeDispatchRetry | None:
         """
         Dispatch a single node and return a canvas for the next nodes.
 
@@ -535,8 +643,11 @@ class AutomationNodeHandler:
         :param history_id: The AutomationWorkflowHistory ID from which the
             workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
+        :param attempt: Which attempt of this node this is, starting at 1. The
+            Celery task increments it when it retries a failed attempt.
         :return result: A signature is returned if there is a next node to
-            dispatch, otherwise returns None.
+            dispatch, a NodeDispatchRetry if this attempt failed and the node's
+            error policy allows another one, otherwise None.
         """
 
         history_handler = AutomationHistoryHandler()
@@ -602,6 +713,7 @@ class AutomationNodeHandler:
             workflow_history=workflow_history,
             node=node,
             started_on=timezone.now(),
+            attempt=attempt,
         )
 
         dispatch_context = AutomationDispatchContext(
@@ -630,23 +742,63 @@ class AutomationNodeHandler:
         except AutomationNodeMaxDispatchesExceeded as e:
             error = str(e)
             logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
+        except RuntimeDispatchException as e:
+            # Must come before ServiceImproperlyConfiguredDispatchException:
+            # RemoteBusyDispatchException (a rate limit) is a subclass of both
+            # and is the one failure a later attempt is expected to fix.
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.warning(error)
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=True,
+            )
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
         except UnexpectedDispatchException as e:
             original_workflow = node.workflow.get_original()
             error = (
                 f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
             )
             logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
         except Exception as e:
             original_workflow = node.workflow.get_original()
 
@@ -655,9 +807,16 @@ class AutomationNodeHandler:
                 f"Error: {str(e)}"
             )
             logger.exception(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
 
         # A deferred node must first schedule and await its child workflow. The
         # simulation is completed when the deferred result is resumed below.

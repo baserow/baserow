@@ -206,8 +206,12 @@ class AutomationHistoryHandler:
         status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
         completed_on: Optional[datetime] = None,
         message: str = "",
+        attempt: int = 1,
     ) -> AutomationNodeHistory:
-        """Creates a history entry for a Node dispatch."""
+        """
+        Creates a history entry for a Node dispatch. Every attempt of a node
+        gets its own entry; `attempt` records which one this is, starting at 1.
+        """
 
         return AutomationNodeHistory.objects.create(
             workflow_history=workflow_history,
@@ -216,6 +220,7 @@ class AutomationHistoryHandler:
             status=status,
             completed_on=completed_on,
             message=message,
+            attempt=attempt,
         )
 
     def create_node_result(
