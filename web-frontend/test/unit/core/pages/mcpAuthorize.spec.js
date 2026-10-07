@@ -100,6 +100,29 @@ describe('MCP authorize page', () => {
     }
   })
 
+  test('every tool checkbox is visually checked and unticking updates it', async () => {
+    testApp.mock
+      .onPost('/mcp/oauth/consent/', {
+        query,
+        allow: true,
+        workspace_id: 2,
+        tools: ['list_tables', 'create_rows', 'update_rows'],
+      })
+      .reply(200, { redirect_url: 'https://claude.ai/cb?code=v' })
+    const { wrapper, assign } = await mountWithConsent()
+    const checkbox = (name) =>
+      wrapper.find(`[data-test="mcp-authorize-tool-${name}"]`)
+    for (const name of allTools) {
+      expect(checkbox(name).classes()).toContain('checkbox--checked')
+    }
+    await toolCheckbox(wrapper, 'delete_rows').setValue(false)
+    expect(checkbox('delete_rows').classes()).not.toContain('checkbox--checked')
+    expect(checkbox('create_rows').classes()).toContain('checkbox--checked')
+    await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
+    await flushPromises()
+    expect(assign).toHaveBeenCalledWith('https://claude.ai/cb?code=v')
+  })
+
   test('the header shows the client initial, title and returns-to host', async () => {
     const { wrapper } = await mountWithConsent()
     expect(wrapper.find('[data-test="mcp-authorize-avatar"]').text()).toBe('C')

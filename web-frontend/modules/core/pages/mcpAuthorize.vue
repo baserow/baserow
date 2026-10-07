@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -192,36 +192,39 @@ const ticked = reactive({})
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
 
-const { data: consent } = useAsyncData('mcp-consent', async () => {
-  try {
-    const { data } = await MCPOAuthService($client).getConsent(query)
-    return data
-  } catch (e) {
-    error.value = {
-      visible: true,
-      title: t('mcpAuthorize.invalid'),
-      message: e.handler?.response?.data?.error || '',
-    }
-    return null
-  }
-})
-
-// Preselect the first workspace that has databases, so the user doesn't land on
-// an empty one, and tick every tool.
-watch(
-  consent,
-  (value) => {
-    const workspaces = value?.workspaces || []
-    const preferred =
-      workspaces.find((workspace) => workspace.database_count > 0) ||
-      workspaces[0]
-    workspaceId.value = preferred?.id ?? null
-    for (const tool of value?.tools || []) {
-      ticked[tool.name] = true
+// Client only: the defaults below are applied when the data arrives, so a
+// server-rendered form would ship unticked checkboxes that hydration can't fix.
+const { data: consent } = useAsyncData(
+  'mcp-consent',
+  async () => {
+    try {
+      const { data } = await MCPOAuthService($client).getConsent(query)
+      applyDefaults(data)
+      return data
+    } catch (e) {
+      error.value = {
+        visible: true,
+        title: t('mcpAuthorize.invalid'),
+        message: e.handler?.response?.data?.error || '',
+      }
+      return null
     }
   },
-  { immediate: true }
+  { server: false }
 )
+
+// Preselect the first workspace that has databases, so the user doesn't land on
+// an empty one, and tick every tool. Runs before the form is first rendered.
+function applyDefaults(value) {
+  const workspaces = value?.workspaces || []
+  const preferred =
+    workspaces.find((workspace) => workspace.database_count > 0) ||
+    workspaces[0]
+  workspaceId.value = preferred?.id ?? null
+  for (const tool of value?.tools || []) {
+    ticked[tool.name] = true
+  }
+}
 
 const username = computed(() => store.getters['auth/getUsername'])
 const clientInitial = computed(() =>
