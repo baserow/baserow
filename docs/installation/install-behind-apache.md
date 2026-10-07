@@ -205,6 +205,10 @@ ProxyPassReverse /ws ws://localhost:8000/ws
 ProxyPass /api http://localhost:8000/api
 ProxyPassReverse /api http://localhost:8000/api
 
+# Route OAuth consent page to frontend before matching /mcp (ProxyPass uses prefix matching)
+ProxyPass /mcp-authorize http://localhost:3000/mcp-authorize
+ProxyPassReverse /mcp-authorize http://localhost:3000/mcp-authorize
+
 ProxyPass /mcp http://localhost:8000/mcp
 ProxyPassReverse /mcp http://localhost:8000/mcp
 
