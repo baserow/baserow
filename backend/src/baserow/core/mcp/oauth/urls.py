@@ -25,7 +25,7 @@ oauth_patterns = [
 metadata_patterns = [
     pattern
     for pattern in oauth2_urls.metadata_urlpatterns
-    if not pattern.name.startswith("oauth-resource-metadata")
+    if not (pattern.name or "").startswith("oauth-resource-metadata")
 ] + [
     path(
         ".well-known/oauth-protected-resource",
