@@ -1,11 +1,14 @@
 import json
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from django.db.models import Q
 
 from pydantic import Field, model_serializer, model_validator
 
 from baserow.contrib.database.fields.models import Field as BaserowField
+from baserow.contrib.database.fields.models import (
+    SelectOption as BaserowSelectOption,
+)
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow_enterprise.assistant.types import BaseModel
 from baserow_premium.permission_manager import Table
@@ -14,60 +17,15 @@ from baserow_premium.permission_manager import Table
 # Shared types
 # ---------------------------------------------------------------------------
 
-OptionColor = Literal[
-    "light-blue",
-    "light-green",
-    "light-cyan",
-    "light-orange",
-    "light-yellow",
-    "light-red",
-    "light-brown",
-    "light-purple",
-    "light-pink",
-    "light-gray",
-    "blue",
-    "green",
-    "cyan",
-    "orange",
-    "yellow",
-    "red",
-    "brown",
-    "purple",
-    "pink",
-    "gray",
-    "dark-blue",
-    "dark-green",
-    "dark-cyan",
-    "dark-orange",
-    "dark-yellow",
-    "dark-red",
-    "dark-brown",
-    "dark-purple",
-    "dark-pink",
-    "dark-gray",
-    "darker-blue",
-    "darker-green",
-    "darker-cyan",
-    "darker-orange",
-    "darker-yellow",
-    "darker-red",
-    "darker-brown",
-    "darker-purple",
-    "darker-pink",
-    "darker-gray",
-    "deep-dark-green",
-    "deep-dark-orange",
-]
-
 
 class SelectOption(BaseModel):
     id: int | None = Field(..., description="The unique identifier of the option.")
     value: str
-    color: OptionColor
+    color: str
 
 
-# Subset of colors for creation to avoid confusing the model
-OptionColorCreate = Literal[
+# Kuma picks from the base colors only, to avoid confusing the model
+OptionColor = Literal[
     "blue",
     "green",
     "cyan",
@@ -82,8 +40,22 @@ OptionColorCreate = Literal[
 
 
 class SelectOptionCreate(BaseModel):
-    value: str
-    color: OptionColorCreate | None = None
+    value: str = Field(..., max_length=255)
+    color: OptionColor | None = None
+
+
+class SelectOptionUpdate(BaseModel):
+    id: int = Field(..., description="ID of the option, from get_tables_schema.")
+    value: str | None = Field(
+        None, max_length=255, description="New value. Omit to keep it."
+    )
+    color: OptionColor | None = Field(None, description="New color. Omit to keep it.")
+
+    @model_validator(mode="after")
+    def _require_a_change(self) -> "SelectOptionUpdate":
+        if self.value is None and self.color is None:
+            raise ValueError(f"Option {self.id} needs a new value or color.")
+        return self
 
 
 class InvalidFormulaFieldError(Exception):
@@ -146,18 +118,7 @@ _TYPE_ALIASES: dict[str, str] = {
     "image": "file",
 }
 
-_SELECT_COLORS: list[str] = [
-    "blue",
-    "green",
-    "cyan",
-    "orange",
-    "yellow",
-    "red",
-    "brown",
-    "purple",
-    "pink",
-    "gray",
-]
+_SELECT_COLORS: list[str] = list(get_args(OptionColor))
 
 _KEY_ALIASES: dict[str, str] = {
     "long_text_enable_rich_text": "rich_text",
@@ -349,16 +310,9 @@ _TO_DJANGO_ORM = {
 # ---------------------------------------------------------------------------
 
 
-def _select_options_from_orm(orm_field):
-    from typing import get_args
-
-    valid_colors = set(get_args(OptionColor))
+def _select_options_from_orm(orm_field: BaserowField) -> list[SelectOption]:
     return [
-        SelectOption(
-            id=opt.id,
-            value=opt.value,
-            color=opt.color if opt.color in valid_colors else "blue",
-        )
+        SelectOption(id=opt.id, value=opt.value, color=opt.color)
         for opt in orm_field.specific.select_options.all()
     ]
 
@@ -451,17 +405,12 @@ class FieldItemCreate(BaseModel):
             if old_key in data and new_key not in data:
                 data[new_key] = data.pop(old_key)
 
-        # Convert string options to SelectOptionCreate dicts
-        if "options" in data and isinstance(data["options"], list):
-            normalized = []
-            for i, opt in enumerate(data["options"]):
-                if isinstance(opt, str):
-                    normalized.append(
-                        {"value": opt, "color": _SELECT_COLORS[i % len(_SELECT_COLORS)]}
-                    )
-                else:
-                    normalized.append(opt)
-            data["options"] = normalized
+        # A string carries no color, so a reused table never reports one as requested
+        if isinstance(data.get("options"), list):
+            data["options"] = [
+                {"value": opt} if isinstance(opt, str) else opt
+                for opt in data["options"]
+            ]
 
         return data
 
@@ -541,22 +490,22 @@ class FieldItem(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _update_simple(f, field_type):
+def _update_simple(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
     kwargs = {}
     if f.name is not None:
         kwargs["name"] = f.name
     return kwargs
 
 
-def _update_long_text(f, field_type):
-    kwargs = _update_simple(f, field_type)
+def _update_long_text(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
     if f.rich_text is not None:
         kwargs["long_text_enable_rich_text"] = f.rich_text
     return kwargs
 
 
-def _update_number(f, field_type):
-    kwargs = _update_simple(f, field_type)
+def _update_number(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
     if f.decimal_places is not None:
         kwargs["number_decimal_places"] = f.decimal_places
     if f.suffix is not None:
@@ -564,36 +513,190 @@ def _update_number(f, field_type):
     return kwargs
 
 
-def _update_rating(f, field_type):
-    kwargs = _update_simple(f, field_type)
+def _update_rating(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
     if f.max_value is not None:
         kwargs["max_value"] = f.max_value
     return kwargs
 
 
-def _update_date(f, field_type):
-    kwargs = _update_simple(f, field_type)
+def _update_date(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
     if f.include_time is not None:
         kwargs["date_include_time"] = f.include_time
     return kwargs
 
 
-def _update_select(f, field_type):
-    kwargs = _update_simple(f, field_type)
-    if f.options is not None:
-        kwargs["select_options"] = [
-            {
-                "id": -i,
-                "value": opt.value,
-                "color": opt.color or _SELECT_COLORS[(i - 1) % len(_SELECT_COLORS)],
-            }
-            for i, opt in enumerate(f.options, start=1)
-        ]
+def option_value_key(value: str) -> str:
+    """Compare option values while ignoring case and outer spaces."""
+
+    return value.strip().casefold()
+
+
+def _check_option_ids(
+    existing_ids: set[int], update: list[SelectOptionUpdate], remove_ids: list[int]
+) -> None:
+    """
+    Reject option ids that do not name exactly one option of the field.
+
+    :param existing_ids: The ids of the field's options.
+    :param update: The options to change.
+    :param remove_ids: The ids of the options to delete.
+    :raises ValueError: If an id is not an option of the field, is changed twice, or
+        is both changed and removed.
+    """
+
+    update_ids = [option.id for option in update]
+    unknown = sorted(set(update_ids + remove_ids) - existing_ids)
+    if unknown:
+        raise ValueError(
+            f"Options {unknown} are not options of this field. Use the option ids "
+            "from get_tables_schema."
+        )
+    repeated = sorted({i for i in update_ids if update_ids.count(i) > 1})
+    if repeated:
+        raise ValueError(f"Options {repeated} are changed more than once.")
+    conflicting = sorted(set(update_ids) & set(remove_ids))
+    if conflicting:
+        raise ValueError(f"Options {conflicting} cannot be changed and removed.")
+
+
+def _apply_update(
+    option: BaserowSelectOption, change: SelectOptionUpdate | None
+) -> dict[str, Any]:
+    if change is None:
+        return {"id": option.id, "value": option.value, "color": option.color}
+    return {
+        "id": option.id,
+        "value": option.value if change.value is None else change.value,
+        "color": change.color or option.color,
+    }
+
+
+def _unused_color(used: set[str], index: int) -> str:
+    free = [color for color in _SELECT_COLORS if color not in used]
+    return free[0] if free else _SELECT_COLORS[index % len(_SELECT_COLORS)]
+
+
+def _merge_select_options(
+    existing: list[BaserowSelectOption],
+    add: list[SelectOptionCreate],
+    update: list[SelectOptionUpdate],
+    remove_ids: list[int],
+) -> list[dict[str, Any]]:
+    """
+    Build the full option list that core expects: the field's options in their
+    current order, with the updates applied and the removed ones left out, followed
+    by the added ones.
+
+    :param existing: The field's options in their current order.
+    :param add: The options to add. A missing color becomes one not in use.
+    :param update: The options to change. A missing value or color stays as stored.
+    :param remove_ids: The ids of the options to delete.
+    :return: The select_options to pass to UpdateFieldActionType.
+    """
+
+    _check_option_ids({option.id for option in existing}, update, remove_ids)
+    changes = {option.id: option for option in update}
+    kept = [
+        _apply_update(option, changes.get(option.id))
+        for option in existing
+        if option.id not in remove_ids
+    ]
+    renamed_ids = {
+        option.id
+        for option in existing
+        if option.id in changes and changes[option.id].value not in (None, option.value)
+    }
+
+    used_colors = {entry["color"] for entry in kept}
+    used_colors.update(option.color for option in add if option.color)
+    added = []
+    for index, option in enumerate(add):
+        color = option.color or _unused_color(used_colors, index)
+        used_colors.add(color)
+        added.append({"value": option.value, "color": color})
+
+    _check_unique_values(kept, added, renamed_ids)
+    return [*kept, *added]
+
+
+def _describe_option(entry: dict[str, Any], renamed_ids: set[int]) -> str:
+    if "id" not in entry:
+        return f"the new option '{entry['value']}'"
+    if entry["id"] in renamed_ids:
+        return f"option {entry['id']} renamed to '{entry['value']}'"
+    return f"option {entry['id']} '{entry['value']}'"
+
+
+def _check_unique_values(
+    kept: list[dict[str, Any]], added: list[dict[str, Any]], renamed_ids: set[int]
+) -> None:
+    """
+    Reject values Kuma sets that repeat another option's value, ignoring case and
+    surrounding spaces, because Kuma picks options by value when it writes cells.
+    Duplicates already in the field are left alone.
+
+    :param kept: The field's remaining options, with the updates applied.
+    :param added: The options to add.
+    :param renamed_ids: The ids of the kept options whose value changes.
+    :raises ValueError: If an added or renamed value repeats another option's value.
+    """
+
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for entry in [*kept, *added]:
+        groups.setdefault(option_value_key(entry["value"]), []).append(entry)
+    clashes = [
+        " and ".join(_describe_option(entry, renamed_ids) for entry in group)
+        for group in groups.values()
+        if len(group) > 1
+        and any("id" not in entry or entry["id"] in renamed_ids for entry in group)
+    ]
+    if clashes:
+        raise ValueError(
+            "These options would share a value (case and surrounding spaces are "
+            f"ignored): {'; '.join(clashes)}. Leave out options that already exist "
+            "to keep them, or change them with update_options by id."
+        )
+
+
+def _changed_default(field: BaserowField, kept_ids: set[int]) -> dict[str, Any]:
+    """
+    Drop removed options from the field's default, so undo restores it.
+
+    :param field: The select field being updated.
+    :param kept_ids: The ids of the options that remain.
+    :return: The default kwarg for UpdateFieldActionType when it changes, else {}.
+    """
+
+    field_type = field_type_registry.get_by_model(field)
+    default = field_type.get_default_value(field)
+    if isinstance(default, list):
+        kept_default = [option_id for option_id in default if option_id in kept_ids]
+    else:
+        kept_default = default if default in kept_ids else None
+    if kept_default == default:
+        return {}
+    return {field_type.get_default_options_field_name(): kept_default}
+
+
+def _update_select(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
+    if f.add_options or f.update_options or f.remove_options:
+        select_options = _merge_select_options(
+            list(field.select_options.all()),
+            f.add_options or [],
+            f.update_options or [],
+            f.remove_options or [],
+        )
+        kept_ids = {option["id"] for option in select_options if "id" in option}
+        kwargs["select_options"] = select_options
+        kwargs.update(_changed_default(field, kept_ids))
     return kwargs
 
 
-def _update_formula(f, field_type):
-    kwargs = _update_simple(f, field_type)
+def _update_formula(f: "FieldItemUpdate", field: BaserowField) -> dict[str, Any]:
+    kwargs = _update_simple(f, field)
     if f.formula is not None:
         kwargs["formula"] = f.formula
     return kwargs
@@ -639,9 +742,20 @@ class FieldItemUpdate(BaseModel):
         None, description="(date) Whether the date includes time."
     )
     # (single_select, multiple_select)
-    options: list[SelectOptionCreate] | None = Field(
+    add_options: list[SelectOptionCreate] | None = Field(
         None,
-        description="(single_select, multiple_select) List of options with colors.",
+        description="(single_select, multiple_select) New options. Omit color to get "
+        "one not in use.",
+    )
+    update_options: list[SelectOptionUpdate] | None = Field(
+        None,
+        description="(single_select, multiple_select) Existing options to rename or "
+        "recolor, by id.",
+    )
+    remove_options: list[int] | None = Field(
+        None,
+        description="(single_select, multiple_select) IDs of options to delete, from "
+        "get_tables_schema. They are removed from every row.",
     )
     # (formula)
     formula: str | None = Field(None, description="(formula) The formula expression.")
@@ -654,20 +768,21 @@ class FieldItemUpdate(BaseModel):
         for old_key, new_key in _KEY_ALIASES.items():
             if old_key in data and new_key not in data:
                 data[new_key] = data.pop(old_key)
-        # Convert string options to SelectOptionCreate dicts
-        if "options" in data and isinstance(data["options"], list):
-            normalized = []
-            for i, opt in enumerate(data["options"]):
-                if isinstance(opt, str):
-                    normalized.append(
-                        {"value": opt, "color": _SELECT_COLORS[i % len(_SELECT_COLORS)]}
-                    )
-                else:
-                    normalized.append(opt)
-            data["options"] = normalized
+        if isinstance(data.get("add_options"), list):
+            data["add_options"] = [
+                {"value": opt} if isinstance(opt, str) else opt
+                for opt in data["add_options"]
+            ]
         return data
 
-    def to_update_kwargs(self, field_type: str) -> dict[str, Any]:
-        """Build kwargs for UpdateFieldActionType.do() based on the field's current type."""
+    def to_update_kwargs(self, field: BaserowField) -> dict[str, Any]:
+        """
+        Build the kwargs for UpdateFieldActionType.do().
+
+        :param field: The specific field to update, in its current state.
+        :return: The kwargs for the properties this update changes.
+        """
+
+        field_type = field_type_registry.get_by_model(field).type
         builder = _TO_UPDATE_ORM.get(field_type, _update_simple)
-        return builder(self, field_type)
+        return builder(self, field)

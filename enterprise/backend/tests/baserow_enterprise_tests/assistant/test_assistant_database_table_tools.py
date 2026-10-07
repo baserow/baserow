@@ -212,11 +212,79 @@ def test_reused_table_detects_field_setting_mismatches():
     }
     assert mismatches["Status"]["option_color_mismatches"] == [
         {
+            "id": 5,
             "value": "Pending",
             "actual_color": "blue",
             "requested_color": "yellow",
         }
     ]
+
+
+def test_reused_table_does_not_report_colors_for_plain_string_options():
+    requested = TableItemCreate.model_validate(
+        {
+            "name": "Orders",
+            "primary_field_name": "Order",
+            "fields": [
+                {
+                    "name": "Status",
+                    "type": "single_select",
+                    "options": ["Shipped", "Delivered"],
+                }
+            ],
+        }
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[
+            FieldItem(
+                id=4,
+                name="Status",
+                type="single_select",
+                options=[SelectOption(id=5, value="Shipped", color="light-green")],
+            ),
+        ],
+    )
+
+    conflict = table_schema_conflict(requested, actual)
+
+    (mismatch,) = conflict["field_mismatches"]
+    assert mismatch["missing_options"] == [{"value": "Delivered", "color": None}]
+    assert "option_color_mismatches" not in mismatch
+
+
+def test_reused_table_prefers_the_exact_option_value():
+    requested = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[
+            FieldItemCreate(
+                name="Status",
+                type="single_select",
+                options=[SelectOptionCreate(value="Pending", color="blue")],
+            ),
+        ],
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[
+            FieldItem(
+                id=4,
+                name="Status",
+                type="single_select",
+                options=[
+                    SelectOption(id=5, value="Pending", color="blue"),
+                    SelectOption(id=6, value="pending", color="red"),
+                ],
+            ),
+        ],
+    )
+
+    assert table_schema_conflict(requested, actual) is None
 
 
 def test_reused_table_ignores_settings_the_request_never_stated():

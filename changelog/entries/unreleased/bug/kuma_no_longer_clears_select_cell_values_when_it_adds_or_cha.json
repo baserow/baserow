@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Kuma keeps existing select options, their colors and cell values when it changes a field's options",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}
