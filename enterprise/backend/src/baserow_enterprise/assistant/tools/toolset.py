@@ -545,6 +545,40 @@ def _find_placeholder_ids(node: Any, path: str = "") -> list[tuple[str, str, Any
 # ---------------------------------------------------------------------------
 
 
+def move_thought_to_top_level(schema: dict[str, Any], tool_args: Any) -> Any:
+    """
+    Move a ``thought`` that the model nested in an object argument to the top level.
+
+    :param schema: The tool's parameter schema.
+    :param tool_args: The raw tool arguments, which can be any JSON value.
+    :return: New arguments with the nested ``thought`` at the top level. The
+        arguments are returned unchanged unless the schema has a top-level
+        ``thought``, the arguments have none, and exactly one object argument
+        holds one.
+    """
+
+    if (
+        not isinstance(tool_args, dict)
+        or "thought" in tool_args
+        or "thought" not in (schema.get("properties") or {})
+    ):
+        return tool_args
+    holders = [
+        key
+        for key, value in tool_args.items()
+        if isinstance(value, dict) and "thought" in value
+    ]
+    if len(holders) != 1:
+        return tool_args
+    holder = holders[0]
+    nested = tool_args[holder]
+    return {
+        **tool_args,
+        holder: {key: value for key, value in nested.items() if key != "thought"},
+        "thought": nested["thought"],
+    }
+
+
 class InlineRefsToolset(AbstractToolset[AgentDepsT]):
     """
     Wraps another toolset with two responsibilities:
@@ -632,6 +666,8 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         """
         Validate the arguments, fixing them if needed, then call the tool.
 
+        A ``thought`` nested in an object argument moves to the top level first.
+
         :param name: The tool name.
         :param tool_args: The raw tool arguments.
         :param ctx: The agent run context.
@@ -663,6 +699,7 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             }
         original_validator = self._original_validators.get(name)
         if original_validator:
+            tool_args = move_thought_to_top_level(self._schemas[name], tool_args)
             try:
                 tool_args = original_validator.validate_python(tool_args)
             except ValidationError as e:

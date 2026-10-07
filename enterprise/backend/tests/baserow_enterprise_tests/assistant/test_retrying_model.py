@@ -1,20 +1,37 @@
 """Unit tests for RetryingModel."""
 
+import json
 import os
+from dataclasses import replace
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import httpx2
 import pytest
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.messages import ModelRequest, UserPromptPart
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ThinkingPart,
+    ToolCallPart,
+    UserPromptPart,
+)
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
+from pydantic_ai.models.groq import GroqModel
+from pydantic_ai.providers.groq import GroqProvider
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.usage import RequestUsage
 
 from baserow_enterprise.assistant.retrying_model import (
     RetryingModel,
     _is_transient_provider_error,
     _resolve_credentials,
     _resolve_model,
+    _try_recover_tool_use_failed,
+    repair_printed_tool_call,
 )
 
 
@@ -766,6 +783,431 @@ async def test_request_stream_reraises_after_yield():
             [], None, ModelRequestParameters(function_tools=[], output_tools=[])
         ):
             pass  # stream consumed, then __aexit__ raises
+
+
+# gpt-oss on Groq printed these in the evals; uid lists are trimmed, endings kept.
+_PRINTED_REORDER = (
+    '{"name": "update_element", "arguments": {"page_id":2175,"element":'
+    '{"element_id":1548,"reorder_table_columns":['
+    '"9437b5db-404b-46da-839e-28f1edb61f0c","4f4729d6-3876-4212-a15e-4f8c119d9055"],'
+    '"thought":"Reorder Email column after Website on Students page table."}"}'
+)
+_REORDER_ARGUMENTS = {
+    "page_id": 2175,
+    "element": {
+        "element_id": 1548,
+        "reorder_table_columns": [
+            "9437b5db-404b-46da-839e-28f1edb61f0c",
+            "4f4729d6-3876-4212-a15e-4f8c119d9055",
+        ],
+        "thought": "Reorder Email column after Website on Students page table.",
+    },
+}
+_WEBSITE_FORMULA = "$formula: the Website field from the Students data source"
+
+
+@pytest.mark.parametrize(
+    "text, arguments",
+    [
+        pytest.param(_PRINTED_REORDER, _REORDER_ARGUMENTS, id="reorder-columns"),
+        pytest.param(
+            '{"name": "update_element", "arguments": {"element":{"element_id":1528,'
+            '"fields":[{"name":"Website","type":"button","value":"$formula: the '
+            'Website field from the Students data source","navigation_type":"custom",'
+            '"navigate_to_url":"$formula: the Website field from the Students data '
+            'source","link_target":"blank"}],"page_id":2115,"thought":"Update the '
+            "Website column in the table element to be a button that opens the URL "
+            'in a new tab."}"}',
+            {
+                "element": {
+                    "element_id": 1528,
+                    "fields": [
+                        {
+                            "name": "Website",
+                            "type": "button",
+                            "value": _WEBSITE_FORMULA,
+                            "navigation_type": "custom",
+                            "navigate_to_url": _WEBSITE_FORMULA,
+                            "link_target": "blank",
+                        }
+                    ],
+                    "page_id": 2115,
+                    "thought": "Update the Website column in the table element to "
+                    "be a button that opens the URL in a new tab.",
+                }
+            },
+            id="page-inside-element",
+        ),
+        pytest.param(
+            '{"name": "update_element", "arguments": {"page_id":2148,"element":'
+            '{"element_id":1539,"update_table_columns":[{"uid":"80d6a3b7-b3e7-4684-'
+            '8329-a79496371af3","navigation_type":"custom","navigate_to_url":'
+            '"$formula: get(\'current_record.Website\')","link_target":"blank"}],'
+            '"thought":"Update Website column to open URL in new tab."}"}',
+            {
+                "page_id": 2148,
+                "element": {
+                    "element_id": 1539,
+                    "update_table_columns": [
+                        {
+                            "uid": "80d6a3b7-b3e7-4684-8329-a79496371af3",
+                            "navigation_type": "custom",
+                            "navigate_to_url": "$formula: get('current_record.Website')",
+                            "link_target": "blank",
+                        }
+                    ],
+                    "thought": "Update Website column to open URL in new tab.",
+                },
+            },
+            id="update-columns",
+        ),
+        pytest.param(
+            '{"name": "update_element", "arguments": {"page_id":2133,"element":'
+            '{"element_id":1534,"update_table_columns":[{"uid":"76b07268-7869-47be-'
+            'a379-9e50bbaac66d","name":"Full name"},{"uid":"96a5de96-0f81-4771-827d-'
+            '9250b58d5ee5","field_id":4842}],"reorder_table_columns":["76b07268-7869-'
+            '47be-a379-9e50bbaac66d","96a5de96-0f81-4771-827d-9250b58d5ee5"],'
+            '"thought":"Rename Name column to Full name, map Adding date column to '
+            'Joined field, and move Email column to end on Students page table."}"}',
+            {
+                "page_id": 2133,
+                "element": {
+                    "element_id": 1534,
+                    "update_table_columns": [
+                        {
+                            "uid": "76b07268-7869-47be-a379-9e50bbaac66d",
+                            "name": "Full name",
+                        },
+                        {
+                            "uid": "96a5de96-0f81-4771-827d-9250b58d5ee5",
+                            "field_id": 4842,
+                        },
+                    ],
+                    "reorder_table_columns": [
+                        "76b07268-7869-47be-a379-9e50bbaac66d",
+                        "96a5de96-0f81-4771-827d-9250b58d5ee5",
+                    ],
+                    "thought": "Rename Name column to Full name, map Adding date "
+                    "column to Joined field, and move Email column to end on Students "
+                    "page table.",
+                },
+            },
+            id="update-and-reorder-columns",
+        ),
+        pytest.param(
+            '{"name": "update_element", "arguments": {"page_id":2196,"element":'
+            '{"element_id":1555,"add_table_columns":[{"name":"Editar","type":"button",'
+            '"label":"Editar"}],"thought":"Add a button column named Editar to the '
+            'table on the Students page."}"}',
+            {
+                "page_id": 2196,
+                "element": {
+                    "element_id": 1555,
+                    "add_table_columns": [
+                        {"name": "Editar", "type": "button", "label": "Editar"}
+                    ],
+                    "thought": "Add a button column named Editar to the table on the "
+                    "Students page.",
+                },
+            },
+            id="add-columns",
+        ),
+    ],
+)
+def test_repair_printed_tool_call_recovers_captured_texts(
+    text: str, arguments: dict[str, Any]
+) -> None:
+    assert repair_printed_tool_call(text) == ("update_element", arguments)
+
+
+def test_repair_printed_tool_call_keeps_valid_json() -> None:
+    text = '{"name": "list_tables", "arguments": {"thought": "Find } and ]"}}'
+
+    assert repair_printed_tool_call(text) == (
+        "list_tables",
+        {"thought": "Find } and ]"},
+    )
+
+
+@pytest.mark.parametrize(
+    "text, arguments",
+    [
+        pytest.param(
+            '{"name": "t", "arguments": {"page": {"template": "{{x}}"}"}',
+            {"page": {"template": "{{x}}"}},
+            id="closing-quote-after-brackets-in-a-string",
+        ),
+        pytest.param(
+            '{"name": "t", "arguments": {"page": {"text": "say \\"}\\" now"}"}',
+            {"page": {"text": 'say "}" now'}},
+            id="escaped-quotes-around-a-bracket",
+        ),
+        pytest.param(
+            '{"name": "t", "arguments": {"rows": [{"a": {"b": "]"}"}',
+            {"rows": [{"a": {"b": "]"}}]},
+            id="closers-in-the-order-the-brackets-opened",
+        ),
+    ],
+)
+def test_repair_printed_tool_call_reads_brackets_outside_strings_only(
+    text: str, arguments: dict[str, Any]
+) -> None:
+    assert repair_printed_tool_call(text) == ("t", arguments)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("The Email column now comes after Website.", id="prose"),
+        pytest.param('{"answer": "Done"}', id="other-object"),
+        pytest.param('[{"name": "t", "arguments": {}}]', id="list"),
+        pytest.param('{"name": "t", "arguments": "{}"}', id="arguments-as-text"),
+        pytest.param('{"name": 7, "arguments": {}}', id="name-not-text"),
+        pytest.param('{"name": "t", "arguments": {}, "id": "call-1"}', id="extra-key"),
+        pytest.param('{"name": "t", "arguments": {"thought": "Cut', id="open-string"),
+        pytest.param('{"name": "t", "arguments": {}} Done.', id="trailing-prose"),
+    ],
+)
+def test_repair_printed_tool_call_returns_none_for_other_text(text: str) -> None:
+    assert repair_printed_tool_call(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param(
+            '{"name": "t", "arguments": {"rows": [{"a": "]"}',
+            id="three-closers-missing",
+        ),
+        pytest.param(
+            '{"name": "delete_rows", "arguments": {"table_id": 12, '
+            '"row_ids": [1, 2, 45',
+            id="cut-after-a-number",
+        ),
+        pytest.param(
+            '{"name": "create_rows", "arguments": {"table_id": 12, "rows": [{',
+            id="cut-after-an-opening-bracket",
+        ),
+        pytest.param(
+            '{"name": "delete_rows", "arguments": {"thought": "Delete the rows.", '
+            '"table_id": 12}',
+            id="cut-and-closed-by-groq",
+        ),
+    ],
+)
+def test_repair_printed_tool_call_never_completes_a_cut_off_call(text: str) -> None:
+    assert repair_printed_tool_call(text) is None
+
+
+def test_repair_printed_tool_call_returns_none_for_json_too_deep_to_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def overflow(text: str, **kwargs: Any) -> Any:
+        raise RecursionError
+
+    # Whether json.loads overflows on deep nesting depends on the stack size.
+    monkeypatch.setattr(json, "loads", overflow)
+
+    assert repair_printed_tool_call('{"name": "t", "arguments": [[[') is None
+
+
+def test_tool_use_failed_keeps_the_arguments_of_a_repairable_generation() -> None:
+    recovered = _try_recover_tool_use_failed(
+        _make_tool_use_failed_error(_PRINTED_REORDER)
+    )
+
+    (part,) = recovered.parts
+    assert isinstance(part, ToolCallPart)
+    assert part.tool_name == "update_element"
+    assert part.args_as_dict() == _REORDER_ARGUMENTS
+
+
+@pytest.mark.parametrize(
+    "generation",
+    [
+        pytest.param(
+            {"name": "list_tables", "arguments": {"database_id": 1}, "id": "call-1"},
+            id="extra-key",
+        ),
+        pytest.param(
+            {"name": "list_tables", "arguments": '{"database_id": 1}'},
+            id="arguments-as-text",
+        ),
+    ],
+)
+def test_tool_use_failed_reads_any_valid_generation_with_name_and_arguments(
+    generation: dict[str, Any],
+) -> None:
+    recovered = _try_recover_tool_use_failed(
+        _make_tool_use_failed_error(json.dumps(generation))
+    )
+
+    (part,) = recovered.parts
+    assert isinstance(part, ToolCallPart)
+    assert (part.tool_name, part.args) == (
+        "list_tables",
+        json.dumps(generation["arguments"]),
+    )
+
+
+def test_tool_use_failed_needs_exactly_name_and_arguments_after_a_repair() -> None:
+    recovered = _try_recover_tool_use_failed(
+        _make_tool_use_failed_error(
+            '{"name": "list_tables", "arguments": {"page": {"id": 1}"}, "id": "call-1"'
+        )
+    )
+
+    (part,) = recovered.parts
+    assert isinstance(part, ToolCallPart)
+    assert (part.tool_name, part.args) == ("list_tables", "{}")
+
+
+def test_tool_use_failed_does_not_complete_a_cut_off_generation() -> None:
+    recovered = _try_recover_tool_use_failed(
+        _make_tool_use_failed_error(
+            '{"name": "delete_rows", "arguments": {"table_id": 12, "row_ids": [1, 2'
+        )
+    )
+
+    (part,) = recovered.parts
+    assert isinstance(part, ToolCallPart)
+    assert (part.tool_name, part.args) == ("delete_rows", "{}")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        pytest.param(
+            ModelRequestParameters(
+                function_tools=[ToolDefinition(name="update_element")]
+            ),
+            id="function-tool",
+        ),
+        pytest.param(
+            ModelRequestParameters(
+                output_tools=[ToolDefinition(name="update_element")]
+            ),
+            id="output-tool",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "texts",
+    [
+        pytest.param([_PRINTED_REORDER], id="one-part"),
+        pytest.param([_PRINTED_REORDER[:50], _PRINTED_REORDER[50:]], id="two-parts"),
+    ],
+)
+async def test_request_turns_a_tool_call_printed_as_text_into_a_tool_call(
+    parameters: ModelRequestParameters, texts: list[str]
+) -> None:
+    response = ModelResponse(
+        parts=[TextPart(text) for text in texts],
+        usage=RequestUsage(input_tokens=11, output_tokens=7),
+        model_name="openai/gpt-oss-120b",
+        provider_name="groq",
+        provider_details={"timestamp": "2026-10-07"},
+        finish_reason="error",
+    )
+    inner = MagicMock()
+    inner.request = AsyncMock(return_value=response)
+
+    result = await _make_retrying(inner).request([], None, parameters)
+
+    (part,) = result.parts
+    assert isinstance(part, ToolCallPart)
+    assert (part.tool_name, part.args) == ("update_element", _REORDER_ARGUMENTS)
+    assert result == replace(response, parts=[part])
+    assert inner.request.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "response",
+    [
+        pytest.param(
+            ModelResponse(
+                parts=[TextPart('{"name": "delete_element", "arguments": {"id": 1}')],
+                finish_reason="error",
+            ),
+            id="unknown-tool",
+        ),
+        pytest.param(
+            ModelResponse(
+                parts=[
+                    TextPart('{"name": "update_element", "arguments": {"page_id": 21}')
+                ],
+                finish_reason="error",
+            ),
+            id="cut-off-call",
+        ),
+        pytest.param(
+            ModelResponse(
+                parts=[TextPart("The Email column now comes after Website.")],
+                finish_reason="error",
+            ),
+            id="text-answer",
+        ),
+        pytest.param(
+            ModelResponse(parts=[TextPart(_PRINTED_REORDER)], finish_reason="stop"),
+            id="no-error",
+        ),
+        pytest.param(
+            ModelResponse(
+                parts=[ThinkingPart("Move it."), TextPart(_PRINTED_REORDER)],
+                finish_reason="error",
+            ),
+            id="not-only-text",
+        ),
+    ],
+)
+async def test_request_returns_other_responses_unchanged(
+    response: ModelResponse,
+) -> None:
+    inner = MagicMock()
+    inner.request = AsyncMock(return_value=response)
+
+    result = await _make_retrying(inner).request(
+        [],
+        None,
+        ModelRequestParameters(function_tools=[ToolDefinition(name="update_element")]),
+    )
+
+    assert result is response
+
+
+@pytest.mark.asyncio
+async def test_groq_tool_call_printed_as_text_becomes_a_tool_call() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "message": "Failed to parse tool call arguments as JSON",
+                    "type": "invalid_request_error",
+                    "code": "tool_use_failed",
+                    "failed_generation": _PRINTED_REORDER,
+                }
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        groq = GroqModel(
+            "openai/gpt-oss-120b",
+            provider=GroqProvider(api_key="test-only", http_client=client),
+        )
+        response = await RetryingModel(groq).request(
+            [ModelRequest(parts=[UserPromptPart("Move Email after Website.")])],
+            None,
+            ModelRequestParameters(
+                function_tools=[ToolDefinition(name="update_element")]
+            ),
+        )
+
+    (part,) = response.parts
+    assert isinstance(part, ToolCallPart)
+    assert (part.tool_name, part.args) == ("update_element", _REORDER_ARGUMENTS)
 
 
 # ---------------------------------------------------------------------------

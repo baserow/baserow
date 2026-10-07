@@ -48,6 +48,7 @@ from baserow_enterprise.assistant.tools.toolset import (
     _MAX_REPORTED_ERRORS,
     InlineRefsToolset,
     _dropped_values,
+    move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
 
@@ -690,6 +691,114 @@ async def test_retry_message_lists_a_limited_number_of_dropped_values(
     assert f"column.extra_{_MAX_REPORTED_ERRORS}" not in str(exc.value)
     assert ", and 2 more." in str(exc.value)
     assert saved == []
+
+
+class _Element(AssistantBaseModel):
+    element_id: int
+    name: str | None = None
+
+
+async def _save_element_toolset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[
+    Callable[[dict[str, Any]], Awaitable[Any]],
+    AsyncMock,
+    list[tuple[int, _Element, str]],
+]:
+    """
+    Build a ``save_element`` toolset that takes a top-level ``thought``.
+
+    :param monkeypatch: Replaces the repair call.
+    :return: A function that calls the tool, the repair mock and the saved calls.
+    """
+
+    saved: list[tuple[int, _Element, str]] = []
+
+    def save_element(page_id: int, element: _Element, thought: str) -> None:
+        saved.append((page_id, element, thought))
+
+    model = TestModel()
+    toolset = InlineRefsToolset(
+        FunctionToolset([save_element]), model=model, model_profile=MagicMock()
+    )
+    ctx = RunContext(deps=None, model=model, usage=RunUsage(), prompt="Save")
+    tools = await toolset.get_tools(ctx)
+    repair = AsyncMock()
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.toolset.run_agent_with_model", repair
+    )
+
+    async def call(arguments: dict[str, Any]) -> Any:
+        return await toolset.call_tool(
+            "save_element", arguments, ctx, tools["save_element"]
+        )
+
+    return call, repair, saved
+
+
+@pytest.mark.asyncio
+async def test_thought_nested_in_an_argument_moves_to_the_top_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_element_toolset(monkeypatch)
+    element = {"element_id": 2, "name": "Go", "thought": "Rename the element."}
+
+    await call({"page_id": 1, "element": element})
+
+    repair.assert_not_awaited()
+    assert saved == [(1, _Element(element_id=2, name="Go"), "Rename the element.")]
+    assert element["thought"] == "Rename the element."
+
+
+@pytest.mark.asyncio
+async def test_nested_thought_stays_when_the_top_level_has_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call, repair, saved = await _save_element_toolset(monkeypatch)
+
+    with pytest.raises(ModelRetry) as exc:
+        await call(
+            {
+                "page_id": 1,
+                "element": {"element_id": 2, "thought": "Rename the element."},
+                "thought": "Update the page.",
+            }
+        )
+
+    repair.assert_not_awaited()
+    assert "element.thought: 'thought' is not a key of this object" in str(exc.value)
+    assert saved == []
+
+
+@pytest.mark.parametrize(
+    "schema, arguments",
+    [
+        pytest.param(
+            {"properties": {"element": {"type": "object"}}},
+            {"element": {"thought": "Rename."}},
+            id="tool-without-thought",
+        ),
+        pytest.param(
+            {"properties": {"thought": {"type": "string"}}},
+            {"element": {"thought": "Rename."}, "parent": {"thought": "Move."}},
+            id="two-nested-thoughts",
+        ),
+        pytest.param(
+            {"properties": {"thought": {"type": "string"}}},
+            {"elements": [{"thought": "Rename."}]},
+            id="thought-in-a-list",
+        ),
+        pytest.param(
+            {"properties": {"thought": {"type": "string"}}},
+            [{"thought": "Rename."}],
+            id="arguments-not-an-object",
+        ),
+    ],
+)
+def test_move_thought_to_top_level_leaves_other_arguments_unchanged(
+    schema: dict[str, Any], arguments: Any
+) -> None:
+    assert move_thought_to_top_level(schema, arguments) is arguments
 
 
 @pytest.fixture

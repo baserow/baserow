@@ -23,7 +23,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -2244,6 +2244,120 @@ class TestFinalAnswerValidation:
         keys_reordered = '{"id": "c1", "name": "create_tables", "arguments": {}}'
         with pytest.raises(ModelRetry):
             validate_final_answer(None, keys_reordered)
+
+    @staticmethod
+    def _run_with_first_answer(answer: str) -> tuple[list[str], str]:
+        """
+        Run the main agent with a model that answers ``answer`` first.
+
+        :param answer: The model's first answer.
+        :return: The retry messages the model received and the final output.
+        """
+
+        def update_element(page_id: int, element: dict[str, Any], thought: str) -> str:
+            return "Updated."
+
+        retries: list[str] = []
+        answers = iter([answer, "The Editar column is the last column of the table."])
+
+        def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            retries.extend(
+                part.content
+                for part in messages[-1].parts
+                if isinstance(part, RetryPromptPart)
+            )
+            return ModelResponse(parts=[TextPart(content=next(answers))])
+
+        result = main_agent.run_sync(
+            "Add a button column named Editar.",
+            deps=AssistantDeps(
+                user=MagicMock(),
+                workspace=MagicMock(),
+                tool_helpers=MagicMock(request_context={}),
+            ),
+            model=FunctionModel(model),
+            toolsets=[FunctionToolset(tools=[update_element])],
+        )
+        return retries, result.output
+
+    def test_tool_call_printed_as_text_gets_the_corrected_call(self) -> None:
+        retries, _ = self._run_with_first_answer(
+            '{"name": "update_element", "arguments": {"page_id":2196,"element":'
+            '{"element_id":1555,"add_table_columns":[{"name":"Editar","type":"button",'
+            '"label":"Editar"}],"thought":"Add a button column named Editar to the '
+            'table on the Students page."}"}'
+        )
+
+        (retry,) = retries
+        prefix = (
+            "That answer is a tool call printed as text, so nothing was executed. "
+            "Call the update_element tool with exactly these arguments: "
+        )
+        assert retry.startswith(prefix)
+        assert json.loads(retry.removeprefix(prefix)) == {
+            "page_id": 2196,
+            "element": {
+                "element_id": 1555,
+                "add_table_columns": [
+                    {"name": "Editar", "type": "button", "label": "Editar"}
+                ],
+            },
+            "thought": "Add a button column named Editar to the table on the "
+            "Students page.",
+        }
+
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            pytest.param(
+                '{"name": "update_element", "arguments": {"thought": "Add the',
+                id="cut-in-a-string",
+            ),
+            pytest.param(
+                '{"name": "update_element", "arguments": {"page_id": 2196, '
+                '"element": {"element_id": 1555',
+                id="cut-after-a-value",
+            ),
+            pytest.param(
+                '{"name": "delete_element", "arguments": {"element_id": 1555}}',
+                id="unknown-tool",
+            ),
+            pytest.param(
+                json.dumps(
+                    {
+                        "name": "update_element",
+                        "arguments": {
+                            "page_id": 2196,
+                            "element": {
+                                "element_id": 1555,
+                                "add_table_columns": [
+                                    {"name": f"Column {number}", "type": "text"}
+                                    for number in range(100)
+                                ],
+                            },
+                            "thought": "Add the columns.",
+                        },
+                    }
+                ),
+                id="too-long-to-repeat",
+            ),
+        ],
+    )
+    def test_tool_call_printed_as_text_gets_the_general_retry(
+        self, answer: str
+    ) -> None:
+        retries, _ = self._run_with_first_answer(answer)
+
+        assert retries == [
+            "That answer is a tool call printed as text, so nothing was executed. "
+            "Call the tool instead, and if the payload is large split it into "
+            "batches of at most 20 rows per call."
+        ]
+
+    def test_normal_answer_is_not_sent_back_as_a_printed_tool_call(self) -> None:
+        answer = "The table already has an Editar column."
+
+        assert self._run_with_first_answer(answer) == ([], answer)
 
     def test_regular_answers_pass_through(self):
         answer = 'Created the table. The field {"name": ...} maps to your schema.'
