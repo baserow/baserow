@@ -1839,11 +1839,11 @@ class ElementUpdate(BaseModel):
     )
     menu_items: list[MenuItemUpdate] | None = Field(
         default=None,
-        description="(menu, header, footer) The whole menu, in order. Send every current item with its uid, or list it in remove_menu_items.",
+        description="(menu, header, footer) The whole menu, in order: every current item with its uid, plus new items.",
     )
     remove_menu_items: list[str] | None = Field(
         default=None,
-        description="(menu, header, footer) uids of the items to delete. Without menu_items, the other items stay as they are.",
+        description="(menu, header, footer) uids of the items to delete. Sent alone, it keeps the other items.",
     )
 
     # -- Dispatch -------------------------------------------------------------
