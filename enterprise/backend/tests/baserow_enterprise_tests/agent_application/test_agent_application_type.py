@@ -107,6 +107,10 @@ def test_export_import_agent_application(data_fixture):
     ).specific
 
     assert imported.id != application.id
+    # A created agent starts active; a copy never runs until the user
+    # activates it.
+    assert application.active is True
+    assert imported.active is False
     # The identity must not survive a non-publishing import.
     assert imported.agent_identity_id is None
     imported_agent = AgentApplicationHandler().get_main_agent(imported)

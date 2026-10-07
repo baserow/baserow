@@ -60,9 +60,17 @@ export default {
       required: false,
       default: '',
     },
+    /**
+     * Only read when the card mounts; afterwards the user's toggling wins.
+     */
+    defaultExpanded: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   data() {
-    return { expanded: true }
+    return { expanded: this.defaultExpanded }
   },
   methods: {
     toggle() {

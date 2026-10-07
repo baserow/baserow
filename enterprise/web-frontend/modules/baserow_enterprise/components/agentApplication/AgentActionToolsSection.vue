@@ -33,6 +33,7 @@
       <AgentConfigurationCard
         v-for="tool in actionTools"
         :key="tool.id"
+        :default-expanded="cardInitiallyExpanded(tool, actionTools)"
         :title="serviceTypeName(tool)"
         :subtitle="cardSubtitle(tool)"
         :icon="serviceTypeIcon(tool)"
@@ -345,6 +346,7 @@
 </template>
 
 <script>
+import agentCollapsibleCards from '@baserow_enterprise/mixins/agentCollapsibleCards'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
@@ -397,7 +399,7 @@ const INPUT_TYPES = ['string', 'number', 'boolean']
 
 export default {
   name: 'AgentActionToolsSection',
-  mixins: [AgentContextMixin],
+  mixins: [AgentContextMixin, agentCollapsibleCards],
   components: {
     AgentConfigurationCard,
     AgentGroupedAddMenu,

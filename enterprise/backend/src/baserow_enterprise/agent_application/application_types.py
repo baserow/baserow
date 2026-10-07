@@ -266,6 +266,10 @@ class AgentApplicationType(ApplicationType):
     def create_application(self, user, workspace, init_with_data=False, **kwargs):
         setup = {key: kwargs.pop(key) for key in SETUP_FIELDS if key in kwargs}
         agent_identity_id = kwargs.pop("agent_identity_id", None)
+        # A newly created agent runs what its creator just set up. Copies
+        # (import, duplicate, template) do not pass through here and keep the
+        # model's inactive default, so they never run unnoticed.
+        kwargs.setdefault("active", True)
         application = super().create_application(
             user, workspace, init_with_data=init_with_data, **kwargs
         )

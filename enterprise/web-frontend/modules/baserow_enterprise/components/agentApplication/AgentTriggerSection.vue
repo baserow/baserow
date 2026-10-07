@@ -42,6 +42,7 @@
       <AgentConfigurationCard
         v-for="trigger in triggers"
         :key="trigger.id"
+        :default-expanded="cardInitiallyExpanded(trigger, triggers)"
         :title="triggerNodeTypeName(trigger)"
         :icon="triggerNodeTypeIcon(trigger)"
       >
@@ -168,6 +169,7 @@
 </template>
 
 <script>
+import agentCollapsibleCards from '@baserow_enterprise/mixins/agentCollapsibleCards'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
@@ -185,7 +187,7 @@ import { AgentContextMixin } from '@baserow_enterprise/composables/useAgentConte
 
 export default {
   name: 'AgentTriggerSection',
-  mixins: [AgentContextMixin],
+  mixins: [AgentContextMixin, agentCollapsibleCards],
   components: {
     AgentConfigurationCard,
     AgentGroupedAddMenu,

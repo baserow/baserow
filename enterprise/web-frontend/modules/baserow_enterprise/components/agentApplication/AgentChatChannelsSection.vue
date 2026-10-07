@@ -35,6 +35,7 @@
       <AgentConfigurationCard
         v-for="channel in channels"
         :key="channel.id"
+        :default-expanded="cardInitiallyExpanded(channel, channels)"
         :title="channelTitle(channel)"
         :image="channelType(channel).image"
         :icon="channelType(channel).icon"
@@ -140,6 +141,7 @@
 </template>
 
 <script>
+import agentCollapsibleCards from '@baserow_enterprise/mixins/agentCollapsibleCards'
 import debounce from 'lodash/debounce'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
@@ -159,7 +161,7 @@ export default {
     AgentGroupedAddMenu,
     ReadOnlyForm,
   },
-  mixins: [AgentContextMixin],
+  mixins: [AgentContextMixin, agentCollapsibleCards],
   props: {
     application: {
       type: Object,
