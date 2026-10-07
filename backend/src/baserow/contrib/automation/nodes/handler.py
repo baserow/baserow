@@ -537,9 +537,14 @@ class AutomationNodeHandler:
             logger.error(str(e))
             return None
 
-        if workflow_history.status == HistoryStatusChoices.CANCELLED:
-            # The run was already finalized, e.g. by an earlier dispatch of
-            # this run or by the timeout sweep.
+        if workflow_history.status in (
+            HistoryStatusChoices.CANCELLED,
+            HistoryStatusChoices.ERROR,
+        ):
+            # The run was already finalized, e.g. by an earlier dispatch of this
+            # run, a failed sibling node, or the timeout sweep. Iterator iterations
+            # and sibling branches are pre-chained as Celery groups, so without this
+            # guard they would keep running after one child errored.
             return None
 
         if (
