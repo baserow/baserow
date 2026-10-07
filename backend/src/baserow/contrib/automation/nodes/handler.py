@@ -3,6 +3,7 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import transaction
 from django.db.models import QuerySet
@@ -53,6 +54,13 @@ from baserow.contrib.automation.nodes.types import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
+from baserow.core.formula import BaserowFormulaException, resolve_formula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.validator import ensure_boolean
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     RuntimeDispatchException,
@@ -552,6 +560,84 @@ class AutomationNodeHandler:
         self._handle_simulation_notify(simulate_until_node, node)
         return None
 
+    def _retry_condition_enabled(
+        self, node: AutomationNode, workflow_history: AutomationWorkflowHistory
+    ) -> bool:
+        """
+        Whether a successful attempt must still be checked against the node's
+        retry condition. Simulations and test runs never evaluate it.
+        """
+
+        return (
+            node.on_failure == AutomationNodeOnFailure.RETRY
+            and node.retry_on_condition
+            and bool((node.retry_condition or {}).get("formula"))
+            and workflow_history.simulate_until_node_id is None
+            and not workflow_history.is_test_run
+        )
+
+    def _retry_condition_matches(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+        dispatch_result: DispatchResult,
+    ) -> bool:
+        """
+        Evaluates the node's retry condition against the data it just
+        produced, exposed to the formula through the `current_node` data
+        provider. True means the attempt counts as failed.
+
+        :raises InvalidFormulaContext: If a `get()` path cannot be resolved.
+        :raises InvalidFormulaContextContent: If the resolved content is unusable.
+        :raises ValidationError: If a runtime function rejects one of its values.
+        :raises BaserowFormulaException: If the formula cannot be parsed.
+        """
+
+        context = dispatch_context.clone()
+        context.current_node = node
+        context.current_node_result = dispatch_result.data
+        value = resolve_formula(
+            node.retry_condition, formula_runtime_function_registry, context
+        )
+        return ensure_boolean(value, False)
+
+    def _handle_retry_condition_matched(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        iteration_path: str,
+        attempt: int,
+        result: Dict,
+    ) -> NodeDispatchRetry | None:
+        """
+        The node produced data, but its retry condition says the attempt
+        failed. The data is stored as the attempt's result either way, so it
+        can still be inspected in the history.
+
+        :return: A NodeDispatchRetry for the Celery task to schedule, or None
+            when the retries are exhausted and the run was marked as errored.
+        """
+
+        if self._can_retry(node, workflow_history, attempt):
+            self._handle_node_retry(
+                node_history,
+                iteration_path,
+                f"Attempt {attempt}: the retry condition matched, the node will "
+                "be retried.",
+                result=result,
+            )
+            return NodeDispatchRetry(
+                node_id=node.id,
+                history_id=workflow_history.id,
+                attempt=attempt,
+                countdown=self._retry_countdown(attempt),
+            )
+
+        error = f"The retry condition still matched after {node.max_retries} retries."
+        self._handle_workflow_error(node_history, iteration_path, error, result=result)
+        return None
+
     def _node_dispatch_count_cache_key(self, history_id: int) -> str:
         return f"automation_node_dispatch_count_{history_id}"
 
@@ -817,6 +903,54 @@ class AutomationNodeHandler:
                 error,
                 retryable=False,
             )
+
+        # The node produced data, but its retry condition may still count the
+        # attempt as failed. A deferred node gets its data later, through
+        # complete_deferred_node(), where the error policy does not apply.
+        if (
+            dispatch_result.deferred_history_id is None
+            and self._retry_condition_enabled(node, workflow_history)
+        ):
+            try:
+                matched = self._retry_condition_matches(
+                    node, dispatch_context, dispatch_result
+                )
+            except (
+                InvalidFormulaContext,
+                InvalidFormulaContextContent,
+                ValidationError,
+                BaserowFormulaException,
+            ) as e:
+                detail = (
+                    " ".join(e.messages) if isinstance(e, ValidationError) else str(e)
+                )
+                error = f"The retry condition of this node is invalid. {detail}"
+                self._handle_workflow_error(
+                    node_history, iteration_path, error, result=dispatch_result.data
+                )
+                return None
+            except Exception as e:
+                # A bug in a runtime function must not leave the run `started`
+                # forever: it would only be swept after the workflow timeout.
+                error = (
+                    "Unexpected error while evaluating the retry condition of "
+                    f"this node. Error: {str(e)}"
+                )
+                logger.exception(error)
+                self._handle_workflow_error(
+                    node_history, iteration_path, error, result=dispatch_result.data
+                )
+                return None
+
+            if matched:
+                return self._handle_retry_condition_matched(
+                    node,
+                    node_history,
+                    workflow_history,
+                    iteration_path,
+                    attempt,
+                    dispatch_result.data,
+                )
 
         # A deferred node must first schedule and await its child workflow. The
         # simulation is completed when the deferred result is resumed below.

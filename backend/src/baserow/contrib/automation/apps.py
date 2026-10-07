@@ -219,6 +219,7 @@ class AutomationConfig(AppConfig):
 
         from baserow.contrib.automation.data_providers.data_provider_types import (
             CurrentIterationDataProviderType,
+            CurrentNodeDataProviderType,
             PreviousNodeProviderType,
         )
         from baserow.contrib.automation.data_providers.registries import (
@@ -229,6 +230,7 @@ class AutomationConfig(AppConfig):
         automation_data_provider_type_registry.register(
             CurrentIterationDataProviderType()
         )
+        automation_data_provider_type_registry.register(CurrentNodeDataProviderType())
 
         from baserow.contrib.automation.nodes.permission_manager import (
             AutomationNodePermissionManager,

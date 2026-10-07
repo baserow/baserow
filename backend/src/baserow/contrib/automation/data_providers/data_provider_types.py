@@ -145,3 +145,61 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
             rest = service_type.import_context_path(rest, id_mapping)
 
             return [str(new_node_id), *rest]
+
+
+class CurrentNodeDataProviderType(AutomationDataProviderType):
+    """
+    The result of the node being dispatched. Only available while the runner
+    evaluates that node's retry condition; everywhere else the node has no
+    result yet.
+    """
+
+    type = "current_node"
+
+    def get_data_chunk(
+        self, dispatch_context: AutomationDispatchContext, path: List[str]
+    ):
+        node = dispatch_context.current_node
+        result = dispatch_context.current_node_result
+
+        if node is None or result is None:
+            message = (
+                "The current node's result is only available in its retry condition"
+            )
+            raise InvalidFormulaContext(message)
+
+        service = node.service.specific
+        service_type = service.get_type()
+
+        if service_type.returns_list:
+            result = result["results"]
+            if len(path) >= 2:
+                prepared_path = [
+                    path[0],
+                    *service_type.prepare_value_path(service, path[1:]),
+                ]
+            else:
+                prepared_path = path
+        else:
+            prepared_path = service_type.prepare_value_path(service, path)
+
+        return get_value_at_path(result, prepared_path)
+
+    def import_path(self, path, id_mapping, **kwargs):
+        """
+        Remap the service specific part of the path, e.g. the `field_<id>` of
+        a database service. The path carries no node id: the node whose formula
+        is being imported is passed as `current_node` by the node level formula
+        pass of `AutomationNodeHandler.import_nodes()`.
+
+        :param path: the path part list.
+        :param id_mapping: The id_mapping of the process import.
+        :return: The updated path.
+        """
+
+        node = kwargs.get("current_node")
+        if node is None:
+            return path
+
+        service_type = node.service.get_type()
+        return service_type.import_context_path(path, id_mapping)
