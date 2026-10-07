@@ -70,10 +70,6 @@ class AutomationNodeHandler:
         "label",
         "service",
     ]
-    allowed_update_fields = [
-        "label",
-        "service",
-    ]
 
     def _get_node_cache_key(self, workflow, specific):
         return f"wa_get_{workflow.id}_nodes_{specific}"
@@ -234,7 +230,9 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        allowed_values = extract_allowed(kwargs, self.allowed_update_fields)
+        # The node type decides what can be updated: action nodes accept the
+        # error policy fields on top of the base ones, triggers do not.
+        allowed_values = extract_allowed(kwargs, node.get_type().allowed_fields)
 
         for key, value in allowed_values.items():
             setattr(node, key, value)
@@ -382,6 +380,20 @@ class AutomationNodeHandler:
             updated_models |= service_type.after_import(service, id_mapping, **kwargs)
 
             [u.save() for u in updated_models]
+
+            # The node's own formulas (the retry condition) read the node's
+            # result through the `current_node` provider, whose paths carry no
+            # node id. The node is passed along so the provider can remap the
+            # path against the imported service.
+            node_type = imported_node.get_type()
+            updated_nodes = node_type.import_formulas(
+                imported_node,
+                id_mapping,
+                import_formula,
+                current_node=imported_node,
+                **kwargs,
+            )
+            [n.save() for n in updated_nodes]
 
         return imported_nodes
 

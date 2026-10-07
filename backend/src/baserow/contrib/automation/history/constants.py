@@ -11,3 +11,6 @@ class HistoryStatusChoices(models.TextChoices):
     SKIPPED = "skipped"
     # The run was stopped on request before all of its nodes were dispatched.
     CANCELLED = "cancelled"
+    # Node level only: this attempt of the node failed and another one was
+    # scheduled by the node's error policy. The run itself stays "started".
+    RETRIED = "retried"

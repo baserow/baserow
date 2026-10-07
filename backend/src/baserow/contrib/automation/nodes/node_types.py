@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeFirstNodeMustBeTrigger,
@@ -105,6 +106,16 @@ from baserow.core.services.types import DispatchResult
 
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
+
+    # The retry condition is a formula on the node itself, not on its service,
+    # so the node type's own `import_formulas()` pass remaps it on import.
+    simple_formula_fields = ["retry_condition"]
+
+    @property
+    def allowed_fields(self):
+        # Every action node carries an error policy. Trigger types keep the
+        # base list, so these fields are dropped when sent to a trigger.
+        return super().allowed_fields + ERROR_POLICY_FIELDS
 
     def before_create(self, workflow, reference_node, position, output):
         if reference_node is None:
