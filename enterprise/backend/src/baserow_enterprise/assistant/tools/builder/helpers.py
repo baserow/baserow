@@ -66,7 +66,6 @@ from .types import (
     PageItem,
     PageUpdate,
 )
-from .types.element import BUTTON_NAVIGATION_GUIDANCE
 
 if TYPE_CHECKING:
     pass
@@ -547,6 +546,24 @@ class ElementUpdateOutcome(NamedTuple):
     result: dict[str, Any]
 
 
+def _accepted_update_keys(element: Element) -> set[str]:
+    """
+    Return the keys the element update API accepts for the element's type. They
+    include the relations the type saves itself, such as a menu's items.
+
+    :param element: The element to update.
+    :return: The accepted keys.
+    """
+
+    return (
+        set(ElementHandler.allowed_fields_update)
+        | set(element.get_type().allowed_fields)
+        | set(
+            element.get_type().get_field_names(request_serializer=True, extra_params={})
+        )
+    )
+
+
 def update_element(
     user: AbstractUser,
     element_update: ElementUpdate,
@@ -554,10 +571,8 @@ def update_element(
     """
     Update an existing element by ID.
 
-    If the element is a header/footer and ``menu_items`` are provided,
-    automatically finds or creates a child menu element and sets the
-    items on it (headers are containers, not menus themselves). The element
-    type's hooks check the update, add what they save with it, and report on it.
+    The element type's hooks check the update, add what they save with it, apply
+    what the element's own update doesn't save, and report on it.
 
     :param user: The user updating the element.
     :param element_update: The properties to change.
@@ -576,40 +591,32 @@ def update_element(
             "Use list_elements to find valid element IDs."
         )
 
-    element_type = element.get_type().type
-    hooks = assistant_element_type_registry.get_for(element_type)
     CoreHandler().check_permissions(
         user,
         UpdateElementOperationType.type,
         workspace=element.page.builder.workspace,
         context=element,
     )
+
+    element_type = element.get_type().type
+    hooks = assistant_element_type_registry.get_for(element_type)
     kwargs = element_update.to_update_kwargs(element_type)
-    allowed = set(ElementHandler.allowed_fields_update) | set(
-        element.get_type().allowed_fields
-    )
-    # These relations are consumed by the element type's after_update hook,
-    # rather than assigned as model fields by ElementHandler.
-    allowed.update({"menu": {"menu_items"}}.get(element_type, set()))
+    allowed = _accepted_update_keys(element)
     kwargs = {name: value for name, value in kwargs.items() if name in allowed}
     prepared = hooks.prepare_update(user, element, element_update)
     kwargs.update(prepared.kwargs)
     unsupported = element_update.unsupported_fields(
-        element_type, kwargs, hooks.property_aliases
-    )
+        kwargs, hooks.property_aliases, hooks.properties_applied_after_update
+    ) + hooks.conflicting_properties(element_update)
     if unsupported:
-        if element_type == "button":
-            guidance = BUTTON_NAVIGATION_GUIDANCE
-        else:
-            allowed = set(element.get_type().allowed_fields) & set(
-                ElementUpdate.model_fields
-            )
-            allowed.update(("visibility", "role_type", "roles"))
-            allowed.update(hooks.property_aliases.keys())
-            guidance = f"Supported properties include: {', '.join(sorted(allowed))}."
+        supported = set(element.get_type().allowed_fields) & set(
+            ElementUpdate.model_fields
+        )
+        supported.update(("visibility", "role_type", "roles"))
+        supported.update(hooks.property_aliases)
         raise ToolInputError(
             f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
-            f"No changes were applied. {guidance}"
+            f"No changes were applied. {hooks.unsupported_guidance(supported)}"
         )
     # Save generated values and their source switches together after validation,
     # so failed generation preserves the existing link/image behavior.
@@ -620,16 +627,13 @@ def update_element(
         kwargs.pop(field, None)
     if kwargs:
         element = UpdateElementActionType.do(user, element, kwargs)
-
-    # Headers/footers are containers — menu_items belong on a child menu.
-    if element_type in ("header", "footer") and element_update.menu_items is not None:
-        _ensure_child_menu(user, element, element_update)
+    hooks.after_update(user, element, element_update)
 
     result = hooks.updated_result(element, element_update) | prepared.result
     return ElementUpdateOutcome(element, element_type, result)
 
 
-def _ensure_child_menu(
+def ensure_child_menu(
     user: AbstractUser,
     header_element: Any,
     element_update: ElementUpdate,

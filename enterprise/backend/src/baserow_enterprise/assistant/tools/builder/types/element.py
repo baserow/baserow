@@ -1870,35 +1870,28 @@ class ElementUpdate(BaseModel):
         ]
 
     def unsupported_fields(
-        self, element_type: str, kwargs: dict[str, Any], aliases: dict[str, str]
+        self,
+        kwargs: dict[str, Any],
+        aliases: dict[str, str],
+        applied_after_update: frozenset[str],
     ) -> list[str]:
         """
-        Identify requested properties that the type's converter did not apply.
+        Identify the requested properties that nothing saves.
 
-        :param element_type: The type of the element being updated.
         :param kwargs: The update kwargs that will be saved.
         :param aliases: The properties the element type saves under another kwarg,
             each mapped to that kwarg.
-        :return: The requested properties that no kwarg saves.
+        :param applied_after_update: The properties the element type applies once
+            the update is saved.
+        :return: The requested properties that nothing saves.
         """
 
-        handled = set(kwargs)
-        if element_type in ("header", "footer"):
-            # These are applied to a child menu by the helper's post-update step.
-            handled.add("menu_items")
-        unsupported = [
+        handled = set(kwargs) | applied_after_update
+        return [
             name
             for name in self.get_updated_field_names()
             if aliases.get(name, name) not in handled
         ]
-        if (
-            element_type == "button"
-            and self.value is not None
-            and self.label is not None
-            and self.value != self.label
-        ):
-            unsupported.append("label (conflicts with value)")
-        return unsupported
 
 
 class ElementItem(BaseModel):

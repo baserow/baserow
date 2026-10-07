@@ -10,13 +10,6 @@ from baserow.core.registry import Instance, Registry
 if TYPE_CHECKING:
     from .types.element import ElementUpdate
 
-_PROPERTY_ALIASES: dict[str, dict[str, str]] = {
-    "button": {"label": "value"},
-    "link": {"link_variant": "variant", "link_target": "target"},
-    "column": {"column_alignment": "alignment"},
-    "menu": {"menu_orientation": "orientation", "menu_alignment": "alignment"},
-}
-
 
 class PreparedElementUpdate(NamedTuple):
     """
@@ -30,11 +23,17 @@ class PreparedElementUpdate(NamedTuple):
 
 class AssistantElementType(Instance):
     """
-    How Kuma's builder tools treat one element type. Every hook except
-    ``property_aliases`` does nothing by default.
+    How Kuma's builder tools treat one element type. The default hooks treat it like
+    any other element type.
     """
 
     type = ""
+
+    properties_applied_after_update: frozenset[str] = frozenset()
+    """
+    The ElementUpdate properties that after_update applies instead of the element's
+    own update.
+    """
 
     def __init__(self, element_type: str = "") -> None:
         """
@@ -57,7 +56,7 @@ class AssistantElementType(Instance):
         :return: Each such property, mapped to the update kwarg it fills.
         """
 
-        return dict(_PROPERTY_ALIASES.get(self.type, {}))
+        return {}
 
     def prepare_update(
         self, user: AbstractUser, element: Element, update: "ElementUpdate"
@@ -75,6 +74,38 @@ class AssistantElementType(Instance):
         """
 
         return PreparedElementUpdate(kwargs={}, result={})
+
+    def conflicting_properties(self, update: "ElementUpdate") -> list[str]:
+        """
+        Name the requested properties that contradict each other. The update is
+        refused like one with unsupported properties.
+
+        :param update: The properties to change.
+        :return: One entry per conflict, listed after the unsupported properties.
+        """
+
+        return []
+
+    def unsupported_guidance(self, supported: set[str]) -> str:
+        """
+        Tell the model how to fix an update with unsupported properties.
+
+        :param supported: The properties this type supports.
+        :return: The sentence that ends the unsupported properties error.
+        """
+
+        return f"Supported properties include: {', '.join(sorted(supported))}."
+
+    def after_update(
+        self, user: AbstractUser, element: Element, update: "ElementUpdate"
+    ) -> None:
+        """
+        Apply what the element's own update doesn't save, once it's saved.
+
+        :param user: The user updating the element, who may update it.
+        :param element: The updated element.
+        :param update: The properties that were changed.
+        """
 
     def updated_result(
         self, element: Element, update: "ElementUpdate"
@@ -111,7 +142,7 @@ class AssistantElementTypeRegistry(Registry[AssistantElementType]):
 
         :param element_type: The element's type, such as "table".
         :return: The registered type, or, for element types without hooks, one
-            whose hooks do nothing apart from the existing property aliases.
+            with the default hooks.
         """
 
         try:

@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.shared import (
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
+from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
     CollectionElementCreate,
@@ -884,11 +885,12 @@ def update_element(
             ]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
+    property_aliases = assistant_element_type_registry.get_for(
+        element_type
+    ).property_aliases
     updated_fields = []
     for field in element.get_updated_field_names():
-        formula_field = (
-            "value" if element_type == "button" and field == "label" else field
-        )
+        formula_field = property_aliases.get(field, field)
         formula_field = dependent_fields.get(field, formula_field)
         if formula_field not in formulas or formula_field in applied_formulas:
             updated_fields.append(field)
