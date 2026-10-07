@@ -99,6 +99,17 @@
   "nodeSidePanel": {
     "labelTitle": "Label"
   },
+  "nodeErrorHandlingForm": {
+    "title": "Error handling",
+    "onFailureLabel": "On failure",
+    "onFailureHelp": "Stop ends the run at the first failed attempt. Retry runs the node again, up to the number of retries, before the run fails.",
+    "stop": "Stop",
+    "retry": "Retry",
+    "retryOnLabel": "Retry on",
+    "retryOnFailure": "Unexpected failure",
+    "retriesLabel": "Retries",
+    "retriesHelp": "Between 1 and 5. The node waits 1, 2, 4, 8 and 16 seconds between attempts."
+  },
   "historySidePanel": {
     "title": "History",
     "noRunsTitle": "No runs yet",
