@@ -1,11 +1,11 @@
 from django.shortcuts import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Agent
-from baserow.core.subjects import UserSubjectType
+from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
 
 
 @pytest.mark.django_db
@@ -80,6 +80,28 @@ def test_workspace_subject_options_are_scoped(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert [result["subject_id"] for result in response.json()["results"]] == [agent.id]
+
+
+@pytest.mark.django_db
+def test_workspace_subject_options_reject_non_listable_subject_types(
+    api_client, data_fixture
+):
+    admin, token = data_fixture.create_user_and_token(email="admin@example.com")
+    workspace = data_fixture.create_workspace(user=admin)
+
+    response = api_client.get(
+        reverse("api:subjects:list"),
+        {
+            "workspace_id": workspace.id,
+            "subject_types": AnonymousUserSubjectType.type,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "subject_types": "No listable subject types were requested."
+    }
 
 
 @pytest.mark.django_db
