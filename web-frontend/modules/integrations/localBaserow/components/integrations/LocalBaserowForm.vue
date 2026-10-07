@@ -5,7 +5,15 @@
         :value="authenticationSubject"
         :fetch-page="fetchAgentPage"
         :add-empty-item="false"
-        :initial-display-name="defaultValues.authorized_subject?.name || null"
+        :initial-display-name="
+          defaultValues.authorized_subject?.type === 'core.Agent'
+            ? defaultValues.authorized_subject.name
+            : defaultValues.authorized_subject?.id === currentUserId ||
+                !defaultValues.authorized_subject
+              ? $t('localBaserowForm.currentUser')
+              : defaultValues.authorized_subject.first_name ||
+                defaultValues.authorized_subject.username
+        "
         :include-display-name-in-selected-event="true"
         @input="setAuthenticationSubject"
       >
@@ -63,7 +71,8 @@ export default {
     authenticationSubject: {
       get() {
         return this.values.authorized_subject_type === 'auth.User' &&
-          !this.defaultValues.authorized_subject
+          (this.values.authorized_subject_id === null ||
+            this.values.authorized_subject_id === this.currentUserId)
           ? 'user'
           : `${this.values.authorized_subject_type}:${this.values.authorized_subject_id}`
       },

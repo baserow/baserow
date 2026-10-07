@@ -81,6 +81,34 @@ describe('LocalBaserowForm', () => {
     expect(wrapper.find('.dropdown__selected-text').text()).toBe('Reader agent')
   })
 
+  test('shows the saved current user as selected', async () => {
+    const wrapper = await mountComponent({
+      authorized_subject: { id: 1, type: 'auth.User', first_name: 'Admin' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'localBaserowForm.currentUser'
+    )
+  })
+
+  test('shows a saved different user by name', async () => {
+    const wrapper = await mountComponent({
+      authorized_subject: {
+        id: 2,
+        type: 'auth.User',
+        first_name: 'Other user',
+        username: 'other@example.com',
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe('Other user')
+    expect(
+      wrapper.findComponent({ name: 'PaginatedDropdown' }).props('value')
+    ).toBe('auth.User:2')
+  })
+
   test('emits the current user as an explicit authorization subject', async () => {
     const wrapper = await mountComponent({
       authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
