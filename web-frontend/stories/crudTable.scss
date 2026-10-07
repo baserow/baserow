@@ -18,6 +18,18 @@
   color: $palette-neutral-900;
 }
 
+.crud-table-story__remove-role {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  justify-content: center;
+
+  .button-text__icon {
+    font-size: 16px;
+    color: $palette-neutral-700;
+  }
+}
+
 .crud-table-story__role {
   width: 148px;
   justify-content: flex-start;

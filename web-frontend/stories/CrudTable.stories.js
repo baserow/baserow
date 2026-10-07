@@ -5,10 +5,11 @@ import SimpleField from '@baserow/modules/core/components/crudTable/fields/Simpl
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import Avatar from '@baserow/modules/core/components/Avatar'
 import Button from '@baserow/modules/core/components/Button'
+import ButtonText from '@baserow/modules/core/components/ButtonText'
 import Context from '@baserow/modules/core/components/Context'
 import './crudTable.scss'
 
-// Interactive fixtures only: role edits stay in this story's in-memory service.
+// Interactive fixtures only: role changes stay in this story's in-memory service.
 const RolePicker = {
   components: { Button, Context },
   props: ['modelValue'],
@@ -179,7 +180,7 @@ function createService(state, records) {
 const renderTable =
   (state = 'populated', width = '100%', expandable = false) =>
   (args) => ({
-    components: { CrudTable, Button, Context, Avatar, RolePicker },
+    components: { CrudTable, Button, ButtonText, Context, Avatar, RolePicker },
     setup() {
       const records = reactive(structuredClone(rows))
       const count = ref(0)
@@ -190,6 +191,11 @@ const renderTable =
         selectedRow.value = row
         context.value.toggle(event.currentTarget)
       }
+      const removeAssignment = (row, assignmentId) => {
+        row.assignments = row.assignments.filter(
+          (assignment) => assignment.id !== assignmentId
+        )
+      }
       return {
         args,
         columns,
@@ -197,6 +203,7 @@ const renderTable =
         context,
         selectedRow,
         openContext,
+        removeAssignment,
         width,
         expandable,
         service: createService(state, records),
@@ -239,7 +246,11 @@ const renderTable =
               <div class="data-table__table-cell-content"></div>
             </td>
             <td class="data-table__table-cell data-table__table-cell--sticky-right">
-              <div class="data-table__table-cell-content"></div>
+              <div class="data-table__table-cell-content">
+                <ButtonText type="secondary" icon="iconoir-cancel" class="crud-table-story__remove-role"
+                  :aria-label="'Remove role on ' + detail.name + ' for ' + row.name"
+                  @click="removeAssignment(row, detail.id)" />
+              </div>
             </td>
           </tr>
         </template>
