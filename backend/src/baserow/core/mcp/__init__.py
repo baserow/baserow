@@ -84,8 +84,7 @@ class BaserowMCPServer:
         if endpoint_id is not None:
             lookup = {"id": endpoint_id}
         else:
-            # The key of an OAuth grant's endpoint is never a credential.
-            lookup = {"key": current_key.get(), "oauth_client_id__isnull": True}
+            lookup = {"key": current_key.get()}
         try:
             endpoint = await MCPEndpoint.objects.select_related(
                 "user", "user__profile", "workspace"

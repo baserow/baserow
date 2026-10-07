@@ -28,7 +28,10 @@ class MCPEndpoint(
         max_length=32,
         unique=True,
         db_index=True,
-        help_text="The unique endpoint key that can be used to authorize for the MCP service.",
+        null=True,
+        blank=True,
+        help_text="The unique endpoint key that can be used to authorize for the MCP "
+        "service. Null for OAuth grants, which only accept their access tokens.",
     )
     created = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(
@@ -57,6 +60,13 @@ class MCPEndpoint(
 
     class Meta:
         ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "workspace", "oauth_client_id"],
+                condition=models.Q(oauth_client_id__isnull=False),
+                name="mcp_endpoint_unique_oauth_grant",
+            )
+        ]
 
     def get_parent(self):
         return self.workspace

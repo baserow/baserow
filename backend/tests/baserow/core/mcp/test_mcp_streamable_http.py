@@ -307,33 +307,28 @@ def _get(path):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_oauth_grant_key_is_refused_as_bearer(client, api_client, data_fixture):
+def test_oauth_grant_only_accepts_its_access_token(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
     endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
-    response = _post(LIST, endpoint.key)
-    assert response.status_code == 401
-    assert 'error="invalid_token"' in response.headers["www-authenticate"]
-    # The OAuth token bound to the same endpoint keeps working.
+    assert endpoint.key is None
     response = _post(LIST, tokens["access_token"])
     assert response.status_code == 200
     assert response.json()["result"]["tools"]
 
 
 @pytest.mark.django_db(transaction=True)
-def test_oauth_grant_key_is_refused_on_sse(client, api_client, data_fixture):
+def test_oauth_grant_has_no_sse_key(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
     endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
-    response = _get(f"/mcp/{endpoint.key}/sse")
-    assert response.status_code == 401
-    assert response.text == "Endpoint not found."
+    assert endpoint.key is None
 
 
 @pytest.mark.django_db
-def test_get_endpoint_ignores_oauth_grant_key(data_fixture):
+def test_get_endpoint_resolves_grants_by_id_only(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     grant = data_fixture.create_mcp_endpoint(
@@ -349,6 +344,6 @@ def test_get_endpoint_ignores_oauth_grant_key(data_fixture):
             var.reset(ctx)
 
     get = async_to_sync(lookup)
-    assert get(current_key, grant.key) is None
+    assert grant.key is None
     assert get(current_key, manual.key).id == manual.id
     assert get(current_endpoint_id, grant.id).id == grant.id

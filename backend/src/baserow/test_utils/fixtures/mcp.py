@@ -8,7 +8,8 @@ class MCPFixtures:
             kwargs["name"] = self.fake.name()
 
         if "key" not in kwargs:
-            kwargs["key"] = random_string(32)
+            # OAuth grants have no key.
+            kwargs["key"] = None if kwargs.get("oauth_client_id") else random_string(32)
 
         if "user" not in kwargs:
             kwargs["user"] = self.create_user()
