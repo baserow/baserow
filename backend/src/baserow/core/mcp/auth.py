@@ -12,20 +12,23 @@ INSUFFICIENT_SCOPE = "insufficient_scope"
 
 def www_authenticate(error: str | None = None) -> str:
     """
-    The `WWW-Authenticate` header value for a rejected `/mcp` request. It points MCP
-    clients at the protected resource metadata so they can start the OAuth flow.
+    The `WWW-Authenticate` header value for a rejected `/mcp` request. With OAuth on,
+    it points MCP clients at the protected resource metadata so they can start the
+    OAuth flow. With it off, that metadata isn't served, so it isn't mentioned.
     """
 
-    metadata = (
-        f"{settings.MCP_AUTHORIZATION_SERVER_URL}"
-        "/.well-known/oauth-protected-resource/mcp"
-    )
-    value = f'Bearer resource_metadata="{metadata}"'
+    params = []
+    if settings.BASEROW_MCP_OAUTH_ENABLED:
+        metadata = (
+            f"{settings.MCP_AUTHORIZATION_SERVER_URL}"
+            "/.well-known/oauth-protected-resource/mcp"
+        )
+        params.append(f'resource_metadata="{metadata}"')
     if error == INSUFFICIENT_SCOPE:
-        value += f', error="{INSUFFICIENT_SCOPE}", scope="mcp"'
+        params += [f'error="{INSUFFICIENT_SCOPE}"', 'scope="mcp"']
     elif error:
-        value += f', error="{error}"'
-    return value
+        params.append(f'error="{error}"')
+    return "Bearer " + ", ".join(params) if params else "Bearer"
 
 
 def _load_member_endpoint(**lookup) -> MCPEndpoint | None:

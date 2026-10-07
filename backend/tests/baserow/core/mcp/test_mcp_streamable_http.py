@@ -374,6 +374,9 @@ def test_oauth_token_rejected_when_oauth_disabled(data_fixture, settings):
     settings.BASEROW_MCP_OAUTH_ENABLED = False
     response = _post(LIST, "flag-off-token")
     assert response.status_code == 401
+    # The metadata routes aren't mounted, so the challenge doesn't point at them.
+    assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
+    assert _post(INIT).headers["www-authenticate"] == "Bearer"
     assert _post(LIST, endpoint.key).status_code == 200
 
 
