@@ -1,7 +1,7 @@
 import dataclasses
-import re
-from typing import Callable, Union
+from typing import Callable, Set, Union
 
+from django.db import connection
 from django.db.models import Q, QuerySet
 
 from baserow.core.formula import BaserowFormulaException
@@ -12,7 +12,17 @@ ALL_FORMULAS = ~NO_FORMULAS
 FORMULAS_USING_INDEX = Q(internal_formula__contains="index(")
 
 
-FormulaMigrationSelector = Union[Q, Callable[[QuerySet], Q]]
+@dataclasses.dataclass(frozen=True)
+class SelectedOncePerRun:
+    """
+    Selects formulas with one query over all formulas, made once at the start of a
+    migration run instead of once per batch.
+    """
+
+    select_formula_ids: Callable[[], Set[int]]
+
+
+FormulaMigrationSelector = Union[Q, Callable[[QuerySet], Q], SelectedOncePerRun]
 
 
 @dataclasses.dataclass
@@ -70,70 +80,57 @@ class FormulaMigrations(list):
         return super().__getitem__(-1).version
 
 
-FIELD_REFERENCE_PATTERN = re.compile(r"field_(\d+)")
-LINKED_PRIMARY_FIELD_REFERENCE_PATTERN = re.compile(r"field_(\d+)__field_(\d+)")
-
-
-def formulas_with_stale_field_references(formulas: QuerySet) -> Q:
+def formula_ids_with_stale_field_references() -> Set[int]:
     """
-    Matches the formulas whose internal formula references a field that is trashed
-    or deleted, or reaches through a link field to a field that is no longer the
-    primary field of the linked table.
+    Returns the ids of the formulas whose internal formula references a field that
+    is trashed or deleted, or reaches through a link field to a field that is no
+    longer the primary field of the linked table.
     """
 
-    from django.db.models import OuterRef, Subquery
-
-    from baserow.contrib.database.fields.models import Field, LinkRowField
-
-    internal_formulas = dict(formulas.values_list("id", "internal_formula"))
-    referenced_field_ids = {
-        formula_id: {int(i) for i in FIELD_REFERENCE_PATTERN.findall(internal)}
-        for formula_id, internal in internal_formulas.items()
-    }
-    linked_primary_field_references = {
-        formula_id: {
-            (int(link_id), int(primary_id))
-            for link_id, primary_id in LINKED_PRIMARY_FIELD_REFERENCE_PATTERN.findall(
-                internal
-            )
-        }
-        for formula_id, internal in internal_formulas.items()
-    }
-
-    existing_field_ids = set(
-        Field.objects.filter(
-            id__in=set().union(*referenced_field_ids.values())
-        ).values_list("id", flat=True)
+    from baserow.contrib.database.fields.models import (
+        Field,
+        FormulaField,
+        LinkRowField,
     )
-    current_primary_field_ids = dict(
-        LinkRowField.objects.filter(
-            id__in={
-                link_id
-                for references in linked_primary_field_references.values()
-                for link_id, _ in references
-            }
+
+    # Field ids are capped at 18 digits so that they always fit in a bigint.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT DISTINCT reference.formula_id
+            FROM (
+                SELECT
+                    formula.field_ptr_id AS formula_id,
+                    found[1]::bigint AS field_id,
+                    found[2]::bigint AS primary_field_id
+                FROM {FormulaField._meta.db_table} formula
+                CROSS JOIN LATERAL regexp_matches(
+                    formula.internal_formula,
+                    'field_(\\d{{1,18}})(?:__field_(\\d{{1,18}}))?',
+                    'g'
+                ) AS found
+            ) reference
+            LEFT JOIN {Field._meta.db_table} field
+                ON field.id = reference.field_id AND NOT field.trashed
+            LEFT JOIN {LinkRowField._meta.db_table} link
+                ON link.field_ptr_id = reference.field_id
+            LEFT JOIN {Field._meta.db_table} primary_field
+                ON primary_field.table_id = link.link_row_table_id
+                AND primary_field."primary"
+                AND NOT primary_field.trashed
+            WHERE field.id IS NULL
+                OR (
+                    reference.primary_field_id IS NOT NULL
+                    AND primary_field.id IS DISTINCT FROM reference.primary_field_id
+                )
+            """  # noqa: S608
         )
-        .annotate(
-            primary_field_id=Subquery(
-                Field.objects.filter(
-                    table_id=OuterRef("link_row_table_id"), primary=True
-                ).values("id")[:1]
-            )
-        )
-        .values_list("id", "primary_field_id")
-    )
+        return {row[0] for row in cursor.fetchall()}
 
-    return Q(
-        id__in=[
-            formula_id
-            for formula_id in internal_formulas
-            if referenced_field_ids[formula_id] - existing_field_ids
-            or any(
-                current_primary_field_ids.get(link_id) != primary_id
-                for link_id, primary_id in linked_primary_field_references[formula_id]
-            )
-        ]
-    )
+
+FORMULAS_WITH_STALE_FIELD_REFERENCES = SelectedOncePerRun(
+    formula_ids_with_stale_field_references
+)
 
 
 def all_aggregate_formulas(formulas: QuerySet) -> Q:
@@ -213,10 +210,10 @@ FORMULA_MIGRATIONS = FormulaMigrations(
         FormulaMigration(
             version=7,
             # v7 recalculates formulas with stale field references, see
-            # `formulas_with_stale_field_references`.
+            # `formula_ids_with_stale_field_references`.
             recalculate_formula_attributes_for=NO_FORMULAS,
-            recalculate_field_dependencies_for=formulas_with_stale_field_references,
-            recalculate_cell_values_for=formulas_with_stale_field_references,
+            recalculate_field_dependencies_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
+            recalculate_cell_values_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
             force_recreate_formula_columns_for=NO_FORMULAS,
         ),
     ]

@@ -830,7 +830,7 @@ class FieldHandler:
             field_cache
         )
 
-        updated_fields += self._update_dependencies_of_field_updated(
+        updated_fields += self.update_dependencies_of_field_updated(
             field, old_field, update_collector, field_cache
         )
 
@@ -853,7 +853,7 @@ class FieldHandler:
         else:
             return field
 
-    def _update_dependencies_of_field_updated(
+    def update_dependencies_of_field_updated(
         self, field, old_field, update_collector, field_cache
     ):
         updated_fields = []
@@ -1593,7 +1593,7 @@ class FieldHandler:
         new_primary_field.save()
 
         update_collector = FieldUpdateCollector(existing_primary_field.table)
-        self._update_dependencies_of_field_updated(
+        self.update_dependencies_of_field_updated(
             existing_primary_field,
             existing_primary_field,
             update_collector,

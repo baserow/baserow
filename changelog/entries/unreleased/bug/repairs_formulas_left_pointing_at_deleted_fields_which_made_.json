@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Repairs formulas left pointing at deleted fields, which made them empty",
+    "message": "Fixes formulas that still referenced a deleted, trashed or former primary field",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",
