@@ -60,7 +60,11 @@ def _resolve_oauth_token(value: str):
     from baserow.core.mcp.oauth.validators import endpoint_id_from_scopes
 
     checksum = hashlib.sha256(value.encode("utf-8")).hexdigest()
-    token = AccessToken.objects.filter(token_checksum=checksum).first()
+    token = (
+        AccessToken.objects.select_related("application")
+        .filter(token_checksum=checksum)
+        .first()
+    )
     if token is None:
         return None
     # `allows_audience` accepts tokens without any resource, so require the MCP
@@ -70,7 +74,12 @@ def _resolve_oauth_token(value: str):
     endpoint_id = endpoint_id_from_scopes(token.scope.split())
     if endpoint_id is None:
         return None, INSUFFICIENT_SCOPE
-    endpoint = _load_member_endpoint(id=endpoint_id, user_id=token.user_id)
+    # The scope is only trusted for a grant of the client the token was issued to.
+    endpoint = _load_member_endpoint(
+        id=endpoint_id,
+        user_id=token.user_id,
+        oauth_client_id=token.application.client_id,
+    )
     if endpoint is None:
         return None, INVALID_TOKEN
     return endpoint, None

@@ -54,15 +54,32 @@ def _post(body, auth=None, path="/mcp"):
     return async_to_sync(inner)()
 
 
-def _create_raw_token(user, raw, scope, resource, expires=None):
-    from oauth2_provider.models import AccessToken, Application
+def _create_application():
+    from oauth2_provider.models import Application
 
-    app = Application.objects.create(
+    return Application.objects.create(
         name="x",
         client_type=Application.CLIENT_PUBLIC,
         authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
         redirect_uris="http://127.0.0.1/cb",
     )
+
+
+def _create_grant(data_fixture, user, workspace=None):
+    return data_fixture.create_mcp_endpoint(
+        user=user,
+        workspace=workspace or data_fixture.create_workspace(user=user),
+        oauth_client_id=_create_application().client_id,
+    )
+
+
+def _create_raw_token(user, raw, scope, resource, expires=None, client_id=None):
+    from oauth2_provider.models import AccessToken, Application
+
+    if client_id:
+        app = Application.objects.get(client_id=client_id)
+    else:
+        app = _create_application()
     return AccessToken.objects.create(
         user=user,
         application=app,
@@ -256,9 +273,14 @@ def test_token_without_endpoint_scope_gets_403(data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_token_without_resource_gets_401(data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    _create_raw_token(user, "no-audience-token", f"mcp endpoint:{endpoint.id}", [])
+    grant = _create_grant(data_fixture, user)
+    _create_raw_token(
+        user,
+        "no-audience-token",
+        f"mcp endpoint:{grant.id}",
+        [],
+        client_id=grant.oauth_client_id,
+    )
     response = _post(LIST, "no-audience-token")
     assert response.status_code == 401
     assert 'error="invalid_token"' in response.headers["www-authenticate"]
@@ -267,13 +289,13 @@ def test_token_without_resource_gets_401(data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_token_for_other_resource_gets_401(data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    grant = _create_grant(data_fixture, user)
     _create_raw_token(
         user,
         "foreign-token",
-        f"mcp endpoint:{endpoint.id}",
+        f"mcp endpoint:{grant.id}",
         ["https://elsewhere.example.com/mcp"],
+        client_id=grant.oauth_client_id,
     )
     assert _post(LIST, "foreign-token").status_code == 401
 
@@ -281,14 +303,14 @@ def test_token_for_other_resource_gets_401(data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_expired_token_gets_401(data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    grant = _create_grant(data_fixture, user)
     _create_raw_token(
         user,
         "expired-token",
-        f"mcp endpoint:{endpoint.id}",
+        f"mcp endpoint:{grant.id}",
         [settings.MCP_RESOURCE_URL],
         expires=timezone.now() - timedelta(minutes=1),
+        client_id=grant.oauth_client_id,
     )
     assert _post(LIST, "expired-token").status_code == 401
 
@@ -298,29 +320,60 @@ def test_token_for_other_users_endpoint_gets_401(data_fixture):
     owner = data_fixture.create_user()
     other = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner, members=[other])
-    endpoint = data_fixture.create_mcp_endpoint(user=owner, workspace=workspace)
+    grant = _create_grant(data_fixture, owner, workspace)
     _create_raw_token(
         other,
         "other-user-token",
-        f"mcp endpoint:{endpoint.id}",
+        f"mcp endpoint:{grant.id}",
         [settings.MCP_RESOURCE_URL],
+        client_id=grant.oauth_client_id,
     )
     assert _post(LIST, "other-user-token").status_code == 401
 
 
 @pytest.mark.django_db(transaction=True)
+def test_token_for_another_clients_grant_gets_401(data_fixture):
+    user = data_fixture.create_user()
+    own = _create_grant(data_fixture, user)
+    other = _create_grant(data_fixture, user)
+    _create_raw_token(
+        user,
+        "own-client-token",
+        f"mcp endpoint:{own.id}",
+        [settings.MCP_RESOURCE_URL],
+        client_id=own.oauth_client_id,
+    )
+    _create_raw_token(
+        user,
+        "other-client-token",
+        f"mcp endpoint:{other.id}",
+        [settings.MCP_RESOURCE_URL],
+        client_id=own.oauth_client_id,
+    )
+    assert _post(LIST, "own-client-token").status_code == 200
+    response = _post(LIST, "other-client-token")
+    assert response.status_code == 401
+    assert 'error="invalid_token"' in response.headers["www-authenticate"]
+
+
+@pytest.mark.django_db(transaction=True)
 def test_oauth_token_rejected_when_oauth_disabled(data_fixture, settings):
-    settings.BASEROW_MCP_OAUTH_ENABLED = False
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    grant = _create_grant(data_fixture, user, workspace)
     _create_raw_token(
         user,
         "flag-off-token",
-        f"mcp endpoint:{endpoint.id}",
+        f"mcp endpoint:{grant.id}",
         [settings.MCP_RESOURCE_URL],
+        client_id=grant.oauth_client_id,
     )
-    assert _post(LIST, "flag-off-token").status_code == 401
+    assert _post(LIST, "flag-off-token").status_code == 200
+
+    settings.BASEROW_MCP_OAUTH_ENABLED = False
+    response = _post(LIST, "flag-off-token")
+    assert response.status_code == 401
     assert _post(LIST, endpoint.key).status_code == 200
 
 
