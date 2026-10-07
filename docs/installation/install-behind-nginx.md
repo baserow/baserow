@@ -70,7 +70,7 @@ server {
     server_name baserow.example.com;
 
     # Upgrade websocket requests and route the api backend
-    location ~ ^/(api|ws)/ {
+    location ~ ^/(api|ws|mcp|oauth|\.well-known/oauth-(authorization-server|protected-resource))(/|$) {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
@@ -161,7 +161,7 @@ server {
     server_name baserow.example.com;
 
     # Upgrade websocket requests and route the api backend
-    location ~ ^/(api|ws)/ {
+    location ~ ^/(api|ws|mcp|oauth|\.well-known/oauth-(authorization-server|protected-resource))(/|$) {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;

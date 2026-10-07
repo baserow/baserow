@@ -58,7 +58,7 @@
     }
 
     handle @is_baserow_tool {
-        @backend_routes path /api/* /ws/* /mcp/* /assistant/* {$BASEROW_CADDY_BACKEND_EXTRA_ROUTES:}
+        @backend_routes path /api/* /ws/* /mcp /mcp/* /oauth/* /.well-known/oauth-authorization-server* /.well-known/oauth-protected-resource* /assistant/* {$BASEROW_CADDY_BACKEND_EXTRA_ROUTES:}
         handle @backend_routes {
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
