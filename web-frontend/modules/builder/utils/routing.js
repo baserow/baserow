@@ -21,3 +21,22 @@ export const resolveApplicationRoute = (pages, fullPath) => {
 
 export const resolveBuilderPagePath = (pathMatch) =>
   Array.isArray(pathMatch) ? pathMatch.join('/') : pathMatch || ''
+
+/** Decodes an internal next destination, rejecting external URLs. */
+export const resolveSafeNextPath = (next) => {
+  if (typeof next !== 'string') {
+    return null
+  }
+
+  try {
+    const decoded = decodeURIComponent(next)
+    const internalOrigin = 'http://builder.internal'
+    const resolved = new URL(decoded, internalOrigin)
+    if (!decoded.startsWith('/') || resolved.origin !== internalOrigin) {
+      return null
+    }
+    return `${resolved.pathname}${resolved.search}${resolved.hash}`
+  } catch {
+    return null
+  }
+}

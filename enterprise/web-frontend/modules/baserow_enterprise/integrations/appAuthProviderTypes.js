@@ -14,26 +14,6 @@ import OpenIdIcon from '@baserow_enterprise/assets/images/providers/OpenID.svg?u
 import { PasswordFieldType } from '@baserow/modules/database/fieldTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 
-/**
- * After an SSO login fails, the backend redirects back to the app with an error
- * code in a query parameter (e.g. `saml_error__42=errorApplicationUserLimitReached`).
- * This reads that code for the given parameter name, removes it from the URL so it
- * doesn't linger on refresh, and returns the translated message to display near the
- * auth form. Returns `null` when the parameter isn't present.
- */
-const consumeLoginErrorParam = (app, queryParamName, route) => {
-  const errorCode = route.query[queryParamName]
-  if (!errorCode) {
-    return null
-  }
-  if (typeof window !== 'undefined') {
-    const currentUrl = new URL(window.location.href)
-    currentUrl.searchParams.delete(queryParamName)
-    window.history.replaceState({}, document.title, currentUrl.toString())
-  }
-  return app.$i18n.t(`loginError.${errorCode}`)
-}
-
 export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType {
   static getType() {
     return 'local_baserow_password'
@@ -128,26 +108,22 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
     return false
   }
 
-  getAuthToken(userSource, authProvider, route) {
-    // token can be in the query string (SSO) or in the cookies (previous session)
-    // We use the user source id in order to prevent conflicts when using multiple
-    // auth forms on the same page.
-    const queryParamName = `user_source_saml_token__${userSource.id}`
-    const found = route.query[queryParamName]
-    if (found) {
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.delete(queryParamName)
-      window.history.replaceState({}, document.title, currentUrl.toString())
-    }
-    return found
+  getAuthProviderCallbackQueryParamName(userSource) {
+    return `user_source_saml_token__${userSource.id}`
   }
 
-  getLoginError(userSource, route) {
-    return consumeLoginErrorParam(
-      this.app,
-      `saml_error__${userSource.id}`,
-      route
+  getAuthProviderCallbackQueryParamNames(url) {
+    return [...url.searchParams.keys()].filter((name) =>
+      name.startsWith('user_source_saml_token__')
     )
+  }
+
+  getAuthProviderCallbackErrorQueryParamName(userSource) {
+    return `saml_error__${userSource.id}`
+  }
+
+  formatAuthProviderCallbackError(errorCode) {
+    return { message: this.app.$i18n.t(`loginError.${errorCode}`) }
   }
 
   getRelayStateUrls(userSource) {
@@ -212,18 +188,14 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     return CommonOIDCSettingForm
   }
 
-  getAuthToken(userSource, authProvider, route, router) {
-    // token can be in the query string (SSO) or in the cookies (previous session)
-    // We use the user source id in order to prevent conflicts when using multiple
-    // auth forms on the same page.
-    const queryParamName = `user_source_oidc_token__${userSource.id}`
-    const found = route.query[queryParamName]
-    if (found) {
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.delete(queryParamName)
-      window.history.replaceState({}, document.title, currentUrl.toString())
-    }
-    return found
+  getAuthProviderCallbackQueryParamName(userSource) {
+    return `user_source_oidc_token__${userSource.id}`
+  }
+
+  getAuthProviderCallbackQueryParamNames(url) {
+    return [...url.searchParams.keys()].filter((name) =>
+      name.startsWith('user_source_oidc_token__')
+    )
   }
 
   handleError(userSource, authProvider, route) {
@@ -234,12 +206,12 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     }
   }
 
-  getLoginError(userSource, route) {
-    return consumeLoginErrorParam(
-      this.app,
-      `oidc_error__${userSource.id}`,
-      route
-    )
+  getAuthProviderCallbackErrorQueryParamName(userSource) {
+    return `oidc_error__${userSource.id}`
+  }
+
+  formatAuthProviderCallbackError(errorCode) {
+    return { message: this.app.$i18n.t(`loginError.${errorCode}`) }
   }
 
   handleServerError(vueComponentInstance, error) {

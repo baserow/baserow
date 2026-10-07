@@ -6,7 +6,7 @@ const getRenderPath = (builderId, previewPath, publicPath) =>
     ? getBuilderPreviewApiPath(builderId, previewPath)
     : `builder/domains/published/${publicPath}`
 
-export default (client) => {
+const PublishedBuilderService = (client) => {
   return {
     publish(domain) {
       return client.post(`builder/domains/${domain.id}/publish/async/`, {
@@ -93,3 +93,20 @@ export default (client) => {
     },
   }
 }
+
+/** Fetches a preview or published Builder using its route identifiers. */
+export const fetchPublicBuilder = async (
+  client,
+  { mode = 'public', builderId = null, domain = null }
+) => {
+  const service = PublishedBuilderService(client)
+  if (mode === 'preview') {
+    return (await service.fetchPreview(builderId)).data
+  }
+  if (builderId !== null) {
+    return (await service.fetchById(builderId)).data
+  }
+  return (await service.fetchByDomain(domain)).data
+}
+
+export default PublishedBuilderService
