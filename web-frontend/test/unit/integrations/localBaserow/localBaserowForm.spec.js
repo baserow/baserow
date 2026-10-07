@@ -45,7 +45,16 @@ describe('LocalBaserowForm', () => {
 
   test('lists agents and emits the selected typed subject', async () => {
     const wrapper = await mountComponent()
+    await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
+
+    expect(testApp.mock.history.get.at(-1).params).toEqual({
+      workspace_id: 1,
+      page: 1,
+      search: '',
+      subject_types: 'core.Agent',
+      size: 100,
+    })
 
     const items = wrapper.findAllComponents({ name: 'DropdownItem' })
     expect(items.map((item) => item.props('name'))).toEqual([
