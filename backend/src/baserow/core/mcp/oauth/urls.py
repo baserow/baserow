@@ -3,11 +3,12 @@ from django.urls import include, path
 from oauth2_provider import urls as oauth2_urls
 from oauth2_provider import views as oauth2_views
 
+from .token_view import MCPTokenView
 from .views import MCPAuthorizeRedirectView, MCPProtectedResourceMetadataView
 
 oauth_patterns = [
     path("authorize/", MCPAuthorizeRedirectView.as_view(), name="authorize"),
-    path("token/", oauth2_views.TokenView.as_view(), name="token"),
+    path("token/", MCPTokenView.as_view(), name="token"),
     path("revoke_token/", oauth2_views.RevokeTokenView.as_view(), name="revoke-token"),
 ]
 

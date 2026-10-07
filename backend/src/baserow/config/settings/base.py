@@ -881,6 +881,19 @@ BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS = [
     if host.strip()
 ]
 MCP_REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 30
+try:
+    BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS") or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
 
 # django-oauth-toolkit's migrations declare swappable dependencies on these settings,
 # and `migrate` resolves them when it checks for model changes, so they must exist.
