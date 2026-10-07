@@ -66,7 +66,11 @@ def test_revoke_endpoint_tokens_matches_scope_exactly(data_fixture):
 
     one = make("a1", "mcp endpoint:1")
     twelve = make("a12", "mcp endpoint:12")
-    revoke_endpoint_tokens(1)
+    endpoint = data_fixture.create_mcp_endpoint(
+        user=user, oauth_client_id=application.client_id
+    )
+    endpoint.id = 1
+    revoke_endpoint_tokens(endpoint)
     assert not AccessToken.objects.filter(id=one.id).exists()
     assert not RefreshToken.objects.filter(token="r-a1").exists()
     assert AccessToken.objects.filter(id=twelve.id).exists()

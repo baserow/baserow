@@ -249,6 +249,19 @@ class MCPEndpointHandler:
             context=endpoint,
         )
 
-        endpoint_id = endpoint.id
+        # Revoke first: `delete()` clears the instance's id.
+        revoke_endpoint_tokens(endpoint)
         endpoint.delete()
-        revoke_endpoint_tokens(endpoint_id)
+
+    def revoke_workspace_grants(self, user_id: int, workspace_id: int) -> None:
+        """
+        Deletes the user's OAuth grants in the workspace and their tokens, without
+        a permission check, for when the user is no longer a member.
+        """
+
+        grants = MCPEndpoint.objects.filter(
+            user_id=user_id, workspace_id=workspace_id, oauth_client_id__isnull=False
+        )
+        for grant in grants:
+            revoke_endpoint_tokens(grant)
+        grants.delete()
