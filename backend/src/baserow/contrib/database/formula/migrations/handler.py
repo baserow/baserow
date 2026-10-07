@@ -1,10 +1,9 @@
-import time
 import traceback
 import typing
 from copy import deepcopy
 from typing import Dict, List, Set
 
-from django.db import OperationalError, transaction
+from django.db import transaction
 from django.db.models import Min, Q, QuerySet
 
 from loguru import logger
@@ -21,17 +20,17 @@ from baserow.contrib.database.formula.migrations.migrations import (
     FormulaMigrationSelector,
     SelectedOncePerRun,
 )
-from baserow.core.db import jit_disabled
+from baserow.contrib.database.search.handler import SearchHandler
+from baserow.core.db import atomic_with_retry_on_deadlock, jit_disabled
 from baserow.core.psycopg import is_transient_error
-from baserow.core.utils import ChildProgressBuilder, Progress
+from baserow.core.utils import ChildProgressBuilder, Progress, exception_capturer
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
 DEFAULT_FORMULA_MIGRATION_BATCH_SIZE = 100
-MAX_BATCH_ATTEMPTS = 3
-BATCH_RETRY_BACKOFF_SECONDS = 1.0
+MAX_BATCH_RETRIES = 2
 
 
 def _recalculate_formula_metadata_dependencies_first_order(
@@ -54,7 +53,7 @@ def _recalculate_formula_metadata_dependencies_first_order(
     :param already_recalculated: A set of field ids which have already been recalculated
         which will used to skip recalculating them again if encountered again.
     :param update_dependants: Whether to update the fields depending on the provided
-        field after its cell values are recalculated, like a field update does.
+        field after its cell values are recalculated, even if its type didn't change.
     """
 
     from baserow.contrib.database.fields.models import FormulaField
@@ -78,8 +77,7 @@ def _recalculate_formula_metadata_dependencies_first_order(
         field.save(field_cache=field_cache, raise_if_invalid=False)
         if recalculate_cell_values or force_recreate_columns:
             try:
-                # The savepoint lets the formula be marked as invalid below when a
-                # query fails, instead of aborting the whole batch.
+                # A savepoint, so a failing query only invalidates this formula.
                 with transaction.atomic():
                     model = field_cache.get_model(field.table)
                     expr = FormulaHandler.recalculate_formula_and_get_update_expression(
@@ -104,13 +102,59 @@ def _recalculate_formula_metadata_dependencies_first_order(
 formula {field.formula}. Marking the formula as invalid. The error was caused by:
 {traceback.format_exception_only(type(e), e)}"""
                 )
-            _after_formula_recalculated(field)
-            if update_dependants:
-                _update_dependants(field, old_field, field_cache)
+                _empty_cell_values(field, old_field)
+            # Dependency lookups must see this instance, not an older cached copy.
+            field_cache.cache_field(field)
+            changed = _formula_changed(field, old_field)
+            if changed:
+                _after_formula_type_changed(field)
+            if changed or update_dependants:
+                SearchHandler.schedule_update_search_data(field.table, fields=[field])
+                already_recalculated.update(
+                    _update_dependants(field, old_field, field_cache)
+                )
         already_recalculated.add(field.id)
 
 
-def _after_formula_recalculated(field: "Field"):
+def _formula_changed(field: "Field", old_field: "Field") -> bool:
+    return (
+        field.internal_formula != old_field.internal_formula
+        or field.formula_type != old_field.formula_type
+        or field.array_formula_type != old_field.array_formula_type
+        or field.cached_formula_type.should_recreate_when_old_type_was(
+            old_field.cached_formula_type
+        )
+    )
+
+
+def _empty_cell_values(field: "Field", old_field: "Field"):
+    """
+    Empties the cells of a formula that was just marked as invalid, like an update
+    making a formula invalid does.
+    """
+
+    from baserow.contrib.database.formula.types.typer import (
+        recreate_formula_field_if_needed,
+    )
+
+    try:
+        with transaction.atomic():
+            recreate_formula_field_if_needed(field, old_field)
+            model = field.table.get_model(
+                fields=[field], field_ids=[], add_dependencies=False
+            )
+            model.objects_and_trash.all().update(**{field.db_column: None})
+    except Exception as e:
+        if is_transient_error(e):
+            raise
+        logger.warning(
+            f"Failed to empty the cells of the invalid formula {field.name} with id "
+            f"{field.id}. The error was caused by: "
+            f"{traceback.format_exception_only(type(e), e)}"
+        )
+
+
+def _after_formula_type_changed(field: "Field"):
     """
     Removes the view filters, sorts and group bys that the formula's type no longer
     supports, like a field update does.
@@ -118,13 +162,32 @@ def _after_formula_recalculated(field: "Field"):
 
     from baserow.contrib.database.views.handler import ViewHandler
 
-    fields_type_changed.send(
-        _recalculate_formula_metadata_dependencies_first_order, fields=[field]
-    )
-    ViewHandler().field_updated(field)
+    try:
+        with transaction.atomic():
+            fields_type_changed.send(
+                _recalculate_formula_metadata_dependencies_first_order, fields=[field]
+            )
+            ViewHandler().field_updated(field)
+    except Exception as e:
+        if is_transient_error(e):
+            raise
+        exception_capturer(e)
+        logger.warning(
+            f"Failed to update the views using formula {field.name} with id "
+            f"{field.id}. The error was caused by: "
+            f"{traceback.format_exception_only(type(e), e)}"
+        )
 
 
-def _update_dependants(field: "Field", old_field: "Field", field_cache: FieldCache):
+def _update_dependants(
+    field: "Field", old_field: "Field", field_cache: FieldCache
+) -> Set[int]:
+    """
+    Updates the fields depending on the provided formula, like a field update does.
+
+    :return: The ids of the dependant fields that were updated.
+    """
+
     from baserow.contrib.database.fields.dependencies.update_collector import (
         FieldUpdateCollector,
     )
@@ -132,17 +195,23 @@ def _update_dependants(field: "Field", old_field: "Field", field_cache: FieldCac
 
     try:
         with transaction.atomic():
-            FieldHandler().update_dependencies_of_field_updated(
+            updated_fields = FieldHandler().update_dependencies_of_field_updated(
                 field, old_field, FieldUpdateCollector(field.table), field_cache
             )
+        return {updated_field.id for updated_field in updated_fields}
     except Exception as e:
         if is_transient_error(e):
             raise
+        # The rollback undid the changes the cached fields still hold in memory.
+        field_cache.reset_cache()
+        field_cache.cache_field(field)
+        exception_capturer(e)
         logger.warning(
             f"Failed to update the fields depending on formula {field.name} with id "
             f"{field.id} in {field.table.name} with id {field.table.id}. The error "
             f"was caused by: {traceback.format_exception_only(type(e), e)}"
         )
+        return set()
 
 
 class FormulaMigrationHandler:
@@ -190,10 +259,11 @@ class FormulaMigrationHandler:
     ):
         from baserow.contrib.database.fields.models import FormulaField
 
-        out_of_date_formulas = FormulaField.objects.filter(
-            ~Q(version=migrations.get_latest_version())
+        latest_version = migrations.get_latest_version()
+        out_of_date_formula_ids = FormulaField.objects_and_trash.filter(
+            ~Q(version=latest_version)
         )
-        total_out_of_date_formulas = out_of_date_formulas.count()
+        total_out_of_date_formulas = out_of_date_formula_ids.count()
         if total_out_of_date_formulas == 0:
             return
 
@@ -220,13 +290,12 @@ class FormulaMigrationHandler:
             progress = Progress(progress_bar.total)
             progress.register_updated_event(progress_updated)
 
-            # Batches walk the formulas by id, so each one starts after the previous
-            # one instead of scanning past all the formulas already migrated.
+            # Walking by id without the trashed join keeps every batch query cheap.
             last_id = 0
             while True:
                 current_batch += 1
                 batch_ids = cls._migrate_batch_with_retries(
-                    out_of_date_formulas.filter(id__gt=last_id),
+                    out_of_date_formula_ids.filter(id__gt=last_id),
                     batch_size,
                     oldest_version_in_db_currently,
                     migrations,
@@ -264,7 +333,7 @@ class FormulaMigrationHandler:
     @classmethod
     def _migrate_batch_with_retries(
         cls,
-        remaining_formulas: QuerySet,
+        remaining_formula_ids: QuerySet,
         batch_size: int,
         current_version: int,
         migrations: FormulaMigrations,
@@ -279,32 +348,26 @@ class FormulaMigrationHandler:
         :return: The ids of the formulas in the batch, empty when none are left.
         """
 
-        for attempt in range(1, MAX_BATCH_ATTEMPTS + 1):
-            try:
-                with transaction.atomic():
-                    batch_ids = list(
-                        remaining_formulas.order_by("id").values_list("id", flat=True)[
-                            :batch_size
-                        ]
-                    )
-                    if batch_ids:
-                        cls._update_formulas(
-                            batch_ids,
-                            current_version,
-                            migrations,
-                            selected_once_per_run,
-                            progress.create_child_builder(
-                                represents_progress=len(batch_ids)
-                            ),
-                        )
-                    return batch_ids
-            except OperationalError as e:
-                if not is_transient_error(e) or attempt == MAX_BATCH_ATTEMPTS:
-                    raise
-                logger.warning(
-                    f"Retrying a formula migration batch after a transient error: {e}"
+        @atomic_with_retry_on_deadlock(
+            max_retries=MAX_BATCH_RETRIES, should_retry=is_transient_error
+        )
+        def migrate_batch() -> List[int]:
+            batch_ids = list(
+                remaining_formula_ids.order_by("id").values_list("id", flat=True)[
+                    :batch_size
+                ]
+            )
+            if batch_ids:
+                cls._update_formulas(
+                    batch_ids,
+                    current_version,
+                    migrations,
+                    selected_once_per_run,
+                    progress.create_child_builder(represents_progress=len(batch_ids)),
                 )
-                time.sleep(BATCH_RETRY_BACKOFF_SECONDS * attempt)
+            return batch_ids
+
+        return migrate_batch()
 
     @classmethod
     def _update_formulas(
@@ -325,8 +388,7 @@ class FormulaMigrationHandler:
         affected_ids = list(batch.filter(affected_filter).values_list("id", flat=True))
 
         if affected_ids:
-            # Only the formulas that are recalculated are locked, so a concurrent run
-            # waits for them and then skips them as they're already migrated.
+            # A concurrent run waits for these locks, then skips the migrated ones.
             locked_ids = list(
                 FormulaField.objects.filter(id__in=affected_ids)
                 .exclude(version=latest_version)
@@ -452,8 +514,11 @@ class FormulaMigrationHandler:
 
         for field in formulas_to_rebuild_dependencies_for.iterator():
             try:
-                FieldDependencyHandler.rebuild_dependencies([field], field_cache)
+                with transaction.atomic():
+                    FieldDependencyHandler.rebuild_dependencies([field], field_cache)
             except Exception as e:
+                if is_transient_error(e):
+                    raise
                 logger.warning(
                     f"Failed to recalculate dependencies for field: "
                     f"{field.name}({field.id}) in {field.table.name}({field.table.id}) "

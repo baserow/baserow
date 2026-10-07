@@ -6427,7 +6427,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         return (
             super().has_compatible_model_fields(instance, instance2)
             and instance.formula_type == instance2.formula_type
-            and instance.array_formula_type == instance.array_formula_type
+            and instance.array_formula_type == instance2.array_formula_type
         )
 
     def prepare_value_for_db(self, instance, value):

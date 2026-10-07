@@ -1,12 +1,17 @@
+import re
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db import OperationalError, connection
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
@@ -26,7 +31,8 @@ from baserow.contrib.database.formula.migrations.migrations import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import ViewFilter
+from baserow.contrib.database.views.models import ViewFilter, ViewGroupBy
+from baserow.core.exceptions import DeadlockException
 from baserow.core.psycopg import errors
 
 
@@ -1088,8 +1094,7 @@ def test_v7_selector_matches_formulas_with_stale_field_references_only(
     assert lookup.id in selected
     assert healthy.id not in selected
     assert unrelated.id not in selected
-    # A text literal that looks like a reference only causes a needless
-    # recalculation, it must not make the selection fail.
+    # A literal that looks like a reference only costs a needless recalculation.
     assert long_literal.id in selected
 
 
@@ -1129,8 +1134,7 @@ def test_v7_updates_the_formulas_depending_on_a_recalculated_formula(data_fixtur
         target_field_id=first_val.id,
     )
     assert lookup_in_linked_table.array_formula_type == "text"
-    # The linked table's primary field becomes a number field, while the formulas
-    # keep the state they had for the old text primary field.
+    # The primary field becomes a number while the formulas keep their text state.
     stale_state = {
         values.pop("field_ptr_id"): values
         for values in FormulaField.objects.filter(
@@ -1162,7 +1166,7 @@ def _migrate_with_a_failing_cell_update(side_effect):
             ".recalculate_formula_and_get_update_expression",
             side_effect=side_effect,
         ),
-        patch("baserow.contrib.database.formula.migrations.handler.time.sleep"),
+        patch("baserow.core.db.time.sleep"),
     ):
         FormulaMigrationHandler.migrate_formulas(
             FormulaMigrations(
@@ -1194,6 +1198,8 @@ def test_migration_marks_a_formula_invalid_when_its_cell_update_fails(data_fixtu
     failing = data_fixture.create_formula_field(table=table, formula="'a'")
     grid = data_fixture.create_grid_view(table=table)
     ViewHandler().create_filter(user, grid, failing, "equal", "a")
+    ViewHandler().create_group_by(user, grid, failing, "ASC", 200)
+    assert _cells(table, failing) == ["a"]
     FormulaField.objects.update(version=1)
 
     _migrate_with_a_failing_cell_update(
@@ -1204,7 +1210,16 @@ def test_migration_marks_a_formula_invalid_when_its_cell_update_fails(data_fixtu
     assert failing.formula_type == "invalid"
     assert failing.error == "Failed to recalculate cell values after formula update."
     assert failing.version == 2
+    assert _cells(table, failing) == [None]
     assert not ViewFilter.objects.filter(field=failing).exists()
+    assert not ViewGroupBy.objects.filter(field=failing).exists()
+
+
+def _cells(table, field):
+    return [
+        getattr(row, field.db_column)
+        for row in table.get_model().objects_and_trash.order_by("id")
+    ]
 
 
 @pytest.mark.django_db
@@ -1237,16 +1252,22 @@ def test_migration_retries_a_batch_after_a_transient_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_migration_selects_once_per_run_across_batches(data_fixture):
+def test_migration_raises_when_a_transient_error_keeps_failing(data_fixture):
     table = data_fixture.create_database_table()
-    formulas = [
-        data_fixture.create_formula_field(table=table, formula=f"'{i}'")
-        for i in range(3)
-    ]
+    formula = data_fixture.create_formula_field(table=table, formula="'a'")
     FormulaField.objects.update(version=1)
-    select_formula_ids = Mock(return_value={formulas[1].id})
-    selector = SelectedOncePerRun(select_formula_ids)
+    deadlock = OperationalError("deadlock detected")
+    deadlock.__cause__ = errors.DeadlockDetected("deadlock detected")
 
+    with pytest.raises(DeadlockException):
+        _migrate_with_a_failing_cell_update(side_effect=deadlock)
+
+    formula.refresh_from_db()
+    assert formula.formula_type == "text"
+    assert formula.version == 1
+
+
+def _migrate_with_a_selector(selector, batch_size):
     FormulaMigrationHandler.migrate_formulas(
         FormulaMigrations(
             [
@@ -1266,8 +1287,190 @@ def test_migration_selects_once_per_run_across_batches(data_fixture):
                 ),
             ]
         ),
-        batch_size=1,
+        batch_size=batch_size,
     )
 
+
+@pytest.mark.django_db
+def test_migration_selects_once_per_run_across_batches(data_fixture):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[]])
+    formulas = [
+        data_fixture.create_formula_field(
+            table=table, formula=f"'{i}'", calculate_cell_values=False
+        )
+        for i in range(3)
+    ]
+    FormulaField.objects.update(version=1)
+    select_formula_ids = Mock(return_value={formulas[1].id})
+
+    _migrate_with_a_selector(SelectedOncePerRun(select_formula_ids), batch_size=1)
+
     select_formula_ids.assert_called_once()
+    assert [_cells(table, formula) for formula in formulas] == [[None], ["1"], [None]]
     assert set(FormulaField.objects.values_list("version", flat=True)) == {2}
+
+
+@pytest.mark.django_db
+def test_migration_locks_only_the_formulas_it_recalculates(data_fixture):
+    table = data_fixture.create_database_table()
+    formulas = [
+        data_fixture.create_formula_field(table=table, formula=f"'{i}'")
+        for i in range(3)
+    ]
+    FormulaField.objects.update(version=1)
+
+    with CaptureQueriesContext(connection) as queries:
+        _migrate_with_a_selector(
+            SelectedOncePerRun(lambda: {formulas[1].id}), batch_size=10
+        )
+
+    locking_queries = [q["sql"] for q in queries if "FOR UPDATE" in q["sql"]]
+    assert len(locking_queries) == 1
+    locked_ids = re.search(r"IN \(([^)]*)\)", locking_queries[0]).group(1)
+    assert locked_ids.replace(" ", "").split(",") == [str(formulas[1].id)]
+
+
+@pytest.mark.django_db
+def test_v7_updates_the_dependants_of_a_formula_first_recalculated_as_dependency(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    linked = data_fixture.create_database_table(database=database)
+    further = data_fixture.create_database_table(database=database)
+    primary = data_fixture.create_text_field(table=table, primary=True)
+    data_fixture.create_text_field(table=linked, primary=True)
+    data_fixture.create_text_field(table=further, primary=True)
+    number = data_fixture.create_number_field(table=further)
+    link = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked, name="link"
+    )
+    FieldHandler().create_field(
+        user, linked, "link_row", link_row_table=further, name="link_of_link"
+    )
+    values = FieldHandler().create_field(
+        user, table, "formula", name="values", formula="lookup('link', 'link_of_link')"
+    )
+    reader = FieldHandler().create_field(
+        user,
+        linked,
+        "lookup",
+        name="reader",
+        through_field_id=link.link_row_related_field_id,
+        target_field_id=values.id,
+    )
+    # The primary formula inlines `values`, so it's stale too and processed first.
+    primary = FieldHandler().update_field(
+        user, primary, "formula", formula="join(totext(field('values')), ',')"
+    )
+    stale_state = {
+        state.pop("field_ptr_id"): state
+        for state in FormulaField.objects.filter(
+            id__in=[values.id, reader.id, primary.id]
+        ).values()
+    }
+    FieldHandler().change_primary_field(user, further, number)
+    for field_id, field_values in stale_state.items():
+        FormulaField.objects.filter(id=field_id).update(**field_values)
+    FormulaField.objects.update(version=6)
+    invalidate_table_in_model_cache(table.id)
+    invalidate_table_in_model_cache(linked.id)
+
+    FormulaMigrationHandler.migrate_formulas_to_latest_version()
+
+    reader.refresh_from_db()
+    assert reader.array_formula_type == "number"
+    RowHandler().create_row(user, linked, {})
+
+
+@pytest.mark.django_db
+def test_migration_retries_a_batch_after_a_transient_error_in_a_dependency_rebuild(
+    data_fixture,
+):
+    table = data_fixture.create_database_table()
+    formula = data_fixture.create_formula_field(table=table, formula="'a'")
+    FormulaField.objects.update(version=1)
+    deadlock = OperationalError("deadlock detected")
+    deadlock.__cause__ = errors.DeadlockDetected("deadlock detected")
+    rebuild = FieldDependencyHandler.rebuild_dependencies
+    calls = []
+
+    def deadlock_once(*args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            raise deadlock
+        return rebuild(*args, **kwargs)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.dependencies.handler"
+            ".FieldDependencyHandler.rebuild_dependencies",
+            side_effect=deadlock_once,
+        ),
+        patch("baserow.core.db.time.sleep"),
+    ):
+        _migrate_with_a_selector(
+            SelectedOncePerRun(lambda: {formula.id}), batch_size=10
+        )
+
+    formula.refresh_from_db()
+    assert len(calls) == 2
+    assert formula.formula_type == "text"
+    assert formula.version == 2
+
+
+@pytest.mark.django_db
+def test_migration_refreshes_dependants_of_recalculated_cells_with_the_same_type(
+    data_fixture,
+):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[]])
+    formula = data_fixture.create_formula_field(table=table, name="f", formula="'a'")
+    dependant = data_fixture.create_formula_field(
+        table=table, name="g", formula="concat(field('f'), 'x')"
+    )
+    table.get_model().objects_and_trash.update(
+        **{formula.db_column: None, dependant.db_column: None}
+    )
+    FormulaField.objects.update(version=1)
+
+    with patch(
+        "baserow.contrib.database.formula.migrations.handler.SearchHandler"
+        ".schedule_update_search_data"
+    ) as schedule_update_search_data:
+        _migrate_with_a_selector(
+            SelectedOncePerRun(lambda: {formula.id}), batch_size=10
+        )
+
+    assert _cells(table, formula) == ["a"]
+    assert _cells(table, dependant) == ["ax"]
+    scheduled_fields = [
+        field
+        for call in schedule_update_search_data.call_args_list
+        for field in call.kwargs["fields"]
+    ]
+    assert formula.id in [field.id for field in scheduled_fields]
+
+
+@pytest.mark.django_db
+def test_migration_continues_when_updating_the_views_of_a_formula_fails(
+    data_fixture,
+):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[]])
+    failing = data_fixture.create_formula_field(table=table, formula="'a'")
+    FormulaField.objects.update(version=1)
+
+    with patch(
+        "baserow.contrib.database.views.handler.ViewHandler.field_updated",
+        side_effect=ValueError("view hook failed"),
+    ):
+        _migrate_with_a_failing_cell_update(
+            side_effect=lambda *args, **kwargs: RawSQL("(1 / 0)::text", [])
+        )
+
+    failing.refresh_from_db()
+    assert failing.formula_type == "invalid"
+    assert failing.version == 2

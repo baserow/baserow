@@ -854,8 +854,23 @@ class FieldHandler:
             return field
 
     def update_dependencies_of_field_updated(
-        self, field, old_field, update_collector, field_cache
-    ):
+        self,
+        field: Field,
+        old_field: Field,
+        update_collector: FieldUpdateCollector,
+        field_cache: FieldCache,
+    ) -> List[Field]:
+        """
+        Updates the fields depending on the provided field, in its table and in
+        linked tables, after the field changed.
+
+        :param field: The field after the change.
+        :param old_field: The field before the change.
+        :param update_collector: Collects the updates of the dependant fields.
+        :param field_cache: A cache used to look up fields and models.
+        :return: The dependant fields that were updated.
+        """
+
         updated_fields = []
         all_dependent_fields_grouped_by_depth = (
             FieldDependencyHandler.group_all_dependent_fields_by_level(

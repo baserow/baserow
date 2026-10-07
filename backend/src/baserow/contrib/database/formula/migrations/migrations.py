@@ -106,7 +106,7 @@ def formula_ids_with_stale_field_references() -> Set[int]:
                 FROM {FormulaField._meta.db_table} formula
                 CROSS JOIN LATERAL regexp_matches(
                     formula.internal_formula,
-                    'field_(\\d{{1,18}})(?:__field_(\\d{{1,18}}))?',
+                    'field_([0-9]{{1,18}})(?:__field_([0-9]{{1,18}}))?',
                     'g'
                 ) AS found
             ) reference
@@ -209,8 +209,7 @@ FORMULA_MIGRATIONS = FormulaMigrations(
         ),
         FormulaMigration(
             version=7,
-            # v7 recalculates formulas with stale field references, see
-            # `formula_ids_with_stale_field_references`.
+            # v7 repairs the formulas `formula_ids_with_stale_field_references` finds.
             recalculate_formula_attributes_for=NO_FORMULAS,
             recalculate_field_dependencies_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
             recalculate_cell_values_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
