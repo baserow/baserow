@@ -105,13 +105,13 @@ copies work fully. Official template previews are unchanged.
 Public or private decides only whether a template is listed. Who can open it is decided
 by its state, the private link and the actor's role:
 
-| Actor                                  | Private                    | Public                     | Blocked                                    |
-| -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------ |
-| Anonymous                              | —                          | preview                    | —                                          |
-| Signed-in user                         | —                          | preview, install           | —                                          |
-| Signed-in user who opened private link | preview, install           | preview, install           | —                                          |
-| Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, delete |
-| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                 |
+| Actor                                  | Private                    | Public                     | Blocked                                                       |
+| -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------------------------- |
+| Anonymous                              | —                          | preview                    | —                                                             |
+| Signed-in user                         | —                          | preview, install           | —                                                             |
+| Signed-in user who opened private link | preview, install           | preview, install           | —                                                             |
+| Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, submit for review, delete |
+| Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                                    |
 
 - **Preview** covers the template's details and its template workspace. Public templates
   also appear in the "Shared templates" section, like official templates.
@@ -129,7 +129,7 @@ if it does not exist.
   Access gained through it lasts until revoked.
 - Rotating or removing the private link revokes access for everyone who opened it; the
   template link stays the same.
-- Blocking suspends the private link and granted access; unblocking restores them.
+- Blocking suspends the private link and granted access; leaving block restores them.
 - Deactivating the author or scheduling their account deletion does not change their
   templates; deleting the author deletes them (section 7).
 - Access changes take effect immediately.
@@ -142,14 +142,18 @@ if it does not exist.
   not require approval, the template becomes public at once.
 - **If the instance requires approval**, the template stays pending until an instance
   admin approves it (public) or rejects it (private, with a reason). Any edit of a public
-  template sends it back to review; an approval covers only what the admin reviewed. An
-  instance admin can also reject a public template to take it out of the listing. The
+  template sends it back to review; an approval covers only what the admin reviewed. The
   author can resubmit a rejected template, and an instance admin can still approve it.
+- **Reject** of a public template is available to instance admins whether or not the
+  instance requires approval, to take it out of the listing.
 - **Making private** withdraws the listing; the private link keeps working.
 - **Block** is instance admin moderation, in any state, with a reason. The author can
-  view and delete a blocked template and change its details or content; it stays
-  blocked until an instance admin unblocks it, back to the state it had before. Unlike
-  reject, it does not invite a resubmit.
+  view and delete a blocked template, change its details or content, and submit it for
+  review. A blocked template leaves block only through review, whether or not the
+  instance requires approval: an instance admin approves the submitted content and
+  details, or the current ones directly, which returns the template to the state it had
+  before (pending becomes public), or keeps it blocked. Any edit withdraws a submission.
+  Unlike reject, block also suspends the private link.
 - **Abuse reports** use the existing abuse report flow.
 
 ### 6. Install and download
