@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "MCP clients like Claude, ChatGPT and Cursor can sign in with OAuth and get access to the workspace and tools you pick",
+    "issue_origin": "github",
+    "issue_number": 6260,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-07"
+}

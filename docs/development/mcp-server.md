@@ -50,6 +50,41 @@ just run-dev-server
 just run-asgi
 ```
 
+## OAuth sign-in
+
+MCP clients can sign in with OAuth instead of a pasted key. See [ADR 009](../decisions/009-mcp-oauth-authorization.md) for the design.
+
+Set `BASEROW_MCP_OAUTH_ENABLED=true` to turn it on. It is off by default.
+
+All clients share one URL, `<PUBLIC_BACKEND_URL>/mcp`. The user picks a workspace and the allowed tools on the consent screen.
+
+Each grant is stored as an `MCPEndpoint` row with `oauth_client_id` set. Its tokens carry the scope `mcp endpoint:<id>`, which ties them to that row. Deleting the row revokes the tokens. Grants are also revoked when the user leaves the workspace.
+
+### Client registration
+
+- **CIMD**: the client URL is the client id. `BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS` is a comma-separated host list and defaults to `*`.
+- **DCR**: on by default. Set `BASEROW_MCP_OAUTH_DCR_ENABLED=false` to turn it off. It only accepts public clients that use the authorization code grant, with https or loopback redirect URIs. A Celery task deletes DCR clients that have no grant after one day.
+
+### Rate limits and tokens
+
+Both limits are per IP, as comma-separated lists.
+
+| Variable | Default |
+|---|---|
+| `BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS` | `10/m,60/h` |
+| `BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS` | `30/m,300/h` |
+
+Access tokens last one hour. Refresh tokens rotate and expire after 30 days. Replaying a used refresh token revokes the whole family.
+
+### Running it locally
+
+```bash
+BASEROW_MCP_OAUTH_ENABLED=true just run-dev-server
+claude mcp add --transport http baserow http://localhost:8000/mcp
+```
+
+`ALLOW_LOCALHOST_LOOPBACK` is already on in the settings, so clients can use `http://localhost` redirect URIs.
+
 ## Tools
 
 Some tools are currently disabled (`enabled = False`) and hidden from MCP clients. They will be enabled once users can control tool availability through the UI.
