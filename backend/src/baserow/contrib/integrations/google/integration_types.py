@@ -16,7 +16,9 @@ class GoogleIntegrationType(OAuth2IntegrationTypeMixin, IntegrationType):
     scopes = [
         "openid",
         "email",
-        "https://www.googleapis.com/auth/gmail.send",
+        # Read and send: the email chat channel watches a label and replies
+        # in the thread; sending alone is part of this scope.
+        "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/calendar.events",
     ]
     # Google only issues a refresh token for offline access, and only on a

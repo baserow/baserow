@@ -44,6 +44,9 @@ def _fields_from(values: dict, skip=("thought",)) -> list[dict]:
     ]
 
 
+EMAIL_REPLY_TOOL_NAME = "reply_by_email"
+
+
 def build_approval_preview(
     chat, tool, tool_name: str, args: Optional[dict]
 ) -> Optional[dict]:
@@ -60,6 +63,8 @@ def build_approval_preview(
     try:
         if tool is not None and tool.service_id is not None:
             return _service_preview(chat, tool, args)
+        if tool_name == EMAIL_REPLY_TOOL_NAME:
+            return _email_reply_preview(chat, args)
         match = _ROW_TOOL_RE.match(tool_name)
         if match and match.group(1) in ("create", "update"):
             return _rows_preview(args.get("rows"))
@@ -69,6 +74,24 @@ def build_approval_preview(
         logger.exception("Failed to build the approval preview for {}", tool_name)
         fields = _fields_from(args)
         return {"kind": "fields", "fields": fields} if fields else None
+
+
+def _email_reply_preview(chat, args: dict) -> Optional[dict]:
+    from .channels.email import EmailAgentChatChannelType
+    from .channels.registries import agent_chat_channel_type_registry
+
+    channel = chat.channel
+    if channel is None:
+        return None
+    channel_type = agent_chat_channel_type_registry.get(channel.type)
+    if not isinstance(channel_type, EmailAgentChatChannelType):
+        return None
+    target = channel_type.reply_target(channel, chat)
+    preview = {"kind": "email", "body": str(args.get("body") or "")}
+    if target is not None:
+        preview["to"] = target.to_address
+        preview["subject"] = target.subject
+    return preview
 
 
 def _service_preview(chat, tool, args: dict) -> Optional[dict]:

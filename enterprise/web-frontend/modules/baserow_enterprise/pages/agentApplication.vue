@@ -43,7 +43,14 @@ const { $realtime, $hasPermission } = useNuxtApp()
 // page paints its skeleton right away and fetches the agent, conversations
 // and configuration lazily, like the other pages. The conversation in the
 // `chat` query param is opened as part of that fetch.
-const application = computed(() => store.getters['application/getSelected'])
+//
+// Resolved by the route rather than the store's selection: anything that
+// selects another application in the sidebar without navigating (the
+// workspace search's fallback, for one) must not make this page send its
+// messages to that application.
+const application = computed(() =>
+  store.getters['application/get'](parseInt(route.params.agentApplicationId))
+)
 const workspace = computed(() => store.getters['workspace/getSelected'])
 
 const { data, loading } = await usePageAsyncData(
@@ -52,7 +59,9 @@ const { data, loading } = await usePageAsyncData(
   }`,
   async () => {
     try {
-      const application = store.getters['application/getSelected']
+      const application = store.getters['application/get'](
+        parseInt(route.params.agentApplicationId)
+      )
       const workspace = store.getters['workspace/getSelected']
 
       // When switching between agents the previous page stays on screen

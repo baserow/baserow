@@ -345,6 +345,22 @@ class BaserowEnterpriseConfig(AppConfig):
             agent_chat_channel_type_registry.register(
                 WebsiteWidgetAgentChatChannelType()
             )
+            from baserow.contrib.integrations.core.inbound_email_routes import (
+                inbound_email_route_type_registry,
+            )
+            from baserow_enterprise.agent_application.channels.email import (
+                AgentEmailInboundRouteType,
+                HostedEmailAgentChatChannelType,
+            )
+            from baserow_enterprise.agent_application.channels.mailbox import (
+                GmailAgentChatChannelType,
+                OutlookAgentChatChannelType,
+            )
+
+            agent_chat_channel_type_registry.register(HostedEmailAgentChatChannelType())
+            agent_chat_channel_type_registry.register(GmailAgentChatChannelType())
+            agent_chat_channel_type_registry.register(OutlookAgentChatChannelType())
+            inbound_email_route_type_registry.register(AgentEmailInboundRouteType())
 
         action_type_registry.register(UpdateAgentDefinitionActionType())
         for agent_action_type in (

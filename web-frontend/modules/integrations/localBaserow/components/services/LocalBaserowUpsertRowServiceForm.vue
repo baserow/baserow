@@ -10,7 +10,12 @@
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
-    <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
+    <div
+      v-if="tableLoading"
+      class="local-baserow-upsert-row-form__loading margin-bottom-1"
+    >
+      <div class="loading-spinner"></div>
+    </div>
     <p v-if="!service?.table_id">
       {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>

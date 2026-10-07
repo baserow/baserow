@@ -119,6 +119,42 @@ class AgentChatChannelType(Instance):
 
         raise NotImplementedError
 
+    def deliver_outcome(
+        self, channel: "AgentChatChannel", chat: "AgentChat", status: str, text: str
+    ) -> None:
+        """
+        Called once a run has ended, with the chat's status and what a chat
+        surface would show for it: the answer, or a notice that the run
+        failed or waits for an approval. A channel whose other side is an
+        outsider (email) must not relay such notices, so it decides here.
+        """
+
+        if text:
+            self.send_response(channel, chat, text)
+
+    def on_message_while_busy(
+        self,
+        channel: "AgentChatChannel",
+        chat: "AgentChat",
+        text: str,
+        sender_name: str = "",
+    ) -> None:
+        """
+        Called for a message that arrives while the chat waits for an
+        approval, which cannot start a run. Chat surfaces say so; a channel
+        may instead keep the message for the people reviewing the chat.
+        """
+
+        self.send_response(channel, chat, _AWAITING_APPROVAL_TEXT)
+
+    def get_toolsets(self, channel: "AgentChatChannel", chat: "AgentChat") -> list:
+        """
+        Extra pydantic-ai toolsets a run gets when the conversation came in
+        through this channel, e.g. a way to answer where it was asked.
+        """
+
+        return []
+
     def get_manifest(self, channel: "AgentChatChannel", events_url: str) -> dict | None:
         """
         A ready-made app definition for the external service, when it
@@ -150,6 +186,8 @@ def start_channel_chat(
     session_key: str,
     text: str,
     sender_name: str = "",
+    attachments: list | None = None,
+    title: str = "",
 ) -> Any:
     """
     Shared inbound-message handling for every channel type: finds or creates
@@ -192,7 +230,7 @@ def start_channel_chat(
                 source=AgentChat.Source.CHANNEL,
                 channel=channel,
                 channel_session_key=session_key,
-                title=f"{channel.name or channel.type}: {text}"[
+                title=(title or f"{channel.name or channel.type}: {text}")[
                     : AgentChat.TITLE_MAX_LENGTH
                 ],
             )
@@ -200,13 +238,15 @@ def start_channel_chat(
     # Checked up front so nothing is stored or posted for a message the
     # chat cannot take yet; the run start below guards the remaining race.
     if chat.status == AgentChat.Status.AWAITING_APPROVAL:
-        channel_type.send_response(channel, chat, _AWAITING_APPROVAL_TEXT)
+        channel_type.on_message_while_busy(channel, chat, text, sender_name)
         return None
     if chat.status in (AgentChat.Status.IN_PROGRESS, AgentChat.Status.CANCELING):
         raise AgentChatAlreadyRunning(f"The chat {chat.id} is already running.")
 
     content = f"{sender_name}: {text}" if sender_name else text
-    message = chat_handler.create_message(chat, AgentChatMessage.Role.HUMAN, content)
+    message = chat_handler.create_message(
+        chat, AgentChatMessage.Role.HUMAN, content, attachments=attachments
+    )
     channel_type.on_run_starting(channel, chat)
 
     try:

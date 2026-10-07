@@ -16,3 +16,12 @@
 
   @include rounded($rounded-md);
 }
+
+// Takes the room of the first mapping row, so the fields below do not jump
+// up while the table's schema loads.
+.local-baserow-upsert-row-form__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+}

@@ -519,3 +519,45 @@ class AgentChatToolApproval(
 
     def get_parent(self):
         return self.chat
+
+
+class AgentEmailMessage(models.Model):
+    """
+    One email that went through an email chat channel, in either direction.
+    It is the index that maps a reply to its conversation (by Message-ID,
+    thread id, or sender and subject) and the record of what was said.
+    """
+
+    class Direction(models.TextChoices):
+        INBOUND = "inbound"
+        OUTBOUND = "outbound"
+
+    channel = models.ForeignKey(
+        AgentChatChannel, on_delete=models.CASCADE, related_name="email_messages"
+    )
+    # The `AgentChat.channel_session_key` of the conversation.
+    session_key = models.CharField(max_length=255)
+    direction = models.CharField(max_length=8, choices=Direction.choices)
+    message_id = models.CharField(max_length=998, blank=True, db_default="")
+    in_reply_to = models.CharField(max_length=998, blank=True, db_default="")
+    references = models.JSONField(default=list, blank=True, db_default=[])
+    # The provider's thread id (Gmail thread, Outlook conversation), when
+    # the mailbox has one.
+    thread_key = models.CharField(max_length=255, blank=True, db_default="")
+    # The provider's own id of the message, needed to reply through its API.
+    provider_message_id = models.CharField(max_length=255, blank=True, db_default="")
+    from_address = models.CharField(max_length=320, blank=True, db_default="")
+    from_name = models.CharField(max_length=255, blank=True, db_default="")
+    to_addresses = models.JSONField(default=list, blank=True, db_default=[])
+    subject = models.CharField(max_length=998, blank=True, db_default="")
+    subject_normalized = models.CharField(max_length=998, blank=True, db_default="")
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("id",)
+        indexes = [
+            models.Index(fields=["channel", "session_key"]),
+            models.Index(fields=["channel", "message_id"]),
+            models.Index(fields=["channel", "thread_key"]),
+            models.Index(fields=["channel", "from_address", "subject_normalized"]),
+        ]

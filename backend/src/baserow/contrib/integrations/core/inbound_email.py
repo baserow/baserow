@@ -152,6 +152,8 @@ class InboundEmail:
     body_html_truncated: bool = False
     message_id: str = ""
     in_reply_to: str = ""
+    # The ids of every earlier message in the thread, oldest first.
+    references: List[str] = field(default_factory=list)
     received_at: str = ""
     attachments: List[InboundEmailAttachment] = field(default_factory=list)
     sender_validated: bool = False
@@ -178,6 +180,7 @@ class InboundEmail:
             "body_html_truncated": self.body_html_truncated,
             "message_id": self.message_id,
             "in_reply_to": self.in_reply_to,
+            "references": list(self.references),
             "received_at": self.received_at,
             "attachments": [attachment.to_payload() for attachment in self.attachments],
             "sender_validated": self.sender_validated,
@@ -269,6 +272,11 @@ def normalize_mox_payload(data: Dict[str, Any]) -> InboundEmail:
         body_html_truncated=_is_truncated_part(body_html),
         message_id=data.get("MessageID") or "",
         in_reply_to=data.get("InReplyTo") or "",
+        references=[
+            str(reference)
+            for reference in (data.get("References") or [])
+            if isinstance(reference, str) and reference
+        ],
         received_at=meta.get("Received") or "",
         attachments=_collect_attachments(data.get("Structure")),
         sender_validated=bool(meta.get("MsgFromValidated")),
@@ -361,6 +369,11 @@ class InboundEmailHandler:
 
         targets = self.extract_targets(email)
         if not targets:
+            # Not a trigger address: another feature may own it, e.g. an
+            # agent's mailbox.
+            routed = self._route_elsewhere(email)
+            if routed is not None:
+                return routed
             return self._log_status(
                 HANDLE_STATUS_DISCARDED, "no recipient matches a trigger address", email
             )
@@ -380,6 +393,37 @@ class InboundEmailHandler:
                 return status
 
         return HANDLE_STATUS_DISCARDED
+
+    def _route_elsewhere(self, email: InboundEmail) -> Optional[str]:
+        """
+        Offers each recipient on the inbound domain to the registered routes,
+        which claim addresses that are not trigger tokens.
+
+        :return: The handling status of the first route that claims one, or
+            None when nobody does.
+        """
+
+        from .inbound_email_routes import inbound_email_route_type_registry
+
+        domain = settings.INBOUND_EMAIL_DOMAIN.lower()
+        candidates = [email.rcpt_to] + [
+            address.address for address in email.to + email.cc
+        ]
+        seen = set()
+        for candidate in candidates:
+            if (candidate or "").rpartition("@")[2].lower() != domain:
+                continue
+            localpart, tag = split_catchall_localpart(candidate)
+            if (localpart, tag) in seen:
+                continue
+            seen.add((localpart, tag))
+            for route_type in inbound_email_route_type_registry.get_all():
+                status = route_type.route(localpart, tag, email)
+                if status is not None:
+                    return self._log_status(
+                        status, f"routed by {route_type.type}", email
+                    )
+        return None
 
     def _schedule_receiver_message_deletion(self, email: InboundEmail) -> None:
         """

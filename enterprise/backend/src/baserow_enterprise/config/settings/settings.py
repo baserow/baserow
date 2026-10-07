@@ -154,6 +154,11 @@ def setup(settings):
     settings.AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE = int(
         os.getenv("BASEROW_AGENT_APPLICATION_CHANNEL_RATE_LIMIT_PER_MINUTE", "") or 30
     )
+    # How often the Gmail and Outlook chat channels look for new mail. A
+    # minute is what people expect of an inbox; shorter only adds API calls.
+    settings.AGENT_APPLICATION_MAILBOX_POLL_INTERVAL_SECONDS = int(
+        os.getenv("BASEROW_AGENT_APPLICATION_MAILBOX_POLL_INTERVAL_SECONDS", "") or 60
+    )
     # Public web chat: messages one visitor (by IP) may send per minute, and
     # how many messages a single conversation may hold.
     settings.AGENT_PUBLIC_CHAT_RATE_LIMIT_PER_MINUTE = int(

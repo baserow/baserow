@@ -129,8 +129,7 @@ def _notify_chat_channel(chat):
                 .first()
             )
             text = (last_ai_message and last_ai_message.content) or ""
-        if text:
-            channel_type.send_response(channel, chat, text)
+        channel_type.deliver_outcome(channel, chat, chat.status, text)
     except Exception:
         logger.exception("Failed to notify chat channel for chat {}", chat.id)
 
@@ -173,7 +172,13 @@ CHANNEL_MESSAGE_MAX_RETRIES = 24
 
 @app.task(bind=True, queue="export", max_retries=CHANNEL_MESSAGE_MAX_RETRIES)
 def process_agent_channel_message(
-    self, channel_id: int, session_key: str, text: str, sender_name: str = ""
+    self,
+    channel_id: int,
+    session_key: str,
+    text: str,
+    sender_name: str = "",
+    attachments: list | None = None,
+    title: str = "",
 ):
     """
     Handles a message received through an external chat channel (e.g. a
@@ -202,7 +207,14 @@ def process_agent_channel_message(
         return
 
     try:
-        start_channel_chat(channel, session_key, text, sender_name)
+        start_channel_chat(
+            channel,
+            session_key,
+            text,
+            sender_name,
+            attachments=attachments,
+            title=title,
+        )
     except AgentChatAlreadyRunning:
         if self.request.retries < CHANNEL_MESSAGE_MAX_RETRIES:
             raise self.retry(countdown=CHANNEL_MESSAGE_RETRY_SECONDS)
@@ -278,6 +290,19 @@ def clean_up_old_agent_chats(self):
         )
 
 
+@app.task(bind=True, queue="export")
+def poll_agent_mailbox_channels(self):
+    """
+    Fetches new mail for every enabled Gmail and Outlook channel. Each
+    channel is polled under its own lock, so a slow mailbox never holds up
+    the others and an overlapping beat tick skips it.
+    """
+
+    from .channels.mailbox import poll_mailbox_channels
+
+    poll_mailbox_channels()
+
+
 @app.on_after_finalize.connect
 def setup_periodic_agent_application_tasks(sender, **kwargs):
     from django.conf import settings
@@ -286,4 +311,9 @@ def setup_periodic_agent_application_tasks(sender, **kwargs):
         timedelta(minutes=settings.AGENT_APPLICATION_CHAT_CLEANUP_INTERVAL_MINUTES),
         clean_up_old_agent_chats.s(),
         name="agent-application-chat-cleanup",
+    )
+    sender.add_periodic_task(
+        timedelta(seconds=settings.AGENT_APPLICATION_MAILBOX_POLL_INTERVAL_SECONDS),
+        poll_agent_mailbox_channels.s(),
+        name="agent-application-mailbox-poll",
     )

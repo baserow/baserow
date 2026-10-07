@@ -7,6 +7,7 @@
     :service-type="serviceType"
     :default-values="service"
     :databases="workspaceDatabases"
+    :loading="loading"
     @values-changed="$emit('values-changed', $event)"
   />
   <div v-else class="agent-configuration__placeholder">
@@ -43,6 +44,16 @@ export default {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    /**
+     * Whether the section is saving this service. Forms that show their own
+     * spinner after a change (the upsert form after a table switch) lower it
+     * when this goes back to false.
+     */
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     tool: {
       type: Object,

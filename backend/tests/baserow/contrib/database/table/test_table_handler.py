@@ -1317,3 +1317,21 @@ def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
     )
 
     assert workspace.row_count == 2
+
+
+@pytest.mark.django_db
+def test_an_agent_identity_can_create_a_table(data_fixture):
+    from baserow.core.models import Agent
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    # An agent acting for an AI agent application has no profile to read a
+    # language from.
+    identity = Agent.objects.create(workspace=database.workspace, name="Bot")
+
+    table, _ = TableHandler().create_table(
+        identity, database, name="Made by the agent", fill_example=True
+    )
+
+    assert table.name == "Made by the agent"
+    assert table.field_set.count() > 0

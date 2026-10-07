@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
 )
 
 from baserow.core.handler import CoreHandler
@@ -365,3 +366,22 @@ def test_list_chats_orders_pinned_first(api_client, agent_setup):
     assert response.status_code == HTTP_200_OK
     titles = [chat["title"] for chat in response.json()["results"]]
     assert titles == ["older", "newer"]
+
+
+@pytest.mark.django_db
+def test_send_message_to_another_kind_of_application_is_not_found(
+    api_client, agent_setup, data_fixture
+):
+    user, token, application, agent = agent_setup
+    database = data_fixture.create_database_application(
+        user=user, workspace=application.workspace
+    )
+    url = reverse(
+        "api:agent:chat_messages",
+        kwargs={"application_id": database.id, "chat_uuid": uuid4()},
+    )
+    response = api_client.post(
+        url, {"content": "Hi"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_APPLICATION_DOES_NOT_EXIST"

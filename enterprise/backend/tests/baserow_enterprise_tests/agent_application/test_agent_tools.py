@@ -329,3 +329,33 @@ def test_tool_list_query_count_does_not_grow_with_the_number_of_tools(
     ]
     assert listed[-1]["service"] is not None
     assert listed[0]["service"] is None
+
+
+@pytest.mark.django_db
+def test_service_tools_with_the_same_name_get_distinct_runtime_names(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = (
+        CoreHandler()
+        .create_application(user, workspace, "agent", init_with_data=True, name="Agent")
+        .specific
+    )
+    agent = AgentApplicationHandler().get_main_agent(application)
+    first = AgentTool.objects.create(
+        agent=agent,
+        type="service",
+        name="Send email",
+        service=data_fixture.create_slack_write_message_service(),
+        config={},
+    )
+    # A second "Send email" (Outlook next to Gmail) would clash in the
+    # model's tool list and break every run, so it carries its id.
+    second = AgentTool.objects.create(
+        agent=agent,
+        type="service",
+        name="Send email",
+        service=data_fixture.create_slack_write_message_service(),
+        config={},
+    )
+    assert get_service_tool_name(first) == "send_email"
+    assert get_service_tool_name(second) == f"send_email_{second.id}"

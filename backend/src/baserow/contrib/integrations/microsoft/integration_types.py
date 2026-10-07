@@ -27,6 +27,8 @@ class MicrosoftIntegrationType(OAuth2IntegrationTypeMixin, IntegrationType):
         "offline_access",
         "User.Read",
         "Mail.Send",
+        # The email chat channel reads a folder and replies in its threads.
+        "Mail.ReadWrite",
         "Calendars.ReadWrite",
         "ChannelMessage.Send",
     ]

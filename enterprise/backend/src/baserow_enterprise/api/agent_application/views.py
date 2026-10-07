@@ -77,7 +77,10 @@ from baserow_enterprise.agent_application.instructions import (
     draft_instructions,
     improve_instructions,
 )
-from baserow_enterprise.agent_application.models import AgentChatMessage
+from baserow_enterprise.agent_application.models import (
+    AgentApplication,
+    AgentChatMessage,
+)
 from baserow_enterprise.agent_application.operations import (
     CancelAgentChatOperationType,
     CreateAgentToolOperationType,
@@ -174,6 +177,12 @@ def _with_specific_services(items: list) -> list:
 
 def _get_application_and_check(request, application_id, operation_type):
     application = CoreHandler().get_application(application_id).specific
+    # Another kind of application (a database, say) has no agents; a stale
+    # client that sends its id gets a not-found rather than a crash.
+    if not isinstance(application, AgentApplication):
+        raise ApplicationDoesNotExist(
+            f"The application {application_id} is not an agent application."
+        )
     CoreHandler().check_permissions(
         request.user,
         operation_type.type,

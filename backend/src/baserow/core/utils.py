@@ -1482,3 +1482,13 @@ def are_kwargs_default(func, **kwargs):
             return False
 
     return True
+
+
+def actor_language(actor) -> Optional[str]:
+    """
+    The language to render texts in for whoever is acting: a user's profile
+    setting, or the default when the actor is an agent, which has no profile.
+    """
+
+    profile = getattr(actor, "profile", None)
+    return getattr(profile, "language", None)

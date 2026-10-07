@@ -1046,7 +1046,12 @@ class ViewHandler:
         last_order = model_class.get_last_order(table)
 
         instance = model_class.objects.create(
-            table=table, order=last_order, owned_by=user, **view_values
+            table=table,
+            order=last_order,
+            # An agent identity creating a table has no user account to own
+            # the default view; it is simply unowned.
+            owned_by=user if isinstance(user, AbstractUser) else None,
+            **view_values,
         )
 
         if instance.public:

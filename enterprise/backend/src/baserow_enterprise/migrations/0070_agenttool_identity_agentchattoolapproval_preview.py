@@ -284,4 +284,96 @@ class Migration(migrations.Migration):
             name="config",
             field=models.JSONField(blank=True, default=dict),
         ),
+        migrations.CreateModel(
+            name="AgentEmailMessage",
+            fields=[
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("session_key", models.CharField(max_length=255)),
+                (
+                    "direction",
+                    models.CharField(
+                        choices=[("inbound", "Inbound"), ("outbound", "Outbound")],
+                        max_length=8,
+                    ),
+                ),
+                (
+                    "message_id",
+                    models.CharField(blank=True, db_default="", max_length=998),
+                ),
+                (
+                    "in_reply_to",
+                    models.CharField(blank=True, db_default="", max_length=998),
+                ),
+                (
+                    "references",
+                    models.JSONField(blank=True, db_default=[], default=list),
+                ),
+                (
+                    "thread_key",
+                    models.CharField(blank=True, db_default="", max_length=255),
+                ),
+                (
+                    "provider_message_id",
+                    models.CharField(blank=True, db_default="", max_length=255),
+                ),
+                (
+                    "from_address",
+                    models.CharField(blank=True, db_default="", max_length=320),
+                ),
+                (
+                    "from_name",
+                    models.CharField(blank=True, db_default="", max_length=255),
+                ),
+                (
+                    "to_addresses",
+                    models.JSONField(blank=True, db_default=[], default=list),
+                ),
+                (
+                    "subject",
+                    models.CharField(blank=True, db_default="", max_length=998),
+                ),
+                (
+                    "subject_normalized",
+                    models.CharField(blank=True, db_default="", max_length=998),
+                ),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                (
+                    "channel",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="email_messages",
+                        to="baserow_enterprise.agentchatchannel",
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ("id",),
+                "indexes": [
+                    models.Index(
+                        fields=["channel", "session_key"],
+                        name="baserow_ent_channel_613a6f_idx",
+                    ),
+                    models.Index(
+                        fields=["channel", "message_id"],
+                        name="baserow_ent_channel_f66647_idx",
+                    ),
+                    models.Index(
+                        fields=["channel", "thread_key"],
+                        name="baserow_ent_channel_cd1031_idx",
+                    ),
+                    models.Index(
+                        fields=["channel", "from_address", "subject_normalized"],
+                        name="baserow_ent_channel_8ca67e_idx",
+                    ),
+                ],
+            },
+        ),
     ]

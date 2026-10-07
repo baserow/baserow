@@ -251,6 +251,7 @@ class AgentRunner:
             self.deps.system_notes.extend(
                 channel_type.get_system_notes(self.chat.channel)
             )
+            toolsets.extend(channel_type.get_toolsets(self.chat.channel, self.chat))
 
         # A conversation started by a row comment can be answered where it
         # was asked; other runs have no row to reply on.

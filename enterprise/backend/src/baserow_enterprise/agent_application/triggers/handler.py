@@ -48,6 +48,27 @@ def check_service_table_in_workspace(prepared_values: dict, application) -> None
         )
 
 
+def validate_service_values(service_type, service, values: dict) -> dict:
+    """
+    Runs the service values through the service type's request serializer, as
+    the automation editor does, so a form's strings become the typed values
+    the model and the scheduler expect and read-only keys the client echoes
+    back (schema, sample data) are dropped.
+
+    :raises rest_framework.exceptions.ValidationError: When a value is invalid.
+    """
+
+    serializer_class = service_type.get_serializer_class(request_serializer=True)
+    serializer = serializer_class(instance=service, data=values, partial=True)
+    serializer.is_valid(raise_exception=True)
+    # `integration` is resolved by `_validate_integration`; the serializer
+    # only knows its id.
+    validated = dict(serializer.validated_data)
+    if "integration" in values:
+        validated["integration"] = values["integration"]
+    return validated
+
+
 def schedule_periodic_service(service) -> None:
     """
     Agent triggers have no publish step, so the first run of a periodic
@@ -140,6 +161,7 @@ class AgentTriggerHandler:
         config = trigger_type.prepare_config(config or {})
         service_values = dict(service_values or {})
         service_values = self._validate_integration(application, service_values)
+        service_values = validate_service_values(service_type, None, service_values)
         prepared_values = service_type.prepare_values(service_values, user)
         check_service_table_in_workspace(prepared_values, application)
 
@@ -185,6 +207,9 @@ class AgentTriggerHandler:
             service_type = service.get_type()
             service_values = self._validate_integration(
                 trigger.application, dict(service_values)
+            )
+            service_values = validate_service_values(
+                service_type, service, service_values
             )
             prepared_values = service_type.prepare_values(
                 service_values, user, instance=service

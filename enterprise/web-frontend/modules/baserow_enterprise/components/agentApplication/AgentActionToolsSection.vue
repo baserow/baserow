@@ -302,6 +302,7 @@
                   :service-type="serviceType(tool)"
                   :service="tool.service || {}"
                   :tool="tool"
+                  :loading="isSaving(tool)"
                   @values-changed="onServiceValuesChanged(tool, $event)"
                 />
               </div>
@@ -858,12 +859,14 @@ export default {
         return
       }
       try {
-        await this.$store.dispatch(
-          `${this.storePrefix}agentApplication/updateTool`,
-          {
-            toolId,
-            values,
-          }
+        await this.ownSave(tool, () =>
+          this.$store.dispatch(
+            `${this.storePrefix}agentApplication/updateTool`,
+            {
+              toolId,
+              values,
+            }
+          )
         )
       } catch (error) {
         notifyIf(error, 'application')

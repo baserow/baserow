@@ -34,6 +34,14 @@ import {
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
 import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+import {
+  EmailAgentChatChannelType,
+  GmailAgentChatChannelType,
+  OutlookAgentChatChannelType,
+  SlackAgentChatChannelType,
+  WebAgentChatChannelType,
+  WebsiteWidgetAgentChatChannelType,
+} from '@baserow_enterprise/agentChatChannelTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
@@ -211,6 +219,16 @@ export default defineNuxtPlugin({
       'agentSettings',
       new EnterpriseTeamsAgentSettingsType(context)
     )
+    for (const ChannelTypeClass of [
+      WebAgentChatChannelType,
+      WebsiteWidgetAgentChatChannelType,
+      SlackAgentChatChannelType,
+      EmailAgentChatChannelType,
+      GmailAgentChatChannelType,
+      OutlookAgentChatChannelType,
+    ]) {
+      $registry.register('agentChatChannel', new ChannelTypeClass(context))
+    }
     $registry.register('subject', new TeamSubjectType(context))
 
     $registry.register('job', new AuditLogExportJobType(context))

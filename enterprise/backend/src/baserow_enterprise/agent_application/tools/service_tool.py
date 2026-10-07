@@ -24,9 +24,26 @@ _INPUT_TYPE_TO_JSON_SCHEMA = {
 }
 
 
+def _slugify_tool_name(name: str) -> str:
+    return re.sub(r"[^a-z0-9_]+", "_", (name or "").lower()).strip("_")
+
+
 def get_service_tool_name(tool: "AgentTool") -> str:
-    slug = re.sub(r"[^a-z0-9_]+", "_", (tool.name or "").lower()).strip("_")
-    return slug or f"service_tool_{tool.id}"
+    """
+    The runtime name of a service tool. Two tools named alike ("Send email"
+    for Gmail and for Outlook) would clash and break every run, so the later
+    one carries its id.
+    """
+
+    slug = _slugify_tool_name(tool.name) or f"service_tool_{tool.id}"
+    if tool.agent_id is None or tool.id is None:
+        return slug
+    earlier_names = tool.agent.tools.filter(
+        id__lt=tool.id, service__isnull=False
+    ).values_list("name", flat=True)
+    if any(_slugify_tool_name(name) == slug for name in earlier_names):
+        return f"{slug}_{tool.id}"
+    return slug
 
 
 def build_service_tool_schema(tool: "AgentTool") -> dict:

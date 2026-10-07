@@ -61,6 +61,7 @@
             :application="application"
             :service-type="triggerNodeType(trigger).serviceType"
             :service="trigger.service || {}"
+            :loading="isSaving(trigger)"
             @values-changed="onServiceValuesChanged(trigger, $event)"
           />
         </ReadOnlyForm>
@@ -426,12 +427,14 @@ export default {
       }
       delete this.pendingServiceValues[triggerId]
       try {
-        await this.$store.dispatch(
-          `${this.storePrefix}agentApplication/updateTrigger`,
-          {
-            triggerId,
-            values: { service },
-          }
+        await this.ownSave(trigger, () =>
+          this.$store.dispatch(
+            `${this.storePrefix}agentApplication/updateTrigger`,
+            {
+              triggerId,
+              values: { service },
+            }
+          )
         )
       } catch (error) {
         notifyIf(error, 'application')
