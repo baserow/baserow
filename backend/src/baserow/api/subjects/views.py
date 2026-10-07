@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -54,11 +54,14 @@ class SubjectOptionsView(APIView):
         elif not request.user.is_staff:
             raise PermissionDenied()
 
-        queryset = SubjectOptionsHandler.get_options(
-            workspace=workspace,
-            search=query_params.get("search") or "",
-            subject_types=query_params.get("subject_types"),
-        )
+        try:
+            queryset = SubjectOptionsHandler.get_options(
+                workspace=workspace,
+                search=query_params.get("search") or "",
+                subject_types=query_params.get("subject_types"),
+            )
+        except ValueError as exc:
+            raise ValidationError({"subject_types": str(exc)})
         paginator = PageNumberPagination(limit_page_size=100)
         page = paginator.paginate_queryset(queryset, request, view=self)
         serializer = SubjectOptionSerializer(page, many=True)
