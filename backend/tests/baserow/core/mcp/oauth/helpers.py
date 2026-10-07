@@ -67,16 +67,21 @@ def enabled_tool_names():
     return [tool.name for tool in mcp_tool_registry.get_enabled_tools()]
 
 
-def obtain_tokens(client, api_client, token, workspace, tools=None, client_id=None):
+def obtain_tokens(
+    client, api_client, token, workspace, tools=None, client_id=None, scope="mcp"
+):
     """
     Runs consent -> token. `token` is the user's JWT, `tools=None` grants
-    every enabled tool, `client_id=None` uses a new CIMD client. The result
+    every enabled tool, `client_id=None` uses a new CIMD client, `scope` is the
+    space-separated scope the client requests. The result
     carries the `endpoint_id` consent picked.
     """
 
     verifier, challenge = pkce_pair()
     client_id = client_id or cimd_client(client)
-    query = authorize_query(client_id, challenge)
+    query = authorize_query(client_id, challenge).replace(
+        "scope=mcp", f"scope={scope.replace(' ', '+')}"
+    )
     response = api_client.post(
         reverse("api:mcp:oauth_consent"),
         {

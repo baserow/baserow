@@ -1,5 +1,4 @@
 from datetime import timedelta
-from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
 from django.utils import timezone
@@ -7,14 +6,9 @@ from django.utils import timezone
 import pytest
 from freezegun import freeze_time
 from oauth2_provider.models import AccessToken
-from rest_framework.reverse import reverse
 
 from tests.baserow.core.mcp.oauth.helpers import (
-    authorize_query,
-    cimd_client,
-    enabled_tool_names,
     obtain_tokens,
-    pkce_pair,
 )
 
 
@@ -54,35 +48,42 @@ def test_replayed_refresh_token_revokes_the_family(client, api_client, data_fixt
 
 
 @pytest.mark.django_db
+def test_refresh_token_works_after_29_days(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    with freeze_time(timezone.now() + timedelta(days=29)):
+        assert _refresh(client, tokens).status_code == 200
+
+
+@pytest.mark.django_db
 def test_refresh_token_expires_after_30_days(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
     with freeze_time(timezone.now() + timedelta(days=31)):
-        assert _refresh(client, tokens).status_code == 400
+        response = _refresh(client, tokens)
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_grant"
 
 
 @pytest.mark.django_db
-def test_offline_access_is_accepted(client, api_client, data_fixture):
+def test_offline_access_is_kept_in_the_token_scope(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    _, challenge = pkce_pair()
-    query = authorize_query(cimd_client(client), challenge).replace(
-        "scope=mcp", "scope=mcp+offline_access"
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
     )
-    response = api_client.post(
-        reverse("api:mcp:oauth_consent"),
-        {
-            "query": query,
-            "allow": True,
-            "workspace_id": workspace.id,
-            "tools": enabled_tool_names(),
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == 200, response.content
-    assert "code" in parse_qs(urlparse(response.json()["redirect_url"]).query)
+    assert "offline_access" in tokens["scope"].split()
+    assert "mcp" in tokens["scope"].split()
+
+
+@pytest.mark.django_db
+def test_offline_access_is_not_added_unless_requested(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    assert "offline_access" not in tokens["scope"].split()
 
 
 def test_cimd_allowlist_defaults_to_any_host():
