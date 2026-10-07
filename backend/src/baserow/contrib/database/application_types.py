@@ -558,6 +558,7 @@ class DatabaseApplicationType(ApplicationType):
             id_mapping, "database_fields"
         )
 
+        external_fields = []
         for external_table, serialized_field in external_table_fields_to_import or []:
             field_type = field_type_registry.get(serialized_field["type"])
             external_field = field_type.import_serialized(
@@ -567,6 +568,7 @@ class DatabaseApplicationType(ApplicationType):
                 id_mapping,
                 deferred_fk_update_collector,
             )
+            external_fields.append(external_field)
             SearchHandler.schedule_update_search_data(
                 external_table, fields=[external_field]
             )
@@ -575,10 +577,16 @@ class DatabaseApplicationType(ApplicationType):
         deferred_fk_update_collector.run_deferred_fk_updates(
             id_mapping, "database_fields"
         )
+        # The deferred updates only changed the database, so the fields linking to
+        # them are refreshed before their dependencies are built.
+        for external_field in external_fields:
+            external_field.refresh_from_db()
 
         # For each field we call `after_import_serialized` which ensures that
         # formulas recalculate themselves now that all fields exist.
-        for field_instance in fields_without_dependencies + fields_with_dependencies:
+        for field_instance in (
+            fields_without_dependencies + fields_with_dependencies + external_fields
+        ):
             field_type = field_type_registry.get_by_model(field_instance)
             field_type.after_import_serialized(field_instance, field_cache, id_mapping)
 
