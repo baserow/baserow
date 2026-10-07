@@ -203,7 +203,7 @@ class IntegrationService:
         )
 
         prepared_values = integration_type.prepare_values(
-            kwargs, user, application=integration.application
+            kwargs, user, application=integration.application, instance=integration
         )
 
         integration = self.handler.update_integration(
