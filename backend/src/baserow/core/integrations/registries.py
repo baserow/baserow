@@ -71,6 +71,7 @@ class IntegrationType(
         values: Dict[str, Any],
         user: AbstractUser,
         application: Optional[Any] = None,
+        instance: Optional[IntegrationSubClass] = None,
     ) -> Dict[str, Any]:
         """
         The prepare_values hook gives the possibility to change the provided values
@@ -81,6 +82,7 @@ class IntegrationType(
 
         :param values: The provided values.
         :param user: The user on whose behalf the change is made.
+        :param instance: The current instance if it exists.
         :return: The updated values.
         """
 

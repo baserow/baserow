@@ -67,6 +67,27 @@ def test_update_local_baserow_integration_authorizes_current_user_only(data_fixt
 
 
 @pytest.mark.django_db
+def test_update_local_baserow_integration_keeps_existing_authorization(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    agent = Agent.objects.create(
+        workspace=application.workspace, name="Writer", role_uid="ADMIN"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, authorized_agent=agent
+    )
+
+    updated_integration = (
+        IntegrationService()
+        .update_integration(user, integration, name="Renamed integration")
+        .integration
+    )
+
+    assert updated_integration.name == "Renamed integration"
+    assert updated_integration.authorized_subject == agent
+
+
+@pytest.mark.django_db
 def test_legacy_authorized_user_is_read_until_the_integration_is_saved(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)

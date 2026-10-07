@@ -79,12 +79,25 @@ class LocalBaserowIntegrationType(IntegrationType):
         values: Dict[str, Any],
         user: AbstractUser,
         application: Optional[Application] = None,
+        instance: Optional[LocalBaserowIntegration] = None,
     ) -> Dict[str, Any]:
         """Resolve and validate the typed authorization subject in this workspace."""
 
         subject_id = values.get("authorized_subject_id")
         subject_type_name = values.get("authorized_subject_type")
         if subject_id is None and subject_type_name is None:
+            authorization_not_updated = not {
+                "authorized_subject_id",
+                "authorized_subject_type",
+            }.intersection(values)
+            has_existing_authorization = instance is not None and (
+                (instance.authorized_subject_type and instance.authorized_subject_id)
+                or instance.authorized_user_id
+            )
+            if authorization_not_updated and has_existing_authorization:
+                return super().prepare_values(
+                    values, user, application=application, instance=instance
+                )
             subject_type = subject_type_registry.get_by_model(user)
             values["authorized_subject_type"] = subject_type.type
             values["authorized_subject_id"] = user.id
@@ -116,7 +129,9 @@ class LocalBaserowIntegrationType(IntegrationType):
         # A save migrates legacy values to the canonical pair.
         values["authorized_user"] = None
 
-        return super().prepare_values(values, user)
+        return super().prepare_values(
+            values, user, application=application, instance=instance
+        )
 
     def serialize_property(
         self,
