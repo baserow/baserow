@@ -297,12 +297,18 @@ const childNodeHistoriesByParent = computed(() => {
  * jump loops execution back to it. Passes are scoped by (node, iteration_path)
  * so iterator iterations aren't conflated with goto loop passes, and counted in
  * chronological order (the histories are returned ordered by started_on, id).
+ *
+ * A node whose error policy retries it writes one history per attempt. Only the
+ * first attempt opens a new pass; the retries that follow it belong to the same
+ * pass, so they take its number and don't inflate the total.
  */
 const passInfoByHistoryId = computed(() => {
   const items = nodeHistoriesEntry.value ?? []
+  const isFirstAttempt = (nh) => (nh.attempt ?? 1) === 1
 
   const totals = {}
   for (const nh of items) {
+    if (!isFirstAttempt(nh)) continue
     const key = `${nh.node}|${nh.iteration_path}`
     totals[key] = (totals[key] || 0) + 1
   }
@@ -311,8 +317,8 @@ const passInfoByHistoryId = computed(() => {
   const result = {}
   for (const nh of items) {
     const key = `${nh.node}|${nh.iteration_path}`
-    counters[key] = (counters[key] || 0) + 1
-    result[nh.id] = { pass: counters[key], total: totals[key] }
+    if (isFirstAttempt(nh)) counters[key] = (counters[key] || 0) + 1
+    result[nh.id] = { pass: counters[key] || 1, total: totals[key] || 1 }
   }
   return result
 })

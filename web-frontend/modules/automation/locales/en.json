@@ -121,6 +121,7 @@
     "statusSuccessBadge": "Completed",
     "statusErrorBadge": "Failed",
     "statusSkippedBadge": "Skipped",
+    "statusRetriedBadge": "Retried",
     "statusDisabled": "Disabled by Baserow",
     "startedBy": "Started by {name}",
     "successfulRuns": "Successful runs",
@@ -135,6 +136,7 @@
     "errorHideDetails": "Hide details",
     "errorShowDetails": "Show details",
     "runNumber": "Run {n}",
+    "attemptNumber": "Attempt {n}",
     "runCount": "{n} runs",
     "testRun": "Test",
     "showResult": "Show result"

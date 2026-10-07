@@ -26,6 +26,10 @@
               passLabel
             }}</span>
 
+            <span v-if="attemptLabel" class="node-history__header-info-pass">{{
+              attemptLabel
+            }}</span>
+
             <div>
               <Icon
                 :icon="
@@ -120,6 +124,10 @@
           passLabel
         }}</span>
 
+        <span v-if="attemptLabel" class="node-history__header-info-pass">{{
+          attemptLabel
+        }}</span>
+
         <div class="node-history__header-show-result">
           <a
             ref="nodeResultButtonContextToggle"
@@ -139,7 +147,7 @@
       </Badge>
     </div>
 
-    <div v-if="hasOwnError" class="node-history__error">
+    <div v-if="showMessage" class="node-history__error">
       <div class="node-history__error-info">
         {{ errorMessage }}
       </div>
@@ -272,12 +280,35 @@ const iterationHasError = (group) => {
 const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
 /**
- * A node that ran without doing anything, e.g. a "Go to node" whose condition
- * resolved to false, so no jump was followed.
+ * An attempt that failed, but whose node's error policy scheduled another one.
+ * It doesn't error the run: the outcome of the node is told by its last attempt.
+ */
+const isRetried = computed(() => props.nodeHistory.status === 'retried')
+
+/**
+ * The message is shown for an errored attempt, and for a retried one so that it
+ * is clear why the node was retried.
+ */
+const showMessage = computed(() => hasOwnError.value || isRetried.value)
+
+/**
+ * When a node's error policy retried it, every attempt is its own entry. The
+ * first attempt carries no label; the retries say which attempt they are.
+ */
+const attemptLabel = computed(() => {
+  const attempt = props.nodeHistory.attempt ?? 1
+  if (attempt <= 1) return null
+  return app.$i18n.t('historySidePanel.attemptNumber', { n: attempt })
+})
+
+/**
+ * `skipped` is a node that ran without doing anything, e.g. a "Go to node"
+ * whose condition resolved to false, so no jump was followed.
  */
 const status = computed(() => {
   const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
   if (hasOwnError.value || childError) return 'error'
+  if (isRetried.value) return 'retried'
   if (props.nodeHistory.status === 'skipped') return 'skipped'
   return 'success'
 })
@@ -286,6 +317,8 @@ const statusLabel = computed(() => {
   switch (status.value) {
     case 'error':
       return app.$i18n.t('historySidePanel.statusErrorBadge')
+    case 'retried':
+      return app.$i18n.t('historySidePanel.statusRetriedBadge')
     case 'skipped':
       return app.$i18n.t('historySidePanel.statusSkippedBadge')
     default:
@@ -297,6 +330,8 @@ const statusBadgeColor = computed(() => {
   switch (status.value) {
     case 'error':
       return 'red'
+    case 'retried':
+      return 'yellow'
     case 'skipped':
       return 'neutral'
     default:
