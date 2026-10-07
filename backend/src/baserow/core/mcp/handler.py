@@ -21,27 +21,6 @@ from .operations import (
 
 
 class MCPEndpointHandler:
-    def get_by_key(self, key: str) -> MCPEndpoint:
-        """
-        Fetches a single MCP endpoint instance based on the key.
-
-        :param key: The unique endpoint key.
-        :raises MCPEndpointDoesNotExist: Raised when the requested endpoint was not
-            found.
-        :return: The fetched endpoint matching the provided key.
-        """
-
-        try:
-            endpoint = MCPEndpoint.objects.select_related("workspace", "user").get(
-                key=key
-            )
-        except MCPEndpoint.DoesNotExist:
-            raise MCPEndpointDoesNotExist(
-                f"The MCP endpoint with key {key} does not exist."
-            )
-
-        return endpoint
-
     def get_endpoint(
         self, user: AbstractUser, endpoint_id: int, base_queryset: QuerySet = None
     ) -> MCPEndpoint:
