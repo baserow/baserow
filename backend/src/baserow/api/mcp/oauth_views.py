@@ -232,11 +232,9 @@ class MCPOAuthConnectionsView(APIView):
             {endpoint.oauth_client_id for endpoint in endpoints},
             field_name="client_id",
         )
-        enabled_tool_count = len(mcp_tool_registry.get_enabled_tools())
         connections = []
         for endpoint in endpoints:
             application = applications.get(endpoint.oauth_client_id)
-            allowed_tools = endpoint.allowed_tools
             connections.append(
                 {
                     "id": endpoint.id,
@@ -244,12 +242,8 @@ class MCPOAuthConnectionsView(APIView):
                     **_verification(application),
                     "workspace_id": endpoint.workspace_id,
                     "workspace_name": endpoint.workspace.name,
-                    "allowed_tools": allowed_tools,
-                    "tool_count": (
-                        enabled_tool_count
-                        if allowed_tools is None
-                        else len(allowed_tools)
-                    ),
+                    "allowed_tools": endpoint.allowed_tools,
+                    "tool_count": len(mcp_tool_registry.get_allowed_tools(endpoint)),
                     "created": endpoint.created,
                 }
             )

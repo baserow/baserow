@@ -160,3 +160,22 @@ def test_disconnect_legacy_endpoint_is_404(api_client, data_fixture):
     )
     assert response.status_code == 404
     assert MCPEndpoint.objects.filter(id=endpoint.id).exists()
+
+
+@pytest.mark.django_db
+def test_tool_count_ignores_disabled_tools(client, api_client, data_fixture):
+    from baserow.core.mcp.handler import MCPEndpointHandler
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    MCPEndpointHandler().grant_oauth_client(
+        user,
+        workspace,
+        cimd_client(client),
+        "c",
+        ["list_tables", "no_longer_registered"],
+    )
+
+    response = api_client.get(reverse(LIST_URL), HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.json()["connections"][0]["tool_count"] == 1
