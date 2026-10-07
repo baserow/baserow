@@ -579,3 +579,35 @@ def test_handle_sse_captures_connected_event(mock_capture, data_fixture):
         {"endpoint_id": endpoint.id},
         workspace=endpoint.workspace,
     )
+
+
+@pytest.mark.django_db
+@patch("baserow.core.posthog.capture_user_event")
+def test_call_tool_with_invalid_arguments_is_captured_as_failed(
+    mock_capture, data_fixture
+):
+    endpoint = data_fixture.create_mcp_endpoint()
+    mcp = BaserowMCPServer()
+
+    key_token = current_key.set(endpoint.key)
+
+    try:
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                result = await client.call_tool(
+                    "update_rows", {"table_id": "abc", "rows": []}
+                )
+                assert result.isError is True
+
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+    mock_capture.assert_called_once_with(
+        endpoint.user,
+        "mcp_tool_called",
+        {"endpoint_id": endpoint.id, "tool": "update_rows", "success": False},
+        workspace=endpoint.workspace,
+    )

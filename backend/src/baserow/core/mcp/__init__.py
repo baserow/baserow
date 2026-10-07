@@ -53,7 +53,9 @@ class BaserowMCPServer:
 
     def _setup_handlers(self):
         self._mcp_server.list_tools()(self.list_tools)
-        self._mcp_server.call_tool()(self.call_tool)
+        # Each tool validates its own arguments with its pydantic input_schema, so
+        # invalid calls reach call_tool and are captured as failed.
+        self._mcp_server.call_tool(validate_input=False)(self.call_tool)
 
         # Return an empty list because there are no resources, prompts, and
         # resource_templates in Baserow.
