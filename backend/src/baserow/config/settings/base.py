@@ -876,6 +876,15 @@ BASEROW_MCP_OAUTH_ENABLED = str_to_bool(
 MCP_AUTHORIZATION_SERVER_URL = PUBLIC_BACKEND_URL.rstrip("/")
 MCP_RESOURCE_URL = f"{MCP_AUTHORIZATION_SERVER_URL}/mcp"
 
+# django-oauth-toolkit's migrations declare swappable dependencies on these settings,
+# and `migrate` resolves them when it checks for model changes, so they must exist.
+OAUTH2_PROVIDER_APPLICATION_MODEL = "oauth2_provider.Application"
+OAUTH2_PROVIDER_ACCESS_TOKEN_MODEL = "oauth2_provider.AccessToken"
+OAUTH2_PROVIDER_REFRESH_TOKEN_MODEL = "oauth2_provider.RefreshToken"
+OAUTH2_PROVIDER_ID_TOKEN_MODEL = "oauth2_provider.IDToken"
+OAUTH2_PROVIDER_GRANT_MODEL = "oauth2_provider.Grant"
+OAUTH2_PROVIDER_DEVICE_GRANT_MODEL = "oauth2_provider.DeviceGrant"
+
 OAUTH2_PROVIDER = {
     "OAUTH2_VALIDATOR_CLASS": "baserow.core.mcp.oauth.validators.MCPOAuth2Validator",
     "SCOPES": {"mcp": "Use Baserow through an MCP endpoint"},
