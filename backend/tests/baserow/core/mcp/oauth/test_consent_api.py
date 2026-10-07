@@ -104,6 +104,29 @@ def test_failed_code_issue_leaves_no_grant(client, api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_error_redirect_from_the_library_leaves_no_grant(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    location = f"{REDIRECT_URI}?error=invalid_request&state=s1"
+    with patch(
+        "oauth2_provider.oauth2_backends.OAuthLibCore.create_authorization_response",
+        return_value=(location, {"Location": location}, None, 302),
+    ):
+        response = _post(api_client, token, _query(client), workspace)
+
+    assert response.status_code == 200
+    redirect_url = response.json()["redirect_url"]
+    assert redirect_url.startswith(REDIRECT_URI)
+    query = parse_qs(urlparse(redirect_url).query)
+    assert query["error"] == ["invalid_request"]
+    assert query["state"] == ["s1"]
+    assert "code" not in query
+    assert not MCPEndpoint.objects.filter(oauth_client_id__isnull=False).exists()
+
+
+@pytest.mark.django_db
 def test_consent_lists_only_workspaces_the_user_can_connect(
     client, api_client, data_fixture
 ):

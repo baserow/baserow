@@ -170,8 +170,9 @@ class MCPOAuthConsentView(APIView):
     @validate_body(ConsentSerializer)
     def post(self, request, data):
         _require_oauth_enabled()
-        # Validated once, outside the transaction, because validation may fetch
-        # the client's metadata document over HTTP.
+        # Validated outside the transaction, because validation may fetch the
+        # client's metadata document over HTTP. The library re-checks the client
+        # when it issues the code, which only refetches a stale document.
         try:
             authorize_request, credentials = validate_query(
                 request, request.user, data["query"]

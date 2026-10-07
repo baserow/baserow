@@ -1,4 +1,4 @@
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.http import HttpRequest, QueryDict
@@ -132,7 +132,8 @@ def issue_code(request: HttpRequest, credentials: dict, endpoint: MCPEndpoint) -
     Returns the client redirect URI with an authorization code bound to the
     endpoint. `request` and `credentials` come from `validate_query`.
 
-    :raises OAuthToolkitError: When the library rejects the request.
+    :raises OAuthToolkitError: When the library rejects the request, including
+        when it answers with an error redirect instead of a code.
     """
 
     credentials = dict(credentials)
@@ -148,4 +149,16 @@ def issue_code(request: HttpRequest, credentials: dict, endpoint: MCPEndpoint) -
     uri, _, _, _ = get_oauthlib_core().create_authorization_response(
         request, scopes=scopes, credentials=credentials, allow=True
     )
+    # oauthlib re-validates while issuing and returns non-fatal errors as a
+    # redirect instead of raising, so check a code was actually issued.
+    query = parse_qs(urlsplit(uri or "").query)
+    if "code" not in query or "error" in query:
+        raise OAuthToolkitError(
+            error=CustomOAuth2Error(
+                error=query.get("error", ["server_error"])[0],
+                description=query.get("error_description", [None])[0],
+                state=credentials.get("state"),
+            ),
+            redirect_uri=credentials["redirect_uri"],
+        )
     return uri
