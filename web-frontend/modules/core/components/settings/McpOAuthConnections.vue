@@ -6,13 +6,13 @@
     <p class="mcp-oauth-connections__description">
       {{ $t('mcpOAuthConnections.description') }}
     </p>
-    <div class="mcp-endpoint__link margin-bottom-1">
-      <div class="mcp-endpoint__box" data-test="mcp-oauth-url">
+    <div class="mcp-oauth-connections__url margin-bottom-1">
+      <div class="mcp-oauth-connections__url-box" data-test="mcp-oauth-url">
         {{ mcpUrl }}
       </div>
       <a
         v-tooltip="$t('mcpOAuthConnections.copyURL')"
-        class="mcp-endpoint__link-action"
+        class="mcp-oauth-connections__url-copy"
         @click="copyUrl"
       >
         <i class="iconoir-copy" />
@@ -22,29 +22,29 @@
     <Tabs header-no-padding content-no-x-padding>
       <Tab title="Claude">
         <MarkdownIt
-          class="mcp-endpoint__instructions"
+          class="mcp-oauth-connections__instructions"
           :content="$t('mcpOAuthConnections.claudeInstructions')"
         ></MarkdownIt>
       </Tab>
       <Tab title="Claude Code">
         <MarkdownIt
-          class="mcp-endpoint__instructions margin-bottom-1"
+          class="mcp-oauth-connections__instructions margin-bottom-1"
           :content="$t('mcpOAuthConnections.claudeCodeInstructions')"
         ></MarkdownIt>
-        <pre><code class="mcp-endpoint__code">claude mcp add --transport http baserow {{ mcpUrl }}</code></pre>
+        <pre><code class="mcp-oauth-connections__code">claude mcp add --transport http baserow {{ mcpUrl }}</code></pre>
       </Tab>
       <Tab title="ChatGPT">
         <MarkdownIt
-          class="mcp-endpoint__instructions"
+          class="mcp-oauth-connections__instructions"
           :content="$t('mcpOAuthConnections.chatGptInstructions')"
         ></MarkdownIt>
       </Tab>
       <Tab title="Cursor">
         <MarkdownIt
-          class="mcp-endpoint__instructions margin-bottom-1"
+          class="mcp-oauth-connections__instructions margin-bottom-1"
           :content="$t('mcpOAuthConnections.cursorInstructions')"
         ></MarkdownIt>
-        <pre><code class="mcp-endpoint__code">{
+        <pre><code class="mcp-oauth-connections__code">{
   "mcpServers": {
     "baserow": {
       "url": "{{ mcpUrl }}"

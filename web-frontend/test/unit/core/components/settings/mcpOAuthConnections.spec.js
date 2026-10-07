@@ -115,4 +115,16 @@ describe('McpOAuthConnections', () => {
       true
     )
   })
+
+  test('uses only its own block elements', async () => {
+    const wrapper = await mount({
+      oauth_enabled: true,
+      mcp_url: mcpUrl,
+      connections: [],
+    })
+    expect(wrapper.find('[class*="mcp-endpoint__"]').exists()).toBe(false)
+    expect(wrapper.find('.mcp-oauth-connections__url-box').text()).toContain(
+      '/mcp'
+    )
+  })
 })
