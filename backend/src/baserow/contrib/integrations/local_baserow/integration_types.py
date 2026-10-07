@@ -93,6 +93,14 @@ class LocalBaserowIntegrationType(IntegrationType):
                 "authorized_subject_id and authorized_subject_type must be provided together."
             )
         else:
+            if subject_type_name == "auth.User" and subject_id != user.id:
+                raise serializers.ValidationError(
+                    {
+                        "authorized_subject_id": (
+                            "Only the current user can authorize this integration."
+                        )
+                    }
+                )
             subject_type = subject_type_registry.get(subject_type_name)
             subject = subject_type_registry.get_subject(subject_type_name, subject_id)
             workspace = application.workspace

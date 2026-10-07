@@ -8,6 +8,7 @@ describe('LocalBaserowForm', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.store.state.auth.user = { id: 1 }
     testApp.mock.onGet('/subjects/').reply(200, {
       count: 2,
       next: null,
@@ -69,5 +70,23 @@ describe('LocalBaserowForm', () => {
     await flushPromises()
 
     expect(wrapper.find('.dropdown__selected-text').text()).toBe('Reader agent')
+  })
+
+  test('emits the current user as an explicit authorization subject', async () => {
+    const wrapper = await mountComponent({
+      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
+    })
+    await flushPromises()
+
+    await wrapper
+      .findComponent({ name: 'DropdownItem', props: { value: 'user' } })
+      .find('.select__item-link')
+      .trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
+      authorized_subject_id: 1,
+      authorized_subject_type: 'auth.User',
+    })
   })
 })
