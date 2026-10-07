@@ -16,7 +16,9 @@ MANAGEMENT_FIELDS = ("registration_access_token", "registration_client_uri")
 def _is_allowed_redirect_uri(uri) -> bool:
     """https anywhere, or http to a loopback address."""
 
-    if not isinstance(uri, str):
+    # DOT stores the URIs space-joined and splits them on any whitespace, so a
+    # URI containing whitespace would be stored as several.
+    if not isinstance(uri, str) or uri.split() != [uri]:
         return False
     parsed = urlparse(uri)
     if parsed.scheme == "https":

@@ -90,6 +90,10 @@ def test_dcr_client_is_not_verified(client, api_client, data_fixture):
         "javascript://x",
         "custom-app:/cb",
         "cursor://anysphere.cursor-retrieval/oauth/callback",
+        # DOT splits stored redirect URIs on whitespace, so these would become two.
+        "http://localhost/cb http://evil.example/cb",
+        "http://localhost/cb\nhttp://evil.example/cb",
+        "http://localhost/cb\xa0http://evil.example/cb",
     ],
 )
 def test_registration_rejects_unsafe_redirect_uris(client, uri):
