@@ -9,7 +9,12 @@ from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
 
 from baserow.core.mcp.models import MCPEndpoint
 
-from .validators import CONSENT_CREDENTIAL, MCP_SCOPE, endpoint_scope
+from .validators import (
+    CONSENT_CREDENTIAL,
+    MCP_SCOPE,
+    OFFLINE_ACCESS_SCOPE,
+    endpoint_scope,
+)
 
 AUTHORIZE_PATH = "/oauth/authorize/"
 
@@ -117,7 +122,10 @@ def issue_code(
     # Lets the validator accept the endpoint scope, which clients can't request.
     credentials[CONSENT_CREDENTIAL] = True
 
+    requested = set(credentials.get("scopes") or request.GET.get("scope", "").split())
     scopes = [MCP_SCOPE, endpoint_scope(endpoint.id)]
+    if OFFLINE_ACCESS_SCOPE in requested:
+        scopes.append(OFFLINE_ACCESS_SCOPE)
     uri, _, _, _ = get_oauthlib_core().create_authorization_response(
         request, scopes=scopes, credentials=credentials, allow=True
     )

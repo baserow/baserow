@@ -4,6 +4,7 @@ from typing import Iterable
 from oauth2_provider.oauth2_validators import OAuth2Validator
 
 MCP_SCOPE = "mcp"
+OFFLINE_ACCESS_SCOPE = "offline_access"
 ENDPOINT_SCOPE_RE = re.compile(r"^endpoint:(\d+)$")
 
 
@@ -30,7 +31,7 @@ CONSENT_CREDENTIAL = "mcp_endpoint_consent"
 
 class MCPOAuth2Validator(OAuth2Validator):
     """
-    Accepts the static `mcp` scope plus one `endpoint:<id>` scope. The endpoint scope
+    Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>` scope. The endpoint scope
     is never requested by clients; only the consent view adds it when issuing the
     code. A refresh can only narrow the scopes of the grant it refreshes.
     """
@@ -62,5 +63,6 @@ class MCPOAuth2Validator(OAuth2Validator):
         consent = vars(request).get(CONSENT_CREDENTIAL) is True
         max_endpoint_scopes = 1 if consent else 0
         return len(endpoint_scopes) <= max_endpoint_scopes and set(others) <= {
-            MCP_SCOPE
+            MCP_SCOPE,
+            OFFLINE_ACCESS_SCOPE,
         }

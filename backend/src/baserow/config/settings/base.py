@@ -875,6 +875,12 @@ BASEROW_MCP_OAUTH_ENABLED = str_to_bool(
 )
 MCP_AUTHORIZATION_SERVER_URL = PUBLIC_BACKEND_URL.rstrip("/")
 MCP_RESOURCE_URL = f"{MCP_AUTHORIZATION_SERVER_URL}/mcp"
+BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS = [
+    host.strip()
+    for host in (os.getenv("BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS") or "*").split(",")
+    if host.strip()
+]
+MCP_REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 30
 
 # django-oauth-toolkit's migrations declare swappable dependencies on these settings,
 # and `migrate` resolves them when it checks for model changes, so they must exist.
@@ -887,7 +893,10 @@ OAUTH2_PROVIDER_DEVICE_GRANT_MODEL = "oauth2_provider.DeviceGrant"
 
 OAUTH2_PROVIDER = {
     "OAUTH2_VALIDATOR_CLASS": "baserow.core.mcp.oauth.validators.MCPOAuth2Validator",
-    "SCOPES": {"mcp": "Use Baserow through an MCP endpoint"},
+    "SCOPES": {
+        "mcp": "Use Baserow through an MCP endpoint",
+        "offline_access": "Stay connected without signing in again",
+    },
     "DEFAULT_SCOPES": ["mcp"],
     "PKCE_REQUIRED": True,
     "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
@@ -895,6 +904,11 @@ OAUTH2_PROVIDER = {
     "COMPLIANT_BCP_RFC9700_PASSWORD_GRANT": True,
     "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,
     "ROTATE_REFRESH_TOKEN": True,
+    # Store token hashes only; `/mcp` already looks tokens up by checksum.
+    "COMPLIANT_BCP_RFC9700_TOKEN_STORAGE": True,
+    "REFRESH_TOKEN_EXPIRE_SECONDS": MCP_REFRESH_TOKEN_EXPIRE_SECONDS,
+    # OAuth 2.1 requires detecting refresh token replay for public clients.
+    "REFRESH_TOKEN_REUSE_PROTECTION": True,
     "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
     "ALLOW_LOCALHOST_LOOPBACK": True,
     "ALLOWED_REDIRECT_URI_SCHEMES": ["http", "https"],
@@ -914,7 +928,7 @@ OAUTH2_PROVIDER = {
     "CIMD_REGISTRATION_PERMISSION_CLASSES": (
         "oauth2_provider.cimd.HostAllowlistCIMDPermission",
     ),
-    "CIMD_ALLOWED_HOSTS": ["claude.ai", "claude.com", "chatgpt.com", "openai.com"],
+    "CIMD_ALLOWED_HOSTS": BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS,
 }
 
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")

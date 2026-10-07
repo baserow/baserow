@@ -5,8 +5,10 @@ from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.views import View
 
 from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
+from oauth2_provider.views import OAuthProtectedResourceMetadataView
 
 from .authorize import error_redirect_url, validate_query
+from .validators import MCP_SCOPE
 
 
 class MCPAuthorizeRedirectView(View):
@@ -35,3 +37,13 @@ class MCPAuthorizeRedirectView(View):
         encoded = base64.urlsafe_b64encode(query.encode()).rstrip(b"=").decode()
         frontend_url = settings.PUBLIC_WEB_FRONTEND_URL.rstrip("/")
         return HttpResponseRedirect(f"{frontend_url}/mcp-authorize?request={encoded}")
+
+
+class MCPProtectedResourceMetadataView(OAuthProtectedResourceMetadataView):
+    """
+    Lists only `mcp`: `offline_access` is requested from the authorization server
+    and has no meaning for the resource itself.
+    """
+
+    def get_scopes_supported(self):
+        return [MCP_SCOPE]

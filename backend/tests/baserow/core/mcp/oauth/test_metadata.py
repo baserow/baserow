@@ -12,6 +12,7 @@ def test_authorization_server_metadata(client):
     assert data["token_endpoint"].endswith("/oauth/token/")
     assert data["authorization_endpoint"].endswith("/oauth/authorize/")
     assert data["code_challenge_methods_supported"] == ["S256"]
+    assert "offline_access" in data["scopes_supported"]
 
 
 @pytest.mark.django_db
@@ -25,6 +26,7 @@ def test_protected_resource_metadata(client, settings):
         data = response.json()
         assert data["resource"] == settings.MCP_RESOURCE_URL
         assert data["scopes_supported"] == ["mcp"]
+        assert "offline_access" not in data["scopes_supported"]
         assert data["bearer_methods_supported"] == ["header"]
 
 

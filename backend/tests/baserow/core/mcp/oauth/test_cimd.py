@@ -37,7 +37,11 @@ def test_cimd_allowlisted_host_reaches_consent(client):
 
 
 @pytest.mark.django_db
-def test_cimd_other_host_is_rejected(client):
+def test_cimd_other_host_is_rejected(client, settings):
+    settings.OAUTH2_PROVIDER = {
+        **settings.OAUTH2_PROVIDER,
+        "CIMD_ALLOWED_HOSTS": ["claude.ai", ".chatgpt.com"],
+    }
     _, challenge = pkce_pair()
     with patch(
         FETCH, return_value=(_metadata(EVIL_CLIENT, EVIL_REDIRECT), 300)
