@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
+from django.http import Http404
 
 from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.models import get_application_model
@@ -11,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import map_exceptions
+from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.contrib.database.models import Database
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
@@ -20,15 +21,35 @@ from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.oauth.authorize import (
+    deny_url,
     error_redirect_url,
+    is_redirectable,
     issue_code,
     validate_query,
 )
+from baserow.core.mcp.operations import CreateMCPEndpointOperationType
 from baserow.core.mcp.registries import mcp_tool_registry
 from baserow.core.models import WorkspaceUser
 
 from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
 from .oauth_serializers import ConsentSerializer
+
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def _require_oauth_enabled():
+    if not settings.BASEROW_MCP_OAUTH_ENABLED:
+        raise Http404()
+
+
+def _loopback_only(application) -> bool:
+    """
+    True when every redirect URI is a loopback address. Any local program can
+    receive those, so the consent page warns before trusting the client's name.
+    """
+
+    hosts = {urlparse(uri).hostname for uri in application.redirect_uris.split()}
+    return bool(hosts) and hosts <= LOOPBACK_HOSTS
 
 
 def _invalid_request(error: OAuthToolkitError) -> Response:
@@ -67,6 +88,7 @@ def _client_info(credentials: dict) -> dict:
         "client_name": application.name,
         "redirect_host": urlparse(credentials["redirect_uri"]).hostname,
         "registration_source": application.registration_source,
+        "loopback_only": _loopback_only(application),
         **_verification(application),
     }
 
@@ -75,6 +97,7 @@ class MCPOAuthConsentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
+        _require_oauth_enabled()
         query = request.query_params.get("query", "")
         try:
             _, credentials = validate_query(request, request.user, query)
@@ -86,6 +109,26 @@ class MCPOAuthConsentView(APIView):
             .select_related("workspace")
             .order_by("order", "id")
         )
+        handler = CoreHandler()
+        workspace_users = [
+            wu
+            for wu in workspace_users
+            if handler.check_permissions(
+                request.user,
+                CreateMCPEndpointOperationType.type,
+                workspace=wu.workspace,
+                context=wu.workspace,
+                raise_permission_exceptions=False,
+            )
+        ]
+        grants = {
+            str(endpoint.workspace_id): endpoint.allowed_tools
+            for endpoint in MCPEndpoint.objects.filter(
+                user=request.user,
+                oauth_client_id=credentials["client_id"],
+                workspace_id__in=[wu.workspace_id for wu in workspace_users],
+            )
+        }
         database_counts = dict(
             Database.objects.filter(
                 workspace_id__in=[wu.workspace_id for wu in workspace_users]
@@ -105,6 +148,7 @@ class MCPOAuthConsentView(APIView):
                     }
                     for wu in workspace_users
                 ],
+                "grants": grants,
                 "tools": [
                     {
                         "name": tool.name,
@@ -117,42 +161,44 @@ class MCPOAuthConsentView(APIView):
             }
         )
 
-    @transaction.atomic
     @map_exceptions(
         {
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    def post(self, request):
-        serializer = ConsentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # Validate before creating anything, so a bad request leaves no endpoint.
+    @validate_body(ConsentSerializer)
+    def post(self, request, data):
+        _require_oauth_enabled()
+        # Validated once, outside the transaction, because validation may fetch
+        # the client's metadata document over HTTP.
         try:
-            _, credentials = validate_query(request, request.user, data["query"])
+            authorize_request, credentials = validate_query(
+                request, request.user, data["query"]
+            )
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
-        endpoint = None
-        if data["allow"]:
-            workspace = CoreHandler().get_workspace(data["workspace_id"])
-            client = _client_info(credentials)
-            endpoint = MCPEndpointHandler().grant_oauth_client(
-                request.user,
-                workspace,
-                client["client_id"],
-                client["client_name"][: MCPEndpoint._meta.get_field("name").max_length],
-                data["tools"],
-            )
+        if not data["allow"]:
+            return Response({"redirect_url": deny_url(authorize_request, credentials)})
 
+        workspace = CoreHandler().get_workspace(data["workspace_id"])
+        client = _client_info(credentials)
         try:
-            redirect_url = issue_code(
-                request, request.user, data["query"], endpoint, data["allow"]
-            )
+            # The grant only persists if a code was issued for it.
+            with transaction.atomic():
+                endpoint = MCPEndpointHandler().grant_oauth_client(
+                    request.user,
+                    workspace,
+                    client["client_id"],
+                    client["client_name"][
+                        : MCPEndpoint._meta.get_field("name").max_length
+                    ],
+                    data["tools"],
+                )
+                redirect_url = issue_code(authorize_request, credentials, endpoint)
         except OAuthToolkitError as error:
-            if error.oauthlib_error.redirect_uri:
+            if is_redirectable(error):
                 return Response({"redirect_url": error_redirect_url(request, error)})
             return _invalid_request(error)
         return Response({"redirect_url": redirect_url})
@@ -231,6 +277,7 @@ class MCPOAuthConnectionView(APIView):
         its tokens.
         """
 
+        _require_oauth_enabled()
         endpoint = MCPEndpointHandler().get_endpoint(
             request.user,
             connection_id,

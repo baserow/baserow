@@ -1,8 +1,10 @@
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from django.conf import settings
 from django.http import HttpRequest, QueryDict
 
-from oauth2_provider.exceptions import OAuthToolkitError
-from oauth2_provider.oauth2_backends import _add_iss_to_redirect, get_oauthlib_core
+from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
+from oauth2_provider.oauth2_backends import get_oauthlib_core
 from oauth2_provider.settings import oauth2_settings
 from oauthlib.oauth2 import AccessDeniedError, InvalidRequestError
 from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
@@ -39,6 +41,12 @@ def _authorize_request(original_request, user, query: str) -> HttpRequest:
     return request
 
 
+def _add_query_param(uri: str, name: str, value: str) -> str:
+    parts = urlsplit(uri)
+    query = parse_qsl(parts.query, keep_blank_values=True) + [(name, value)]
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 def with_iss(request: HttpRequest, uri: str) -> str:
     """
     Adds the RFC 9207 `iss` parameter to a redirect back to the client, like the
@@ -48,7 +56,18 @@ def with_iss(request: HttpRequest, uri: str) -> str:
     if not oauth2_settings.COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS:
         return uri
     issuer = oauth2_settings.oauth2_authorization_server_issuer(request)
-    return _add_iss_to_redirect(uri, issuer)
+    return _add_query_param(uri, "iss", issuer)
+
+
+def is_redirectable(error: OAuthToolkitError) -> bool:
+    """
+    Whether the error may be sent back to the client's redirect URI. Fatal errors
+    carry the unvalidated, client-supplied URI, so they never are.
+    """
+
+    return not isinstance(error, FatalClientError) and bool(
+        error.oauthlib_error.redirect_uri
+    )
 
 
 def error_redirect_url(request: HttpRequest, error: OAuthToolkitError) -> str:
@@ -91,40 +110,40 @@ def _validate(request: HttpRequest):
 
 def validate_query(original_request, user, query: str):
     """
-    :raises OAuthToolkitError: When the authorization request is invalid. Errors that
-        are safe to send back to the client have a redirect URI set.
-    :return: The requested scopes and the credentials of the request.
-    """
-
-    return _validate(_authorize_request(original_request, user, query))
-
-
-def issue_code(
-    original_request, user, query: str, endpoint: MCPEndpoint | None, allow: bool
-) -> str:
-    """
-    Returns the URL the browser must be sent to: the client redirect URI with either
-    an authorization code bound to the endpoint, or an `access_denied` error.
-
     :raises OAuthToolkitError: When the authorization request is invalid.
+    :return: The rebuilt authorize request and its validated credentials, to pass
+        to `issue_code` or `deny_url`.
     """
 
     request = _authorize_request(original_request, user, query)
     _, credentials = _validate(request)
+    return request, credentials
 
-    if not allow:
-        error = AccessDeniedError(state=credentials.get("state"))
-        return with_iss(request, error.in_uri(credentials["redirect_uri"]))
 
-    # `validate_authorization_request` doesn't carry the RFC 8707 `resource` through,
-    # so set it like `AuthorizationView.form_valid` does, pinned to the MCP resource.
+def deny_url(request: HttpRequest, credentials: dict) -> str:
+    """The client redirect URI carrying an `access_denied` error."""
+
+    error = AccessDeniedError(state=credentials.get("state"))
+    return with_iss(request, error.in_uri(credentials["redirect_uri"]))
+
+
+def issue_code(request: HttpRequest, credentials: dict, endpoint: MCPEndpoint) -> str:
+    """
+    Returns the client redirect URI with an authorization code bound to the
+    endpoint. `request` and `credentials` come from `validate_query`.
+
+    :raises OAuthToolkitError: When the library rejects the request.
+    """
+
+    credentials = dict(credentials)
+    # `validate_authorization_request` doesn't carry the RFC 8707 `resource`
+    # through, so set it like `AuthorizationView.form_valid` does.
     credentials["resource"] = [settings.MCP_RESOURCE_URL]
     # Lets the validator accept the endpoint scope, which clients can't request.
     credentials[CONSENT_CREDENTIAL] = True
 
-    requested = set(credentials.get("scopes") or request.GET.get("scope", "").split())
     scopes = [MCP_SCOPE, endpoint_scope(endpoint.id)]
-    if OFFLINE_ACCESS_SCOPE in requested:
+    if OFFLINE_ACCESS_SCOPE in request.GET.get("scope", "").split():
         scopes.append(OFFLINE_ACCESS_SCOPE)
     uri, _, _, _ = get_oauthlib_core().create_authorization_response(
         request, scopes=scopes, credentials=credentials, allow=True

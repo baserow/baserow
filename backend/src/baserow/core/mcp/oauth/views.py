@@ -4,10 +4,10 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.views import View
 
-from oauth2_provider.exceptions import FatalClientError, OAuthToolkitError
+from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.views import OAuthProtectedResourceMetadataView
 
-from .authorize import error_redirect_url, validate_query
+from .authorize import error_redirect_url, is_redirectable, validate_query
 from .validators import MCP_SCOPE
 
 
@@ -21,10 +21,10 @@ class MCPAuthorizeRedirectView(View):
         try:
             validate_query(request, request.user, request.META.get("QUERY_STRING", ""))
         except OAuthToolkitError as error:
-            oauthlib_error = error.oauthlib_error
             # Fatal errors (unknown client, invalid redirect URI) must never redirect
             # to the client-supplied URI, so they are shown instead.
-            if isinstance(error, FatalClientError) or not oauthlib_error.redirect_uri:
+            if not is_redirectable(error):
+                oauthlib_error = error.oauthlib_error
                 return HttpResponseBadRequest(
                     oauthlib_error.description or oauthlib_error.error
                 )
