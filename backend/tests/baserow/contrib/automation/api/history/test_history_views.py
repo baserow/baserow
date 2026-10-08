@@ -47,6 +47,48 @@ def test_get_node_histories(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_node_histories_includes_attempt(api_client, data_fixture):
+    """
+    A node whose error policy retried it writes one entry per attempt, numbered
+    from 1, so the frontend can tell the retries apart from a new pass.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+    )
+    first_attempt = data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=node,
+        status=HistoryStatusChoices.RETRIED,
+        message="Retry 1 of 2 scheduled. Connection reset",
+    )
+    second_attempt = data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=node,
+        status=HistoryStatusChoices.SUCCESS,
+        attempt=2,
+    )
+
+    url = reverse(
+        API_URL_NODE_HISTORIES, kwargs={"workflow_history_id": workflow_history.id}
+    )
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    rows = {row["id"]: row for row in response.json()}
+    assert rows[first_attempt.id]["attempt"] == 1
+    assert rows[first_attempt.id]["status"] == "retried"
+    assert (
+        rows[first_attempt.id]["message"] == "Retry 1 of 2 scheduled. Connection reset"
+    )
+    assert rows[second_attempt.id]["attempt"] == 2
+    assert rows[second_attempt.id]["status"] == "success"
+
+
+@pytest.mark.django_db
 def test_get_node_histories_surfaces_router_edge_label(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)

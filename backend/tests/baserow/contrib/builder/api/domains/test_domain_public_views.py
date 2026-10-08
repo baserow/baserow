@@ -31,6 +31,7 @@ from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -940,6 +941,13 @@ def test_public_dispatch_data_sources_view(
         ),
         (
             UnexpectedDispatchException,
+            "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+            "Exception content",
+        ),
+        # A transient failure is only retried by the automation runner; to the
+        # builder it is the unexpected error it always was.
+        (
+            RuntimeDispatchException,
             "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
             "Exception content",
         ),

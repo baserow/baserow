@@ -12,8 +12,8 @@ from baserow.contrib.integrations.core.constants import SMTP_EMAIL_TIMEOUT
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt
@@ -441,11 +441,63 @@ def test_send_smtp_email_unable_to_connect_to_the_smtp_server(data_fixture):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(UnexpectedDispatchException) as exc_info:
+    # The server answered the connection with a refusal, typically because it
+    # is restarting or overloaded, so the automation runner may retry.
+    with pytest.raises(RuntimeDispatchException) as exc_info:
         with mock_django_email(exception_class=smtplib.SMTPConnectError):
             service_type.dispatch(service, dispatch_context)
 
     assert str(exc_info.value) == "Unable to connect to the SMTP server"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exception_class", [smtplib.SMTPServerDisconnected, TimeoutError]
+)
+def test_send_smtp_email_dropped_connection_is_retryable(data_fixture, exception_class):
+    smtp_integration = data_fixture.create_smtp_integration(
+        host="smtp.example.com",
+        port=587,
+    )
+
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp_integration,
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(RuntimeDispatchException) as exc_info:
+        with mock_django_email(exception_class=exception_class):
+            service_type.dispatch(service, dispatch_context)
+
+    assert str(exc_info.value) == "The SMTP server did not answer"
+
+
+@pytest.mark.django_db
+def test_send_smtp_email_refused_connection_is_not_retryable(data_fixture):
+    """
+    A refused connection names a wrong host or port, which a later attempt
+    will not fix.
+    """
+
+    smtp_integration = data_fixture.create_smtp_integration(
+        host="smtp.example.com",
+        port=587,
+    )
+
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp_integration,
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
+        with mock_django_email(exception_class=ConnectionRefusedError):
+            service_type.dispatch(service, dispatch_context)
+
+    assert not isinstance(exc_info.value, RuntimeDispatchException)
 
 
 @pytest.mark.django_db
