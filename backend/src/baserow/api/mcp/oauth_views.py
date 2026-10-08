@@ -64,8 +64,8 @@ def _invalid_request(error: OAuthToolkitError) -> Response:
 
 def _verification(application) -> dict:
     """
-    A CIMD client_id is an https URL on an allowlisted host, so the host is
-    vouched for by the allowlist.
+    A CIMD client's metadata is served from its client_id URL, so the URL's host
+    is who published it.
     """
 
     Application = get_application_model()

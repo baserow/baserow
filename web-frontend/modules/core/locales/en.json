@@ -2,7 +2,7 @@
   "mcpAuthorize": {
     "title": "Connect {client}",
     "subtitle": "It will act as you in the workspace you choose.",
-    "verified": "✓ Verified by {host}",
+    "verified": "✓ Published by {host}",
     "unverified": "Not verified · sends you back to {host}",
     "returns": "Returns to {host}",
     "workspace": "Workspace",
