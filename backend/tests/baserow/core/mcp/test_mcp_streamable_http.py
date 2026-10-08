@@ -357,6 +357,24 @@ def test_token_for_another_clients_grant_gets_401(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_token_without_an_application_gets_401(data_fixture):
+    from oauth2_provider.models import AccessToken
+
+    user = data_fixture.create_user()
+    grant = _create_grant(data_fixture, user)
+    AccessToken.objects.create(
+        user=user,
+        token="no-application-token",
+        scope=f"mcp endpoint:{grant.id}",
+        expires=timezone.now() + timedelta(hours=1),
+        resource=[settings.MCP_RESOURCE_URL],
+    )
+    response = _post(LIST, "no-application-token")
+    assert response.status_code == 401
+    assert 'error="invalid_token"' in response.headers["www-authenticate"]
+
+
+@pytest.mark.django_db(transaction=True)
 def test_oauth_token_rejected_when_oauth_disabled(data_fixture, settings):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

@@ -77,7 +77,10 @@ def _resolve_oauth_token(value: str):
     endpoint_id = endpoint_id_from_scopes(token.scope.split())
     if endpoint_id is None:
         return None, INSUFFICIENT_SCOPE
-    # The scope is only trusted for a grant of the client the token was issued to.
+    # The scope is only trusted for a grant of the client the token was issued to,
+    # so a token without a client matches no grant.
+    if token.application_id is None:
+        return None, INVALID_TOKEN
     endpoint = _load_member_endpoint(
         id=endpoint_id,
         user_id=token.user_id,
