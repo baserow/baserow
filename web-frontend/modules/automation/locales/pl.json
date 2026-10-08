@@ -120,7 +120,13 @@
         "runCount": "{n} przebiegów",
         "testRun": "Test",
         "showResult": "Pokaż wynik",
-        "statusSkippedBadge": "Pominięto"
+        "statusSkippedBadge": "Pominięto",
+        "statusCancelled": "Anulowano",
+        "startedBy": "Rozpoczęty przez {name}",
+        "cancelRun": "Anuluj ten przebieg",
+        "cancelling": "Przebieg jest anulowany. Zatrzyma się, gdy obecny węzeł zakończy operację.",
+        "cancellationAlreadyRequestedTitle": "Polecenie anulowanie zostało już wykonane",
+        "cancellationAlreadyRequested": "Ktoś inny wykonał już polecenie anulowania tego przebiegu. Przebieg zatrzyma się, gdy obecny węzeł zakończy operację."
     },
     "nodeType": {
         "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, nie można ich usunąć.",
@@ -156,7 +162,8 @@
         "routerHistoryLabel": "{label} ({edge})",
         "gotoNodeLabel": "Przejdź do węzła",
         "gotoNodeLabelWithDestination": "Przejdź do węzła → {destination}",
-        "gotoHistoryLabel": "{label} → {destination}"
+        "gotoHistoryLabel": "{label} → {destination}",
+        "responseLabel": "Odpowiedź"
     },
     "workflowNode": {
         "actionDelete": "Usuń",
@@ -192,7 +199,8 @@
         "coreHTTPTrigger": "Trigger HTTP",
         "coreHTTPTriggerDescription": "Użyj żądania HTTP jako triggera procesu",
         "coreManualTrigger": "Trigger ręczny",
-        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces"
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces",
+        "responseLabel": "Odpowiedź"
     },
     "workflowEditor": {
         "chooseEvent": "Wybierz zdarzenie..."
@@ -214,5 +222,8 @@
         "sampleDataCopy": "Kopiuj",
         "errorOccurred": "Wystąpił błąd...",
         "sampleDataCopied": "Payload został skopiowany do schowka"
+    },
+    "lastViewedItemType": {
+        "automationWorkflow": "Proces"
     }
 }
