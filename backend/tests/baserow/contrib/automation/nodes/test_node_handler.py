@@ -99,6 +99,11 @@ def test_export_prepared_values(data_fixture):
 
     assert values == {
         "label": "My node",
+        "on_failure": "stop",
+        "max_retries": 2,
+        "retry_on_failure": True,
+        "retry_on_condition": False,
+        "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "service": AnyDict(),
         "workflow": node.workflow_id,
     }
@@ -127,6 +132,11 @@ def test_export_node(data_fixture):
     assert result == {
         "id": node.id,
         "label": node.label,
+        "on_failure": "stop",
+        "max_retries": 2,
+        "retry_on_failure": True,
+        "retry_on_condition": False,
+        "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "service": AnyDict(),
         "type": "local_baserow_create_row",
         "workflow_id": node.workflow.id,

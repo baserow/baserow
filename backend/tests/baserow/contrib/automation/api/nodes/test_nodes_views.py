@@ -32,6 +32,16 @@ API_URL_SIMULATE_DISPATCH = f"{API_URL_BASE}:simulate_dispatch"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
+# The error policy every node is created with. Triggers never fail during a
+# run, but they share the columns, so the serializer returns it for them too.
+DEFAULT_ERROR_POLICY = {
+    "on_failure": "stop",
+    "max_retries": 2,
+    "retry_on_failure": True,
+    "retry_on_condition": False,
+    "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
+}
+
 
 @pytest.mark.django_db
 def test_create_node(api_client, data_fixture):
@@ -58,6 +68,7 @@ def test_create_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": "local_baserow_update_row",
         "workflow": workflow.id,
@@ -225,6 +236,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": trigger.id,
             "label": trigger.label,
+            **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_rows_created",
             "workflow": workflow.id,
@@ -232,6 +244,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": node.id,
             "label": node.label,
+            **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_create_row",
             "workflow": node.workflow.id,
@@ -415,6 +428,7 @@ def test_update_node(api_client, data_fixture):
     assert response.json() == {
         "id": node.id,
         "label": "foo",
+        **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": node.get_type().type,
         "workflow": workflow.id,
@@ -642,6 +656,7 @@ def test_replace_node_type_with_replaceable_type_trigger(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
         "service": AnyDict(),
@@ -674,6 +689,7 @@ def test_replace_node_type_with_replaceable_type(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
         "service": AnyDict(),
@@ -703,6 +719,7 @@ def test_create_router_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "service": {
             "sample_data": None,
             "context_data": None,
