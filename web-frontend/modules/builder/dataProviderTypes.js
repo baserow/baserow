@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import { getVisibilityCycleElementIds } from '@baserow/modules/builder/utils/visibilityCondition'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
@@ -776,10 +777,23 @@ export class FormDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const { page, element: targetElement } = applicationContext
-    const accessibleFormElements = this.formElementsInNamespacePath(
+    let accessibleFormElements = this.formElementsInNamespacePath(
       applicationContext,
       targetElement
     )
+    if (applicationContext.isVisibilityCondition && targetElement) {
+      // A visibility condition can't reference a form element whose visibility
+      // depends on the element, e.g. a container referencing a field inside it.
+      const excludedElementIds = getVisibilityCycleElementIds(
+        this.app.$store,
+        applicationContext,
+        targetElement,
+        accessibleFormElements.map(({ id }) => id)
+      )
+      accessibleFormElements = accessibleFormElements.filter(
+        ({ id }) => !excludedElementIds.has(id)
+      )
+    }
     return {
       type: 'object',
       properties: Object.fromEntries(

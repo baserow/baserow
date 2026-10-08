@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { hasInvalidVisibilityCondition } from '@baserow/modules/builder/utils/visibilityCondition'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
 import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement'
@@ -396,6 +397,16 @@ export class ElementType extends Registerable {
       this.workflowActionsInError(element, applicationContext)
     ) {
       return this.app.$i18n.t('elementType.errorWorkflowActionInError')
+    }
+
+    if (
+      hasInvalidVisibilityCondition(
+        this.app.$store,
+        applicationContext,
+        element
+      )
+    ) {
+      return this.app.$i18n.t('elementType.errorInvalidVisibilityCondition')
     }
 
     return null

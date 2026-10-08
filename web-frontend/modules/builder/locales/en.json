@@ -168,6 +168,7 @@
     "errorDataSourceMissing": "No data source selected",
     "errorSchemaPropertyMissing": "No schema property selected",
     "errorWorkflowActionInError": "At least one action is misconfigured",
+    "errorInvalidVisibilityCondition": "The visibility condition is invalid",
     "errorCollectionFieldInError": "At least one field is misconfigured",
     "errorNavigateToPageMissing": "Missing Navigate to property",
     "errorPageParameterInError": "At least one page parameter is misconfigured",
@@ -216,7 +217,8 @@
     "visibility": "Visibility",
     "events": "Events",
     "eventsTabDeactivatedNoEvents": "This element doesn't support any events",
-    "eventsTabInError": "One or more actions are misconfigured."
+    "eventsTabInError": "One or more actions are misconfigured.",
+    "visibilityTabInError": "The visibility condition is invalid: it uses a form field which this element hides."
   },
   "emptySidePanelState": {
     "message": "Click on one of the elements to see more details"

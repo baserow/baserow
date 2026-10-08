@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Flags visibility conditions that make a form field depend on its own value",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-08"
+}
