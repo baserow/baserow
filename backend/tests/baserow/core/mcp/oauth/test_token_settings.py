@@ -5,7 +5,7 @@ from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
-from oauth2_provider.models import AccessToken
+from oauth2_provider.models import AccessToken, RefreshToken
 
 from tests.baserow.core.mcp.oauth.helpers import (
     obtain_tokens,
@@ -37,7 +37,9 @@ def test_tokens_are_stored_hashed(client, api_client, data_fixture):
 def test_replayed_refresh_token_revokes_the_family(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    tokens = obtain_tokens(client, api_client, token, workspace)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
 
     rotated = _refresh(client, tokens)
     assert rotated.status_code == 200
@@ -51,7 +53,9 @@ def test_replayed_refresh_token_revokes_the_family(client, api_client, data_fixt
 def test_refresh_token_works_after_29_days(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    tokens = obtain_tokens(client, api_client, token, workspace)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
     with freeze_time(timezone.now() + timedelta(days=29)):
         assert _refresh(client, tokens).status_code == 200
 
@@ -60,7 +64,9 @@ def test_refresh_token_works_after_29_days(client, api_client, data_fixture):
 def test_refresh_token_expires_after_30_days(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    tokens = obtain_tokens(client, api_client, token, workspace)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
     with freeze_time(timezone.now() + timedelta(days=31)):
         response = _refresh(client, tokens)
     assert response.status_code == 400
@@ -84,6 +90,32 @@ def test_offline_access_is_not_added_unless_requested(client, api_client, data_f
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
     assert "offline_access" not in tokens["scope"].split()
+
+
+@pytest.mark.django_db
+def test_no_refresh_token_without_offline_access(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    assert "refresh_token" not in tokens
+    assert not RefreshToken.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_offline_access_issues_a_working_refresh_token(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
+    assert tokens["refresh_token"]
+    assert RefreshToken.objects.filter(user=user).count() == 1
+
+    response = _refresh(client, tokens)
+    assert response.status_code == 200, response.content
+    assert response.json()["refresh_token"]
 
 
 def test_cimd_allowlist_defaults_to_any_host():

@@ -234,7 +234,9 @@ def test_token_bound_to_endpoint_after_refresh(client, api_client, data_fixture)
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
-    tokens = obtain_tokens(client, api_client, token, workspace)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
     response = client.post(
         "/oauth/token/",
         {

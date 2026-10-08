@@ -13,8 +13,8 @@ def test_leaving_a_workspace_revokes_its_grants(client, api_client, data_fixture
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(users=[admin, user])
     other = data_fixture.create_workspace(user=user)
-    kept = obtain_tokens(client, api_client, token, other)
-    obtain_tokens(client, api_client, token, workspace)
+    kept = obtain_tokens(client, api_client, token, other, scope="mcp offline_access")
+    obtain_tokens(client, api_client, token, workspace, scope="mcp offline_access")
 
     CoreHandler().leave_workspace(user, workspace)
 

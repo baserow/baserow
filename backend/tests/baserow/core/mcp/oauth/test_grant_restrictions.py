@@ -108,7 +108,9 @@ def test_refresh_cannot_widen_to_another_endpoint(client, api_client, data_fixtu
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     other = data_fixture.create_mcp_endpoint()
-    tokens = obtain_tokens(client, api_client, token, workspace)
+    tokens = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )
     endpoint = MCPEndpoint.objects.get(id=tokens["endpoint_id"])
 
     response = client.post(
@@ -144,4 +146,4 @@ def test_refresh_cannot_widen_to_another_endpoint(client, api_client, data_fixtu
         },
     )
     assert response.status_code == 200, response.content
-    assert response.json()["scope"] == f"mcp endpoint:{endpoint.id}"
+    assert response.json()["scope"] == tokens["scope"]

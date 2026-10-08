@@ -260,7 +260,7 @@ def test_full_flow_issues_endpoint_bound_token(client, api_client, data_fixture)
     assert set(access.scope.split()) == {"mcp", f"endpoint:{endpoint.id}"}
     assert access.user_id == user.id
     assert access.allows_audience(settings.MCP_RESOURCE_URL)
-    assert tokens["refresh_token"]
+    assert "refresh_token" not in tokens
 
 
 @pytest.mark.django_db

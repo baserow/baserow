@@ -19,8 +19,12 @@ def test_deleting_endpoint_removes_its_tokens(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     keep_workspace = data_fixture.create_workspace(user=user)
-    endpoint_id = obtain_tokens(client, api_client, token, workspace)["endpoint_id"]
-    kept = obtain_tokens(client, api_client, token, keep_workspace)
+    endpoint_id = obtain_tokens(
+        client, api_client, token, workspace, scope="mcp offline_access"
+    )["endpoint_id"]
+    kept = obtain_tokens(
+        client, api_client, token, keep_workspace, scope="mcp offline_access"
+    )
     endpoint = MCPEndpoint.objects.get(id=endpoint_id)
     keep = MCPEndpoint.objects.get(id=kept["endpoint_id"])
     MCPEndpointHandler().delete_endpoint(user, endpoint)
@@ -32,6 +36,7 @@ def test_deleting_endpoint_removes_its_tokens(client, api_client, data_fixture):
     assert remaining.count() == 1
     assert set(remaining.get().access_token.scope.split()) == {
         "mcp",
+        "offline_access",
         f"endpoint:{keep.id}",
     }
     endpoint_kept, error = async_to_sync(resolve_bearer)(kept["access_token"])

@@ -32,9 +32,10 @@ CONSENT_CREDENTIAL = "mcp_endpoint_consent"
 
 class MCPOAuth2Validator(OAuth2Validator):
     """
-    Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>` scope. The endpoint scope
-    is never requested by clients; only the consent view adds it when issuing the
-    code. A refresh can only narrow the scopes of the grant it refreshes.
+    Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>`
+    scope. The endpoint scope is never requested by clients; only the consent view
+    adds it when issuing the code. A refresh can only narrow the scopes of the grant
+    it refreshes. A refresh token is only issued when `offline_access` is granted.
     """
 
     def validate_grant_type(
@@ -67,3 +68,14 @@ class MCPOAuth2Validator(OAuth2Validator):
             MCP_SCOPE,
             OFFLINE_ACCESS_SCOPE,
         }
+
+    def _save_bearer_token(self, token, request, *args, **kwargs):
+        # Refresh tokens are only issued for `offline_access`. The token dict is
+        # also the response body, so the client gets none either. Refreshes are
+        # left alone: without a new refresh token the old one would not be rotated.
+        if (
+            request.grant_type == "authorization_code"
+            and OFFLINE_ACCESS_SCOPE not in token.get("scope", "").split()
+        ):
+            token.pop("refresh_token", None)
+        return super()._save_bearer_token(token, request, *args, **kwargs)

@@ -15,7 +15,9 @@ def test_clear_expired_tokens_removes_stale_tokens(client, api_client, data_fixt
     with freeze_time(timezone.now() - timedelta(days=40)):
         user, token = data_fixture.create_user_and_token()
         old = data_fixture.create_workspace(user=user)
-        tokens = obtain_tokens(client, api_client, token, old)
+        tokens = obtain_tokens(
+            client, api_client, token, old, scope="mcp offline_access"
+        )
         # Rotation revokes the first refresh token.
         response = client.post(
             "/oauth/token/",
@@ -28,7 +30,9 @@ def test_clear_expired_tokens_removes_stale_tokens(client, api_client, data_fixt
         assert response.status_code == 200
     current_token = data_fixture.generate_token(user)
     current = data_fixture.create_workspace(user=user)
-    fresh = obtain_tokens(client, api_client, current_token, current)
+    fresh = obtain_tokens(
+        client, api_client, current_token, current, scope="mcp offline_access"
+    )
     assert RefreshToken.objects.filter(user=user, revoked__isnull=False).exists()
 
     clear_expired_mcp_oauth_tokens()
