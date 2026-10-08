@@ -165,6 +165,53 @@ def test_update_data_source(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_data_source_clear_table(api_client, data_fixture):
+    """
+    Deselecting the table of an aggregate rows data source which already has a
+    table, view and field sends all three as `None`. This used to raise an
+    `AttributeError` and respond with a 500.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user, application=dashboard
+    )
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        integration=integration,
+        table=table,
+        view=view,
+        field=field,
+        aggregation_type="sum",
+    )
+    data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            user=user, dashboard=dashboard, service=service
+        )
+    )
+    url = reverse(
+        "api:dashboard:data_sources:item", kwargs={"data_source_id": data_source.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"table_id": None, "view_id": None, "field_id": None},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["table_id"] is None
+    assert response_json["view_id"] is None
+    assert response_json["field_id"] is None
+    assert response_json["aggregation_type"] == ""
+
+
+@pytest.mark.django_db
 def test_update_data_source_bad_request(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     dashboard = data_fixture.create_dashboard_application(user=user)

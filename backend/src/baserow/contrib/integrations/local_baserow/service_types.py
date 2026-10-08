@@ -958,12 +958,15 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         values = super().prepare_values(values, user, instance)
 
         if "table" in values:
-            # Reset the view if the table has changed
+            # Reset the view if the table has changed or has been cleared.
             if (
                 "view_id" not in values
                 and instance
                 and instance.view_id
-                and instance.view.table_id != values["table"].id
+                and (
+                    values["table"] is None
+                    or instance.view.table_id != values["table"].id
+                )
             ):
                 values["view"] = None
 
@@ -1498,7 +1501,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         if "table" in values:
             # Reset the field if the table has changed
             if (
-                "table_id" not in values
+                "field_id" not in values
                 and instance
                 and instance.field_id
                 and instance.table != values["table"]
@@ -1515,6 +1518,19 @@ class LocalBaserowAggregateRowsUserServiceType(
                 table_to_validate = values.get(
                     "table", getattr(instance, "table", None)
                 )
+
+                # This isn't possible in the UI, but if a REST API request
+                # sends us a `field_id` without a table existing on the
+                # instance or in the values, we'll raise a 400.
+                if not table_to_validate:
+                    raise DRFValidationError(
+                        detail={
+                            "detail": "A table ID is required alongside the field ID.",
+                            "error": "required",
+                        },
+                        code="required",
+                    )
+
                 if field.table_id == table_to_validate.id:
                     values["field"] = field
                 else:
@@ -1523,6 +1539,8 @@ class LocalBaserowAggregateRowsUserServiceType(
                         "related to the given table.",
                         code="invalid_field",
                     )
+            else:
+                values["field"] = None
 
             if aggregation_type and field:
                 agg_type = field_aggregation_registry.get(aggregation_type)
@@ -1536,7 +1554,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             else:
                 values["aggregation_type"] = ""
 
-        return super().prepare_values(values, user, instance)
+        return values
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
