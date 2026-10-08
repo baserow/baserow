@@ -1,8 +1,7 @@
-import math
 import traceback
 import typing
 from copy import deepcopy
-from typing import Set
+from typing import Dict, List, Set
 
 from django.db import transaction
 from django.db.models import Min, Q, QuerySet
@@ -19,15 +18,19 @@ from baserow.contrib.database.formula.migrations.migrations import (
     NO_FORMULAS,
     FormulaMigrations,
     FormulaMigrationSelector,
+    SelectedOncePerRun,
 )
-from baserow.core.db import jit_disabled
-from baserow.core.utils import ChildProgressBuilder, Progress
+from baserow.contrib.database.search.handler import SearchHandler
+from baserow.core.db import atomic_with_retry_on_deadlock, jit_disabled
+from baserow.core.psycopg import is_transient_error
+from baserow.core.utils import ChildProgressBuilder, Progress, exception_capturer
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import Field
 
 
 DEFAULT_FORMULA_MIGRATION_BATCH_SIZE = 100
+MAX_BATCH_RETRIES = 2
 
 
 def _recalculate_formula_metadata_dependencies_first_order(
@@ -36,6 +39,7 @@ def _recalculate_formula_metadata_dependencies_first_order(
     recalculate_cell_values: bool,
     force_recreate_columns: bool,
     already_recalculated: Set[int],
+    update_dependants: bool = False,
 ):
     """
     Initially follows the field dependency tree recursively from the provided field
@@ -48,6 +52,8 @@ def _recalculate_formula_metadata_dependencies_first_order(
         fields also and not just their metadata.
     :param already_recalculated: A set of field ids which have already been recalculated
         which will used to skip recalculating them again if encountered again.
+    :param update_dependants: Whether to update the fields depending on the provided
+        field after its cell values are recalculated, even if its type didn't change.
     """
 
     from baserow.contrib.database.fields.models import FormulaField
@@ -71,22 +77,22 @@ def _recalculate_formula_metadata_dependencies_first_order(
         field.save(field_cache=field_cache, raise_if_invalid=False)
         if recalculate_cell_values or force_recreate_columns:
             try:
-                model = field_cache.get_model(field.table)
-                expr = FormulaHandler.recalculate_formula_and_get_update_expression(
-                    field,
-                    old_field,
-                    field_cache,
-                    force_recreate_column=force_recreate_columns,
-                )
-                with jit_disabled():
-                    model.objects_and_trash.all().update(
-                        **{f"{field.db_column}": expr}
+                # A savepoint, so a failing query only invalidates this formula.
+                with transaction.atomic():
+                    model = field_cache.get_model(field.table)
+                    expr = FormulaHandler.recalculate_formula_and_get_update_expression(
+                        field,
+                        old_field,
+                        field_cache,
+                        force_recreate_column=force_recreate_columns,
                     )
-                fields_type_changed.send(
-                    _recalculate_formula_metadata_dependencies_first_order,
-                    fields=[field]
-                )
+                    with jit_disabled():
+                        model.objects_and_trash.all().update(
+                            **{f"{field.db_column}": expr}
+                        )
             except Exception as e:
+                if is_transient_error(e):
+                    raise
                 field.mark_as_invalid_and_save(
                     "Failed to recalculate cell values after formula update."
                 )
@@ -96,7 +102,117 @@ def _recalculate_formula_metadata_dependencies_first_order(
 formula {field.formula}. Marking the formula as invalid. The error was caused by:
 {traceback.format_exception_only(type(e), e)}"""
                 )
+                _empty_cell_values(field, old_field)
+            # Dependency lookups must see this instance, not an older cached copy.
+            field_cache.cache_field(field)
+            changed = _formula_changed(field, old_field)
+            if changed:
+                _after_formula_type_changed(field)
+            if changed or update_dependants:
+                SearchHandler.schedule_update_search_data(field.table, fields=[field])
+                already_recalculated.update(
+                    _update_dependants(field, old_field, field_cache)
+                )
         already_recalculated.add(field.id)
+
+
+def _formula_changed(field: "Field", old_field: "Field") -> bool:
+    return (
+        field.internal_formula != old_field.internal_formula
+        or field.formula_type != old_field.formula_type
+        or field.array_formula_type != old_field.array_formula_type
+        or field.cached_formula_type.should_recreate_when_old_type_was(
+            old_field.cached_formula_type
+        )
+    )
+
+
+def _empty_cell_values(field: "Field", old_field: "Field"):
+    """
+    Empties the cells of a formula that was just marked as invalid, like an update
+    making a formula invalid does.
+    """
+
+    from baserow.contrib.database.formula.types.typer import (
+        recreate_formula_field_if_needed,
+    )
+
+    try:
+        with transaction.atomic():
+            recreate_formula_field_if_needed(field, old_field)
+            model = field.table.get_model(
+                fields=[field], field_ids=[], add_dependencies=False
+            )
+            model.objects_and_trash.all().update(**{field.db_column: None})
+    except Exception as e:
+        if is_transient_error(e):
+            raise
+        exception_capturer(e)
+        logger.warning(
+            f"Failed to empty the cells of the invalid formula {field.name} with id "
+            f"{field.id}. The error was caused by: "
+            f"{traceback.format_exception_only(type(e), e)}"
+        )
+
+
+def _after_formula_type_changed(field: "Field"):
+    """
+    Removes the view filters, sorts and group bys that the formula's type no longer
+    supports, like a field update does.
+    """
+
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    try:
+        with transaction.atomic():
+            fields_type_changed.send(
+                _recalculate_formula_metadata_dependencies_first_order, fields=[field]
+            )
+            ViewHandler().field_updated(field)
+    except Exception as e:
+        if is_transient_error(e):
+            raise
+        exception_capturer(e)
+        logger.warning(
+            f"Failed to update the views using formula {field.name} with id "
+            f"{field.id}. The error was caused by: "
+            f"{traceback.format_exception_only(type(e), e)}"
+        )
+
+
+def _update_dependants(
+    field: "Field", old_field: "Field", field_cache: FieldCache
+) -> Set[int]:
+    """
+    Updates the fields depending on the provided formula, like a field update does.
+
+    :return: The ids of the dependant fields that were updated.
+    """
+
+    from baserow.contrib.database.fields.dependencies.update_collector import (
+        FieldUpdateCollector,
+    )
+    from baserow.contrib.database.fields.handler import FieldHandler
+
+    try:
+        with transaction.atomic():
+            updated_fields = FieldHandler().update_dependencies_of_field_updated(
+                field, old_field, FieldUpdateCollector(field.table), field_cache
+            )
+        return {updated_field.id for updated_field in updated_fields}
+    except Exception as e:
+        if is_transient_error(e):
+            raise
+        # The rollback undid the changes the cached fields still hold in memory.
+        field_cache.reset_cache()
+        field_cache.cache_field(field)
+        exception_capturer(e)
+        logger.warning(
+            f"Failed to update the fields depending on formula {field.name} with id "
+            f"{field.id} in {field.table.name} with id {field.table.id}. The error "
+            f"was caused by: {traceback.format_exception_only(type(e), e)}"
+        )
+        return set()
 
 
 class FormulaMigrationHandler:
@@ -144,37 +260,26 @@ class FormulaMigrationHandler:
     ):
         from baserow.contrib.database.fields.models import FormulaField
 
+        latest_version = migrations.get_latest_version()
+        total_out_of_date_formulas = FormulaField.objects.filter(
+            ~Q(version=latest_version)
+        ).count()
+        if total_out_of_date_formulas == 0:
+            return
+
+        out_of_date_formula_ids = FormulaField.objects_and_trash.filter(
+            ~Q(version=latest_version)
+        )
+
         oldest_version_in_db_currently = FormulaField.objects.aggregate(
             min=Min("version")
         )["min"]
-
-        total_out_of_date_formulas = FormulaField.objects.filter(
-            ~Q(version=migrations.get_latest_version())
-        ).count()
-        max_number_of_batches = math.ceil(total_out_of_date_formulas / batch_size)
-
-        def get_locked_formula_batch_to_update() -> typing.Optional[QuerySet]:
-            # In-case there is another concurrent formula migration is running we
-            # want to lock the formulas we want to update. This effectively
-            # serializes formula migrations running concurrently, but this is desirable
-            # as otherwise they will often cause each other to crash due to deadlocks
-            # if actually running concurrently.
-            locked_formula_ids = (
-                FormulaField.objects.filter(~Q(version=migrations[-1].version))
-                .order_by("id")
-                .select_for_update()[0:batch_size]
-            )
-            # Force the evaluation of the queryset so we know exactly what formulas
-            # we have locked and future usages of the queryset won't lock another random
-            # batch of formula fields.
-            locked_formula_ids = [f.id for f in locked_formula_ids]
-            if len(locked_formula_ids) == 0:
-                return None
-            else:
-                return FormulaField.objects.filter(id__in=locked_formula_ids)
+        selected_once_per_run = cls._select_once_per_run(
+            oldest_version_in_db_currently, migrations
+        )
 
         logger.info(
-            f"Found {max_number_of_batches} batches of formulas to migrate "
+            f"Found {total_out_of_date_formulas} formulas to migrate "
             f"from version {oldest_version_in_db_currently} to "
             f"{migrations.get_latest_version()}."
         )
@@ -189,74 +294,131 @@ class FormulaMigrationHandler:
             progress = Progress(progress_bar.total)
             progress.register_updated_event(progress_updated)
 
-            for _ in range(max_number_of_batches):
+            # Walking by id without the trashed join keeps every batch query cheap.
+            last_id = 0
+            while True:
                 current_batch += 1
-                # We need to run formula migrations in batches, each in a separate
-                # transaction to ensure we never hit the "out of shared memory" psql
-                # error due to attempting to lock too many tables in the same
-                # transaction.
-                with transaction.atomic():
-                    locked_formula_batch = get_locked_formula_batch_to_update()
-                    if locked_formula_batch is None:
-                        # We ran out of formulas to update, this should only happen
-                        # if some concurrent other formula migration is updating at
-                        # the same time.
-                        progress.increment(
-                            progress.total - progress.progress,
-                            "Finished early due to another formula "
-                            "migration running concurrently and updating batches "
-                            "itself.",
-                        )
-                        return
-                    else:
-                        cls._update_formulas(
-                            locked_formula_batch,
-                            oldest_version_in_db_currently,
-                            migrations,
-                            progress.create_child_builder(
-                                represents_progress=batch_size
-                            ),
-                        )
+                batch_ids = cls._migrate_batch_with_retries(
+                    out_of_date_formula_ids.filter(id__gt=last_id),
+                    batch_size,
+                    oldest_version_in_db_currently,
+                    migrations,
+                    selected_once_per_run,
+                    progress,
+                )
+                if not batch_ids:
+                    break
+                last_id = batch_ids[-1]
             progress_bar.set_description("Finished migrating formulas")
+
+    @classmethod
+    def _select_once_per_run(
+        cls, current_version: int, migrations: FormulaMigrations
+    ) -> Dict[SelectedOncePerRun, Set[int]]:
+        latest_version = migrations.get_latest_version()
+        if current_version > latest_version:
+            return {}
+
+        selected = {}
+        for m in migrations[current_version:latest_version]:
+            for selector in (
+                m.recalculate_formula_attributes_for,
+                m.recalculate_field_dependencies_for,
+                m.recalculate_cell_values_for,
+                m.force_recreate_formula_columns_for,
+            ):
+                if (
+                    isinstance(selector, SelectedOncePerRun)
+                    and selector not in selected
+                ):
+                    selected[selector] = selector.select_formula_ids()
+        return selected
+
+    @classmethod
+    def _migrate_batch_with_retries(
+        cls,
+        remaining_formula_ids: QuerySet,
+        batch_size: int,
+        current_version: int,
+        migrations: FormulaMigrations,
+        selected_once_per_run: Dict[SelectedOncePerRun, Set[int]],
+        progress: Progress,
+    ) -> List[int]:
+        """
+        Migrates the next batch of formulas in its own transaction, so a run never
+        locks too many tables at once and hits the "out of shared memory" error. The
+        batch is retried when it fails on contention or a timeout.
+
+        :return: The ids of the formulas in the batch, empty when none are left.
+        """
+
+        @atomic_with_retry_on_deadlock(
+            max_retries=MAX_BATCH_RETRIES, should_retry=is_transient_error
+        )
+        def migrate_batch() -> List[int]:
+            batch_ids = list(
+                remaining_formula_ids.order_by("id").values_list("id", flat=True)[
+                    :batch_size
+                ]
+            )
+            if batch_ids:
+                cls._update_formulas(
+                    batch_ids,
+                    current_version,
+                    migrations,
+                    selected_once_per_run,
+                    progress.create_child_builder(represents_progress=len(batch_ids)),
+                )
+            return batch_ids
+
+        return migrate_batch()
 
     @classmethod
     def _update_formulas(
         cls,
-        locked_formula_batch: QuerySet,
+        batch_ids: List[int],
         current_version: int,
         migrations: FormulaMigrations,
+        selected_once_per_run: Dict[SelectedOncePerRun, Set[int]],
         child_progress_builder: ChildProgressBuilder,
     ):
-        (
-            formulas_to_rebuild_dependencies_for,
-            formulas_to_recalculate_attributes_and_cell_values_for,
-            formulas_to_only_update_attributes_for,
-            formulas_to_force_recreate_columns_for,
-        ) = cls._get_formula_querysets(
-            locked_formula_batch, current_version, migrations
-        )
+        from baserow.contrib.database.fields.models import FormulaField
 
-        cls._do_formula_migration_operations(
-            formulas_to_rebuild_dependencies_for,
-            formulas_to_recalculate_attributes_and_cell_values_for,
-            formulas_to_only_update_attributes_for,
-            formulas_to_force_recreate_columns_for,
-            child_progress_builder,
+        latest_version = migrations.get_latest_version()
+        batch = FormulaField.objects.filter(id__in=batch_ids)
+        querysets, affected_filter = cls._get_formula_querysets(
+            batch, set(batch_ids), current_version, migrations, selected_once_per_run
         )
+        affected_ids = list(batch.filter(affected_filter).values_list("id", flat=True))
 
-        locked_formula_batch.update(version=migrations.get_latest_version())
+        if affected_ids:
+            # A concurrent run waits for these locks, then skips the migrated ones.
+            locked_ids = list(
+                FormulaField.objects.filter(id__in=affected_ids)
+                .exclude(version=latest_version)
+                .select_for_update()
+                .values_list("id", flat=True)
+            )
+            cls._do_formula_migration_operations(
+                *[queryset.filter(id__in=locked_ids) for queryset in querysets],
+                child_progress_builder,
+            )
+
+        batch.exclude(version=latest_version).update(version=latest_version)
 
     @classmethod
     def _get_formula_querysets(
         cls,
-        locked_formula_batch: QuerySet,
+        batch: QuerySet,
+        batch_ids: Set[int],
         current_version,
         migrations: FormulaMigrations,
+        selected_once_per_run: Dict[SelectedOncePerRun, Set[int]],
     ):
         """
         Given a list of migrations, figures out the current version and constructs
-        the three querysets of formulas onto which the three different migration
-        operations will be run respectively.
+        the querysets of formulas onto which the different migration operations will
+        be run respectively, and a filter matching any formula they contain.
 
         :param migrations: All migrations available.
         """
@@ -277,14 +439,16 @@ class FormulaMigrationHandler:
             rebuild_dependencies_filter = NO_FORMULAS
             recalculate_cell_values_filter = NO_FORMULAS
             force_recreate_columns_filter = NO_FORMULAS
+
+            def get_q(selector: FormulaMigrationSelector):
+                if isinstance(selector, SelectedOncePerRun):
+                    return Q(id__in=selected_once_per_run[selector] & batch_ids)
+                elif isinstance(selector, typing.Callable):
+                    return selector(batch)
+                else:
+                    return selector
+
             for m in relevant_migrations:
-
-                def get_q(selector: FormulaMigrationSelector):
-                    if isinstance(selector, typing.Callable):
-                        return selector(locked_formula_batch)
-                    else:
-                        return selector
-
                 attribute_filter |= get_q(m.recalculate_formula_attributes_for)
                 rebuild_dependencies_filter |= get_q(
                     m.recalculate_field_dependencies_for
@@ -297,25 +461,29 @@ class FormulaMigrationHandler:
         # We will also recalculate the attributes when refreshing cell values,
         # no need to update attributes twice, so we exclude.
         formulas_to_only_update_attributes_for = (
-            locked_formula_batch.filter(attribute_filter)
+            batch.filter(attribute_filter)
             .exclude(recalculate_cell_values_filter)
             .exclude(force_recreate_columns_filter)
         )
-        formulas_to_rebuild_dependencies_for = locked_formula_batch.filter(
-            rebuild_dependencies_filter
-        )
-        formulas_to_recalculate_cell_values_for = locked_formula_batch.filter(
+        formulas_to_rebuild_dependencies_for = batch.filter(rebuild_dependencies_filter)
+        formulas_to_recalculate_cell_values_for = batch.filter(
             recalculate_cell_values_filter
         ).exclude(force_recreate_columns_filter)
-        formulas_to_force_recreate_columns_for = locked_formula_batch.filter(
+        formulas_to_force_recreate_columns_for = batch.filter(
             force_recreate_columns_filter
+        )
+        affected_filter = (
+            attribute_filter
+            | rebuild_dependencies_filter
+            | recalculate_cell_values_filter
+            | force_recreate_columns_filter
         )
         return (
             formulas_to_rebuild_dependencies_for,
             formulas_to_recalculate_cell_values_for,
             formulas_to_only_update_attributes_for,
             formulas_to_force_recreate_columns_for,
-        )
+        ), affected_filter
 
     @classmethod
     def _do_formula_migration_operations(
@@ -350,8 +518,11 @@ class FormulaMigrationHandler:
 
         for field in formulas_to_rebuild_dependencies_for.iterator():
             try:
-                FieldDependencyHandler.rebuild_dependencies([field], field_cache)
+                with transaction.atomic():
+                    FieldDependencyHandler.rebuild_dependencies([field], field_cache)
             except Exception as e:
+                if is_transient_error(e):
+                    raise
                 logger.warning(
                     f"Failed to recalculate dependencies for field: "
                     f"{field.name}({field.id}) in {field.table.name}({field.table.id}) "
@@ -373,6 +544,7 @@ class FormulaMigrationHandler:
                 recalculate_cell_values=True,
                 force_recreate_columns=False,
                 already_recalculated=already_recalculated,
+                update_dependants=True,
             )
             progress.increment(1, "Recalculating metadata and data")
 

@@ -18,6 +18,7 @@ from pytest_unordered import unordered
 from baserow.contrib.database.fields.dependencies.handler import (
     FieldDependencyHandler,
 )
+from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.exceptions import (
     MaxFieldLimitExceeded,
     MaxFieldNameLengthExceeded,
@@ -32,6 +33,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.contrib.database.management.commands.fill_table_rows import fill_table_rows
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.constants import LAST_MODIFIED_BY_COLUMN_NAME
 from baserow.contrib.database.table.exceptions import (
     InitialTableDataLimitExceeded,
@@ -1317,3 +1319,56 @@ def test_usage_is_calculated_correctly_when_creating_a_new_table(data_fixture):
     )
 
     assert workspace.row_count == 2
+
+
+@pytest.mark.django_db
+def test_duplicate_table_reverse_link_follows_the_duplicate_primary_field(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    teams = data_fixture.create_database_table(database=database, name="Teams")
+    projects = data_fixture.create_database_table(database=database, name="Projects")
+    data_fixture.create_text_field(table=teams, primary=True, name="Team")
+    data_fixture.create_text_field(table=projects, primary=True, name="Name")
+    data_fixture.create_text_field(table=projects, name="Code")
+    team = FieldHandler().create_field(
+        user, projects, "link_row", link_row_table=teams, name="Team"
+    )
+
+    projects_2 = TableHandler().duplicate_table(user, projects)
+    reverse_link = LinkRowField.objects.get(table=teams, link_row_table=projects_2)
+    name_2 = projects_2.field_set.get(name="Name").specific
+    code_2 = projects_2.field_set.get(name="Code").specific
+    assert FieldDependency.objects.filter(
+        dependant=reverse_link, dependency=name_2, via=reverse_link
+    ).exists()
+
+    lookup = FieldHandler().create_field(
+        user,
+        projects,
+        "lookup",
+        name="Projects 2 of the team",
+        through_field_id=team.id,
+        target_field_id=reverse_link.id,
+    )
+    project_2_row = RowHandler().create_row(
+        user, projects_2, {name_2.db_column: "old", code_2.db_column: "new"}
+    )
+    team_row = RowHandler().create_row(
+        user, teams, {reverse_link.db_column: [project_2_row.id]}
+    )
+    project_row = RowHandler().create_row(
+        user, projects, {team.db_column: [team_row.id]}
+    )
+
+    FieldHandler().change_primary_field(user, projects_2, code_2)
+    name_2.refresh_from_db()
+    FieldHandler().delete_field(user, name_2)
+    invalidate_table_in_model_cache(projects.id)
+
+    lookup.refresh_from_db()
+    row = projects.get_model().objects.get(id=project_row.id)
+    assert code_2.db_column in lookup.internal_formula
+    assert getattr(row, lookup.db_column)[0]["value"] == "new"
+    RowHandler().create_row(user, projects, {team.db_column: [team_row.id]})

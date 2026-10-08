@@ -1,6 +1,7 @@
 import dataclasses
-from typing import Callable, Union
+from typing import Callable, Set, Union
 
+from django.db import connection
 from django.db.models import Q, QuerySet
 
 from baserow.core.formula import BaserowFormulaException
@@ -11,7 +12,17 @@ ALL_FORMULAS = ~NO_FORMULAS
 FORMULAS_USING_INDEX = Q(internal_formula__contains="index(")
 
 
-FormulaMigrationSelector = Union[Q, Callable[[QuerySet], Q]]
+@dataclasses.dataclass(frozen=True)
+class SelectedOncePerRun:
+    """
+    Selects formulas with one query over all formulas, made once at the start of a
+    migration run instead of once per batch.
+    """
+
+    select_formula_ids: Callable[[], Set[int]]
+
+
+FormulaMigrationSelector = Union[Q, Callable[[QuerySet], Q], SelectedOncePerRun]
 
 
 @dataclasses.dataclass
@@ -67,6 +78,59 @@ class FormulaMigration:
 class FormulaMigrations(list):
     def get_latest_version(self) -> int:
         return super().__getitem__(-1).version
+
+
+def formula_ids_with_stale_field_references() -> Set[int]:
+    """
+    Returns the ids of the formulas whose internal formula references a field that
+    is trashed or deleted, or reaches through a link field to a field that is no
+    longer the primary field of the linked table.
+    """
+
+    from baserow.contrib.database.fields.models import (
+        Field,
+        FormulaField,
+        LinkRowField,
+    )
+
+    # Field ids are capped at 18 digits so that they always fit in a bigint.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT DISTINCT reference.formula_id
+            FROM (
+                SELECT
+                    formula.field_ptr_id AS formula_id,
+                    found[1]::bigint AS field_id,
+                    found[2]::bigint AS primary_field_id
+                FROM {FormulaField._meta.db_table} formula
+                CROSS JOIN LATERAL regexp_matches(
+                    formula.internal_formula,
+                    'field_([0-9]{{1,18}})(?:__field_([0-9]{{1,18}}))?',
+                    'g'
+                ) AS found
+            ) reference
+            LEFT JOIN {Field._meta.db_table} field
+                ON field.id = reference.field_id AND NOT field.trashed
+            LEFT JOIN {LinkRowField._meta.db_table} link
+                ON link.field_ptr_id = reference.field_id
+            LEFT JOIN {Field._meta.db_table} primary_field
+                ON primary_field.table_id = link.link_row_table_id
+                AND primary_field."primary"
+                AND NOT primary_field.trashed
+            WHERE field.id IS NULL
+                OR (
+                    reference.primary_field_id IS NOT NULL
+                    AND primary_field.id IS DISTINCT FROM reference.primary_field_id
+                )
+            """  # noqa: S608
+        )
+        return {row[0] for row in cursor.fetchall()}
+
+
+FORMULAS_WITH_STALE_FIELD_REFERENCES = SelectedOncePerRun(
+    formula_ids_with_stale_field_references
+)
 
 
 def all_aggregate_formulas(formulas: QuerySet) -> Q:
@@ -141,6 +205,14 @@ FORMULA_MIGRATIONS = FormulaMigrations(
             recalculate_formula_attributes_for=FORMULAS_USING_INDEX,
             recalculate_field_dependencies_for=NO_FORMULAS,
             recalculate_cell_values_for=FORMULAS_USING_INDEX,
+            force_recreate_formula_columns_for=NO_FORMULAS,
+        ),
+        FormulaMigration(
+            version=7,
+            # v7 repairs the formulas `formula_ids_with_stale_field_references` finds.
+            recalculate_formula_attributes_for=NO_FORMULAS,
+            recalculate_field_dependencies_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
+            recalculate_cell_values_for=FORMULAS_WITH_STALE_FIELD_REFERENCES,
             force_recreate_formula_columns_for=NO_FORMULAS,
         ),
     ]

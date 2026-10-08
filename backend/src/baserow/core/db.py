@@ -979,6 +979,7 @@ def atomic_with_retry_on_deadlock(
     max_retries: Optional[int] = None,
     initial_backoff: Optional[float] = None,
     jitter: Optional[float] = 1.0,
+    should_retry: Callable[[OperationalError], bool] = is_deadlock_error,
 ):
     """
     Decorator that wraps a function in a transaction.atomic block and retries
@@ -991,6 +992,7 @@ def atomic_with_retry_on_deadlock(
     :param max_retries: Maximum number of retry attempts
     :param initial_backoff: Initial backoff time in seconds
     :param jitter: Jitter factor to randomize the backoff time
+    :param should_retry: Whether an error is worth retrying, deadlocks by default.
     """
 
     if max_retries is None:
@@ -1009,16 +1011,18 @@ def atomic_with_retry_on_deadlock(
                     with transaction.atomic():
                         return func(*args, **kwargs)
                 except OperationalError as exc:
-                    if not is_deadlock_error(exc):
+                    if not should_retry(exc):
                         raise exc
 
                     if retries == max_retries:
+                        if not is_deadlock_error(exc):
+                            raise exc
                         logger.exception(
                             "Deadlock detected while committing transaction",
                         )
                         raise DeadlockException() from exc
                     time.sleep(backoff)
-                    logger.debug("Retrying transaction after deadlock")
+                    logger.debug(f"Retrying transaction after {exc!r}")
                     backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
                 retries += 1
 

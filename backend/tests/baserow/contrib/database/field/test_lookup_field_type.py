@@ -20,6 +20,7 @@ from baserow.contrib.database.formula import (
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import ViewFilter
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
@@ -2687,3 +2688,35 @@ def test_saving_primary_field_invalidates_linking_tables_once_after_commit(
     assert table_b.id not in invalidated_before_commit
     assert table_c.id not in invalidated_before_commit
     assert sorted(invalidated_after_commit) == sorted([table_b.id, table_c.id])
+
+
+@pytest.mark.django_db
+def test_converting_a_lookup_target_removes_filters_its_new_item_type_cant_use(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    linked = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True)
+    data_fixture.create_text_field(table=linked, primary=True)
+    date = data_fixture.create_date_field(table=linked, name="date")
+    link = FieldHandler().create_field(
+        user, table, "link_row", link_row_table=linked, name="link"
+    )
+    lookup = FieldHandler().create_field(
+        user,
+        table,
+        "lookup",
+        name="lookup",
+        through_field_id=link.id,
+        target_field_id=date.id,
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    ViewHandler().create_filter(user, grid, lookup, "has_date_equal", "UTC?2024-01-01")
+
+    FieldHandler().update_field(user, date, "text")
+
+    lookup.refresh_from_db()
+    assert lookup.array_formula_type == "text"
+    assert not ViewFilter.objects.filter(field=lookup).exists()

@@ -29,6 +29,23 @@ def is_deadlock_error(exc: OperationalError) -> bool:
     return isinstance(exc.__cause__, errors.DeadlockDetected)
 
 
+def is_transient_error(exc: Exception) -> bool:
+    """
+    Whether the error comes from contention or a timeout rather than the query
+    itself, so running it again later can succeed.
+    """
+
+    return isinstance(exc, OperationalError) and isinstance(
+        exc.__cause__,
+        (
+            errors.DeadlockDetected,
+            errors.LockNotAvailable,
+            errors.QueryCanceled,
+            errors.SerializationFailure,
+        ),
+    )
+
+
 _TIGHTEN_STATEMENT_TIMEOUT_SQL = """
 SELECT set_config('statement_timeout', %s, true)
 WHERE current_setting('statement_timeout')::interval = interval '0'
