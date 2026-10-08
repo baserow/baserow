@@ -1374,7 +1374,14 @@ def test_update_trigger_node_ignores_error_policy(api_client, data_fixture):
 def test_update_node_error_policy_undo_redo(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    # The service must use an integration of this automation, otherwise undo
+    # fails when it restores the original `service.integration_id`.
+    integration = data_fixture.create_local_baserow_integration(
+        application=workflow.automation, user=user
+    )
+    node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, service_kwargs={"integration": integration}
+    )
     retry_condition = {
         "formula": "get('current_node.status_code') = 429",
         "mode": "advanced",
@@ -1404,6 +1411,7 @@ def test_update_node_error_policy_undo_redo(api_client, data_fixture):
     }
     response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
+    assert response.json()["result_code"] == "SUCCESS"
     node.refresh_from_db()
     assert node.on_failure == "stop"
     assert node.max_retries == 2
@@ -1412,6 +1420,7 @@ def test_update_node_error_policy_undo_redo(api_client, data_fixture):
 
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
+    assert response.json()["result_code"] == "SUCCESS"
     node.refresh_from_db()
     assert node.on_failure == "retry"
     assert node.max_retries == 4
