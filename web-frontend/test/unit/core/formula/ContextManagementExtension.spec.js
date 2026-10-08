@@ -81,19 +81,38 @@ describe('ContextManagementExtension', () => {
     expect(hideContextMenu).toHaveBeenCalledOnce()
   })
 
-  it('does not use commands when a stale click-outside callback runs after destruction', () => {
+  it('removes the click-outside handler when context is shown before the editor create event', async () => {
+    const getContextEl = vi.fn(() => contextEl)
     const hideContextMenu = vi.fn()
-    editor = createEditor(rootEl, contextEl, { hideContextMenu })
-
-    editor.commands.showContext()
-    Object.defineProperty(editor, 'isDestroyed', {
-      configurable: true,
-      value: true,
+    const mountEl = document.createElement('div')
+    rootEl.append(mountEl)
+    editor = new Editor({
+      element: mountEl,
+      extensions: [
+        Document,
+        Paragraph,
+        Text,
+        NodeSelectionExtension,
+        ContextManagementExtension.configure({
+          getRootEl: () => rootEl,
+          getContextEl,
+          hideContextMenu,
+        }),
+      ],
+      content: '<p></p>',
     })
+
+    // TipTap emits `create` in a timeout, so the context can be shown before.
+    editor.commands.showContext()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    editor.destroy()
+    editor = null
+    getContextEl.mockClear()
 
     outsideEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     outsideEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
+    expect(getContextEl).not.toHaveBeenCalled()
     expect(hideContextMenu).not.toHaveBeenCalled()
   })
 })

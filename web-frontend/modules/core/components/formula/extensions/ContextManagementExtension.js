@@ -149,11 +149,6 @@ export const ContextManagementExtension = Extension.create({
     ]
   },
 
-  onCreate() {
-    this.storage.ignoreNextBlur = false
-    this.storage.clickOutsideEventCancel = null
-  },
-
   onDestroy() {
     if (this.storage.clickOutsideEventCancel) {
       this.storage.clickOutsideEventCancel()
