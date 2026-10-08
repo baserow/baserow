@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.shared import (
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
+from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
     CollectionElementCreate,
@@ -468,7 +469,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, parent_element_id, is_container.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -783,7 +784,7 @@ def create_collection_elements(
 
     ## Table
     - data_source: the data source ID or ref.
-    - fields: column configurations — always specify which columns to show. Each field has name, type ("text" or "button"), and value ($formula: for dynamic content).
+    - fields: the table's columns — always specify which columns to show. Each column has name and type ("text" or "button"); text columns take value ($formula: for dynamic content), button columns take label.
 
     ## Repeat
     - data_source: the data source ID or ref.
@@ -812,19 +813,35 @@ def update_element(
     """\
     Update an existing element's properties.
 
-    WHEN to use: User wants to change properties of an existing element (text, label, settings, etc.).
-    WHAT it does: Updates the specified fields on an element. Only non-null fields are applied.
-    RETURNS: Updated element ID and list of changed fields.
+    WHEN to use: User wants to change properties of an existing element (text, label, settings, table columns, etc.).
+    WHAT it does: Updates the specified properties on an element. Only non-null properties are applied.
+    RETURNS: Updated element ID and list of changed properties. Table column changes also return the table's columns afterwards and the removed columns.
     DO NOT USE when: You need to move elements, change data sources, or modify styles — use other tools for those.
 
     ## Usage
     - element_id: ID of the element to update (from list_elements).
-    - Only set the fields you want to change — unset fields are left unchanged.
-    - Unsupported fields reject the update without applying any changes.
+    - Only set the properties you want to change — unset properties are left unchanged.
+    - Unsupported properties reject the update without applying any changes.
     - Button navigation belongs in create_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
-    - Table fields accept literal values or explicit runtime expressions on update;
-      natural-language formula generation for table fields is creation-only.
+
+    ## Table Columns
+    - list_elements shows each table's columns with uid, name, type, and value or label.
+      Change them by uid with add_table_columns, update_table_columns,
+      reorder_table_columns and remove_table_columns; columns you don't list stay
+      exactly as they are.
+    - value and label take fixed text or a runtime formula such as
+      get('current_record.field_<id>'). "$formula:" descriptions work only when
+      creating a table.
+    - To show a database field, set field_id (from get_tables_schema). Renaming a
+      column doesn't change what it shows.
+    - Only text and button columns can be created. Never remove a column to rebuild
+      it or to work around a setting you can't change (a link's target, styles,
+      link, tags or image settings): tell the user to change it in the table's
+      editor.
+    - Remove a column only when the user asked for it, and confirm first: undo
+      doesn't revert column changes, and removed columns and their click actions
+      are gone for good.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
@@ -849,7 +866,8 @@ def update_element(
     )
 
     with transaction.atomic():
-        orm_element, element_type = helpers.update_element(user, element)
+        outcome = helpers.update_element(user, element)
+    orm_element, element_type = outcome.element, outcome.element_type
 
     # Handle formula generation for $formula: fields (separate transaction)
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
@@ -867,11 +885,12 @@ def update_element(
             ]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
+    property_aliases = assistant_element_type_registry.get_for(
+        element_type
+    ).property_aliases
     updated_fields = []
     for field in element.get_updated_field_names():
-        formula_field = (
-            "value" if element_type == "button" and field == "label" else field
-        )
+        formula_field = property_aliases.get(field, field)
         formula_field = dependent_fields.get(field, formula_field)
         if formula_field not in formulas or formula_field in applied_formulas:
             updated_fields.append(field)
@@ -880,6 +899,7 @@ def update_element(
         "element_id": element.element_id,
         "element_type": element_type,
         "updated_fields": updated_fields,
+        **outcome.result,
     }
     if errors:
         result["errors"] = errors
@@ -1086,7 +1106,7 @@ def create_actions(
     ## Attaching Actions
     - element: a ref from the same batch, or an existing element ID (from list_elements)
     - event: "click" for buttons/links, "submit" for form containers
-    - Per-row buttons: add columns with type "button" to the table element, then attach each action to the table element with event "<column name>_click" (e.g. "View_click", "Delete_click"). Use the column name, not its button label. Bare "click" works only for a table with one button column; duplicate names require the exact "<uid>_click" event listed in validation errors. Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: get('current_record.id')"}.
+    - Per-row buttons: add a button column to the table element, then attach each action to the table element with event "<column name>_click" (e.g. "View_click", "Delete_click") or "<uid>_click" with the column uid from list_elements. Use the column name, not its button label. Bare "click" works only for a table with one button column; duplicate column names require the "<uid>_click" event. Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: get('current_record.id')"}.
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
@@ -1444,7 +1464,7 @@ def setup_page(
     - input_text: label, placeholder, default_value, required, validation_type, is_multiline
     - choice: label, choice_options, multiple
     - checkbox: label, default_value
-    - table: data_source (ref), fields [{name, type ("text"/"button"), value}]
+    - table: data_source (ref), fields [{name, type ("text"/"button"), value (text) or label (button)}]
     - repeat: data_source (ref), orientation
 
     ## Refs

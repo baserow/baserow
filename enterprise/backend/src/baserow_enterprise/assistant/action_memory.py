@@ -16,6 +16,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 
 MAX_VERIFIED_TOOL_OUTCOMES = 12
@@ -333,6 +334,22 @@ def _remembered_arguments(tool_name: str, arguments: dict[str, Any]) -> dict[str
     return {"row_count": len(rows), **({"row_ids": row_ids} if row_ids else {})}
 
 
+def _remembered_result(tool_name: str, result: Any) -> Any:
+    """
+    Ask the tool group that owns a tool what to remember of its result.
+
+    :param tool_name: The executed tool's name.
+    :param result: The tool result.
+    :return: The result to remember for later turns, all of it when no group owns
+        the tool.
+    """
+
+    tool_type = assistant_tool_registry.get_by_tool_name(tool_name)
+    if tool_type is None:
+        return result
+    return tool_type.remembered_result(tool_name, result)
+
+
 def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:
     arguments = dict(execution.arguments)
     arguments.pop("thought", None)
@@ -342,7 +359,9 @@ def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:
         "arguments": _compact_value(
             _remembered_arguments(execution.tool_name, arguments)
         ),
-        "result": _compact_value(execution.result),
+        "result": _compact_value(
+            _remembered_result(execution.tool_name, execution.result)
+        ),
         "changed": evidence.changed,
         "completed": evidence.completed,
         "failed": _is_failed_result(execution.result, execution.outcome),

@@ -8,16 +8,26 @@ Includes the former ``test_eval_builder.py`` (12), ``test_eval_builder_proactive
 from __future__ import annotations
 
 import re
+from typing import Any, NamedTuple
 
 from django.db.models import BooleanField, IntegerField, Q, Value
 from django.db.models.functions import Coalesce
 
 from baserow.contrib.builder.data_sources.models import DataSource
-from baserow.contrib.builder.elements.models import Element, MenuItemElement
+from baserow.contrib.builder.elements.models import (
+    Element,
+    MenuItemElement,
+    TableElement,
+)
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    OpenPageWorkflowAction,
+)
+from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View, ViewFilter
@@ -25,7 +35,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRo
 from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import FormulaContext
+from baserow.core.formula.types import BaserowFormulaObject, FormulaContext
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.utils import get_value_at_path
@@ -131,6 +141,27 @@ PROMPT_NEW_TABLE = (
 PROMPT_EXISTING_TABLE = (
     "In builder '{builder_name}', set up a user source called 'Members' "
     "using the existing table '{table_name}'."
+)
+
+PROMPT_EDIT_TABLE_COLUMNS = (
+    "On the Students page of '{builder_name}', rename the table's Name column to "
+    "Full name, move the Email column to the end, and fix the Adding date column: "
+    "it is empty although every student has a Joined date."
+)
+
+PROMPT_MOVE_TABLE_COLUMN = (
+    "On the Students page of '{builder_name}', move the table's Email column after "
+    "the Website column."
+)
+
+PROMPT_LINK_COLUMN_NEW_TAB = (
+    "On the Students page of '{builder_name}', make the table's Website column open "
+    "in a new tab."
+)
+
+PROMPT_ADD_EDITAR_BUTTON_COLUMN = (
+    "On the Students page of '{builder_name}', add a last column called Editar to "
+    "the table, with a button that opens the Edit student page for that row."
 )
 
 # ---------------------------------------------------------------------------
@@ -1171,6 +1202,409 @@ register_case(
         checks=_check_creates_table_with_edit_button,
         mode=AgentMode.APPLICATION,
         max_iters=30,
+    )
+)
+
+
+class _ColumnSnapshot(NamedTuple):
+    uid: str
+    name: str
+    type: str
+    config: dict
+    styles: dict | None
+
+
+def _table_column_snapshot(table_element_id: int) -> list[_ColumnSnapshot]:
+    """
+    Read a table element's columns as comparable tuples, in display order.
+
+    :param table_element_id: The table element to read.
+    :return: (uid, name, type, config, styles) per column. Empty when the element was
+        deleted, so checks fail instead of raising.
+    """
+
+    table_element = TableElement.objects.filter(id=table_element_id).first()
+    if table_element is None:
+        return []
+    return [
+        _ColumnSnapshot(
+            str(column.uid), column.name, column.type, column.config, column.styles
+        )
+        for column in table_element.fields.order_by("order", "id")
+    ]
+
+
+def _by_uid(snapshot: list[_ColumnSnapshot]) -> dict[str, _ColumnSnapshot]:
+    return {column.uid: column for column in snapshot}
+
+
+def _column_differences(
+    before: list[_ColumnSnapshot], after: list[_ColumnSnapshot]
+) -> str:
+    """
+    Summarize how a table's columns differ from the seed, for a check hint.
+
+    :param before: The columns right after seeding.
+    :param after: The columns now.
+    :return: The current column names in order, the ones that changed or were added,
+        and the ones removed.
+    """
+
+    changed = [column.name for column in after if column not in before]
+    removed = [column.name for column in before if column not in after]
+    return (
+        f"columns: {[column.name for column in after]}, "
+        f"changed or added: {changed}, removed: {removed}"
+    )
+
+
+def _references_field(config: dict, field_id: int) -> bool:
+    return re.search(rf"\bfield_{field_id}\b", str(config)) is not None
+
+
+def _formula_text(value: Any) -> str:
+    return BaserowFormulaObject.to_formula(value).get("formula") or ""
+
+
+def _record_field_formula(field: Field) -> BaserowFormulaObject:
+    return BaserowFormulaObject.create(f"get('current_record.field_{field.id}')")
+
+
+def _edit_action_exists(refs: dict[str, Any]) -> bool:
+    return BuilderWorkflowAction.objects.filter(id=refs["edit_action_id"]).exists()
+
+
+def _opens_page_with_row_id(action: OpenPageWorkflowAction, page: Page) -> bool:
+    return (
+        action.navigation_type == "page"
+        and action.navigate_to_page_id == page.id
+        and any(
+            "current_record.id" in _formula_text(parameter.get("value"))
+            for parameter in action.page_parameters or []
+        )
+    )
+
+
+@register_scenario("builder-edits-table-columns")
+def _edits_table_columns_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="School App"
+    )
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="School"
+    )
+    table = fx.create_database_table(user=user, database=database, name="Students")
+    name_field = fx.create_text_field(table=table, name="Name", primary=True)
+    email_field = fx.create_text_field(table=table, name="Email")
+    joined_field = fx.create_date_field(table=table, name="Joined")
+    website_field = fx.create_url_field(table=table, name="Website")
+    RowHandler().force_create_rows(
+        user,
+        table,
+        [
+            {
+                name_field.db_column: "Ada Lovelace",
+                email_field.db_column: "ada@example.com",
+                joined_field.db_column: "2025-09-01",
+                website_field.db_column: "https://example.com/ada",
+            },
+            {
+                name_field.db_column: "Alan Turing",
+                email_field.db_column: "alan@example.com",
+                joined_field.db_column: "2025-09-15",
+                website_field.db_column: "https://example.com/alan",
+            },
+        ],
+    )
+    integration = fx.create_local_baserow_integration(user=user, application=builder)
+    students_page = fx.create_builder_page(
+        builder=builder, name="Students", path="/students"
+    )
+    edit_page = fx.create_builder_page(
+        builder=builder,
+        name="Edit student",
+        path="/student/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    data_source = fx.create_builder_local_baserow_list_rows_data_source(
+        page=students_page, name="Students", table=table, integration=integration
+    )
+
+    # Simple-mode formulas, as the editor writes them; Kuma writes advanced ones.
+    table_element = fx.create_builder_table_element(
+        user=user,
+        page=students_page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": _record_field_formula(name_field)},
+                "styles": {"cell": {"cell_font_color": "red"}},
+            },
+            {
+                "name": "Email",
+                "type": "text",
+                "config": {"value": _record_field_formula(email_field)},
+            },
+            {
+                "name": "Adding date",
+                "type": "text",
+                "config": {"value": BaserowFormulaObject.create("")},
+            },
+            {
+                "name": "Website",
+                "type": "link",
+                "config": {
+                    "navigation_type": "custom",
+                    "navigate_to_url": _record_field_formula(website_field),
+                    "link_name": _record_field_formula(website_field),
+                    "target": "self",
+                    "variant": "link",
+                    "page_parameters": [],
+                    "query_parameters": [],
+                },
+            },
+            {
+                "name": "Edit",
+                "type": "button",
+                "config": {"label": BaserowFormulaObject.create("'Edit'")},
+            },
+        ],
+    )
+    uids = {column.name: str(column.uid) for column in table_element.fields.all()}
+    edit_action = fx.create_open_page_workflow_action(
+        page=students_page,
+        element=table_element,
+        event=f"{uids['Edit']}_click",
+        navigation_type="page",
+        navigate_to_page=edit_page,
+        page_parameters=[
+            {
+                "name": "id",
+                "value": BaserowFormulaObject.create("get('current_record.id')"),
+            }
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "builder": builder,
+            "table_element_id": table_element.id,
+            "edit_page": edit_page,
+            "joined_field": joined_field,
+            "uids": uids,
+            "before": _table_column_snapshot(table_element.id),
+            "edit_action_id": edit_action.id,
+        },
+    )
+
+
+def _check_edits_table_columns(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    uids = refs["uids"]
+    before = _by_uid(refs["before"])
+    after = _table_column_snapshot(refs["table_element_id"])
+    by_uid = _by_uid(after)
+    names = [column.name for column in after]
+    name_before = before[uids["Name"]]
+    name_now = by_uid.get(uids["Name"])
+    adding_date = by_uid.get(uids["Adding date"])
+    website = by_uid.get(uids["Website"])
+    email = by_uid.get(uids["Email"])
+    edit = by_uid.get(uids["Edit"])
+    edit_action_exists = _edit_action_exists(refs)
+
+    return [
+        CheckResult("table has 5 columns", len(after) == 5, hint=f"columns: {names}"),
+        CheckResult(
+            "no two column names match after trimming and ignoring case",
+            len({name.strip().casefold() for name in names}) == len(names),
+            hint=f"columns: {names}",
+        ),
+        CheckResult(
+            "Name column is named 'Full name' and keeps its config and styles",
+            name_now is not None
+            and name_now.name == "Full name"
+            and name_now.config == name_before.config
+            and name_now.styles == name_before.styles,
+            hint=f"Name column now: {name_now}",
+        ),
+        CheckResult(
+            "Email column is last",
+            bool(after) and after[-1].uid == uids["Email"],
+            hint=f"columns: {names}",
+        ),
+        CheckResult(
+            "Email column is unchanged apart from its position",
+            email == before[uids["Email"]],
+            hint=f"Email column now: {email}",
+        ),
+        CheckResult(
+            "Adding date column keeps its uid and reads the Joined field",
+            adding_date is not None
+            and _references_field(adding_date.config, refs["joined_field"].id),
+            hint=f"Adding date column now: {adding_date}",
+        ),
+        CheckResult(
+            "Website column is unchanged",
+            website == before[uids["Website"]],
+            hint=f"Website column now: {website}",
+        ),
+        CheckResult(
+            "Edit column is unchanged and keeps its click action",
+            edit == before[uids["Edit"]] and edit_action_exists,
+            hint=f"Edit column now: {edit}, click action exists: {edit_action_exists}",
+        ),
+    ]
+
+
+def _check_moves_table_column(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    uids = scenario.refs["uids"]
+    before = scenario.refs["before"]
+    after = _table_column_snapshot(scenario.refs["table_element_id"])
+    expected_order = ["Name", "Adding date", "Website", "Email", "Edit"]
+
+    return [
+        CheckResult(
+            f"columns are ordered {', '.join(expected_order)}",
+            [column.uid for column in after] == [uids[name] for name in expected_order],
+            hint=f"columns: {[column.name for column in after]}",
+        ),
+        CheckResult(
+            "no column changed apart from its position",
+            _by_uid(after) == _by_uid(before),
+            hint=_column_differences(before, after),
+        ),
+    ]
+
+
+def _check_keeps_link_column_settings(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    before = scenario.refs["before"]
+    after = _table_column_snapshot(scenario.refs["table_element_id"])
+
+    return [
+        CheckResult("called list_elements", tool_called(output, "list_elements") >= 1),
+        CheckResult(
+            "no table column was changed, moved, added or removed",
+            after == before,
+            hint=_column_differences(before, after),
+        ),
+    ]
+
+
+def _check_adds_edit_button_column(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    before = refs["before"]
+    after = _table_column_snapshot(refs["table_element_id"])
+    last = after[-1] if after else None
+    new_column = last if last is not None and last.uid not in _by_uid(before) else None
+    is_editar_button = (
+        new_column is not None
+        and new_column.type == "button"
+        and new_column.name.strip().casefold() == "editar"
+    )
+    opens_edit_page = new_column is not None and any(
+        _opens_page_with_row_id(action, refs["edit_page"])
+        for action in OpenPageWorkflowAction.objects.filter(
+            element_id=refs["table_element_id"], event=f"{new_column.uid}_click"
+        )
+    )
+    table_events = list(
+        BuilderWorkflowAction.objects.filter(
+            element_id=refs["table_element_id"]
+        ).values_list("event", flat=True)
+    )
+    edit_action_exists = _edit_action_exists(refs)
+
+    return [
+        CheckResult(
+            "table has 6 columns",
+            len(after) == 6,
+            hint=f"columns: {[column.name for column in after]}",
+        ),
+        CheckResult(
+            "the first five columns are unchanged",
+            after[:5] == before,
+            hint=_column_differences(before, after[:5]),
+        ),
+        CheckResult(
+            "last column is a new button column named Editar",
+            is_editar_button,
+            hint=f"last column: {last}",
+        ),
+        CheckResult(
+            "new column's button opens the Edit student page with the row id",
+            opens_edit_page,
+            hint=f"events of the table's actions: {table_events}",
+        ),
+        CheckResult(
+            "Edit column's click action still exists",
+            edit_action_exists,
+            hint=f"events of the table's actions: {table_events}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/edits-table-columns",
+        dataset="kuma-builder",
+        prompt=PROMPT_EDIT_TABLE_COLUMNS.format(builder_name="School App"),
+        scenario="builder-edits-table-columns",
+        checks=_check_edits_table_columns,
+        mode=AgentMode.APPLICATION,
+        max_iters=20,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/moves-table-column",
+        dataset="kuma-builder",
+        prompt=PROMPT_MOVE_TABLE_COLUMN.format(builder_name="School App"),
+        scenario="builder-edits-table-columns",
+        checks=_check_moves_table_column,
+        mode=AgentMode.APPLICATION,
+        max_iters=20,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/keeps-link-column-settings",
+        dataset="kuma-builder",
+        prompt=PROMPT_LINK_COLUMN_NEW_TAB.format(builder_name="School App"),
+        scenario="builder-edits-table-columns",
+        checks=_check_keeps_link_column_settings,
+        mode=AgentMode.APPLICATION,
+        max_iters=20,
+        # A refused attempt is fine here: the columns' state decides the case.
+        max_tool_errors=2,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/adds-edit-button-column",
+        dataset="kuma-builder",
+        prompt=PROMPT_ADD_EDITAR_BUTTON_COLUMN.format(builder_name="School App"),
+        scenario="builder-edits-table-columns",
+        checks=_check_adds_edit_button_column,
+        mode=AgentMode.APPLICATION,
+        max_iters=20,
     )
 )
 

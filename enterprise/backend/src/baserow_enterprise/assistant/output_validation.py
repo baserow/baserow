@@ -1,3 +1,4 @@
+import json
 import re
 from dataclasses import dataclass
 
@@ -9,6 +10,8 @@ from baserow_enterprise.assistant.action_memory import (
     get_mutation_evidence,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.retrying_model import repair_printed_tool_call
+from baserow_enterprise.assistant.tools.toolset import move_thought_to_top_level
 
 _UNAVAILABLE_TOOL_PATTERNS = (
     re.compile(
@@ -132,6 +135,41 @@ def _looks_like_tool_call(answer: str) -> bool:
     return stripped.startswith("{") and '"name"' in head and '"arguments"' in head
 
 
+# Longer calls get the batching advice; a copy would double them in context.
+_MAX_CORRECTED_ARGUMENTS_LENGTH = 2000
+
+
+def _corrected_tool_call(
+    ctx: RunContext[AssistantDeps] | None, answer: str
+) -> tuple[str, str] | None:
+    """
+    Read the tool call printed in an answer, with its ``thought`` at the top level.
+
+    :param ctx: The agent run context, or None outside an agent run.
+    :param answer: The answer that looks like a tool call.
+    :return: The tool name and the arguments to call it with as compact JSON, or
+        None when the answer does not repair into a call to one of the run's
+        tools or the arguments are too long to repeat.
+    """
+
+    tool_call = repair_printed_tool_call(answer)
+    tool_manager = ctx.tool_manager if ctx is not None else None
+    if tool_call is None or tool_manager is None:
+        return None
+    tool_name, arguments = tool_call
+    tool_def = tool_manager.get_tool_def(tool_name)
+    if tool_def is None:
+        return None
+    arguments_json = json.dumps(
+        move_thought_to_top_level(tool_def.parameters_json_schema, arguments),
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    if len(arguments_json) > _MAX_CORRECTED_ARGUMENTS_LENGTH:
+        return None
+    return tool_name, arguments_json
+
+
 def _claims_current_tools_are_unavailable(answer: str) -> bool:
     return any(pattern.search(answer) for pattern in _UNAVAILABLE_TOOL_PATTERNS)
 
@@ -232,10 +270,19 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
     :return: The answer unchanged when it passes every check.
     :raises ModelRetry: When the answer prints a tool call as text, invents a
         tool-availability limitation, claims an unverified change, or hands an
-        executable action back to the user.
+        executable action back to the user. When a short printed call repairs
+        into a call to one of the run's tools, the message gives that exact call.
     """
 
     if _looks_like_tool_call(answer):
+        corrected_call = _corrected_tool_call(ctx, answer)
+        if corrected_call is not None:
+            tool_name, arguments_json = corrected_call
+            raise ModelRetry(
+                "That answer is a tool call printed as text, so nothing was "
+                f"executed. Call the {tool_name} tool with exactly these "
+                f"arguments: {arguments_json}"
+            )
         raise ModelRetry(
             "That answer is a tool call printed as text, so nothing was "
             "executed. Call the tool instead, and if the payload is large "

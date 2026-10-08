@@ -22,20 +22,30 @@ Not all tables need entries — only add to those relevant for the new type.
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
-from baserow_enterprise.assistant.tools.shared import ToolInputError
+from baserow_enterprise.assistant.tools.builder.registries import (
+    assistant_element_type_registry,
+)
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     formula_object,
-    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
 )
 from baserow_enterprise.assistant.types import BaseModel
+
+from .table_columns import (
+    TableColumnAdd,
+    TableColumnItem,
+    TableColumnUpdate,
+    column_name_key,
+    data_source_fields,
+    field_formula,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -91,6 +101,13 @@ _NAVIGATION_FIELDS = {
     "link_target",
 }
 
+TABLE_COLUMN_PROPERTIES = (
+    "add_table_columns",
+    "update_table_columns",
+    "reorder_table_columns",
+    "remove_table_columns",
+)
+
 BUTTON_NAVIGATION_GUIDANCE = (
     "Buttons do not store navigation properties. Create the button with its value, "
     "then call create_actions with type='open_page', event='click', and the button "
@@ -143,9 +160,9 @@ class TableFieldConfig(BaseModel):
     - type="button": ``label`` is the button caption. Its click actions attach
       to the table element (see create_actions).
 
-    These are the only column types, and ``name``, ``type``, ``value``,
-    ``label`` are the only accepted keys; any other key is rejected. Column
-    keys are not interchangeable with element keys.
+    These are the only column types you can create, and ``name``, ``type``,
+    ``value``, ``label`` are the only accepted keys; any other key is rejected.
+    Column keys are not interchangeable with element keys.
     """
 
     name: str = Field(..., description="Column header name.")
@@ -551,18 +568,17 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
     action_pairs = create_table_button_actions(user, page, orm_element, el, integration)
 
     # Auto-enable filter/sort/search for text columns referencing real fields.
-    table_fields = _resolve_table_fields(el.data_source)
+    table_fields = data_source_fields(el.data_source)
     property_options = []
     for field_cfg in el.fields:
         if field_cfg.type != "text":
             continue
-        match = table_fields.get(field_cfg.name.lower())
+        match = table_fields.get(column_name_key(field_cfg.name))
         if match:
-            field_id, _ = match
             property_options.append(
                 CollectionElementPropertyOptions(
                     element=orm_element,
-                    schema_property=f"field_{field_id}",
+                    schema_property=f"field_{match.id}",
                     filterable=True,
                     sortable=True,
                     searchable=True,
@@ -738,90 +754,20 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 # Table field helpers
 # ---------------------------------------------------------------------------
 
-# Formula path suffixes by field type — mirrors the mapping in
-# LocalBaserowListRowsUserServiceType.get_default_collection_fields().
-_FORMULA_PATH_SUFFIX: dict[str, str] = {
-    "last_modified_by": ".name",
-    "created_by": ".name",
-    "single_select": ".value",
-    "multiple_collaborators": ".*.name",
-}
-_ARRAY_FIELD_TYPES = {"multiple_select", "link_row"}
 
+def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
+    """Convert the TableFieldConfig list of a new table to ORM collection fields."""
 
-def _resolve_table_fields(data_source_id: int | None) -> dict[str, tuple[int, str]]:
-    """
-    Look up the data source's table and return a case-insensitive mapping
-    of field name -> (field_id, field_type_str).
-    """
-
-    if not data_source_id:
-        return {}
-    try:
-        from baserow.contrib.builder.data_sources.models import DataSource
-
-        ds = DataSource.objects.select_related("service").get(id=data_source_id)
-        table = ds.service.specific.table
-        if table is None:
-            return {}
-        return {
-            f.name.lower(): (f.id, f.get_type().type)
-            for f in table.field_set.select_related("content_type").all()
-        }
-    except Exception:
-        return {}
-
-
-def _field_formula(field_id: int, field_type: str) -> str:
-    """Build ``get('current_record.field_<id><suffix>')`` formula."""
-
-    suffix = _FORMULA_PATH_SUFFIX.get(field_type, "")
-    if not suffix and field_type in _ARRAY_FIELD_TYPES:
-        suffix = ".*.value"
-    return f"get('current_record.field_{field_id}{suffix}')"
-
-
-def _convert_table_fields(
-    el: "ElementItemCreate | None" = None,
-    *,
-    data_source_id: int | None = None,
-    fields: list | None = None,
-    allow_formula_generation: bool = True,
-) -> list[dict]:
-    """Convert TableFieldConfig list to ORM collection field format.
-
-    Can be called with an ``ElementItemCreate`` (creation path) or with
-    explicit ``data_source_id`` + ``fields`` (update path).
-    """
-
-    if el is not None:
-        data_source_id = el.data_source  # type: ignore[assignment]
-        fields = el.fields
-
-    table_fields = _resolve_table_fields(data_source_id)
+    table_fields = data_source_fields(el.data_source)
     result = []
-    for field_cfg in fields or []:
-        raw_value = field_cfg.label if field_cfg.type == "button" else field_cfg.value
-        explicit_formula = None
-        if not allow_formula_generation and needs_formula(raw_value):
-            explicit_formula = formula_desc(raw_value)
-            if not is_valid_formula(explicit_formula):
-                raise ToolInputError(
-                    f"Table field '{field_cfg.name}' requires an explicit formula "
-                    "when updating fields. Supply a literal value or a runtime "
-                    "expression such as get('current_record.field_<id>'); "
-                    "implicit formula generation is supported during creation only. "
-                    "No changes were applied."
-                )
+    for field_cfg in el.fields or []:
         if field_cfg.type == "text":
             value = field_cfg.value or ""
-            if explicit_formula is not None:
-                value_formula = explicit_formula
-            elif value and not needs_formula(value):
+            if value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
             else:
-                match = table_fields.get(field_cfg.name.lower())
-                value_formula = _field_formula(*match) if match else "''"
+                match = table_fields.get(column_name_key(field_cfg.name))
+                value_formula = field_formula(match) if match else "''"
             result.append(
                 {
                     "name": field_cfg.name,
@@ -835,12 +781,7 @@ def _convert_table_fields(
             )
         elif field_cfg.type == "button":
             label = field_cfg.label or field_cfg.name
-            if explicit_formula is not None:
-                label_formula = explicit_formula
-            elif needs_formula(label):
-                label_formula = "''"
-            else:
-                label_formula = wrap_static_string(label)
+            label_formula = "''" if needs_formula(label) else wrap_static_string(label)
             result.append(
                 {
                     "name": field_cfg.name,
@@ -1601,55 +1542,6 @@ def _table_update(el: "ElementUpdate") -> dict:
             wrap_static_string(el.button_load_more_label),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
-    has_field_change = (
-        el.fields is not None
-        or el.add_fields is not None
-        or el.remove_fields is not None
-    )
-    if has_field_change:
-        from baserow.contrib.builder.elements.service import ElementHandler
-
-        try:
-            element = ElementHandler().get_element(el.element_id).specific
-            ds_id = getattr(element, "data_source_id", None)
-        except Exception:
-            element = None
-            ds_id = None
-
-        if el.fields is not None:
-            # Full replace
-            kwargs["fields"] = _convert_table_fields(
-                data_source_id=ds_id, fields=el.fields, allow_formula_generation=False
-            )
-        else:
-            # Incremental: start from existing fields
-            existing = []
-            if element is not None and hasattr(element, "fields"):
-                for f in element.fields.order_by("order"):
-                    existing.append(
-                        {
-                            "name": f.name,
-                            "type": f.type,
-                            "config": f.config,
-                            "uid": str(f.uid),
-                        }
-                    )
-
-            # Remove by name (case-insensitive)
-            if el.remove_fields:
-                remove_set = {n.lower() for n in el.remove_fields}
-                existing = [f for f in existing if f["name"].lower() not in remove_set]
-
-            # Append new columns
-            if el.add_fields:
-                new_fields = _convert_table_fields(
-                    data_source_id=ds_id,
-                    fields=el.add_fields,
-                    allow_formula_generation=False,
-                )
-                existing.extend(new_fields)
-
-            kwargs["fields"] = existing
     return kwargs
 
 
@@ -1759,8 +1651,8 @@ class ElementUpdate(BaseModel):
     """
     Flat model for updating an existing builder UI element.
 
-    All fields are optional. Only non-None fields are sent to the service layer.
-    The element type is read from the database, not passed by the LLM.
+    All properties are optional. Only non-None properties are sent to the service
+    layer. The element type is read from the database, not passed by the LLM.
     """
 
     element_id: int = Field(..., description="ID of the element to update.")
@@ -1874,17 +1766,21 @@ class ElementUpdate(BaseModel):
     button_load_more_label: str | None = Field(
         default=None, description="(table) Load more button label."
     )
-    fields: list[TableFieldConfig] | None = Field(
+    add_table_columns: list[TableColumnAdd] | None = Field(
         default=None,
-        description="(table) Replace ALL columns — use only when you want to redefine the entire column list. Prefer add_fields/remove_fields for incremental changes.",
+        description="(table) New columns. They go last unless before_uid is set.",
     )
-    add_fields: list[TableFieldConfig] | None = Field(
+    update_table_columns: list[TableColumnUpdate] | None = Field(
         default=None,
-        description="(table) Append columns to the existing table. Existing columns are preserved.",
+        description="(table) Existing columns to change, by uid from list_elements. Only the keys you send change.",
     )
-    remove_fields: list[str] | None = Field(
+    reorder_table_columns: list[str] | None = Field(
         default=None,
-        description="(table) Remove columns by name (case-insensitive). Remaining columns are preserved.",
+        description="(table) Uids of every column that stays, in the new order, from list_elements.",
+    )
+    remove_table_columns: list[str] | None = Field(
+        default=None,
+        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Undo doesn't restore them or their click actions.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1906,6 +1802,18 @@ class ElementUpdate(BaseModel):
     )
 
     # -- Dispatch -------------------------------------------------------------
+
+    @field_validator(*TABLE_COLUMN_PROPERTIES)
+    @classmethod
+    def _empty_list_is_unset(cls, value: list[Any] | None) -> list[Any] | None:
+        return value or None
+
+    def changes_table_columns(self) -> bool:
+        """
+        :return: Whether this update adds, changes, reorders or removes table columns.
+        """
+
+        return any(getattr(self, name) is not None for name in TABLE_COLUMN_PROPERTIES)
 
     def to_update_kwargs(self, element_type: str) -> dict:
         """Return kwargs for ``ElementService.update_element()``."""
@@ -1961,33 +1869,29 @@ class ElementUpdate(BaseModel):
             if name not in skip and getattr(self, name) is not None
         ]
 
-    def unsupported_fields(self, element_type: str, kwargs: dict) -> list[str]:
-        """Identify requested properties that the type's converter did not apply."""
+    def unsupported_fields(
+        self,
+        kwargs: dict[str, Any],
+        aliases: dict[str, str],
+        applied_after_update: frozenset[str],
+    ) -> list[str]:
+        """
+        Identify the requested properties that nothing saves.
 
-        aliases = {
-            "button": {"label": "value"},
-            "link": {"link_variant": "variant", "link_target": "target"},
-            "column": {"column_alignment": "alignment"},
-            "menu": {"menu_orientation": "orientation", "menu_alignment": "alignment"},
-            "table": {"add_fields": "fields", "remove_fields": "fields"},
-        }.get(element_type, {})
-        handled = set(kwargs)
-        if element_type in ("header", "footer"):
-            # These are applied to a child menu by the helper's post-update step.
-            handled.add("menu_items")
-        unsupported = [
+        :param kwargs: The update kwargs that will be saved.
+        :param aliases: The properties the element type saves under another kwarg,
+            each mapped to that kwarg.
+        :param applied_after_update: The properties the element type applies once
+            the update is saved.
+        :return: The requested properties that nothing saves.
+        """
+
+        handled = set(kwargs) | applied_after_update
+        return [
             name
             for name in self.get_updated_field_names()
             if aliases.get(name, name) not in handled
         ]
-        if (
-            element_type == "button"
-            and self.value is not None
-            and self.label is not None
-            and self.value != self.label
-        ):
-            unsupported.append("label (conflicts with value)")
-        return unsupported
 
 
 class ElementItem(BaseModel):
@@ -2013,9 +1917,19 @@ class ElementItem(BaseModel):
         default=None,
         description="(menu) Current menu items with name and page_id.",
     )
+    data_source_id: int | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="(table) The data source the table reads; field_id takes fields of its database table.",
+    )
+    table_columns: list[TableColumnItem] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+        description="(table) Columns in display order with uid, name, type, and value or label.",
+    )
 
     @classmethod
-    def from_orm(cls, element) -> "ElementItem":
+    def from_orm(cls, element: "Element") -> "ElementItem":
         """
         Create ElementItem from ORM Element instance.
 
@@ -2037,6 +1951,7 @@ class ElementItem(BaseModel):
                 }
                 for item in specific.menu_items.all().order_by("menu_item_order")
             ]
+        hooks = assistant_element_type_registry.get_for(element_type)
         return cls(
             id=element.id,
             type=element_type,
@@ -2046,6 +1961,7 @@ class ElementItem(BaseModel):
             label=cls._extract_label(element),
             page_name=page_name,
             menu_items=menu_items,
+            **hooks.item_details(element),
         )
 
     @staticmethod

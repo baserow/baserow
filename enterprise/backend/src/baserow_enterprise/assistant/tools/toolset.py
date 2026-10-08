@@ -8,6 +8,10 @@ Contains schema helpers, lenient argument validation, and the
 from __future__ import annotations
 
 import json
+import re
+from collections import Counter
+from collections.abc import Iterator
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
@@ -115,6 +119,8 @@ def _id_producer(key: str) -> str | None:
 
 
 _MAX_REPORTED_ERRORS = 8
+
+_UNKNOWN_KEY_ERRORS = frozenset({"extra_forbidden", "unexpected_keyword_argument"})
 
 
 def _unwrap_union(node: Any) -> dict:
@@ -252,7 +258,7 @@ def _render_tool_arg_errors(
                 f"- {path}: required, but you did not send it. Send "
                 f"{_describe_shape(node, exact)}.{_discovery_hint(leaf)}"
             )
-        elif err_type in ("extra_forbidden", "unexpected_keyword_argument"):
+        elif err_type in _UNKNOWN_KEY_ERRORS:
             node, exact = _schema_at(schema, loc[:-1])
             keys = _keys_of(node) if exact else []
             allowed = (
@@ -296,6 +302,139 @@ def _render_tool_arg_errors(
     )
 
 
+_SEPARATORS = re.compile(r"[\s_-]+")
+
+
+def _parse_number(text: str) -> int | float | None:
+    """
+    Read text as a number, keeping whole numbers exact beyond float precision.
+
+    :param text: Text that may hold a number.
+    :return: The number, or None when the text is not one.
+    """
+
+    for parse in (int, float):
+        with suppress(ValueError):
+            return parse(text)
+    return None
+
+
+def _comparable(value: Any) -> str:
+    """
+    Text that survives the type, case and separator changes a repair may make.
+
+    Numbers, also when written as text, compare by value so that a sign is never
+    lost. Other text ignores case, whitespace, underscores and hyphens.
+
+    :param value: A scalar from the tool arguments.
+    :return: The text to compare it by.
+    """
+
+    if isinstance(value, str):
+        number = _parse_number(value)
+        if number is None:
+            return _SEPARATORS.sub("", value.casefold())
+        value = number
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).casefold()
+
+
+def _scalar_values(node: Any, path: str = "") -> Iterator[tuple[str, Any]]:
+    """
+    List the non-empty scalar values in tool arguments.
+
+    A string holding a JSON object or array counts as the values inside it.
+
+    :param node: The arguments, or a part of them.
+    :param path: The dotted path of ``node``.
+    :return: (path, value) for every scalar that is not None or "".
+    """
+
+    if isinstance(node, str) and node.lstrip()[:1] in ("{", "["):
+        with suppress(ValueError):
+            node = json.loads(node)
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from _scalar_values(value, f"{path}.{key}" if path else str(key))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _scalar_values(value, f"{path}.{index}" if path else str(index))
+    elif node is not None and node != "":
+        yield path, node
+
+
+def _dropped_values(original: Any, repaired: Any) -> list[tuple[str, Any]]:
+    """
+    Find the values of the original arguments that a repair left out or changed.
+
+    Values are matched wherever they moved, so a renamed key is not a drop. Only
+    conversions that keep the value pass: case, separators in text, and numbers
+    written as text.
+
+    :param original: The arguments the model sent.
+    :param repaired: The arguments the fixer returned.
+    :return: (path, value) for each original value missing from the repair.
+    """
+
+    available = Counter(_comparable(value) for _, value in _scalar_values(repaired))
+    dropped: list[tuple[str, Any]] = []
+    for path, value in _scalar_values(original):
+        key = _comparable(value)
+        if available[key]:
+            available[key] -= 1
+        else:
+            dropped.append((path, value))
+    return dropped
+
+
+def _render_dropped_values(dropped: list[tuple[str, Any]]) -> str:
+    """
+    Render dropped values as ``path=value`` entries, capped like the error report.
+
+    :param dropped: The (path, value) pairs a repair left out or changed.
+    :return: The entries, followed by ", and N more" when some were left out.
+    """
+
+    shown = ", ".join(
+        f"{path}={_short(value)}" for path, value in dropped[:_MAX_REPORTED_ERRORS]
+    )
+    hidden = len(dropped) - _MAX_REPORTED_ERRORS
+    return f"{shown}, and {hidden} more" if hidden > 0 else shown
+
+
+def _holds_a_value(node: Any) -> bool:
+    """
+    Tell whether arguments hold a value a repair must keep.
+
+    :param node: The arguments, or a part of them.
+    :return: Whether they hold a scalar that is not None or "".
+    """
+
+    try:
+        return next(_scalar_values(node), None) is not None
+    except RecursionError:
+        # Arguments too deeply nested to read go back to the model like any value.
+        return True
+
+
+def _only_unknown_keys_with_values(errors: list[dict]) -> bool:
+    """
+    Tell whether every validation error is an unknown key that holds a value.
+
+    The rest of such arguments is valid, so a repair could only drop those values,
+    which the guard refuses, or move them under a key the model didn't choose.
+
+    :param errors: The Pydantic errors of the tool arguments.
+    :return: Whether there is no other kind of error.
+    """
+
+    return all(
+        error.get("type") in _UNKNOWN_KEY_ERRORS and _holds_a_value(error.get("input"))
+        for error in errors
+    )
+
+
 # ---------------------------------------------------------------------------
 # Lenient validator & fixer
 # ---------------------------------------------------------------------------
@@ -307,8 +446,9 @@ explanation, no markdown fences.
 
 Rules:
 1. Preserve every value the caller supplied. You may move a value to the \
-correct key, rename a key, drop an unsupported key, or convert a value to the \
-type the schema requires — nothing else.
+correct key, rename a key, or convert a value to the type the schema requires \
+— nothing else. Drop an unsupported key only when its value is empty; \
+otherwise keep the value under the closest accepted key, or leave it as it is.
 2. Do not invent data. Fill in a required value only when it is already \
 present elsewhere in the caller's object, or when the schema itself \
 determines it (a default, a const, or a single-member enum). Never invent an \
@@ -405,6 +545,40 @@ def _find_placeholder_ids(node: Any, path: str = "") -> list[tuple[str, str, Any
 # ---------------------------------------------------------------------------
 
 
+def move_thought_to_top_level(schema: dict[str, Any], tool_args: Any) -> Any:
+    """
+    Move a ``thought`` that the model nested in an object argument to the top level.
+
+    :param schema: The tool's parameter schema.
+    :param tool_args: The raw tool arguments, which can be any JSON value.
+    :return: New arguments with the nested ``thought`` at the top level. The
+        arguments are returned unchanged unless the schema has a top-level
+        ``thought``, the arguments have none, and exactly one object argument
+        holds one.
+    """
+
+    if (
+        not isinstance(tool_args, dict)
+        or "thought" in tool_args
+        or "thought" not in (schema.get("properties") or {})
+    ):
+        return tool_args
+    holders = [
+        key
+        for key, value in tool_args.items()
+        if isinstance(value, dict) and "thought" in value
+    ]
+    if len(holders) != 1:
+        return tool_args
+    holder = holders[0]
+    nested = tool_args[holder]
+    return {
+        **tool_args,
+        holder: {key: value for key, value in nested.items() if key != "thought"},
+        "thought": nested["thought"],
+    }
+
+
 class InlineRefsToolset(AbstractToolset[AgentDepsT]):
     """
     Wraps another toolset with two responsibilities:
@@ -413,7 +587,8 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        can parse them directly.
     2. **Fix broken tool args** via a lightweight structured-output call
        instead of going through the full agent retry loop (which is slow
-       and rarely succeeds).
+       and rarely succeeds). A fix that drops or changes a value the model
+       sent is sent back to the model instead of being run.
     """
 
     def __init__(
@@ -491,6 +666,8 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         """
         Validate the arguments, fixing them if needed, then call the tool.
 
+        A ``thought`` nested in an object argument moves to the top level first.
+
         :param name: The tool name.
         :param tool_args: The raw tool arguments.
         :param ctx: The agent run context.
@@ -522,6 +699,7 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             }
         original_validator = self._original_validators.get(name)
         if original_validator:
+            tool_args = move_thought_to_top_level(self._schemas[name], tool_args)
             try:
                 tool_args = original_validator.validate_python(tool_args)
             except ValidationError as e:
@@ -542,14 +720,26 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         :param wrong_args: The rejected arguments.
         :param error: The validation error they produced.
         :return: The repaired arguments, validated against the original schema.
-        :raises ModelRetry: When the fixer fails, declares the arguments
-            unfixable, or its fix also fails validation, so pydantic-ai can
-            handle the retry normally.
+        :raises ModelRetry: When the only errors are unknown keys that hold values,
+            the fixer fails or declares the arguments unfixable, its fix leaves out
+            or changes a value the model sent, the arguments are nested too deeply
+            to compare with the fix, or the fix also fails validation. The message
+            describes the arguments the model sent, so pydantic-ai can handle the
+            retry normally.
         """
 
         schema = self._schemas.get(tool_name, {})
         error_details = error.errors(include_url=False, include_context=False)
         report = format_tool_arg_errors(tool_name, schema, wrong_args, error_details)
+
+        if _only_unknown_keys_with_values(error_details):
+            logger.warning(
+                "[assistant] Tool '{}' args have unknown keys that hold values, "
+                "sending them back without a fix. Errors: {}",
+                tool_name,
+                error_details,
+            )
+            raise ModelRetry(report) from error
 
         logger.warning(
             "[assistant] Tool '{}' args failed validation, attempting fix. Errors: {}",
@@ -606,19 +796,35 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 f"ask the user), then call the tool again."
             )
 
-        # Re-validate with original schema
+        try:
+            dropped = _dropped_values(wrong_args, fixed_args)
+        except RecursionError as exc:
+            logger.warning(
+                "[assistant] Args for tool '{}' are nested too deeply to check the fix",
+                tool_name,
+            )
+            raise ModelRetry(report) from exc
+        if dropped:
+            rendered = _render_dropped_values(dropped)
+            logger.warning(
+                "[assistant] Repair for tool '{}' would drop values ({} in total): {}",
+                tool_name,
+                len(dropped),
+                rendered,
+            )
+            raise ModelRetry(
+                f"{report}\nA repair would drop or change these values, so the call "
+                f"did not run: {rendered}. Send each one under an accepted key with an "
+                "accepted value, or leave it out on purpose."
+            )
+
         original_validator = self._original_validators[tool_name]
         try:
-            validated = original_validator.validate_python(fixed_args)
+            return original_validator.validate_python(fixed_args)
         except ValidationError as e2:
-            retry_errors = e2.errors(include_url=False, include_context=False)
             logger.warning(
                 "[assistant] Fixed args for tool '{}' still invalid: {}",
                 tool_name,
-                retry_errors,
+                e2.errors(include_url=False, include_context=False),
             )
-            raise ModelRetry(
-                format_tool_arg_errors(tool_name, schema, fixed_args, retry_errors)
-            ) from e2
-
-        return validated
+            raise ModelRetry(report) from e2

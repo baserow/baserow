@@ -6,7 +6,7 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 """
 
 from collections import Counter
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
@@ -21,7 +21,10 @@ from baserow.contrib.builder.elements.actions import (
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
-from baserow.contrib.builder.elements.operations import ReadElementOperationType
+from baserow.contrib.builder.elements.operations import (
+    ReadElementOperationType,
+    UpdateElementOperationType,
+)
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
@@ -51,6 +54,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
 )
 
+from .registries import assistant_element_type_registry
 from .types import (
     ActionCreate,
     ActionItem,
@@ -66,7 +70,6 @@ from .types import (
     PageItem,
     PageUpdate,
 )
-from .types.element import BUTTON_NAVIGATION_GUIDANCE
 
 if TYPE_CHECKING:
     pass
@@ -389,6 +392,13 @@ def create_element(
     ds = element_create.data_source
     if isinstance(ds, str) and ds in data_source_ref_to_id_map:
         element_create.data_source = data_source_ref_to_id_map[ds]
+    # An id sent as text, such as "12", still names an existing data source.
+    elif isinstance(ds, str) and not ds.strip().isdecimal():
+        raise ToolInputError(
+            f"Data source ref '{ds}' not found. Create the data source with "
+            "create_data_sources first, or use an id from list_data_sources. No "
+            "changes were applied."
+        )
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
 
@@ -532,18 +542,49 @@ def move_element(
     )
 
 
+class ElementUpdateOutcome(NamedTuple):
+    """An updated element, its type, and the keys its type adds to the result."""
+
+    element: Element
+    element_type: str
+    result: dict[str, Any]
+
+
+def _accepted_update_keys(element: Element) -> set[str]:
+    """
+    Return the keys the element update API accepts for the element's type. They
+    include the relations the type saves itself, such as a menu's items.
+
+    :param element: The element to update.
+    :return: The accepted keys.
+    """
+
+    return (
+        set(ElementHandler.allowed_fields_update)
+        | set(element.get_type().allowed_fields)
+        | set(
+            element.get_type().get_field_names(request_serializer=True, extra_params={})
+        )
+    )
+
+
 def update_element(
     user: AbstractUser,
     element_update: ElementUpdate,
-) -> tuple[Any, str]:
+) -> ElementUpdateOutcome:
     """
     Update an existing element by ID.
 
-    If the element is a header/footer and ``menu_items`` are provided,
-    automatically finds or creates a child menu element and sets the
-    items on it (headers are containers, not menus themselves).
+    The element type's hooks check the update, add what they save with it, apply
+    what the element's own update doesn't save, and report on it.
 
-    Returns ``(orm_element, element_type_str)``.
+    :param user: The user updating the element.
+    :param element_update: The properties to change.
+    :return: The updated element, its type, and the keys its type's hooks add to
+        update_element's result.
+    :raises ToolInputError: When the element doesn't exist or a property can't be
+        applied. Nothing is saved then.
+    :raises PermissionDenied: When the user can't update the element.
     """
 
     try:
@@ -554,30 +595,32 @@ def update_element(
             "Use list_elements to find valid element IDs."
         )
 
+    CoreHandler().check_permissions(
+        user,
+        UpdateElementOperationType.type,
+        workspace=element.page.builder.workspace,
+        context=element,
+    )
+
     element_type = element.get_type().type
+    hooks = assistant_element_type_registry.get_for(element_type)
     kwargs = element_update.to_update_kwargs(element_type)
-    allowed = set(ElementHandler.allowed_fields_update) | set(
-        element.get_type().allowed_fields
-    )
-    # These relations are consumed by the element type's after_update hook,
-    # rather than assigned as model fields by ElementHandler.
-    allowed.update(
-        {"table": {"fields"}, "menu": {"menu_items"}}.get(element_type, set())
-    )
+    allowed = _accepted_update_keys(element)
     kwargs = {name: value for name, value in kwargs.items() if name in allowed}
-    unsupported = element_update.unsupported_fields(element_type, kwargs)
+    prepared = hooks.prepare_update(user, element, element_update)
+    kwargs.update(prepared.kwargs)
+    unsupported = element_update.unsupported_fields(
+        kwargs, hooks.property_aliases, hooks.properties_applied_after_update
+    ) + hooks.conflicting_properties(element_update)
     if unsupported:
-        if element_type == "button":
-            guidance = BUTTON_NAVIGATION_GUIDANCE
-        else:
-            allowed = set(element.get_type().allowed_fields) & set(
-                ElementUpdate.model_fields
-            )
-            allowed.update(("visibility", "role_type", "roles"))
-            guidance = f"Supported properties include: {', '.join(sorted(allowed))}."
+        supported = set(element.get_type().allowed_fields) & set(
+            ElementUpdate.model_fields
+        )
+        supported.update(("visibility", "role_type", "roles"))
+        supported.update(hooks.property_aliases)
         raise ToolInputError(
             f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
-            f"No changes were applied. {guidance}"
+            f"No changes were applied. {hooks.unsupported_guidance(supported)}"
         )
     # Save generated values and their source switches together after validation,
     # so failed generation preserves the existing link/image behavior.
@@ -588,15 +631,13 @@ def update_element(
         kwargs.pop(field, None)
     if kwargs:
         element = UpdateElementActionType.do(user, element, kwargs)
+    hooks.after_update(user, element, element_update)
 
-    # Headers/footers are containers — menu_items belong on a child menu.
-    if element_type in ("header", "footer") and element_update.menu_items is not None:
-        _ensure_child_menu(user, element, element_update)
-
-    return element, element_type
+    result = hooks.updated_result(element, element_update) | prepared.result
+    return ElementUpdateOutcome(element, element_type, result)
 
 
-def _ensure_child_menu(
+def ensure_child_menu(
     user: AbstractUser,
     header_element: Any,
     element_update: ElementUpdate,

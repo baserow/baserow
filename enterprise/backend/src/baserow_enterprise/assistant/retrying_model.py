@@ -3,30 +3,38 @@ A pydantic-ai Model wrapper that retries on transient provider errors.
 
 Provider SDKs (Groq, Anthropic, OpenAI) sometimes raise exceptions that
 are transient — e.g. ``groq.APIError: Failed to parse tool call arguments
-as JSON``.  pydantic-ai handles *some* of these (e.g. ``tool_use_failed``
-with a structured body), but others slip through.
+as JSON``.  ``RetryingModel`` wraps any pydantic-ai ``Model`` and adds retry
+logic around ``request()`` with configurable back-off.
 
-``RetryingModel`` wraps any pydantic-ai ``Model`` and adds retry logic
-around ``request()`` with configurable back-off.
+Tool calls that Groq rejects
+----------------------------
+Groq rejects a tool call it cannot parse with a ``tool_use_failed`` error
+whose ``failed_generation`` holds the text the model wrote.  pydantic-ai
+2.50 handles this error itself: a ``failed_generation`` that parses into a
+name and arguments becomes a ``ToolCallPart``, and one that does not parse
+is returned as text.  ``request()`` returns that text as a ``TextPart`` with
+``finish_reason='error'``.  A stream emits it as text deltas; there the
+error usually comes with an empty ``failed_generation`` because the text
+has already streamed.  Kuma recovers each case as follows:
 
-Streaming recovery
-------------------
-pydantic-ai's ``GroqStreamedResponse`` catches ``APIError`` with
-``tool_use_failed`` bodies, but only when the ``failed_generation`` JSON
-is valid.  When Groq sends **truly malformed** JSON (not just
-schema-invalid), pydantic-ai's ``Json[...]`` type fails to parse it and
-re-raises the raw ``APIError``.
+- ``request()``: ``_recover_printed_tool_call`` repairs the text into a call
+  to one of the request's tools.
+- Streams: text that has streamed cannot become a tool call any more.  It
+  reaches the final-answer validator
+  (``output_validation.validate_final_answer``), whose retry message gives
+  the model the corrected call (``thought`` moved to the top level) when it
+  names one of the run's tools and is short.
+- A ``tool_use_failed`` body that pydantic-ai does not recognize is raised,
+  and so is any ``tool_use_failed`` at stream setup.
+  ``_try_recover_tool_use_failed`` turns it into a ``ToolCallPart`` in
+  ``request()``, in ``request_stream()`` setup, and in
+  ``_ErrorRecoveringStream`` while the stream is consumed.  That last error
+  occurs after the ``yield``, where ``@asynccontextmanager`` cannot yield a
+  replacement, so the wrapper emits the recovered part as stream events.
 
-Since this error occurs *during* stream consumption (after yield),
-``@asynccontextmanager`` cannot yield a replacement.  Instead we wrap
-the stream in ``_ErrorRecoveringStream`` which intercepts ``APIError``
-in its ``_get_event_iterator`` and emits a ``ToolCallPart`` (or
-``TextPart``) so pydantic-ai's validation loop can tell the model
-what was wrong.
-
-For errors that occur *before* the stream is established (during
-``request_stream`` setup), we fall back to the retrying ``request()``
-method and wrap the result in ``_PreFetchedResponse``.
+For other retryable errors during ``request_stream`` setup, we fall back to
+the retrying ``request()`` method and wrap the result in
+``_PreFetchedResponse``.
 """
 
 from __future__ import annotations
@@ -37,6 +45,7 @@ import os
 import re
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -44,7 +53,7 @@ from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
 from loguru import logger
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
-from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models import (
     KnownModelName,
     Model,
@@ -110,30 +119,107 @@ def _extract_tool_name(failed_gen: str) -> str:
     return m.group(1) if m else "unknown"
 
 
+_OPENER_CLOSERS = {"{": "}", "[": "]"}
+_CLOSERS = frozenset(_OPENER_CLOSERS.values())
+
+
+def _fix_closing_brackets(text: str) -> str:
+    """
+    Drop each ``"`` that sits between two closing brackets and, when the text
+    ends with such a quote and a closing bracket, append the closing bracket
+    that is missing if exactly one is.
+
+    That ending, with one bracket missing, is how gpt-oss ends a call it prints
+    (``}"}``). Any other missing bracket means the call was cut off, so it stays
+    missing and the text does not parse. Only characters outside of strings
+    count, so a string keeps its content.
+
+    :param text: JSON text that does not parse.
+    :return: The text with the repairs applied.
+    """
+
+    kept: list[str] = []
+    missing: list[str] = []
+    in_string = escaped = False
+    last_dropped_quote_index: int | None = None
+    for index, char in enumerate(text):
+        if in_string:
+            if char == '"' and not escaped:
+                in_string = False
+            escaped = char == "\\" and not escaped
+        elif char == '"':
+            if (
+                text[index - 1 : index] in _CLOSERS
+                and text[index + 1 : index + 2] in _CLOSERS
+            ):
+                last_dropped_quote_index = index
+                continue
+            in_string = True
+        elif char in _OPENER_CLOSERS:
+            missing.append(_OPENER_CLOSERS[char])
+        elif char in _CLOSERS and missing:
+            missing.pop()
+        kept.append(char)
+    ends_with_dropped_quote = last_dropped_quote_index == len(text.rstrip()) - 2
+    closer = missing[0] if len(missing) == 1 and ends_with_dropped_quote else ""
+    return "".join(kept) + closer
+
+
+def repair_printed_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
+    """
+    Read a tool call that a model printed as JSON text, such as Groq's
+    ``failed_generation``.
+
+    Text that does not parse gets two repairs, and nothing else: a ``"`` between
+    two closing brackets is dropped, and a text that ends with one (``}"}``) and
+    misses exactly one closing bracket gets it appended.
+
+    :param text: The printed tool call.
+    :return: The tool name and its arguments, or None when the text is not an
+        object with exactly a string ``name`` and an object ``arguments``.
+    """
+
+    try:
+        call = json.loads(text)
+    except (ValueError, RecursionError):
+        try:
+            call = json.loads(_fix_closing_brackets(text))
+        except (ValueError, RecursionError):
+            return None
+    if (
+        isinstance(call, dict)
+        and call.keys() == {"name", "arguments"}
+        and isinstance(call["name"], str)
+        and isinstance(call["arguments"], dict)
+    ):
+        return call["name"], call["arguments"]
+    return None
+
+
 def _recover_failed_generation(failed_gen: str, model_name: str = "") -> ModelResponse:
     """Turn a ``failed_generation`` string into a synthetic ``ModelResponse``.
 
-    If the JSON is valid and contains ``name`` + ``arguments``, returns a
-    ``ToolCallPart`` so pydantic-ai's validation loop can tell the model
-    what was wrong.  For truly malformed JSON, extracts the tool name
-    (best-effort) and returns a ``ToolCallPart`` with empty args so
-    pydantic-ai's validation rejects it and sends a retry prompt.
+    If the JSON is valid and holds ``name`` + ``arguments``, or JSON that does
+    not parse is repaired by ``repair_printed_tool_call``, returns a
+    ``ToolCallPart`` so pydantic-ai's validation loop can tell the model what
+    was wrong.  For truly malformed JSON, extracts the tool name (best-effort)
+    and returns a ``ToolCallPart`` with empty args so pydantic-ai's validation
+    rejects it and sends a retry prompt.
     """
 
     try:
         parsed = json.loads(failed_gen)
-        if isinstance(parsed, dict) and "name" in parsed and "arguments" in parsed:
-            return ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        tool_name=parsed["name"],
-                        args=json.dumps(parsed["arguments"]),
-                    )
-                ],
-                model_name=model_name,
-            )
-    except (json.JSONDecodeError, TypeError):
-        pass
+    except (ValueError, RecursionError):
+        tool_call = repair_printed_tool_call(failed_gen)
+    else:
+        is_call = isinstance(parsed, dict) and parsed.keys() >= {"name", "arguments"}
+        tool_call = (parsed["name"], parsed["arguments"]) if is_call else None
+    if tool_call is not None:
+        tool_name, arguments = tool_call
+        return ModelResponse(
+            parts=[ToolCallPart(tool_name=tool_name, args=json.dumps(arguments))],
+            model_name=model_name,
+        )
 
     # JSON is truly malformed (e.g. truncated).  We must NOT fall back to a
     # TextPart here because the stream may have already started emitting
@@ -158,9 +244,9 @@ def _recover_failed_generation(failed_gen: str, model_name: str = "") -> ModelRe
 def _try_recover_tool_use_failed(exc: Exception) -> ModelResponse | None:
     """Try to recover a ``tool_use_failed`` error into a ``ModelResponse``.
 
-    Works with both ``ModelHTTPError`` (non-streaming path) and raw
-    provider ``APIError`` (streaming path where pydantic-ai's handler
-    couldn't parse the malformed JSON).
+    Works with both ``ModelHTTPError`` (non-streaming path and stream setup)
+    and raw provider ``APIError`` (streaming path, when pydantic-ai does not
+    recognize the error body).
     """
 
     if isinstance(exc, ModelHTTPError):
@@ -185,6 +271,37 @@ def _try_recover_tool_use_failed(exc: Exception) -> ModelResponse | None:
         return None
 
     return _recover_failed_generation(failed_gen, model_name)
+
+
+def _recover_printed_tool_call(
+    response: ModelResponse, model_request_parameters: ModelRequestParameters
+) -> ModelResponse:
+    """
+    Turn a tool call that the provider rejected and returned as text back into a
+    tool call.
+
+    pydantic-ai returns a ``failed_generation`` it cannot parse as a text-only
+    response with ``finish_reason="error"``.
+
+    :param response: The response of the wrapped model.
+    :param model_request_parameters: The request, whose function and output tools
+        are the only tools a recovered call may name.
+    :return: A copy of the response with the repaired tool call as its only part,
+        or the response unchanged when its text is not a call to one of the tools.
+    """
+
+    if response.finish_reason != "error" or not all(
+        isinstance(part, TextPart) for part in response.parts
+    ):
+        return response
+    tool_call = repair_printed_tool_call(
+        "".join(part.content for part in response.parts)
+    )
+    if tool_call is None or tool_call[0] not in model_request_parameters.tool_defs:
+        return response
+    tool_name, arguments = tool_call
+    logger.info("[assistant] Recovered a tool call printed as text: {}", tool_name)
+    return replace(response, parts=[ToolCallPart(tool_name=tool_name, args=arguments)])
 
 
 # ---------------------------------------------------------------------------
@@ -436,11 +553,23 @@ class RetryingModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
+        """
+        Send the request, retrying transient provider errors.
+
+        :param messages: The conversation to send.
+        :param model_settings: The settings for this request.
+        :param model_request_parameters: The tools and output settings.
+        :return: The response. A tool call that the provider rejected and returned
+            as text comes back as a tool call when its JSON can be repaired.
+        :raises Exception: The provider error when it is not transient, when the
+            provider asks not to retry, or when all attempts failed.
+        """
+
         wrapped = self.wrapped
         async with wrapped:
             for attempt in range(1, self.max_attempts + 1):
                 try:
-                    return await wrapped.request(
+                    response = await wrapped.request(
                         messages, model_settings, model_request_parameters
                     )
                 except Exception as exc:
@@ -472,6 +601,10 @@ class RetryingModel(WrapperModel):
                         repr(exc),
                     )
                     await asyncio.sleep(delay)
+                else:
+                    return _recover_printed_tool_call(
+                        response, model_request_parameters
+                    )
         raise RuntimeError("Exhausted retries")  # pragma: no cover
 
     @asynccontextmanager
@@ -490,10 +623,7 @@ class RetryingModel(WrapperModel):
                     messages, model_settings, model_request_parameters, run_context
                 ) as stream:
                     yielded = True
-                    # Wrap the stream so that errors *during* chunk iteration
-                    # (e.g. groq.APIError with malformed failed_generation)
-                    # are caught and converted to recovery events rather than
-                    # crashing the entire agent run.
+                    # Recovers tool_use_failed bodies pydantic-ai raises mid-stream.
                     yield _ErrorRecoveringStream(stream)
             except Exception as exc:
                 if yielded:
@@ -537,11 +667,9 @@ class _ErrorRecoveringStream(StreamedResponse):
     errors during chunk iteration and converts ``tool_use_failed`` errors
     (even with malformed JSON) into recovery events.
 
-    pydantic-ai's ``GroqStreamedResponse`` already handles ``tool_use_failed``
-    when the ``failed_generation`` JSON is *valid*, but fails when it is
-    truly malformed because ``Json[_GroqToolUseFailedGeneration]`` raises
-    ``ValidationError``.  This wrapper catches the re-raised ``APIError``
-    and emits a ``ToolCallPart`` or ``TextPart`` so pydantic-ai's
+    pydantic-ai's ``GroqStreamedResponse`` handles a ``tool_use_failed`` error
+    whose body it recognizes and re-raises any other.  This wrapper catches
+    that re-raised ``APIError`` and emits a ``ToolCallPart`` so pydantic-ai's
     validation loop can tell the model what was wrong.
     """
 
