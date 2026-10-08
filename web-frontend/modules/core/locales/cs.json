@@ -230,8 +230,8 @@
     },
     "errorLayout": {
         "notFound": "Hledaná stránka nebyla nalezena. Může to být proto, že je adresa URL nesprávná nebo nemáte oprávnění tuto stránku zobrazit.",
-        "error": "Při načítání stránky došlo k chybě. Naši vývojáři byli o problému informováni. Zkuste stránku obnovit nebo se vraťte na nástěnku.",
-        "backDashboard": "Zpět na nástěnku",
+        "error": "Při načítání stránky došlo k chybě. Naši vývojáři byli o problému informováni. Zkuste stránku obnovit nebo se vraťte na domovskou stránku.",
+        "backDashboard": "Zpět na domovskou stránku",
         "backLogin": "Zpět k přihlášení",
         "wrong": "Něco se pokazilo",
         "refresh": "Obnovit stránku",
@@ -1218,7 +1218,7 @@
         "verificationFailedDescription": "Zadaný kód není platný."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Příklad",
+        "exampleLabel": "Příklad | Příklady",
         "result": "Výsledek: {result}",
         "clickToInsert": "Kliknutím na příklad jej vložíte"
     },
@@ -1348,12 +1348,12 @@
         "removeModel": "Odebrat model",
         "editModel": "Upravit model",
         "modelIdentifier": "Identifikátor modelu",
-        "modelDiscoveryHelp": "Vyberte model známý nástroji Pydantic AI nebo zadejte libovolný vlastní identifikátor.",
+        "modelDiscoveryHelp": "Vyberte model ze seznamu nebo zadejte libovolný vlastní identifikátor.",
         "modelDiscoveryUnavailable": "Návrhy známých modelů nejsou k dispozici. Zadejte identifikátor ručně.",
-        "modelDiscoveryEmpty": "Pydantic AI nemá pro tohoto poskytovatele žádné známé modely. Zadejte identifikátor ručně.",
+        "modelDiscoveryEmpty": "Tento poskytovatel nemá žádné známé modely. Zadejte identifikátor ručně.",
         "modelDiscoveryNoMatch": "Žádný známý model neodpovídá. Můžete použít zadaný identifikátor.",
         "noProviders": "Nejsou nakonfigurováni žádní poskytovatelé AI pro instanci",
-        "noProvidersDescription": "Přidejte poskytovatele ručně nebo si před povolením funkce pro uživatele prohlédněte a spusťte příkaz pro import prostředí.",
+        "noProvidersDescription": "Přidejte poskytovatele a nakonfigurujte modely dostupné pro vaše pracovní prostory.",
         "noModels": "Pro tohoto poskytovatele nejsou nakonfigurovány žádné modely.",
         "active": "Aktivní",
         "inactive": "Neaktivní",
