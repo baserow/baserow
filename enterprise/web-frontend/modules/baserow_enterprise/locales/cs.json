@@ -33,9 +33,9 @@
         "submit": "Uložit",
         "nameTitle": "Název",
         "roleTitle": "Výchozí role",
-        "inviteMembers": "Přidat členy",
-        "membersTitle": "Členové",
-        "noSubjectsSelected": "Prostřednictvím tohoto týmu zatím nikdo nemá přístup.",
+        "inviteMembers": "Spravovat přístup",
+        "membersTitle": "Členové týmu",
+        "noSubjectsSelected": "Zatím nikdo nemá přístup prostřednictvím tohoto týmu.",
         "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým.",
         "agentLabel": "Agent",
         "accessModalTitle": "Spravovat přístup týmu",
@@ -272,7 +272,7 @@
             "teams": "týmy",
             "agents": "agenti"
         },
-        "helpTooltip": "Přiřazení role člena má přednost před přiřazením role týmu."
+        "helpTooltip": "Přiřazení rolí členů a agentů mají přednost před přiřazením rolí týmů."
     },
     "membersRoleField": {
         "noAccessHelpText": "Tento uživatel potřebuje výslovný přístup ke zdrojům.",
@@ -433,7 +433,7 @@
         "multiple": "Více souborů?",
         "required": "Povinné",
         "fileTypes": "Typy souborů",
-        "fileTypesHelper": "Zvolte přípony souborů, které má vstup souborů povolit (jednu na řádek), například jpg, png, svg nebo pdf. Chcete-li povolit všechny soubory daného typu, můžete zadat image/*, video/* nebo audio/*. Ponecháte-li pole prázdné, budou povoleny všechny typy souborů.",
+        "fileTypesHelper": "Zvolte povolené typy souborů (jeden na řádek). Zadejte příponu souboru (např. jpg, .png, pdf), úplný typ MIME (např. image/jpeg, application/pdf) nebo zástupný znak MIME (např. image/*, text/*, application/*), abyste povolili všechny soubory daného typu. Ponechte prázdné, chcete-li povolit všechny typy souborů.",
         "preview": "Zobrazovat náhledy obrázků?",
         "maxFileSize": "Maximální velikost souboru",
         "maxFileSizePlaceholder": "Zadejte číslo...",
