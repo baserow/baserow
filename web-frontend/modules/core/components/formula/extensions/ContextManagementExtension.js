@@ -79,7 +79,10 @@ export const ContextManagementExtension = Extension.create({
               rootEl,
               (target, _event) => {
                 const contextEl = this.options.getContextEl()
-                if (!contextEl || !isElement(contextEl, target)) {
+                if (
+                  !editor.isDestroyed &&
+                  (!contextEl || !isElement(contextEl, target))
+                ) {
                   editor.commands.hideContext()
                 }
               }
@@ -144,11 +147,6 @@ export const ContextManagementExtension = Extension.create({
         }),
       }),
     ]
-  },
-
-  onCreate() {
-    this.storage.ignoreNextBlur = false
-    this.storage.clickOutsideEventCancel = null
   },
 
   onDestroy() {
