@@ -701,7 +701,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Dokumentace API databáze {name}",
-        "back": "Zpět na nástěnku",
+        "back": "Zpět na přehled",
         "openDatabase": "otevřít databázi"
     },
     "apiDocsComponent": {
@@ -710,7 +710,7 @@
         "settings": "nastavení",
         "selectApplicationTitle": "Pro kterou databázi chcete zobrazit dokumentaci?",
         "signIn": "Přihlaste se a začněte",
-        "back": "Zpět na nástěnku"
+        "back": "Zpět na přehled"
     },
     "viewAggregationType": {
         "emptyCount": "(Prázdné)",
