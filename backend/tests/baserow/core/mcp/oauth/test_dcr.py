@@ -178,21 +178,44 @@ def test_unused_dcr_clients_are_deleted(client, api_client, data_fixture):
         unused = register(client).json()["client_id"]
         used = register(client, ip="2.2.2.2").json()["client_id"]
         obtain_tokens(client, api_client, token, workspace, client_id=used)
-        cimd = cimd_client(client)
-        _, challenge = pkce_pair()
-        # Loads the CIMD client into the Application table.
-        api_client.get(
-            reverse("api:mcp:oauth_consent"),
-            {"query": authorize_query(cimd, challenge)},
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
     recent = register(client, ip="3.3.3.3").json()["client_id"]
 
     delete_unused_mcp_oauth_clients()
 
     remaining = set(Application.objects.values_list("client_id", flat=True))
     assert unused not in remaining
-    assert {used, cimd, recent} <= remaining
+    assert {used, recent} <= remaining
+
+
+def load_cimd_client(api_client, token):
+    """Loads a new CIMD client into the Application table and returns its id."""
+
+    client_id = cimd_client(api_client)
+    _, challenge = pkce_pair()
+    api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query(client_id, challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert get_application_model().objects.filter(client_id=client_id).exists()
+    return client_id
+
+
+@pytest.mark.django_db
+def test_unused_cimd_clients_are_deleted(client, api_client, data_fixture):
+    Application = get_application_model()
+    with freeze_time(timezone.now() - timedelta(days=2)):
+        user, token = data_fixture.create_user_and_token()
+        workspace = data_fixture.create_workspace(user=user)
+        unused = load_cimd_client(api_client, token)
+        used = obtain_tokens(client, api_client, token, workspace)["client_id"]
+    recent = load_cimd_client(api_client, data_fixture.generate_token(user))
+
+    delete_unused_mcp_oauth_clients()
+
+    remaining = set(Application.objects.values_list("client_id", flat=True))
+    assert unused not in remaining
+    assert {used, recent} <= remaining
 
 
 @pytest.mark.django_db

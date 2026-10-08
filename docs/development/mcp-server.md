@@ -63,7 +63,9 @@ Each grant is stored as an `MCPEndpoint` row with `oauth_client_id` set. Its tok
 ### Client registration
 
 - **CIMD**: the client URL is the client id. `BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS` is a comma-separated host list and defaults to `*`.
-- **DCR**: on by default. Set `BASEROW_MCP_OAUTH_DCR_ENABLED=false` to turn it off. It only accepts public clients that use the authorization code grant, with https or loopback redirect URIs. A Celery task deletes DCR clients that have no grant after one day.
+- **DCR**: on by default. Set `BASEROW_MCP_OAUTH_DCR_ENABLED=false` to turn it off. It only accepts public clients that use the authorization code grant, with https or loopback redirect URIs.
+
+A Celery task deletes DCR and CIMD clients that have no grant after one day.
 
 ### Rate limits and tokens
 
