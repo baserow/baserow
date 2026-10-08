@@ -4,7 +4,12 @@
       <Logo />
     </div>
     <Error :error="error" />
-    <div v-if="!consent && !error.visible" class="mcp-authorize__card">
+    <div v-if="framed" class="mcp-authorize__card">
+      <p class="mcp-authorize__empty" data-test="mcp-authorize-framed">
+        {{ $t('mcpAuthorize.framed') }}
+      </p>
+    </div>
+    <div v-else-if="!consent && !error.visible" class="mcp-authorize__card">
       <div class="skeleton" data-test="mcp-authorize-loading">
         <div class="mcp-authorize__header">
           <SkeletonBlock width="100%" height="40px" />
@@ -211,12 +216,19 @@ const workspaceId = ref(null)
 const ticked = reactive({})
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
+// The frame headers only cover a full load of this page. After logging in inside
+// a frame, the router navigates here client side, so check for a frame here too.
+const framed = ref(false)
 
 // Client only: the defaults below are applied when the data arrives, so a
 // server-rendered form would ship unticked checkboxes that hydration can't fix.
 const { data: consent } = useAsyncData(
   `mcp-consent-${route.query.request}`,
   async () => {
+    if (window.top !== window.self) {
+      framed.value = true
+      return null
+    }
     try {
       const { data } = await MCPOAuthService($client).getConsent(query)
       applyDefaults(data)

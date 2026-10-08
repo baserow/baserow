@@ -21,7 +21,8 @@
     "allow": "Allow",
     "deny": "Deny",
     "invalid": "This authorization request is not valid.",
-    "failed": "Could not complete the connection."
+    "failed": "Could not complete the connection.",
+    "framed": "For your security, this page can't be shown inside another site. Open it in its own browser window to continue."
   },
   "paginator": {
     "page": "Page",

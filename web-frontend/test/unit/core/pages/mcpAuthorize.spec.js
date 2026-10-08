@@ -230,6 +230,22 @@ describe('MCP authorize page', () => {
     expect(badge('create_rows').exists()).toBe(false)
   })
 
+  test('refuses to show the consent form inside a frame', async () => {
+    vi.stubGlobal('top', {})
+    const { wrapper } = await mountWithConsent()
+    expect(wrapper.find('[data-test="mcp-authorize-allow"]').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('[data-test="mcp-authorize-framed"]').text()).toBe(
+      'mcpAuthorize.framed'
+    )
+    const consentCalls = [
+      ...testApp.mock.history.get,
+      ...testApp.mock.history.post,
+    ].filter((request) => request.url.includes('/mcp/oauth/consent/'))
+    expect(consentCalls).toHaveLength(0)
+  })
+
   test('none and select all are keyboard reachable buttons', async () => {
     const { wrapper } = await mountWithConsent()
     for (const key of ['select-all', 'select-none']) {
