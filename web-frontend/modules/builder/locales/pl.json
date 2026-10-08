@@ -7,7 +7,8 @@
         "integrationsName": "Integracje",
         "domainsName": "Domeny",
         "userSourcesName": "Użytkownicy",
-        "generalName": "Ogólne"
+        "generalName": "Ogólne",
+        "breakpointsName": "Punkty przełamania"
     },
     "createPageModal": {
         "header": "Utwórz stronę",
@@ -180,7 +181,8 @@
         "errorIframeContentMissing": "Brak zawartości iFrame",
         "errorNoMenuItem": "Nie skonfigurowano elementu menu",
         "errorMenuItemInError": "Co najmniej jeden element menu jest nieprawidłowo skonfigurowany",
-        "errorSubMenuItemInError": "Co najmniej jedno podmenu jest nieprawidłowo skonfigurowane"
+        "errorSubMenuItemInError": "Co najmniej jedno podmenu jest nieprawidłowo skonfigurowane",
+        "errorOptionNameMissing": "Opcja nie ma nazwy"
     },
     "addElementButton": {
         "label": "Element"
@@ -188,7 +190,9 @@
     "elementForms": {
         "textInputPlaceholder": "Wprowadź tekst...",
         "urlInputPlaceholder": "Wprowadź URL...",
-        "invalidFormula": "Ta formuła jest nieprawidłowa"
+        "invalidFormula": "Ta formuła jest nieprawidłowa",
+        "formValidationTitle": "Walidacja formularza",
+        "formValidationHint": "Aby przed wysłaniem formularza wyświetlić błędy walidacji, umieść ten element wewnątrz formularza."
     },
     "headingElement": {
         "noValue": "Bez tytułu...",
@@ -288,7 +292,10 @@
         "loginToastTitle": "Pomyślne uwierzytelnienie",
         "loginToastMessage": "Logowanie zakończyło się pomyślnie.",
         "authorizedToastTitle": "Wymagane uwierzytelnienie",
-        "authorizedToastMessage": "Aby uzyskać dostęp do tej strony, musisz się zalogować. Zaloguj się, aby kontynuować."
+        "authorizedToastMessage": "Aby uzyskać dostęp do tej strony, musisz się zalogować. Zaloguj się, aby kontynuować.",
+        "previewSessionExpiredTitle": "Sesja podglądu wygasła",
+        "previewSessionExpiredDescription": "Zamknij kartę, a następnie w konfiguratorze aplikacji otwórz ponownie podgląd.",
+        "loginErrorToastTitle": "Błąd uwierzytelnienia"
     },
     "integrationSettings": {
         "title": "Integracje",
@@ -456,7 +463,8 @@
         "allowSameOriginLabel": "Zezwalaj ramce iframe na dostęp do danych z własnej witryny",
         "allowSameOriginHelp": "Włącz wyłącznie w przypadku zaufanych adresów URL. Opcja umożliwia ramce iframe korzystanie z plików cookie, pamięci oraz innych funkcji tego samego pochodzenia w podglądach i opublikowanych aplikacjach.",
         "warningTitle": "Użyj wyłącznie zaufanych treści",
-        "warningMessage": "Zawartość ramki iframe jest odizolowana w edytorze, gdzie osadzony kod HTML ma możliwość uruchamiania skryptów. W podglądach i opublikowanych aplikacjach osadzony kod HTML nie podlega ograniczeniom, natomiast zewnętrzne adresy URL mogą wykonywać skrypty, wysyłać formularze i otwierać okienka typu pop-up."
+        "warningMessage": "Zawartość ramki iframe jest odizolowana w edytorze, gdzie osadzony kod HTML ma możliwość uruchamiania skryptów. W podglądach i opublikowanych aplikacjach osadzony kod HTML nie podlega ograniczeniom, natomiast zewnętrzne adresy URL mogą wykonywać skrypty, wysyłać formularze i otwierać okienka typu pop-up.",
+        "editorPreviewPlaceholder": "Tej ramki iFrame nie widać w edytorze.\nSkorzystaj z podglądu, aby sprawdzić wygląd w aplikacji."
     },
     "backgroundTypes": {
         "none": "Brak",
@@ -629,7 +637,8 @@
         "notificationDescription": "Wyświetl użytkownikowi komunikat powiadomienia.",
         "openPageDescription": "Przekieruj użytkownika na inną stronę lub adres URL.",
         "logoutDescription": "Wyloguj aktualnego użytkownika.",
-        "refreshDataSourceDescription": "Odśwież źródło danych i zaktualizuj elementy, które z niego korzystają."
+        "refreshDataSourceDescription": "Odśwież źródło danych i zaktualizuj elementy, które z niego korzystają.",
+        "errorNotificationContentMissing": "W powiadomieniu należy podać tytuł i opis"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Tytuł",
@@ -1218,5 +1227,25 @@
     "pageElementBehaviour": {
         "normal": "Normalny",
         "fixed": "Stały"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Punkty przełamania",
+        "description": "Wybierz, kiedy aplikacja ma przełączać się między układami dla telefonów, tabletów i komputerów. W edytorze zmiany będą widoczne od razu, a w przypadku opublikowanej aplikacji – po publikacji.",
+        "mobileLabel": "Punkt przełamania dla telefonu",
+        "tabletLabel": "Punkt przełamania dla tabletu",
+        "desktopLabel": "Punkt przełamania dla komputera",
+        "desktopDescription": "Ponad {breakpoint}px",
+        "updatedTitle": "Punkty przełamania zostały zapisane",
+        "updatedDescription": "Nowe punkty przełamania są aktywne w edytorze. Opublikuj aplikację, aby stały się widoczne zewnętrznie.",
+        "mobileMustBeLessThanTablet": "Punkt przełamania dla telefonu musi mieć mniejszą wartość niż dla tabletu.",
+        "tabletMustBeGreaterThanMobile": "Punkt przełamania dla tabletu musi mieć większą wartość niż dla telefonu."
+    },
+    "trashType": {
+        "builder_page": "strona",
+        "builder_data_source": "źródło danych",
+        "builder_workflow_action": "operacja w ramach procesu"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Strona"
     }
 }
