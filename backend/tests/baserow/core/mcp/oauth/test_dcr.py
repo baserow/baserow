@@ -264,3 +264,30 @@ def test_registration_tokens_expire_and_are_cleared(client):
         clear_expired_mcp_oauth_tokens()
 
     assert not tokens.exists()
+
+
+@pytest.mark.django_db
+def test_client_without_a_name_is_named_by_its_redirect_host(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = register(client, client_name=None).json()["client_id"]
+    _, challenge = pkce_pair()
+
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query(client_id, challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["client_name"] == "127.0.0.1"
+
+    endpoint_id = obtain_tokens(
+        client, api_client, token, workspace, client_id=client_id
+    )["endpoint_id"]
+    assert MCPEndpoint.objects.get(id=endpoint_id).name == "127.0.0.1"
+    connections = api_client.get(
+        reverse("api:mcp:oauth_connections"), HTTP_AUTHORIZATION=f"JWT {token}"
+    ).json()["connections"]
+    assert [c["client_name"] for c in connections] == ["127.0.0.1"]

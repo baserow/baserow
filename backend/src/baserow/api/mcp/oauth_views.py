@@ -82,10 +82,12 @@ def _verification(application) -> dict:
 def _client_info(credentials: dict) -> dict:
     Application = get_application_model()
     application = Application.objects.get(client_id=credentials["client_id"])
+    redirect_host = urlparse(credentials["redirect_uri"]).hostname
     return {
         "client_id": application.client_id,
-        "client_name": application.name,
-        "redirect_host": urlparse(credentials["redirect_uri"]).hostname,
+        # DCR stores an empty name when the client sends no client_name.
+        "client_name": application.name or redirect_host,
+        "redirect_host": redirect_host,
         "registration_source": application.registration_source,
         "loopback_only": _loopback_only(application),
         **_verification(application),
@@ -237,7 +239,7 @@ class MCPOAuthConnectionsView(APIView):
             connections.append(
                 {
                     "id": endpoint.id,
-                    "client_name": application.name if application else endpoint.name,
+                    "client_name": (application and application.name) or endpoint.name,
                     **_verification(application),
                     "workspace_id": endpoint.workspace_id,
                     "workspace_name": endpoint.workspace.name,
