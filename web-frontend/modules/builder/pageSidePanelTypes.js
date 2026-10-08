@@ -1,5 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { hasInvalidVisibilityCondition } from '@baserow/modules/builder/utils/visibilityCondition'
 import GeneralSidePanel from '@baserow/modules/builder/components/page/sidePanels/GeneralSidePanel'
 import StyleSidePanel from '@baserow/modules/builder/components/page/sidePanels/StyleSidePanel'
 import VisibilitySidePanel from '@baserow/modules/builder/components/page/sidePanels/VisibilitySidePanel'
@@ -106,24 +105,17 @@ export class VisibilityPageSidePanelType extends pageSidePanelType {
   }
 
   /**
-   * The message which appears in the tooltip when the visibility condition of
-   * the element references a form element whose visibility depends on the
-   * element itself.
-   * @returns {string}
+   * Returns an error when the stored visibility condition is invalid.
+   *
+   * @param {Object} applicationContext The selected element context.
+   * @returns {string|null} The visibility-tab error, if any.
    */
   getErrorMessage(applicationContext) {
     const { element } = applicationContext
-    if (
-      element &&
-      hasInvalidVisibilityCondition(
-        this.app.$store,
-        applicationContext,
-        element
-      )
-    ) {
-      return this.app.$i18n.t('pageSidePanelType.visibilityTabInError')
-    }
-    return super.getErrorMessage(applicationContext)
+    const elementType = element && this.app.$registry.get('element', element.type)
+    return elementType?.getVisibilityErrorMessage(element, applicationContext)
+      ? this.app.$i18n.t('pageSidePanelType.visibilityTabInError')
+      : super.getErrorMessage(applicationContext)
   }
 }
 

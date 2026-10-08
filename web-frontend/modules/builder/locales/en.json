@@ -218,7 +218,7 @@
     "events": "Events",
     "eventsTabDeactivatedNoEvents": "This element doesn't support any events",
     "eventsTabInError": "One or more actions are misconfigured.",
-    "visibilityTabInError": "The visibility condition is invalid: it uses an unreachable form field."
+    "visibilityTabInError": "The visibility condition contains an invalid formula."
   },
   "emptySidePanelState": {
     "message": "Click on one of the elements to see more details"

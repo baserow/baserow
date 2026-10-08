@@ -19,9 +19,6 @@ export default {
         ...this.applicationContext,
         element: this.element,
         page: this.elementPage,
-        // Lets the form data provider hide the form elements which this
-        // element's visibility condition can't reference.
-        isVisibilityCondition: true,
       },
     }
   },

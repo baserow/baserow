@@ -1,5 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { hasInvalidVisibilityCondition } from '@baserow/modules/builder/utils/visibilityCondition'
+import { isFormulaValid } from '@baserow/modules/core/formula'
+import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
+import { DATA_PROVIDERS_ALLOWED_ELEMENTS } from '@baserow/modules/builder/enums'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
 import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement'
@@ -381,6 +383,30 @@ export class ElementType extends Registerable {
   }
 
   /**
+   * Returns the visibility-condition error, if the formula is invalid in the
+   * current element scope.
+   */
+  getVisibilityErrorMessage(element, applicationContext) {
+    const visibilityCondition = element.visibility_condition
+    const functions = new RuntimeFunctionCollection(this.app.$registry)
+    const dataProviderRegistry = DATA_PROVIDERS_ALLOWED_ELEMENTS.map((type) =>
+      this.app.$registry.get('builderDataProvider', type)
+    )
+    if (
+      visibilityCondition?.mode !== 'raw' &&
+      !isFormulaValid(
+        visibilityCondition?.formula || '',
+        functions,
+        false,
+        { dataProviderRegistry, applicationContext }
+      ).valid
+    ) {
+      return this.app.$i18n.t('elementType.errorInvalidVisibilityCondition')
+    }
+    return null
+  }
+
+  /**
    * Returns the reason why the element configuration is invalid.
    * @param {object} param An object containing the workspace, page, element, and builder
    * @returns A string that represent the current error.
@@ -399,14 +425,12 @@ export class ElementType extends Registerable {
       return this.app.$i18n.t('elementType.errorWorkflowActionInError')
     }
 
-    if (
-      hasInvalidVisibilityCondition(
-        this.app.$store,
-        applicationContext,
-        element
-      )
-    ) {
-      return this.app.$i18n.t('elementType.errorInvalidVisibilityCondition')
+    const visibilityError = this.getVisibilityErrorMessage(
+      element,
+      applicationContext
+    )
+    if (visibilityError) {
+      return visibilityError
     }
 
     return null

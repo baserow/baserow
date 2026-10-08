@@ -442,7 +442,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     }
 
     // Ask the provider to validate this path.
-    if (!provider.isValid(rest)) {
+    if (!provider.isValid(rest, validationContext.applicationContext)) {
       throw new InvalidFormulaArgument(
         this.getType(),
         $i18n.t('runtimeGetErrors.invalidProviderPath', { providerName, path })

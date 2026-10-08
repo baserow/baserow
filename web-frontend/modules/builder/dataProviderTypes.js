@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import { getVisibilityCycleElementIds } from '@baserow/modules/builder/utils/visibilityCondition'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
@@ -651,6 +650,23 @@ export class CurrentRecordDataProviderType extends DataProviderType {
 }
 
 export class FormDataProviderType extends DataProviderType {
+  /**
+   * Validates that a form input is available to the formula's element.
+   * Fields inside the element whose formula is being evaluated are unavailable
+   * until that element is visible.
+   */
+  isValid(pathParts, applicationContext) {
+    if (!applicationContext?.element) {
+      return super.isValid(pathParts)
+    }
+
+    const [elementId] = pathParts
+    return this.formElementsInNamespacePath(
+      applicationContext,
+      applicationContext.element
+    ).some((element) => String(element.id) === elementId)
+  }
+
   static getType() {
     return 'form_data'
   }
@@ -732,6 +748,12 @@ export class FormDataProviderType extends DataProviderType {
       ).join('.')
 
     const elements = this.app.$store.getters['element/getElementsOrdered'](page)
+    const unavailableElementIds = new Set([
+      targetElement.id,
+      ...this.app.$store
+        .getters['element/getDescendants'](page, targetElement)
+        .map(({ id }) => id),
+    ])
     return elements.filter((element) => {
       const elementType = this.app.$registry.get('element', element.type)
       if (!elementType.isFormElement) {
@@ -743,7 +765,10 @@ export class FormDataProviderType extends DataProviderType {
           element
         ).join('.')
 
-      return targetNamespacePath.startsWith(elementNamespacePath)
+      return (
+        targetNamespacePath.startsWith(elementNamespacePath) &&
+        !unavailableElementIds.has(element.id)
+      )
     })
   }
 
@@ -777,23 +802,10 @@ export class FormDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const { page, element: targetElement } = applicationContext
-    let accessibleFormElements = this.formElementsInNamespacePath(
+    const accessibleFormElements = this.formElementsInNamespacePath(
       applicationContext,
       targetElement
     )
-    if (applicationContext.isVisibilityCondition && targetElement) {
-      // A visibility condition can't reference a form element whose visibility
-      // depends on the element, e.g. a container referencing a field inside it.
-      const excludedElementIds = getVisibilityCycleElementIds(
-        this.app.$store,
-        applicationContext,
-        targetElement,
-        accessibleFormElements.map(({ id }) => id)
-      )
-      accessibleFormElements = accessibleFormElements.filter(
-        ({ id }) => !excludedElementIds.has(id)
-      )
-    }
     return {
       type: 'object',
       properties: Object.fromEntries(
