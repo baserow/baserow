@@ -1022,7 +1022,7 @@ def atomic_with_retry_on_deadlock(
                         )
                         raise DeadlockException() from exc
                     time.sleep(backoff)
-                    logger.debug("Retrying transaction after deadlock")
+                    logger.debug(f"Retrying transaction after {exc!r}")
                     backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
                 retries += 1
 

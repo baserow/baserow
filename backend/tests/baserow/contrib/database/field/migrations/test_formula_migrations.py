@@ -16,7 +16,10 @@ from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula import FormulaHandler
-from baserow.contrib.database.formula.migrations.handler import FormulaMigrationHandler
+from baserow.contrib.database.formula.migrations.handler import (
+    MAX_BATCH_RETRIES,
+    FormulaMigrationHandler,
+)
 from baserow.contrib.database.formula.migrations.migrations import (
     ALL_FORMULAS,
     BASEROW_FORMULA_VERSION,
@@ -1222,27 +1225,40 @@ def _cells(table, field):
     ]
 
 
+TRANSIENT_ERRORS = [
+    errors.DeadlockDetected,
+    errors.LockNotAvailable,
+    errors.QueryCanceled,
+    errors.SerializationFailure,
+]
+
+
+def _transient_error(error_class):
+    error = OperationalError(error_class.__name__)
+    error.__cause__ = error_class(error_class.__name__)
+    return error
+
+
 @pytest.mark.django_db
-def test_migration_retries_a_batch_after_a_transient_error(data_fixture):
+@pytest.mark.parametrize("error_class", TRANSIENT_ERRORS)
+def test_migration_retries_a_batch_after_a_transient_error(data_fixture, error_class):
     table = data_fixture.create_database_table()
     data_fixture.create_rows_in_table(table, [[]])
     formula = data_fixture.create_formula_field(
         table=table, formula="'a'", calculate_cell_values=False
     )
     FormulaField.objects.update(version=1)
-    deadlock = OperationalError("deadlock detected")
-    deadlock.__cause__ = errors.DeadlockDetected("deadlock detected")
 
     recalculate = FormulaHandler.recalculate_formula_and_get_update_expression
     calls = []
 
-    def deadlock_once(*args, **kwargs):
+    def fail_once(*args, **kwargs):
         calls.append(args)
         if len(calls) == 1:
-            raise deadlock
+            raise _transient_error(error_class)
         return recalculate(*args, **kwargs)
 
-    _migrate_with_a_failing_cell_update(side_effect=deadlock_once)
+    _migrate_with_a_failing_cell_update(side_effect=fail_once)
 
     formula.refresh_from_db()
     assert len(calls) == 2
@@ -1252,15 +1268,27 @@ def test_migration_retries_a_batch_after_a_transient_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_migration_raises_when_a_transient_error_keeps_failing(data_fixture):
+@pytest.mark.parametrize(
+    "error_class,expected_exception",
+    [
+        (errors.DeadlockDetected, DeadlockException),
+        (errors.LockNotAvailable, OperationalError),
+        (errors.QueryCanceled, OperationalError),
+        (errors.SerializationFailure, OperationalError),
+    ],
+)
+def test_migration_raises_when_a_transient_error_keeps_failing(
+    data_fixture, error_class, expected_exception
+):
     table = data_fixture.create_database_table()
     formula = data_fixture.create_formula_field(table=table, formula="'a'")
     FormulaField.objects.update(version=1)
-    deadlock = OperationalError("deadlock detected")
-    deadlock.__cause__ = errors.DeadlockDetected("deadlock detected")
+    recalculate = Mock(side_effect=_transient_error(error_class))
 
-    with pytest.raises(DeadlockException):
-        _migrate_with_a_failing_cell_update(side_effect=deadlock)
+    with pytest.raises(expected_exception):
+        _migrate_with_a_failing_cell_update(side_effect=recalculate)
+
+    assert recalculate.call_count == MAX_BATCH_RETRIES + 1
 
     formula.refresh_from_db()
     assert formula.formula_type == "text"
@@ -1474,3 +1502,47 @@ def test_migration_continues_when_updating_the_views_of_a_formula_fails(
     failing.refresh_from_db()
     assert failing.formula_type == "invalid"
     assert failing.version == 2
+
+
+@pytest.mark.django_db
+def test_migration_reports_a_failure_to_empty_the_cells_of_an_invalid_formula(
+    data_fixture,
+):
+    table = data_fixture.create_database_table()
+    data_fixture.create_rows_in_table(table, [[]])
+    failing = data_fixture.create_formula_field(table=table, formula="'a'")
+    FormulaField.objects.update(version=1)
+    error = ValueError("recreate failed")
+
+    with (
+        patch(
+            "baserow.contrib.database.formula.types.typer"
+            ".recreate_formula_field_if_needed",
+            side_effect=error,
+        ),
+        patch(
+            "baserow.contrib.database.formula.migrations.handler.exception_capturer"
+        ) as capturer,
+    ):
+        _migrate_with_a_failing_cell_update(
+            side_effect=lambda *args, **kwargs: RawSQL("(1 / 0)::text", [])
+        )
+
+    failing.refresh_from_db()
+    assert failing.formula_type == "invalid"
+    capturer.assert_any_call(error)
+
+
+@pytest.mark.django_db
+def test_migration_skips_when_only_trashed_formulas_are_out_of_date(data_fixture):
+    table = data_fixture.create_database_table()
+    formula = data_fixture.create_formula_field(table=table, formula="'a'")
+    FormulaField.objects_and_trash.filter(id=formula.id).update(trashed=True, version=1)
+
+    with patch(
+        "baserow.contrib.database.formula.migrations.handler.FormulaMigrationHandler"
+        "._migrate_batch_with_retries"
+    ) as migrate_batch:
+        FormulaMigrationHandler.migrate_formulas(FORMULA_MIGRATIONS)
+
+    migrate_batch.assert_not_called()

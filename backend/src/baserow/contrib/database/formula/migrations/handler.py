@@ -147,6 +147,7 @@ def _empty_cell_values(field: "Field", old_field: "Field"):
     except Exception as e:
         if is_transient_error(e):
             raise
+        exception_capturer(e)
         logger.warning(
             f"Failed to empty the cells of the invalid formula {field.name} with id "
             f"{field.id}. The error was caused by: "
@@ -260,12 +261,15 @@ class FormulaMigrationHandler:
         from baserow.contrib.database.fields.models import FormulaField
 
         latest_version = migrations.get_latest_version()
+        total_out_of_date_formulas = FormulaField.objects.filter(
+            ~Q(version=latest_version)
+        ).count()
+        if total_out_of_date_formulas == 0:
+            return
+
         out_of_date_formula_ids = FormulaField.objects_and_trash.filter(
             ~Q(version=latest_version)
         )
-        total_out_of_date_formulas = out_of_date_formula_ids.count()
-        if total_out_of_date_formulas == 0:
-            return
 
         oldest_version_in_db_currently = FormulaField.objects.aggregate(
             min=Min("version")
