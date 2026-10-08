@@ -4,6 +4,7 @@ import { Database } from "../../fixtures/database/database";
 import { Table } from "../../fixtures/database/table";
 import { User } from "../../fixtures/user";
 import { View } from "../../fixtures/database/view";
+import { openTableAs } from "./tableNavigation";
 
 /**
  * Page object for the Baserow grid view.
@@ -40,33 +41,7 @@ export class GridPage {
   // -- Navigation --------------------------------------------------------------
 
   async goTo(database: Database, table: Table, view?: View): Promise<void> {
-    const url = new URL(
-      `/database/${database.id}/table/${table.id}${view ? `/${view.id}` : ""}`,
-      this.baseUrl,
-    );
-    url.searchParams.set("token", this.user.refreshToken);
-
-    await this.page.context().addCookies([
-      {
-        name: `${baserowConfig.BASEROW_FRONTEND_COOKIE_PREFIX}jwt_token`,
-        value: this.user.refreshToken,
-        url: this.baseUrl,
-      },
-    ]);
-    await this.page.goto(url.toString(), { waitUntil: "domcontentloaded" });
-    // Wait until Nuxt finishes hydrating. Falls back gracefully if the dev
-    // server CSP blocks the function evaluation.
-    await this.page
-      .waitForFunction(
-        () =>
-          typeof (window as any).useNuxtApp === "function" &&
-          !(window as any).useNuxtApp().isHydrating,
-        { timeout: 15_000 },
-      )
-      .catch(() => {
-        // CSP may block the evaluation on the dev server; the grid visibility
-        // assertion below provides sufficient confirmation of hydration.
-      });
+    await openTableAs(this.page, this.user, database, table, view);
     const grid = this.page.locator(".grid-view__right");
     try {
       await expect(grid).toBeVisible({ timeout: 25_000 });
@@ -701,6 +676,24 @@ export class GridPage {
     });
   }
 
+  async selectRowModalSingleSelectOption(
+    fieldName: string,
+    option: string,
+  ): Promise<void> {
+    await this.rowEditModal()
+      .locator(".row-modal__field-item", { hasText: fieldName })
+      .first()
+      .locator(".select-options__dropdown-selected")
+      .click();
+    const optionItem = this.page
+      .locator(".select-options__dropdown-item:not(.hidden)", {
+        hasText: this.exactTextRegex(option),
+      })
+      .first();
+    await expect(optionItem).toBeVisible({ timeout: 10_000 });
+    await optionItem.locator(".select-options__dropdown-link").click();
+  }
+
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
@@ -1070,6 +1063,15 @@ export class GridPage {
       ).length;
       expect(matches).toBe(count);
     }).toPass({ timeout: 10_000 });
+  }
+
+  /** Assert the row count in the footer, which comes from the view's count, not the buffer. */
+  async expectFooterRowCount(count: number): Promise<void> {
+    const label =
+      count === 0 ? "No rows" : count === 1 ? "1 row" : `${count} rows`;
+    await expect(
+      this.page.locator(".grid-view__left .grid-view__foot-info"),
+    ).toHaveText(this.exactTextRegex(label), { timeout: 10_000 });
   }
 
   /** Assert the bottom footer shows an aggregation value, e.g. "Sum35". */

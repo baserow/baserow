@@ -302,6 +302,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     SET_CREATING(state, value) {
       state.creating = value
     },
+    SET_ROW_HIDDEN_BY_BACKEND(state, row) {
+      row._.hiddenByBackend = true
+    },
   }
 
   const actions = {
@@ -719,6 +722,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       const hiddenRowIds = reportHiddenRows(data, {
         dispatch,
         i18n: $i18n,
+        tableId: table.id,
         created: true,
       })
       if (hiddenRowIds.has(createdRow.id)) {
@@ -813,6 +817,10 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         // will never be updated concurrency, and so that the value won't be
         // updated if the row hasn't been created yet.
         await updateRowQueue.add(async () => {
+          // The backend hid the row while this edit waited in the queue.
+          if (row._?.hiddenByBackend) {
+            return
+          }
           const updateRowsData = [
             Object.assign({ id: row.id }, updateRequestValues),
           ]
@@ -837,8 +845,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           const hiddenRowIds = reportHiddenRows(data, {
             dispatch,
             i18n: $i18n,
+            tableId: table.id,
             created: false,
           })
+          if (hiddenRowIds.has(row.id)) {
+            commit('SET_ROW_HIDDEN_BY_BACKEND', row)
+          }
 
           for (const updatedRowData of updatedRows) {
             const rowToUpdate = getters.getRow(updatedRowData.id)

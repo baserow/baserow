@@ -1366,6 +1366,9 @@ export const mutations = {
   SET_ROW_LOADING(state, { row, value }) {
     row._.loading = value
   },
+  SET_ROW_HIDDEN_BY_BACKEND(state, row) {
+    row._.hiddenByBackend = true
+  },
   SET_ROW_SEARCH_MATCHES(state, { row, matchSearch, fieldSearchMatches }) {
     row._.fieldSearchMatches.slice(0).forEach((value) => {
       if (!fieldSearchMatches.has(value)) {
@@ -4618,6 +4621,7 @@ export const actions = {
         const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
+          tableId: table.id,
           created: true,
         })
         for (let i = 0; i < data.items.length; i += 1) {
@@ -4629,7 +4633,7 @@ export const actions = {
                 view,
                 fields,
                 row,
-                ignoreSearch: true,
+                hiddenByBackend: true,
               })
             }
             continue
@@ -4735,17 +4739,28 @@ export const actions = {
     { dispatch, getters },
     { view, table, fields, values }
   ) {
-    const { $client, $registry } = this
-    const { data } = await RowService($client).create(
+    const { $client, $registry, $i18n } = this
+    const { data } = await RowService($client).batchCreate(
       table.id,
-      prepareRowForRequest(values, fields, $registry),
+      [prepareRowForRequest(values, fields, $registry)],
+      null,
       null,
       view.id
     )
+    const [createdRow] = data.items
+    const hiddenRowIds = reportHiddenRows(data, {
+      dispatch,
+      i18n: $i18n,
+      tableId: table.id,
+      created: true,
+    })
+    if (hiddenRowIds.has(createdRow.id)) {
+      return
+    }
     await dispatch('createdNewRow', {
       view,
       fields,
-      values: data,
+      values: createdRow,
       metadata: {},
     })
     dispatch('fetchByScrollTopDelayed', {
@@ -4984,6 +4999,7 @@ export const actions = {
         const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
+          tableId: table.id,
           created: false,
         })
         if (hiddenRowIds.has(row.id)) {
@@ -4993,7 +5009,7 @@ export const actions = {
               view: grid,
               fields,
               row,
-              ignoreSearch: true,
+              hiddenByBackend: true,
             })
           }
           dispatch('fetchByScrollTopDelayed', {
@@ -5121,6 +5137,10 @@ export const actions = {
     }
 
     const taskId = taskQueue.add(async () => {
+      // The backend hid the row while this edit waited in the queue.
+      if (row._?.hiddenByBackend) {
+        return
+      }
       // A create queued ahead of this task (queue keyed by persistentId) may have
       // finalized the row's temporary id into its persisted one. The value objects
       // captured the id at call time, so re-stamp them; otherwise the PATCH hits the
@@ -5280,8 +5300,13 @@ export const actions = {
         const hiddenRowIds = reportHiddenRows(batchResponse.data, {
           dispatch,
           i18n: $i18n,
+          tableId: table.id,
           created: false,
         })
+        // Covers a row edited outside the buffer, e.g. opened from a link.
+        if (hiddenRowIds.has(row.id)) {
+          commit('SET_ROW_HIDDEN_BY_BACKEND', row)
+        }
 
         for (const updatedRowData of updatedRows) {
           // Extract only the read-only values because we don't want to update the other
@@ -5293,24 +5318,24 @@ export const actions = {
             $registry
           )
 
-          // The backend may update rows that are not in the current buffer.
-          // In that case, the row will be `undefined`, and we don't need to
-          // update it.
           const existing = getters.getRow(rowData.id)
-          if (existing === undefined) {
-            continue
-          }
-          if (hiddenRowIds.has(existing.id)) {
+          if (hiddenRowIds.has(rowData.id)) {
             await dispatch('deletedExistingRow', {
               view,
               fields,
-              row: existing,
-              ignoreSearch: true,
+              row: existing ?? updatedRowData,
+              hiddenByBackend: true,
             })
             await dispatch('fetchByScrollTopDelayed', {
               scrollTop: getters.getScrollTop,
               fields,
             })
+            continue
+          }
+          // The backend may update rows that are not in the current buffer.
+          // In that case, the row will be `undefined`, and we don't need to
+          // update it.
+          if (existing === undefined) {
             continue
           }
           // Update the remaining values like formula, which depend on the backend.
@@ -5602,6 +5627,16 @@ export const actions = {
     )
     await taskQueue.waitAll()
 
+    // The backend hid some of the rows while the paste waited in the queue.
+    const isEditable = (_, index) => !rowsInOrder[index]._?.hiddenByBackend
+    const editableTextData = textData
+      .slice(0, rowsInOrder.length)
+      .filter(isEditable)
+    const editableJsonData = jsonData
+      ? jsonData.slice(0, rowsInOrder.length).filter(isEditable)
+      : null
+    rowsInOrder = rowsInOrder.filter((row) => !row._?.hiddenByBackend)
+
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
     const oldRowsInOrder = clone(rowsInOrder)
@@ -5609,8 +5644,8 @@ export const actions = {
     // Prepare the values for update and update the row objects. The resulting list
     // of objects will be send to the backend.
     const valuesForUpdate = populateRows({
-      tsvData: textData.slice(0, rowsInOrder.length),
-      jsonData: jsonData ? jsonData.slice(0, rowsInOrder.length) : null,
+      tsvData: editableTextData,
+      jsonData: editableJsonData,
       fieldsInOrder,
       registry: $registry,
       fromRows: rowsInOrder,
@@ -5620,16 +5655,20 @@ export const actions = {
     // because we're showing a loading animation to the user indicating that the
     // rows are being updated.
     const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
-    const { data: responseData } = await RowService($client).batchUpdate(
-      table.id,
-      valuesForUpdate,
-      undoRedoActionGroupId,
-      getters.getLastGridId
-    )
+    const { data: responseData } =
+      valuesForUpdate.length > 0
+        ? await RowService($client).batchUpdate(
+            table.id,
+            valuesForUpdate,
+            undoRedoActionGroupId,
+            getters.getLastGridId
+          )
+        : { data: { items: [] } }
     const updatedRows = responseData.items
     const hiddenRowIds = reportHiddenRows(responseData, {
       dispatch,
       i18n: $i18n,
+      tableId: table.id,
       created: false,
     })
     // Create extra missing rows
@@ -5660,7 +5699,7 @@ export const actions = {
           view,
           fields: allFieldsInTable,
           row,
-          ignoreSearch: true,
+          hiddenByBackend: true,
         })
         continue
       }
@@ -6212,16 +6251,86 @@ export const actions = {
    */
   async deletedExistingRow(
     { commit, getters, dispatch, state },
-    { view, fields, row, spinGroupAggregations = false, ignoreSearch = false }
+    {
+      view,
+      fields,
+      row,
+      spinGroupAggregations = false,
+      hiddenByBackend = false,
+    }
   ) {
     const { $registry } = this
+    const rowInBuffer = hiddenByBackend ? getters.getRow(row.id) : undefined
+    if (rowInBuffer !== undefined) {
+      commit('SET_ROW_HIDDEN_BY_BACKEND', rowInBuffer)
+    }
     row = clone(row)
     populateRow(row)
+
+    const remove = (rowId) => {
+      if (getters.isGroupByMode) {
+        const groupByFields = getGroupByFieldsFromActiveGroupBys(
+          getters.getActiveGroupBys,
+          fields
+        )
+        const treePath = getGroupByRowTreePath(
+          state,
+          row,
+          groupByFields,
+          $registry
+        )
+        // Spin the deleted row's group so its banner doesn't recompute from the
+        // decremented count. Only for user deletes: realtime deletes have no
+        // refresh that would clear the paths.
+        if (spinGroupAggregations) {
+          markGroupAggregationPathsLoading({ commit, getters }, [
+            { path: treePath, fields: groupByFields },
+          ])
+        }
+        commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
+          path: treePath,
+          fields: groupByFields,
+          delta: -1,
+          registry: $registry,
+        })
+      }
+
+      // In group-by mode a loaded row can be outside `getAllRows`, e.g. in a
+      // collapsed group, so find it by its location instead.
+      const allRows = getters.getAllRows
+      const isLoaded = getters.isGroupByMode
+        ? state.groupBy.rowLocations[rowId] !== undefined
+        : allRows.some((r) => r.id === rowId)
+      if (isLoaded) {
+        commit('DELETE_ROW_IN_BUFFER', row)
+        dispatch('correctMultiSelect')
+        return
+      }
+      const position = computeRowInsertPosition(
+        row,
+        allRows,
+        view.sortings,
+        fields,
+        $registry,
+        view.group_bys
+      )
+      if (position.isFirst) {
+        commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
+      }
+      commit('SET_COUNT', getters.getCount - 1)
+      dispatch('correctMultiSelect')
+    }
+
+    // Sync, so the closing row modal's refresh can't remove it a second time.
+    if (rowInBuffer !== undefined) {
+      remove(row.id)
+      return
+    }
 
     // The lifecycle helper only evaluates filters/sortings, so the search match
     // is still gated here against the active search term.
     await dispatch('updateSearchMatchesForRow', { row, fields })
-    if (!row._.matchSearch && !ignoreSearch) {
+    if (!row._.matchSearch && !hiddenByBackend) {
       return
     }
 
@@ -6233,59 +6342,7 @@ export const actions = {
         groupBys: view.group_bys,
       }),
       mutations: {
-        remove: (rowId) => {
-          if (getters.isGroupByMode) {
-            const groupByFields = getGroupByFieldsFromActiveGroupBys(
-              getters.getActiveGroupBys,
-              fields
-            )
-            const treePath = getGroupByRowTreePath(
-              state,
-              row,
-              groupByFields,
-              $registry
-            )
-            // Spin the deleted row's group so its banner doesn't recompute from the
-            // decremented count. Only for user deletes: realtime deletes have no
-            // refresh that would clear the paths.
-            if (spinGroupAggregations) {
-              markGroupAggregationPathsLoading({ commit, getters }, [
-                { path: treePath, fields: groupByFields },
-              ])
-            }
-            commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-              path: treePath,
-              fields: groupByFields,
-              delta: -1,
-              registry: $registry,
-            })
-          }
-
-          // In group-by mode a loaded row can be outside `getAllRows`, e.g. in a
-          // collapsed group, so find it by its location instead.
-          const allRows = getters.getAllRows
-          const isLoaded = getters.isGroupByMode
-            ? state.groupBy.rowLocations[rowId] !== undefined
-            : allRows.some((r) => r.id === rowId)
-          if (isLoaded) {
-            commit('DELETE_ROW_IN_BUFFER', row)
-            dispatch('correctMultiSelect')
-            return
-          }
-          const position = computeRowInsertPosition(
-            row,
-            allRows,
-            view.sortings,
-            fields,
-            $registry,
-            view.group_bys
-          )
-          if (position.isFirst) {
-            commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
-          }
-          commit('SET_COUNT', getters.getCount - 1)
-          dispatch('correctMultiSelect')
-        },
+        remove,
         rowsForMatchCheck: () => getters.getAllRows,
       },
       row,

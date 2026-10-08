@@ -171,3 +171,72 @@ export function failRows(
 ): Promise<{ failed: Promise<void> }> {
   return failNextRequest(page, rowsUrlPattern(tableId), { method });
 }
+
+export interface HeldResponse {
+  /** Resolves once the server answered, so the change is committed. */
+  committed: Promise<void>;
+  /** Hands the held response to the page. */
+  release: () => void;
+}
+
+/** Lets the NEXT matching request reach the server but holds its response until released. */
+export async function holdNextResponse(
+  page: Page,
+  urlPattern: string,
+  options: RouteOptions = {},
+): Promise<HeldResponse> {
+  let release!: () => void;
+  let markCommitted!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const committed = new Promise<void>((resolve) => {
+    markCommitted = resolve;
+  });
+  let taken = false;
+  const handler = async (route: Route) => {
+    if (
+      taken ||
+      (options.method && route.request().method() !== options.method)
+    ) {
+      await route.continue();
+      return;
+    }
+    taken = true;
+    const response = await route.fetch();
+    markCommitted();
+    await gate;
+    await route.fulfill({ response });
+    await page.unroute(urlPattern, handler);
+  };
+  await page.route(urlPattern, handler);
+  return { committed, release };
+}
+
+export function holdRowsResponse(
+  page: Page,
+  tableId: number,
+  method: RowRequestMethod,
+): Promise<HeldResponse> {
+  return holdNextResponse(page, rowsUrlPattern(tableId), { method });
+}
+
+/** Resolves when the server confirms the page's realtime subscription; call before navigating. */
+export function realtimePageSubscribed(
+  page: Page,
+  pageType: string,
+): Promise<void> {
+  return new Promise((resolve) => {
+    page.on("websocket", (socket) => {
+      socket.on("framereceived", ({ payload }) => {
+        if (typeof payload !== "string" || !payload.includes("page_add")) {
+          return;
+        }
+        const message = JSON.parse(payload);
+        if (message.type === "page_add" && message.page === pageType) {
+          resolve();
+        }
+      });
+    });
+  });
+}

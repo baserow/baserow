@@ -602,11 +602,11 @@ describe('GridView component', () => {
 
     test('creates the row with the view id and reports success to the modal', async () => {
       const { wrapper, table, view, store, mockServer } = await mountGrid()
-      mockServer.mock.onPost(`/database/rows/table/${table.id}/`).reply(200, {
-        id: 1,
-        order: '1.00000000000000000000',
-        field_1: 'Alice',
-      })
+      mockServer.mock
+        .onPost(`/database/rows/table/${table.id}/batch/`)
+        .reply(200, {
+          items: [{ id: 1, order: '1.00000000000000000000', field_1: 'Alice' }],
+        })
       const callback = vi.fn()
 
       wrapper
@@ -615,7 +615,10 @@ describe('GridView component', () => {
       await flushPromises()
 
       expect(callback).toHaveBeenCalledWith()
-      expect(mockServer.mock.history.post[0].params).toEqual({ view: view.id })
+      expect(mockServer.mock.history.post[0].params).toEqual({
+        view: view.id,
+        include_metadata: true,
+      })
       expect(
         store.getters['page/view/grid/getAllRows'].map((row) => row.id)
       ).toEqual([1])
@@ -623,7 +626,9 @@ describe('GridView component', () => {
 
     test('passes the backend error to the modal', async () => {
       const { wrapper, table, mockServer } = await mountGrid()
-      mockServer.mock.onPost(`/database/rows/table/${table.id}/`).reply(500)
+      mockServer.mock
+        .onPost(`/database/rows/table/${table.id}/batch/`)
+        .reply(500)
       const callback = vi.fn()
 
       wrapper

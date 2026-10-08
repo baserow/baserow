@@ -1,6 +1,8 @@
 import calendarStore from '@baserow_premium/store/view/calendar'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import moment from '@baserow/modules/core/moment'
+import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 
 const fields = [
   {
@@ -1445,13 +1447,25 @@ describe('Calendar view store', () => {
     })
 
     describe('updateRowValue', () => {
-      test('removes the row hidden by the backend', async () => {
+      test('removes the row hidden by the backend and closes its row modal', async () => {
         const dateStacks = {}
         dateStacks['2023-01-01'] = {
           count: 2,
           results: [
-            { id: 10, order: '10.00', field_1: 'keep', field_2: '2023-01-01' },
-            { id: 11, order: '11.00', field_1: 'keep', field_2: '2023-01-01' },
+            {
+              id: 10,
+              order: '10.00',
+              field_1: 'keep',
+              field_2: '2023-01-01',
+              _: {},
+            },
+            {
+              id: 11,
+              order: '11.00',
+              field_1: 'keep',
+              field_2: '2023-01-01',
+              _: {},
+            },
           ],
         }
         const state = Object.assign(calendarStore.state(), {
@@ -1469,6 +1483,7 @@ describe('Calendar view store', () => {
             hidden_row_ids: [10],
           },
         })
+        const dispatchSpy = vi.spyOn(store, 'dispatch')
 
         await store.dispatch('calendar/updateRowValue', {
           view,
@@ -1480,6 +1495,82 @@ describe('Calendar view store', () => {
           oldValue: 'keep',
         })
 
+        const stack = store.state.calendar.dateStacks['2023-01-01']
+        expect(stack.count).toBe(1)
+        expect(stack.results.map((row) => row.id)).toEqual([11])
+        expect(dispatchSpy).toHaveBeenCalledWith(
+          'rowModal/rowsHiddenByBackend',
+          { tableId: 1, rowIds: [10] }
+        )
+      })
+
+      test('does not send an edit queued behind the edit that hid the row', async () => {
+        const dateStacks = {}
+        dateStacks['2023-01-01'] = {
+          count: 2,
+          results: [10, 11].map((id) => ({
+            id,
+            order: `${id}.00`,
+            field_1: 'keep',
+            field_2: '2023-01-01',
+            _: {},
+          })),
+        }
+        const state = Object.assign(calendarStore.state(), {
+          lastCalendarId: 1,
+          dateFieldId: 2,
+          dateStacks,
+        })
+        store.replaceState({ ...store.state, calendar: state })
+        let releaseFirstEdit = null
+        testApp.mock
+          .onPatch('/database/rows/table/1/batch/')
+          .replyOnce(
+            () =>
+              new Promise((resolve) => {
+                releaseFirstEdit = () =>
+                  resolve([
+                    200,
+                    {
+                      items: [
+                        {
+                          id: 10,
+                          order: '10.00',
+                          field_1: 'drop',
+                          field_2: '2023-01-01',
+                        },
+                      ],
+                      metadata: {
+                        updated_field_ids: [1],
+                        hidden_row_ids: [10],
+                      },
+                    },
+                  ])
+              })
+          )
+          .onPatch('/database/rows/table/1/batch/')
+          .reply(401, { error: 'ERROR_PERMISSION_DENIED' })
+        const row = store.state.calendar.dateStacks['2023-01-01'].results[0]
+        const edit = (value, oldValue) =>
+          store.dispatch('calendar/updateRowValue', {
+            view,
+            table: { id: 1 },
+            row,
+            field: fields[0],
+            fields,
+            value,
+            oldValue,
+          })
+
+        const firstEdit = edit('drop', 'keep')
+        await flushPromises()
+        const secondEdit = edit('again', 'drop')
+        await flushPromises()
+        releaseFirstEdit()
+        await firstEdit
+        await secondEdit
+
+        expect(testApp.mock.history.patch).toHaveLength(1)
         const stack = store.state.calendar.dateStacks['2023-01-01']
         expect(stack.count).toBe(1)
         expect(stack.results.map((row) => row.id)).toEqual([11])
