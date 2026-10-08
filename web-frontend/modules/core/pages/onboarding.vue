@@ -145,10 +145,6 @@ export default {
     useHead({
       title: t('onboarding.title'),
     })
-
-    definePageMeta({
-      middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
-    })
   },
   data() {
     return {
@@ -458,4 +454,10 @@ export default {
     },
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
+})
 </script>

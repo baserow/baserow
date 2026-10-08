@@ -9,14 +9,15 @@ import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersA
 export default {
   components: { UsersAdminTable },
   setup() {
-    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
-    // `layout` and `middleware` component options.
-    definePageMeta({
-      layout: 'app',
-      middleware: 'staff',
-    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('adminUsers.title') })
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
 </script>
