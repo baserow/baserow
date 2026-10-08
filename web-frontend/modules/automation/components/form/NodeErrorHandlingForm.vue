@@ -52,7 +52,8 @@
         class="margin-bottom-2"
       >
         <InjectedFormulaInput
-          :model-value="values.retry_condition"
+          :model-value="retryConditionValue"
+          :enabled-modes="RETRY_CONDITION_FORMULA_MODES"
           :placeholder="$t('nodeErrorHandlingForm.conditionPlaceholder')"
           :disabled="readOnly"
           @update:model-value="update({ retry_condition: $event })"
@@ -173,6 +174,19 @@ const retryEnabled = computed(() => values.on_failure === NODE_ON_FAILURE.RETRY)
 const anyRetryReason = computed(
   () => values.retry_on_failure || values.retry_on_condition
 )
+
+// Simple mode turns typed text into a string literal, and any non-empty string
+// counts as true, so a simple-mode condition would retry every attempt. The
+// condition is therefore edited in advanced mode only. The stored formula
+// string does not depend on the mode, so every stored value renders correctly,
+// and the next edit saves the mode as advanced. The mode has to be forced here:
+// the API returns `simple` for an empty condition.
+const RETRY_CONDITION_FORMULA_MODES = ['advanced']
+
+const retryConditionValue = computed(() => ({
+  ...values.retry_condition,
+  mode: 'advanced',
+}))
 
 const onFailureSegments = computed(() => [
   {
