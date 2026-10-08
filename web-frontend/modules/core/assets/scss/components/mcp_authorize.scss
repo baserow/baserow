@@ -99,9 +99,20 @@
 .mcp-authorize__links {
   font-size: 12px;
   color: $palette-neutral-1000;
+}
 
-  a {
-    cursor: pointer;
+// A button so it is keyboard reachable, styled like the app's text links.
+.mcp-authorize__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $palette-blue-500;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
   }
 }
 

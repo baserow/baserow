@@ -230,6 +230,15 @@ describe('MCP authorize page', () => {
     expect(badge('create_rows').exists()).toBe(false)
   })
 
+  test('none and select all are keyboard reachable buttons', async () => {
+    const { wrapper } = await mountWithConsent()
+    for (const key of ['select-all', 'select-none']) {
+      const button = wrapper.find(`[data-test="mcp-authorize-${key}"]`)
+      expect(button.element.tagName).toBe('BUTTON')
+      expect(button.attributes('type')).toBe('button')
+    }
+  })
+
   test('none and select all toggle every tool', async () => {
     const { wrapper } = await mountWithConsent()
     await wrapper

@@ -87,13 +87,23 @@
             $t('mcpAuthorize.tools')
           }}</span>
           <span class="mcp-authorize__links">
-            <a data-test="mcp-authorize-select-all" @click="setAll(true)">{{
-              $t('mcpAuthorize.selectAll')
-            }}</a>
+            <button
+              type="button"
+              class="mcp-authorize__link"
+              data-test="mcp-authorize-select-all"
+              @click="setAll(true)"
+            >
+              {{ $t('mcpAuthorize.selectAll') }}
+            </button>
             <span aria-hidden="true"> · </span>
-            <a data-test="mcp-authorize-select-none" @click="setAll(false)">{{
-              $t('mcpAuthorize.selectNone')
-            }}</a>
+            <button
+              type="button"
+              class="mcp-authorize__link"
+              data-test="mcp-authorize-select-none"
+              @click="setAll(false)"
+            >
+              {{ $t('mcpAuthorize.selectNone') }}
+            </button>
           </span>
         </div>
         <p v-if="!consent.tools.length" class="mcp-authorize__empty">
