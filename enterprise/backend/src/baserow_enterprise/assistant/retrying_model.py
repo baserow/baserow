@@ -125,13 +125,14 @@ _CLOSERS = frozenset(_OPENER_CLOSERS.values())
 
 def _fix_closing_brackets(text: str) -> str:
     """
-    Drop each ``"`` that sits between two closing brackets and, when one was
-    dropped, append the closing brackets that are missing.
+    Drop each ``"`` that sits between two closing brackets and, when the text
+    ends with such a quote and a closing bracket, append the closing bracket
+    that is missing if exactly one is.
 
-    Only characters outside of strings count, so a string keeps its content and
-    the appended brackets close in the order they were opened. Valid JSON never
-    has such a ``"``, so a call cut off at the token limit is not completed
-    unless the text before the cut already had that stray quote.
+    That ending, with one bracket missing, is how gpt-oss ends a call it prints
+    (``}"}``). Any other missing bracket means the call was cut off, so it stays
+    missing and the text does not parse. Only characters outside of strings
+    count, so a string keeps its content.
 
     :param text: JSON text that does not parse.
     :return: The text with the repairs applied.
@@ -139,7 +140,8 @@ def _fix_closing_brackets(text: str) -> str:
 
     kept: list[str] = []
     missing: list[str] = []
-    in_string = escaped = dropped_quote = False
+    in_string = escaped = False
+    last_dropped_quote_index: int | None = None
     for index, char in enumerate(text):
         if in_string:
             if char == '"' and not escaped:
@@ -150,7 +152,7 @@ def _fix_closing_brackets(text: str) -> str:
                 text[index - 1 : index] in _CLOSERS
                 and text[index + 1 : index + 2] in _CLOSERS
             ):
-                dropped_quote = True
+                last_dropped_quote_index = index
                 continue
             in_string = True
         elif char in _OPENER_CLOSERS:
@@ -158,8 +160,9 @@ def _fix_closing_brackets(text: str) -> str:
         elif char in _CLOSERS and missing:
             missing.pop()
         kept.append(char)
-    closers = "".join(reversed(missing)) if dropped_quote else ""
-    return "".join(kept) + closers
+    ends_with_dropped_quote = last_dropped_quote_index == len(text.rstrip()) - 2
+    closer = missing[0] if len(missing) == 1 and ends_with_dropped_quote else ""
+    return "".join(kept) + closer
 
 
 def repair_printed_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
@@ -168,8 +171,8 @@ def repair_printed_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
     ``failed_generation``.
 
     Text that does not parse gets two repairs, and nothing else: a ``"`` between
-    two closing brackets is dropped and, only then, the missing closing brackets
-    are appended.
+    two closing brackets is dropped, and a text that ends with one (``}"}``) and
+    misses exactly one closing bracket gets it appended.
 
     :param text: The printed tool call.
     :return: The tool name and its arguments, or None when the text is not an

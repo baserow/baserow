@@ -2319,6 +2319,11 @@ class TestFinalAnswerValidation:
                 id="cut-after-a-value",
             ),
             pytest.param(
+                '{"name": "update_element", "arguments": {"element": {"element_id": '
+                '1555, "add_table_columns": [{"name": "Editar"}]"}, "page_id": 21',
+                id="cut-in-a-number-after-a-stray-quote",
+            ),
+            pytest.param(
                 '{"name": "delete_element", "arguments": {"element_id": 1555}}',
                 id="unknown-tool",
             ),

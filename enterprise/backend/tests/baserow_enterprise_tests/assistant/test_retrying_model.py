@@ -804,6 +804,11 @@ _REORDER_ARGUMENTS = {
     },
 }
 _WEBSITE_FORMULA = "$formula: the Website field from the Students data source"
+# Completing this cut would save 15 where the model was writing 1500.
+_CUT_IN_A_NUMBER_AFTER_A_STRAY_QUOTE = (
+    '{"name": "update_rows_in_table_12", "arguments": {"rows": '
+    '[{"id": 1, "tags": [3]"}, {"id": 2, "amount": 15'
+)
 
 
 @pytest.mark.parametrize(
@@ -920,6 +925,13 @@ def test_repair_printed_tool_call_recovers_captured_texts(
     assert repair_printed_tool_call(text) == ("update_element", arguments)
 
 
+def test_repair_printed_tool_call_reads_the_ending_before_trailing_whitespace() -> None:
+    assert repair_printed_tool_call(_PRINTED_REORDER + "\n") == (
+        "update_element",
+        _REORDER_ARGUMENTS,
+    )
+
+
 def test_repair_printed_tool_call_keeps_valid_json() -> None:
     text = '{"name": "list_tables", "arguments": {"thought": "Find } and ]"}}'
 
@@ -942,17 +954,24 @@ def test_repair_printed_tool_call_keeps_valid_json() -> None:
             {"page": {"text": 'say "}" now'}},
             id="escaped-quotes-around-a-bracket",
         ),
-        pytest.param(
-            '{"name": "t", "arguments": {"rows": [{"a": {"b": "]"}"}',
-            {"rows": [{"a": {"b": "]"}}]},
-            id="closers-in-the-order-the-brackets-opened",
-        ),
     ],
 )
 def test_repair_printed_tool_call_reads_brackets_outside_strings_only(
     text: str, arguments: dict[str, Any]
 ) -> None:
     assert repair_printed_tool_call(text) == ("t", arguments)
+
+
+def test_repair_printed_tool_call_drops_a_stray_quote_inside_a_complete_call() -> None:
+    text = (
+        '{"name": "t", "arguments": {"rows": [{"tags": [3]"}], '
+        '"thought": "Tag the row."}"}'
+    )
+
+    assert repair_printed_tool_call(text) == (
+        "t",
+        {"rows": [{"tags": [3]}], "thought": "Tag the row."},
+    )
 
 
 @pytest.mark.parametrize(
@@ -992,6 +1011,19 @@ def test_repair_printed_tool_call_returns_none_for_other_text(text: str) -> None
             '{"name": "delete_rows", "arguments": {"thought": "Delete the rows.", '
             '"table_id": 12}',
             id="cut-and-closed-by-groq",
+        ),
+        pytest.param(
+            _CUT_IN_A_NUMBER_AFTER_A_STRAY_QUOTE,
+            id="cut-in-a-number-after-a-stray-quote",
+        ),
+        pytest.param(
+            '{"name": "t", "arguments": {"rows": [{"id": 1, "tags": [3]"}',
+            id="cut-right-after-a-stray-quote",
+        ),
+        pytest.param(
+            '{"name": "delete_rows", "arguments": {"rows": [{"id": 1}"], '
+            '"table_id": 12}',
+            id="cut-and-closed-by-groq-after-a-stray-quote",
         ),
     ],
 )
@@ -1062,16 +1094,29 @@ def test_tool_use_failed_needs_exactly_name_and_arguments_after_a_repair() -> No
     assert (part.tool_name, part.args) == ("list_tables", "{}")
 
 
-def test_tool_use_failed_does_not_complete_a_cut_off_generation() -> None:
-    recovered = _try_recover_tool_use_failed(
-        _make_tool_use_failed_error(
-            '{"name": "delete_rows", "arguments": {"table_id": 12, "row_ids": [1, 2'
-        )
-    )
+@pytest.mark.parametrize(
+    "generation, tool_name",
+    [
+        pytest.param(
+            '{"name": "delete_rows", "arguments": {"table_id": 12, "row_ids": [1, 2',
+            "delete_rows",
+            id="cut-after-a-number",
+        ),
+        pytest.param(
+            _CUT_IN_A_NUMBER_AFTER_A_STRAY_QUOTE,
+            "update_rows_in_table_12",
+            id="cut-in-a-number-after-a-stray-quote",
+        ),
+    ],
+)
+def test_tool_use_failed_does_not_complete_a_cut_off_generation(
+    generation: str, tool_name: str
+) -> None:
+    recovered = _try_recover_tool_use_failed(_make_tool_use_failed_error(generation))
 
     (part,) = recovered.parts
     assert isinstance(part, ToolCallPart)
-    assert (part.tool_name, part.args) == ("delete_rows", "{}")
+    assert (part.tool_name, part.args) == (tool_name, "{}")
 
 
 @pytest.mark.asyncio
@@ -1141,6 +1186,19 @@ async def test_request_turns_a_tool_call_printed_as_text_into_a_tool_call(
                 finish_reason="error",
             ),
             id="cut-off-call",
+        ),
+        pytest.param(
+            ModelResponse(
+                parts=[
+                    TextPart(
+                        '{"name": "update_element", "arguments": {"element": '
+                        '{"element_id": 1555, "add_table_columns": [{"name": '
+                        '"Editar"}]"}, "page_id": 21'
+                    )
+                ],
+                finish_reason="error",
+            ),
+            id="cut-in-a-number-after-a-stray-quote",
         ),
         pytest.param(
             ModelResponse(
