@@ -288,7 +288,7 @@
     "aiForm": {
         "description": "Nakonfigurujte pro toto připojení nastavení poskytovatele AI. Ve výchozím nastavení se dědí nastavení AI pracovního prostoru.",
         "workspaceSettingsTitle": "Nastavení AI pracovního prostoru",
-        "workspaceSettingsDescription": "Toto připojení ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Níže můžete přepsat konkrétní poskytovatele.",
+        "workspaceSettingsDescription": "Tato integrace ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Přepsání poskytovatele je samostatné: uveďte vlastní přihlašovací údaje nebo hostitele, protože připojovací pole se nikdy nekombinují se zděděnými přihlašovacími údaji.",
         "overrideWorkspaceSettings": "Přepsat nastavení pracovního prostoru pro tohoto poskytovatele",
         "inherited": "Zděděno",
         "overridden": "Přepsáno"
@@ -394,7 +394,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "Automatizace",
         "workflow": "Pracovní postup",
-        "workflowHelperText": "Spustit lze pouze publikované pracovní postupy s ručním spouštěčem. Má-li tento pracovní postup nepublikované změny, spustí se poslední publikovaná verze."
+        "workflowHelperText": "Spustit lze pouze publikované pracovní postupy, jejichž spouštěč lze aktivovat na požádání, například ruční nebo pravidelný spouštěč. Má-li tento pracovní postup nepublikované změny, spustí se poslední publikovaná verze."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "ID řádků",
