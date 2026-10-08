@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 
 from django.shortcuts import reverse
-from django.test import override_settings
+from django.test import Client, override_settings
 from django.utils import timezone
 
 import pytest
@@ -132,6 +132,16 @@ def test_registration_defaults_to_a_public_client(client):
 def test_management_endpoint_is_not_offered(client):
     client_id = register(client).json()["client_id"]
     assert client.get(f"/oauth/register/{client_id}/").status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["put", "delete"])
+def test_management_endpoint_is_not_offered_for_writes(method):
+    client = Client(enforce_csrf_checks=True)
+    client_id = register(client).json()["client_id"]
+    response = getattr(client, method)(f"/oauth/register/{client_id}/")
+    assert response.status_code == 404
+    assert response.json() == {"error": "not_found"}
 
 
 @pytest.mark.django_db

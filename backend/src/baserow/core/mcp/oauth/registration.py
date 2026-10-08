@@ -2,7 +2,9 @@ import json
 from urllib.parse import urlparse
 
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from oauth2_provider.views import DynamicClientRegistrationView
 
@@ -86,10 +88,12 @@ class MCPRegistrationView(DynamicClientRegistrationView):
         return JsonResponse(data, status=201)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class RegistrationManagementNotOffered(View):
     """
     Stands in for RFC 7592 management. The library's registration response
-    reverses this route's name, so the name must exist.
+    reverses this route's name, so the name must exist. CSRF exempt so PUT and
+    DELETE get the 404 too.
     """
 
     def dispatch(self, request, *args, **kwargs):
