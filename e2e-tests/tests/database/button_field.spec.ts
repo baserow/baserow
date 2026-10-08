@@ -1811,7 +1811,7 @@ test.describe("Button field", () => {
 
     // Moved after the action it reads, with nothing retyped. The reference was
     // marked rather than cleared, which is what makes this reversible at all
-    // (ADR 006 section 8).
+    // (ADR 006 section 5).
     await dragAction(page, 0, 1);
 
     await expect(list.locator("[data-action-error]")).toHaveCount(0);

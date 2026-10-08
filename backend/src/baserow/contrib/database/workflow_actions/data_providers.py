@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class PreviousActionDataProviderType(DataProviderType):
     """
     Exposes what the earlier actions of a click returned, so a later action can
-    use them (ADR 006 section 4).
+    use them (ADR 006 section 3).
 
     Results live on the dispatch context for the length of one request. The
     builder keys them into the cache because its browser dispatches one action

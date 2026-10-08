@@ -531,7 +531,7 @@ class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
 
 
 class DispatchButtonFieldActionType(ActionType):
-    """A button click, recorded for the audit log. Not undoable (ADR 006 s.8)."""
+    """A button click, recorded for the audit log. Not undoable (ADR 006 s.5)."""
 
     type = "dispatch_button_field"
     description = ActionTypeDescription(

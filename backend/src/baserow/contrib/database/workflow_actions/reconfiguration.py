@@ -182,7 +182,7 @@ def _broken_services_by_action_model() -> dict[
 def action_requires_reconfiguration(action_ref: int | OuterRef) -> Q:
     """
     Whether the workflow action is sure to fail at click time because something
-    it references is in the trash or gone (ADR 006 section 8). A button field
+    it references is in the trash or gone (ADR 006 section 5). A button field
     needs reconfiguring when any of its actions does, so this is the one
     definition of both.
 

@@ -70,7 +70,7 @@ export class FieldsDataProviderType extends DataProviderType {
 /**
  * Mirrors the backend `RowDataProviderType`: the clicked row's values with
  * their real types. Separate from `FieldsDataProviderType`, which stringifies
- * everything, right for a URL and wrong for writing (ADR 006 section 4).
+ * everything, right for a URL and wrong for writing.
  */
 export class RowDataProviderType extends DataProviderType {
   static getType() {

@@ -271,7 +271,7 @@ def test_the_job_reports_the_click_with_its_outcome(
     assert dispatched_clicks[0]["field"] == button_field
     assert dispatched_clicks[0]["row_id"] == row.id
     assert dispatched_clicks[0]["duration_ms"] > 0
-    # `DispatchButtonFieldActionType` is not undoable (ADR 006 section 8), so
+    # `DispatchButtonFieldActionType` is not undoable (ADR 006 section 5), so
     # no `Action` row is written for the click, but `dispatch_button_field`
     # still fires `action_done` for the audit log, as the inline path does.
     assert len(audited_clicks) == 1
@@ -402,7 +402,7 @@ def test_the_job_restores_the_clickers_ip_and_session_for_the_audit_log(
 @pytest.mark.undo_redo
 def test_a_click_run_by_the_job_does_not_enter_the_undo_stack(data_fixture):
     """The job restores the clicker's session id, which must still not let the
-    click's own row changes into their undo stack (ADR 006 section 8)."""
+    click's own row changes into their undo stack (ADR 006 section 5)."""
 
     from baserow.contrib.database.action.scopes import TableActionScopeType
     from baserow.core.action.handler import ActionHandler

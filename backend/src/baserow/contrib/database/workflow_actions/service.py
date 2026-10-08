@@ -144,7 +144,7 @@ class DatabaseWorkflowActionService:
 
     Configuring a button field's actions is configuring the field, so every
     check runs against the parent field rather than against action-specific
-    operations (ADR 006 section 5).
+    operations (ADR 006 section 4).
     """
 
     def __init__(self):
@@ -801,7 +801,7 @@ class DatabaseWorkflowActionService:
         """
 
         # Asked of the field, so it covers every action, frontend-only
-        # included, and a click is refused as a whole (ADR 006 section 7).
+        # included, and a click is refused as a whole (ADR 006 section 4).
         CoreHandler().check_permissions(
             user,
             DispatchDatabaseWorkflowActionOperationType.type,
@@ -950,7 +950,7 @@ class DatabaseWorkflowActionService:
 
             # Remembering a result edits the button's configuration, so it
             # follows the field's update permission rather than the lower bar
-            # for clicking (ADR 006 section 7). Only asked when an action of
+            # for clicking (ADR 006 section 4). Only asked when an action of
             # this button can remember anything, so an ordinary click does not
             # pay for a check nothing reads. Inside the lock's `try`, or a
             # check that raises would leave the lock held until its TTL runs
@@ -969,13 +969,13 @@ class DatabaseWorkflowActionService:
             dispatched = []
 
             # The clicker's own actions must not land in their undo stack
-            # (ADR 006 section 8), while still firing `action_done`.
+            # (ADR 006 section 5), while still firing `action_done`.
             with without_undo_redo_registration(user):
                 for workflow_action in server_actions:
                     if before_action:
                         before_action()
                     # Each action reads the clicked row itself, so it sees what
-                    # the actions before it did to it (ADR 006 section 4).
+                    # the actions before it did to it (ADR 006 section 3).
                     dispatch_context.start_action()
                     is_external = workflow_action.get_type().is_external
                     started = perf_counter()

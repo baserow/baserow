@@ -1986,7 +1986,7 @@ class LocalBaserowUpsertRowServiceType(
             field_mappings = values.get("field_mappings", [])
             # The payload replaces the list. The editor sends mappings on
             # trashed fields back and undo replays them, so a trashed field of
-            # the service's table is accepted (ADR 006 section 8).
+            # the service's table is accepted.
             instance.field_mappings.all().delete()
             field_ids = {m["field_id"] for m in field_mappings if "field_id" in m}
             # Fetched in one query rather than one per mapping, and only from
@@ -2305,7 +2305,7 @@ class LocalBaserowUpsertRowServiceType(
         # Without an integration the service acts as the person in front of the
         # screen, so a mapping left pointing at a trashed field fails the
         # dispatch instead of being dropped, which would write the row without
-        # it (ADR 006 section 8). Raised before anything is written.
+        # it (ADR 006 section 5). Raised before anything is written.
         if len(field_mappings) != len(enabled_field_mappings) and (
             service.integration_id is None
         ):
@@ -2341,7 +2341,7 @@ class LocalBaserowUpsertRowServiceType(
 
         # Without an integration the service acts as the person in front of the
         # screen, so an unwritable field fails the dispatch instead of being
-        # skipped (ADR 006 section 5). Raised before anything is written.
+        # skipped (ADR 006 section 4). Raised before anything is written.
         if has_unwritable_fields and service.integration_id is None:
             # The names are left out: this message reaches the clicker, who may
             # have no access to the target table at all. Roles are not field

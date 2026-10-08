@@ -166,7 +166,7 @@ def test_a_slack_action_refuses_a_bot_the_user_cannot_read(data_fixture):
 
 @pytest.mark.django_db
 def test_a_slack_action_refuses_a_local_baserow_integration(data_fixture):
-    # ADR 006 section 5: a database click never runs as an integration's user.
+    # ADR 006 section 4: a database click never runs as an integration's user.
     user = data_fixture.create_user()
     button_field = _button(data_fixture, user)
     local = data_fixture.create_local_baserow_integration(

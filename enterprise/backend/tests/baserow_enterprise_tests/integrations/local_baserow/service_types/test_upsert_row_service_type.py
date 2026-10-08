@@ -55,7 +55,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_protected_table_fie
 ):
     """The builder's documented behaviour: a field the integration's user cannot
     write is skipped and the rest of the row is written. Nothing about the
-    button field's stricter rule (ADR 006 section 5) may change this."""
+    button field's stricter rule (ADR 006 section 4) may change this."""
 
     builder_user = enterprise_data_fixture.create_user()
     admin_user = enterprise_data_fixture.create_user()
@@ -97,7 +97,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_protected_table_fie
     assert getattr(row, writable_field.db_column) == "Cheese"
     assert getattr(row, protected_field.db_column) is None, (
         "The builder skips the field its integration's user cannot write and "
-        "writes the rest of the row. ADR 006 section 5's stricter rule belongs "
+        "writes the rest of the row. ADR 006 section 4's stricter rule belongs "
         "to the button field's dispatch context and must not reach here."
     )
 
@@ -155,7 +155,7 @@ def test_a_click_writing_only_writable_fields_succeeds(
 def test_a_click_writing_an_unwritable_field_fails(
     enterprise_data_fixture, synced_roles
 ):
-    """ADR 006 section 5: the click fails rather than writing the row without
+    """ADR 006 section 4: the click fails rather than writing the row without
     the field the clicker cannot write."""
 
     admin_user = enterprise_data_fixture.create_user()

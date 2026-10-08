@@ -116,7 +116,7 @@ def test_a_click_by_someone_who_cannot_configure_remembers_nothing(data_fixture)
     action = _http_action(data_fixture, button_field)
 
     def only_clicking(self, actor, operation_name, *args, **kwargs):
-        # Clicking is allowed, configuring the field is not (ADR 006 section 7).
+        # Clicking is allowed, configuring the field is not (ADR 006 section 4).
         if operation_name == UpdateFieldOperationType.type:
             return False
         return True

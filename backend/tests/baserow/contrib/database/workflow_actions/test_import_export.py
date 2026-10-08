@@ -442,7 +442,7 @@ def test_actions_survive_a_snapshot_and_its_restore(data_fixture):
 @pytest.mark.django_db
 def test_duplicate_table_remaps_a_field_mapping_formula(data_fixture):
     """The `field_id` of a mapping is remapped by the service, its `value` is
-    not, so a formula in it needs the import pass of ADR 006 section 6."""
+    not, so a formula in it needs the import pass of ADR 006 section 5."""
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -1225,7 +1225,7 @@ def test_duplicate_table_remaps_the_field_an_email_reads(data_fixture):
     """
     Recipient, subject and body are formulas on the service itself. Left
     pointing at the original table's field, the copy would send whatever the
-    source row holds (ADR 006 section 6).
+    source row holds (ADR 006 section 5).
     """
 
     user = data_fixture.create_user()

@@ -28,7 +28,7 @@ describe('SlackBotIntegrationType', () => {
   test('entering a token says who else will be able to use it', () => {
     // A database's integrations are shared by everyone who can build in it,
     // and the create modal is where that decision gets made. Ownership would
-    // remove the need for this (ADR 006 section 5).
+    // remove the need for this (ADR 006 section 4).
     expect(integrationType().warning).toBe(
       'slackBotIntegrationType.slackBotWarning'
     )

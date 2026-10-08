@@ -290,7 +290,7 @@ class IntegrationHandler:
         integration_type = integration_type_registry.get(serialized_integration["type"])
 
         # The same gate `create_integration` applies, so an import cannot place
-        # what the endpoint would refuse (ADR 006 section 5). Skipped rather
+        # what the endpoint would refuse (ADR 006 section 4). Skipped rather
         # than raised: no export this instance writes can fail it today, but a
         # release that stops registering an action type would turn every
         # snapshot holding its integration into one that cannot be restored.

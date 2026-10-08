@@ -60,7 +60,7 @@ class DatabaseWorkflowAction(WorkflowAction, OrderableMixin):
 class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
     """
     Base for actions backed by a `Service`. Kept separate from
-    `DatabaseWorkflowAction` (ADR 006 section 2) so frontend-only action
+    `DatabaseWorkflowAction` (ADR 006 section 1) so frontend-only action
     types, such as a client-side toast, can be added later without a schema
     migration.
     """
@@ -101,7 +101,7 @@ class OpenUrlWorkflowAction(DatabaseWorkflowAction):
     """
     Opens a URL in the browser. Frontend-only: it is never dispatched server
     side, so it subclasses the base rather than `DatabaseWorkflowServiceAction`
-    and carries no `Service` (ADR 006 section 2).
+    and carries no `Service` (ADR 006 section 1).
     """
 
     url = CoreFormulaModelField(default="", db_default="")

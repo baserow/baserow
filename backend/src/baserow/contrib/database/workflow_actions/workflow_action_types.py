@@ -621,7 +621,7 @@ class DatabaseWorkflowServiceActionType(
         dispatch_context: "DatabaseDispatchContext",
     ) -> DispatchResult:
         service = workflow_action.service.specific
-        # Never as an integration's `authorized_user` (ADR 006 section 5),
+        # Never as an integration's `authorized_user` (ADR 006 section 4),
         # however the service reached this state.
         if service.integration_id is not None and not self._integration_is_usable(
             # From the context: reading it back through the action costs two
@@ -712,7 +712,7 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     model_class = CoreSMTPEmailWorkflowAction
     service_type = CoreSMTPEmailServiceType.type
     # Sent through the installation's own server or an SMTP integration of the
-    # field's database, like the Slack action's bot (ADR 006 section 5).
+    # field's database, like the Slack action's bot (ADR 006 section 4).
     allowed_integration_types = [SMTPIntegrationType.type]
 
     INSTANCE_SMTP_UNAVAILABLE = {

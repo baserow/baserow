@@ -89,7 +89,7 @@ class RowDataProviderType(DataProviderType):
 
     Separate from `HumanReadableFieldsDataProviderType`, which stringifies every
     value. That suits prompt text and client-side URLs, but not writing a
-    number, date or link back into a row (ADR 006 section 4).
+    number, date or link back into a row.
 
     The row is read again when each action starts, so an action sees what the
     actions before it did to it. A sequence that deletes the clicked row fails

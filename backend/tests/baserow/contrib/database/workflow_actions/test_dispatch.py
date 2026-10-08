@@ -583,7 +583,7 @@ def test_a_click_does_not_enter_the_undo_stack(data_fixture):
 
 @pytest.mark.django_db
 def test_every_action_sees_what_the_actions_before_it_did(data_fixture):
-    """ADR 006 section 4: the row provider re-reads per action."""
+    """ADR 006 section 3: the row provider re-reads per action."""
 
     from baserow.contrib.database.workflow_actions.models import (
         LocalBaserowUpdateRowWorkflowAction,
@@ -626,7 +626,7 @@ def test_every_action_sees_what_the_actions_before_it_did(data_fixture):
     created = model.objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "after", (
         "The second action must see the row as the first action left it, not "
-        "as it was at click time (ADR 006 section 4)."
+        "as it was at click time (ADR 006 section 3)."
     )
 
 
@@ -840,13 +840,13 @@ def test_a_multiple_select_is_read_as_fresh_as_the_text_beside_it(data_fixture):
     assert (copied_name, copied_tags) == ("after", [option_b.id]), (
         "The text and the multiple select must be read at the same moment. "
         f"Got name={copied_name!r} and tags={copied_tags!r}: one of them is a "
-        "click-time snapshot and the other is not (ADR 006 section 4)."
+        "click-time snapshot and the other is not."
     )
 
 
 @pytest.mark.django_db
 def test_reading_the_clicked_row_after_it_was_deleted_fails_the_action(data_fixture):
-    """ADR 006 section 4: resolving to nothing would let the action write
+    """Resolving to nothing would let the action write
     blanks, so it fails and the sequence stops instead."""
 
     user = data_fixture.create_user()
@@ -914,7 +914,7 @@ def test_a_password_field_cannot_be_read_into_another_row(data_fixture):
 def test_a_mapping_left_on_a_trashed_field_fails_rather_than_writing_without_it(
     data_fixture,
 ):
-    """ADR 006 section 8: the reference is kept and the button asks to be
+    """ADR 006 section 5: the reference is kept and the button asks to be
     reconfigured. Dropping the mapping would write a row missing the value the
     action was configured to put there."""
 
@@ -1017,7 +1017,7 @@ def test_a_chained_action_never_reads_a_failed_action(data_fixture):
 
 @pytest.mark.django_db
 def test_a_later_action_reads_an_earlier_action_result(data_fixture):
-    """ADR 006 section 4: "create a row, then update another row with the new
+    """ADR 006 section 3: "create a row, then update another row with the new
     id"."""
 
     user = data_fixture.create_user()
