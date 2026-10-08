@@ -1,0 +1,16 @@
+// Shared by the MCP consent page and the connected apps list in the MCP server
+// settings. Lives here because it uses the `rounded` mixin.
+%mcp-client-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  color: $palette-neutral-0;
+  font-size: 18px;
+  font-weight: 700;
+  background-color: $palette-red-700;
+
+  @include rounded($rounded-md);
+}
