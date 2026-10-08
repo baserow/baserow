@@ -1,5 +1,5 @@
 {
-    "type": "bug",
+    "type": "feature",
     "message": "Flags visibility conditions that make a form field depend on its own value",
     "issue_origin": "github",
     "issue_number": null,
