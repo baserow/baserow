@@ -92,6 +92,7 @@ def test_send_smtp_email_basic(data_fixture):
             username="user@example.com",
             password="password123",
             use_tls=True,
+            use_ssl=False,
             timeout=SMTP_EMAIL_TIMEOUT,
         )
         mock_email.assert_called_once_with(
@@ -105,6 +106,39 @@ def test_send_smtp_email_basic(data_fixture):
         )
         assert mock_email.return_value.content_subtype == "plain"
         assert result.data == {"success": True}
+
+
+@pytest.mark.django_db
+def test_send_smtp_email_with_implicit_ssl(data_fixture):
+    smtp_integration = data_fixture.create_smtp_integration(
+        host="smtp.example.com",
+        port=465,
+        use_tls=False,
+        use_ssl=True,
+        username="user@example.com",
+        password="password123",
+    )
+
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp_integration,
+        from_email="'sender@example.com'",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Hello!'",
+    )
+
+    with mock_django_email() as (mock_email, mock_connection):
+        service.get_type().dispatch(service, FakeDispatchContext())
+        mock_connection.assert_called_once_with(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host="smtp.example.com",
+            port=465,
+            username="user@example.com",
+            password="password123",
+            use_tls=False,
+            use_ssl=True,
+            timeout=SMTP_EMAIL_TIMEOUT,
+        )
 
 
 @pytest.mark.django_db
@@ -181,6 +215,7 @@ def test_send_smtp_email_with_integration_ignores_global_celery_email_backend(
             username="user@example.com",
             password="password123",
             use_tls=True,
+            use_ssl=False,
             timeout=SMTP_EMAIL_TIMEOUT,
         )
         mock_email.assert_called_once_with(

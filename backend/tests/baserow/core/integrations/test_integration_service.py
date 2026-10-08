@@ -415,6 +415,19 @@ def test_update_smtp_integration_disabling_tls_without_password_is_rejected(
 
 
 @pytest.mark.django_db
+def test_update_smtp_integration_toggling_ssl_without_password_is_rejected(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_smtp_integration(
+        user=user, use_tls=False, use_ssl=True, password="secret"
+    )
+
+    with pytest.raises(IntegrationCredentialRequired):
+        IntegrationService().update_integration(user, integration, use_ssl=False)
+
+
+@pytest.mark.django_db
 def test_update_smtp_integration_host_with_password_succeeds(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_smtp_integration(

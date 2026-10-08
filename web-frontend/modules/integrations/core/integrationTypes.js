@@ -36,6 +36,7 @@ export class SMTPIntegrationType extends IntegrationType {
       host: '',
       port: 587,
       use_tls: true,
+      use_ssl: false,
       username: '',
     }
   }
