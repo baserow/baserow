@@ -6,7 +6,6 @@ import PageTemplate from '@baserow/modules/builder/components/page/PageTemplate'
 import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTemplateSidebar'
 import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
@@ -201,10 +200,6 @@ export class BuilderApplicationType extends ApplicationType {
     }
 
     return data
-  }
-
-  get developmentStage() {
-    return DEVELOPMENT_STAGES.BETA
   }
 
   isVisible(application) {

@@ -1,0 +1,13 @@
+{
+    "type": "feature",
+    "message": "Application Builder is out of beta",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [
+        "The beta label is gone from the Application Builder module",
+        "Applications built during the beta keep working without changes",
+        "Application Builder is now supported for production use"
+    ],
+    "created_at": "2026-10-07"
+}
