@@ -1,0 +1,174 @@
+// Template browser from before the `user_templates` feature flag. Remove with the
+// flag, together with `components/template/legacy/`.
+
+.templates__header {
+  @include absolute(0, 240px, auto, 0);
+
+  display: flex;
+  align-items: center;
+  height: 72px;
+  border-bottom: solid 1px $color-neutral-200;
+  padding: 0 30px;
+}
+
+.templates__icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 0 0 40px;
+  height: 40px;
+  font-size: 15px;
+  color: $color-neutral-900;
+  border: solid 4px $color-primary-500;
+  border-radius: 100%;
+  margin-right: 24px;
+}
+
+.templates__header-title {
+  font-size: 22px;
+  font-weight: 600;
+
+  small {
+    font-size: 16px;
+    color: $color-neutral-500;
+    font-weight: 400;
+    margin-left: 24px;
+  }
+}
+
+.templates__install {
+  @include flex-align-items(12px);
+
+  margin-left: auto;
+}
+
+.templates__install-workspace {
+  width: 220px;
+}
+
+.templates__sidebar {
+  @include absolute(0, 0, 0, auto);
+
+  width: 240px;
+  background-color: $color-neutral-100;
+  border-left: solid 1px $color-neutral-200;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  overflow-y: auto;
+}
+
+.templates__sidebar-title {
+  padding: 0 18px;
+  margin: 20px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.templates__search {
+  padding: 0 18px;
+  margin: 20px 0;
+}
+
+.templates__categories {
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+
+.templates__category-link {
+  @extend %ellipsis;
+
+  position: relative;
+  display: block;
+  padding: 0 20px 0 40px;
+  line-height: 33px;
+  font-size: 14px;
+  color: $color-neutral-900;
+
+  &:hover {
+    text-decoration: none;
+    color: $color-neutral-700;
+  }
+}
+
+.templates__templates {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  .templates__category--open & {
+    display: block;
+  }
+}
+
+.templates__template:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+.templates__template-link {
+  line-height: 33px;
+  font-size: 13px;
+  padding: 0 20px 0 28px;
+  color: $color-neutral-900;
+
+  @include flex-align-items(4px);
+
+  &:hover {
+    background-color: $color-neutral-200;
+    text-decoration: none;
+  }
+
+  .templates__template--active & {
+    background-color: $color-neutral-200;
+    border-right: solid 3px $color-primary-500;
+  }
+}
+
+.templates__template-link-text {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.templates__template-icon {
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.templates__body--legacy {
+  background-color: $color-neutral-100;
+  border-bottom-left-radius: 6px;
+  overflow: hidden;
+
+  @include absolute(72px, 240px, 0, 0);
+}
+
+.templates__category-link-caret-right {
+  position: absolute;
+  font-size: 14px;
+  color: $color-neutral-500;
+  top: 50%;
+  left: 18px;
+  transform: translateY(-50%);
+}
+
+.templates__category-link-caret-down {
+  display: none !important;
+  position: absolute;
+  font-size: 14px;
+  color: $color-neutral-900;
+  top: 50%;
+  left: 18px;
+  transform: translateY(-50%);
+}
+
+.templates__category--open {
+  .templates__category-link-caret-right {
+    display: none;
+  }
+
+  .templates__category-link-caret-down {
+    display: block !important;
+  }
+}

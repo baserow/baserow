@@ -48,7 +48,7 @@ from baserow.core.models import (
     Settings,
     Template,
     TemplateCategory,
-    TemplateType,
+    TemplateTypes,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
@@ -1461,7 +1461,7 @@ def test_sync_templates_leaves_user_templates_untouched(data_fixture, tmpdir, se
 
     for user_template in [no_file, same_slug]:
         refreshed = Template.objects.get(id=user_template.id)
-        assert refreshed.template_type == TemplateType.USER
+        assert refreshed.template_type == TemplateTypes.USER
         assert refreshed.uuid is None
         assert refreshed.workspace_id == user_template.workspace_id
         assert refreshed.workspace.application_set.count() == 0
@@ -1501,6 +1501,30 @@ def test_sync_templates_corrects_official_uuids(data_fixture, tmpdir, settings):
     wrong_uuid.refresh_from_db()
     assert without_uuid.uuid == official_template_uuid("example-template-2")
     assert wrong_uuid.uuid == official_template_uuid("example-template")
+
+
+@pytest.mark.django_db
+def test_sync_templates_with_duplicated_slug_updates_oldest_template(
+    data_fixture, tmpdir, settings
+):
+    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    # Slugs aren't unique. Like the uuid backfill, the oldest row owns the uuid, even
+    # when a newer duplicate comes first in the default name ordering.
+    oldest = data_fixture.create_template(
+        slug="example-template",
+        name="Z",
+        uuid=official_template_uuid("example-template"),
+    )
+    newer = data_fixture.create_template(slug="example-template", name="A")
+
+    CoreHandler().sync_templates(storage=storage)
+
+    oldest.refresh_from_db()
+    newer.refresh_from_db()
+    assert oldest.uuid == official_template_uuid("example-template")
+    assert newer.uuid is None
 
 
 @pytest.mark.django_db

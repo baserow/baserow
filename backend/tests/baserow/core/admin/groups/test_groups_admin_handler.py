@@ -61,3 +61,16 @@ def test_cant_delete_template_workspace(send_mock, data_fixture):
 
     send_mock.assert_not_called()
     assert Workspace.objects.all().count() == 1
+
+
+@pytest.mark.django_db
+@patch("baserow.core.signals.workspace_deleted.send")
+def test_cant_delete_user_template_workspace(send_mock, data_fixture):
+    staff_user = data_fixture.create_user(is_staff=True)
+    template = data_fixture.create_user_template()
+
+    with pytest.raises(CannotDeleteATemplateGroupError):
+        WorkspacesAdminHandler().delete_workspace(staff_user, template.workspace)
+
+    send_mock.assert_not_called()
+    assert Workspace.objects.filter(id=template.workspace_id).exists()

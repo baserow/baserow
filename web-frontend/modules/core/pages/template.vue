@@ -1,60 +1,25 @@
 <template>
-  <div v-if="data">
-    <TemplateDetails
-      v-if="selectedTemplate"
-      :key="selectedTemplate.id"
-      :template="selectedTemplate"
-      :categories="selectedTemplateCategories"
-      show-back
-      class="templates__body"
-      @back="selectedTemplate = null"
-    />
-    <TemplateList
-      v-show="!selectedTemplate"
-      :categories="data.categories"
-      class="templates__body"
-      @selected="selectedTemplate = $event"
-    />
-  </div>
-  <div v-else>error</div>
+  <TemplatePage v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)" />
+  <LegacyTemplatePage v-else />
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-
-import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
-import TemplateList from '@baserow/modules/core/components/template/TemplateList'
-import TemplateService from '@baserow/modules/core/services/template'
+// TODO: render only `TemplatePage` once the `user_templates` feature flag is removed.
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
+import LegacyTemplatePage from '@baserow/modules/core/components/template/legacy/LegacyTemplatePage'
+import workspacesAndApplications from '@baserow/modules/core/middleware/workspacesAndApplications'
 
 // Loads the workspaces of a logged in user, so that they can choose where to
-// install the template.
+// install the template. The legacy page can't install, so it skips it.
+// TODO: use `middleware: ['workspacesAndApplications']` once the flag is removed.
 definePageMeta({
-  middleware: ['workspacesAndApplications'],
+  middleware: [
+    (to, from) => {
+      if (useNuxtApp().$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
+        return workspacesAndApplications(to, from)
+      }
+    },
+  ],
 })
-
-const route = useRoute()
-const { $client } = useNuxtApp()
-
-const slug = route.params.slug
-
-const { data } = await useAsyncData(`template-${slug}`, async () => {
-  try {
-    const [{ data: template }, { data: categories }] = await Promise.all([
-      TemplateService($client).fetch(slug),
-      TemplateService($client).fetchAll(),
-    ])
-    return { template, categories }
-  } catch {
-    return null
-  }
-})
-
-// The linked template is shown first. Going back opens the list of all templates.
-const selectedTemplate = ref(data.value?.template ?? null)
-
-const selectedTemplateCategories = computed(() =>
-  data.value.categories.filter((category) =>
-    category.templates.some((t) => t.id === selectedTemplate.value.id)
-  )
-)
 </script>

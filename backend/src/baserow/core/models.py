@@ -319,7 +319,17 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     @lru_cache
     def has_template(self):
-        return len(self.template_set.all()) > 0
+        """
+        Whether this workspace holds an official template. Their content is public,
+        so this grants anonymous read access to the workspace. User templates and
+        templates marked for deletion don't count.
+        """
+
+        return any(
+            template.template_type == TemplateTypes.OFFICIAL
+            and template.marked_for_deletion_at is None
+            for template in self.template_set.all()
+        )
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -523,7 +533,7 @@ def official_template_uuid(slug: str) -> uuid.UUID:
     return uuid.uuid5(OFFICIAL_TEMPLATE_UUID_NAMESPACE, slug)
 
 
-class TemplateType(models.TextChoices):
+class TemplateTypes(models.TextChoices):
     OFFICIAL = "official", "Official"
     USER = "user", "User"
 
@@ -545,10 +555,10 @@ TEMPLATE_STATE_BEFORE_BLOCK_CHOICES = [
 
 class TemplateQuerySet(models.QuerySet):
     def official(self):
-        return self.filter(template_type=TemplateType.OFFICIAL)
+        return self.filter(template_type=TemplateTypes.OFFICIAL)
 
     def user_templates(self):
-        return self.filter(template_type=TemplateType.USER)
+        return self.filter(template_type=TemplateTypes.USER)
 
 
 class DefaultTemplateManager(models.Manager.from_queryset(TemplateQuerySet)):
@@ -600,9 +610,9 @@ class Template(models.Model):
     )
     template_type = models.CharField(
         max_length=16,
-        choices=TemplateType.choices,
-        default=TemplateType.OFFICIAL,
-        db_default=TemplateType.OFFICIAL,
+        choices=TemplateTypes.choices,
+        default=TemplateTypes.OFFICIAL,
+        db_default=TemplateTypes.OFFICIAL,
         help_text="Official templates are synced from the repository, user templates "
         "are created by users. Set on create, never changed.",
     )
@@ -690,7 +700,8 @@ class Template(models.Model):
         ordering = ("name",)
         constraints = [
             models.CheckConstraint(
-                condition=~Q(template_type=TemplateType.USER) | Q(author__isnull=False),
+                condition=~Q(template_type=TemplateTypes.USER)
+                | Q(author__isnull=False),
                 name="template_user_type_requires_author",
             )
         ]

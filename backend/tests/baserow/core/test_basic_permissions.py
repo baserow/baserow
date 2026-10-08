@@ -4,6 +4,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.db import connection
 from django.db.models import Q, QuerySet
 from django.test.utils import CaptureQueriesContext, override_settings
+from django.utils import timezone
 
 import pytest
 
@@ -21,11 +22,12 @@ from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
     UpdateIntegrationOperationType,
 )
-from baserow.core.models import Agent
+from baserow.core.models import Agent, Workspace
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
     ListWorkspacesOperationType,
+    ReadWorkspaceOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceOperationType,
@@ -38,6 +40,7 @@ from baserow.core.permission_manager import (
     WorkspaceMemberOnlyPermissionManagerType,
 )
 from baserow.core.registries import (
+    WORKSPACE_FILTER_ALLOW_ALL,
     ObjectScopeType,
     OperationType,
     object_scope_type_registry,
@@ -1446,3 +1449,33 @@ def test_allow_if_template_permissions_object_lists_official_templates_only(
     )
 
     assert permissions["workspace_template_ids"] == [official.workspace_id]
+
+
+@pytest.mark.django_db
+def test_allow_if_template_grants_official_templates_only(data_fixture):
+    official = data_fixture.create_template()
+    user_template = data_fixture.create_user_template(listing_state="public")
+    marked = data_fixture.create_template(marked_for_deletion_at=timezone.now())
+    plain_workspace = data_fixture.create_workspace()
+    manager = AllowIfTemplatePermissionManagerType()
+    operation = ReadWorkspaceOperationType.type
+
+    def granted(workspace):
+        workspace.has_template.cache_clear()
+        check = PermissionCheck(AnonymousUser(), operation, workspace)
+        return manager.check_multiple_permissions([check], workspace).get(check)
+
+    assert granted(official.workspace) is True
+    assert granted(user_template.workspace) is None
+    assert granted(marked.workspace) is None
+    assert granted(plain_workspace) is None
+
+    workspaces = [
+        official.workspace,
+        user_template.workspace,
+        marked.workspace,
+        plain_workspace,
+    ]
+    assert manager.filter_queryset_for_workspaces(
+        AnonymousUser(), operation, Workspace.objects.none(), workspaces
+    ) == {official.workspace_id: WORKSPACE_FILTER_ALLOW_ALL}

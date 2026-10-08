@@ -86,7 +86,7 @@
 
 <script>
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
-import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
+import TemplateModal from '@baserow/modules/core/components/template/legacy/TemplateModalSwitch'
 
 export default {
   name: 'SidebarAllWorkspacesMenu',

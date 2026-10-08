@@ -61,7 +61,7 @@ from .models import (
     Settings,
     Template,
     TemplateCategory,
-    TemplateType,
+    TemplateTypes,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
@@ -2255,7 +2255,7 @@ class CoreHandler:
             "export_hash": export_hash,
             "keywords": keywords,
             "workspace": workspace,
-            "template_type": TemplateType.OFFICIAL,
+            "template_type": TemplateTypes.OFFICIAL,
             # Written on every sync, so rows created without a uuid self-heal.
             "uuid": official_template_uuid(slug),
         }

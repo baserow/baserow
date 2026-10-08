@@ -19,7 +19,8 @@ class WorkspacesAdminHandler:
         if not user.is_staff:
             raise IsNotAdminError()
 
-        if workspace.has_template():
+        # Any template, not only the official ones `has_template` checks.
+        if workspace.template_set.exists():
             raise CannotDeleteATemplateGroupError()
 
         # Load the workspace users before the workspace is deleted so that we can

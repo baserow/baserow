@@ -212,6 +212,25 @@ def test_list_rows(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_rows_of_user_template_is_not_public(api_client, data_fixture):
+    owner = data_fixture.create_user()
+    _, other_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=owner)
+    grid = data_fixture.create_grid_view(table=table)
+    workspace = table.database.workspace
+    data_fixture.create_user_template(author=owner, workspace=workspace)
+    workspace.has_template.cache_clear()
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+
+    response = api_client.get(url)
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
 def test_list_rows_with_group_by(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
