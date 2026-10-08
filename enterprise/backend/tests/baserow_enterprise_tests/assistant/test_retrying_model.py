@@ -1173,7 +1173,7 @@ async def test_request_turns_a_tool_call_printed_as_text_into_a_tool_call(
     [
         pytest.param(
             ModelResponse(
-                parts=[TextPart('{"name": "delete_element", "arguments": {"id": 1}')],
+                parts=[TextPart('{"name": "delete_element", "arguments": {"id": 1}}')],
                 finish_reason="error",
             ),
             id="unknown-tool",
