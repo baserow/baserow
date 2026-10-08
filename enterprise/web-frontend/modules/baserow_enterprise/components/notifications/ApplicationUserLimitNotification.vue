@@ -5,23 +5,7 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t
-        v-if="limitReached"
-        keypath="applicationUserLimitNotification.titleReached"
-        tag="span"
-      >
-        <template #workspaceName>
-          <strong>{{ notification.data.workspace_name }}</strong>
-        </template>
-        <template #limit>
-          <strong>{{ notification.data.limit }}</strong>
-        </template>
-      </i18n-t>
-      <i18n-t
-        v-else
-        keypath="applicationUserLimitNotification.titleWarning"
-        tag="span"
-      >
+      <i18n-t :keypath="titleKeypath" tag="span">
         <template #workspaceName>
           <strong>{{ notification.data.workspace_name }}</strong>
         </template>
@@ -45,6 +29,20 @@ export default {
   computed: {
     limitReached() {
       return this.notification.data.threshold >= 100
+    },
+    /**
+     * An instance wide limit (from a license) is reached by the instance as a
+     * whole, possibly because of another workspace, so the wording says so instead
+     * of blaming the notified workspace. A per workspace limit (a subscription
+     * quota) is the workspace's own.
+     */
+    instanceWide() {
+      return Boolean(this.notification.data.instance_wide)
+    },
+    titleKeypath() {
+      const scope = this.instanceWide ? 'Instance' : ''
+      const level = this.limitReached ? 'titleReached' : 'titleWarning'
+      return `applicationUserLimitNotification.${level}${scope}`
     },
   },
 }

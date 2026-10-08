@@ -199,7 +199,9 @@
   },
   "applicationUserLimitNotification": {
     "titleWarning": "{workspaceName} has used {usage} of the {limit} available application users.",
-    "titleReached": "{workspaceName} has reached the application user limit of {limit}. Once it goes over, no one can sign in to its published apps until you upgrade."
+    "titleReached": "{workspaceName} has reached the application user limit of {limit}. Once it goes over, no one can sign in to its published apps until you upgrade.",
+    "titleWarningInstance": "This instance has used {usage} of the {limit} available application users. The limit is shared by all workspaces, including {workspaceName}.",
+    "titleReachedInstance": "This instance has reached the application user limit of {limit}. Once it goes over, no one can sign in to the published apps of any workspace, including {workspaceName}, until the license is upgraded."
   },
   "auditLog": {
     "adminTitle": "Audit log",

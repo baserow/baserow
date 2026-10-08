@@ -102,6 +102,41 @@ def test_get_application_user_usage_and_limit_sums_all_active_licenses(
     )
 
 
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_get_application_user_usage_and_limit_for_workspaces_resolves_every_workspace(
+    mock_aggregate_user_source_counts, premium_data_fixture
+):
+    mock_aggregate_user_source_counts.return_value = 7
+    workspace_a = premium_data_fixture.create_workspace()
+    workspace_b = premium_data_fixture.create_workspace()
+    _reset_license_table()
+    premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
+    )
+
+    # The self-hosted usage and limit don't depend on the workspace, so the bulk
+    # resolution is the per workspace one for every given workspace.
+    plugin = LicensePlugin()
+    assert plugin.get_application_user_usage_and_limit_for_workspaces(
+        [workspace_a, workspace_b]
+    ) == {
+        workspace_a.id: (7, 10),
+        workspace_b.id: (7, 10),
+    }
+    assert plugin.get_application_user_usage_and_limit_for_workspaces([]) == {}
+
+
+def test_the_self_hosted_application_user_limit_is_instance_wide():
+    # The self-hosted limit comes from the licenses and applies to the instance as
+    # a whole. A per workspace quota plugin overrides this.
+    assert LicensePlugin().is_application_user_limit_instance_wide() is True
+
+
 VALID_ENTERPRISE_15_SEAT_15_APP_USER_LICENSE = (
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImVhMDk4NTIxLTJiMTAtNGYxNC04MzJmLWFlMzI5N2I0OGM4ZiIsI"
     b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
