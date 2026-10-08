@@ -36,7 +36,9 @@
         "replayGuidedTour": "Znovu spustit průvodce",
         "allWorkspaces": "Všechny pracovní prostory",
         "backToHome": "Zpět na domovskou stránku",
-        "templates": "Šablony"
+        "templates": "Šablony",
+        "recents": "Nedávné",
+        "recentlyViewed": "Naposledy zobrazené"
     },
     "accountForm": {
         "nameLabel": "Vaše jméno",
@@ -148,7 +150,8 @@
         "title": "Šablony"
     },
     "templateHeader": {
-        "use": "Použít tuto šablonu"
+        "use": "Použít tuto šablonu",
+        "selectWorkspace": "Zvolit pracovní prostor"
     },
     "trashSidebar": {
         "title": "",
@@ -231,7 +234,8 @@
         "backDashboard": "Zpět na nástěnku",
         "backLogin": "Zpět k přihlášení",
         "wrong": "Něco se pokazilo",
-        "refresh": "Obnovit stránku"
+        "refresh": "Obnovit stránku",
+        "pageNotFoundTitle": "Stránka nenalezena"
     },
     "dashboard": {
         "title": "Nástěnka",
@@ -263,7 +267,9 @@
         "noWorkspaceDescription": "Začněte vytvořením nového pracovního prostoru",
         "starOnGitHub": "Označte nás hvězdičkou na GitHubu",
         "academy": "Akademie Baserow",
-        "academyMessage": "Absolvujte kurzy a staňte se odborníky"
+        "academyMessage": "Absolvujte kurzy a staňte se odborníky",
+        "templates": "Šablony",
+        "templatesMessage": "Začněte s hotovým řešením"
     },
     "login": {
         "title": "Vítejte zpět",
@@ -620,7 +626,9 @@
     "integrationCreateEditModal": {
         "createTitle": "Nová integrace",
         "editTitle": "Upravit integraci",
-        "warningTitle": "Upozornění"
+        "warningTitle": "Upozornění",
+        "credentialRequiredTitle": "Vyžadovány přihlašovací údaje",
+        "credentialRequiredMessage": "Chcete-li změnit, kam se tato integrace připojuje, zadejte přihlašovací údaje znovu."
     },
     "integrationEditForm": {
         "name": "Název",
@@ -662,7 +670,9 @@
         "errorInvalidFormula": "Vzorec není platný.",
         "advancedFormulaMode": "Rozšířený režim vzorce",
         "invalidFormulaTitle": "Neplatný vzorec",
-        "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi."
+        "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi.",
+        "useFormulaMode": "Použít režim vzorce",
+        "useRawMode": "Použít režim raw"
     },
     "userPasswordChangedToast": {
         "title": "Heslo změněno",
@@ -672,7 +682,8 @@
         "addIntegration": "Přidat novou integraci",
         "noIntegrations": "Nebyly nalezeny žádné integrace.",
         "selectTypeFirst": "Nejprve zvolte typ",
-        "integrationPlaceholder": "Vyberte integraci"
+        "integrationPlaceholder": "Vyberte integraci",
+        "editIntegration": "Upravit integraci"
     },
     "dataExplorer": {
         "noMatchingNodesText": "Nebyly nalezeny žádné odpovídající výsledky.",
@@ -752,7 +763,31 @@
         "groqApiKeyDescription": "Zadejte klíč API služby Groq. [Vytvořte nebo zobrazte klíč API](https://console.groq.com/keys).",
         "groqModelsLabel": "Povolené modely",
         "groqModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Groq](https://console.groq.com/docs/models), které lze použít v Baserow. Například: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
-        "groqModelIdentifierDescription": "Zadejte [identifikátor modelu Groq](https://console.groq.com/docs/models). Například: `openai/gpt-oss-120b` nebo `openai/gpt-oss-20b`."
+        "groqModelIdentifierDescription": "Zadejte [identifikátor modelu Groq](https://console.groq.com/docs/models). Například: `openai/gpt-oss-120b` nebo `openai/gpt-oss-20b`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "Klíč API nebo tajný přístupový klíč",
+        "bedrockSecretDescription": "Zadejte [klíč API Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) nebo tajný přístupový klíč příslušející k ID přístupového klíče.",
+        "bedrockChangeSecret": "Změnit klíč API nebo tajný přístupový klíč",
+        "bedrockSecretUpdateHint": "Zadejte nový klíč API nebo tajný přístupový klíč. Při každém přidání nebo odebrání ID přístupového klíče jej zadejte znovu.",
+        "bedrockAccessKeyIdLabel": "ID přístupového klíče",
+        "bedrockAccessKeyIdDescription": "[ID přístupového klíče IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html), které patří k tajnému přístupovému klíči. Chcete-li použít klíč API Bedrock, nechte jej prázdné.",
+        "bedrockRegionLabel": "Oblast",
+        "bedrockRegionDescription": "Oblast AWS, ve které se volá Bedrock, například `eu-central-1`.",
+        "bedrockModelsLabel": "Povolené modely",
+        "bedrockModelsDescription": "Zadejte čárkami oddělený seznam [ID profilů inference Bedrock nebo modelů](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), které lze použít v Baserow. Například: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+        "bedrockModelIdentifierDescription": "Zadejte [ID profilu inference Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), například `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Novější modely odmítají ID svého základního modelu.",
+        "xai": "xAI",
+        "xaiApiKeyLabel": "Klíč API",
+        "xaiApiKeyDescription": "Zadejte klíč API služby xAI. [Vytvořte nebo zobrazte klíč API](https://console.x.ai).",
+        "xaiModelsLabel": "Povolené modely",
+        "xaiModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů xAI](https://docs.x.ai/developers/models), které lze použít v Baserow. Například: `grok-4.3,grok-4.20-non-reasoning`.",
+        "xaiModelIdentifierDescription": "Zadejte [identifikátor modelu xAI](https://docs.x.ai/developers/models). Například: `grok-4.3` nebo `grok-4.20-non-reasoning`.",
+        "zai": "Z.ai",
+        "zaiApiKeyLabel": "Klíč API",
+        "zaiApiKeyDescription": "Zadejte klíč API služby Z.ai. [Vytvořte nebo zobrazte klíč API](https://z.ai/manage-apikey/apikey-list).",
+        "zaiModelsLabel": "Povolené modely",
+        "zaiModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Z.ai](https://docs.z.ai/guides/overview/pricing), které lze použít v Baserow. Například: `glm-5.2,glm-4.6v`.",
+        "zaiModelIdentifierDescription": "Zadejte [identifikátor modelu Z.ai](https://docs.z.ai/guides/overview/pricing). Například: `glm-5.2` nebo `glm-4.6v`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Nastavení generativní AI",
@@ -1105,7 +1140,12 @@
         "methodsOptionLabel": "Povolené metody HTTP",
         "methodsOptionDescription": "Určuje, které metody HTTP jsou pro tento webhook povolené. Vyloučení metody GET snižuje pravděpodobnost nechtěného spuštění webhooku.",
         "methodsOptionAll": "Všechny",
-        "methodsOptionExcludeGet": "Vyloučit GET"
+        "methodsOptionExcludeGet": "Vyloučit GET",
+        "responseOptionsLabel": "Odpověď",
+        "waitForResponse": "Čekat na odpověď pracovního postupu",
+        "waitForResponseDescription": "Čeká se, dokud nebude dosažen uzel Odpověď. Pokud nebude dosažen žádný, čeká se na dokončení pracovního postupu a vrátí se výchozí odpověď.",
+        "responseTimeout": "Časový limit odpovědi",
+        "seconds": "sekundy"
     },
     "twoFactorAuthSettings": {
         "title": "Dvoufaktorové ověřování",
@@ -1179,7 +1219,8 @@
     },
     "nodeHelpTooltip": {
         "exampleLabel": "Příklad",
-        "result": "Výsledek: {result}"
+        "result": "Výsledek: {result}",
+        "clickToInsert": "Kliknutím na příklad jej vložíte"
     },
     "twoFactorAuthField": {
         "enabled": "Povoleno",
@@ -1373,7 +1414,9 @@
         "modelUsageUnknown": "Baserow nemohl ověřit, co tento model stále používá.",
         "modelUsageFeature": "{feature} ({count})",
         "modelIdentifierRenamedTitle": "Přejmenovat {name}?",
-        "modelIdentifierRenamedDescription": "Nadále budou ukazovat na starý identifikátor a přestanou fungovat, dokud nebudou přesměrovány."
+        "modelIdentifierRenamedDescription": "Nadále budou ukazovat na starý identifikátor a přestanou fungovat, dokud nebudou přesměrovány.",
+        "extraField_region": "Oblast",
+        "extraField_access_key_id": "ID přístupového klíče"
     },
     "groupedMenu": {
         "core": "Základní",
@@ -1433,5 +1476,84 @@
         "noFilterMatchesDescription": "Zkuste vybrat jiné pracovní prostory nebo typy položek.",
         "clearFilters": "Vymazat filtry",
         "goToWorkspaces": "Přejít do pracovních prostorů"
+    },
+    "trashType": {
+        "integration": "integrace",
+        "user_source": "zdroj uživatele"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Obrázek nelze vložit",
+        "errorUnsupportedImageMessage": "{name} není podporovaný obrázek a nebyl přidán."
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Odpověď",
+        "waitForResponse": "Čekat na odpověď pracovního postupu",
+        "waitForResponseDescription": "Čeká se, dokud nebude dosažen uzel Odpověď. Pokud nebude dosažen žádný, čeká se na dokončení pracovního postupu a vrátí se výchozí odpověď.",
+        "responseTimeout": "Časový limit odpovědi",
+        "seconds": "sekundy"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Stavový kód",
+        "statusCode200": "200 - OK",
+        "statusCode201": "201 - Vytvořeno",
+        "statusCode202": "202 - Přijato",
+        "statusCode204": "204 - Bez obsahu",
+        "statusCode400": "400 - Chybný požadavek",
+        "statusCode401": "401 - Neautorizováno",
+        "statusCode403": "403 - Zakázáno",
+        "statusCode404": "404 - Nenalezeno",
+        "statusCode405": "405 - Metoda není povolena",
+        "statusCode409": "409 - Konflikt",
+        "statusCode422": "422 - Nezpracovatelný obsah",
+        "statusCode429": "429 - Příliš mnoho požadavků",
+        "bodyType": "Typ těla",
+        "bodyTypeEmpty": "Prázdné",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Text",
+        "body": "Tělo",
+        "bodyPlaceholder": "Tělo odpovědi",
+        "headers": "Hlavičky",
+        "name": "Název",
+        "value": "Hodnota",
+        "namePlaceholder": "Název hlavičky",
+        "valuePlaceholder": "Hodnota hlavičky",
+        "addHeader": "Přidat hlavičku",
+        "nameFieldRequired": "Název hlavičky je povinný.",
+        "nameFieldInvalid": "Názvy hlaviček mohou obsahovat pouze písmena, číslice, pomlčky a podtržítka a nesmějí začínat pomlčkou ani podtržítkem."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "E-mailová adresa",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Publikováno",
+        "copyAddress": "Kopírovat e-mailovou adresu",
+        "description": "Každý e-mail odeslaný na tuto adresu spustí pracovní postup s údaji o odesílateli, předmětu, těle a přílohách e-mailu jako datovou částí.",
+        "limits": "Přijímány jsou e-maily do {size} MB a textové i HTML tělo se předává každé až do 1 MB. Přílohy se neukládají: datová část obsahuje pouze jejich název, typ a velikost.",
+        "autoForwardTip": "Tip: tuto adresu můžete také přidat jako pravidlo automatického přeposílání do své doručené pošty, aby se pracovní postup spustil vždy, když obdržíte e-mail.",
+        "secretWarning": "S touto adresou zacházejte jako s tajemstvím: každý, kdo ji zná, může tento pracovní postup spustit.",
+        "regenerate": "Regenerovat adresu",
+        "infoDescription": "Po odeslání e-mailu může jeho doručení v závislosti na poskytovateli trvat až několik minut."
+    },
+    "subjectType": {
+        "user": "Uživatel",
+        "users": "Uživatelé",
+        "agent": "Agent",
+        "agents": "Agenti"
+    },
+    "agents": {
+        "saved": "Změny uloženy",
+        "tabTitle": "Agenti",
+        "title": "{count} agentů v {workspace}",
+        "create": "Vytvořit agenta",
+        "createTitle": "Vytvořit agenta",
+        "updateTitle": "Upravit agenta",
+        "save": "Uložit agenta",
+        "edit": "Upravit agenta",
+        "delete": "Odstranit agenta",
+        "general": "Obecné",
+        "mcpServerPlaceholder": "Nastavení serveru MCP zde bude k dispozici.",
+        "name": "Název",
+        "invalidNameTitle": "Název agenta není povolen",
+        "lastActive": "Naposledy aktivní",
+        "workspaceRole": "Role v pracovním prostoru"
     }
 }
