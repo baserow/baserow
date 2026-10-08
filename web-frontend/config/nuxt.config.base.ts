@@ -81,6 +81,16 @@ export default defineNuxtConfig({
       redirectOn: 'root',
     },
   },
+  routeRules: {
+    // The MCP consent page grants a client access, so it must not be framed
+    // (clickjacking). Other pages keep their headers, forms and views are embeddable.
+    '/mcp-authorize': {
+      headers: {
+        'Content-Security-Policy': "frame-ancestors 'none'",
+        'X-Frame-Options': 'DENY',
+      },
+    },
+  },
   nitro: {
     externals: {
       external: ['vuejs3-datepicker'],
