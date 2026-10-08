@@ -50,9 +50,10 @@ row changes trigger the same side effects as a manual edit.
 ### 4. Who actions run as
 
 Actions run as the clicker, so permissions, row history and the audit log all show the
-person who clicked. A button only shortcuts what the clicker could already do. External
-actions may use an integration for their credentials, but never one that would change
-who the action runs as.
+person who clicked. A button only shortcuts what the clicker could already do, so a click
+fails rather than skipping a field the clicker cannot write. External actions may use an
+integration for their credentials, but never one that would change who the action runs
+as.
 
 Starting a workflow is the exception: the workflow runs as its own integrations' users.
 This is bounded by requiring whoever configures the button to have access to the

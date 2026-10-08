@@ -1017,8 +1017,8 @@ def test_a_chained_action_never_reads_a_failed_action(data_fixture):
 
 @pytest.mark.django_db
 def test_a_later_action_reads_an_earlier_action_result(data_fixture):
-    """ADR 006 section 3: "create a row, then update another row with the new
-    id"."""
+    """One action creates a row and the next updates another row with its id
+    (ADR 006 section 3)."""
 
     user = data_fixture.create_user()
     table, name_field = _table_with_name(data_fixture, user)
