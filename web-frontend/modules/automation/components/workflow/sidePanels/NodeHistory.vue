@@ -26,8 +26,8 @@
               passLabel
             }}</span>
 
-            <span v-if="attemptLabel" class="node-history__header-info-pass">{{
-              attemptLabel
+            <span v-if="retryLabel" class="node-history__header-info-pass">{{
+              retryLabel
             }}</span>
 
             <div>
@@ -124,8 +124,8 @@
           passLabel
         }}</span>
 
-        <span v-if="attemptLabel" class="node-history__header-info-pass">{{
-          attemptLabel
+        <span v-if="retryLabel" class="node-history__header-info-pass">{{
+          retryLabel
         }}</span>
 
         <div class="node-history__header-show-result">
@@ -293,12 +293,13 @@ const showMessage = computed(() => hasOwnError.value || isRetried.value)
 
 /**
  * When a node's error policy retried it, every attempt is its own entry. The
- * first attempt carries no label; the retries say which attempt they are.
+ * first attempt is the normal run and carries no label; the later ones are
+ * numbered as retries, so with 5 retries the last entry reads "Retry 5".
  */
-const attemptLabel = computed(() => {
+const retryLabel = computed(() => {
   const attempt = props.nodeHistory.attempt ?? 1
   if (attempt <= 1) return null
-  return app.$i18n.t('historySidePanel.attemptNumber', { n: attempt })
+  return app.$i18n.t('historySidePanel.retryNumber', { n: attempt - 1 })
 })
 
 /**

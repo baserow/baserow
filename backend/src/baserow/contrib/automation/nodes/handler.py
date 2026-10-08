@@ -474,6 +474,10 @@ class AutomationNodeHandler:
 
         return 2 ** (attempt - 1)
 
+    @staticmethod
+    def _retries_phrase(count: int) -> str:
+        return f"{count} {'retry' if count == 1 else 'retries'}"
+
     def _can_retry(
         self,
         node: AutomationNode,
@@ -482,14 +486,15 @@ class AutomationNodeHandler:
     ) -> bool:
         """
         Whether the node's error policy allows another attempt after `attempt`
-        failed. Simulations and test runs never retry.
+        failed. Test runs retry like live runs, so the editor shows what the
+        published workflow will do. Simulations never retry: they run up to a
+        node to fetch its sample data.
         """
 
         return (
             node.on_failure == AutomationNodeOnFailure.RETRY
             and attempt <= node.max_retries
             and workflow_history.simulate_until_node_id is None
-            and not workflow_history.is_test_run
         )
 
     def _handle_node_retry(
@@ -547,7 +552,7 @@ class AutomationNodeHandler:
             self._handle_node_retry(
                 node_history,
                 iteration_path,
-                f"Attempt {attempt} failed and will be retried. {error}",
+                f"Retry {attempt} of {node.max_retries} scheduled. {error}",
             )
             return NodeDispatchRetry(
                 node_id=node.id,
@@ -556,8 +561,14 @@ class AutomationNodeHandler:
                 countdown=self._retry_countdown(attempt),
             )
 
+        if attempt > 1:
+            # The node was retried before this attempt failed for good. Say so,
+            # otherwise the row reads like a plain "Stop" failure.
+            error = f"Failed after {self._retries_phrase(attempt - 1)}. {error}"
+
         self._handle_workflow_error(node_history, iteration_path, error)
         self._handle_simulation_notify(simulate_until_node, node)
+
         return None
 
     def _retry_condition_enabled(
@@ -565,7 +576,8 @@ class AutomationNodeHandler:
     ) -> bool:
         """
         Whether a successful attempt must still be checked against the node's
-        retry condition. Simulations and test runs never evaluate it.
+        retry condition. Simulations never evaluate it; test runs do, like live
+        runs.
         """
 
         return (
@@ -573,7 +585,6 @@ class AutomationNodeHandler:
             and node.retry_on_condition
             and bool((node.retry_condition or {}).get("formula"))
             and workflow_history.simulate_until_node_id is None
-            and not workflow_history.is_test_run
         )
 
     def _retry_condition_matches(
@@ -623,8 +634,8 @@ class AutomationNodeHandler:
             self._handle_node_retry(
                 node_history,
                 iteration_path,
-                f"Attempt {attempt}: the retry condition matched, the node will "
-                "be retried.",
+                f"The retry condition matched. Retry {attempt} of "
+                f"{node.max_retries} scheduled.",
                 result=result,
             )
             return NodeDispatchRetry(
@@ -634,7 +645,10 @@ class AutomationNodeHandler:
                 countdown=self._retry_countdown(attempt),
             )
 
-        error = f"The retry condition still matched after {node.max_retries} retries."
+        error = (
+            "The retry condition still matched after "
+            f"{self._retries_phrase(node.max_retries)}."
+        )
         self._handle_workflow_error(node_history, iteration_path, error, result=result)
         return None
 

@@ -8,3 +8,9 @@
 .node-error-handling-form .control__label {
   color: $palette-neutral-900;
 }
+
+.node-error-handling-form__reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

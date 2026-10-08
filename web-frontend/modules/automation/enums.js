@@ -1,6 +1,7 @@
 import {
   PreviousNodeDataProviderType,
   CurrentIterationDataProviderType,
+  CurrentNodeDataProviderType,
 } from '@baserow/modules/automation/dataProviderTypes'
 
 /**
@@ -11,6 +12,18 @@ import {
 export const DATA_PROVIDERS_ALLOWED_NODE_ACTIONS = [
   CurrentIterationDataProviderType.getType(),
   PreviousNodeDataProviderType.getType(),
+]
+
+/**
+ * The data providers a node's retry condition can use: the node's own result
+ * on top of the ones its service form gets. The condition is the only formula
+ * evaluated after the node ran, so `current_node` is offered nowhere else.
+ *
+ * @type {String[]}
+ */
+export const DATA_PROVIDERS_ALLOWED_RETRY_CONDITION = [
+  CurrentNodeDataProviderType.getType(),
+  ...DATA_PROVIDERS_ALLOWED_NODE_ACTIONS,
 ]
 
 /**

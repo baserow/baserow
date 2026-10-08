@@ -93,6 +93,7 @@
   },
   "dataProviderType": {
     "currentIteration": "Current iteration",
+    "currentNode": "This node",
     "item": "Item",
     "previousNode": "Previous node"
   },
@@ -107,6 +108,10 @@
     "retry": "Retry",
     "retryOnLabel": "Retry on",
     "retryOnFailure": "Unexpected failure",
+    "retryOnCondition": "Condition matches",
+    "conditionLabel": "Condition",
+    "conditionHelp": "Checked against the result of this node after each attempt. When it is true, the attempt counts as failed and the node is retried.",
+    "conditionPlaceholder": "get('current_node.status_code') = 429",
     "retriesLabel": "Retries",
     "retriesHelp": "Between 1 and 5. The node waits 1, 2, 4, 8 and 16 seconds between attempts."
   },
@@ -136,7 +141,7 @@
     "errorHideDetails": "Hide details",
     "errorShowDetails": "Show details",
     "runNumber": "Run {n}",
-    "attemptNumber": "Attempt {n}",
+    "retryNumber": "Retry {n}",
     "runCount": "{n} runs",
     "testRun": "Test",
     "showResult": "Show result"

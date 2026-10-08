@@ -26,13 +26,37 @@
         required
         class="margin-bottom-2"
       >
-        <Checkbox
-          :model-value="values.retry_on_failure"
+        <div class="node-error-handling-form__reasons">
+          <Checkbox
+            :model-value="values.retry_on_failure"
+            :disabled="readOnly"
+            @update:model-value="update({ retry_on_failure: $event })"
+          >
+            {{ $t('nodeErrorHandlingForm.retryOnFailure') }}
+          </Checkbox>
+          <Checkbox
+            :model-value="values.retry_on_condition"
+            :disabled="readOnly"
+            @update:model-value="update({ retry_on_condition: $event })"
+          >
+            {{ $t('nodeErrorHandlingForm.retryOnCondition') }}
+          </Checkbox>
+        </div>
+      </FormGroup>
+      <FormGroup
+        v-if="values.retry_on_condition"
+        :label="$t('nodeErrorHandlingForm.conditionLabel')"
+        :help-icon-tooltip="$t('nodeErrorHandlingForm.conditionHelp')"
+        small-label
+        required
+        class="margin-bottom-2"
+      >
+        <InjectedFormulaInput
+          :model-value="values.retry_condition"
+          :placeholder="$t('nodeErrorHandlingForm.conditionPlaceholder')"
           :disabled="readOnly"
-          @update:model-value="update({ retry_on_failure: $event })"
-        >
-          {{ $t('nodeErrorHandlingForm.retryOnFailure') }}
-        </Checkbox>
+          @update:model-value="update({ retry_condition: $event })"
+        />
       </FormGroup>
       <FormGroup
         :label="$t('nodeErrorHandlingForm.retriesLabel')"
@@ -60,7 +84,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, provide, reactive, watch } from 'vue'
 import useVuelidate from '@vuelidate/core'
 import {
   helpers,
@@ -69,7 +93,9 @@ import {
   minValue,
   required,
 } from '@vuelidate/validators'
+import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import {
+  DATA_PROVIDERS_ALLOWED_RETRY_CONDITION,
   NODE_ON_FAILURE,
   NODE_RETRIES,
 } from '@baserow/modules/automation/enums'
@@ -95,6 +121,12 @@ const props = defineProps({
 const emit = defineEmits(['values-changed'])
 
 const { $i18n } = useNuxtApp()
+
+// The side panel provides the data providers its service form may use. The
+// retry condition runs against the node's own result, so this subtree also
+// gets the `current_node` provider; the formula component itself still comes
+// from the panel.
+provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_RETRY_CONDITION)
 
 // The node always carries the policy fields: the API serializer returns them
 // for every node and the store keeps the API payload as is.

@@ -53,6 +53,7 @@ import { AutomationGuidedTourType } from '@baserow/modules/automation/guidedTour
 import {
   PreviousNodeDataProviderType,
   CurrentIterationDataProviderType,
+  CurrentNodeDataProviderType,
 } from '@baserow/modules/automation/dataProviderTypes'
 
 export default defineNuxtPlugin({
@@ -96,6 +97,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'automationDataProvider',
       new CurrentIterationDataProviderType(context)
+    )
+    $registry.register(
+      'automationDataProvider',
+      new CurrentNodeDataProviderType(context)
     )
 
     // Automation node types
