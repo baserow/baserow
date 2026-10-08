@@ -8,6 +8,7 @@ from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.views import OAuthProtectedResourceMetadataView
 
 from .authorize import error_redirect_url, is_redirectable, validate_query
+from .throttling import MCPOAuthAuthorizeRateThrottle, rate_limited
 from .validators import MCP_SCOPE
 
 
@@ -18,6 +19,10 @@ class MCPAuthorizeRedirectView(View):
     """
 
     def get(self, request):
+        limited = rate_limited(MCPOAuthAuthorizeRateThrottle(), request, self)
+        if limited is not None:
+            return limited
+
         try:
             validate_query(request, request.user, request.META.get("QUERY_STRING", ""))
         except OAuthToolkitError as error:

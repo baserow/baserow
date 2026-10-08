@@ -894,6 +894,19 @@ except ValueError as exc:
         f"BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS is invalid. It must be a comma "
         f"separated list of rate limits, for example '30/m,300/h'. {exc}"
     ) from exc
+try:
+    BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS") or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
 BASEROW_MCP_OAUTH_DCR_ENABLED = str_to_bool(
     os.getenv("BASEROW_MCP_OAUTH_DCR_ENABLED") or "true"
 )

@@ -67,10 +67,11 @@ Each grant is stored as an `MCPEndpoint` row with `oauth_client_id` set. Its tok
 
 ### Rate limits and tokens
 
-Both limits are per IP, as comma-separated lists.
+The limits are per IP, as comma-separated lists.
 
 | Variable | Default |
 |---|---|
+| `BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS` | `30/m,300/h` |
 | `BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS` | `10/m,60/h` |
 | `BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS` | `30/m,300/h` |
 

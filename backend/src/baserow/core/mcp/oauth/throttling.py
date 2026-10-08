@@ -30,6 +30,18 @@ class MCPOAuthRegistrationRateThrottle(MCPOAuthTokenRateThrottle):
         return settings.BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS
 
 
+class MCPOAuthAuthorizeRateThrottle(MCPOAuthTokenRateThrottle):
+    """
+    Limits anonymous authorization requests per client IP. Each one can fetch a
+    CIMD client's metadata document and store the client.
+    """
+
+    scope = "mcp_oauth_authorize"
+
+    def get_rate_limits(self, request):
+        return settings.BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS
+
+
 def rate_limited(throttle, request, view) -> JsonResponse | None:
     """
     The OAuth `slow_down` response when `throttle` refuses the request, else None.
