@@ -393,12 +393,10 @@ export class ElementType extends Registerable {
     )
     if (
       visibilityCondition?.mode !== 'raw' &&
-      !isFormulaValid(
-        visibilityCondition?.formula || '',
-        functions,
-        false,
-        { dataProviderRegistry, applicationContext }
-      ).valid
+      !isFormulaValid(visibilityCondition?.formula || '', functions, false, {
+        dataProviderRegistry,
+        applicationContext,
+      }).valid
     ) {
       return this.app.$i18n.t('elementType.errorInvalidVisibilityCondition')
     }

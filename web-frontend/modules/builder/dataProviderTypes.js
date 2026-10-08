@@ -750,9 +750,10 @@ export class FormDataProviderType extends DataProviderType {
     const elements = this.app.$store.getters['element/getElementsOrdered'](page)
     const unavailableElementIds = new Set([
       targetElement.id,
-      ...this.app.$store
-        .getters['element/getDescendants'](page, targetElement)
-        .map(({ id }) => id),
+      ...this.app.$store.getters['element/getDescendants'](
+        page,
+        targetElement
+      ).map(({ id }) => id),
     ])
     return elements.filter((element) => {
       const elementType = this.app.$registry.get('element', element.type)

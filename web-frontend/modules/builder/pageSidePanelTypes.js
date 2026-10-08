@@ -112,7 +112,8 @@ export class VisibilityPageSidePanelType extends pageSidePanelType {
    */
   getErrorMessage(applicationContext) {
     const { element } = applicationContext
-    const elementType = element && this.app.$registry.get('element', element.type)
+    const elementType =
+      element && this.app.$registry.get('element', element.type)
     return elementType?.getVisibilityErrorMessage(element, applicationContext)
       ? this.app.$i18n.t('pageSidePanelType.visibilityTabInError')
       : super.getErrorMessage(applicationContext)
