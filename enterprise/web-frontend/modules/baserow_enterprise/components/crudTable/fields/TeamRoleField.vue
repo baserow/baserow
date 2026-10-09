@@ -1,24 +1,17 @@
 <template>
   <div>
-    <span
-      v-if="
+    <RoleSelectorButton
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
+      :read-only="
         !$hasPermission(
           'enterprise.teams.team.update',
           row,
           column.additionalProps.workspaceId
         )
       "
-    >
-      {{ roleName(roles, row) }}
-    </span>
-    <a
-      v-else
-      ref="editRoleContextLink"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      {{ roleName(roles, row) }}
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -31,6 +24,8 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -41,7 +36,7 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 export default {
   name: 'TeamRoleField',
   emits: ['row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,
@@ -53,6 +48,9 @@ export default {
     },
   },
   computed: {
+    selectedRole() {
+      return this.roles.find((role) => role.uid === this.row.default_role)
+    },
     workspace() {
       return this.$store.getters['workspace/get'](
         this.column.additionalProps.workspaceId
@@ -73,10 +71,6 @@ export default {
     ...mapGetters({ userId: 'auth/getUserId' }),
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.default_role)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: team }) {
       const oldTeam = clone(team)
       const newTeam = clone(team)

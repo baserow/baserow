@@ -5,6 +5,10 @@ class RoleType extends Registerable {
     return null
   }
 
+  getIconClass() {
+    return 'iconoir-shield'
+  }
+
   getName() {
     return null
   }
@@ -58,6 +62,10 @@ export class AdminRoleType extends RoleType {
     return 'ADMIN'
   }
 
+  getIconClass() {
+    return 'iconoir-crown'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('roles.admin.name')
@@ -76,6 +84,10 @@ export class MemberRoleType extends RoleType {
 
   getUid() {
     return 'MEMBER'
+  }
+
+  getIconClass() {
+    return 'iconoir-group'
   }
 
   getName() {

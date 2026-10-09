@@ -1,7 +1,9 @@
 <template>
   <div class="members-role-field">
-    <span
-      v-if="
+    <RoleSelectorButton
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
+      :read-only="
         userId === row.user_id ||
         !$hasPermission(
           'workspace_user.update',
@@ -9,17 +11,8 @@
           column.additionalProps.workspaceId
         )
       "
-    >
-      {{ roleName(roles, row) }}
-    </span>
-    <a
-      v-else
-      ref="editRoleContextLink"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      {{ roleName(roles, row) }}
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -41,6 +34,8 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
@@ -51,7 +46,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'MembersRoleField',
   emits: ['refresh', 'row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,
@@ -63,6 +58,9 @@ export default {
     },
   },
   computed: {
+    selectedRole() {
+      return this.roles.find((role) => role.uid === this.row.role_uid)
+    },
     workspace() {
       return this.$store.getters['workspace/get'](
         this.column.additionalProps.workspaceId
@@ -82,10 +80,6 @@ export default {
     ...mapGetters({ userId: 'auth/getUserId' }),
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.role_uid)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: member }) {
       const oldMember = clone(member)
       const newMember = clone(member)

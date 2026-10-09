@@ -61,7 +61,11 @@
 }
 
 .tabs__link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  column-gap: 4px;
+  height: 100%;
   padding: 12px 0;
   color: $palette-neutral-900;
 

@@ -12,7 +12,7 @@ exports[`ManageAgentModal > hides commercial information in its role selector 1`
         <form-input-stub model-value="" required="" maxlength="160"></form-input-stub>
       </div>
       <div label="agents.workspaceRole" required="">
-        <div class="workspace-role-selector" workspace="[object Object]" roles="">
+        <div class="workspace-role-selector" workspace="[object Object]" roles="" show-role-icons="">
           <!--v-if-->
         </div>
       </div>

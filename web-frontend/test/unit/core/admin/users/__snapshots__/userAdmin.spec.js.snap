@@ -117,7 +117,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
             <div class="data-table__table-cell-content">
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
-                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">users's workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><span class="expand-overflow-list__item" style="order: 1;">other_workspace </span><a class="expand-overflow-list__expand" style="order: 1; display: none;">+0</a>
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">users's workspace<i class="user-admin-group__icon iconoir-user-crown"></i></span><span class="expand-overflow-list__item" style="order: 1;">other_workspace</span><a class="expand-overflow-list__expand" style="order: 1; display: none;">+0</a>
                   <teleport-stub to="body">
                     <div class="context visibility-hidden context--overflow-scroll">
                       <!--v-if-->
@@ -295,7 +295,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
             <div class="data-table__table-cell-content">
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
-                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace<i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
                   <teleport-stub to="body">
                     <div class="context visibility-hidden context--overflow-scroll">
                       <!--v-if-->
@@ -365,7 +365,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
             <div class="data-table__table-cell-content">
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
-                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace<i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
                   <teleport-stub to="body">
                     <div class="context visibility-hidden context--overflow-scroll">
                       <!--v-if-->
@@ -435,7 +435,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
             <div class="data-table__table-cell-content">
               <div class="expand-overflow-list">
                 <div class="expand-overflow-list__container">
-                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace <i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
+                  <!--v-if--><span class="expand-overflow-list__empty-item"></span><span class="expand-overflow-list__item" style="order: 0;">some_workspace<i class="user-admin-group__icon iconoir-user-crown"></i></span><a class="expand-overflow-list__expand" style="order: 0; display: none;">+0</a>
                   <teleport-stub to="body">
                     <div class="context visibility-hidden context--overflow-scroll">
                       <!--v-if-->

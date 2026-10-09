@@ -12,7 +12,7 @@
           order: index,
         }"
       >
-        {{ record[nameKey] }}
+        <slot name="record" :record="record">{{ record[nameKey] }}</slot>
         <slot name="icon" :record="record"></slot>
       </span>
       <a

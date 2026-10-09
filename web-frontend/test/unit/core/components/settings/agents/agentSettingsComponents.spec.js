@@ -92,3 +92,22 @@ describe('Agent settings components', () => {
     })
   })
 })
+
+test('only recommends No access when the role is available', async () => {
+  const wrapper = await mountSuspended(AgentGeneralSettingsForm, {
+    props: {
+      modelValue: { name: 'Writer', role_uid: 'MEMBER' },
+      workspace: { id: 12 },
+      roles: [{ uid: 'NO_ACCESS', isDeactivated: true }],
+    },
+    global: { stubs: { WorkspaceRoleSelector: true } },
+  })
+  expect(wrapper.find('.control__helper-text').exists()).toBe(false)
+  await wrapper.setProps({
+    roles: [{ uid: 'NO_ACCESS', isDeactivated: false }],
+  })
+  expect(wrapper.get('.control__helper-text').text()).toBe(
+    'agents.roleHelpText'
+  )
+  wrapper.unmount()
+})

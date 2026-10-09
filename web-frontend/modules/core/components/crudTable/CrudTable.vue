@@ -10,6 +10,7 @@
           ref="crudTableSearch"
           :loading="loading && loaded"
           :initial-search-term="defaultSearch || ''"
+          :placeholder="searchPlaceholder"
           @search-changed="doSearch"
         />
         <slot name="header-right-side"></slot>
@@ -204,6 +205,7 @@ export default {
   },
   inheritAttrs: false,
   props: {
+    searchPlaceholder: { type: String, default: null },
     /** With an expanded-row slot, optionally restrict expansion to eligible rows. */
     rowExpandable: {
       type: Function,

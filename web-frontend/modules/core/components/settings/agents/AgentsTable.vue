@@ -4,18 +4,26 @@
     :service="service"
     :columns="columns"
     row-id-key="id"
-    @total-count-update="count = $event"
+    :search-placeholder="$t('agents.search')"
     @row-context="openContext"
   >
-    <template #title>{{
+    <template #title="{ count }">{{
       $t('agents.title', { count, workspace: workspace.name })
     }}</template>
+    <template #empty>
+      <div class="placeholder">
+        <div class="placeholder__icon">
+          <i class="baserow-icon-agent" aria-hidden="true"></i>
+        </div>
+        <h2 class="placeholder__header">{{ $t('agents.emptyTitle') }}</h2>
+        <p class="placeholder__content">{{ $t('agents.emptyDescription') }}</p>
+      </div>
+    </template>
     <template #primary-action>
       <Button
         v-if="canCreate"
         type="primary"
         size="large"
-        class="margin-left-2"
         icon="iconoir-plus"
         @click="$refs.createModal.show()"
       >
@@ -44,9 +52,9 @@
 
 <script>
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
+import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
-import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import AgentService from '@baserow/modules/core/services/agent'
 import AgentLastActiveField from './AgentLastActiveField'
 import AgentRoleField from './AgentRoleField'
@@ -58,7 +66,7 @@ export default {
   components: { CrudTable, AgentContext, ManageAgentModal },
   props: { workspace: { type: Object, required: true } },
   data() {
-    return { count: 0, focusedAgentId: null }
+    return { focusedAgentId: null }
   },
   computed: {
     focusedAgent() {
@@ -115,9 +123,11 @@ export default {
         new CrudTableColumn(
           'name',
           this.$t('agents.name'),
-          SimpleField,
+          ManagementNameField,
           true,
-          true
+          true,
+          false,
+          { icon: 'baserow-icon-agent', color: 'purple' }
         ),
         new CrudTableColumn(
           'last_active',

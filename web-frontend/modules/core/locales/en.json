@@ -861,15 +861,15 @@
     "membersTabTitle": "Members",
     "invitesTabTitle": "Invites",
     "membersTable": {
-      "title": "{userAmount} Members in {workspaceName}",
-      "inviteMember": "Invite member",
+      "title": "{userAmount} members in {workspaceName}",
+      "inviteMember": "Invite members",
       "emptyTitle": "No members yet",
       "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
         "name": "Name",
         "email": "Email",
         "role": "Default role",
-        "highestRole": "Highest Role",
+        "highestRole": "Highest role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
         "highestRoleInstanceHelpText": "The highest role this user has in the instance",
         "teams": "Teams",
@@ -878,10 +878,11 @@
       "actions": {
         "copyEmail": "Copy email",
         "remove": "Remove from workspace"
-      }
+      },
+      "search": "Search members"
     },
     "invitesTable": {
-      "title": "{invitesAmount} Pending invites in {workspaceName}",
+      "title": "{invitesAmount} pending invites in {workspaceName}",
       "emptyTitle": "No pending invites",
       "emptyDescription": "Invite people to join this workspace. You can track and manage their invitations here until they accept.",
       "columns": {
@@ -891,7 +892,8 @@
       "actions": {
         "copyEmail": "Copy email",
         "remove": "Cancel invite"
-      }
+      },
+      "search": "Search invites"
     },
     "membersInviteModal": {
       "title": "Invite workspace members",
@@ -1500,7 +1502,7 @@
     "create": "Create agent",
     "createTitle": "Create agent",
     "updateTitle": "Edit agent",
-    "save": "Save agent",
+    "save": "Save changes",
     "edit": "Edit agent",
     "delete": "Delete agent",
     "general": "General",
@@ -1508,6 +1510,14 @@
     "name": "Name",
     "invalidNameTitle": "Agent name not allowed",
     "lastActive": "Last active",
-    "workspaceRole": "Workspace role"
+    "workspaceRole": "Workspace role",
+    "search": "Search agents",
+    "emptyTitle": "No agents yet",
+    "emptyDescription": "Create an agent to connect AI tools to your workspace. Choose its role and teams to control what it can access.",
+    "new": "New",
+    "roleHelpText": "Start with No access, then grant access to specific databases, tables or views as needed."
+  },
+  "managementPages": {
+    "you": "You"
   }
 }
