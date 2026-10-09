@@ -13,6 +13,15 @@ export default {
   name: 'VisibilitySidePanel',
   components: { VisibilityForm },
   mixins: [elementSidePanel],
+  provide() {
+    return {
+      applicationContext: {
+        ...this.applicationContext,
+        element: this.element,
+        page: this.elementPage,
+      },
+    }
+  },
   data() {
     return {}
   },

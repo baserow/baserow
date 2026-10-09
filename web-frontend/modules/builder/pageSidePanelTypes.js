@@ -103,6 +103,21 @@ export class VisibilityPageSidePanelType extends pageSidePanelType {
   getOrder() {
     return 30
   }
+
+  /**
+   * Returns an error when the stored visibility condition is invalid.
+   *
+   * @param {Object} applicationContext The selected element context.
+   * @returns {string|null} The visibility-tab error, if any.
+   */
+  getErrorMessage(applicationContext) {
+    const { element } = applicationContext
+    const elementType =
+      element && this.app.$registry.get('element', element.type)
+    return elementType?.getVisibilityErrorMessage(element, applicationContext)
+      ? this.app.$i18n.t('pageSidePanelType.visibilityTabInError')
+      : super.getErrorMessage(applicationContext)
+  }
 }
 
 export class EventsPageSidePanelType extends pageSidePanelType {
