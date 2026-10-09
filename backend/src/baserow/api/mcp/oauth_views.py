@@ -17,6 +17,10 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.contrib.database.models import Database
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.mcp.actions import (
+    ConnectMCPOAuthClientActionType,
+    DisconnectMCPOAuthClientActionType,
+)
 from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
@@ -189,7 +193,7 @@ class MCPOAuthConsentView(APIView):
         try:
             # The grant only persists if a code was issued for it.
             with transaction.atomic():
-                endpoint = MCPEndpointHandler().grant_oauth_client(
+                endpoint = ConnectMCPOAuthClientActionType.do(
                     request.user,
                     workspace,
                     client["client_id"],
@@ -279,5 +283,5 @@ class MCPOAuthConnectionView(APIView):
             connection_id,
             base_queryset=MCPEndpoint.objects.filter(oauth_client_id__isnull=False),
         )
-        MCPEndpointHandler().delete_endpoint(request.user, endpoint)
+        DisconnectMCPOAuthClientActionType.do(request.user, endpoint)
         return Response(status=status.HTTP_204_NO_CONTENT)

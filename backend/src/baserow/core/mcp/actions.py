@@ -12,6 +12,7 @@ from baserow.core.models import Workspace
 
 from .handler import MCPEndpointHandler
 from .models import MCPEndpoint
+from .registries import mcp_tool_registry
 
 
 class CreateMCPEndpointActionType(ActionType):
@@ -143,6 +144,110 @@ class DeleteMCPEndpointActionType(ActionType):
             cls.scope(workspace.id),
             workspace,
         )
+
+    @classmethod
+    def scope(cls, workspace_id: int):
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
+class ConnectMCPOAuthClientActionType(ActionType):
+    type = "connect_mcp_oauth_client"
+    description = ActionTypeDescription(
+        _("Connect app to MCP"),
+        _(
+            '"%(client_name)s" was connected to the MCP server with %(tool_count)s tools'
+        ),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "endpoint_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        endpoint_id: int
+        client_id: str
+        client_name: str
+        workspace_id: int
+        workspace_name: str
+        allowed_tools: list[str]
+        tool_count: int
+        reconnect: bool
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        client_id: str,
+        name: str,
+        allowed_tools: list[str],
+    ) -> MCPEndpoint:
+        # The handler doesn't say whether it created the grant, and it runs
+        # inside the consent transaction, so checking first is consistent.
+        reconnect = MCPEndpoint.objects.filter(
+            user=user, workspace=workspace, oauth_client_id=client_id
+        ).exists()
+        endpoint = MCPEndpointHandler().grant_oauth_client(
+            user, workspace, client_id, name, allowed_tools
+        )
+        cls.register_action(
+            user,
+            cls.Params(
+                endpoint.id,
+                client_id,
+                name,
+                workspace.id,
+                workspace.name,
+                allowed_tools,
+                len(mcp_tool_registry.get_allowed_tools(endpoint)),
+                reconnect,
+            ),
+            cls.scope(workspace.id),
+            workspace,
+        )
+        return endpoint
+
+    @classmethod
+    def scope(cls, workspace_id: int):
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
+class DisconnectMCPOAuthClientActionType(ActionType):
+    type = "disconnect_mcp_oauth_client"
+    description = ActionTypeDescription(
+        _("Disconnect app from MCP"),
+        _('"%(client_name)s" was disconnected from the MCP server'),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "endpoint_id",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        endpoint_id: int
+        client_id: str
+        client_name: str
+        workspace_id: int
+        workspace_name: str
+
+    @classmethod
+    def do(cls, user: AbstractUser, endpoint: MCPEndpoint):
+        workspace = endpoint.workspace
+        params = cls.Params(
+            endpoint.id,
+            endpoint.oauth_client_id,
+            endpoint.name,
+            workspace.id,
+            workspace.name,
+        )
+
+        MCPEndpointHandler().delete_endpoint(user, endpoint)
+
+        cls.register_action(user, params, cls.scope(workspace.id), workspace)
 
     @classmethod
     def scope(cls, workspace_id: int):

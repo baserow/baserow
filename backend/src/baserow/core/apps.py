@@ -385,14 +385,18 @@ class CoreConfig(AppConfig):
         trash_operation_type_registry.register(DefaultTrashOperationType())
 
         from baserow.core.mcp.actions import (
+            ConnectMCPOAuthClientActionType,
             CreateMCPEndpointActionType,
             DeleteMCPEndpointActionType,
+            DisconnectMCPOAuthClientActionType,
             UpdateMCPEndpointActionType,
         )
 
         action_type_registry.register(CreateMCPEndpointActionType())
         action_type_registry.register(UpdateMCPEndpointActionType())
         action_type_registry.register(DeleteMCPEndpointActionType())
+        action_type_registry.register(ConnectMCPOAuthClientActionType())
+        action_type_registry.register(DisconnectMCPOAuthClientActionType())
 
         from baserow.core.user.actions import (
             CancelUserDeletionActionType,
