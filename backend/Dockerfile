@@ -158,7 +158,7 @@ ENV UV_PYTHON_DOWNLOADS=0 \
     PYTHONPATH="/baserow/backend/src:/baserow/premium/backend/src:/baserow/enterprise/backend/src"
 
 # hadolint ignore=DL3022
-COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /bin/
 
 # Create baserow directory structure (including subdirs for COPY targets)
 RUN mkdir -p /baserow/ && chown -R $UID:$GID /baserow/
@@ -310,7 +310,7 @@ COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
 COPY --from=mox-builder /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
-COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /bin/
 
 # Create baserow directory structure (including subdirs for COPY targets)
 RUN mkdir -p /baserow/backend/reports /baserow/premium/backend /baserow/enterprise/backend /baserow/media && \
@@ -386,7 +386,7 @@ COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
 COPY --from=mox-builder /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
-COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /bin/
 
 # Create directory structure to install dependencies
 RUN mkdir -p /baserow/backend/docker /baserow/premium/ /baserow/enterprise/ /baserow/media && \
