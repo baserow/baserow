@@ -82,6 +82,10 @@ import {
   AgentSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes'
+import {
+  EmailInvitationRouteType,
+  LinkInvitationRouteType,
+} from '@baserow/modules/core/invitationRouteTypes'
 
 import {
   RuntimeAdd,
@@ -187,11 +191,15 @@ export default defineNuxtPlugin({
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
     registry.registerNamespace('captchaProvider')
+    registry.registerNamespace('invitationRoute')
 
     const context = { app: nuxtApp }
 
     registry.register('subject', new UserSubjectType(context))
     registry.register('subject', new AgentSubjectType(context))
+
+    registry.register('invitationRoute', new EmailInvitationRouteType(context))
+    registry.register('invitationRoute', new LinkInvitationRouteType(context))
 
     registry.register('agentSettings', new GeneralAgentSettingsType(context))
     registry.register('agentSettings', new McpServerAgentSettingsType(context))

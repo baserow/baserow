@@ -1,6 +1,5 @@
 <template>
   <form @submit.prevent="submit">
-    <h3>{{ $t('workspaceInviteForm.invitationFormTitle') }}</h3>
     <div class="row">
       <div class="col col-7">
         <FormGroup small-label :error="fieldHasErrors('email')">

@@ -362,8 +362,15 @@
     "reject": "Reject",
     "accept": "Accept"
   },
+  "inviteModal": {
+    "emailRoute": "Email invite",
+    "linkRoute": "Create link",
+    "emailTitle": "Invite members by email",
+    "linkTitle": "Invite members with a link",
+    "linkEmptyTitle": "You have not yet created an invite link",
+    "linkEmptyDescription": "You can create multiple links with different roles."
+  },
   "workspaceInviteForm": {
-    "invitationFormTitle": "Invite by email",
     "errorInvalidEmail": "Please enter a valid e-mail address.",
     "additionalRoles": "Additional roles"
   },
@@ -882,7 +889,6 @@
       }
     },
     "membersInviteModal": {
-      "title": "Invite workspace members",
       "submit": "Send invite",
       "helpIconText": "The selected role will be the users default role in this workspace.",
       "errors": {

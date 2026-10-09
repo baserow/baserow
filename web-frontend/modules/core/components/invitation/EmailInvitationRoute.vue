@@ -1,8 +1,6 @@
 <template>
-  <Modal ref="modal">
-    <h2 class="box__title">
-      {{ $t('membersSettings.membersInviteModal.title') }}
-    </h2>
+  <div>
+    <h2 class="box__title">{{ $t('inviteModal.emailTitle') }}</h2>
     <Error :error="error"></Error>
     <WorkspaceInviteForm
       ref="inviteForm"
@@ -33,11 +31,10 @@
         />
       </template>
     </WorkspaceInviteForm>
-  </Modal>
+  </div>
 </template>
 
 <script>
-import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
@@ -45,16 +42,16 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
-  name: 'MembersInviteModal',
+  name: 'EmailInvitationRoute',
   components: { WorkspaceInviteForm, CaptchaWidget },
-  mixins: [modal, error],
+  mixins: [error],
   props: {
     workspace: {
       type: Object,
       required: true,
     },
   },
-  emits: ['invite-submitted'],
+  emits: ['submitted'],
   data() {
     return {
       inviteLoading: false,
@@ -62,14 +59,6 @@ export default {
     }
   },
   methods: {
-    show(...args) {
-      this.hideError()
-      // Captcha tokens are single use, so a token from a previous open could
-      // already be consumed or expired.
-      this.captchaToken = ''
-      this.$refs.captchaWidget?.reset()
-      return modal.methods.show.call(this, ...args)
-    },
     async inviteSubmitted(values) {
       this.inviteLoading = true
       this.hideError()
@@ -83,9 +72,7 @@ export default {
           acceptUrl,
           { ...values, captchaToken: this.captchaToken }
         )
-        this.$bus.$emit('invite-submitted', data)
-        this.$emit('invite-submitted')
-        this.hide()
+        this.$emit('submitted', data)
       } catch (error) {
         // The captcha token can only be used once, so a new one must be solved
         // before the invitation can be sent again.
