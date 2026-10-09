@@ -134,7 +134,7 @@
           </a>
         </div>
 
-        <WorkspaceMemberInviteModal
+        <InviteModal
           ref="inviteModal"
           :workspace="selectedWorkspace"
           @invite-submitted="handleInvite"
@@ -170,7 +170,7 @@ import { mapGetters } from 'vuex'
 
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
-import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
+import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
 
@@ -179,7 +179,7 @@ export default {
   components: {
     TrashModal,
     NotificationPanel,
-    WorkspaceMemberInviteModal,
+    InviteModal,
     BadgeCounter,
     SidebarSearch,
   },

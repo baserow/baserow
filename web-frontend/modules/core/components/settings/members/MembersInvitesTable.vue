@@ -42,7 +42,7 @@
         ></EditRoleContext>
       </template>
     </CrudTable>
-    <WorkspaceMemberInviteModal ref="inviteModal" :workspace="workspace" />
+    <InviteModal ref="inviteModal" :workspace="workspace" />
   </div>
 </template>
 
@@ -53,7 +53,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
-import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
+import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import EditInviteContext from '@baserow/modules/core/components/settings/members/EditInviteContext'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import EditRoleContext from '@baserow/modules/core/components/settings/members/EditRoleContext'
@@ -65,7 +65,7 @@ export default {
     EditInviteContext,
     EditRoleContext,
     CrudTable,
-    WorkspaceMemberInviteModal,
+    InviteModal,
   },
   props: {
     workspace: {
