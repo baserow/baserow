@@ -203,7 +203,11 @@
         "password": "Heslo",
         "passwordPlaceholder": "vase-heslo",
         "passwordConfigured": "Heslo je uloženo. Chcete-li je zachovat, nechte prázdné.",
-        "passwordKeepPlaceholder": "Chcete-li zachovat uložené heslo, nechte prázdné"
+        "passwordKeepPlaceholder": "Chcete-li zachovat uložené heslo, nechte prázdné",
+        "security": "Zabezpečení",
+        "securityStartTls": "STARTTLS (obvykle port 587)",
+        "securitySsl": "SSL/TLS (obvykle port 465)",
+        "securityNone": "Žádné"
     },
     "smtpEmailForm": {
         "fromEmail": "E-mail odesílatele",
