@@ -430,7 +430,8 @@
     },
     "premiumFieldType": {
         "ai": "Prompt AI",
-        "aiDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole."
+        "aiDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole.",
+        "aiRichTextDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole, formátovaný pomocí Markdownu."
     },
     "functionalGridViewFieldAI": {
         "generate": "Generovat"
