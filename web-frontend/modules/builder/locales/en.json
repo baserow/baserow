@@ -362,6 +362,8 @@
     "warningTitle": "Only use trusted content",
     "warningMessage": "IFrame content is sandboxed in the editor, where embedded HTML can run scripts in isolation. In previews and published applications, embedded HTML can run without restrictions, while external URLs can run scripts, submit forms, and open popups.",
     "heightLabel": "Height (px)",
+    "autoHeightLabel": "Automatic height",
+    "autoHeightHelp": "Adjust the height to fit the content. The height below is used while loading. If your embed doesn't resize correctly, turn this off and set a fixed height.",
     "heightPlaceholder": "Height in pixels"
   },
   "columnElementForm": {
