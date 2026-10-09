@@ -18,6 +18,8 @@ def www_authenticate(error: str | None = None) -> str:
     """
 
     params = []
+    from baserow.core.mcp.oauth.validators import MCP_SCOPE
+
     if settings.BASEROW_MCP_OAUTH_ENABLED:
         metadata = (
             f"{settings.MCP_AUTHORIZATION_SERVER_URL}"
@@ -25,7 +27,7 @@ def www_authenticate(error: str | None = None) -> str:
         )
         params.append(f'resource_metadata="{metadata}"')
     if error == INSUFFICIENT_SCOPE:
-        params += [f'error="{INSUFFICIENT_SCOPE}"', 'scope="mcp"']
+        params += [f'error="{INSUFFICIENT_SCOPE}"', f'scope="{MCP_SCOPE}"']
     elif error:
         params.append(f'error="{error}"')
     return "Bearer " + ", ".join(params) if params else "Bearer"
@@ -60,7 +62,7 @@ def _resolve_oauth_token(value: str):
 
     from oauth2_provider.models import AccessToken
 
-    from baserow.core.mcp.oauth.validators import endpoint_id_from_scopes
+    from baserow.core.mcp.oauth.validators import MCP_SCOPE, endpoint_id_from_scopes
 
     checksum = hashlib.sha256(value.encode("utf-8")).hexdigest()
     token = (
@@ -74,8 +76,9 @@ def _resolve_oauth_token(value: str):
     # resource explicitly.
     if token.is_expired() or settings.MCP_RESOURCE_URL not in (token.resource or []):
         return None, INVALID_TOKEN
-    endpoint_id = endpoint_id_from_scopes(token.scope.split())
-    if endpoint_id is None:
+    scopes = token.scope.split()
+    endpoint_id = endpoint_id_from_scopes(scopes)
+    if MCP_SCOPE not in scopes or endpoint_id is None:
         return None, INSUFFICIENT_SCOPE
     # The scope is only trusted for a grant of the client the token was issued to,
     # so a token without a client matches no grant.

@@ -42,8 +42,9 @@ class MCPOAuth2Validator(OAuth2Validator):
     Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>`
     scope. The endpoint scope is never requested by clients; only the consent view
     adds it when issuing the code. A refresh can only narrow the scopes of the grant
-    it refreshes, and always keeps its endpoint scope. `offline_access` is accepted
-    because some clients ask for it, but a refresh token is issued either way.
+    it refreshes, and always keeps its `mcp` and endpoint scopes. `offline_access`
+    is accepted because some clients ask for it, but a refresh token is issued
+    either way.
     """
 
     def validate_grant_type(
@@ -82,15 +83,17 @@ class MCPOAuth2Validator(OAuth2Validator):
             refresh_token, client, request, *args, **kwargs
         ):
             return False
-        # A refresh that asks for `scope=mcp` would otherwise get a token without the
-        # endpoint scope: it wouldn't work on /mcp and Disconnect couldn't revoke it.
+        # A refresh that narrows the scopes would otherwise get a token without
+        # `mcp` or the endpoint scope, so it wouldn't work on /mcp, and without the
+        # endpoint scope Disconnect couldn't revoke it. Both are added back.
         # `request.scope` is still the raw string here, oauthlib parses it next.
         original = scope_to_list(self.get_original_scopes(refresh_token, request))
         endpoint_id = endpoint_id_from_scopes(original)
         if request.scope and endpoint_id is not None:
             requested = request.scope.split()
-            if endpoint_scope(endpoint_id) not in requested:
-                request.scope = " ".join([*requested, endpoint_scope(endpoint_id)])
+            kept = [MCP_SCOPE, endpoint_scope(endpoint_id)]
+            missing = [s for s in kept if s in original and s not in requested]
+            request.scope = " ".join([*requested, *missing])
         return True
 
     def _save_bearer_token(self, token, request, *args, **kwargs):
