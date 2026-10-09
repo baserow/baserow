@@ -232,6 +232,40 @@ class MCPEndpointHandler:
         revoke_endpoint_tokens(endpoint)
         endpoint.delete()
 
+    def get_oauth_grant(self, user: AbstractUser, grant_id: int) -> MCPEndpoint:
+        """
+        Fetches one of the user's OAuth grants. There is no permission check: a
+        user can always see and disconnect what they connected.
+
+        :raises MCPEndpointDoesNotExist: When the user has no grant with that id.
+        """
+
+        try:
+            return MCPEndpoint.objects.select_related("workspace").get(
+                id=grant_id, user=user, oauth_client_id__isnull=False
+            )
+        except MCPEndpoint.DoesNotExist:
+            raise MCPEndpointDoesNotExist(
+                f"The MCP OAuth grant with id {grant_id} does not exist."
+            )
+
+    def disconnect_oauth_grant(self, user: AbstractUser, endpoint: MCPEndpoint):
+        """
+        Deletes the user's OAuth grant and revokes its tokens. Skips the MCP
+        endpoint permission checks, so losing them never keeps a client connected.
+
+        :raises MCPEndpointDoesNotBelongToUser: When the grant isn't the user's.
+        """
+
+        if user.id != endpoint.user_id or endpoint.oauth_client_id is None:
+            raise MCPEndpointDoesNotBelongToUser(
+                "The user is not authorized to disconnect the grant."
+            )
+
+        # Revoke first: `delete()` clears the instance's id.
+        revoke_endpoint_tokens(endpoint)
+        endpoint.delete()
+
     def revoke_workspace_grants(self, user_id: int, workspace_id: int) -> None:
         """
         Deletes the user's OAuth grants in the workspace and their tokens, without

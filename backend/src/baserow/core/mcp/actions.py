@@ -245,7 +245,7 @@ class DisconnectMCPOAuthClientActionType(ActionType):
             workspace.name,
         )
 
-        MCPEndpointHandler().delete_endpoint(user, endpoint)
+        MCPEndpointHandler().disconnect_oauth_grant(user, endpoint)
 
         cls.register_action(user, params, cls.scope(workspace.id), workspace)
 

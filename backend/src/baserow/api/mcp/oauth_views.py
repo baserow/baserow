@@ -268,20 +268,15 @@ class MCPOAuthConnectionView(APIView):
     @map_exceptions(
         {
             MCPEndpointDoesNotExist: ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
     def delete(self, request, connection_id):
         """
         Disconnects an OAuth client by deleting its grant endpoint, which revokes
-        its tokens.
+        its tokens. Only needs the grant to be the user's, like listing it.
         """
 
         _require_oauth_enabled()
-        endpoint = MCPEndpointHandler().get_endpoint(
-            request.user,
-            connection_id,
-            base_queryset=MCPEndpoint.objects.filter(oauth_client_id__isnull=False),
-        )
+        endpoint = MCPEndpointHandler().get_oauth_grant(request.user, connection_id)
         DisconnectMCPOAuthClientActionType.do(request.user, endpoint)
         return Response(status=status.HTTP_204_NO_CONTENT)
