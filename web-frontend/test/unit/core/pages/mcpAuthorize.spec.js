@@ -164,7 +164,7 @@ describe('MCP authorize page', () => {
     )
   })
 
-  test('a verified client is named by its host', async () => {
+  test('a verified client is named by its own name, its host in the badge', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
@@ -172,8 +172,11 @@ describe('MCP authorize page', () => {
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
     const title = wrapper.find('[data-test="mcp-authorize-title"]').text()
-    expect(title).toContain('claude.ai')
-    expect(title).not.toContain('claude Code')
+    expect(title).toContain('claude Code')
+    expect(title).not.toContain('claude.ai')
+    expect(
+      wrapper.find('[data-test="mcp-authorize-published"]').text()
+    ).toContain('claude.ai')
   })
 
   test('an unverified client is named by its own name', async () => {

@@ -194,6 +194,39 @@ def test_authorize_unknown_client_is_not_redirected(client):
 
 
 @pytest.mark.django_db
+def test_consent_get_cimd_client_is_named_by_its_metadata(
+    client, api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token()
+    _, challenge = pkce_pair()
+    client_id = cimd_client(client, client_name="Claude Code")
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query(client_id, challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["client_name"] == "Claude Code"
+
+
+@pytest.mark.django_db
+def test_consent_get_nameless_cimd_client_is_named_by_its_host(
+    client, api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token()
+    _, challenge = pkce_pair()
+    # The redirect host (127.0.0.1) is not who published the metadata.
+    client_id = cimd_client(client, client_name="")
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query(client_id, challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["client_name"] == "claude.ai"
+
+
+@pytest.mark.django_db
 def test_consent_get_lists_workspaces_and_enabled_tools(
     client, api_client, data_fixture
 ):

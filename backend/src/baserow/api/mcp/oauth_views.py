@@ -88,14 +88,18 @@ def _client_info(credentials: dict) -> dict:
     Application = get_application_model()
     application = Application.objects.get(client_id=credentials["client_id"])
     redirect_host = urlparse(credentials["redirect_uri"]).hostname
+    verification = _verification(application)
     return {
         "client_id": application.client_id,
-        # DCR stores an empty name when the client sends no client_name.
-        "client_name": application.name or redirect_host,
+        # The name is empty when the client sends no client_name. A CIMD client
+        # falls back to the host that published its metadata.
+        "client_name": application.name
+        or verification["verified_host"]
+        or redirect_host,
         "redirect_host": redirect_host,
         "registration_source": application.registration_source,
         "loopback_only": _loopback_only(application),
-        **_verification(application),
+        **verification,
     }
 
 

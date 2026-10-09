@@ -268,12 +268,8 @@ function tickFor(id, value = consent.value) {
 watch(workspaceId, (id) => tickFor(id))
 
 const username = computed(() => store.getters['auth/getUsername'])
-// A verified client is named by its host; anything else is self-declared.
-const clientLabel = computed(() =>
-  consent.value?.verified
-    ? consent.value.verified_host
-    : consent.value?.client_name || ''
-)
+// Named like in Settings; the badge below says who published a verified client.
+const clientLabel = computed(() => consent.value?.client_name || '')
 const clientInitial = computed(() =>
   clientLabel.value.trim().charAt(0).toUpperCase()
 )
