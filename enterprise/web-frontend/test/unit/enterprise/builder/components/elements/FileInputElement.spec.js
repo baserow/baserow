@@ -9,7 +9,7 @@ describe('FileInputElement', () => {
     wrapper?.unmount()
   })
 
-  const mountFileInput = async (allowedFiletypes) => {
+  const mountFileInput = async (allowedFiletypes, overrides = {}) => {
     const page = reactive({ id: 1, elements: [] })
     const builder = { id: 1, theme: {}, pages: [page] }
     const mode = 'public'
@@ -27,6 +27,7 @@ describe('FileInputElement', () => {
       max_filesize: 5,
       allowed_filetypes: allowedFiletypes,
       styles: {},
+      ...overrides,
     }
     await useNuxtApp().$store.dispatch('element/forceCreate', { page, element })
 
@@ -84,4 +85,31 @@ describe('FileInputElement', () => {
       )
     }
   )
+
+  test('renders a markdown label and help text', async () => {
+    const wrapper = await mountFileInput([], {
+      label: { formula: "'Your **files**'", format: 'markdown' },
+      help_text: {
+        formula: "'Drop files [here](https://baserow.io)\n\nor click'",
+        format: 'markdown',
+      },
+    })
+
+    expect(wrapper.find('.ab-form-group__label strong').text()).toBe('files')
+    const helpText = wrapper.find('.ab-file-input__help-text')
+    expect(helpText.findAll('p.ab-text')).toHaveLength(2)
+    expect(helpText.find('a.ab-link').attributes('href')).toBe(
+      'https://baserow.io'
+    )
+  })
+
+  test('renders a plain help text without interpreting markdown', async () => {
+    const wrapper = await mountFileInput([], {
+      help_text: { formula: "'Drop **files** here'" },
+    })
+
+    const helpText = wrapper.find('.ab-file-input__help-text')
+    expect(helpText.text()).toBe('Drop **files** here')
+    expect(helpText.find('strong').exists()).toBe(false)
+  })
 })

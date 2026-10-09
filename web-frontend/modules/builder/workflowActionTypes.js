@@ -66,7 +66,9 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   execute({ workflowAction: { title, description }, resolveFormula }) {
     return this.app.$store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
+      titleFormat: title?.format,
       message: ensureString(resolveFormula(description)),
+      messageFormat: description?.format,
     })
   }
 

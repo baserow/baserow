@@ -2,6 +2,7 @@
   <ABFormGroup
     class="file-input-element"
     :label="resolvedLabel"
+    :label-format="element.label?.format"
     :error-message="errorMessage"
     :autocomplete="isEditMode ? 'off' : ''"
     :required="element.required"
@@ -12,6 +13,7 @@
       :multiple="element.multiple"
       :help-text="resolvedHelpText"
       :accept="acceptedFileTypes"
+      :help-text-format="element.help_text?.format"
       :preview="element.preview"
     />
   </ABFormGroup>

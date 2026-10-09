@@ -143,6 +143,7 @@ class BuilderWorkflowActionsView(APIView):
     @validate_body_custom_fields(
         builder_workflow_action_type_registry,
         base_serializer_class=CreateBuilderWorkflowActionSerializer,
+        serializer_class_context={"application_type": BuilderApplicationType},
     )
     def post(self, request, data: Dict, page_id: int):
         type_name = data.pop("type")

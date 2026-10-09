@@ -115,6 +115,13 @@
   align-items: var(--table-cell-alignment, flex-start);
   padding: var(--table-cell-vertical-padding, 10px)
     var(--table-cell-horizontal-padding, 20px);
+
+  // A text field renders its value as paragraphs (plain or markdown), which
+  // the global `p` rule gives a 170% line height. They keep the line height
+  // of the cell, so rows stay as tall as with the inline text they replace.
+  .ab-text {
+    line-height: inherit;
+  }
 }
 
 .ab-table__empty-state {

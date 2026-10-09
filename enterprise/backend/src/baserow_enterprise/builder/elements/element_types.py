@@ -17,6 +17,8 @@ from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormula,
     BaserowFormulaObject,
@@ -244,6 +246,10 @@ class FileInputElementType(InputElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=FileInputElement._meta.get_field("label").help_text,
                 required=False,
             ),
@@ -256,6 +262,10 @@ class FileInputElementType(InputElementType):
                 required=False,
             ),
             "help_text": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=FileInputElement._meta.get_field("help_text").help_text,
                 required=False,
             ),

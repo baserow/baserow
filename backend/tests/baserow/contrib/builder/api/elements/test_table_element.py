@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from django.urls import reverse
@@ -8,7 +9,10 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from baserow.contrib.builder.elements.models import LinkElement, NavigationElementMixin
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_MODE_SIMPLE,
+)
 
 
 @pytest.mark.django_db
@@ -223,3 +227,79 @@ def test_cant_update_a_table_element_fields_with_wrong_field_property(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["detail"]["fields"][0][0]["code"] == "INVALID_FIELD_PROPERTY"
+
+
+@pytest.mark.django_db
+def test_can_update_a_table_element_text_field_with_markdown_format(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+    field_uid = str(uuid.uuid4())
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Name",
+                    "type": "text",
+                    "value": {
+                        "formula": "get('data_source.123')",
+                        "format": "markdown",
+                    },
+                    "uid": field_uid,
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    [field] = response.json()["fields"]
+    assert field["value"] == BaserowFormulaObject.create(
+        formula="get('data_source.123')",
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        format=BASEROW_FORMULA_FORMAT_MARKDOWN,
+    )
+
+    # The format survives the trip through the `config` column.
+    assert table_element.fields.get(uid=field_uid).config["value"] == field["value"]
+
+
+@pytest.mark.django_db
+def test_cant_update_a_table_element_field_with_format_on_plain_only_formula(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Color",
+                    "type": "link",
+                    "navigate_to_url": "'https://baserow.io'",
+                    "link_name": {"formula": "'Open'", "format": "markdown"},
+                    "target": "self",
+                    "variant": LinkElement.VARIANTS.BUTTON,
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert "invalid_format" in json.dumps(response_json["detail"]["fields"])

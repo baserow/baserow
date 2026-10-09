@@ -71,6 +71,7 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <FormGroup
@@ -145,6 +146,7 @@ import {
 } from '@vuelidate/validators'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'RecordSelectorElementForm',
@@ -183,6 +185,7 @@ export default {
         option_name_suffix: {},
         styles: {},
       },
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   computed: {

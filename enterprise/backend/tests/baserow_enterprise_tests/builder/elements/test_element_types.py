@@ -17,6 +17,10 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+)
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
@@ -645,3 +649,50 @@ def test_auth_form_element_get_event_names(data_fixture):
     assert AuthFormElementType().get_event_names(auth_form) == [
         EventTypes.AFTER_LOGIN.value
     ]
+
+
+def test_file_input_element_label_and_help_text_allow_markdown_format():
+    overrides = FileInputElementType().serializer_field_overrides
+
+    for field_name in ["label", "help_text"]:
+        assert overrides[field_name].allowed_formats == [
+            BASEROW_FORMULA_FORMAT_PLAIN,
+            BASEROW_FORMULA_FORMAT_MARKDOWN,
+        ]
+    # The default name and URL are never rendered as text.
+    for field_name in ["default_name", "default_url"]:
+        assert overrides[field_name].allowed_formats == [BASEROW_FORMULA_FORMAT_PLAIN]
+
+
+@pytest.mark.django_db
+def test_update_file_input_element_with_markdown_format(
+    api_client, enterprise_data_fixture, enable_enterprise
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    page = enterprise_data_fixture.create_builder_page(user=user)
+    element = enterprise_data_fixture.create_builder_element(
+        FileInputElementType, page=page
+    )
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {
+            "label": {"formula": "'Your **files**'", "format": "markdown"},
+            "help_text": {
+                "formula": "'Drop files [here](https://baserow.io)'",
+                "format": "markdown",
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["label"]["format"] == "markdown"
+    assert response_json["help_text"]["format"] == "markdown"
+
+    element.refresh_from_db()
+    assert element.label["format"] == "markdown"
+    assert element.help_text["format"] == "markdown"

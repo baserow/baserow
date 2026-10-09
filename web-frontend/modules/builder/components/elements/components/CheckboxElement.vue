@@ -9,11 +9,16 @@
       :read-only="isEditMode"
       @update:model-value="handleFormElementChange"
     >
-      {{ resolvedLabel }}
+      <ABFormattedText
+        :value="resolvedLabel"
+        :format="element.label?.format"
+        profile="inline"
+      />
       <span
         v-if="element.label && element.required"
         :title="$t('error.requiredField')"
-        >*</span
+      >
+        *</span
       >
     </ABCheckbox>
   </ABFormGroup>

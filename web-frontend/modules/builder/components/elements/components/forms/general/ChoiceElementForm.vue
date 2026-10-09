@@ -15,6 +15,7 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <FormGroup
@@ -145,6 +146,7 @@
         <InjectedFormulaInput
           v-model="values.formula_name"
           :placeholder="$t('choiceOptionSelector.namePlaceholder')"
+          :allowed-formats="allowedFormats"
         />
       </FormGroup>
       <FormGroup
@@ -168,6 +170,7 @@ import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'ChoiceElementForm',
@@ -211,6 +214,8 @@ export default {
         formula_value: {},
         styles: {},
       },
+      // The label and the formula option names can render as markdown.
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   computed: {

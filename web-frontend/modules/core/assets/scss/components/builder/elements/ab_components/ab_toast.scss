@@ -34,10 +34,6 @@
   flex: 1 1 auto;
   overflow: hidden;
   overflow-wrap: break-word;
-
-  p {
-    margin: 1em 0;
-  }
 }
 
 .ab-toast__title {
@@ -59,6 +55,13 @@
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
+
+  // The message is rendered as paragraphs, which the global `p` rule gives a
+  // 170% line height. They keep the line height of the toast instead, so the
+  // lines sit as close as the single block of text they replace.
+  .ab-text {
+    line-height: inherit;
+  }
 }
 
 .ab-toast__details {
