@@ -56,7 +56,8 @@ if [[ -d "/baserow/backend" && -d "$PLUGIN_BACKEND_FOLDER" ]]; then
     . /baserow/venv/bin/activate
     cd /baserow/backend
     check_and_run_script "$PLUGIN_BACKEND_FOLDER" uninstall.sh
-    run_as_docker_user pip3 uninstall -y "$package_name"
+    run_as_docker_user /baserow/venv/bin/python -m ensurepip > /dev/null
+    run_as_docker_user /baserow/venv/bin/python -m pip uninstall -y "$package_name"
     rm -f /baserow/container_markers/"$plugin_name".backend-built
     rm -f /baserow/container_markers/"$plugin_name".backend-runtime-setup
     found_sub_module="true"

@@ -211,10 +211,12 @@ if [[ -d "/baserow/backend" && -d "$PLUGIN_BACKEND_FOLDER" ]]; then
       . /baserow/venv/bin/activate
       cd /baserow/backend
 
+      # The uv-built venv has no pip, and the system pip would install outside of it.
+      run_as_docker_user /baserow/venv/bin/python -m ensurepip > /dev/null
       if [[ "$dev" == true ]]; then
-          run_as_docker_user pip3 install -e "$PLUGIN_BACKEND_FOLDER"
+          run_as_docker_user /baserow/venv/bin/python -m pip install -e "$PLUGIN_BACKEND_FOLDER"
       else
-          run_as_docker_user pip3 install "$PLUGIN_BACKEND_FOLDER"
+          run_as_docker_user /baserow/venv/bin/python -m pip install "$PLUGIN_BACKEND_FOLDER"
       fi
 
       check_and_run_script "$PLUGIN_BACKEND_FOLDER" build.sh
