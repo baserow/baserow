@@ -4,6 +4,8 @@ from pydantic_ai.toolsets import AbstractToolset
 
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 
+_RELISTED_KEYS = frozenset({"table_columns", "menu_items"})
+
 
 class BuilderToolType(AssistantToolType):
     type = "builder"
@@ -20,7 +22,7 @@ class BuilderToolType(AssistantToolType):
 
     def remembered_result(self, tool_name: str, result: Any) -> Any:
         """
-        Leave out the table columns an element update returns.
+        Leave out the table columns and menu items an element update returns.
 
         list_elements reads them again, and a 7-column list takes about a quarter of
         the memory.
@@ -32,4 +34,6 @@ class BuilderToolType(AssistantToolType):
 
         if tool_name != "update_element" or not isinstance(result, dict):
             return result
-        return {key: value for key, value in result.items() if key != "table_columns"}
+        return {
+            key: value for key, value in result.items() if key not in _RELISTED_KEYS
+        }

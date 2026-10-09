@@ -38,7 +38,12 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 from baserow_enterprise.assistant.types import BaseModel
 
 from .changes import name_key
-from .menu_items import ListedTopLevelMenuItem, new_menu_link
+from .menu_items import (
+    ListedTopLevelMenuItem,
+    MenuItemAdd,
+    MenuItemUpdate,
+    new_menu_link,
+)
 from .table_columns import (
     TableColumnAdd,
     TableColumnItem,
@@ -108,6 +113,13 @@ TABLE_COLUMN_PROPERTIES = (
     "remove_table_columns",
 )
 
+MENU_ITEM_PROPERTIES = (
+    "add_menu_items",
+    "update_menu_items",
+    "reorder_menu_items",
+    "remove_menu_items",
+)
+
 BUTTON_NAVIGATION_GUIDANCE = (
     "Buttons do not store navigation properties. Create the button with its value, "
     "then call create_actions with type='open_page', event='click', and the button "
@@ -148,32 +160,6 @@ class MenuItemCreate(BaseModel):
 
     name: str = Field(..., description="Display text.")
     page_id: int = Field(..., description="Target page ID.")
-
-
-class MenuSubLinkUpdate(BaseModel):
-    """A sub-link to keep, change or add. A kept item keeps what isn't sent."""
-
-    uid: str | None = Field(
-        default=None,
-        description="uid of an existing item, from list_elements. Omit to add a new page link.",
-    )
-    name: str | None = Field(
-        default=None,
-        description="Display text. Required for a new item; renames a kept one.",
-    )
-    page_id: int | None = Field(
-        default=None,
-        description="Target page ID. Required for a new item; points a kept link to this page.",
-    )
-
-
-class MenuItemUpdate(MenuSubLinkUpdate):
-    """A top-level menu item to keep, change or add. A kept item keeps what isn't sent."""
-
-    children: list[MenuSubLinkUpdate] | None = Field(
-        default=None,
-        description="Sub-links, replacing the current ones. Omit to keep them. Only links can have sub-links.",
-    )
 
 
 class TableFieldConfig(BaseModel):
@@ -1791,18 +1777,26 @@ class ElementUpdate(BaseModel):
     menu_alignment: Literal["left", "center", "right", "justify"] | None = Field(
         default=None, description="(menu) Menu alignment."
     )
-    menu_items: list[MenuItemUpdate] | None = Field(
+    add_menu_items: list[MenuItemAdd] | None = Field(
         default=None,
-        description="(menu, header, footer) The whole menu, in order: every current item with its uid, plus new items.",
+        description="(menu, header, footer) New page links. They go last at their level unless before_uid is set; parent_uid makes one a sub-link.",
+    )
+    update_menu_items: list[MenuItemUpdate] | None = Field(
+        default=None,
+        description="(menu, header, footer) Existing items to change, by uid from list_elements. Only the keys you send change.",
+    )
+    reorder_menu_items: list[str] | None = Field(
+        default=None,
+        description="(menu, header, footer) Uids of every top-level item that stays, in the new order, from list_elements. Sub-links can't be reordered.",
     )
     remove_menu_items: list[str] | None = Field(
         default=None,
-        description="(menu, header, footer) uids of the items to delete. Sent alone, it keeps the other items.",
+        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove.",
     )
 
     # -- Dispatch -------------------------------------------------------------
 
-    @field_validator(*TABLE_COLUMN_PROPERTIES)
+    @field_validator(*TABLE_COLUMN_PROPERTIES, *MENU_ITEM_PROPERTIES)
     @classmethod
     def _empty_list_is_unset(cls, value: list[Any] | None) -> list[Any] | None:
         return value or None
@@ -1816,10 +1810,10 @@ class ElementUpdate(BaseModel):
 
     def changes_menu_items(self) -> bool:
         """
-        :return: Whether this update sets or removes menu items.
+        :return: Whether this update adds, changes, reorders or removes menu items.
         """
 
-        return self.menu_items is not None or self.remove_menu_items is not None
+        return any(getattr(self, name) is not None for name in MENU_ITEM_PROPERTIES)
 
     def to_update_kwargs(self, element_type: str) -> dict:
         """Return kwargs for ``ElementService.update_element()``."""

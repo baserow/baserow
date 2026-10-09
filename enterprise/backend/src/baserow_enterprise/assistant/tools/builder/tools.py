@@ -469,7 +469,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id, and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -813,9 +813,9 @@ def update_element(
     """\
     Update an existing element's properties.
 
-    WHEN to use: User wants to change properties of an existing element (text, label, settings, table columns, etc.).
+    WHEN to use: User wants to change properties of an existing element (text, label, settings, table columns, menu items, etc.).
     WHAT it does: Updates the specified properties on an element. Only non-null properties are applied.
-    RETURNS: Updated element ID and list of changed properties. Table column changes also return the table's columns afterwards and the removed columns.
+    RETURNS: Updated element ID and list of changed properties. Table column changes also return the table's columns afterwards and the removed columns; menu item changes return the menu's items afterwards and the removed items.
     DO NOT USE when: You need to move elements, change data sources, or modify styles — use other tools for those.
 
     ## Usage
@@ -852,14 +852,20 @@ def update_element(
       Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
-    - menu_items (menu, header or footer) is the whole menu, in order: send every current
-      item with its uid from list_elements plus any new items, even to change one item.
-    - A sent item keeps its type, settings, click actions and sub-links; set name to rename
-      it, page_id to point a link to a page.
-    - Items without uid are new page links and need name and page_id.
-    - children replaces an item's sub-links; leave it out to keep them.
-    - To delete items, list their uids in remove_menu_items, which can also be sent alone.
-    - A button can't link to a page: give it an open_page action with create_actions.
+    - list_elements shows each menu's items with uid, name, type, page_id, and a
+      top-level link's sub-links as children. Change them by uid with add_menu_items,
+      update_menu_items, reorder_menu_items and remove_menu_items; items you don't
+      list stay exactly as they are. On a header or footer, they change its menu.
+    - add_menu_items adds page links, last unless before_uid is set; parent_uid makes
+      one a sub-link of a top-level link.
+    - update_menu_items renames an item or points a link to a page; the item keeps
+      its type, click actions and sub-links, and a new page drops the old page's
+      parameters. A button can't link to a page: give it an open_page action with
+      create_actions.
+    - reorder_menu_items lists every top-level item that stays; sub-links can't be
+      reordered.
+    - Remove an item only when the user asked for it. Its sub-links go with it, and a
+      removed button's click actions are deleted.
     """
 
     user = ctx.deps.user

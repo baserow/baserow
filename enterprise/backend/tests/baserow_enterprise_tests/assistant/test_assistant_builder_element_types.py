@@ -31,11 +31,12 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 from baserow_enterprise.assistant.tools.builder.types import (
     ElementUpdate,
     LayoutElementCreate,
+    MenuItemAdd,
     MenuItemCreate,
-    MenuItemUpdate,
 )
 from baserow_enterprise.assistant.tools.builder.types.element import (
     BUTTON_NAVIGATION_GUIDANCE,
+    MENU_ITEM_PROPERTIES,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -119,6 +120,9 @@ def test_the_default_guidance_lists_the_supported_properties() -> None:
             {
                 "menu_orientation": "orientation",
                 "menu_alignment": "alignment",
+                "add_menu_items": "menu_items",
+                "update_menu_items": "menu_items",
+                "reorder_menu_items": "menu_items",
                 "remove_menu_items": "menu_items",
             },
         ),
@@ -253,9 +257,7 @@ def test_a_header_or_footer_applies_its_menu_items_after_the_update(
 
     assert isinstance(hooks, registered_type)
     assert hooks is assistant_element_type_registry.get(element_type)
-    assert hooks.properties_applied_after_update == frozenset(
-        {"menu_items", "remove_menu_items"}
-    )
+    assert hooks.properties_applied_after_update == frozenset(MENU_ITEM_PROPERTIES)
 
 
 @pytest.mark.django_db
@@ -277,12 +279,12 @@ def test_a_header_or_footer_without_a_menu_gets_one_with_its_menu_items(
         page_id=seeded.page.id,
         element=ElementUpdate(
             element_id=container_id,
-            menu_items=[MenuItemUpdate(name="Home", page_id=seeded.page.id)],
+            add_menu_items=[MenuItemAdd(name="Home", page_id=seeded.page.id)],
         ),
         thought="Add the navigation.",
     )
 
-    assert result["updated_fields"] == ["menu_items"]
+    assert result["updated_fields"] == ["add_menu_items"]
     menu = MenuElement.objects.get(page__builder=seeded.page.builder)
     assert menu.parent_element_id == container_id
     assert [
@@ -292,7 +294,7 @@ def test_a_header_or_footer_without_a_menu_gets_one_with_its_menu_items(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("element_type", ["header", "footer"])
-def test_a_header_or_footer_replaces_the_items_of_the_menu_inside(
+def test_a_header_or_footer_changes_the_items_of_the_menu_inside(
     seeded: SeededPage, data_fixture: Fixtures, element_type: str
 ) -> None:
     created = create_layout_elements(
@@ -320,13 +322,13 @@ def test_a_header_or_footer_replaces_the_items_of_the_menu_inside(
         page_id=seeded.page.id,
         element=ElementUpdate(
             element_id=container_id,
-            menu_items=[MenuItemUpdate(name="About", page_id=about.id)],
+            add_menu_items=[MenuItemAdd(name="About", page_id=about.id)],
             remove_menu_items=[str(home.uid)],
         ),
         thought="Point the navigation to the about page.",
     )
 
-    assert result["updated_fields"] == ["menu_items", "remove_menu_items"]
+    assert result["updated_fields"] == ["add_menu_items", "remove_menu_items"]
     assert MenuElement.objects.get(page__builder=seeded.page.builder).id == menu.id
     assert [
         (item.name, item.navigate_to_page_id) for item in menu.menu_items.all()
@@ -345,12 +347,12 @@ def test_a_menu_update_saves_its_menu_items_with_its_other_properties(
         element=ElementUpdate(
             element_id=menu.id,
             menu_orientation="vertical",
-            menu_items=[MenuItemUpdate(name="Home", page_id=seeded.page.id)],
+            add_menu_items=[MenuItemAdd(name="Home", page_id=seeded.page.id)],
         ),
         thought="Add the navigation.",
     )
 
-    assert result["updated_fields"] == ["menu_orientation", "menu_items"]
+    assert result["updated_fields"] == ["menu_orientation", "add_menu_items"]
     menu.refresh_from_db()
     assert menu.orientation == "vertical"
     assert [
@@ -407,6 +409,41 @@ def test_the_unsupported_properties_guidance_lists_a_links_aliased_properties(
     )
     supported = message.split("Supported properties include: ")[1].rstrip(".")
     assert {"link_variant", "link_target"} <= set(supported.split(", "))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("element_type", ["header", "footer"])
+def test_a_header_or_footer_lists_its_menu_item_properties_as_supported(
+    seeded: SeededPage, element_type: str
+) -> None:
+    created = create_layout_elements(
+        seeded.ctx,
+        page_id=seeded.page.id,
+        elements=[LayoutElementCreate(ref="container", type=element_type)],
+        thought="Create the shared container.",
+    )
+
+    with pytest.raises(ToolInputError) as raised:
+        update_element(
+            seeded.ctx,
+            page_id=seeded.page.id,
+            element=ElementUpdate(
+                element_id=created["created_elements"][0]["id"], value="x"
+            ),
+            thought="Change the container.",
+        )
+
+    message = str(raised.value)
+    assert message.startswith(
+        f"Unsupported properties for {element_type}: value. No changes were applied."
+    )
+    supported = message.split("Supported properties include: ")[1].rstrip(".")
+    assert {
+        "add_menu_items",
+        "update_menu_items",
+        "reorder_menu_items",
+        "remove_menu_items",
+    } <= set(supported.split(", "))
 
 
 @pytest.mark.django_db

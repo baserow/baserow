@@ -1,7 +1,10 @@
+from typing import Any
+
 import pytest
 
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.core.graph.types import GraphPointPosition
+from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _changes_theme_scenario,
     _check_changes_theme,
@@ -22,6 +25,7 @@ from baserow_enterprise.assistant.tools.builder.themes import apply_theme
 from baserow_enterprise.assistant.tools.builder.types import (
     ActionCreate,
     ElementUpdate,
+    MenuItemAdd,
     MenuItemUpdate,
 )
 from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
@@ -118,14 +122,10 @@ def test_new_page_check_tolerates_repaired_argument_root(data_fixture):
     assert all(check.passed for check in checks), checks
 
 
-def _keep(scenario: EvalScenario, *names: str) -> list[MenuItemUpdate]:
-    return [MenuItemUpdate(uid=scenario.pre_state["uids"][name]) for name in names]
-
-
-def _update_menu(scenario: EvalScenario, menu_items: list[MenuItemUpdate]) -> None:
+def _update_menu(scenario: EvalScenario, **changes: Any) -> None:
     helpers.update_element(
         scenario.user,
-        ElementUpdate(element_id=scenario.refs["menu"].id, menu_items=menu_items),
+        ElementUpdate(element_id=scenario.refs["menu"].id, **changes),
     )
 
 
@@ -140,40 +140,25 @@ def _rebuild_as_page_links(scenario: EvalScenario, *names: str) -> None:
     )
 
 
-def _add_contact_link(scenario: EvalScenario, fx) -> None:
+def _add_contact_link(scenario: EvalScenario, fx: Fixtures) -> None:
+    contact = scenario.refs["pages"]["Contact"]
     _update_menu(
-        scenario,
-        [
-            *_keep(scenario, "Home", "Products", "Divider", "Help"),
-            MenuItemUpdate(
-                name="Contact", page_id=scenario.refs["pages"]["Contact"].id
-            ),
-        ],
+        scenario, add_menu_items=[MenuItemAdd(name="Contact", page_id=contact.id)]
     )
 
 
-def _rename_help(scenario: EvalScenario, fx) -> None:
-    uids = scenario.pre_state["uids"]
+def _rename_help(scenario: EvalScenario, fx: Fixtures) -> None:
+    help_uid = scenario.pre_state["uids"]["Help"]
     _update_menu(
-        scenario,
-        [
-            *_keep(scenario, "Home", "Products", "Divider"),
-            MenuItemUpdate(uid=uids["Help"], name="Support"),
-        ],
+        scenario, update_menu_items=[MenuItemUpdate(uid=help_uid, name="Support")]
     )
 
 
-def _remove_pricing(scenario: EvalScenario, fx) -> None:
-    helpers.update_element(
-        scenario.user,
-        ElementUpdate(
-            element_id=scenario.refs["menu"].id,
-            remove_menu_items=[scenario.pre_state["uids"]["Pricing"]],
-        ),
-    )
+def _remove_pricing(scenario: EvalScenario, fx: Fixtures) -> None:
+    _update_menu(scenario, remove_menu_items=[scenario.pre_state["uids"]["Pricing"]])
 
 
-def _open_about_on_help_click(scenario: EvalScenario, fx) -> None:
+def _open_about_on_help_click(scenario: EvalScenario, fx: Fixtures) -> None:
     helpers.create_workflow_action(
         scenario.user,
         scenario.refs["pages"]["Home"],
@@ -188,24 +173,11 @@ def _open_about_on_help_click(scenario: EvalScenario, fx) -> None:
     )
 
 
-def _add_blog_then_careers(scenario: EvalScenario, fx) -> None:
+def _add_blog_then_careers(scenario: EvalScenario, fx: Fixtures) -> None:
     builder = scenario.refs["builder"]
-    kept = ("Home", "Products", "Divider", "Help")
-    blog = fx.create_builder_page(builder=builder, name="Blog", path="/blog")
-    _update_menu(
-        scenario,
-        [*_keep(scenario, *kept), MenuItemUpdate(name="Blog", page_id=blog.id)],
-    )
-    blog_uid = str(scenario.refs["menu"].menu_items.get(name="Blog").uid)
-    careers = fx.create_builder_page(builder=builder, name="Careers", path="/careers")
-    _update_menu(
-        scenario,
-        [
-            *_keep(scenario, *kept),
-            MenuItemUpdate(uid=blog_uid),
-            MenuItemUpdate(name="Careers", page_id=careers.id),
-        ],
-    )
+    for name, path in (("Blog", "/blog"), ("Careers", "/careers")):
+        page = fx.create_builder_page(builder=builder, name=name, path=path)
+        _update_menu(scenario, add_menu_items=[MenuItemAdd(name=name, page_id=page.id)])
 
 
 MENU_CASES = {

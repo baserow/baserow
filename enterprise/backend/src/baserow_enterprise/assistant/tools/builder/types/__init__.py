@@ -21,14 +21,18 @@ from .element import (
     LayoutElementCreate,
     LinkStyleOverride,
     MenuItemCreate,
-    MenuItemUpdate,
-    MenuSubLinkUpdate,
     ParameterMapping,
     TableFieldConfig,
     TableStyleOverride,
     TypographyStyleOverride,
 )
-from .menu_items import ListedMenuItem, ListedTopLevelMenuItem
+from .menu_items import (
+    ListedMenuItem,
+    ListedTopLevelMenuItem,
+    MenuItemAdd,
+    MenuItemUpdate,
+    RemovedMenuItem,
+)
 from .page import PageCreate, PageItem, PagePathParam, PageQueryParam, PageUpdate
 from .table_columns import (
     RemovedTableColumn,
@@ -71,15 +75,16 @@ __all__ = [
     "LinkStyleOverride",
     "ListedMenuItem",
     "ListedTopLevelMenuItem",
+    "MenuItemAdd",
     "MenuItemCreate",
     "MenuItemUpdate",
-    "MenuSubLinkUpdate",
     "PageCreate",
     "PageItem",
     "PagePathParam",
     "PageQueryParam",
     "PageUpdate",
     "ParameterMapping",
+    "RemovedMenuItem",
     "RemovedTableColumn",
     "TableColumnAdd",
     "TableColumnItem",

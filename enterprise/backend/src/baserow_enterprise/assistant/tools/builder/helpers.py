@@ -9,6 +9,7 @@ from collections import Counter
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.db.models import Q
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
@@ -20,11 +21,7 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import (
-    Element,
-    MenuElement,
-    MenuItemElement,
-)
+from baserow.contrib.builder.elements.models import Element, MenuElement
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -70,13 +67,10 @@ from .types import (
     ElementMove,
     ElementStyleUpdate,
     ElementUpdate,
-    MenuItemUpdate,
-    MenuSubLinkUpdate,
     PageCreate,
     PageItem,
     PageUpdate,
 )
-from .types.menu_items import group_menu_items, new_menu_link
 
 if TYPE_CHECKING:
     pass
@@ -594,338 +588,120 @@ def update_element(
     :raises PermissionDenied: When the user can't update the element.
     """
 
-    try:
-        element = ElementHandler().get_element_for_update(element_update.element_id)
-    except ElementDoesNotExist:
-        raise ToolInputError(
-            f"Element with ID {element_update.element_id} not found. "
-            "Use list_elements to find valid element IDs."
-        )
-
-    CoreHandler().check_permissions(
-        user,
-        UpdateElementOperationType.type,
-        workspace=element.page.builder.workspace,
-        context=element,
-    )
-
-    element_type = element.get_type().type
-    hooks = assistant_element_type_registry.get_for(element_type)
-    kwargs = element_update.to_update_kwargs(element_type)
-    allowed = _accepted_update_keys(element)
-    kwargs = {name: value for name, value in kwargs.items() if name in allowed}
-    prepared = hooks.prepare_update(user, element, element_update)
-    kwargs.update(prepared.kwargs)
-    unsupported = element_update.unsupported_fields(
-        kwargs, hooks.property_aliases, hooks.properties_applied_after_update
-    ) + hooks.conflicting_properties(element_update)
-    if unsupported:
-        supported = set(element.get_type().allowed_fields) & set(
-            ElementUpdate.model_fields
-        )
-        supported.update(("visibility", "role_type", "roles"))
-        supported.update(hooks.property_aliases)
-        raise ToolInputError(
-            f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
-            f"No changes were applied. {hooks.unsupported_guidance(supported)}"
-        )
-    # Save generated values and their source switches together after validation,
-    # so failed generation preserves the existing link/image behavior.
-    deferred_fields = set(
-        element_update.get_formulas_to_update(element, None, element_type)
-    ) | set(element_update.get_formula_dependent_fields(element_type))
-    for field in deferred_fields:
-        kwargs.pop(field, None)
-    if kwargs:
-        element = UpdateElementActionType.do(user, element, kwargs)
-    after_update_result = hooks.after_update(user, element, element_update)
-
-    result = (
-        hooks.updated_result(element, element_update)
-        | prepared.result
-        | after_update_result
-    )
-    return ElementUpdateOutcome(element, element_type, result)
-
-
-def ensure_child_menu(
-    user: AbstractUser,
-    header_element: Any,
-    element_update: ElementUpdate,
-) -> None:
-    """Find or create a menu element inside a header/footer, then set its items."""
-
-    handler = ElementHandler()
-    children = handler.get_elements(header_element.page)
-    menu_child = None
-    for child in children:
-        if (
-            child.parent_element_id == header_element.id
-            and child.get_type().type == "menu"
-        ):
-            menu_child = child
-            break
-
-    menu = menu_child.specific if menu_child is not None else None
-    menu_items_orm = resolve_menu_items(
-        menu, element_update.menu_items, element_update.remove_menu_items
-    )
-
-    if menu_child is not None:
-        UpdateElementActionType.do(user, menu_child, {"menu_items": menu_items_orm})
-    else:
-        sub_links = [item.pop("children") for item in menu_items_orm]
-        if any(sub_links):
+    with transaction.atomic():
+        try:
+            element = ElementHandler().get_element_for_update(element_update.element_id)
+        except ElementDoesNotExist:
             raise ToolInputError(
-                "Sub-links can only be added to an existing menu. Add the items "
-                "first, then send their children in a second update."
+                f"Element with ID {element_update.element_id} not found. "
+                "Use list_elements to find valid element IDs."
             )
-        menu_type = element_type_registry.get("menu")
-        CreateElementActionType.do(
+
+        CoreHandler().check_permissions(
             user,
-            menu_type,
-            header_element.page,
-            {
-                "reference_element_id": header_element.id,
-                "position": "child",
-                "menu_items": menu_items_orm,
-            },
+            UpdateElementOperationType.type,
+            workspace=element.page.builder.workspace,
+            context=element,
         )
 
+        element_type = element.get_type().type
+        hooks = assistant_element_type_registry.get_for(element_type)
+        kwargs = element_update.to_update_kwargs(element_type)
+        allowed = _accepted_update_keys(element)
+        kwargs = {name: value for name, value in kwargs.items() if name in allowed}
+        prepared = hooks.prepare_update(user, element, element_update)
+        kwargs.update(prepared.kwargs)
+        unsupported = element_update.unsupported_fields(
+            kwargs, hooks.property_aliases, hooks.properties_applied_after_update
+        ) + hooks.conflicting_properties(element_update)
+        if unsupported:
+            supported = set(element.get_type().allowed_fields) & set(
+                ElementUpdate.model_fields
+            )
+            supported.update(("visibility", "role_type", "roles"))
+            supported.update(hooks.property_aliases)
+            supported.update(hooks.properties_applied_after_update)
+            raise ToolInputError(
+                f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
+                f"No changes were applied. {hooks.unsupported_guidance(supported)}"
+            )
+        # Save generated values and their source switches together after validation,
+        # so failed generation preserves the existing link/image behavior.
+        deferred_fields = set(
+            element_update.get_formulas_to_update(element, None, element_type)
+        ) | set(element_update.get_formula_dependent_fields(element_type))
+        for field in deferred_fields:
+            kwargs.pop(field, None)
+        if kwargs:
+            element = UpdateElementActionType.do(user, element, kwargs)
+        after_update_result = hooks.after_update(user, element, element_update)
 
-def _menu_item_values(item: MenuItemElement) -> dict[str, Any]:
+        result = (
+            hooks.updated_result(element, element_update)
+            | prepared.result
+            | after_update_result
+        )
+        return ElementUpdateOutcome(element, element_type, result)
+
+
+def child_menu(container: Element) -> MenuElement | None:
     """
-    Return the values that recreate a menu item as it is.
+    Find the menu inside a header or footer, however deeply it is nested.
 
-    :param item: The existing menu item.
-    :return: The item's values, keyed like the menu's ``menu_items`` input.
+    :param container: The header or footer.
+    :return: Its menu, or None when it has none.
+    :raises ToolInputError: When it holds more than one menu.
     """
 
-    return {
-        "uid": str(item.uid),
-        "type": item.type,
-        "variant": item.variant,
-        "name": item.name,
-        "navigation_type": item.navigation_type,
-        "navigate_to_page_id": item.navigate_to_page_id,
-        "navigate_to_url": item.navigate_to_url,
-        "page_parameters": item.page_parameters,
-        "query_parameters": item.query_parameters,
-        "target": item.target,
-    }
+    descendant_ids = container.page.get_graph().collect_descendant_ids(container.id)
+    menus = [
+        element
+        for element in ElementHandler().get_elements(container.page)
+        if element.id in descendant_ids and element.get_type().type == "menu"
+    ]
+    if len(menus) > 1:
+        raise ToolInputError(
+            f"{container.get_type().type.capitalize()} {container.id} holds more than "
+            f"one menu: elements {[menu.id for menu in menus]}. Change one of them "
+            "with update_element and that menu's element_id. No changes were applied."
+        )
+    return menus[0].specific if menus else None
 
 
-def resolve_menu_items(
+def save_child_menu(
+    user: AbstractUser,
+    container: Element,
     menu: MenuElement | None,
-    items: list[MenuItemUpdate] | None,
-    removed: list[str] | None,
-) -> list[dict[str, Any]]:
+    menu_items: list[dict[str, Any]],
+) -> Element:
     """
-    Check the menu items Kuma sends against the menu and build its new items.
+    Save a header's or footer's menu items, and create its menu when it has none.
 
-    :param menu: The menu to update, or None when it doesn't exist yet.
-    :param items: The top-level items Kuma sent, in menu order, or None to keep
-        every item that isn't removed.
-    :param removed: The uids of the items to delete.
-    :return: The menu's new ``menu_items``, each with its sub-links as children.
-    :raises ToolInputError: If an item can't be applied as sent.
-    """
-
-    return _MenuItemsResolver(menu, items, removed).resolve()
-
-
-class _MenuItemsResolver:
-    """
-    Turns the menu items Kuma sends into the values the menu saves.
-
-    An item with a uid keeps the existing item and whatever Kuma doesn't change, so a
-    button keeps its click actions and a link its sub-links. An item without a uid is
-    a new page link. An item is deleted only when its uid is in the removed list.
-    Anything the menu can't apply raises before it is saved.
+    :param user: The user updating the header or footer, who may update it.
+    :param container: The header or footer.
+    :param menu: Its menu, or None to create one.
+    :param menu_items: The menu's full item list, each top-level item with its
+        sub-links as children.
+    :return: The saved menu.
     """
 
-    def __init__(
-        self,
-        menu: MenuElement | None,
-        items: list[MenuItemUpdate] | None,
-        removed: list[str] | None,
-    ) -> None:
-        """
-        :param menu: The menu to update, or None when it doesn't exist yet.
-        :param items: The top-level items Kuma sent, in menu order, or None to keep
-            every item that isn't removed.
-        :param removed: The uids of the items to delete.
-        """
-
-        self.menu = menu
-        self.removed = set(removed or [])
-        # Query again: a cached menu can hold items prefetched before they changed.
-        current = (
-            list(menu.menu_items.order_by("menu_item_order"))
-            if menu is not None
-            else []
-        )
-        self.current = {str(item.uid): item for item in current}
-        top_level, self.sub_links = group_menu_items(current)
-        self.items = items if items is not None else self._all_but_removed(top_level)
-        self.sent = Counter(
-            sent.uid
-            for item in self.items
-            for sent in (item, *(item.children or []))
-            if sent.uid is not None
-        )
-
-    def _all_but_removed(
-        self, top_level: list[MenuItemElement]
-    ) -> list[MenuItemUpdate]:
-        return [
-            MenuItemUpdate(
-                uid=str(item.uid),
-                children=[
-                    MenuSubLinkUpdate(uid=str(sub_link.uid))
-                    for sub_link in self.sub_links[item.id]
-                    if str(sub_link.uid) not in self.removed
-                ],
-            )
-            for item in top_level
-            if str(item.uid) not in self.removed
-        ]
-
-    def resolve(self) -> list[dict[str, Any]]:
-        """
-        Check the sent items against the menu and build its new items.
-
-        :return: The menu's new ``menu_items``, each with its sub-links as children.
-        :raises ToolInputError: If an item can't be applied as sent.
-        """
-
-        self._check_uids()
-        menu_items = [self._top_level_item(item) for item in self.items]
-        self._check_nothing_is_left_out(menu_items)
-        return menu_items
-
-    def _check_uids(self) -> None:
-        for uid in [*self.sent, *self.removed]:
-            if uid not in self.current:
-                raise ToolInputError(
-                    f"Menu item uid '{uid}' is not in this menu. {self._listing()} "
-                    "Omit uid to add a new page link."
-                )
-        for uid, count in self.sent.items():
-            if uid in self.removed:
-                raise ToolInputError(
-                    f"Menu item '{self.current[uid].name}' (uid {uid}) is both kept "
-                    "and removed. Send it in menu_items or in remove_menu_items."
-                )
-            if count > 1:
-                raise ToolInputError(
-                    f"Menu item '{self.current[uid].name}' (uid {uid}) is sent more "
-                    "than once. Send each item once."
-                )
-
-    def _listing(self) -> str:
-        if not self.current:
-            return "The menu has no items yet."
-        items = ", ".join(
-            f"'{item.name}' (uid {uid})" for uid, item in self.current.items()
-        )
-        return f"Its items are: {items}."
-
-    def _top_level_item(self, item: MenuItemUpdate) -> dict[str, Any]:
-        values = self._item(item)
-        if item.children and values["type"] != MenuItemElement.TYPES.LINK:
-            raise ToolInputError(
-                f"'{values['name']}' is a {values['type']}: only links can have "
-                "sub-links."
-            )
-        if item.children is not None:
-            values["children"] = [self._sub_link(child) for child in item.children]
-        elif item.uid is not None:
-            values["children"] = [
-                _menu_item_values(sub_link)
-                for sub_link in self.sub_links[self.current[item.uid].id]
-                if not self._placed_or_removed(sub_link)
-            ]
-        else:
-            values["children"] = []
-        return values
-
-    def _sub_link(self, item: MenuSubLinkUpdate) -> dict[str, Any]:
-        values = self._item(item)
-        if values["type"] != MenuItemElement.TYPES.LINK:
-            raise ToolInputError(
-                f"'{values['name']}' is a {values['type']}: only links can be "
-                "sub-links."
-            )
-        if item.uid is not None and any(
-            not self._placed_or_removed(sub_link)
-            for sub_link in self.sub_links[self.current[item.uid].id]
-        ):
-            raise ToolInputError(
-                f"'{values['name']}' has sub-links, so it can't become a sub-link. "
-                "Place its sub-links elsewhere in the menu, or remove them first."
-            )
-        return values
-
-    def _item(self, item: MenuSubLinkUpdate) -> dict[str, Any]:
-        """Return a new page link, or the kept item with what Kuma changed."""
-
-        if item.uid is None:
-            if item.name is None or item.page_id is None:
-                raise ToolInputError(
-                    "A new menu item needs a name and a page_id. To keep an "
-                    f"existing item, pass its uid. {self._listing()}"
-                )
-            return new_menu_link(item.name, item.page_id)
-
-        current = self.current[item.uid]
-        values = _menu_item_values(current)
-        if item.name is not None:
-            values["name"] = item.name
-        if item.page_id is not None and not (
-            current.navigation_type == MenuItemElement.NAVIGATION_TYPES.PAGE
-            and current.navigate_to_page_id == item.page_id
-        ):
-            self._check_can_link_to_page(current)
-            # The parameters belong to the previous destination.
-            values.update(
-                navigation_type=MenuItemElement.NAVIGATION_TYPES.PAGE,
-                navigate_to_page_id=item.page_id,
-                page_parameters=[],
-                query_parameters=[],
-            )
-        return values
-
-    def _check_can_link_to_page(self, item: MenuItemElement) -> None:
-        if item.type == MenuItemElement.TYPES.BUTTON:
-            raise ToolInputError(
-                f"'{item.name}' is a button, so it can't link to a page. To make it "
-                "open a page, use create_actions with type='open_page', "
-                f"element={self.menu.id}, event='{item.uid}_click'."
-            )
-        if item.type != MenuItemElement.TYPES.LINK:
-            raise ToolInputError(
-                f"'{item.name}' is a {item.type}, so it can't link to a page."
-            )
-
-    def _placed_or_removed(self, item: MenuItemElement) -> bool:
-        return str(item.uid) in self.sent or str(item.uid) in self.removed
-
-    def _check_nothing_is_left_out(self, menu_items: list[dict[str, Any]]) -> None:
-        kept = {
-            values["uid"] for item in menu_items for values in (item, *item["children"])
-        }
-        left_out = [
-            f"'{item.name}' (uid {uid})"
-            for uid, item in self.current.items()
-            if uid not in kept and uid not in self.removed
-        ]
-        if left_out:
-            raise ToolInputError(
-                f"These menu items were left out: {', '.join(left_out)}. Send them "
-                "with their uid to keep them, or list their uids in remove_menu_items "
-                "to delete them."
-            )
+    if menu is not None:
+        return UpdateElementActionType.do(user, menu, {"menu_items": menu_items})
+    # A new menu has no sub-links yet, and creating one doesn't take children.
+    top_level = [
+        {key: value for key, value in item.items() if key != "children"}
+        for item in menu_items
+    ]
+    return CreateElementActionType.do(
+        user,
+        element_type_registry.get("menu"),
+        container.page,
+        {
+            "reference_element_id": container.id,
+            "position": "child",
+            "menu_items": top_level,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

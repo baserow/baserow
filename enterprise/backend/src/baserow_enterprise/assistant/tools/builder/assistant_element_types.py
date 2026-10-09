@@ -4,15 +4,48 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.contrib.builder.elements.models import Element, TableElement
+from baserow.contrib.builder.elements.models import Element, MenuElement, TableElement
 
-from .helpers import ensure_child_menu, resolve_menu_items
+from .helpers import child_menu, save_child_menu
+from .menu_item_changes import MenuItemsChange, linkable_page_ids, merge_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
-from .types.element import BUTTON_NAVIGATION_GUIDANCE, TABLE_COLUMN_PROPERTIES
+from .types.element import (
+    BUTTON_NAVIGATION_GUIDANCE,
+    MENU_ITEM_PROPERTIES,
+    TABLE_COLUMN_PROPERTIES,
+)
 from .types.menu_items import listed_menu_items
 from .types.table_columns import table_column_items
+
+
+def _merge_menu_item_changes(
+    menu: MenuElement | None, element: Element, update: ElementUpdate
+) -> MenuItemsChange:
+    """
+    Merge an update's menu item changes into a menu's saved items.
+
+    :param menu: The menu, or None when a header or footer has no menu yet.
+    :param element: The updated menu, header or footer, whose builder's pages the
+        items may link to.
+    :param update: The update holding the changes.
+    :return: The items to save and the items removed.
+    :raises ToolInputError: When a change can't be applied; nothing is saved.
+    """
+
+    return merge_menu_items(
+        menu,
+        page_ids=linkable_page_ids(element.page.builder_id),
+        add=update.add_menu_items or [],
+        update=update.update_menu_items or [],
+        reorder=update.reorder_menu_items,
+        remove=update.remove_menu_items or [],
+    )
+
+
+def _removed_result(change: MenuItemsChange) -> dict[str, Any]:
+    return {"removed_menu_items": change.removed} if change.removed else {}
 
 
 class ButtonAssistantElementType(AssistantElementType):
@@ -97,7 +130,7 @@ class ColumnAssistantElementType(AssistantElementType):
 class MenuAssistantElementType(AssistantElementType):
     """
     Kuma sets a menu's orientation and alignment with menu_orientation and
-    menu_alignment, and keeps or removes its items by uid.
+    menu_alignment, and changes its items by uid.
     """
 
     type = "menu"
@@ -106,43 +139,57 @@ class MenuAssistantElementType(AssistantElementType):
     def property_aliases(self) -> dict[str, str]:
         """
         The menu's orientation and alignment, which ElementUpdate prefixes with menu_,
-        and the removed items, which are saved as the menu's items.
+        and the menu item changes, which are all saved as the menu's items.
 
         :return: menu_orientation and menu_alignment, mapped to the orientation and
-            alignment kwargs, and remove_menu_items, mapped to the menu_items kwarg.
+            alignment kwargs, and each menu item change, mapped to the menu_items
+            kwarg.
         """
 
         return {
             "menu_orientation": "orientation",
             "menu_alignment": "alignment",
-            "remove_menu_items": "menu_items",
+            **dict.fromkeys(MENU_ITEM_PROPERTIES, "menu_items"),
         }
 
     def prepare_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
     ) -> PreparedElementUpdate:
         """
-        Resolve the sent menu items against the menu's items by uid, so the items
-        the update keeps keep their click actions, settings and sub-links.
+        Merge the menu item changes into the saved items, so the items they don't
+        name are saved unchanged.
 
         :param user: The user updating the menu, who may update it.
         :param element: The menu element, locked for update.
         :param update: The properties to change.
-        :return: The menu items to save.
-        :raises ToolInputError: When an item can't be applied as sent. Nothing is
-            saved.
+        :return: The full item list to save, and the removed items when there are
+            any.
+        :raises ToolInputError: When a change can't be applied. Nothing is saved.
         """
 
         if not update.changes_menu_items():
             return PreparedElementUpdate(kwargs={}, result={})
-        menu_items = resolve_menu_items(
-            element.specific, update.menu_items, update.remove_menu_items
+        change = _merge_menu_item_changes(element.specific, element, update)
+        return PreparedElementUpdate(
+            kwargs={"menu_items": change.menu_items}, result=_removed_result(change)
         )
-        return PreparedElementUpdate(kwargs={"menu_items": menu_items}, result={})
+
+    def updated_result(self, element: Element, update: ElementUpdate) -> dict[str, Any]:
+        """
+        Read the menu's items again after a menu item change.
+
+        :param element: The updated menu element.
+        :param update: The properties that were changed.
+        :return: The menu's items when the update changed them.
+        """
+
+        if not update.changes_menu_items():
+            return {}
+        return {"menu_items": listed_menu_items(MenuElement.objects.get(id=element.id))}
 
     def item_details(self, element: Element) -> dict[str, Any]:
         """
-        Show the menu's items with the uids update_element needs to keep them.
+        Show the menu's items with the uids update_element changes them by.
 
         :param element: The listed menu element.
         :return: Its menu_items.
@@ -153,28 +200,37 @@ class MenuAssistantElementType(AssistantElementType):
 
 class MultiPageContainerAssistantElementType(AssistantElementType):
     """
-    Kuma sets a header's or footer's menu items on the menu inside it, because
+    Kuma changes a header's or footer's menu items on the menu inside it, because
     headers and footers are containers, not menus.
     """
 
-    properties_applied_after_update = frozenset({"menu_items", "remove_menu_items"})
+    properties_applied_after_update = frozenset(MENU_ITEM_PROPERTIES)
 
     def after_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
     ) -> dict[str, Any]:
         """
-        Set the menu items on the menu inside the element, and create that menu when
-        there is none.
+        Apply the menu item changes to the menu inside the element, at any depth,
+        creating that menu when there is none.
 
         :param user: The user updating the element, who may update it.
         :param element: The updated header or footer.
         :param update: The properties that were changed.
-        :return: No result keys.
+        :return: The menu's items after the change and the removed items, when the
+            update changed menu items.
+        :raises ToolInputError: When a change can't be applied or the element holds
+            more than one menu. update_element's transaction then saves nothing.
         """
 
-        if update.changes_menu_items():
-            ensure_child_menu(user, element, update)
-        return {}
+        if not update.changes_menu_items():
+            return {}
+        menu = child_menu(element)
+        change = _merge_menu_item_changes(menu, element, update)
+        saved = save_child_menu(user, element, menu, change.menu_items)
+        return {
+            "menu_items": listed_menu_items(MenuElement.objects.get(id=saved.id)),
+            **_removed_result(change),
+        }
 
 
 class HeaderAssistantElementType(MultiPageContainerAssistantElementType):
