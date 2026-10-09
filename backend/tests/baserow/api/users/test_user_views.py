@@ -678,9 +678,7 @@ def test_create_user_with_user_template_id(data_fixture, client):
     data_fixture.create_password_provider()
     # The slug matches a template file, so without the scope the official content
     # would be installed.
-    user_template = data_fixture.create_user_template(
-        slug="example-template", listing_state="public"
-    )
+    user_template = data_fixture.create_user_template(slug="example-template")
 
     response = client.post(
         reverse("api:user:index"),

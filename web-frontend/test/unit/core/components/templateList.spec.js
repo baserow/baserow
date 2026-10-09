@@ -103,4 +103,24 @@ describe('TemplateList', () => {
       [categories[1].templates[0]],
     ])
   })
+
+  test('opens a template and a category with the keyboard', async () => {
+    const wrapper = await mountComponent()
+
+    const card = wrapper.findAll('.template-list__card')[0]
+    expect(card.attributes('tabindex')).toBe('0')
+    await card.trigger('keydown', { key: 'Enter' })
+    await card.trigger('keydown', { key: ' ' })
+
+    expect(wrapper.emitted('selected')).toStrictEqual([
+      [categories[0].templates[0]],
+      [categories[0].templates[0]],
+    ])
+
+    await wrapper
+      .findAll('.template-list__category-link')[2]
+      .trigger('keydown', { key: 'Enter' })
+
+    expect(sectionTitles(wrapper)).toStrictEqual(['Personal'])
+  })
 })

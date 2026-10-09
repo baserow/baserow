@@ -7,7 +7,14 @@
     <template #sidebar="{ applications, page, selectPage }">
       <div class="template-details__sidebar">
         <div v-if="showBack" class="template-details__back">
-          <a class="template-details__back-link" @click="emit('back')">
+          <a
+            class="template-details__back-link"
+            role="button"
+            tabindex="0"
+            @click="emit('back')"
+            @keydown.enter.prevent="emit('back')"
+            @keydown.space.prevent="emit('back')"
+          >
             <i class="iconoir-nav-arrow-left"></i>
             {{ $t('templateDetails.back') }}
           </a>

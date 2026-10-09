@@ -23,7 +23,11 @@
                 'template-list__category-link--active':
                   selectedCategoryId === null,
               }"
+              role="button"
+              tabindex="0"
               @click="selectedCategoryId = null"
+              @keydown.enter.prevent="selectedCategoryId = null"
+              @keydown.space.prevent="selectedCategoryId = null"
               >{{ $t('templateCategories.allTemplates') }}</a
             >
           </li>
@@ -34,7 +38,11 @@
                 'template-list__category-link--active':
                   selectedCategoryId === category.id,
               }"
+              role="button"
+              tabindex="0"
               @click="selectedCategoryId = category.id"
+              @keydown.enter.prevent="selectedCategoryId = category.id"
+              @keydown.space.prevent="selectedCategoryId = category.id"
               >{{ category.name }}</a
             >
           </li>
@@ -48,7 +56,11 @@
         >
           <a
             class="template-list__section-title"
+            role="button"
+            tabindex="0"
             @click="toggleCollapsed(category.id)"
+            @keydown.enter.prevent="toggleCollapsed(category.id)"
+            @keydown.space.prevent="toggleCollapsed(category.id)"
           >
             <i
               :class="
@@ -67,7 +79,11 @@
               v-for="template in category.templates"
               :key="template.id"
               class="template-list__card"
+              role="button"
+              tabindex="0"
               @click="emit('selected', template)"
+              @keydown.enter.prevent="emit('selected', template)"
+              @keydown.space.prevent="emit('selected', template)"
             >
               <div class="template-list__card-title">
                 <div class="template-list__card-icon">

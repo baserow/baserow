@@ -207,7 +207,7 @@ def test_list_applications_of_user_template_is_not_public(api_client, data_fixtu
     _, other_token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=owner)
     data_fixture.create_database_application(workspace=workspace)
-    data_fixture.create_user_template(author=owner, workspace=workspace)
+    data_fixture.create_user_template(workspace=workspace)
     workspace.has_template.cache_clear()
     url = reverse("api:applications:list", kwargs={"workspace_id": workspace.id})
 

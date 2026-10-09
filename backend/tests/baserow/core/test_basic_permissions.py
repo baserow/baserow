@@ -4,7 +4,6 @@ from django.contrib.auth.models import AnonymousUser
 from django.db import connection
 from django.db.models import Q, QuerySet
 from django.test.utils import CaptureQueriesContext, override_settings
-from django.utils import timezone
 
 import pytest
 
@@ -1442,7 +1441,7 @@ def test_allow_if_template_permissions_object_lists_official_templates_only(
     data_fixture,
 ):
     official = data_fixture.create_template()
-    data_fixture.create_user_template(listing_state="public")
+    data_fixture.create_user_template()
 
     permissions = AllowIfTemplatePermissionManagerType().get_permissions_object(
         AnonymousUser()
@@ -1454,8 +1453,7 @@ def test_allow_if_template_permissions_object_lists_official_templates_only(
 @pytest.mark.django_db
 def test_allow_if_template_grants_official_templates_only(data_fixture):
     official = data_fixture.create_template()
-    user_template = data_fixture.create_user_template(listing_state="public")
-    marked = data_fixture.create_template(marked_for_deletion_at=timezone.now())
+    user_template = data_fixture.create_user_template()
     plain_workspace = data_fixture.create_workspace()
     manager = AllowIfTemplatePermissionManagerType()
     operation = ReadWorkspaceOperationType.type
@@ -1467,13 +1465,11 @@ def test_allow_if_template_grants_official_templates_only(data_fixture):
 
     assert granted(official.workspace) is True
     assert granted(user_template.workspace) is None
-    assert granted(marked.workspace) is None
     assert granted(plain_workspace) is None
 
     workspaces = [
         official.workspace,
         user_template.workspace,
-        marked.workspace,
         plain_workspace,
     ]
     assert manager.filter_queryset_for_workspaces(

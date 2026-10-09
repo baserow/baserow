@@ -1,9 +1,4 @@
-from baserow.core.models import (
-    Template,
-    TemplateCategory,
-    TemplateListingState,
-    TemplateTypes,
-)
+from baserow.core.models import Template, TemplateCategory, TemplateTypes
 
 
 class TemplateFixtures:
@@ -51,19 +46,9 @@ class TemplateFixtures:
 
         return template
 
-    def create_user_template(
-        self, author=None, listing_state=TemplateListingState.PRIVATE, **kwargs
-    ):
+    def create_user_template(self, **kwargs):
         """
         Creates a user template. Its content is a hidden, memberless workspace.
         """
 
-        if author is None:
-            author = self.create_user()
-
-        return self.create_template(
-            template_type=TemplateTypes.USER,
-            author=author,
-            listing_state=listing_state,
-            **kwargs,
-        )
+        return self.create_template(template_type=TemplateTypes.USER, **kwargs)

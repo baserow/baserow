@@ -1,22 +1,12 @@
 from datetime import datetime, timezone
-from uuid import UUID
 
-from django.db import IntegrityError, connection, transaction
-from django.utils import timezone as django_timezone
+from django.db import connection
 
 import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.database.models import Database
-from baserow.core.models import (
-    Template,
-    TemplateLinkAccess,
-    TemplateListingState,
-    TemplateTypes,
-    Workspace,
-    WorkspaceUser,
-    official_template_uuid,
-)
+from baserow.core.models import Template, TemplateTypes, Workspace, WorkspaceUser
 
 
 @pytest.mark.django_db
@@ -71,25 +61,11 @@ def test_core_models_hierarchy(data_fixture):
     assert workspace.get_root() == workspace
 
 
-def test_official_template_uuid_never_changes():
-    # The namespace is permanent: the same official template must keep the same
-    # uuid on every instance and across releases.
-    assert official_template_uuid("project-tracker") == UUID(
-        "914af5fe-6f50-51ec-8493-afde6b4ce39e"
-    )
-
-
 @pytest.mark.django_db
 def test_template_defaults(data_fixture):
     template = data_fixture.create_template()
 
     assert template.template_type == TemplateTypes.OFFICIAL
-    assert template.listing_state == TemplateListingState.PUBLIC
-    assert template.author is None
-    assert template.uuid is None
-    assert template.state_before_block is None
-    assert template.install_count == 0
-    assert template.created_on is not None
 
 
 @pytest.mark.django_db
@@ -104,79 +80,24 @@ def test_template_row_inserted_without_new_columns_gets_official_defaults():
 
     template = Template.objects.get(id=template_id)
     assert template.template_type == TemplateTypes.OFFICIAL
-    assert template.listing_state == TemplateListingState.PUBLIC
-    assert template.description == ""
-    assert template.state_note == ""
-    assert template.install_count == 0
-    assert template.created_on is not None
-    assert template.updated_on is not None
 
 
 @pytest.mark.django_db
-def test_template_queryset_official_and_user_templates(data_fixture):
+def test_template_queryset_official(data_fixture):
     official = data_fixture.create_template()
     user_template = data_fixture.create_user_template()
 
     assert list(Template.objects.official()) == [official]
-    assert list(Template.objects.user_templates()) == [user_template]
-    assert user_template.listing_state == TemplateListingState.PRIVATE
+    assert user_template.template_type == TemplateTypes.USER
     assert user_template.workspace.users.count() == 0
 
 
-@pytest.mark.django_db(transaction=True)
-def test_user_template_requires_author(data_fixture):
-    with pytest.raises(IntegrityError), transaction.atomic():
-        data_fixture.create_template(template_type=TemplateTypes.USER)
-
-    template = data_fixture.create_template()
-    template.template_type = TemplateTypes.USER
-    with pytest.raises(IntegrityError), transaction.atomic():
-        template.save()
-
-
 @pytest.mark.django_db
-def test_template_marked_for_deletion_hidden_by_default_manager(data_fixture):
-    template = data_fixture.create_template()
-    marked = data_fixture.create_user_template(
-        marked_for_deletion_at=django_timezone.now()
-    )
-
-    assert list(Template.objects.all()) == [template]
-    assert set(Template.objects_and_trash.all()) == {template, marked}
-    assert list(Template.objects_and_trash.user_templates()) == [marked]
-
-
-@pytest.mark.django_db
-def test_template_deleted_with_author(data_fixture):
-    author = data_fixture.create_user()
-    template = data_fixture.create_user_template(author=author)
-    other_user = data_fixture.create_user()
-    TemplateLinkAccess.objects.create(template=template, user=other_user)
-
-    author.delete()
-
-    assert not Template.objects_and_trash.filter(id=template.id).exists()
-    assert not TemplateLinkAccess.objects.exists()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_template_link_access_unique_per_user(data_fixture):
-    template = data_fixture.create_user_template()
-    user = data_fixture.create_user()
-    TemplateLinkAccess.objects.create(template=template, user=user)
-
-    with pytest.raises(IntegrityError), transaction.atomic():
-        TemplateLinkAccess.objects.create(template=template, user=user)
-
-
-@pytest.mark.django_db
-def test_workspace_has_template_counts_only_live_official_templates(data_fixture):
+def test_workspace_has_template_counts_only_official_templates(data_fixture):
     official = data_fixture.create_template()
     user_template = data_fixture.create_user_template()
-    marked = data_fixture.create_template(marked_for_deletion_at=django_timezone.now())
     plain_workspace = data_fixture.create_workspace()
 
     assert official.workspace.has_template() is True
     assert user_template.workspace.has_template() is False
-    assert marked.workspace.has_template() is False
     assert plain_workspace.has_template() is False

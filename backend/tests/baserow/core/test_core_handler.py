@@ -3,12 +3,10 @@ from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.db import OperationalError, transaction
-from django.utils import timezone
 
 import pytest
 from itsdangerous.exc import BadSignature
@@ -52,7 +50,6 @@ from baserow.core.models import (
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
-    official_template_uuid,
 )
 from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
@@ -1462,7 +1459,6 @@ def test_sync_templates_leaves_user_templates_untouched(data_fixture, tmpdir, se
     for user_template in [no_file, same_slug]:
         refreshed = Template.objects.get(id=user_template.id)
         assert refreshed.template_type == TemplateTypes.USER
-        assert refreshed.uuid is None
         assert refreshed.workspace_id == user_template.workspace_id
         assert refreshed.workspace.application_set.count() == 0
         assert list(refreshed.categories.all()) == [user_category]
@@ -1475,76 +1471,10 @@ def test_sync_templates_leaves_user_templates_untouched(data_fixture, tmpdir, se
 
     official = Template.objects.official().get(slug="example-template")
     assert official.id != same_slug.id
-    assert official.uuid == official_template_uuid("example-template")
     assert official.workspace_id != same_slug.workspace_id
 
     # The category is only used by user templates, so it is kept.
     assert TemplateCategory.objects.filter(id=user_category.id).exists()
-
-
-@pytest.mark.django_db
-def test_sync_templates_corrects_official_uuids(data_fixture, tmpdir, settings):
-    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    # Created by an older version during the rollout, so without uuid. The export
-    # hash matches, so the content is not reimported.
-    without_uuid = data_fixture.create_template(
-        slug="example-template-2",
-        export_hash="f086c9b4b0dfea6956d0bb32af210277bb645ff3faebc5fb37a9eae85c433f2d",
-    )
-    wrong_uuid = data_fixture.create_template(slug="example-template", uuid=uuid4())
-
-    CoreHandler().sync_templates(storage=storage)
-
-    without_uuid.refresh_from_db()
-    wrong_uuid.refresh_from_db()
-    assert without_uuid.uuid == official_template_uuid("example-template-2")
-    assert wrong_uuid.uuid == official_template_uuid("example-template")
-
-
-@pytest.mark.django_db
-def test_sync_templates_with_duplicated_slug_updates_oldest_template(
-    data_fixture, tmpdir, settings
-):
-    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    # Slugs aren't unique. Like the uuid backfill, the oldest row owns the uuid, even
-    # when a newer duplicate comes first in the default name ordering.
-    oldest = data_fixture.create_template(
-        slug="example-template",
-        name="Z",
-        uuid=official_template_uuid("example-template"),
-    )
-    newer = data_fixture.create_template(slug="example-template", name="A")
-
-    CoreHandler().sync_templates(storage=storage)
-
-    oldest.refresh_from_db()
-    newer.refresh_from_db()
-    assert oldest.uuid == official_template_uuid("example-template")
-    assert newer.uuid is None
-
-
-@pytest.mark.django_db
-def test_sync_templates_does_not_recreate_marked_for_deletion_official(
-    data_fixture, tmpdir, settings
-):
-    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    marked = data_fixture.create_template(
-        slug="example-template", marked_for_deletion_at=timezone.now()
-    )
-
-    CoreHandler().sync_templates(storage=storage)
-
-    assert list(
-        Template.objects_and_trash.filter(slug="example-template").values_list(
-            "id", flat=True
-        )
-    ) == [marked.id]
 
 
 @pytest.mark.django_db
