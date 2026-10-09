@@ -19,7 +19,6 @@ When adding support for a new element type, update these tables:
 Not all tables need entries — only add to those relevant for the new type.
 """
 
-import uuid
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -38,11 +37,17 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 from baserow_enterprise.assistant.types import BaseModel
 
+from .changes import name_key
+from .menu_items import (
+    ListedTopLevelMenuItem,
+    MenuItemAdd,
+    MenuItemUpdate,
+    new_menu_link,
+)
 from .table_columns import (
     TableColumnAdd,
     TableColumnItem,
     TableColumnUpdate,
-    column_name_key,
     data_source_fields,
     field_formula,
 )
@@ -106,6 +111,13 @@ TABLE_COLUMN_PROPERTIES = (
     "update_table_columns",
     "reorder_table_columns",
     "remove_table_columns",
+)
+
+MENU_ITEM_PROPERTIES = (
+    "add_menu_items",
+    "update_menu_items",
+    "reorder_menu_items",
+    "remove_menu_items",
 )
 
 BUTTON_NAVIGATION_GUIDANCE = (
@@ -447,16 +459,7 @@ def _menu_orm(el: "ElementItemCreate", user, page) -> dict:
     }
     if el.menu_items:
         kwargs["menu_items"] = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
+            new_menu_link(item.name, item.page_id) for item in el.menu_items
         ]
     return kwargs
 
@@ -524,16 +527,7 @@ def _header_footer_post_create(
         from baserow.contrib.builder.elements.registries import element_type_registry
 
         menu_items_orm = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
+            new_menu_link(item.name, item.page_id) for item in el.menu_items
         ]
         menu_type = element_type_registry.get("menu")
         CreateElementActionType.do(
@@ -573,7 +567,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
     for field_cfg in el.fields:
         if field_cfg.type != "text":
             continue
-        match = table_fields.get(column_name_key(field_cfg.name))
+        match = table_fields.get(name_key(field_cfg.name))
         if match:
             property_options.append(
                 CollectionElementPropertyOptions(
@@ -766,7 +760,7 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
             if value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
             else:
-                match = table_fields.get(column_name_key(field_cfg.name))
+                match = table_fields.get(name_key(field_cfg.name))
                 value_formula = field_formula(match) if match else "''"
             result.append(
                 {
@@ -1558,19 +1552,6 @@ def _menu_update(el: "ElementUpdate") -> dict:
         kwargs["orientation"] = el.menu_orientation
     if el.menu_alignment is not None:
         kwargs["alignment"] = el.menu_alignment
-    if el.menu_items is not None:
-        kwargs["menu_items"] = [
-            {
-                "uid": str(uuid.uuid4()),
-                "type": "link",
-                "variant": "link",
-                "name": item.name,
-                "navigation_type": "page",
-                "navigate_to_page_id": item.page_id,
-                "target": "self",
-            }
-            for item in el.menu_items
-        ]
     return kwargs
 
 
@@ -1796,14 +1777,26 @@ class ElementUpdate(BaseModel):
     menu_alignment: Literal["left", "center", "right", "justify"] | None = Field(
         default=None, description="(menu) Menu alignment."
     )
-    menu_items: list[MenuItemCreate] | None = Field(
+    add_menu_items: list[MenuItemAdd] | None = Field(
         default=None,
-        description="(menu) Replace all menu items. Each item has name + page_id.",
+        description="(menu, header, footer) New page links. They go last at their level unless before_uid is set; parent_uid makes one a sub-link.",
+    )
+    update_menu_items: list[MenuItemUpdate] | None = Field(
+        default=None,
+        description="(menu, header, footer) Existing items to change, by uid from list_elements. Only the keys you send change.",
+    )
+    reorder_menu_items: list[str] | None = Field(
+        default=None,
+        description="(menu, header, footer) Uids of every top-level item that stays, in the new order, from list_elements. Sub-links can't be reordered.",
+    )
+    remove_menu_items: list[str] | None = Field(
+        default=None,
+        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Undo doesn't restore them or their click actions.",
     )
 
     # -- Dispatch -------------------------------------------------------------
 
-    @field_validator(*TABLE_COLUMN_PROPERTIES)
+    @field_validator(*TABLE_COLUMN_PROPERTIES, *MENU_ITEM_PROPERTIES)
     @classmethod
     def _empty_list_is_unset(cls, value: list[Any] | None) -> list[Any] | None:
         return value or None
@@ -1814,6 +1807,13 @@ class ElementUpdate(BaseModel):
         """
 
         return any(getattr(self, name) is not None for name in TABLE_COLUMN_PROPERTIES)
+
+    def changes_menu_items(self) -> bool:
+        """
+        :return: Whether this update adds, changes, reorders or removes menu items.
+        """
+
+        return any(getattr(self, name) is not None for name in MENU_ITEM_PROPERTIES)
 
     def to_update_kwargs(self, element_type: str) -> dict:
         """Return kwargs for ``ElementService.update_element()``."""
@@ -1913,9 +1913,10 @@ class ElementItem(BaseModel):
         default=None,
         description="Page name. '[shared]' for elements on the shared page (headers/footers).",
     )
-    menu_items: list[dict] | None = Field(
+    menu_items: list[ListedTopLevelMenuItem] | None = Field(
         default=None,
-        description="(menu) Current menu items with name and page_id.",
+        exclude_if=lambda value: value is None,
+        description="(menu) Items in menu order with uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.",
     )
     data_source_id: int | None = Field(
         default=None,
@@ -1940,17 +1941,6 @@ class ElementItem(BaseModel):
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
-        menu_items = None
-        if element_type == "menu":
-            specific = element.specific
-            menu_items = [
-                {
-                    "name": item.name,
-                    "page_id": item.navigate_to_page_id,
-                    "type": item.type,
-                }
-                for item in specific.menu_items.all().order_by("menu_item_order")
-            ]
         hooks = assistant_element_type_registry.get_for(element_type)
         return cls(
             id=element.id,
@@ -1960,7 +1950,6 @@ class ElementItem(BaseModel):
             is_container=element_type in CONTAINER_ELEMENT_TYPES,
             label=cls._extract_label(element),
             page_name=page_name,
-            menu_items=menu_items,
             **hooks.item_details(element),
         )
 

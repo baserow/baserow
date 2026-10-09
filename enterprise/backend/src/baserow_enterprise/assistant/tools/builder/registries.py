@@ -98,14 +98,17 @@ class AssistantElementType(Instance):
 
     def after_update(
         self, user: AbstractUser, element: Element, update: "ElementUpdate"
-    ) -> None:
+    ) -> dict[str, Any]:
         """
         Apply what the element's own update doesn't save, once it's saved.
 
         :param user: The user updating the element, who may update it.
         :param element: The updated element.
         :param update: The properties that were changed.
+        :return: The keys to add to update_element's result.
         """
+
+        return {}
 
     def updated_result(
         self, element: Element, update: "ElementUpdate"

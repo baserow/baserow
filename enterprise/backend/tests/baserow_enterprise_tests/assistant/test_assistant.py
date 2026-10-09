@@ -717,13 +717,63 @@ class TestCompactMessageHistory:
         }
         assert outcomes[0]["changed"] is True
 
+    def test_menu_item_outcomes_keep_removed_items_not_the_item_list(self) -> None:
+        """list_elements reads the menu items again, but removed ones are gone."""
+
+        removed = [
+            {"uid": "m2", "name": "Help", "type": "button", "deleted_click_actions": 1}
+        ]
+        result = {
+            "status": "ok",
+            "element_id": 9,
+            "element_type": "menu",
+            "updated_fields": ["remove_menu_items"],
+            "menu_items": [{"uid": "m1", "name": "Home", "type": "link", "page_id": 3}],
+            "removed_menu_items": removed,
+        }
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="drop the Help button")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_element",
+                        args={
+                            "page_id": 3,
+                            "element": {"element_id": 9, "remove_menu_items": ["m2"]},
+                            "thought": "Removing the button",
+                        },
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="update_element", content=result, tool_call_id="tc1"
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Removed it.")]),
+        ]
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert outcomes[0]["result"] == {
+            "status": "ok",
+            "element_id": 9,
+            "element_type": "menu",
+            "updated_fields": ["remove_menu_items"],
+            "removed_menu_items": removed,
+        }
+        assert outcomes[0]["changed"] is True
+
     @pytest.mark.parametrize(
         "tool_name", ["update_builder", "update_fields", "update_nodes"]
     )
     def test_tool_groups_without_an_override_remember_whole_results(
         self, tool_name: str
     ) -> None:
-        """Only the builder group leaves table columns out of what it remembers."""
+        """Only the builder group leaves table columns and menu items out of what it remembers."""
 
         result = {
             "status": "ok",

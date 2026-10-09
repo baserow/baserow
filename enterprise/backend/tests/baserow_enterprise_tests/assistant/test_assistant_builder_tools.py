@@ -18,6 +18,7 @@ from pydantic_ai import ModelRetry
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
     HeadingElement,
+    MenuElement,
     TableElement,
 )
 from baserow.contrib.builder.elements.operations import (
@@ -75,6 +76,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     InputStyleOverride,
     LayoutElementCreate,
     LinkStyleOverride,
+    MenuItemAdd,
     MenuItemCreate,
     PageCreate,
     PagePathParam,
@@ -2636,7 +2638,7 @@ def test_create_menu_with_items(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_update_menu_items(data_fixture):
-    """update_element with menu_items should replace the menu's items."""
+    """update_element with add_menu_items adds links after the existing items."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -2669,6 +2671,8 @@ def test_update_menu_items(data_fixture):
     )
     menu_id = result["ref_to_id_map"]["nav"]
     assert "empty_containers" not in result
+    menu_el = MenuElement.objects.get(id=menu_id)
+    home_uid = menu_el.menu_items.get().uid
 
     # Update to 3 items
     update_result = update_element(
@@ -2676,24 +2680,21 @@ def test_update_menu_items(data_fixture):
         page_id=page.id,
         element=ElementUpdate(
             element_id=menu_id,
-            menu_items=[
-                MenuItemCreate(name="Home", page_id=page.id),
-                MenuItemCreate(name="About", page_id=page2.id),
-                MenuItemCreate(name="Contact", page_id=page3.id),
+            add_menu_items=[
+                MenuItemAdd(name="About", page_id=page2.id),
+                MenuItemAdd(name="Contact", page_id=page3.id),
             ],
         ),
         thought="test",
     )
 
     assert update_result["status"] == "ok"
-    assert "menu_items" in update_result["updated_fields"]
+    assert update_result["updated_fields"] == ["add_menu_items"]
 
-    from baserow.contrib.builder.elements.handler import ElementHandler
-
-    menu_el = ElementHandler().get_element(menu_id).specific
     items = list(menu_el.menu_items.all().order_by("menu_item_order"))
     assert len(items) == 3
     assert items[0].name == "Home"
+    assert items[0].uid == home_uid
     assert items[1].name == "About"
     assert items[1].navigate_to_page_id == page2.id
     assert items[2].name == "Contact"
@@ -2719,8 +2720,6 @@ def test_update_shared_container_clears_menu_items(data_fixture, element_type):
         ],
         thought="Create shared navigation.",
     )
-    from baserow.contrib.builder.elements.models import MenuElement
-
     element_id = created["created_elements"][0]["id"]
     menu = MenuElement.objects.get(page__builder=builder)
     assert menu.parent_element_id == element_id
@@ -2728,10 +2727,14 @@ def test_update_shared_container_clears_menu_items(data_fixture, element_type):
     result = update_element(
         ctx,
         page_id=page.id,
-        element=ElementUpdate(element_id=element_id, menu_items=[]),
+        element=ElementUpdate(
+            element_id=element_id,
+            remove_menu_items=[str(menu.menu_items.get().uid)],
+        ),
         thought="Clear the navigation items.",
     )
-    assert result["updated_fields"] == ["menu_items"]
+    assert result["updated_fields"] == ["remove_menu_items"]
+    assert result["menu_items"] == []
     assert not menu.menu_items.exists()
 
 

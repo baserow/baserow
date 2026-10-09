@@ -13,12 +13,13 @@ from baserow.core.db import specific_iterator
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.types import BaseModel
 
+from .changes import NO_CHANGES, name_key
+
 if TYPE_CHECKING:
     from baserow.contrib.builder.elements.models import CollectionField, TableElement
     from baserow.contrib.database.fields.models import Field as DatabaseField
     from baserow.contrib.database.table.models import Table
 
-NO_CHANGES = "No changes were applied."
 VALUE_COLUMN_TYPES: frozenset[str] = frozenset({"text", "boolean", "rating"})
 COLUMN_NAME_MAX_LENGTH = 225
 
@@ -104,17 +105,6 @@ class RemovedTableColumn(TypedDict):
     deleted_click_actions: NotRequired[int]
 
 
-def column_name_key(name: str) -> str:
-    """
-    Compare column and field names ignoring case and surrounding spaces.
-
-    :param name: A column or field name.
-    :return: The comparison key.
-    """
-
-    return name.strip().casefold()
-
-
 def stored_formula_text(config: Any, key: str) -> str:
     """
     Read the formula text stored under one key of a column config.
@@ -198,14 +188,14 @@ def data_source_fields(data_source_id: int | None) -> dict[str, "DatabaseField"]
     Read the fields of the database table a data source reads.
 
     :param data_source_id: The data source, or None.
-    :return: Each field as its specific type, by the column_name_key of its name.
-        Empty when there is no data source or it reads no table.
+    :return: Each field as its specific type, by the name_key of its name. Empty when
+        there is no data source or it reads no table.
     """
 
     table = data_source_table(data_source_id)
     if table is None:
         return {}
-    return {column_name_key(field.name): field for field in table_fields(table)}
+    return {name_key(field.name): field for field in table_fields(table)}
 
 
 def field_formula(field: "DatabaseField") -> str:

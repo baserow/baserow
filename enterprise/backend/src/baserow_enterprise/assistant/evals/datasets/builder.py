@@ -8,17 +8,24 @@ Includes the former ``test_eval_builder.py`` (12), ``test_eval_builder_proactive
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Any, NamedTuple
 
 from django.db.models import BooleanField, IntegerField, Q, Value
 from django.db.models.functions import Coalesce
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.elements.actions import (
+    CreateElementActionType,
+    UpdateElementActionType,
+)
 from baserow.contrib.builder.elements.models import (
     Element,
+    MenuElement,
     MenuItemElement,
     TableElement,
 )
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
@@ -57,6 +64,8 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
+from baserow_enterprise.assistant.tools.builder.types.changes import name_key
+from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files
@@ -2498,5 +2507,448 @@ register_case(
         checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
         max_iters=15,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Header menu edits keep the items they don't change
+# ---------------------------------------------------------------------------
+
+PROMPT_MENU_ADD_LINK = (
+    "In builder '{builder_name}', add a link to the Contact page to the header menu."
+)
+PROMPT_MENU_RENAME_BUTTON = (
+    "In builder '{builder_name}', rename the Help item in the header menu to Support."
+)
+PROMPT_MENU_REMOVE_SUB_LINK = (
+    "In builder '{builder_name}', remove Pricing from the Products dropdown in the "
+    "header menu."
+)
+PROMPT_MENU_BUTTON_OPENS_PAGE = (
+    "In builder '{builder_name}', make the Help button in the header menu open the "
+    "About page."
+)
+PROMPT_MENU_ADD_PAGES_ONE_BY_ONE = (
+    "In builder '{builder_name}', create a Blog page at /blog and a Careers page at "
+    "/careers, and add each one to the header menu right after creating it."
+)
+PROMPT_MENU_REORDER = (
+    "In builder '{builder_name}', move Help so it comes right after Home in the "
+    "header menu."
+)
+PROMPT_MENU_REMOVE_DROPDOWN = (
+    "In builder '{builder_name}', remove the Products dropdown from the header menu."
+)
+
+SITE_MENU_ITEMS = ("Home", "Products", "Pricing", "Features", "Divider", "Help")
+
+
+@register_scenario("builder-site-header-menu")
+def _site_header_menu_scenario(fx: Fixtures) -> EvalScenario:
+    """A header menu with a link, a dropdown, a separator and a button."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="Shop Site"
+    )
+    pages = {
+        name: fx.create_builder_page(builder=builder, name=name, path=path)
+        for name, path in (
+            ("Home", "/"),
+            ("Products", "/products"),
+            ("Pricing", "/pricing"),
+            ("Features", "/features"),
+            ("About", "/about"),
+            ("Contact", "/contact"),
+        )
+    }
+    header = CreateElementActionType.do(
+        user,
+        element_type_registry.get("header"),
+        builder.shared_page,
+        {"share_type": "all"},
+    )
+    menu = CreateElementActionType.do(
+        user,
+        element_type_registry.get("menu"),
+        builder.shared_page,
+        {"reference_element_id": header.id, "position": "child"},
+    )
+    UpdateElementActionType.do(
+        user,
+        menu,
+        {
+            "menu_items": [
+                new_menu_link("Home", pages["Home"].id),
+                {
+                    **new_menu_link("Products", pages["Products"].id),
+                    "children": [
+                        new_menu_link("Pricing", pages["Pricing"].id),
+                        new_menu_link("Features", pages["Features"].id),
+                    ],
+                },
+                {
+                    "uid": str(uuid.uuid4()),
+                    "type": "separator",
+                    "variant": "link",
+                    "name": "Divider",
+                },
+                {
+                    "uid": str(uuid.uuid4()),
+                    "type": "button",
+                    "variant": "button",
+                    "name": "Help",
+                },
+            ]
+        },
+    )
+    items = {item.name: item for item in menu.specific.menu_items.all()}
+    help_action = fx.create_notification_workflow_action(
+        element=menu, event=f"{items['Help'].uid}_click"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder, "pages": pages, "menu": menu.specific},
+        pre_state={
+            "uids": {name: str(item.uid) for name, item in items.items()},
+            "types": {name: item.type for name, item in items.items()},
+            "help_action_id": help_action.id,
+        },
+    )
+
+
+def _site_menu_items(scenario: EvalScenario) -> dict[str, MenuItemElement]:
+    menu = scenario.refs["menu"]
+    if not MenuElement.objects.filter(id=menu.id, trashed=False).exists():
+        return {}
+    return {
+        str(item.uid): item
+        for item in menu.menu_items.select_related("parent_menu_item").order_by(
+            "menu_item_order"
+        )
+    }
+
+
+def _describe_site_menu(items: dict[str, MenuItemElement]) -> str:
+    return str(
+        [
+            (item.name, item.type, item.parent_menu_item and item.parent_menu_item.name)
+            for item in items.values()
+        ]
+    )
+
+
+def _site_menu_keeps(
+    scenario: EvalScenario, items: dict[str, MenuItemElement], names: tuple[str, ...]
+) -> CheckResult:
+    uids = scenario.pre_state["uids"]
+    types = scenario.pre_state["types"]
+    changed = [
+        name
+        for name in names
+        if uids[name] not in items or items[uids[name]].type != types[name]
+    ]
+    return CheckResult(
+        f"kept {', '.join(names)} with their uids and types",
+        not changed,
+        hint=f"lost or retyped: {changed}; menu: {_describe_site_menu(items)}",
+    )
+
+
+def _site_menu_help_action_kept(scenario: EvalScenario) -> CheckResult:
+    return CheckResult(
+        "Help keeps its click action",
+        BuilderWorkflowAction.objects.filter(
+            id=scenario.pre_state["help_action_id"]
+        ).exists(),
+    )
+
+
+def _products_sub_links(
+    scenario: EvalScenario, items: dict[str, MenuItemElement]
+) -> list[str]:
+    products_uid = scenario.pre_state["uids"]["Products"]
+    return [
+        item.name
+        for item in items.values()
+        if item.parent_menu_item and str(item.parent_menu_item.uid) == products_uid
+    ]
+
+
+def _top_level_names(items: dict[str, MenuItemElement]) -> list[str]:
+    return [item.name for item in items.values() if item.parent_menu_item_id is None]
+
+
+def _top_level_links_to(
+    items: dict[str, MenuItemElement], page: Page | None
+) -> list[MenuItemElement]:
+    return [
+        item
+        for item in items.values()
+        if page is not None
+        and item.parent_menu_item_id is None
+        and item.type == "link"
+        and item.navigation_type == "page"
+        and item.navigate_to_page_id == page.id
+    ]
+
+
+def _check_menu_adds_link_keeps_button(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    contact_links = _top_level_links_to(items, scenario.refs["pages"]["Contact"])
+    return [
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Pricing and Features still under Products",
+            _products_sub_links(scenario, items) == ["Pricing", "Features"],
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "added one top-level link to Contact",
+            len(contact_links) == 1,
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "added nothing else",
+            len(items) == len(SITE_MENU_ITEMS) + 1,
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_renames_button(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    help_item = items.get(scenario.pre_state["uids"]["Help"])
+    return [
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Help renamed to Support",
+            help_item is not None and help_item.name == "Support",
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_removes_sub_link(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    return [
+        _site_menu_keeps(
+            scenario, items, ("Home", "Products", "Features", "Divider", "Help")
+        ),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Pricing removed",
+            all(item.name != "Pricing" for item in items.values()),
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "Features still under Products",
+            _products_sub_links(scenario, items) == ["Features"],
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_button_opens_page(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    help_click = f"{scenario.pre_state['uids']['Help']}_click"
+    actions = [
+        action.specific
+        for action in BuilderWorkflowAction.objects.filter(
+            element_id=scenario.refs["menu"].id, event=help_click
+        )
+    ]
+    return [
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Help's click opens the About page",
+            any(
+                isinstance(action, OpenPageWorkflowAction)
+                and _navigates_to_path(action, scenario.refs["builder"], "/about")
+                for action in actions
+            ),
+            hint=f"actions on {help_click}: {[type(a).__name__ for a in actions]}",
+        ),
+    ]
+
+
+def _check_menu_adds_pages_one_by_one(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+    items = _site_menu_items(scenario)
+    new_pages = {
+        path: Page.objects.filter(builder=builder, path=path).first()
+        for path in ("/blog", "/careers")
+    }
+    top_level_keys = [name_key(name) for name in _top_level_names(items)]
+    return [
+        CheckResult(
+            "created the Blog and Careers pages",
+            all(new_pages.values()),
+            hint=f"pages: {list(Page.objects.filter(builder=builder).values_list('path', flat=True))}",
+        ),
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "one top-level link to each new page",
+            all(
+                len(_top_level_links_to(items, page)) == 1
+                for page in new_pages.values()
+            ),
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "no duplicate top-level items",
+            len(top_level_keys) == len(set(top_level_keys)),
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_reorders_items(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    return [
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Help moved right after Home",
+            _top_level_names(items) == ["Home", "Help", "Products", "Divider"],
+            hint=f"top-level order: {_top_level_names(items)}",
+        ),
+        CheckResult(
+            "Pricing and Features still under Products",
+            _products_sub_links(scenario, items) == ["Pricing", "Features"],
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_removes_dropdown(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    names = {item.name for item in items.values()}
+    kept = ("Home", "Divider", "Help")
+    return [
+        _site_menu_keeps(scenario, items, kept),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "removed Products with Pricing and Features",
+            names.isdisjoint({"Products", "Pricing", "Features"}),
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "removed nothing else, added nothing and kept the order",
+            len(items) == len(kept) and _top_level_names(items) == list(kept),
+            hint=f"top-level order: {_top_level_names(items)}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-adds-link-keeps-button",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_ADD_LINK.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_adds_link_keeps_button,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-renames-button",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_RENAME_BUTTON.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_renames_button,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-removes-sub-link",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_REMOVE_SUB_LINK.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_removes_sub_link,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-button-opens-page",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_BUTTON_OPENS_PAGE.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_button_opens_page,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-adds-pages-one-by-one",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_ADD_PAGES_ONE_BY_ONE.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_adds_pages_one_by_one,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-reorders-items",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_REORDER.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_reorders_items,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-removes-dropdown",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_REMOVE_DROPDOWN.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_removes_dropdown,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
     )
 )

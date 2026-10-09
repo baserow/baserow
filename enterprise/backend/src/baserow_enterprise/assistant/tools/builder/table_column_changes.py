@@ -1,10 +1,8 @@
 """Turn Kuma's table column changes into the full column list core saves."""
 
-import uuid
 from collections import Counter
-from collections.abc import Iterable
 from copy import deepcopy
-from typing import Any, NamedTuple, TypeVar
+from typing import Any, NamedTuple
 
 from baserow.contrib.builder.elements.models import TableElement
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
@@ -20,13 +18,12 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     wrap_static_string,
 )
 
+from .types.changes import NO_CHANGES, canonical_uid, name_key, unique_in_order
 from .types.table_columns import (
-    NO_CHANGES,
     VALUE_COLUMN_TYPES,
     RemovedTableColumn,
     TableColumnAdd,
     TableColumnUpdate,
-    column_name_key,
     data_source_table,
     field_formula,
     stored_formula_text,
@@ -36,8 +33,6 @@ from .types.table_columns import (
 MAX_LISTED_COLUMNS = 25
 
 Column = dict[str, Any]
-
-_Item = TypeVar("_Item")
 
 _LABEL_COLUMN_TYPES = frozenset({"button"})
 _NEW_VALUE_COLUMN_TYPES = frozenset({"text"})
@@ -56,20 +51,6 @@ class SourceTable(NamedTuple):
     table: Table | None
     fields_by_id: dict[int, Field]
     fields_by_name: dict[str, Field]
-
-
-def column_uid(raw: str) -> str:
-    """
-    Canonicalize a uid the model sent so it compares equal to stored uids.
-
-    :param raw: The uid as sent.
-    :return: The lower-case hyphenated uid, or the stripped input if it isn't a UUID.
-    """
-
-    try:
-        return str(uuid.UUID(raw.strip()))
-    except ValueError:
-        return raw.strip()
 
 
 def column_formula(text: str, column_name: str, key: str) -> str:
@@ -124,10 +105,12 @@ def merge_table_columns(
 
     stored = _stored_columns(element)
     by_uid = {column["uid"]: column for column in stored}
-    update_uids = [column_uid(change.uid) for change in update]
-    remove_uids = [column_uid(uid) for uid in remove]
-    order = [column_uid(uid) for uid in reorder] if reorder is not None else None
-    anchors = [column_uid(new.before_uid) for new in add if new.before_uid is not None]
+    update_uids = [canonical_uid(change.uid) for change in update]
+    remove_uids = [canonical_uid(uid) for uid in remove]
+    order = [canonical_uid(uid) for uid in reorder] if reorder is not None else None
+    anchors = [
+        canonical_uid(new.before_uid) for new in add if new.before_uid is not None
+    ]
 
     _check_references(
         element, stored, [*update_uids, *remove_uids, *(order or []), *anchors]
@@ -191,10 +174,6 @@ def _stored_columns(element: TableElement) -> list[Column]:
     ]
 
 
-def _unique(items: Iterable[_Item]) -> list[_Item]:
-    return list(dict.fromkeys(items))
-
-
 def _listing(columns: list[Column]) -> str:
     listed = ", ".join(
         f"{column['uid']} '{column['name']}' ({column['type']})"
@@ -212,13 +191,13 @@ def _check_references(
     element: TableElement, stored: list[Column], uids: list[str]
 ) -> None:
     counts = Counter(column["uid"] for column in stored)
-    unknown = _unique(uid for uid in uids if uid not in counts)
+    unknown = unique_in_order(uid for uid in uids if uid not in counts)
     if unknown:
         raise ToolInputError(
             f"Columns {unknown} are not columns of table element {element.id}. Its "
             f"columns are: {_listing(stored)}. Use these uids. {NO_CHANGES}"
         )
-    shared = _unique(uid for uid in uids if counts[uid] > 1)
+    shared = unique_in_order(uid for uid in uids if counts[uid] > 1)
     if shared:
         raise ToolInputError(
             f"Columns {shared} of table element {element.id} share a uid with another "
@@ -234,7 +213,7 @@ def _check_changed_once(update_uids: list[str], removed_uids: set[str]) -> None:
             f"Columns {repeated} are changed more than once. Put all changes to a "
             f"column in one update_table_columns entry. {NO_CHANGES}"
         )
-    both = _unique(uid for uid in update_uids if uid in removed_uids)
+    both = unique_in_order(uid for uid in update_uids if uid in removed_uids)
     if both:
         raise ToolInputError(
             f"Columns {both} cannot be changed and removed. {NO_CHANGES}"
@@ -344,7 +323,7 @@ def _check_order(
 
 
 def _check_anchors_stay(anchors: list[str], removed_uids: set[str]) -> None:
-    removed_anchors = _unique(uid for uid in anchors if uid in removed_uids)
+    removed_anchors = unique_in_order(uid for uid in anchors if uid in removed_uids)
     if removed_anchors:
         raise ToolInputError(
             f"Columns {removed_anchors} are removed in this call, so new columns "
@@ -377,7 +356,7 @@ def _source_table(data_source_id: int | None) -> SourceTable:
     return SourceTable(
         table,
         {field.id: field for field in fields},
-        {column_name_key(field.name): field for field in fields},
+        {name_key(field.name): field for field in fields},
     )
 
 
@@ -387,7 +366,7 @@ def _check_field_ids(
     update: list[TableColumnUpdate],
     add: list[TableColumnAdd],
 ) -> None:
-    field_ids = _unique(
+    field_ids = unique_in_order(
         entry.field_id for entry in [*update, *add] if entry.field_id is not None
     )
     if not field_ids:
@@ -425,7 +404,7 @@ def _check_new_columns_not_empty(
             f"The new column '{name}' would be empty: table {source.table.id} "
             f"'{source.table.name}' has no field named '{name}'."
             for name in names
-            if column_name_key(name) not in source.fields_by_name
+            if name_key(name) not in source.fields_by_name
         ]
         remedy = (
             "Set field_id (from get_tables_schema) or value; value '' keeps it empty "
@@ -461,7 +440,7 @@ def _changed(
 def _insert_index(merged: list[Column], before_uid: str | None) -> int:
     if before_uid is None:
         return len(merged)
-    anchor = column_uid(before_uid)
+    anchor = canonical_uid(before_uid)
     return next(
         index for index, column in enumerate(merged) if column.get("uid") == anchor
     )
@@ -472,7 +451,7 @@ def _new_value(new: TableColumnAdd, source: SourceTable) -> str:
         return new.value
     if new.field_id is not None:
         return field_formula(source.fields_by_id[new.field_id])
-    return field_formula(source.fields_by_name[column_name_key(new.name)])
+    return field_formula(source.fields_by_name[name_key(new.name)])
 
 
 def _new_column(new: TableColumnAdd, source: SourceTable) -> Column:
@@ -518,7 +497,7 @@ def _check_names(columns: list[Column], stored: list[Column]) -> None:
     stored_names = {(column["uid"], column["name"]) for column in stored}
     groups: dict[str, list[Column]] = {}
     for column in columns:
-        if key := column_name_key(column["name"]):
+        if key := name_key(column["name"]):
             groups.setdefault(key, []).append(column)
     clashes = [
         " and ".join(_name_owner(column, stored_names) for column in group)
@@ -537,12 +516,12 @@ def _check_names(columns: list[Column], stored: list[Column]) -> None:
 
 def _check_not_added_again(add: list[TableColumnAdd], removed: list[Column]) -> None:
     removed_by_name = {
-        (column_name_key(column["name"]), column["type"]): column
+        (name_key(column["name"]), column["type"]): column
         for column in removed
-        if column_name_key(column["name"])
+        if name_key(column["name"])
     }
     for new in add:
-        column = removed_by_name.get((column_name_key(new.name), new.type))
+        column = removed_by_name.get((name_key(new.name), new.type))
         if column is not None:
             raise ToolInputError(
                 f"Column {column['uid']} '{column['name']}' is removed and added "
