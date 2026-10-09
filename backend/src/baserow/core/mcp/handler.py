@@ -25,7 +25,8 @@ class MCPEndpointHandler:
         self, user: AbstractUser, endpoint_id: int, base_queryset: QuerySet = None
     ) -> MCPEndpoint:
         """
-        Fetches a single MCP endpoint and checks if the user belongs to the workspace.
+        Fetches a single key MCP endpoint and checks if the user belongs to the
+        workspace. OAuth grants are never returned, use `get_oauth_grant` for those.
 
         :param user: The user on whose behalf the endpoint is requested.
         :type user: User
@@ -45,7 +46,7 @@ class MCPEndpointHandler:
 
         try:
             endpoint = base_queryset.select_related("workspace").get(
-                id=endpoint_id, user=user
+                id=endpoint_id, user=user, oauth_client_id__isnull=True
             )
         except MCPEndpoint.DoesNotExist:
             raise MCPEndpointDoesNotExist(

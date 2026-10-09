@@ -114,9 +114,7 @@ class MCPEndpointView(APIView):
     def get(self, request, endpoint_id):
         """Returns the requested MCP endpoint if the user has access to it."""
 
-        endpoint = MCPEndpointHandler().get_endpoint(
-            request.user, endpoint_id, base_queryset=LEGACY_ENDPOINTS
-        )
+        endpoint = MCPEndpointHandler().get_endpoint(request.user, endpoint_id)
         serializer = MCPEndpointSerializer(endpoint)
         return Response(serializer.data)
 
@@ -151,7 +149,7 @@ class MCPEndpointView(APIView):
         endpoint = MCPEndpointHandler().get_endpoint(
             request.user,
             endpoint_id,
-            base_queryset=LEGACY_ENDPOINTS.select_for_update(of=("self",)),
+            base_queryset=MCPEndpoint.objects.select_for_update(of=("self",)),
         )
 
         endpoint = action_type_registry.get(UpdateMCPEndpointActionType.type).do(
@@ -180,9 +178,7 @@ class MCPEndpointView(APIView):
     def delete(self, request, endpoint_id):
         """Deletes an MCP endpoint if the user has access to it."""
 
-        endpoint = MCPEndpointHandler().get_endpoint(
-            request.user, endpoint_id, base_queryset=LEGACY_ENDPOINTS
-        )
+        endpoint = MCPEndpointHandler().get_endpoint(request.user, endpoint_id)
 
         action_type_registry.get(DeleteMCPEndpointActionType.type).do(
             request.user, endpoint

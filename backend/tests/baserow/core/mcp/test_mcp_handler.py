@@ -47,6 +47,20 @@ def test_get_endpoint(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_endpoint_does_not_return_oauth_grants(data_fixture):
+    user = data_fixture.create_user()
+    grant = data_fixture.create_mcp_endpoint(
+        user=user, oauth_client_id="https://claude.ai/x.json"
+    )
+    handler = MCPEndpointHandler()
+
+    with pytest.raises(MCPEndpointDoesNotExist):
+        handler.get_endpoint(user, grant.id)
+    with pytest.raises(MCPEndpointDoesNotExist):
+        handler.get_endpoint(user, grant.id, base_queryset=MCPEndpoint.objects.all())
+
+
+@pytest.mark.django_db
 def test_generate_unique_key(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
