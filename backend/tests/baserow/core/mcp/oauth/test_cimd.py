@@ -55,10 +55,7 @@ def test_cimd_other_host_is_rejected(client, settings):
     assert response.status_code == 302
     location = response["Location"]
     assert location.startswith(f"{settings.PUBLIC_WEB_FRONTEND_URL}/mcp-authorize?")
-    assert parse_qs(urlparse(location).query) == {
-        "error": ["invalid_request"],
-        "error_description": ["Invalid client_id parameter value."],
-    }
+    assert parse_qs(urlparse(location).query) == {"error": ["invalid_request"]}
     assert EVIL_REDIRECT not in location
     assert "code=" not in location
     assert not Application.objects.filter(client_id=EVIL_CLIENT).exists()

@@ -190,13 +190,8 @@ def test_authorize_unknown_client_shows_the_error_on_the_consent_page(client):
     location = urlparse(response["Location"])
     assert response["Location"].startswith(settings.PUBLIC_WEB_FRONTEND_URL)
     assert location.path == "/mcp-authorize"
-    assert parse_qs(location.query) == {
-        "error": ["invalid_request"],
-        "error_description": [
-            "This app's sign-in registration is unknown or has expired. Remove "
-            "the Baserow server from the app and add it again."
-        ],
-    }
+    # Only a code: the page maps it to its own text, so the URL can't inject any.
+    assert parse_qs(location.query) == {"error": ["unknown_client"]}
     assert REDIRECT_URI not in response["Location"]
 
 

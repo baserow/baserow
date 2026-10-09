@@ -1,6 +1,7 @@
 import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import MCPAuthorize from '@baserow/modules/core/pages/mcpAuthorize.vue'
+import { authenticatedUnlessError } from '@baserow/modules/core/utils/mcpAuthorize'
 
 describe('MCP authorize page', () => {
   let testApp = null
@@ -469,30 +470,58 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).toContain('invalid_request')
   })
 
-  test('an error in the route is shown without a consent request', async () => {
-    const description = "This app's sign-in registration is unknown."
+  function consentRequests() {
+    return testApp.mock.history.get.filter(
+      (r) => r.url === '/mcp/oauth/consent/'
+    )
+  }
+
+  test('a known error code shows its own message without a consent request', async () => {
     const wrapper = await testApp.mount(MCPAuthorize, {
-      route:
-        '/mcp-authorize?error=invalid_request&error_description=' +
-        encodeURIComponent(description),
+      route: '/mcp-authorize?error=unknown_client',
     })
     await flushPromises()
     expect(wrapper.text()).toContain('mcpAuthorize.invalid')
-    expect(wrapper.text()).toContain(description)
+    expect(wrapper.text()).toContain('mcpAuthorize.unknownClient')
     expect(wrapper.find('[data-test="mcp-authorize-loading"]').exists()).toBe(
       false
     )
-    expect(
-      testApp.mock.history.get.filter((r) => r.url === '/mcp/oauth/consent/')
-    ).toEqual([])
+    expect(consentRequests()).toEqual([])
   })
 
-  test('an error in the route without description shows the error code', async () => {
+  test('an unknown error code shows the generic message', async () => {
     const wrapper = await testApp.mount(MCPAuthorize, {
-      route: '/mcp-authorize?error=invalid_request',
+      route: '/mcp-authorize?error=made_up',
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('invalid_request')
+    expect(wrapper.text()).toContain('mcpAuthorize.invalid')
+    expect(wrapper.text()).toContain('mcpAuthorize.invalidMessage')
+    expect(wrapper.text()).not.toContain('made_up')
+    expect(consentRequests()).toEqual([])
+  })
+
+  test('an error description in the URL is never shown', async () => {
+    const wrapper = await testApp.mount(MCPAuthorize, {
+      route:
+        '/mcp-authorize?error=invalid_request&error_description=' +
+        encodeURIComponent('Call +1 555 0100 for support'),
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('mcpAuthorize.invalidMessage')
+    expect(wrapper.text()).not.toContain('555')
+  })
+
+  test('the error page needs no sign in, the consent form does', () => {
+    testApp.store.commit('auth/LOGOFF')
+    expect(
+      authenticatedUnlessError({
+        query: { error: 'unknown_client' },
+        fullPath: '/mcp-authorize?error=unknown_client',
+      })
+    ).toBeUndefined()
+    expect(
+      authenticatedUnlessError({ query: { request }, fullPath: route })
+    ).toBeTruthy()
   })
 
   test('an invalid request value sends an empty query', async () => {

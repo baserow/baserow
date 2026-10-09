@@ -176,10 +176,11 @@
 import { computed, reactive, ref, watch } from 'vue'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { authenticatedUnlessError } from '@baserow/modules/core/utils/mcpAuthorize'
 
 definePageMeta({
   layout: 'login',
-  middleware: ['settings', 'authenticated'],
+  middleware: ['settings', authenticatedUnlessError],
 })
 
 const route = useRoute()
@@ -215,14 +216,18 @@ const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
 // The backend sends fatal authorize errors (unknown client, invalid redirect
 // URI) here instead of to the client's redirect URI, which can't be trusted.
+// Only the code is read, so the URL can't put its own text on the page.
+const ERROR_MESSAGES = { unknown_client: 'mcpAuthorize.unknownClient' }
 const routeError = route.query.error
-if (typeof routeError === 'string' && routeError) {
-  const description = route.query.error_description
+if (routeError) {
   error.value = {
     visible: true,
     title: t('mcpAuthorize.invalid'),
-    message:
-      typeof description === 'string' && description ? description : routeError,
+    message: t(
+      Object.hasOwn(ERROR_MESSAGES, routeError)
+        ? ERROR_MESSAGES[routeError]
+        : 'mcpAuthorize.invalidMessage'
+    ),
   }
 }
 // The frame headers only cover a full load of this page. After logging in inside

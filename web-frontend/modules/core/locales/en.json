@@ -21,6 +21,8 @@
     "allow": "Allow",
     "deny": "Deny",
     "invalid": "This authorization request is not valid.",
+    "invalidMessage": "Try connecting again from the app. If it keeps happening, remove the Baserow server from the app and add it again.",
+    "unknownClient": "This app's sign-in registration is unknown or has expired. Remove the Baserow server from the app and add it again.",
     "failed": "Could not complete the connection.",
     "framed": "For your security, this page can't be shown inside another site. Open it in its own browser window to continue."
   },
