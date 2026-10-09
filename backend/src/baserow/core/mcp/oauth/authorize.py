@@ -1,4 +1,4 @@
-from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.http import HttpRequest, QueryDict
@@ -127,6 +127,19 @@ def deny_url(request: HttpRequest, credentials: dict) -> str:
     return with_iss(request, error.in_uri(credentials["redirect_uri"]))
 
 
+def _added_query_params(redirect_uri: str, uri: str) -> dict[str, list[str]]:
+    """The query parameters of `uri` that `redirect_uri` doesn't already carry."""
+
+    added = parse_qsl(urlsplit(uri).query, keep_blank_values=True)
+    for pair in parse_qsl(urlsplit(redirect_uri).query, keep_blank_values=True):
+        if pair in added:
+            added.remove(pair)
+    query = {}
+    for name, value in added:
+        query.setdefault(name, []).append(value)
+    return query
+
+
 def issue_code(request: HttpRequest, credentials: dict, endpoint: MCPEndpoint) -> str:
     """
     Returns the client redirect URI with an authorization code bound to the
@@ -150,8 +163,9 @@ def issue_code(request: HttpRequest, credentials: dict, endpoint: MCPEndpoint) -
         request, scopes=scopes, credentials=credentials, allow=True
     )
     # oauthlib re-validates while issuing and returns non-fatal errors as a
-    # redirect instead of raising, so check a code was actually issued.
-    query = parse_qs(urlsplit(uri or "").query)
+    # redirect instead of raising, so check a code was actually issued. Only the
+    # parameters it added count: the registered URI may carry its own `error`.
+    query = _added_query_params(credentials["redirect_uri"], uri or "")
     if "code" not in query or "error" in query:
         raise OAuthToolkitError(
             error=CustomOAuth2Error(

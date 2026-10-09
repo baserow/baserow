@@ -381,3 +381,41 @@ def test_client_without_a_name_is_named_by_its_redirect_host(
         reverse("api:mcp:oauth_connections"), HTTP_AUTHORIZATION=f"JWT {token}"
     ).json()["connections"]
     assert [c["client_name"] for c in connections] == ["127.0.0.1"]
+
+
+@pytest.mark.django_db
+def test_redirect_uri_with_its_own_error_param_gets_a_code(
+    client, api_client, data_fixture
+):
+    from urllib.parse import parse_qs, urlsplit
+
+    from tests.baserow.core.mcp.oauth.helpers import enabled_tool_names
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    redirect_uri = "https://app.example/cb?error=0"
+    response = register(client, redirect_uris=[redirect_uri])
+    assert response.status_code == 201, response.content
+    _, challenge = pkce_pair()
+
+    response = api_client.post(
+        reverse("api:mcp:oauth_consent"),
+        {
+            "query": authorize_query(
+                response.json()["client_id"], challenge, redirect_uri=redirect_uri
+            ),
+            "allow": True,
+            "workspace_id": workspace.id,
+            "tools": enabled_tool_names(),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200, response.content
+    redirect = urlsplit(response.json()["redirect_url"])
+    assert redirect.netloc == "app.example"
+    query = parse_qs(redirect.query)
+    assert query["error"] == ["0"]
+    assert query["code"]
+    assert query["state"] == ["s1"]
