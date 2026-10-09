@@ -939,7 +939,7 @@ OAUTH2_PROVIDER = {
     "OAUTH2_VALIDATOR_CLASS": "baserow.core.mcp.oauth.validators.MCPOAuth2Validator",
     "SCOPES": {
         "mcp": "Use Baserow through an MCP endpoint",
-        "offline_access": "Stay connected without signing in again",
+        "offline_access": "Ask for a refresh token (always issued)",
     },
     "DEFAULT_SCOPES": ["mcp"],
     "PKCE_REQUIRED": True,
