@@ -32,6 +32,16 @@ API_URL_SIMULATE_DISPATCH = f"{API_URL_BASE}:simulate_dispatch"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
+# The error policy every node is created with. Triggers never fail during a
+# run, but they share the columns, so the serializer returns it for them too.
+DEFAULT_ERROR_POLICY = {
+    "on_failure": "stop",
+    "max_retries": 2,
+    "retry_on_failure": True,
+    "retry_on_condition": False,
+    "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
+}
+
 
 @pytest.mark.django_db
 def test_create_node(api_client, data_fixture):
@@ -58,6 +68,7 @@ def test_create_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": "local_baserow_update_row",
         "workflow": workflow.id,
@@ -225,6 +236,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": trigger.id,
             "label": trigger.label,
+            **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_rows_created",
             "workflow": workflow.id,
@@ -232,6 +244,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": node.id,
             "label": node.label,
+            **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_create_row",
             "workflow": node.workflow.id,
@@ -415,6 +428,7 @@ def test_update_node(api_client, data_fixture):
     assert response.json() == {
         "id": node.id,
         "label": "foo",
+        **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": node.get_type().type,
         "workflow": workflow.id,
@@ -642,6 +656,7 @@ def test_replace_node_type_with_replaceable_type_trigger(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
         "service": AnyDict(),
@@ -674,6 +689,7 @@ def test_replace_node_type_with_replaceable_type(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
         "service": AnyDict(),
@@ -703,6 +719,7 @@ def test_create_router_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        **DEFAULT_ERROR_POLICY,
         "service": {
             "sample_data": None,
             "context_data": None,
@@ -1235,3 +1252,177 @@ def test_update_periodic_trigger_before_an_interval_is_chosen(api_client, data_f
     assert service.interval is None
     # Still unconfigured, so still not scheduled.
     assert service.next_run_at is None
+
+
+@pytest.mark.django_db
+def test_update_node_error_policy(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    retry_condition = {
+        "formula": "get('current_node.status_code') = 429",
+        "mode": "advanced",
+        "version": "0.1",
+    }
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {
+            "on_failure": "retry",
+            "max_retries": 4,
+            "retry_on_failure": False,
+            "retry_on_condition": True,
+            "retry_condition": retry_condition,
+        },
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": node.id,
+        "label": "",
+        "on_failure": "retry",
+        "max_retries": 4,
+        "retry_on_failure": False,
+        "retry_on_condition": True,
+        "retry_condition": retry_condition,
+        "service": AnyDict(),
+        "type": node.get_type().type,
+        "workflow": workflow.id,
+    }
+
+    node.refresh_from_db()
+    assert node.on_failure == "retry"
+    assert node.max_retries == 4
+    assert node.retry_on_failure is False
+    assert node.retry_on_condition is True
+    assert node.retry_condition == retry_condition
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload,field,code",
+    [
+        ({"max_retries": 0}, "max_retries", "min_value"),
+        ({"max_retries": 6}, "max_retries", "max_value"),
+        ({"on_failure": "skip"}, "on_failure", "invalid_choice"),
+        (
+            {"retry_condition": "get('foobar.123')"},
+            "retry_condition",
+            "invalid_formula_argument",
+        ),
+    ],
+)
+def test_update_node_error_policy_validation(
+    api_client, data_fixture, payload, field, code
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        payload,
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"][field][0]["code"] == code
+
+    node.refresh_from_db()
+    assert node.on_failure == "stop"
+    assert node.max_retries == 2
+    assert node.retry_condition["formula"] == ""
+
+
+@pytest.mark.django_db
+def test_update_trigger_node_ignores_error_policy(api_client, data_fixture):
+    """
+    Triggers never fail during a run. The fields validate like for any node,
+    but a trigger keeps the defaults.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": trigger.id}),
+        {"label": "Rows", "on_failure": "retry", "max_retries": 5},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": trigger.id,
+        "label": "Rows",
+        **DEFAULT_ERROR_POLICY,
+        "service": AnyDict(),
+        "type": trigger.get_type().type,
+        "workflow": workflow.id,
+    }
+
+    trigger.refresh_from_db()
+    assert trigger.label == "Rows"
+    assert trigger.on_failure == "stop"
+    assert trigger.max_retries == 2
+
+
+@pytest.mark.django_db
+def test_update_node_error_policy_undo_redo(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    # The service must use an integration of this automation, otherwise undo
+    # fails when it restores the original `service.integration_id`.
+    integration = data_fixture.create_local_baserow_integration(
+        application=workflow.automation, user=user
+    )
+    node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, service_kwargs={"integration": integration}
+    )
+    retry_condition = {
+        "formula": "get('current_node.status_code') = 429",
+        "mode": "advanced",
+        "version": "0.1",
+    }
+    api_kwargs = get_api_kwargs(token)
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {
+            "on_failure": "retry",
+            "max_retries": 4,
+            "retry_on_condition": True,
+            "retry_condition": retry_condition,
+        },
+        **api_kwargs,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    payload = {
+        "scopes": {
+            "workspace": workflow.automation.workspace.id,
+            "application": workflow.automation.id,
+            "root": True,
+            "workflow": workflow.id,
+        },
+    }
+    response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["result_code"] == "SUCCESS"
+    node.refresh_from_db()
+    assert node.on_failure == "stop"
+    assert node.max_retries == 2
+    assert node.retry_on_condition is False
+    assert node.retry_condition["formula"] == ""
+
+    response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["result_code"] == "SUCCESS"
+    node.refresh_from_db()
+    assert node.on_failure == "retry"
+    assert node.max_retries == 4
+    assert node.retry_on_condition is True
+    assert node.retry_condition == retry_condition

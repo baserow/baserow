@@ -9,6 +9,7 @@ import pytest
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
     WorkflowActionInvalidIntegration,
 )
 from baserow.contrib.database.workflow_actions.models import (
@@ -20,6 +21,7 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.service import (
+    EXTERNAL_DISPATCH_FAILED_MESSAGE,
     DatabaseWorkflowActionService,
 )
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
@@ -324,6 +326,45 @@ def test_a_slack_refusal_reaches_the_clicker_without_the_token(data_fixture):
 
     assert "invited to channel #general" in str(raised.value)
     assert "xoxb-secret" not in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_a_slack_rate_limit_reaches_the_clicker_with_its_own_message(data_fixture):
+    """
+    A rate limit is a refusal by Slack that is also a transient failure. The
+    refusal is written for the clicker, so it must not be replaced by the
+    message that hides where an external action was reaching.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    table = button_field.table
+    bot = _bot(data_fixture, table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    row = table.get_model().objects.create()
+    slack = _slack_answer(ok=False, error="rate_limited")
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=slack,
+    ):
+        with pytest.raises(WorkflowActionDispatchError) as raised:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert raised.value.message != EXTERNAL_DISPATCH_FAILED_MESSAGE
+    assert (
+        raised.value.message
+        == "Your app has sent too many requests in a short period of time."
+    )
+    assert "xoxb-secret" not in raised.value.message
 
 
 @pytest.mark.django_db

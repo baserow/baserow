@@ -18,7 +18,7 @@
       @example-click="$emit('example-click', $event)"
     />
     <div
-      v-if="advancedModeEnabled"
+      v-if="modeToggleEnabled"
       class="formula-input-explorer-context__footer"
     >
       <ButtonText
@@ -123,8 +123,16 @@ export default {
     }
   },
   computed: {
-    advancedModeEnabled() {
-      return this.enabledModes.includes('advanced')
+    /**
+     * The footer button switches between the simple and advanced modes, so it
+     * is only shown when both are enabled. An input restricted to one mode
+     * has nothing to switch to.
+     */
+    modeToggleEnabled() {
+      return (
+        this.enabledModes.includes('simple') &&
+        this.enabledModes.includes('advanced')
+      )
     },
     isAdvancedMode() {
       return this.mode === 'advanced'

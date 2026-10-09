@@ -17,14 +17,25 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.tasks import resume_deferred_node_celery_task
+from baserow.contrib.automation.nodes.tasks import (
+    dispatch_node_celery_task,
+    resume_deferred_node_celery_task,
+)
+from baserow.contrib.automation.nodes.types import NodeDispatchRetry
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
-from baserow.core.services.exceptions import UnexpectedDispatchException
+from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.types import DispatchResult
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 TRIGGER_NODE_TYPE_PATH = (
     "baserow.contrib.automation.nodes.node_types.LocalBaserowRowsCreatedNodeTriggerType"
+)
+HTTP_NODE_TYPE_PATH = (
+    "baserow.contrib.automation.nodes.node_types.CoreHttpRequestNodeType"
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 UPSERT_ROW_SERVICE_TYPE_PATH = (
@@ -2063,3 +2074,838 @@ def test_check_node_dispatch_limit_counts_per_run(data_fixture):
         assert handler._check_node_dispatch_limit(history.id) is False
         assert handler._check_node_dispatch_limit(history.id) is False
         assert handler._check_node_dispatch_limit(history.id) is True
+
+
+@pytest.mark.django_db
+def test_dispatch_node_iterator_child_failure_stops_the_run(data_fixture):
+    """
+    The iterations of an iterator and the node after it are pre-chained as
+    Celery tasks, so they still fire after one child failed. None of them may
+    run: the run is already errored.
+    """
+
+    data = data_fixture.iterator_graph_fixture()
+    trigger_node = data["trigger_node"]
+    iterator_node = data["iterator_node"]
+    iterator_child_1_node = data["iterator_child_1_node"]
+    iterator_child_2_node = data["iterator_child_2_node"]
+    after_iteration_node = data["after_iteration_node"]
+    workflow_history = create_workflow_history(
+        data_fixture, trigger_node.workflow, data["trigger_table_fields"]
+    )
+    handler = AutomationNodeHandler()
+
+    for node in [trigger_node, iterator_node]:
+        handler.dispatch_node(node.id, history_id=workflow_history.id)
+        clear_local()
+
+    with patch.object(
+        type(iterator_child_1_node.get_type()),
+        "dispatch",
+        side_effect=UnexpectedDispatchException("Row 1 failed"),
+    ):
+        result = handler.dispatch_node(
+            iterator_child_1_node.id,
+            history_id=workflow_history.id,
+            current_iterations={iterator_node.id: 0},
+        )
+    clear_local()
+
+    assert result is None
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert "Row 1 failed" in workflow_history.message
+
+    # The rest of the first iteration, the second iteration and the node after
+    # the iterator are dispatched by their pre-chained tasks regardless.
+    for node, current_iterations in [
+        (iterator_child_2_node, {iterator_node.id: 0}),
+        (iterator_child_1_node, {iterator_node.id: 1}),
+        (iterator_child_2_node, {iterator_node.id: 1}),
+        (after_iteration_node, None),
+    ]:
+        result = handler.dispatch_node(
+            node.id,
+            history_id=workflow_history.id,
+            current_iterations=current_iterations,
+        )
+        clear_local()
+        assert result is None
+
+    child_1_histories = AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history, node_id=iterator_child_1_node.id
+    )
+    assert [h.status for h in child_1_histories] == [HistoryStatusChoices.ERROR]
+    assert not AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history,
+        node_id__in=[iterator_child_2_node.id, after_iteration_node.id],
+    ).exists()
+
+    # The chord callback must not flip the errored run to success either.
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+
+
+@pytest.mark.django_db
+def test_dispatch_node_skips_already_errored_run(data_fixture):
+    """
+    Like a cancelled run, a run that a sibling branch already errored must not
+    execute anything when one of its remaining tasks fires.
+    """
+
+    data = create_workflow(data_fixture)
+    action_node = data["action_node"]
+    action_table = data["action_table"]
+    workflow_history = data["workflow_history"]
+    completed_on = timezone.now()
+    workflow_history.status = HistoryStatusChoices.ERROR
+    workflow_history.message = "A sibling node failed."
+    workflow_history.completed_on = completed_on
+    workflow_history.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        action_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+    assert action_table.get_model().objects.count() == 0
+    assert not AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history
+    ).exists()
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == "A sibling node failed."
+    assert workflow_history.completed_on == completed_on
+
+
+RETRY_CONDITION_ON_429 = "get('current_node.status_code') = 429"
+
+
+def http_response(status_code):
+    """What the HTTP request node returns for an answer with this status."""
+
+    return DispatchResult(
+        data={
+            "status_code": status_code,
+            "headers": {},
+            "body": {},
+            "raw_body": "",
+            "body_omitted": False,
+        }
+    )
+
+
+def create_retrying_workflow(data_fixture, simulate=False, is_test_run=False, **policy):
+    """
+    Trigger -> HTTP request -> create row, where the HTTP request node retries
+    by default. The trigger is dispatched, so the HTTP request node is the next
+    one to run.
+    """
+
+    data = create_workflow(data_fixture)
+    workflow = data["workflow"]
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    http_node = data_fixture.create_automation_node(
+        type="http_request",
+        workflow=workflow,
+        reference_node=trigger_node,
+        position="south",
+        output="",
+        **{"on_failure": "retry", "max_retries": 2, **policy},
+    )
+    data["http_node"] = http_node
+
+    if simulate:
+        workflow_history.simulate_until_node = http_node
+    workflow_history.is_test_run = is_test_run
+    workflow_history.save()
+
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id, history_id=workflow_history.id
+    )
+    assert_dispatches_next_node(result, (http_node, workflow_history, None))
+    clear_local()
+
+    return data
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("attempt,countdown", [(1, 1), (2, 2)])
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_retries_a_runtime_failure(
+    mock_logger, mock_dispatch, data_fixture, attempt, countdown
+):
+    mock_dispatch.side_effect = RuntimeDispatchException("Connection reset")
+    data = create_retrying_workflow(data_fixture)
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id, attempt=attempt
+    )
+
+    assert result == NodeDispatchRetry(
+        node_id=http_node.id,
+        history_id=workflow_history.id,
+        attempt=attempt,
+        countdown=countdown,
+    )
+
+    error = (
+        f"Error while running workflow {http_node.workflow_id}. Error: Connection reset"
+    )
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.RETRIED
+    assert node_history.attempt == attempt
+    assert node_history.completed_on is not None
+    assert node_history.message == f"Retry {attempt} of 2 scheduled. {error}"
+
+    # Written even when empty: the history API derives the iteration path
+    # from the result row.
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
+
+    # The run goes on: the next attempt writes its own entry.
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+    assert workflow_history.completed_on is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "max_retries,attempt,prefix",
+    [
+        (2, 3, "Failed after 2 retries."),
+        (1, 2, "Failed after 1 retry."),
+    ],
+)
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_fails_the_run_when_the_retries_are_exhausted(
+    mock_logger, mock_dispatch, data_fixture, max_retries, attempt, prefix
+):
+    mock_dispatch.side_effect = RuntimeDispatchException("Connection reset")
+    data = create_retrying_workflow(data_fixture, max_retries=max_retries)
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id, attempt=attempt
+    )
+
+    assert result is None
+
+    error = (
+        f"{prefix} Error while running workflow {http_node.workflow_id}. "
+        "Error: Connection reset"
+    )
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == error
+    assert workflow_history.completed_on is not None
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.attempt == attempt
+    assert node_history.message == error
+
+    # Nothing after the failed node ran.
+    assert data["action_table"].get_model().objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "policy,exception,message",
+    [
+        # Only a transient failure can be retried, whatever the policy says.
+        (
+            {},
+            UnexpectedDispatchException("Bad answer"),
+            "Error while running workflow {workflow_id}. Error: Bad answer",
+        ),
+        (
+            {},
+            ServiceImproperlyConfiguredDispatchException("No URL"),
+            "The node is misconfigured and cannot be dispatched. No URL",
+        ),
+        (
+            {"on_failure": "stop"},
+            RuntimeDispatchException("Connection reset"),
+            "Error while running workflow {workflow_id}. Error: Connection reset",
+        ),
+        (
+            {"retry_on_failure": False},
+            RuntimeDispatchException("Connection reset"),
+            "Error while running workflow {workflow_id}. Error: Connection reset",
+        ),
+    ],
+)
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_does_not_retry_when_the_policy_says_so(
+    mock_logger, mock_dispatch, data_fixture, policy, exception, message
+):
+    mock_dispatch.side_effect = exception
+    data = create_retrying_workflow(data_fixture, **policy)
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+    assert mock_dispatch.call_count == 1
+
+    error = message.format(workflow_id=http_node.workflow_id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == error
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.attempt == 1
+    assert node_history.message == error
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_does_not_retry_while_simulating(
+    mock_logger, mock_dispatch, mock_automation_node_updated, data_fixture
+):
+    """
+    A simulation runs up to a node to fetch its sample data: its first failure
+    ends it, and the frontend is told about the node as before.
+    """
+
+    mock_dispatch.side_effect = RuntimeDispatchException("Connection reset")
+    data = create_retrying_workflow(data_fixture, simulate=True)
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == (
+        f"Error while running workflow {http_node.workflow_id}. Error: Connection reset"
+    )
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=http_node
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_retries_in_a_test_run(mock_logger, mock_dispatch, data_fixture):
+    """
+    A test run retries like a live run, so the editor shows what the published
+    workflow will do.
+    """
+
+    mock_dispatch.side_effect = RuntimeDispatchException("Connection reset")
+    data = create_retrying_workflow(data_fixture, is_test_run=True)
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert isinstance(result, NodeDispatchRetry)
+    assert result.attempt == 1
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.RETRIED
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_retries_when_the_retry_condition_matches(
+    mock_dispatch, data_fixture
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert result == NodeDispatchRetry(
+        node_id=http_node.id,
+        history_id=workflow_history.id,
+        attempt=1,
+        countdown=1,
+    )
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.RETRIED
+    assert node_history.attempt == 1
+    assert node_history.message == (
+        "The retry condition matched. Retry 1 of 2 scheduled."
+    )
+
+    # The answer is kept, so it can still be inspected in the history.
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == http_response(429).data
+    assert node_result.iteration_path == ""
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_succeeds_when_the_retry_condition_does_not_match(
+    mock_dispatch, data_fixture
+):
+    mock_dispatch.return_value = http_response(200)
+    data = create_retrying_workflow(
+        data_fixture,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert_dispatches_next_node(result, (data["action_node"], workflow_history, None))
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+    assert node_history.attempt == 1
+    assert node_history.message == ""
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == http_response(200).data
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_fails_the_run_when_the_retry_condition_still_matches(
+    mock_dispatch, data_fixture
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id, attempt=3
+    )
+
+    assert result is None
+
+    error = "The retry condition still matched after 2 retries."
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == error
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.attempt == 3
+    assert node_history.message == error
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == http_response(429).data
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"on_failure": "stop"},
+        {"retry_on_condition": False},
+        {"retry_condition": ""},
+    ],
+)
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_only_checks_the_retry_condition_when_retrying(
+    mock_dispatch, data_fixture, policy
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        **{
+            "retry_on_condition": True,
+            "retry_condition": RETRY_CONDITION_ON_429,
+            **policy,
+        },
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert_dispatches_next_node(result, (data["action_node"], workflow_history, None))
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_fails_the_run_when_the_retry_condition_is_invalid(
+    mock_dispatch, data_fixture
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        retry_on_condition=True,
+        # The closing parenthesis of `get()` is missing.
+        retry_condition="get('current_node.status_code' = 429",
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message.startswith(
+        "The retry condition of this node is invalid."
+    )
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == workflow_history.message
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == http_response(429).data
+
+
+@pytest.mark.django_db
+@patch(
+    f"{NODE_HANDLER_PATH}.AutomationNodeHandler._retry_condition_matches",
+    side_effect=RuntimeError("kaboom"),
+)
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_fails_the_run_when_the_retry_condition_cannot_be_evaluated(
+    mock_logger, mock_dispatch, mock_retry_condition_matches, data_fixture
+):
+    """
+    A bug in a runtime function must not leave the run `started` forever.
+    """
+
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert result is None
+
+    error = (
+        "Unexpected error while evaluating the retry condition of this node. "
+        "Error: kaboom"
+    )
+    mock_logger.exception.assert_called_once_with(error)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert workflow_history.message == error
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == error
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_ignores_the_retry_condition_while_simulating(
+    mock_dispatch, mock_automation_node_updated, data_fixture
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        simulate=True,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    # The simulation reached its node: nothing else is dispatched.
+    assert result is None
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=http_node
+    )
+    assert not AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history, status=HistoryStatusChoices.RETRIED
+    ).exists()
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_evaluates_the_retry_condition_in_a_test_run(
+    mock_dispatch, data_fixture
+):
+    mock_dispatch.return_value = http_response(429)
+    data = create_retrying_workflow(
+        data_fixture,
+        is_test_run=True,
+        retry_on_condition=True,
+        retry_condition=RETRY_CONDITION_ON_429,
+    )
+    http_node = data["http_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        http_node.id, history_id=workflow_history.id
+    )
+
+    assert isinstance(result, NodeDispatchRetry)
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node_id=http_node.id
+    )
+    assert node_history.status == HistoryStatusChoices.RETRIED
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_continues_with_the_next_node_after_a_successful_retry(
+    mock_logger, mock_dispatch, data_fixture
+):
+    mock_dispatch.side_effect = [
+        RuntimeDispatchException("Connection reset"),
+        RuntimeDispatchException("Connection reset"),
+        http_response(200),
+    ]
+    data = create_retrying_workflow(data_fixture)
+    http_node = data["http_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+    handler = AutomationNodeHandler()
+
+    for attempt in (1, 2):
+        result = handler.dispatch_node(
+            http_node.id, history_id=workflow_history.id, attempt=attempt
+        )
+        clear_local()
+        assert isinstance(result, NodeDispatchRetry)
+        assert (result.attempt, result.countdown) == (attempt, 2 ** (attempt - 1))
+
+    result = handler.dispatch_node(
+        http_node.id, history_id=workflow_history.id, attempt=3
+    )
+    clear_local()
+    assert_dispatches_next_node(result, (action_node, workflow_history, None))
+
+    execute_dispatch_signature_tree(result)
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+    assert workflow_history.message == ""
+
+    http_histories = AutomationNodeHistory.objects.filter(
+        workflow_history=workflow_history, node_id=http_node.id
+    ).order_by("attempt")
+    assert [(h.attempt, h.status) for h in http_histories] == [
+        (1, HistoryStatusChoices.RETRIED),
+        (2, HistoryStatusChoices.RETRIED),
+        (3, HistoryStatusChoices.SUCCESS),
+    ]
+
+    # The node after the retried one ran once.
+    assert (
+        AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history, node_id=action_node.id
+        ).count()
+        == 1
+    )
+    assert data["action_table"].get_model().objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_dispatch_node_celery_task_schedules_the_next_attempt():
+    """
+    A retry is scheduled outside the dispatch transaction, with the attempt
+    that just failed incremented. Mirrors the deferred node poll above.
+    """
+
+    retry_error = RuntimeError("retry requested")
+    scheduled_retry = NodeDispatchRetry(node_id=1, history_id=2, attempt=1, countdown=1)
+
+    with (
+        patch(
+            f"{NODE_HANDLER_PATH}.AutomationNodeHandler.dispatch_node",
+            return_value=scheduled_retry,
+        ) as dispatch_node,
+        patch.object(
+            dispatch_node_celery_task, "retry", side_effect=retry_error
+        ) as retry,
+        pytest.raises(RuntimeError, match="retry requested"),
+    ):
+        dispatch_node_celery_task.run(1, 2)
+
+    dispatch_node.assert_called_once_with(1, 2, current_iterations=None, attempt=1)
+    retry.assert_called_once_with(countdown=1, kwargs={"attempt": 2})
+
+
+@pytest.mark.django_db
+def test_dispatch_node_celery_task_does_not_retry_a_finished_dispatch():
+    with (
+        patch(
+            f"{NODE_HANDLER_PATH}.AutomationNodeHandler.dispatch_node",
+            return_value=None,
+        ) as dispatch_node,
+        patch.object(dispatch_node_celery_task, "retry") as retry,
+    ):
+        assert dispatch_node_celery_task.run(1, 2, attempt=3) is None
+
+    dispatch_node.assert_called_once_with(1, 2, current_iterations=None, attempt=3)
+    retry.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{HTTP_NODE_TYPE_PATH}.dispatch")
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_celery_task_retries_until_the_node_succeeds(
+    mock_logger, mock_dispatch, data_fixture
+):
+    """
+    Drives the Celery task the way a worker does: every scheduled retry runs
+    the task again with the next attempt. The HTTP request node is the last
+    node of the workflow, so the task ends the run instead of replacing itself.
+    """
+
+    mock_dispatch.side_effect = [
+        RuntimeDispatchException("Connection reset"),
+        RuntimeDispatchException("Connection reset"),
+        http_response(200),
+    ]
+    data = create_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    http_node = data_fixture.create_automation_node(
+        type="http_request",
+        workflow=data["workflow"],
+        on_failure="retry",
+        max_retries=2,
+    )
+    handler = AutomationNodeHandler()
+
+    for node in [data["trigger_node"], data["action_node"]]:
+        result = handler.dispatch_node(node.id, history_id=workflow_history.id)
+        clear_local()
+    assert_dispatches_next_node(result, (http_node, workflow_history, None))
+
+    attempt = 1
+    scheduled = []
+    while True:
+        with patch.object(
+            dispatch_node_celery_task,
+            "retry",
+            side_effect=RuntimeError("retry requested"),
+        ) as retry:
+            try:
+                result = dispatch_node_celery_task.run(
+                    http_node.id, workflow_history.id, attempt=attempt
+                )
+            except RuntimeError:
+                scheduled.append(retry.call_args.kwargs)
+                attempt = retry.call_args.kwargs["kwargs"]["attempt"]
+                clear_local()
+                continue
+        break
+
+    assert result is None
+    assert scheduled == [
+        {"countdown": 1, "kwargs": {"attempt": 2}},
+        {"countdown": 2, "kwargs": {"attempt": 3}},
+    ]
+    assert mock_dispatch.call_count == 3
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+    assert workflow_history.message == ""
+
+    error = (
+        f"Error while running workflow {http_node.workflow_id}. Error: Connection reset"
+    )
+    http_histories = list(
+        AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history, node_id=http_node.id
+        ).order_by("attempt")
+    )
+    assert [(h.attempt, h.status) for h in http_histories] == [
+        (1, HistoryStatusChoices.RETRIED),
+        (2, HistoryStatusChoices.RETRIED),
+        (3, HistoryStatusChoices.SUCCESS),
+    ]
+    assert [h.message for h in http_histories] == [
+        f"Retry 1 of 2 scheduled. {error}",
+        f"Retry 2 of 2 scheduled. {error}",
+        "",
+    ]
+    assert [
+        AutomationNodeResult.objects.get(node_history=h).result for h in http_histories
+    ] == [{}, {}, http_response(200).data]

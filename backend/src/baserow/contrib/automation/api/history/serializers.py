@@ -27,6 +27,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "completed_on",
             "message",
             "status",
+            "attempt",
             "workflow_history",
             "node",
             "node_type",

@@ -14,6 +14,17 @@ class UnexpectedDispatchException(DispatchException):
     """Raised when trying to dispatch a service and an unexpected error happens."""
 
 
+class RuntimeDispatchException(UnexpectedDispatchException):
+    """
+    Raised when the dispatch failed for a reason outside its configuration and
+    a later attempt may succeed: the remote could not be reached, dropped the
+    connection, or answered that it was busy. The automation runner retries
+    these when the node's error policy says so; every other dispatch exception
+    is final. Raised only where the failure is known to be transient, never
+    from a catch-all branch.
+    """
+
+
 class AddressNotAllowedDispatchException(UnexpectedDispatchException):
     """
     Raised when a service was refused the address it was pointed at, before
@@ -51,6 +62,17 @@ class RemoteRefusedDispatchException(ServiceImproperlyConfiguredDispatchExceptio
     parent it is raised once the request has gone out, so a caller counting
     outbound traffic still counts it. Its message is written for whoever
     clicked, and names neither the address nor the credential it carried.
+    """
+
+
+class RemoteBusyDispatchException(
+    RemoteRefusedDispatchException, RuntimeDispatchException
+):
+    """
+    The server was reached and asked for the request to be repeated later, a
+    rate limit. Keeps the refused semantics (the request went out, the message
+    is safe to show) and is retryable, the way requests' ConnectTimeout is both
+    a ConnectionError and a Timeout.
     """
 
 

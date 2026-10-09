@@ -135,6 +135,11 @@ class AutomationNodeHistory(AutomationHistory):
         on_delete=models.CASCADE,
         related_name="node_histories",
     )
+    attempt = models.PositiveSmallIntegerField(
+        default=1,
+        db_default=1,
+        help_text="Which attempt of the node this entry records, starting at 1.",
+    )
 
     class Meta(AutomationHistory.Meta):
         indexes = [

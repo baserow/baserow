@@ -10,6 +10,7 @@ from baserow.api.services.serializers import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -19,6 +20,11 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField(help_text="The automation node type.")
     service = PolymorphicServiceSerializer(
         help_text="The service associated with this automation node."
+    )
+    # The model field is a `TextField` subclass, which a `ModelSerializer`
+    # would render as a plain string; the formula must be exposed as an object.
+    retry_condition = FormulaSerializerField(
+        help_text=AutomationNode._meta.get_field("retry_condition").help_text,
     )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -30,6 +36,11 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "label",
+            "on_failure",
+            "max_retries",
+            "retry_on_failure",
+            "retry_on_condition",
+            "retry_condition",
             "service",
             "workflow",
             "type",
@@ -81,11 +92,22 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
     service = PolymorphicServiceRequestSerializer(
         required=False, help_text="The service associated with this automation node."
     )
+    # The choices of `on_failure` and the `max_retries` come from the model.
+    # Trigger node types do not list the error policy fields in their
+    # `allowed_fields`, so the handler drops them for triggers after validation.
+    retry_condition = FormulaSerializerField(
+        help_text=AutomationNode._meta.get_field("retry_condition").help_text,
+    )
 
     class Meta:
         model = AutomationNode
         fields = (
             "label",
+            "on_failure",
+            "max_retries",
+            "retry_on_failure",
+            "retry_on_condition",
+            "retry_condition",
             "service",
         )
 

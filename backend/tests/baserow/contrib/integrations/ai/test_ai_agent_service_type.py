@@ -35,8 +35,8 @@ from baserow.core.generative_ai.registries import (
 )
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.trash.handler import TrashHandler
@@ -731,7 +731,9 @@ def test_ai_agent_service_dispatch_ai_error(data_fixture, settings):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(UnexpectedDispatchException) as exc_info:
+    # A provider that fails to answer, e.g. because it is overloaded or rate
+    # limited, may answer a later attempt: the automation runner may retry.
+    with pytest.raises(RuntimeDispatchException) as exc_info:
         with mock_ai_prompt(should_fail=True):
             service_type.dispatch(service, dispatch_context)
 

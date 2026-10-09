@@ -34,9 +34,30 @@ class AutomationNodeMove:
     move_extra_data: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class NodeDispatchRetry:
+    """
+    Returned by dispatch_node() when the attempt failed and the node's error
+    policy allows another one. The Celery task turns it into a delayed retry
+    of itself, outside the dispatch transaction.
+    """
+
+    node_id: int
+    history_id: int
+    # The attempt that just failed, 1-based.
+    attempt: int
+    # Seconds to wait before the next attempt.
+    countdown: int
+
+
 class AutomationNodeDict(TypedDict):
     id: int
     type: str
     label: str
     service: dict
     workflow_id: int
+    on_failure: str
+    max_retries: int
+    retry_on_failure: bool
+    retry_on_condition: bool
+    retry_condition: dict

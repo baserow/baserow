@@ -1,8 +1,5 @@
 <template>
-  <ReadOnlyForm
-    v-if="node"
-    :read-only="!$hasPermission('automation.node.update', node, workspace.id)"
-  >
+  <ReadOnlyForm v-if="node" :read-only="readOnly">
     <FormGroup
       class="margin-bottom-1"
       :label="$t('nodeSidePanel.labelTitle')"
@@ -33,6 +30,15 @@
       @values-changed="handleServiceChange"
     />
 
+    <template v-if="!nodeType.isTrigger">
+      <div class="separator"></div>
+      <NodeErrorHandlingForm
+        :node="node"
+        :read-only="readOnly"
+        @values-changed="handleNodeChange({ node: $event })"
+      />
+    </template>
+
     <div class="separator"></div>
     <SimulateDispatchNodeForm :automation="automation" :node="node" />
   </ReadOnlyForm>
@@ -45,6 +51,7 @@ import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import SimulateDispatchNodeForm from '@baserow/modules/automation/components/form/SimulateDispatchNodeForm'
+import NodeErrorHandlingForm from '@baserow/modules/automation/components/form/NodeErrorHandlingForm'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 import _ from 'lodash'
 import { helpers, maxLength } from '@vuelidate/validators'
@@ -127,6 +134,15 @@ provide('applicationContext', applicationContext)
 const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
+
+const readOnly = computed(
+  () =>
+    !app.$hasPermission(
+      'automation.node.update',
+      node.value,
+      workspace.value.id
+    )
+)
 
 /**
  * Handles `values-changed` from the service form. Besides the changed values,

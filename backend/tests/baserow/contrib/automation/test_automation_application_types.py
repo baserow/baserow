@@ -112,6 +112,15 @@ def test_automation_export_serialized(data_fixture):
                         "label": trigger.label,
                         "type": "local_baserow_rows_created",
                         "workflow_id": trigger.workflow_id,
+                        "on_failure": "stop",
+                        "max_retries": 2,
+                        "retry_on_failure": True,
+                        "retry_on_condition": False,
+                        "retry_condition": {
+                            "formula": "",
+                            "mode": "simple",
+                            "version": "0.1",
+                        },
                         "service": {
                             "id": trigger.service_id,
                             "integration_id": trigger.service.specific.integration_id,
@@ -125,6 +134,15 @@ def test_automation_export_serialized(data_fixture):
                         "label": first_action.label,
                         "type": "local_baserow_create_row",
                         "workflow_id": first_action.workflow_id,
+                        "on_failure": "stop",
+                        "max_retries": 2,
+                        "retry_on_failure": True,
+                        "retry_on_condition": False,
+                        "retry_condition": {
+                            "formula": "",
+                            "mode": "simple",
+                            "version": "0.1",
+                        },
                         "service": {
                             "id": first_action.service_id,
                             "integration_id": first_action.service.specific.integration_id,
