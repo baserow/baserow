@@ -17,9 +17,9 @@ def www_authenticate(error: str | None = None) -> str:
     OAuth flow. With it off, that metadata isn't served, so it isn't mentioned.
     """
 
-    params = []
     from baserow.core.mcp.oauth.validators import MCP_SCOPE
 
+    params = []
     if settings.BASEROW_MCP_OAUTH_ENABLED:
         metadata = (
             f"{settings.MCP_AUTHORIZATION_SERVER_URL}"
