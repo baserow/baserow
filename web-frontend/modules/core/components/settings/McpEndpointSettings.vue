@@ -2,8 +2,15 @@
   <div>
     <template v-if="page === 'list'">
       <h2 class="box__title">{{ $t('mcpEndpointSettings.title') }}</h2>
-      <div class="align-right">
-        <a class="button button--primary" @click.prevent="page = 'create'">
+      <McpOAuthConnections @loaded="oauthEnabled = $event" />
+      <div class="mcp-endpoint-settings__keys-head">
+        <h3 v-if="oauthEnabled" class="mcp-endpoint-settings__keys-title">
+          {{ $t('mcpEndpointSettings.endpointKeys') }}
+        </h3>
+        <a
+          class="button button--primary mcp-endpoint-settings__create"
+          @click.prevent="page = 'create'"
+        >
           {{ $t('mcpEndpointSettings.createEndpoint') }}
           <i class="iconoir-plus"></i>
         </a>
@@ -54,14 +61,16 @@ import error from '@baserow/modules/core/mixins/error'
 import McpEndpointForm from '@baserow/modules/core/components/settings/McpEndpointForm'
 import McpEndpoint from '@baserow/modules/core/components/settings/McpEndpoint'
 import McpEndpointService from '@baserow/modules/core/services/mcpEndpoint'
+import McpOAuthConnections from '@baserow/modules/core/components/settings/McpOAuthConnections'
 
 export default {
   name: 'McpEndpointSettings',
-  components: { McpEndpoint, McpEndpointForm },
+  components: { McpEndpoint, McpEndpointForm, McpOAuthConnections },
   mixins: [error],
   data() {
     return {
       page: 'list',
+      oauthEnabled: false,
       endpoints: [],
       listLoading: true,
       createLoading: false,

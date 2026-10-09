@@ -80,6 +80,14 @@ spec:
                 name: backend-asgi
                 port:
                   number: 80
+          # The MCP server is only served by the ASGI service.
+          - pathType: Prefix
+            path: "/mcp/"
+            backend:
+              service:
+                name: backend-asgi
+                port:
+                  number: 80
           - pathType: Prefix
             path: "/"
             backend:

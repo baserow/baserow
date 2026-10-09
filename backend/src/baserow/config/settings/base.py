@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "oauth2_provider",
     "drf_spectacular",
     "djcelery_email",
     "health_check",
@@ -868,6 +869,119 @@ else:
     PUBLIC_WEB_FRONTEND_URL = os.getenv(
         "PUBLIC_WEB_FRONTEND_URL", "http://localhost:3000"
     )
+
+BASEROW_MCP_OAUTH_ENABLED = str_to_bool(
+    os.getenv("BASEROW_MCP_OAUTH_ENABLED") or "false"
+)
+MCP_AUTHORIZATION_SERVER_URL = PUBLIC_BACKEND_URL.rstrip("/")
+MCP_RESOURCE_URL = f"{MCP_AUTHORIZATION_SERVER_URL}/mcp"
+BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS = [
+    host.strip()
+    for host in (os.getenv("BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS") or "*").split(",")
+    if host.strip()
+]
+MCP_REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 30
+try:
+    BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS") or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
+try:
+    BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS") or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_AUTHORIZE_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
+BASEROW_MCP_OAUTH_DCR_ENABLED = str_to_bool(
+    os.getenv("BASEROW_MCP_OAUTH_DCR_ENABLED") or "true"
+)
+try:
+    BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS") or "10/m,60/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '10/m,60/h'. {exc}"
+    ) from exc
+MCP_OAUTH_UNUSED_CLIENT_DAYS = 30
+MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS = 1
+
+# django-oauth-toolkit's migrations declare swappable dependencies on these settings,
+# and `migrate` resolves them when it checks for model changes, so they must exist.
+OAUTH2_PROVIDER_APPLICATION_MODEL = "oauth2_provider.Application"
+OAUTH2_PROVIDER_ACCESS_TOKEN_MODEL = "oauth2_provider.AccessToken"
+OAUTH2_PROVIDER_REFRESH_TOKEN_MODEL = "oauth2_provider.RefreshToken"
+OAUTH2_PROVIDER_ID_TOKEN_MODEL = "oauth2_provider.IDToken"
+OAUTH2_PROVIDER_GRANT_MODEL = "oauth2_provider.Grant"
+OAUTH2_PROVIDER_DEVICE_GRANT_MODEL = "oauth2_provider.DeviceGrant"
+
+OAUTH2_PROVIDER = {
+    "OAUTH2_VALIDATOR_CLASS": "baserow.core.mcp.oauth.validators.MCPOAuth2Validator",
+    "SCOPES": {
+        "mcp": "Use Baserow through an MCP endpoint",
+        "offline_access": "Ask for a refresh token (always issued)",
+    },
+    "DEFAULT_SCOPES": ["mcp"],
+    "PKCE_REQUIRED": True,
+    "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
+    "COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS": True,
+    "COMPLIANT_BCP_RFC9700_PASSWORD_GRANT": True,
+    "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,
+    "ROTATE_REFRESH_TOKEN": True,
+    # Store token hashes only; `/mcp` already looks tokens up by checksum.
+    "COMPLIANT_BCP_RFC9700_TOKEN_STORAGE": True,
+    "REFRESH_TOKEN_EXPIRE_SECONDS": MCP_REFRESH_TOKEN_EXPIRE_SECONDS,
+    # OAuth 2.1 requires detecting refresh token replay for public clients.
+    "REFRESH_TOKEN_REUSE_PROTECTION": True,
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+    # The management endpoint isn't mounted, so registration tokens are never used;
+    # expiring them lets the cleanup task delete them.
+    "DCR_REGISTRATION_TOKEN_EXPIRE_SECONDS": 3600,
+    "ALLOW_LOCALHOST_LOOPBACK": True,
+    "ALLOWED_REDIRECT_URI_SCHEMES": ["http", "https"],
+    "OIDC_ISS_ENDPOINT": MCP_AUTHORIZATION_SERVER_URL,
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": [
+        "none",
+        "client_secret_post",
+        "client_secret_basic",
+    ],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+    "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+    "OAUTH2_PROTECTED_RESOURCE_IDENTIFIER": MCP_RESOURCE_URL,
+    "OAUTH2_PROTECTED_RESOURCE_AUTHORIZATION_SERVERS": [MCP_AUTHORIZATION_SERVER_URL],
+    "OAUTH2_PROTECTED_RESOURCE_NAME": "Baserow MCP",
+    "DCR_ENABLED": BASEROW_MCP_OAUTH_DCR_ENABLED,
+    # MCP clients register before the user signs in, so registration is open.
+    # MCPRegistrationView rate-limits it and restricts redirect URIs.
+    "DCR_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.dcr.AllowAllDCRPermission",
+    ),
+    "CIMD_ENABLED": True,
+    "CIMD_REGISTRATION_PERMISSION_CLASSES": (
+        "oauth2_provider.cimd.HostAllowlistCIMDPermission",
+    ),
+    "CIMD_ALLOWED_HOSTS": BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS,
+}
 
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:

@@ -28,7 +28,10 @@ class MCPEndpoint(
         max_length=32,
         unique=True,
         db_index=True,
-        help_text="The unique endpoint key that can be used to authorize for the MCP service.",
+        null=True,
+        blank=True,
+        help_text="The unique endpoint key that can be used to authorize for the MCP "
+        "service. Null for OAuth grants, which only accept their access tokens.",
     )
     created = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(
@@ -39,9 +42,31 @@ class MCPEndpoint(
         on_delete=models.CASCADE,
         help_text="The workspace that the MCP endpoint belongs to.",
     )
+    allowed_tools = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Names of the MCP tools this endpoint may use. Null allows every "
+        "enabled tool.",
+    )
+    oauth_client_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="The OAuth client this endpoint was created for by consent. Null "
+        "for endpoints created by the user.",
+    )
 
     class Meta:
         ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "workspace", "oauth_client_id"],
+                condition=models.Q(oauth_client_id__isnull=False),
+                name="mcp_endpoint_unique_oauth_grant",
+            )
+        ]
 
     def get_parent(self):
         return self.workspace

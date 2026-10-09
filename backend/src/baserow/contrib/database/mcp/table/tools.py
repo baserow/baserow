@@ -19,6 +19,8 @@ class ListDatabasesMcpTool(MCPTool):
     """
 
     type = "list_databases"
+    title = "List databases"
+    read_only = True
     input_schema = ListDatabasesInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: ListDatabasesInput) -> list[dict]:
@@ -33,6 +35,7 @@ class CreateDatabaseMcpTool(MCPTool):
     """
 
     type = "create_database"
+    title = "Create database"
     enabled = False
     input_schema = CreateDatabaseInput
 
@@ -48,6 +51,8 @@ class ListTablesMcpTool(MCPTool):
     """
 
     type = "list_tables"
+    title = "List tables"
+    read_only = True
     input_schema = ListTablesInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: ListTablesInput) -> list[dict]:
@@ -73,6 +78,7 @@ class CreateTableMcpTool(MCPTool):
     """
 
     type = "create_table"
+    title = "Create table"
     enabled = False
     input_schema = CreateTableInput
 
@@ -93,6 +99,8 @@ class UpdateTableMcpTool(MCPTool):
     """
 
     type = "update_table"
+    title = "Update table"
+    destructive = True
     enabled = False
     input_schema = UpdateTableInput
 
@@ -109,6 +117,8 @@ class DeleteTableMcpTool(MCPTool):
     """
 
     type = "delete_table"
+    title = "Delete table"
+    destructive = True
     enabled = False
     input_schema = DeleteTableInput
 
@@ -125,6 +135,8 @@ class GetTableSchemaMcpTool(MCPTool):
     """
 
     type = "get_table_schema"
+    title = "Get table schema"
+    read_only = True
     input_schema = GetTableSchemaInput
 
     def _sync_call(

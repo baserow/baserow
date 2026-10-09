@@ -1,4 +1,31 @@
 {
+  "mcpAuthorize": {
+    "title": "Connect {client}",
+    "titleFrom": "Connect {client} from {host}",
+    "subtitle": "It will act as you in the workspace you choose.",
+    "unverified": "Not verified · sends you back to {host}",
+    "returns": "Returns to {host}",
+    "workspace": "Workspace",
+    "databases": "{count} database | {count} databases",
+    "noWorkspaces": "You can't connect apps in any of your workspaces. Ask a workspace admin for access.",
+    "loopbackWarning": "This app signs in through your own computer. Any program on it could use this name, so only continue if you just started the sign-in yourself.",
+    "tools": "What it can do",
+    "selectAll": "Select all",
+    "selectNone": "None",
+    "toolsRead": "Read",
+    "toolsChange": "Change",
+    "deletes": "Deletes",
+    "overwrites": "Overwrites",
+    "noTools": "There are no tools available.",
+    "signedIn": "Signed in as {email}",
+    "allow": "Allow",
+    "deny": "Deny",
+    "invalid": "This authorization request is not valid.",
+    "invalidMessage": "Try connecting again from the app. If it keeps happening, remove the Baserow server from the app and add it again.",
+    "unknownClient": "This app's sign-in registration is unknown or has expired. Remove the Baserow server from the app and add it again.",
+    "failed": "Could not complete the connection.",
+    "framed": "For your security, this page can't be shown inside another site. Open it in its own browser window to continue."
+  },
   "paginator": {
     "page": "Page",
     "of": "of {pages}"
@@ -1367,7 +1394,24 @@
     "createEndpoint": "Create endpoint",
     "createNewTitle": "Create MCP server endpoint",
     "backToOverview": "Back",
-    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started."
+    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started.",
+    "endpointKeys": "Endpoint keys"
+  },
+  "mcpOAuthConnections": {
+    "title": "Connect an AI tool",
+    "description": "One URL for every tool. You sign in and choose the workspace and tools when you connect.",
+    "copyURL": "Copy URL",
+    "claudeInstructions": "In claude.ai or Claude Desktop, open **Settings → Connectors**, click **Add custom connector** and paste the URL above.",
+    "claudeCodeInstructions": "Run this in your terminal, then run `/mcp` in Claude Code to sign in.",
+    "chatGptInstructions": "In ChatGPT, open **Settings → Apps & Connectors**, turn on developer mode under **Advanced settings** and click **Create**. Paste the URL above and pick **OAuth** as authentication.",
+    "cursorInstructions": "Add this to `~/.cursor/mcp.json`. Cursor asks you to sign in when it connects.",
+    "connectedApps": "Connected apps",
+    "noConnections": "No apps connected yet.",
+    "publishedBy": "{host}",
+    "tools": "{count} tool | {count} tools",
+    "connectedOn": "Connected {date}",
+    "disconnect": "Disconnect",
+    "confirmDisconnect": "Click again to disconnect"
   },
   "mcpEndpointForm": {
     "nameLabel": "Name",

@@ -385,14 +385,18 @@ class CoreConfig(AppConfig):
         trash_operation_type_registry.register(DefaultTrashOperationType())
 
         from baserow.core.mcp.actions import (
+            ConnectMCPOAuthClientActionType,
             CreateMCPEndpointActionType,
             DeleteMCPEndpointActionType,
+            DisconnectMCPOAuthClientActionType,
             UpdateMCPEndpointActionType,
         )
 
         action_type_registry.register(CreateMCPEndpointActionType())
         action_type_registry.register(UpdateMCPEndpointActionType())
         action_type_registry.register(DeleteMCPEndpointActionType())
+        action_type_registry.register(ConnectMCPOAuthClientActionType())
+        action_type_registry.register(DisconnectMCPOAuthClientActionType())
 
         from baserow.core.user.actions import (
             CancelUserDeletionActionType,
@@ -588,6 +592,7 @@ class CoreConfig(AppConfig):
             patch_user_model_str()
 
         import baserow.core.last_viewed.receivers  # noqa: F401
+        import baserow.core.mcp.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 

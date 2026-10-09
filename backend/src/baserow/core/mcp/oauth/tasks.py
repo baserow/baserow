@@ -1,0 +1,66 @@
+from datetime import timedelta
+
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
+
+from oauth2_provider.models import (
+    clear_expired,
+    get_access_token_model,
+    get_application_model,
+)
+
+from baserow.config.celery import app
+from baserow.core.mcp.models import MCPEndpoint
+
+
+@app.task(bind=True, queue="export")
+def delete_unused_mcp_oauth_clients(self):
+    """
+    Deletes DCR and CIMD clients that have no grant, so clients stored by anonymous
+    registrations and authorization requests can't pile up. A DCR client goes once
+    it hasn't been used for `MCP_OAUTH_UNUSED_CLIENT_DAYS`: issuing a token bumps
+    `updated`, so a disconnected client that's still in use keeps its client_id. A
+    CIMD client goes `MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS` after it was created,
+    whatever `updated` says: anyone can bump it by making the document be fetched
+    again, and the client is fetched again on demand anyway.
+    """
+
+    Application = get_application_model()
+    now = timezone.now()
+    dcr_cutoff = now - timedelta(days=settings.MCP_OAUTH_UNUSED_CLIENT_DAYS)
+    cimd_cutoff = now - timedelta(days=settings.MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS)
+    # Includes grants in trashed workspaces, which can still be restored.
+    grants = MCPEndpoint.objects_and_trash.filter(oauth_client_id=OuterRef("client_id"))
+    unused = Application.objects.filter(
+        Q(
+            registration_source=Application.RegistrationSource.DCR,
+            updated__lt=dcr_cutoff,
+        )
+        | Q(
+            registration_source=Application.RegistrationSource.CIMD,
+            created__lt=cimd_cutoff,
+        )
+    ).exclude(Exists(grants))
+    with transaction.atomic():
+        # The registration tokens go first: the token models reference each other,
+        # so the cascade from the application deletes them after it.
+        get_access_token_model().objects.filter(application__in=unused).delete()
+        unused.delete()
+
+
+@app.task(bind=True, queue="export")
+def clear_expired_mcp_oauth_tokens(self):
+    """
+    Deletes expired access tokens, registration tokens and authorization codes,
+    and refresh tokens that are revoked or expired, so rotation doesn't pile them up.
+    """
+
+    clear_expired()
+
+
+@app.on_after_finalize.connect
+def setup_periodic_mcp_oauth_tasks(sender, **kwargs):
+    sender.add_periodic_task(timedelta(hours=6), delete_unused_mcp_oauth_clients.s())
+    sender.add_periodic_task(timedelta(hours=6), clear_expired_mcp_oauth_tokens.s())

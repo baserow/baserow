@@ -1,4 +1,5 @@
 import contextvars
+import json
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
@@ -10,7 +11,14 @@ if TYPE_CHECKING:
     from mcp.types import Tool
     from starlette.applications import Starlette
 
+    from baserow.core.mcp.models import MCPEndpoint
+
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
+# Set by `/mcp` to the endpoint its bearer resolved to, membership already checked.
+# Takes precedence over `current_key`, which the SSE transport uses.
+current_endpoint: contextvars.ContextVar["MCPEndpoint"] = contextvars.ContextVar(
+    "current_endpoint"
+)
 
 
 def _is_sse_disconnect_teardown_error(exc: BaseException) -> bool:
@@ -75,11 +83,14 @@ class BaserowMCPServer:
         from baserow.core.mcp.models import MCPEndpoint
         from baserow.core.subjects import UserSubjectType
 
-        key = current_key.get()
+        endpoint = current_endpoint.get(None)
+        if endpoint is not None:
+            return endpoint
+        lookup = {"key": current_key.get()}
         try:
             endpoint = await MCPEndpoint.objects.select_related(
                 "user", "user__profile", "workspace"
-            ).aget(key=key)
+            ).aget(**lookup)
             # This call checks if the user is active, account is not deleted, and if it
             # belongs in the workspace. It's important to check this everytime an
             # operation is done because the permissions could have changed.
@@ -102,7 +113,7 @@ class BaserowMCPServer:
                 content=[TextContent(type="text", text="Endpoint not found.")],
                 isError=True,
             )
-        tool = mcp_tool_registry.match_by_name(name)
+        tool = mcp_tool_registry.get_allowed_tool(endpoint, name)
         if not tool:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Tool '{name}' not found.")],
@@ -148,6 +159,41 @@ class BaserowMCPServer:
             return []
         return await mcp_tool_registry.list_all_tools(endpoint)
 
+    async def _handle_streamable_http(self, scope, receive, send) -> None:
+        """
+        Serves one Streamable HTTP request with its own stateless transport, like
+        `StreamableHTTPSessionManager._handle_stateless_request`. The session manager
+        itself needs an ASGI lifespan, which Channels' ProtocolTypeRouter does not
+        forward.
+        """
+
+        import anyio
+        from mcp.server.streamable_http import StreamableHTTPServerTransport
+
+        transport = StreamableHTTPServerTransport(
+            mcp_session_id=None, is_json_response_enabled=True
+        )
+
+        async def run_server(*, task_status=anyio.TASK_STATUS_IGNORED):
+            async with transport.connect() as (read_stream, write_stream):
+                task_status.started()
+                try:
+                    await self._mcp_server.run(
+                        read_stream,
+                        write_stream,
+                        self._mcp_server.create_initialization_options(),
+                        stateless=True,
+                    )
+                except Exception:
+                    logger.exception("Stateless MCP request crashed")
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(run_server)
+            try:
+                await transport.handle_request(scope, receive, send)
+            finally:
+                await transport.terminate()
+
     def sse_app(self) -> "Starlette":
         """
         Returns an ASGI application that can handle MCP SSE connections.
@@ -157,7 +203,7 @@ class BaserowMCPServer:
 
         from starlette.applications import Starlette
         from starlette.requests import Request
-        from starlette.responses import Response
+        from starlette.responses import JSONResponse, Response
         from starlette.routing import Mount, Route
 
         sse_path = "/mcp/{key}/sse"
@@ -183,6 +229,7 @@ class BaserowMCPServer:
             if not endpoint:
                 # If there is no endpoint, then there is no need to start a
                 # connection. It's valid to immediately respond with a 401 error.
+                current_key.reset(key_ctx)
                 return Response("Endpoint not found.", status_code=401)
 
             self.capture_event(endpoint, "mcp_connected", {})
@@ -227,6 +274,76 @@ class BaserowMCPServer:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)
 
+        server = self
+
+        class _StreamableHTTPApp:
+            """
+            Stateless Streamable HTTP on `/mcp`, authenticated with an OAuth access
+            token or an endpoint key as bearer. A class so Starlette's `Route` treats
+            it as a raw ASGI app instead of a `func(request)` endpoint.
+            """
+
+            async def __call__(self, scope, receive, send) -> None:
+                from baserow.core.mcp.auth import (
+                    INSUFFICIENT_SCOPE,
+                    INVALID_TOKEN,
+                    resolve_bearer,
+                    www_authenticate,
+                )
+
+                request = Request(scope, receive)
+                authorization = request.headers.get("authorization", "")
+                scheme, _, value = authorization.partition(" ")
+                value = value.strip()
+                endpoint, error = None, None
+                has_bearer = scheme.lower() == "bearer" and bool(value)
+                if has_bearer:
+                    endpoint, error = await resolve_bearer(value)
+
+                endpoint_ctx = current_endpoint.set(endpoint)
+                try:
+                    if endpoint is None:
+                        status_code = 403 if error == INSUFFICIENT_SCOPE else 401
+                        # RFC 6750 section 3.1: no error code when no credentials
+                        # were sent.
+                        body = (
+                            {"error": error or INVALID_TOKEN}
+                            if has_bearer
+                            else {"detail": "Authentication required."}
+                        )
+                        response = JSONResponse(
+                            body,
+                            status_code=status_code,
+                            headers={"WWW-Authenticate": www_authenticate(error)},
+                        )
+                        await response(scope, receive, send)
+                        return
+
+                    body = await request.body()
+                    if _is_initialize(body):
+                        server.capture_event(endpoint, "mcp_connected", {})
+
+                    body_sent = False
+
+                    async def replay():
+                        # The transport gets the body again; afterwards the real
+                        # `receive` is used so it still sees `http.disconnect`.
+                        nonlocal body_sent
+                        if not body_sent:
+                            body_sent = True
+                            return {
+                                "type": "http.request",
+                                "body": body,
+                                "more_body": False,
+                            }
+                        return await receive()
+
+                    await server._handle_streamable_http(scope, replay, send)
+                finally:
+                    current_endpoint.reset(endpoint_ctx)
+
+        streamable_http_app = _StreamableHTTPApp()
+
         # It might seem a bit hacky to use Starlette here instead of the existing
         # Django logic. However, it made more sense to stay as close to the recommended
         # code of the MCP library
@@ -234,13 +351,32 @@ class BaserowMCPServer:
         # for compatibility reasons. If anything changes in the Python SDK, which seems
         # to be active development, then we should remain close in terms of
         # compatibility.
-        return Starlette(
+        app = Starlette(
             debug=False,
             routes=[
+                # Only POST: a stateless server has no stream to offer on GET, and
+                # the spec allows answering that with 405.
+                Route("/mcp", endpoint=streamable_http_app, methods=["POST"]),
                 Route(sse_path, endpoint=handle_sse),
+                # Clients configured with a trailing slash used to be redirected
+                # here, which redirect_slashes below no longer does.
+                Route(f"{sse_path}/", endpoint=handle_sse),
                 Mount(messages_path, app=sse.handle_post_message),
             ],
         )
+        # The redirect would point clients to an http:// URL behind a TLS proxy.
+        app.router.redirect_slashes = False
+        return app
+
+
+def _is_initialize(body: bytes) -> bool:
+    """Whether a Streamable HTTP request body is the MCP `initialize` request."""
+
+    try:
+        message = json.loads(body)
+    except ValueError:
+        return False
+    return isinstance(message, dict) and message.get("method") == "initialize"
 
 
 _baserow_mcp = None

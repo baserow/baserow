@@ -35,6 +35,10 @@ from .serializers import (
     UpdateMCPEndpointSerializer,
 )
 
+# Endpoints of OAuth grants are managed as connected apps, never through these
+# routes, so their key is never returned.
+LEGACY_ENDPOINTS = MCPEndpoint.objects.filter(oauth_client_id__isnull=True)
+
 
 class MCPEndpointsView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -53,7 +57,7 @@ class MCPEndpointsView(APIView):
     def get(self, request):
         """Lists all the MCP endpoints of the authenticated user."""
 
-        endpoints = MCPEndpoint.objects.filter(user=request.user).select_related(
+        endpoints = LEGACY_ENDPOINTS.filter(user=request.user).select_related(
             "workspace"
         )
         serializer = MCPEndpointSerializer(endpoints, many=True)

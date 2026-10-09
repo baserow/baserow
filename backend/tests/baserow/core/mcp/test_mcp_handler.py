@@ -13,26 +13,6 @@ from baserow.core.mcp.models import MCPEndpoint
 
 
 @pytest.mark.django_db
-def test_get_by_key(data_fixture):
-    user = data_fixture.create_user()
-    data_fixture.create_user()
-    workspace_1 = data_fixture.create_workspace(user=user)
-    workspace_2 = data_fixture.create_workspace()
-    endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace_1)
-    data_fixture.create_mcp_endpoint(user=user, workspace=workspace_2)
-
-    handler = MCPEndpointHandler()
-
-    with pytest.raises(MCPEndpointDoesNotExist):
-        handler.get_by_key(key="abc")
-
-    endpoint_tmp = handler.get_by_key(key=endpoint.key)
-    assert endpoint_tmp.id == endpoint.id
-    assert endpoint.workspace_id == workspace_1.id
-    assert isinstance(endpoint_tmp, MCPEndpoint)
-
-
-@pytest.mark.django_db
 def test_get_endpoint(data_fixture):
     user = data_fixture.create_user()
     user_2 = data_fixture.create_user()
@@ -64,6 +44,20 @@ def test_get_endpoint(data_fixture):
             endpoint_id=endpoint.id,
             base_queryset=MCPEndpoint.objects.prefetch_related("UNKNOWN"),
         )
+
+
+@pytest.mark.django_db
+def test_get_endpoint_does_not_return_oauth_grants(data_fixture):
+    user = data_fixture.create_user()
+    grant = data_fixture.create_mcp_endpoint(
+        user=user, oauth_client_id="https://claude.ai/x.json"
+    )
+    handler = MCPEndpointHandler()
+
+    with pytest.raises(MCPEndpointDoesNotExist):
+        handler.get_endpoint(user, grant.id)
+    with pytest.raises(MCPEndpointDoesNotExist):
+        handler.get_endpoint(user, grant.id, base_queryset=MCPEndpoint.objects.all())
 
 
 @pytest.mark.django_db

@@ -11,6 +11,7 @@ from mcp.shared.memory import (
 )
 
 from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.mcp.registries import mcp_tool_registry
 
 ENABLED_TOOL_NAMES = {
     "list_databases",
@@ -33,6 +34,14 @@ DISABLED_TOOL_NAMES = {
 }
 
 ALL_TOOL_NAMES = ENABLED_TOOL_NAMES | DISABLED_TOOL_NAMES
+
+
+@pytest.fixture
+def enable_all_tools(monkeypatch):
+    """Disabled tools can't be called, so turn them on to test their logic."""
+
+    for name in DISABLED_TOOL_NAMES:
+        monkeypatch.setattr(mcp_tool_registry.get(name), "enabled", True)
 
 
 @pytest.mark.django_db
@@ -92,6 +101,7 @@ def test_call_tool_list_databases(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_create_database(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -189,6 +199,7 @@ def test_call_tool_list_tables_filtered_by_database(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_create_table(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -224,6 +235,7 @@ def test_call_tool_create_table(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_update_table(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -252,6 +264,7 @@ def test_call_tool_update_table(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_delete_table(data_fixture):
     from baserow.contrib.database.table.models import Table
 
@@ -341,6 +354,7 @@ def test_call_tool_get_table_schema_excludes_other_workspace(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_create_fields(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -374,6 +388,7 @@ def test_call_tool_create_fields(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_update_fields(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -404,6 +419,7 @@ def test_call_tool_update_fields(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("enable_all_tools")
 def test_call_tool_delete_fields(data_fixture):
     from baserow.contrib.database.fields.models import Field
 

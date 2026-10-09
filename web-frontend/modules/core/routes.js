@@ -27,6 +27,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/login.vue'),
       },
       {
+        name: 'mcp-authorize',
+        path: '/mcp-authorize',
+        file: path.resolve(__dirname, 'pages/mcpAuthorize.vue'),
+      },
+      {
         name: 'signup',
         path: '/signup',
         file: path.resolve(__dirname, 'pages/signup.vue'),

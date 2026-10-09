@@ -611,3 +611,53 @@ def test_call_tool_with_invalid_arguments_is_captured_as_failed(
         {"endpoint_id": endpoint.id, "tool": "update_rows", "success": False},
         workspace=endpoint.workspace,
     )
+
+
+@pytest.mark.django_db
+def test_sse_with_unknown_key_does_not_leak_the_key():
+    app = BaserowMCPServer().sse_app()
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        pass
+
+    async def inner():
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/mcp/unknown-key/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+        await app(scope, receive, send)
+        assert current_key.get(None) is None
+
+    async_to_sync(inner)()
+
+
+@pytest.mark.django_db
+def test_sse_with_trailing_slash_is_served():
+    app = BaserowMCPServer().sse_app()
+    messages = []
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        messages.append(message)
+
+    async def inner():
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/mcp/unknown-key/sse/",
+            "headers": [],
+            "query_string": b"",
+        }
+        await app(scope, receive, send)
+
+    async_to_sync(inner)()
+    # Same answer as the slash-free route for an unknown key, not a 404.
+    assert messages[0]["status"] == 401

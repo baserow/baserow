@@ -1,0 +1,145 @@
+.mcp-oauth-connections {
+  margin-bottom: 32px;
+}
+
+.mcp-oauth-connections__title {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.mcp-oauth-connections__description,
+.mcp-oauth-connections__empty {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.mcp-oauth-connections__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: solid 1px $palette-neutral-200;
+}
+
+.mcp-oauth-connections__avatar {
+  @extend %mcp-client-avatar;
+
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.mcp-oauth-connections__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcp-oauth-connections__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mcp-oauth-connections__client {
+  @extend %ellipsis;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.mcp-oauth-connections__meta {
+  @extend %ellipsis;
+
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.mcp-oauth-connections__url {
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+.mcp-oauth-connections__url-box {
+  @extend %ellipsis;
+
+  background-color: $palette-neutral-100;
+  line-height: 32px;
+  padding: 0 8px;
+  font-family: monospace;
+  font-size: 10px;
+  border: solid 1px $palette-neutral-400;
+  overscroll-behavior: none;
+  height: 32px;
+  min-width: 0;
+  flex-basis: 100%;
+
+  @include scrollable-overflow;
+  @include rounded($rounded);
+}
+
+.mcp-oauth-connections__url-copy {
+  flex-shrink: 0;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  line-height: 32px;
+  font-size: 14px;
+  text-align: center;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $palette-neutral-100;
+  }
+}
+
+.mcp-oauth-connections__instructions {
+  &.markdown code {
+    display: inline-block;
+    padding: 0 6px;
+    background-color: $palette-neutral-100;
+
+    @include rounded($rounded);
+  }
+
+  &.markdown p {
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 140%;
+  }
+
+  &.markdown ul,
+  &.markdown ol {
+    padding-left: 1.5em;
+  }
+
+  &.markdown li {
+    font-size: 13px;
+    line-height: 140%;
+    margin-bottom: 6px;
+    color: $palette-neutral-900;
+  }
+}
+
+.mcp-oauth-connections__code {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background-color: $palette-neutral-100;
+  line-height: 140%;
+
+  @include rounded($rounded);
+}
