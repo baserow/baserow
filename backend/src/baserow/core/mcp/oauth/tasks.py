@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from oauth2_provider.models import (
@@ -18,22 +18,30 @@ from baserow.core.mcp.models import MCPEndpoint
 @app.task(bind=True, queue="export")
 def delete_unused_mcp_oauth_clients(self):
     """
-    Deletes DCR and CIMD clients that have no grant and haven't been used for
-    `MCP_OAUTH_UNUSED_CLIENT_DAYS`, so clients stored by anonymous registrations and
-    authorization requests can't pile up. Issuing a token bumps `updated`, so a
-    disconnected client that's still in use keeps its client_id.
+    Deletes DCR and CIMD clients that have no grant, so clients stored by anonymous
+    registrations and authorization requests can't pile up. A DCR client goes once
+    it hasn't been used for `MCP_OAUTH_UNUSED_CLIENT_DAYS`: issuing a token bumps
+    `updated`, so a disconnected client that's still in use keeps its client_id. A
+    CIMD client goes `MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS` after it was created,
+    whatever `updated` says: anyone can bump it by making the document be fetched
+    again, and the client is fetched again on demand anyway.
     """
 
     Application = get_application_model()
-    cutoff = timezone.now() - timedelta(days=settings.MCP_OAUTH_UNUSED_CLIENT_DAYS)
+    now = timezone.now()
+    dcr_cutoff = now - timedelta(days=settings.MCP_OAUTH_UNUSED_CLIENT_DAYS)
+    cimd_cutoff = now - timedelta(days=settings.MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS)
     # Includes grants in trashed workspaces, which can still be restored.
     grants = MCPEndpoint.objects_and_trash.filter(oauth_client_id=OuterRef("client_id"))
     unused = Application.objects.filter(
-        registration_source__in=[
-            Application.RegistrationSource.DCR,
-            Application.RegistrationSource.CIMD,
-        ],
-        updated__lt=cutoff,
+        Q(
+            registration_source=Application.RegistrationSource.DCR,
+            updated__lt=dcr_cutoff,
+        )
+        | Q(
+            registration_source=Application.RegistrationSource.CIMD,
+            created__lt=cimd_cutoff,
+        )
     ).exclude(Exists(grants))
     with transaction.atomic():
         # The registration tokens go first: the token models reference each other,

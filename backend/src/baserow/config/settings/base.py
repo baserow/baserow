@@ -924,6 +924,7 @@ except ValueError as exc:
         f"separated list of rate limits, for example '10/m,60/h'. {exc}"
     ) from exc
 MCP_OAUTH_UNUSED_CLIENT_DAYS = 30
+MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS = 1
 
 # django-oauth-toolkit's migrations declare swappable dependencies on these settings,
 # and `migrate` resolves them when it checks for model changes, so they must exist.

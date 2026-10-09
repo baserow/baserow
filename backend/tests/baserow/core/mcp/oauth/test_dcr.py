@@ -229,6 +229,28 @@ def test_unused_cimd_clients_are_deleted(client, api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_unused_cimd_clients_are_deleted_even_if_recently_fetched(
+    client, api_client, data_fixture
+):
+    Application = get_application_model()
+    with freeze_time(timezone.now() - timedelta(days=2)):
+        user, token = data_fixture.create_user_and_token()
+        workspace = data_fixture.create_workspace(user=user)
+        unused = load_cimd_client(api_client, token)
+        used = obtain_tokens(client, api_client, token, workspace)["client_id"]
+    # An anonymous authorize request re-fetching the document bumps `updated`.
+    Application.objects.filter(client_id__in=[unused, used]).update(
+        updated=timezone.now()
+    )
+
+    delete_unused_mcp_oauth_clients()
+
+    remaining = set(Application.objects.values_list("client_id", flat=True))
+    assert unused not in remaining
+    assert used in remaining
+
+
+@pytest.mark.django_db
 def test_dcr_client_with_a_grant_in_a_trashed_workspace_is_kept(
     client, api_client, data_fixture
 ):
