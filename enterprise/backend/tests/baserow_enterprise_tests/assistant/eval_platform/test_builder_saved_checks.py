@@ -24,7 +24,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ElementUpdate,
     MenuItemUpdate,
 )
-from baserow_enterprise.assistant.tools.builder.types.element import new_menu_link
+from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
 
 
 def _output(*calls):

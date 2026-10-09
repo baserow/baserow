@@ -1,6 +1,5 @@
 """Turn Kuma's table column changes into the full column list core saves."""
 
-import uuid
 from collections import Counter
 from collections.abc import Iterable
 from copy import deepcopy
@@ -20,8 +19,8 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     wrap_static_string,
 )
 
+from .types.changes import NO_CHANGES, canonical_uid
 from .types.table_columns import (
-    NO_CHANGES,
     VALUE_COLUMN_TYPES,
     RemovedTableColumn,
     TableColumnAdd,
@@ -56,20 +55,6 @@ class SourceTable(NamedTuple):
     table: Table | None
     fields_by_id: dict[int, Field]
     fields_by_name: dict[str, Field]
-
-
-def column_uid(raw: str) -> str:
-    """
-    Canonicalize a uid the model sent so it compares equal to stored uids.
-
-    :param raw: The uid as sent.
-    :return: The lower-case hyphenated uid, or the stripped input if it isn't a UUID.
-    """
-
-    try:
-        return str(uuid.UUID(raw.strip()))
-    except ValueError:
-        return raw.strip()
 
 
 def column_formula(text: str, column_name: str, key: str) -> str:
@@ -124,10 +109,12 @@ def merge_table_columns(
 
     stored = _stored_columns(element)
     by_uid = {column["uid"]: column for column in stored}
-    update_uids = [column_uid(change.uid) for change in update]
-    remove_uids = [column_uid(uid) for uid in remove]
-    order = [column_uid(uid) for uid in reorder] if reorder is not None else None
-    anchors = [column_uid(new.before_uid) for new in add if new.before_uid is not None]
+    update_uids = [canonical_uid(change.uid) for change in update]
+    remove_uids = [canonical_uid(uid) for uid in remove]
+    order = [canonical_uid(uid) for uid in reorder] if reorder is not None else None
+    anchors = [
+        canonical_uid(new.before_uid) for new in add if new.before_uid is not None
+    ]
 
     _check_references(
         element, stored, [*update_uids, *remove_uids, *(order or []), *anchors]
@@ -461,7 +448,7 @@ def _changed(
 def _insert_index(merged: list[Column], before_uid: str | None) -> int:
     if before_uid is None:
         return len(merged)
-    anchor = column_uid(before_uid)
+    anchor = canonical_uid(before_uid)
     return next(
         index for index, column in enumerate(merged) if column.get("uid") == anchor
     )

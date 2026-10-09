@@ -13,12 +13,13 @@ from baserow.core.db import specific_iterator
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.types import BaseModel
 
+from .changes import NO_CHANGES
+
 if TYPE_CHECKING:
     from baserow.contrib.builder.elements.models import CollectionField, TableElement
     from baserow.contrib.database.fields.models import Field as DatabaseField
     from baserow.contrib.database.table.models import Table
 
-NO_CHANGES = "No changes were applied."
 VALUE_COLUMN_TYPES: frozenset[str] = frozenset({"text", "boolean", "rating"})
 COLUMN_NAME_MAX_LENGTH = 225
 

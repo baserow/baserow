@@ -19,10 +19,7 @@ When adding support for a new element type, update these tables:
 Not all tables need entries — only add to those relevant for the new type.
 """
 
-import uuid
-from collections import defaultdict
-from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, field_validator, model_validator
 
@@ -40,6 +37,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 from baserow_enterprise.assistant.types import BaseModel
 
+from .menu_items import ListedTopLevelMenuItem, new_menu_link
 from .table_columns import (
     TableColumnAdd,
     TableColumnItem,
@@ -52,11 +50,7 @@ from .table_columns import (
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
-    from baserow.contrib.builder.elements.models import (
-        Element,
-        MenuElement,
-        MenuItemElement,
-    )
+    from baserow.contrib.builder.elements.models import Element
     from baserow.contrib.builder.pages.models import Page
     from baserow_enterprise.assistant.tools.builder.agents import BuilderFormulaContext
 
@@ -180,46 +174,6 @@ class MenuItemUpdate(MenuSubLinkUpdate):
         default=None,
         description="Sub-links, replacing the current ones. Omit to keep them. Only links can have sub-links.",
     )
-
-
-def new_menu_link(name: str, page_id: int) -> dict[str, Any]:
-    """
-    Return the values of a new menu item that links to a page.
-
-    :param name: The item's display text.
-    :param page_id: The page the item links to.
-    :return: The values, keyed like a menu's ``menu_items`` input.
-    """
-
-    return {
-        "uid": str(uuid.uuid4()),
-        "type": "link",
-        "variant": "link",
-        "name": name,
-        "navigation_type": "page",
-        "navigate_to_page_id": page_id,
-        "target": "self",
-    }
-
-
-def group_menu_items(
-    items: Iterable["MenuItemElement"],
-) -> tuple[list["MenuItemElement"], defaultdict[int, list["MenuItemElement"]]]:
-    """
-    Split a menu's items into its top-level items and the sub-links of each.
-
-    :param items: All the items of one menu.
-    :return: The top-level items and the sub-links by parent id, in menu order.
-    """
-
-    top_level = []
-    sub_links = defaultdict(list)
-    for item in sorted(items, key=attrgetter("menu_item_order")):
-        if item.parent_menu_item_id is None:
-            top_level.append(item)
-        else:
-            sub_links[item.parent_menu_item_id].append(item)
-    return top_level, sub_links
 
 
 class TableFieldConfig(BaseModel):
@@ -1946,35 +1900,6 @@ class ElementUpdate(BaseModel):
         ]
 
 
-def _describe_menu_item(item: "MenuItemElement") -> dict[str, Any]:
-    return {
-        "uid": str(item.uid),
-        "name": item.name,
-        "type": item.type,
-        "page_id": item.navigate_to_page_id,
-    }
-
-
-def describe_menu_items(menu: "MenuElement") -> list[dict[str, Any]]:
-    """
-    Describe a menu's items with the uids update_element needs to keep them.
-
-    :param menu: The menu element.
-    :return: The top-level items in order, each with its sub-links as children.
-    """
-
-    top_level, sub_links = group_menu_items(menu.menu_items.all())
-    items = []
-    for item in top_level:
-        values = _describe_menu_item(item)
-        if sub_links[item.id]:
-            values["children"] = [
-                _describe_menu_item(sub_link) for sub_link in sub_links[item.id]
-            ]
-        items.append(values)
-    return items
-
-
 class ElementItem(BaseModel):
     """Existing element with ID."""
 
@@ -1994,9 +1919,10 @@ class ElementItem(BaseModel):
         default=None,
         description="Page name. '[shared]' for elements on the shared page (headers/footers).",
     )
-    menu_items: list[dict] | None = Field(
+    menu_items: list[ListedTopLevelMenuItem] | None = Field(
         default=None,
-        description="(menu) Menu items in order, with uid, name, type, page_id and sub-links (children).",
+        exclude_if=lambda value: value is None,
+        description="(menu) Items in menu order with uid, name, type, page_id, and a top-level link's sub-links as children.",
     )
     data_source_id: int | None = Field(
         default=None,

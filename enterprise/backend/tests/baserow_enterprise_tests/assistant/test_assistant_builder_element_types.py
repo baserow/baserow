@@ -90,7 +90,7 @@ def test_an_element_type_without_hooks_gets_hooks_that_do_nothing(
     assert hooks.property_aliases == {}
     assert hooks.properties_applied_after_update == frozenset()
     assert hooks.conflicting_properties(update) == []
-    hooks.after_update(seeded.ctx.deps.user, heading, update)
+    assert hooks.after_update(seeded.ctx.deps.user, heading, update) == {}
     heading.refresh_from_db()
     assert heading.value["formula"] == "'Title'"
 

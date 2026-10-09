@@ -10,11 +10,8 @@ from .helpers import ensure_child_menu, resolve_menu_items
 from .registries import AssistantElementType, PreparedElementUpdate
 from .table_column_changes import merge_table_columns
 from .types import ElementUpdate
-from .types.element import (
-    BUTTON_NAVIGATION_GUIDANCE,
-    TABLE_COLUMN_PROPERTIES,
-    describe_menu_items,
-)
+from .types.element import BUTTON_NAVIGATION_GUIDANCE, TABLE_COLUMN_PROPERTIES
+from .types.menu_items import listed_menu_items
 from .types.table_columns import table_column_items
 
 
@@ -151,7 +148,7 @@ class MenuAssistantElementType(AssistantElementType):
         :return: Its menu_items.
         """
 
-        return {"menu_items": describe_menu_items(element.specific)}
+        return {"menu_items": listed_menu_items(element.specific)}
 
 
 class MultiPageContainerAssistantElementType(AssistantElementType):
@@ -164,7 +161,7 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
 
     def after_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
-    ) -> None:
+    ) -> dict[str, Any]:
         """
         Set the menu items on the menu inside the element, and create that menu when
         there is none.
@@ -172,10 +169,12 @@ class MultiPageContainerAssistantElementType(AssistantElementType):
         :param user: The user updating the element, who may update it.
         :param element: The updated header or footer.
         :param update: The properties that were changed.
+        :return: No result keys.
         """
 
         if update.changes_menu_items():
             ensure_child_menu(user, element, update)
+        return {}
 
 
 class HeaderAssistantElementType(MultiPageContainerAssistantElementType):

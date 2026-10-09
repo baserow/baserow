@@ -76,7 +76,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
-from .types.element import group_menu_items, new_menu_link
+from .types.menu_items import group_menu_items, new_menu_link
 
 if TYPE_CHECKING:
     pass
@@ -638,9 +638,13 @@ def update_element(
         kwargs.pop(field, None)
     if kwargs:
         element = UpdateElementActionType.do(user, element, kwargs)
-    hooks.after_update(user, element, element_update)
+    after_update_result = hooks.after_update(user, element, element_update)
 
-    result = hooks.updated_result(element, element_update) | prepared.result
+    result = (
+        hooks.updated_result(element, element_update)
+        | prepared.result
+        | after_update_result
+    )
     return ElementUpdateOutcome(element, element_type, result)
 
 
