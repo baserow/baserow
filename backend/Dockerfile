@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-ARG PYTHON_BASE_IMAGE="python:3.14.7-slim-trixie"
+ARG PYTHON_BASE_IMAGE="python:3.14.8-slim-trixie"
 ARG UID="9999"
 ARG GID="9999"
 
@@ -31,7 +31,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 FROM debian:trixie-slim AS wasmtime-builder
 ARG TARGETARCH
-ARG WASMTIME_VERSION=28.0.0
+# Stay on an LTS line (versions divisible by 12): only those get security fixes for 24 months.
+ARG WASMTIME_VERSION=48.0.5
+ARG WASMTIME_SHA256_AMD64=f533a0fb3eca20aee34d69192f214839c5227a507fff2ecb3070ae1a37f0c40d
+ARG WASMTIME_SHA256_ARM64=8713dcbc6f9427eb120d7a4b514b6a58597a369e5b5d79cebeaae11fa24479f5
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -41,13 +44,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
     case "${TARGETARCH}" in \
-        amd64) WASMTIME_ARCH="x86_64-linux" ;; \
-        arm64) WASMTIME_ARCH="aarch64-linux" ;; \
+        amd64) WASMTIME_ARCH="x86_64-linux" WASMTIME_SHA256="${WASMTIME_SHA256_AMD64}" ;; \
+        arm64) WASMTIME_ARCH="aarch64-linux" WASMTIME_SHA256="${WASMTIME_SHA256_ARM64}" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     curl -fsSL \
         "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}.tar.xz" \
         -o /tmp/wasmtime.tar.xz && \
+    echo "${WASMTIME_SHA256}  /tmp/wasmtime.tar.xz" | sha256sum -c - && \
     tar -xJf /tmp/wasmtime.tar.xz -C /tmp && \
     mv "/tmp/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}/wasmtime" /usr/local/bin/wasmtime && \
     chmod 0755 /usr/local/bin/wasmtime
@@ -58,13 +62,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 FROM golang:1.27-trixie AS mox-builder
 ARG MOX_VERSION=v0.0.17
+# mox v0.0.17 pins x/crypto v0.55.0 (CVE-2026-56855, CVE-2026-78662); drop once a mox release bumps it.
+ARG MOX_X_CRYPTO_VERSION=v0.56.0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# `go install` verifies the module against the Go checksum database
-# (sum.golang.org), so the pinned version is integrity-checked.
-RUN CGO_ENABLED=0 GOFLAGS=-trimpath go install "github.com/mjl-/mox@${MOX_VERSION}" && \
-    mv "$(go env GOPATH)/bin/mox" /usr/local/bin/mox && \
+# `go mod download` and `go get` check every module against sum.golang.org.
+WORKDIR /src/mox
+RUN go mod download "github.com/mjl-/mox@${MOX_VERSION}" && \
+    cp -r "$(go env GOMODCACHE)/github.com/mjl-/mox@${MOX_VERSION}/." . && \
+    chmod -R u+w . && \
+    go get "golang.org/x/crypto@${MOX_X_CRYPTO_VERSION}" && \
+    CGO_ENABLED=0 go build -trimpath -o /usr/local/bin/mox . && \
     chmod 0755 /usr/local/bin/mox
 
 
@@ -333,9 +342,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends curl ca-certificates gnupg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
     build-essential \
@@ -443,9 +452,9 @@ ENV POSTGRES_VERSION=15 \
 # Runtime dependencies only
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends curl ca-certificates gnupg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --batch --dearmor -o /usr/share/keyrings/pgdg.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
+    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
     xmlsec1 \
