@@ -1791,7 +1791,7 @@ class ElementUpdate(BaseModel):
     )
     remove_menu_items: list[str] | None = Field(
         default=None,
-        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove.",
+        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Undo doesn't restore them or their click actions.",
     )
 
     # -- Dispatch -------------------------------------------------------------
@@ -1916,7 +1916,7 @@ class ElementItem(BaseModel):
     menu_items: list[ListedTopLevelMenuItem] | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
-        description="(menu) Items in menu order with uid, name, type, page_id, and a top-level link's sub-links as children.",
+        description="(menu) Items in menu order with uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.",
     )
     data_source_id: int | None = Field(
         default=None,

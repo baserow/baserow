@@ -625,8 +625,7 @@ def update_element(
                 f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
                 f"No changes were applied. {hooks.unsupported_guidance(supported)}"
             )
-        # Save generated values and their source switches together after validation,
-        # so failed generation preserves the existing link/image behavior.
+        # Deferred so a failed generation keeps the existing link or image.
         deferred_fields = set(
             element_update.get_formulas_to_update(element, None, element_type)
         ) | set(element_update.get_formula_dependent_fields(element_type))
@@ -646,10 +645,11 @@ def update_element(
 
 def child_menu(container: Element) -> MenuElement | None:
     """
-    Find the menu inside a header or footer, however deeply it is nested.
+    Find the menu inside a header or footer, however deeply it is nested, and lock it
+    for update. Call it inside a transaction.
 
     :param container: The header or footer.
-    :return: Its menu, or None when it has none.
+    :return: Its menu, locked for update, or None when it has none.
     :raises ToolInputError: When it holds more than one menu.
     """
 
@@ -665,7 +665,7 @@ def child_menu(container: Element) -> MenuElement | None:
             f"one menu: elements {[menu.id for menu in menus]}. Change one of them "
             "with update_element and that menu's element_id. No changes were applied."
         )
-    return menus[0].specific if menus else None
+    return ElementHandler().get_element_for_update(menus[0].id) if menus else None
 
 
 def save_child_menu(
@@ -683,6 +683,7 @@ def save_child_menu(
     :param menu_items: The menu's full item list, each top-level item with its
         sub-links as children.
     :return: The saved menu.
+    :raises PermissionDenied: When the user can't update or create the menu.
     """
 
     if menu is not None:

@@ -469,7 +469,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id, and a top-level link's sub-links as children.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -852,10 +852,11 @@ def update_element(
       Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
-    - list_elements shows each menu's items with uid, name, type, page_id, and a
-      top-level link's sub-links as children. Change them by uid with add_menu_items,
-      update_menu_items, reorder_menu_items and remove_menu_items; items you don't
-      list stay exactly as they are. On a header or footer, they change its menu.
+    - list_elements shows each menu's items with uid, name, type, page_id (or url, for
+      a link to a custom address), and a top-level link's sub-links as children.
+      Change them by uid with add_menu_items, update_menu_items, reorder_menu_items
+      and remove_menu_items; items you don't list stay exactly as they are. On a
+      header or footer, they change its menu.
     - add_menu_items adds page links, last unless before_uid is set; parent_uid makes
       one a sub-link of a top-level link.
     - update_menu_items renames an item or points a link to a page; the item keeps
@@ -864,8 +865,9 @@ def update_element(
       create_actions.
     - reorder_menu_items lists every top-level item that stays; sub-links can't be
       reordered.
-    - Remove an item only when the user asked for it. Its sub-links go with it, and a
-      removed button's click actions are deleted.
+    - Remove an item only when the user asked for it: its sub-links go with it, undo
+      doesn't restore removed items, and a removed button's click actions are gone for
+      good.
     """
 
     user = ctx.deps.user

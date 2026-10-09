@@ -561,7 +561,7 @@ def test_a_header_or_footer_changes_only_its_own_menu(
 
 
 @pytest.mark.django_db
-def test_all_menu_item_lists_and_other_properties_are_one_undoable_action(
+def test_all_menu_item_lists_and_other_properties_are_saved_as_one_action(
     site: SeededSite,
 ) -> None:
     uids = site.uids
@@ -661,3 +661,49 @@ def test_list_elements_shows_menu_items_with_uids_and_sub_links(
         for element in result["elements"]
         if element["type"] != "menu"
     )
+
+
+@pytest.mark.django_db
+def test_list_elements_shows_the_url_of_a_custom_link_but_no_other_item(
+    data_fixture: Fixtures, site: SeededSite
+) -> None:
+    menu = data_fixture.create_builder_menu_element_items(
+        page=site.home,
+        menu_items=[
+            _raw_item("link", "Shop", navigate_to_page=site.about),
+            _raw_item(
+                "link",
+                "Docs",
+                navigation_type="custom",
+                navigate_to_url="'https://docs.example.com'",
+            ),
+            _raw_item("separator", "Line"),
+        ],
+    )
+    uids = {item.name: str(item.uid) for item in menu.menu_items.all()}
+
+    result = list_elements(site.ctx, page_id=site.home.id, thought="test")
+
+    listed = next(element for element in result["elements"] if element["id"] == menu.id)
+    assert listed["menu_items"] == [
+        {"uid": uids["Shop"], "name": "Shop", "type": "link", "page_id": site.about.id},
+        {
+            "uid": uids["Docs"],
+            "name": "Docs",
+            "type": "link",
+            "page_id": None,
+            "url": "'https://docs.example.com'",
+        },
+        {"uid": uids["Line"], "name": "Line", "type": "separator", "page_id": None},
+    ]
+
+
+@pytest.mark.django_db
+def test_finding_the_menu_of_a_header_locks_it(
+    site: SeededSite,
+) -> None:
+    with CaptureQueriesContext(connection) as queries:
+        menu = helpers.child_menu(site.container)
+
+    assert menu is not None and menu.id == site.menu.id
+    assert any("FOR UPDATE" in query["sql"] for query in queries)

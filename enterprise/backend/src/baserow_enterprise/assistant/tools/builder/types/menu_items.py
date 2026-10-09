@@ -8,19 +8,21 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from pydantic import Field, field_validator, model_validator
 
+from baserow.contrib.builder.elements.models import MenuItemElement
 from baserow_enterprise.assistant.types import BaseModel
 
 if TYPE_CHECKING:
-    from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+    from baserow.contrib.builder.elements.models import MenuElement
 
 
 class ListedMenuItem(TypedDict):
-    """One menu item as the model reads it."""
+    """One menu item as the model reads it. A link to a custom address has a url."""
 
     uid: str
     name: str
     type: str
     page_id: int | None
+    url: NotRequired[str]
 
 
 class ListedTopLevelMenuItem(ListedMenuItem):
@@ -139,13 +141,24 @@ def group_menu_items(
     return top_level, sub_links
 
 
+def _formula_text(raw: Any) -> str:
+    """Read a formula column's text. Old rows can hold a plain string."""
+
+    if isinstance(raw, dict):
+        raw = raw.get("formula")
+    return raw if isinstance(raw, str) else ""
+
+
 def _listed(item: "MenuItemElement") -> ListedMenuItem:
-    return ListedMenuItem(
+    listed = ListedMenuItem(
         uid=str(item.uid),
         name=item.name,
         type=item.type,
         page_id=item.navigate_to_page_id,
     )
+    if item.navigation_type == MenuItemElement.NAVIGATION_TYPES.CUSTOM:
+        listed["url"] = _formula_text(item.navigate_to_url)
+    return listed
 
 
 def listed_menu_items(menu: "MenuElement") -> list[ListedTopLevelMenuItem]:
