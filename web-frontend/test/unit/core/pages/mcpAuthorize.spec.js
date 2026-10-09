@@ -444,6 +444,28 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).toContain('List tables')
   })
 
+  test('a rejected request shows the readable detail', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(400, {
+        error: 'invalid_request',
+        detail: 'Mismatching redirect URI.',
+      })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Mismatching redirect URI.')
+    expect(wrapper.text()).not.toContain('invalid_request')
+  })
+
+  test('a rejected request without detail shows the error code', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(400, { error: 'invalid_request' })
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+    expect(wrapper.text()).toContain('invalid_request')
+  })
+
   test('an invalid request value sends an empty query', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query: '' } })

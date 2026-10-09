@@ -234,7 +234,10 @@ const { data: consent } = useAsyncData(
       error.value = {
         visible: true,
         title: t('mcpAuthorize.invalid'),
-        message: e.handler?.response?.data?.error || '',
+        message:
+          e.handler?.response?.data?.detail ||
+          e.handler?.response?.data?.error ||
+          '',
       }
       return null
     }
