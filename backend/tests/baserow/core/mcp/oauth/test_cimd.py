@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from oauth2_provider.models import Application
@@ -51,10 +52,13 @@ def test_cimd_other_host_is_rejected(client, settings):
 
     fetch.assert_not_called()
     # Re-adding the server wouldn't help, so the re-add hint isn't shown.
-    assert response.status_code == 400
-    assert response.content == b"Invalid client_id parameter value."
-    location = response.get("Location", "")
-    assert "/mcp-authorize" not in location
-    assert not location.startswith(EVIL_REDIRECT)
+    assert response.status_code == 302
+    location = response["Location"]
+    assert location.startswith(f"{settings.PUBLIC_WEB_FRONTEND_URL}/mcp-authorize?")
+    assert parse_qs(urlparse(location).query) == {
+        "error": ["invalid_request"],
+        "error_description": ["Invalid client_id parameter value."],
+    }
+    assert EVIL_REDIRECT not in location
     assert "code=" not in location
     assert not Application.objects.filter(client_id=EVIL_CLIENT).exists()

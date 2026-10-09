@@ -1,7 +1,8 @@
 import base64
+from urllib.parse import urlencode
 
 from django.conf import settings
-from django.http import HttpResponseBadRequest, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.views import View
 
 from oauth2_provider import cimd
@@ -19,6 +20,25 @@ UNKNOWN_CLIENT_MESSAGE = (
 )
 
 
+def _consent_error_url(request, oauthlib_error) -> str:
+    """
+    The consent page URL that shows a fatal authorize error (unknown client,
+    invalid redirect URI) in the styled error card.
+    """
+
+    description = oauthlib_error.description or oauthlib_error.error
+    # A registered client that was cleaned up keeps sending its stored client_id,
+    # and the app only registers again once it's re-added. CIMD clients are
+    # fetched again instead, so it doesn't apply to them.
+    if isinstance(oauthlib_error, InvalidClientIdError) and not cimd.is_cimd_client_id(
+        request.GET.get("client_id", "")
+    ):
+        description = UNKNOWN_CLIENT_MESSAGE
+    query = urlencode({"error": oauthlib_error.error, "error_description": description})
+    frontend_url = settings.PUBLIC_WEB_FRONTEND_URL.rstrip("/")
+    return f"{frontend_url}/mcp-authorize?{query}"
+
+
 class MCPAuthorizeRedirectView(View):
     """
     Validates the authorization request and sends the browser to the Baserow consent
@@ -34,18 +54,10 @@ class MCPAuthorizeRedirectView(View):
             validate_query(request, request.user, request.META.get("QUERY_STRING", ""))
         except OAuthToolkitError as error:
             # Fatal errors (unknown client, invalid redirect URI) must never redirect
-            # to the client-supplied URI, so they are shown instead.
+            # to the client-supplied URI, so Baserow's consent page shows them.
             if not is_redirectable(error):
-                oauthlib_error = error.oauthlib_error
-                # A registered client that was cleaned up keeps sending its stored
-                # client_id, and the app only registers again once it's re-added.
-                # CIMD clients are fetched again instead, so it doesn't apply to them.
-                if isinstance(
-                    oauthlib_error, InvalidClientIdError
-                ) and not cimd.is_cimd_client_id(request.GET.get("client_id", "")):
-                    return HttpResponseBadRequest(UNKNOWN_CLIENT_MESSAGE)
-                return HttpResponseBadRequest(
-                    oauthlib_error.description or oauthlib_error.error
+                return HttpResponseRedirect(
+                    _consent_error_url(request, error.oauthlib_error)
                 )
             return HttpResponseRedirect(error_redirect_url(request, error))
 

@@ -213,6 +213,18 @@ const workspaceId = ref(null)
 const ticked = reactive({})
 const loading = ref(false)
 const error = ref({ visible: false, title: '', message: '' })
+// The backend sends fatal authorize errors (unknown client, invalid redirect
+// URI) here instead of to the client's redirect URI, which can't be trusted.
+const routeError = route.query.error
+if (typeof routeError === 'string' && routeError) {
+  const description = route.query.error_description
+  error.value = {
+    visible: true,
+    title: t('mcpAuthorize.invalid'),
+    message:
+      typeof description === 'string' && description ? description : routeError,
+  }
+}
 // The frame headers only cover a full load of this page. After logging in inside
 // a frame, the router navigates here client side, so check for a frame here too.
 const framed = ref(false)
@@ -222,6 +234,9 @@ const framed = ref(false)
 const { data: consent } = useAsyncData(
   `mcp-consent-${route.query.request}`,
   async () => {
+    if (error.value.visible) {
+      return null
+    }
     if (window.top !== window.self) {
       framed.value = true
       return null

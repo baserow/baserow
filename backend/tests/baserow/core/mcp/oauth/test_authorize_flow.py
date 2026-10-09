@@ -183,14 +183,21 @@ def test_missing_resource_is_pinned_to_mcp_resource(client, api_client, data_fix
 
 
 @pytest.mark.django_db
-def test_authorize_unknown_client_is_not_redirected(client):
+def test_authorize_unknown_client_shows_the_error_on_the_consent_page(client):
     _, challenge = pkce_pair()
     response = client.get(f"/oauth/authorize/?{authorize_query('nope', challenge)}")
-    assert response.status_code == 400
-    assert response.content.decode() == (
-        "This app's sign-in registration is unknown or has expired. Remove the "
-        "Baserow server from the app and add it again."
-    )
+    assert response.status_code == 302
+    location = urlparse(response["Location"])
+    assert response["Location"].startswith(settings.PUBLIC_WEB_FRONTEND_URL)
+    assert location.path == "/mcp-authorize"
+    assert parse_qs(location.query) == {
+        "error": ["invalid_request"],
+        "error_description": [
+            "This app's sign-in registration is unknown or has expired. Remove "
+            "the Baserow server from the app and add it again."
+        ],
+    }
+    assert REDIRECT_URI not in response["Location"]
 
 
 @pytest.mark.django_db

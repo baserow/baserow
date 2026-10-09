@@ -469,6 +469,32 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).toContain('invalid_request')
   })
 
+  test('an error in the route is shown without a consent request', async () => {
+    const description = "This app's sign-in registration is unknown."
+    const wrapper = await testApp.mount(MCPAuthorize, {
+      route:
+        '/mcp-authorize?error=invalid_request&error_description=' +
+        encodeURIComponent(description),
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('mcpAuthorize.invalid')
+    expect(wrapper.text()).toContain(description)
+    expect(wrapper.find('[data-test="mcp-authorize-loading"]').exists()).toBe(
+      false
+    )
+    expect(
+      testApp.mock.history.get.filter((r) => r.url === '/mcp/oauth/consent/')
+    ).toEqual([])
+  })
+
+  test('an error in the route without description shows the error code', async () => {
+    const wrapper = await testApp.mount(MCPAuthorize, {
+      route: '/mcp-authorize?error=invalid_request',
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('invalid_request')
+  })
+
   test('an invalid request value sends an empty query', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query: '' } })
