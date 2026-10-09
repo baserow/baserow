@@ -17,6 +17,7 @@ from baserow.core.exceptions import (
     is_max_lock_exceeded_exception,
 )
 from baserow.core.models import Application, TrashEntry, Workspace
+from baserow.core.registries import application_type_registry
 from baserow.core.trash.exceptions import (
     CannotDeleteAlreadyDeletedItem,
     CannotRestoreChildBeforeParent,
@@ -565,6 +566,10 @@ class TrashHandler:
 
         if application:
             trash_contents = trash_contents.filter(application=application)
+        for item_type in trash_item_type_registry.get_all():
+            trash_contents = item_type.filter_trash_contents(
+                user, workspace, trash_contents
+            )
         return trash_contents.select_related("user_who_trashed").order_by("-trashed_at")
 
     @staticmethod
@@ -630,6 +635,7 @@ def _get_application(
 
         if application.workspace != workspace:
             raise ApplicationNotInWorkspace()
+        application.get_type().check_feature_flag()
     else:
         application = None
     return application
@@ -690,6 +696,7 @@ def _get_applications_excluding_perm_deleted(
         .exclude(id__in=perm_deleted_apps)
         .order_by("order", "id")
     )
+    applications = application_type_registry.filter_by_enabled_types(applications)
     filtered_applications = []
     for application in applications:
         can_view_application = CoreHandler().check_permissions(

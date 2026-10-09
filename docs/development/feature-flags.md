@@ -8,6 +8,8 @@ and/or released.
 Add/remove features flags to the list below:
 
 - `agents` — workspace Agent management and Agent creation.
+- `agent-builder` — create Agent Builder applications and manage empty agent
+  definitions. These definitions have no conversation or execution capabilities yet.
 
 ## Enabling feature flags
 

@@ -6,6 +6,7 @@ from django.db.models import CharField, QuerySet, Value
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.operations import ReadApplicationOperationType
+from baserow.core.registries import application_type_registry
 from baserow.core.search.data_types import SearchContext, SearchResult
 from baserow.core.search.model_search_base import ModelSearchableItemType
 
@@ -31,13 +32,14 @@ class ApplicationSearchType(ModelSearchableItemType):
         return QuerySet: Queryset of applications in the workspace
         """
 
-        return (
+        queryset = (
             self.model_class.objects.filter(
                 workspace=workspace, workspace__trashed=False
             )
             .select_related("workspace")
             .order_by("order", "id")
         )
+        return application_type_registry.filter_by_enabled_types(queryset)
 
     def get_search_queryset(
         self,

@@ -30,7 +30,10 @@ from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
     ReadApplicationOperationType,
 )
-from baserow.core.registries import object_scope_type_registry
+from baserow.core.registries import (
+    application_type_registry,
+    object_scope_type_registry,
+)
 from baserow.core.user import signals as user_signals
 from baserow.core.utils import generate_hash
 
@@ -234,6 +237,7 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
     applications_qs = workspace_user.workspace.application_set.select_related(
         "content_type", "workspace"
     ).all()
+    applications_qs = application_type_registry.filter_by_enabled_types(applications_qs)
     applications_qs = CoreHandler().filter_queryset(
         workspace_user.user,
         ListApplicationsWorkspaceOperationType.type,
@@ -327,6 +331,7 @@ def application_deleted(sender, application_id, application, user, **kwargs):
             application.id,
             {"type": "application_deleted", "application_id": application_id},
             getattr(user, "web_socket_id", None),
+            include_trash=True,
         )
     )
 
