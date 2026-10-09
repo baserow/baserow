@@ -698,6 +698,7 @@ jobs:
             -e EMAIL_SMTP_HOST=mailhog \
             -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS=3/m \
+            -e BASEROW_MCP_OAUTH_ENABLED=true \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
             ${{ needs.build-backend.outputs.image }} gunicorn &

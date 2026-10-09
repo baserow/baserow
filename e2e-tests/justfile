@@ -261,6 +261,7 @@ up: _ensure-images
             -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
+            -e BASEROW_MCP_OAUTH_ENABLED=true \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
             -e PUBLIC_BACKEND_URL="{{ public_backend_url }}" \
             -e PUBLIC_WEB_FRONTEND_URL="{{ public_frontend_url }}" \
