@@ -64,6 +64,11 @@ const MEMBER_ROLE_SCOPE_CONFIG = {
     parent: ['workspace'],
     overrides: ['workspace'],
   },
+  agent_builder_agent: {
+    type: 'agent',
+    parent: ['agent_builder', 'workspace'],
+    overrides: ['workspace', 'agent_builder'],
+  },
   database_table: {
     type: 'table',
     parent: ['database', 'workspace'],
@@ -187,6 +192,12 @@ export default {
       let label = null
 
       switch (scope) {
+        case 'agent':
+          label = this.$t('agentBuilder.agent')
+          break
+        case 'agent_builder':
+          label = this.$t('agentBuilder.applicationName')
+          break
         case 'application':
           label = this.$registry.get('application', this.scope.type).getName()
           break

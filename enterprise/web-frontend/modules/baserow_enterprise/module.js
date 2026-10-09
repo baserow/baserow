@@ -83,6 +83,15 @@ export default defineNuxtModule({
       global: true,
     })
 
+    addRouteMiddleware({
+      name: 'agentBuilderEnabled',
+      path: resolve('./agentBuilder/middleware/agentBuilderEnabled'),
+    })
+    addRouteMiddleware({
+      name: 'selectAgentBuilder',
+      path: resolve('./agentBuilder/middleware/selectAgentBuilder'),
+    })
+
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
     nuxt.options.runtimeConfig.public = _.defaultsDeep(

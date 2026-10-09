@@ -113,6 +113,10 @@ class CoreService:
             workspaces, base_queryset
         )
 
+        application_qs = application_type_registry.filter_by_enabled_types(
+            application_qs
+        )
+
         application_qs = self.handler.filter_queryset_for_workspaces(
             user,
             ListApplicationsWorkspaceOperationType.type,
@@ -164,6 +168,8 @@ class CoreService:
             workspace=application.workspace,
             context=application,
         )
+
+        application.get_type().check_feature_flag()
 
         if specific:
             application = specific_iterator(

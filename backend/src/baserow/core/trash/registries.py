@@ -20,6 +20,11 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
     A TrashableItemType specifies a baserow model which can be trashed.
     """
 
+    def filter_trash_contents(self, user, workspace, queryset):
+        """Restrict this type's entries in the user-facing trash list."""
+
+        return queryset
+
     def lookup_trashed_item(
         self, trashed_entry, trash_item_lookup_cache: Dict[str, Any] = None
     ):

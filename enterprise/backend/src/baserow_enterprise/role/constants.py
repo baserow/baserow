@@ -17,6 +17,10 @@ DEFAULT_ROLE_ASSIGNABLE_OBJECT_MAP = {
         "READ": "database.table.view.read_role",
         "UPDATE": "database.table.view.update_role",
     },
+    "agent_builder_agent": {
+        "READ": "agent_builder_agent.read_role",
+        "UPDATE": "agent_builder_agent.update_role",
+    },
 }
 
 ADMIN_ROLE_UID = "ADMIN"

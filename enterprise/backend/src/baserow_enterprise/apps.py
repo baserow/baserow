@@ -53,10 +53,93 @@ def register_xls_file_reader_features():
     automation_node_type_registry.register(CoreXLSFileReaderNodeType())
 
 
+def register_agent_builder_features():
+    from baserow.core.action.registries import action_type_registry
+    from baserow.core.registries import (
+        application_type_registry,
+        object_scope_type_registry,
+        operation_type_registry,
+        permission_manager_type_registry,
+    )
+    from baserow.core.search.registries import workspace_search_registry
+    from baserow.core.trash.registries import trash_item_type_registry
+    from baserow_enterprise.agent_builder.actions import (
+        CreateAgentActionType,
+        DeleteAgentActionType,
+        OrderAgentsActionType,
+        UpdateAgentActionType,
+    )
+    from baserow_enterprise.agent_builder.application_types import (
+        AgentBuilderApplicationType,
+    )
+    from baserow_enterprise.agent_builder.object_scopes import (
+        AgentBuilderObjectScopeType,
+        AgentObjectScopeType,
+    )
+    from baserow_enterprise.agent_builder.operations import (
+        CreateAgentOperationType,
+        DeleteAgentOperationType,
+        ListAgentsOperationType,
+        OrderAgentsOperationType,
+        ReadAgentOperationType,
+        RestoreAgentOperationType,
+        UpdateAgentOperationType,
+    )
+    from baserow_enterprise.agent_builder.permission_manager import (
+        AllowIfTemplatePermissionManagerType,
+    )
+    from baserow_enterprise.agent_builder.search_types import AgentBuilderSearchType
+    from baserow_enterprise.agent_builder.trash_types import AgentTrashableItemType
+    from baserow_enterprise.role.operations import (
+        ReadRoleAgentBuilderAgentOperationType,
+        UpdateRoleAgentBuilderAgentOperationType,
+    )
+
+    # Keep persisted application types and action history readable when the flag is off.
+    # User-facing services and generic application operations enforce the flag.
+    application_type_registry.register(AgentBuilderApplicationType())
+    object_scope_type_registry.register(AgentBuilderObjectScopeType())
+    object_scope_type_registry.register(AgentObjectScopeType())
+    for operation in (
+        CreateAgentOperationType,
+        DeleteAgentOperationType,
+        ListAgentsOperationType,
+        OrderAgentsOperationType,
+        ReadAgentOperationType,
+        RestoreAgentOperationType,
+        UpdateAgentOperationType,
+        ReadRoleAgentBuilderAgentOperationType,
+        UpdateRoleAgentBuilderAgentOperationType,
+    ):
+        operation_type_registry.register(operation())
+    for action in (
+        CreateAgentActionType,
+        DeleteAgentActionType,
+        OrderAgentsActionType,
+        UpdateAgentActionType,
+    ):
+        action_type_registry.register(action())
+    trash_item_type_registry.register(AgentTrashableItemType())
+    workspace_search_registry.register(AgentBuilderSearchType())
+    template_manager = permission_manager_type_registry.get(
+        AllowIfTemplatePermissionManagerType.type
+    )
+    permission_manager_type_registry.unregister(
+        AllowIfTemplatePermissionManagerType.type
+    )
+    permission_manager_type_registry.register(
+        AllowIfTemplatePermissionManagerType(template_manager)
+    )
+
+    import baserow_enterprise.agent_builder.ws.signals  # noqa: F401
+
+
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
+        register_agent_builder_features()
+
         from baserow.core.agents.registries import agent_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow_enterprise.agents.agent_extension_types import (
