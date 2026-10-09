@@ -908,7 +908,9 @@
     },
     "applicationUserLimitNotification": {
         "titleWarning": "{workspaceName} využil {usage} z {limit} dostupných uživatelů aplikace.",
-        "titleReached": "{workspaceName} dosáhl limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím, dokud neprovedete upgrade."
+        "titleReached": "{workspaceName} dosáhl limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím, dokud neprovedete upgrade.",
+        "titleWarningInstance": "Tato instance využila {usage} z {limit} dostupných uživatelů aplikace. Limit sdílejí všechny pracovní prostory včetně {workspaceName}.",
+        "titleReachedInstance": "Tato instance dosáhla limitu {limit} uživatelů aplikace. Po jeho překročení se nikdo nebude moci přihlásit k publikovaným aplikacím žádného pracovního prostoru včetně {workspaceName}, dokud nebude licence upgradována."
     },
     "selectAgentsList": {
         "searchPlaceholder": "Najít agenty…",
