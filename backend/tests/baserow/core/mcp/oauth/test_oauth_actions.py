@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 from django.shortcuts import reverse
 
 import pytest
+from oauth2_provider.exceptions import OAuthToolkitError
+from oauthlib.oauth2.rfc6749.errors import CustomOAuth2Error
 
 from baserow.core.action.signals import action_done
 from baserow.core.mcp.models import MCPEndpoint
@@ -120,3 +124,53 @@ def test_disconnect_records_action(client, api_client, data_fixture, done_action
             },
         )
     ]
+
+
+@pytest.mark.django_db
+def test_consent_sends_posthog_event_after_commit(
+    client, api_client, data_fixture, django_capture_on_commit_callbacks
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = cimd_client(client)
+    tools = enabled_tool_names()[:1]
+
+    with patch("baserow.core.posthog.capture_user_event") as capture:
+        with django_capture_on_commit_callbacks(execute=True):
+            response = _consent(client, api_client, token, workspace, client_id, tools)
+            capture.assert_not_called()
+
+    assert response.status_code == 200
+    endpoint = MCPEndpoint.objects.get(oauth_client_id=client_id)
+    capture.assert_called_once_with(
+        user,
+        "connect_mcp_oauth_client",
+        {"endpoint_id": endpoint.id, "workspace_id": workspace.id},
+        workspace=workspace,
+        session=None,
+    )
+
+
+@pytest.mark.django_db
+def test_rolled_back_consent_sends_no_posthog_event(
+    client, api_client, data_fixture, django_capture_on_commit_callbacks
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = cimd_client(client)
+    error = OAuthToolkitError(
+        error=CustomOAuth2Error(error="server_error"), redirect_uri=None
+    )
+
+    with (
+        patch("baserow.api.mcp.oauth_views.issue_code", side_effect=error),
+        patch("baserow.core.posthog.capture_user_event") as capture,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        response = _consent(
+            client, api_client, token, workspace, client_id, enabled_tool_names()
+        )
+
+    assert response.status_code == 400
+    assert not MCPEndpoint.objects.filter(oauth_client_id=client_id).exists()
+    capture.assert_not_called()

@@ -1,8 +1,11 @@
 import dataclasses
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.core import posthog
 from baserow.core.action.registries import ActionType, ActionTypeDescription
 from baserow.core.action.scopes import (
     WORKSPACE_ACTION_CONTEXT,
@@ -163,6 +166,9 @@ class ConnectMCPOAuthClientActionType(ActionType):
         "endpoint_id",
         "workspace_id",
     ]
+    # Sent from `do` once the consent commits: it runs inside the consent
+    # transaction, which rolls back if no code is issued.
+    capture_analytics_event = False
 
     @dataclasses.dataclass
     class Params:
@@ -192,20 +198,24 @@ class ConnectMCPOAuthClientActionType(ActionType):
         endpoint = MCPEndpointHandler().grant_oauth_client(
             user, workspace, client_id, name, allowed_tools
         )
-        cls.register_action(
-            user,
-            cls.Params(
-                endpoint.id,
-                client_id,
-                name,
-                workspace.id,
-                workspace.name,
-                allowed_tools,
-                len(mcp_tool_registry.get_allowed_tools(endpoint)),
-                reconnect,
-            ),
-            cls.scope(workspace.id),
-            workspace,
+        params = cls.Params(
+            endpoint.id,
+            client_id,
+            name,
+            workspace.id,
+            workspace.name,
+            allowed_tools,
+            len(mcp_tool_registry.get_allowed_tools(endpoint)),
+            reconnect,
+        )
+        cls.register_action(user, params, cls.scope(workspace.id), workspace)
+
+        properties = cls.get_analytics_properties(dataclasses.asdict(params))
+        session = get_untrusted_client_session_id(user)
+        transaction.on_commit(
+            lambda: posthog.capture_user_event(
+                user, cls.type, properties, workspace=workspace, session=session
+            )
         )
         return endpoint
 
