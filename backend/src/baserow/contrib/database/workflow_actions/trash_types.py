@@ -15,7 +15,7 @@ class DatabaseWorkflowActionTrashableItemType(TrashableItemType):
     """
     A button field's action, trashed on its own so deleting one can be undone
     with its service intact. Trashing the field does not trash its actions: they
-    stay with the field and come back with it.
+    stay with the field and come back with it (ADR 006 section 5).
     """
 
     type = "database_workflow_action"

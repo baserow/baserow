@@ -9023,7 +9023,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         user: Optional[AbstractUser] = None,
     ) -> None:
         # Field duplication skips the serialization import path, so without
-        # this the actions would be dropped.
+        # this the actions would be dropped (ADR 006 section 5).
         self._recreate_workflow_actions(
             new_field, serialized_field.get("workflow_actions") or [], user=user
         )
