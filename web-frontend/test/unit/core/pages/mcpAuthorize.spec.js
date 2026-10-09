@@ -494,7 +494,7 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).not.toContain('555')
   })
 
-  test('the error page needs no sign in, the consent form does', () => {
+  test('the error page needs no sign in, the consent form does', async () => {
     testApp.store.commit('auth/LOGOFF')
     expect(
       authenticatedUnlessError({
@@ -502,9 +502,10 @@ describe('MCP authorize page', () => {
         fullPath: '/mcp-authorize?error=unknown_client',
       })
     ).toBeUndefined()
-    expect(
-      authenticatedUnlessError({ query: { request }, fullPath: route })
-    ).toBeTruthy()
+    // Awaited, so the login navigation and its settings middleware finish while
+    // the request mock is still in place.
+    await authenticatedUnlessError({ query: { request }, fullPath: route })
+    expect(useRouter().currentRoute.value.name).toBe('login')
   })
 
   test('an invalid request value sends an empty query', async () => {
