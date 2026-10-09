@@ -350,6 +350,9 @@ class BaserowMCPServer:
                 # the spec allows answering that with 405.
                 Route("/mcp", endpoint=streamable_http_app, methods=["POST"]),
                 Route(sse_path, endpoint=handle_sse),
+                # Clients configured with a trailing slash used to be redirected
+                # here, which redirect_slashes below no longer does.
+                Route(f"{sse_path}/", endpoint=handle_sse),
                 Mount(messages_path, app=sse.handle_post_message),
             ],
         )
