@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.urls import reverse
 from django.utils import timezone
 
 import pytest
@@ -249,6 +250,46 @@ def test_token_bound_to_endpoint_after_refresh(client, api_client, data_fixture)
     assert response.status_code == 200
     endpoint, error = async_to_sync(resolve_bearer)(response.json()["access_token"])
     assert error is None and endpoint.id == tokens["endpoint_id"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_refresh_with_narrower_scope_stays_bound_to_the_grant(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    tokens = obtain_tokens(client, api_client, token, workspace)
+    endpoint_id = tokens["endpoint_id"]
+
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": tokens["client_id"],
+            "scope": "mcp",
+        },
+    )
+    assert response.status_code == 200, response.content
+    refreshed = response.json()
+    assert set(refreshed["scope"].split()) == {"mcp", f"endpoint:{endpoint_id}"}
+    assert _post(LIST, refreshed["access_token"]).status_code == 200
+
+    response = api_client.delete(
+        reverse("api:mcp:oauth_connection", kwargs={"connection_id": endpoint_id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 204
+    assert _post(LIST, refreshed["access_token"]).status_code == 401
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": refreshed["refresh_token"],
+            "client_id": tokens["client_id"],
+        },
+    )
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db(transaction=True)

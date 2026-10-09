@@ -2,6 +2,7 @@ import re
 from typing import Iterable
 
 from oauth2_provider.oauth2_validators import OAuth2Validator
+from oauthlib.oauth2.rfc6749.utils import scope_to_list
 
 MCP_SCOPE = "mcp"
 OFFLINE_ACCESS_SCOPE = "offline_access"
@@ -35,7 +36,7 @@ class MCPOAuth2Validator(OAuth2Validator):
     Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>`
     scope. The endpoint scope is never requested by clients; only the consent view
     adds it when issuing the code. A refresh can only narrow the scopes of the grant
-    it refreshes. `offline_access` is accepted because some clients ask for it, but
+    it refreshes, and always keeps its endpoint scope. `offline_access` is accepted because some clients ask for it, but
     a refresh token is issued either way.
     """
 
@@ -69,3 +70,19 @@ class MCPOAuth2Validator(OAuth2Validator):
             MCP_SCOPE,
             OFFLINE_ACCESS_SCOPE,
         }
+
+    def validate_refresh_token(self, refresh_token, client, request, *args, **kwargs):
+        if not super().validate_refresh_token(
+            refresh_token, client, request, *args, **kwargs
+        ):
+            return False
+        # A refresh that asks for `scope=mcp` would otherwise get a token without the
+        # endpoint scope: it wouldn't work on /mcp and Disconnect couldn't revoke it.
+        # `request.scope` is still the raw string here, oauthlib parses it next.
+        original = scope_to_list(self.get_original_scopes(refresh_token, request))
+        endpoint_id = endpoint_id_from_scopes(original)
+        if request.scope and endpoint_id is not None:
+            requested = request.scope.split()
+            if endpoint_scope(endpoint_id) not in requested:
+                request.scope = " ".join([*requested, endpoint_scope(endpoint_id)])
+        return True
