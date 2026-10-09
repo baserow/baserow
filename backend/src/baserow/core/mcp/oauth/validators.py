@@ -94,10 +94,13 @@ class MCPOAuth2Validator(OAuth2Validator):
         return True
 
     def _save_bearer_token(self, token, request, *args, **kwargs):
+        result = super()._save_bearer_token(token, request, *args, **kwargs)
         # Marks the client as used, so the unused client cleanup keeps it. Only
-        # bumped once an hour, so busy clients don't write on every refresh.
+        # bumped once an hour, so busy clients don't write on every refresh. Done
+        # after saving the tokens so this, like the cleanup, locks tokens before
+        # the application row.
         now = timezone.now()
         get_application_model().objects.filter(
             pk=request.client.pk, updated__lt=now - LAST_USED_RESOLUTION
         ).update(updated=now)
-        return super()._save_bearer_token(token, request, *args, **kwargs)
+        return result
