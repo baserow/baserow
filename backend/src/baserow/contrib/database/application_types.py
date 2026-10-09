@@ -72,7 +72,7 @@ class DatabaseApplicationType(ApplicationType):
     type = "database"
     model_class = Database
     serializer_mixins = [DatabaseSerializer]
-    # A button field's external action can carry one (ADR 006 section 5).
+    # A button field's external action can carry one (ADR 006 section 4).
     supports_integrations = True
 
     instance_serializer_class = DatabaseSerializer
@@ -91,7 +91,7 @@ class DatabaseApplicationType(ApplicationType):
         Only what a button's actions can actually carry. Read from the action
         types themselves, so the two cannot drift, and so an integration
         holding an `authorized_user` cannot be created on a database at all
-        (ADR 006 section 5) rather than merely being refused by the action.
+        (ADR 006 section 4) rather than merely being refused by the action.
 
         :param integration_type: The type in question.
         :return: True when some database action type accepts it.

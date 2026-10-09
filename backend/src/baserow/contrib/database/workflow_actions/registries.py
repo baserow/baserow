@@ -49,7 +49,7 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     is_external = False
 
     # Integration types this action may carry, empty when it needs no
-    # credential of its own. See ADR 006 section 5.
+    # credential of its own. See ADR 006 section 4.
     allowed_integration_types: List[str] = []
 
     class SerializedDict(DatabaseWorkflowActionDict):
@@ -240,7 +240,7 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
 
         `deserialize_property` only reaches the FK-shaped references, so without
         this a duplicated table keeps formulas naming the original table's
-        fields and silently reads the wrong ones (ADR 006 section 6). Deferred
+        fields and silently reads the wrong ones (ADR 006 section 5). Deferred
         because a formula can name a field of an application not imported yet.
         """
 

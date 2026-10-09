@@ -141,7 +141,7 @@ def test_an_integration_survives_a_snapshot_and_its_restore(data_fixture):
 def test_a_database_refuses_an_integration_carrying_a_user(data_fixture):
     """
     A button runs as whoever clicked, never as an integration's
-    `authorized_user` (ADR 006 section 5). Refusing the action the id is
+    `authorized_user` (ADR 006 section 4). Refusing the action the id is
     attached to is not enough: the integration must not exist on a database
     at all, or it rides along in every duplicate and snapshot.
     """
@@ -191,7 +191,7 @@ def test_an_import_skips_an_integration_the_application_would_not_accept(
     The endpoint refuses a `local_baserow` integration on a database, so an
     export naming one is hand written. Letting the import place it anyway
     would put an `authorized_user` on a database after all, and it would ride
-    into every duplicate and snapshot from there (ADR 006 section 5).
+    into every duplicate and snapshot from there (ADR 006 section 4).
     """
 
     user = data_fixture.create_user()

@@ -301,7 +301,7 @@ def test_undoing_an_order_puts_the_old_order_back(data_fixture):
 def test_undoing_a_save_restores_the_field_and_its_actions_together(data_fixture):
     """
     The editor saves the field and then its actions under one action group, so
-    a single undo takes the whole save back (ADR 006 section 8).
+    a single undo takes the whole save back (ADR 006 section 5).
     """
 
     user, session_id, table, button_field = _setup(data_fixture)

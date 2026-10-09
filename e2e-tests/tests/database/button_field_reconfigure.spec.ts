@@ -1,6 +1,6 @@
 /**
  * A button whose action writes to a trashed field says so on the cell, before
- * anyone clicks it, and heals when the field comes back (ADR 006 section 8).
+ * anyone clicks it, and heals when the field comes back (ADR 006 section 5).
  * The trash and restore happen through the API, as another user would do them,
  * so the grid only learns of them through the realtime broadcast.
  */

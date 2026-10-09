@@ -15,7 +15,7 @@ class DatabaseWorkflowActionTrashableItemType(TrashableItemType):
     """
     A button field's action, trashed on its own so deleting one can be undone
     with its service intact. Trashing the field does not trash its actions: they
-    stay with the field and come back with it (ADR 006 section 8).
+    stay with the field and come back with it (ADR 006 section 5).
     """
 
     type = "database_workflow_action"
@@ -64,7 +64,7 @@ class DatabaseWorkflowActionTrashableItemType(TrashableItemType):
 
     def get_restore_operation_type(self) -> str:
         # Configuring a button's actions is configuring the field (ADR 006
-        # section 5), and restoring one is no different.
+        # section 4), and restoring one is no different.
         return UpdateFieldOperationType.type
 
     def get_restore_operation_context(

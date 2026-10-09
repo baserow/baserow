@@ -55,7 +55,7 @@ def test_values_keep_their_real_types(data_fixture):
 
 @pytest.mark.django_db
 def test_it_differs_from_the_human_readable_provider(data_fixture):
-    """The difference is why this provider exists (ADR 006 section 4)."""
+    """The difference is why this provider exists."""
 
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)

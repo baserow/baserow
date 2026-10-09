@@ -124,7 +124,7 @@ def test_create_still_takes_the_service_type_when_it_is_given(api_client, data_f
 def test_create_refuses_a_local_baserow_integration(api_client, data_fixture):
     """A service tied to a Local Baserow integration dispatches as that
     integration's `authorized_user` instead of as the clicker, so the id must
-    never be accepted here (ADR 006 section 5)."""
+    never be accepted here (ADR 006 section 4)."""
 
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

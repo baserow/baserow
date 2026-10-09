@@ -6,7 +6,7 @@ class DispatchDatabaseWorkflowActionOperationType(OperationType):
     Clicking a button, as distinct from configuring it.
 
     Configuration follows field update permissions, so the builder role and
-    above. Clicking is a lower bar: editor and above (ADR 006 section 7). A
+    above. Clicking is a lower bar: editor and above (ADR 006 section 4). A
     future per-field "who can click" permission attaches here.
 
     Scoped to the field rather than to each action: a click runs the whole

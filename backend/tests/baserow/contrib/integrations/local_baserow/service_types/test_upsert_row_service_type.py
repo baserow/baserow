@@ -1758,7 +1758,7 @@ def _mappings(service):
 def test_a_payload_that_sends_a_trashed_mapping_back_keeps_it(data_fixture):
     """
     The editor sends a mapping on a trashed field back unchanged, so saving
-    keeps it and restoring the field heals the action (ADR 006 section 8).
+    keeps it and restoring the field heals the action (ADR 006 section 5).
     """
 
     user = data_fixture.create_user()

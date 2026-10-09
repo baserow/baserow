@@ -57,7 +57,7 @@ def test_get_last_order(data_fixture):
 # which never runs inside the wrapping transaction of a plain `django_db` test.
 @pytest.mark.django_db(transaction=True)
 def test_actions_are_deleted_when_the_field_stops_being_a_button(data_fixture):
-    """ADR 006 section 8: converting away destroys actions and their services."""
+    """Converting away destroys actions and their services."""
 
     from baserow.contrib.database.fields.handler import FieldHandler
 

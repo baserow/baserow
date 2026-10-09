@@ -229,7 +229,7 @@ describe('OpenUrlWorkflowActionType', () => {
   })
 
   // The `row` provider returns raw values and is only for action arguments,
-  // so a URL formula must never be able to reach it (ADR 006 section 4).
+  // so a URL formula must never be able to reach it.
   test('the url resolves against the fields provider only', async () => {
     await execute({
       type: 'open_url',

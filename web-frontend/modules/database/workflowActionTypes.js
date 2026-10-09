@@ -182,7 +182,7 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return {}
   }
 
-  /** Whether the form offers an integration dropdown (ADR 006 section 5). */
+  /** Whether the form offers an integration dropdown (ADR 006 section 4). */
   get needsIntegration() {
     return false
   }
@@ -407,7 +407,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
    * actions before it returned.
    *
    * `fields` stringifies every value, which is what a URL needs; `row` returns
-   * raw types and is for action arguments (ADR 006 section 4). A previous
+   * raw types and is for action arguments. A previous
    * action's result is raw too, so a composite value is refused rather than
    * stringified. A formula that resolves to nothing comes back as an empty
    * string; one that throws is left to `execute`, which reports it.

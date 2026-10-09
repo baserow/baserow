@@ -20,7 +20,7 @@ class DatabaseDispatchContext(DispatchContext):
 
     It carries the clicked row so actions can read its values, and the acting
     user so Local Baserow services can authorise as the clicker rather than as
-    an integration's `authorized_user` (ADR 006 section 5).
+    an integration's `authorized_user` (ADR 006 section 4).
 
     Search, filter, sort and pagination stay at the base class defaults: button
     fields are absent from public views, so no anonymous caller reaches this
@@ -76,7 +76,7 @@ class DatabaseDispatchContext(DispatchContext):
     def start_action(self) -> None:
         """
         Drops the row read by the action that just finished, so the next one
-        reads the row as it is when it starts (ADR 006 section 4).
+        reads the row as it is when it starts (ADR 006 section 3).
 
         Previous action results are deliberately kept: they are what the rest
         of the sequence chains from.

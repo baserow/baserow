@@ -99,7 +99,7 @@ export default {
       // `InjectedFormulaInput` resolves what to render from this injection.
       formulaComponent: markRaw(DatabaseFormulaInput),
       // An action's arguments resolve the clicked row and what the actions
-      // before them returned (ADR 006 section 4). Human readable values are
+      // before them returned (ADR 006 section 3). Human readable values are
       // absent from the dispatch context, so `fields` is not offered.
       dataProvidersAllowed: ['row', 'previous_action'],
       // Lazy, so the explorer picks up the table's fields as they load.
