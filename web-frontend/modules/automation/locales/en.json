@@ -155,6 +155,8 @@
     "gotoHistoryLabel": "{label} → {destination}",
     "responseLabel": "Response",
     "iterationLabel": "Iterate on items",
+    "iteratorAliases": "loop, for loop, for each, repeat, iterate",
+    "gotoAliases": "while loop, repeat until, loop, retry, jump, back",
     "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
@@ -190,6 +192,18 @@
     "searchPlaceholderTrigger": "Search for an event...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
+  },
+  "nodeRecipe": {
+    "groupLabel": "Recipes",
+    "forLoopName": "For loop",
+    "forLoopDescription": "Adds an Iterator that runs its child nodes 5 times. Change the range to loop more or fewer times.",
+    "forLoopAliases": "loop, for each, repeat, iterate",
+    "forLoopIteratorLabel": "Repeat 5 times",
+    "whileLoopName": "While loop",
+    "whileLoopDescription": "Adds a List rows node and a Go to node that jumps back while rows are found. Add nodes between them that change those rows, or the loop never ends.",
+    "whileLoopAliases": "loop, repeat until, until, retry",
+    "whileLoopListRowsLabel": "Find rows to process",
+    "whileLoopGotoLabel": "Repeat while rows are found"
   },
   "serviceType": {
     "periodicTrigger": "Periodic trigger",

@@ -70,7 +70,8 @@ const props = defineProps({
     required: true,
     /**
      * A flat list of selectable items, or a list of groups containing direct
-     * selectable items.
+     * selectable items. Groups are listed by their optional `order` (lower
+     * first, missing counts as 0), then alphabetically by label.
      */
     validator: (items) => {
       const isGroup = (item) => Array.isArray(item?.children)
@@ -141,7 +142,7 @@ const visibleItems = computed(() => {
       )
 })
 const groupedItems = computed(() =>
-  isGroupedInput.value ? sortGroupsByLabel(visibleItems.value) : []
+  isGroupedInput.value ? sortGroups(visibleItems.value) : []
 )
 const selectableGroups = computed(() =>
   groupedItems.value.filter((item) => !item.disabled)
@@ -217,13 +218,15 @@ function filterGroupedItems(groups, normalizedQuery) {
     .filter(Boolean)
 }
 
-function sortGroupsByLabel(groups) {
-  return [...groups].sort((firstGroup, secondGroup) =>
-    String(firstGroup.label || '').localeCompare(
-      String(secondGroup.label || ''),
-      undefined,
-      { sensitivity: 'base' }
-    )
+function sortGroups(groups) {
+  return [...groups].sort(
+    (firstGroup, secondGroup) =>
+      (firstGroup.order || 0) - (secondGroup.order || 0) ||
+      String(firstGroup.label || '').localeCompare(
+        String(secondGroup.label || ''),
+        undefined,
+        { sensitivity: 'base' }
+      )
   )
 }
 

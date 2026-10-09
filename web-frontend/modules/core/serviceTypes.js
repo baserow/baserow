@@ -41,6 +41,15 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  /**
+   * Extra terms a search for this service matches, besides its name and
+   * description, e.g. "loop" for the iterator.
+   * @returns {string[]}
+   */
+  get aliases() {
+    return []
+  }
+
   get group() {
     const integrationType = this.integrationType
     if (!integrationType) {

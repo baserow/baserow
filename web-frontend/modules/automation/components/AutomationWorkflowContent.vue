@@ -22,6 +22,7 @@
             :read-only="isReadOnly"
             :is-adding-node="isAddingNode"
             @add-node="handleAddNode"
+            @add-recipe="handleAddRecipe"
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
             @move-node="handleMoveNode"
@@ -144,6 +145,23 @@ async function handleAddNode({ type, referenceNode, position, output }) {
     await $store.dispatch('automationWorkflowNode/create', {
       workflow: props.workflow,
       type,
+      referenceNode,
+      position,
+      output,
+    })
+  } catch (err) {
+    notifyIf(err, 'automation')
+  } finally {
+    isAddingNode.value = false
+  }
+}
+
+async function handleAddRecipe({ recipe, referenceNode, position, output }) {
+  try {
+    isAddingNode.value = true
+    await $store.dispatch('automationWorkflowNode/createFromRecipe', {
+      workflow: props.workflow,
+      recipe: $registry.get('automationNodeRecipe', recipe),
       referenceNode,
       position,
       output,

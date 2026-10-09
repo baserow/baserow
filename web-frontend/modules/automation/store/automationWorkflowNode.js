@@ -4,6 +4,10 @@ import AutomationWorkflowNodeService from '@baserow/modules/automation/services/
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { clone } from '@baserow/modules/core/utils/object'
 import {
+  createNewUndoRedoActionGroupId,
+  getUndoRedoActionRequestConfig,
+} from '@baserow/modules/database/utils/action'
+import {
   markRealtimeMetadata,
   realtimeMetadata,
 } from '@baserow/modules/core/utils/realtime'
@@ -204,9 +208,22 @@ const actions = {
       { root: true }
     )
   },
+  /**
+   * `undoRedoActionGroupId` groups this request with others under one undo
+   * step on the backend; `select: false` leaves the new node unselected, for
+   * callers that create several nodes in a row and select one at the end.
+   */
   async create(
     { commit, dispatch, getters },
-    { workflow, type, referenceNode, position, output }
+    {
+      workflow,
+      type,
+      referenceNode,
+      position,
+      output,
+      undoRedoActionGroupId = null,
+      select = true,
+    }
   ) {
     // Using the `previousNodeId` and `previousNodeOutput` to determine
     // what the `beforeId` should be. We will have `beforeId` if we're
@@ -252,7 +269,14 @@ const actions = {
     try {
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type, referenceNode, position, output)
+      ).create(
+        workflow.id,
+        type,
+        referenceNode,
+        position,
+        output,
+        getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      )
 
       commit('ADD_ITEM', { workflow, node })
 
@@ -284,10 +308,12 @@ const actions = {
         root: true,
       })
 
-      setTimeout(() => {
-        const populatedNode = getters.findById(workflow, node.id)
-        dispatch('select', { workflow, node: populatedNode })
-      })
+      if (select) {
+        setTimeout(() => {
+          const populatedNode = getters.findById(workflow, node.id)
+          dispatch('select', { workflow, node: populatedNode })
+        })
+      }
 
       return node
     } catch (error) {
@@ -314,6 +340,95 @@ const actions = {
 
       throw error
     }
+  },
+  /**
+   * Inserts the nodes of a recipe (see `nodeRecipeTypes.js`) one after the
+   * other. Every request carries the same undo action group id, so a single
+   * undo removes the whole recipe. If a step fails, the nodes created so far
+   * are deleted again under that same group id, so an undo of the failed
+   * attempt is a no-op rather than resurrecting part of it, and the error is
+   * rethrown for the caller to report. Nothing is selected while the recipe
+   * runs; its first node is selected once it is complete.
+   * @returns {Array} - The created nodes, in creation order.
+   */
+  async createFromRecipe(
+    { dispatch, getters },
+    { workflow, recipe, referenceNode, position, output }
+  ) {
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
+    const created = []
+
+    const addNode = async ({
+      type,
+      referenceNode,
+      position,
+      output,
+      label,
+      service,
+    }) => {
+      const { id } = await dispatch('create', {
+        workflow,
+        type,
+        referenceNode,
+        position,
+        output,
+        undoRedoActionGroupId,
+        select: false,
+      })
+      // `update` needs the node as stored, not the bare server response.
+      let node = getters.findById(workflow, id)
+      created.push(node)
+
+      const values = {}
+      if (label !== undefined) {
+        values.label = label
+      }
+      if (service !== undefined) {
+        values.service = service
+      }
+      if (Object.keys(values).length > 0) {
+        await dispatch('update', {
+          workflow,
+          node,
+          values,
+          undoRedoActionGroupId,
+        })
+        node = getters.findById(workflow, id)
+      }
+      return node
+    }
+
+    try {
+      await recipe.create({
+        workflow,
+        referenceNode,
+        position,
+        output,
+        addNode,
+      })
+    } catch (error) {
+      for (const node of [...created].reverse()) {
+        try {
+          await dispatch('delete', {
+            workflow,
+            nodeId: node.id,
+            undoRedoActionGroupId,
+          })
+        } catch (_) {
+          // Best effort: the original error is the one the user should see.
+        }
+      }
+      throw error
+    }
+
+    if (created.length > 0) {
+      setTimeout(() => {
+        const populatedNode = getters.findById(workflow, created[0].id)
+        dispatch('select', { workflow, node: populatedNode })
+      })
+    }
+
+    return created
   },
   /**
    * Reloads one node from the server and applies it as a realtime update.
@@ -356,12 +471,16 @@ const actions = {
    * response alone and the loading flag covers the whole round trip. Pending
    * debounced changes are left untouched so the two paths stay independent.
    */
-  async update({ dispatch, commit }, { workflow, node, values }) {
+  async update(
+    { dispatch, commit },
+    { workflow, node, values, undoRedoActionGroupId = null }
+  ) {
     commit('SET_LOADING', { node, value: true })
     try {
       const { data } = await AutomationWorkflowNodeService(this.$client).update(
         node.id,
-        values
+        values,
+        getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
       )
       // As in `updateDebounced`, the id is never written back.
       delete data.id
@@ -462,7 +581,10 @@ const actions = {
 
     commit('DELETE_ITEM', { workflow, nodeId })
   },
-  async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
+  async delete(
+    { commit, dispatch, getters },
+    { workflow, nodeId, undoRedoActionGroupId = null }
+  ) {
     const node = getters.findById(workflow, nodeId)
     const originalNode = clone(node)
 
@@ -474,7 +596,10 @@ const actions = {
 
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
-      await AutomationWorkflowNodeService(this.$client).delete(nodeId)
+      await AutomationWorkflowNodeService(this.$client).delete(
+        nodeId,
+        getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      )
     } catch (error) {
       // We restore the removed node
       commit('ADD_ITEM', { workflow, node: originalNode })

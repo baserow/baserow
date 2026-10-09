@@ -39,6 +39,10 @@ import {
   SlackWriteMessageNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import {
+  ForLoopNodeRecipeType,
+  WhileLoopNodeRecipeType,
+} from '@baserow/modules/automation/nodeRecipeTypes'
+import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
 } from '@baserow/modules/automation/jobTypes'
@@ -81,6 +85,7 @@ export default defineNuxtPlugin({
 
     $registry.registerNamespace('automationDataProvider')
     $registry.registerNamespace('node')
+    $registry.registerNamespace('automationNodeRecipe')
     $registry.registerNamespace('editorSidePanel')
 
     // Automation data providers
@@ -146,6 +151,16 @@ export default defineNuxtPlugin({
     $registry.register('node', new CorePeriodicTriggerNodeType(context))
     $registry.register('node', new CoreManualTriggerNodeType(context))
     $registry.register('node', new AIAgentActionNodeType(context))
+
+    // Automation node recipes: menu entries that insert pre-configured nodes
+    $registry.register(
+      'automationNodeRecipe',
+      new ForLoopNodeRecipeType(context)
+    )
+    $registry.register(
+      'automationNodeRecipe',
+      new WhileLoopNodeRecipeType(context)
+    )
 
     // Automation job types
     $registry.register('job', new DuplicateAutomationWorkflowJobType(context))

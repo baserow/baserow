@@ -10,6 +10,7 @@
       :node="node"
       :only-trigger="onlyTrigger"
       @change="onChange($event)"
+      @recipe="onRecipe($event)"
       @close="hide"
     ></WorkflowAddNodeMenu>
   </Context>
@@ -34,7 +35,7 @@ export default {
       default: () => false,
     },
   },
-  emits: ['change'],
+  emits: ['change', 'recipe'],
   methods: {
     async focusMenu() {
       await this.$nextTick()
@@ -43,6 +44,10 @@ export default {
     onChange(nodeType) {
       this.hide()
       this.$emit('change', nodeType)
+    },
+    onRecipe(recipeType) {
+      this.hide()
+      this.$emit('recipe', recipeType)
     },
   },
 }

@@ -25,6 +25,7 @@
           :read-only="readOnly"
           :selected-node-id="selectedNodeId"
           @add-node="emit('add-node', $event)"
+          @add-recipe="emit('add-recipe', $event)"
           @remove-node="emit('remove-node', $event)"
           @replace-node="emit('replace-node', $event)"
           @select-node="emit('update:modelValue', $event.id)"
@@ -78,6 +79,7 @@ const props = defineProps({
 const emit = defineEmits([
   'update:modelValue',
   'add-node',
+  'add-recipe',
   'remove-node',
   'replace-node',
   'move-node',

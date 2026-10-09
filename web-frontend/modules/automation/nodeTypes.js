@@ -39,6 +39,7 @@ import {
   isValidGotoDestination,
 } from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { parseAliases } from '@baserow/modules/automation/utils/aliases'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NodeType extends Registerable {
@@ -147,6 +148,15 @@ export class NodeType extends Registerable {
    */
   get description() {
     return this.serviceType.description
+  }
+
+  /**
+   * Extra terms the add-node menu search matches for this node type, besides
+   * its name and description. Derived from the service type's aliases.
+   * @returns {string[]}
+   */
+  get aliases() {
+    return this.serviceType.aliases
   }
 
   /**
@@ -982,6 +992,10 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
     return this.app.$i18n.t('nodeType.iterationLabel')
   }
 
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.iteratorAliases'))
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', CoreIteratorServiceType.getType())
   }
@@ -1292,6 +1306,10 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
 
   get name() {
     return this.app.$i18n.t('nodeType.gotoNodeLabel')
+  }
+
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.gotoAliases'))
   }
 
   get serviceType() {
