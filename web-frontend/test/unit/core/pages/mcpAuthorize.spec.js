@@ -138,46 +138,29 @@ describe('MCP authorize page', () => {
     const { wrapper } = await mountWithConsent()
     expect(wrapper.find('[data-test="mcp-authorize-avatar"]').text()).toBe('C')
     expect(wrapper.find('[data-test="mcp-authorize-title"]').text()).toBe(
-      'mcpAuthorize.title'
+      'mcpAuthorize.titleFrom'
     )
     expect(wrapper.find('[data-test="mcp-authorize-returns"]').text()).toBe(
       'mcpAuthorize.returns'
     )
   })
 
-  test('the publisher badge is shown only for CIMD clients', async () => {
-    const { wrapper } = await mountWithConsent()
-    const badge = wrapper.find('[data-test="mcp-authorize-published"]')
-    expect(badge.exists()).toBe(true)
-    expect(badge.text()).toBe('mcpAuthorize.publishedBy')
-    // Any host can publish a metadata document, so it isn't shown as trusted.
-    expect(badge.classes()).toContain('badge--neutral')
-    wrapper.unmount()
-
-    testApp.mock
-      .onGet('/mcp/oauth/consent/', { params: { query } })
-      .reply(200, { ...consent, verified: false, verified_host: null })
-    const other = await testApp.mount(MCPAuthorize, { route })
-    await flushPromises()
-    expect(other.find('[data-test="mcp-authorize-title"]').exists()).toBe(true)
-    expect(other.find('[data-test="mcp-authorize-published"]').exists()).toBe(
-      false
-    )
-  })
-
-  test('a verified client is named by its own name, its host in the badge', async () => {
+  test('a verified client is titled with its name and the host that published it', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
     vi.stubGlobal('location', { assign: vi.fn() })
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
+    // Any host can publish a metadata document with any name, so the host
+    // stays in the title next to the name.
     const title = wrapper.find('[data-test="mcp-authorize-title"]').text()
+    expect(title).toContain('mcpAuthorize.titleFrom')
     expect(title).toContain('claude Code')
-    expect(title).not.toContain('claude.ai')
+    expect(title).toContain('claude.ai')
     expect(
-      wrapper.find('[data-test="mcp-authorize-published"]').text()
-    ).toContain('claude.ai')
+      wrapper.find('[data-test="mcp-authorize-unverified"]').exists()
+    ).toBe(false)
   })
 
   test('an unverified client is named by its own name', async () => {
@@ -188,9 +171,9 @@ describe('MCP authorize page', () => {
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
 
-    expect(wrapper.find('[data-test="mcp-authorize-title"]').text()).toContain(
-      'claude Code'
-    )
+    const title = wrapper.find('[data-test="mcp-authorize-title"]').text()
+    expect(title).toContain('mcpAuthorize.title {')
+    expect(title).toContain('claude Code')
   })
 
   test('marks a self-registered client as not verified', async () => {

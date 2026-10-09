@@ -39,20 +39,29 @@
               />
             </div>
           </div>
+          <!-- Any host can publish a metadata document under any name, so a
+            verified client's host stays in the title next to its name. -->
           <h1 class="mcp-authorize__title" data-test="mcp-authorize-title">
-            {{ $t('mcpAuthorize.title', { client: clientLabel }) }}
+            {{
+              consent.verified
+                ? $t('mcpAuthorize.titleFrom', {
+                    client: clientLabel,
+                    host: consent.verified_host,
+                  })
+                : $t('mcpAuthorize.title', { client: clientLabel })
+            }}
           </h1>
           <p class="mcp-authorize__subtitle">
             {{ $t('mcpAuthorize.subtitle') }}
           </p>
-          <!-- Neutral: any host can publish a metadata document, so the host is
-            only who the client is, not a sign it can be trusted. -->
-          <Badge v-if="consent.verified" data-test="mcp-authorize-published">{{
-            $t('mcpAuthorize.publishedBy', { host: consent.verified_host })
-          }}</Badge>
-          <Badge v-else color="yellow" data-test="mcp-authorize-unverified">{{
-            $t('mcpAuthorize.unverified', { host: consent.redirect_host })
-          }}</Badge>
+          <Badge
+            v-if="!consent.verified"
+            color="yellow"
+            data-test="mcp-authorize-unverified"
+            >{{
+              $t('mcpAuthorize.unverified', { host: consent.redirect_host })
+            }}</Badge
+          >
           <p class="mcp-authorize__returns" data-test="mcp-authorize-returns">
             {{ $t('mcpAuthorize.returns', { host: consent.redirect_host }) }}
           </p>
@@ -288,7 +297,7 @@ function tickFor(id, value = consent.value) {
 watch(workspaceId, (id) => tickFor(id))
 
 const username = computed(() => store.getters['auth/getUsername'])
-// Named like in Settings; the badge below says who published a verified client.
+// Named like in Settings.
 const clientLabel = computed(() => consent.value?.client_name || '')
 const clientInitial = computed(() =>
   clientLabel.value.trim().charAt(0).toUpperCase()

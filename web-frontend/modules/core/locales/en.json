@@ -1,8 +1,8 @@
 {
   "mcpAuthorize": {
     "title": "Connect {client}",
+    "titleFrom": "Connect {client} from {host}",
     "subtitle": "It will act as you in the workspace you choose.",
-    "publishedBy": "Published by {host}",
     "unverified": "Not verified · sends you back to {host}",
     "returns": "Returns to {host}",
     "workspace": "Workspace",
