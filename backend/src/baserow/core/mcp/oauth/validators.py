@@ -42,8 +42,8 @@ class MCPOAuth2Validator(OAuth2Validator):
     Accepts the static `mcp` and `offline_access` scopes plus one `endpoint:<id>`
     scope. The endpoint scope is never requested by clients; only the consent view
     adds it when issuing the code. A refresh can only narrow the scopes of the grant
-    it refreshes, and always keeps its endpoint scope. `offline_access` is accepted because some clients ask for it, but
-    a refresh token is issued either way.
+    it refreshes, and always keeps its endpoint scope. `offline_access` is accepted
+    because some clients ask for it, but a refresh token is issued either way.
     """
 
     def validate_grant_type(
