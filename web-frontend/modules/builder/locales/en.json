@@ -764,8 +764,10 @@
     "label": "Font color"
   },
   "choiceElementForm": {
+    "extraSettings": "Extra settings",
     "multiple": "Allow multiple values",
     "display": "Display",
+    "enableSearch": "Enable search",
     "dropdown": "Dropdown",
     "checkbox": "Checkbox",
     "radio": "Radio"

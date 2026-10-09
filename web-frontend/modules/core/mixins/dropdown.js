@@ -182,7 +182,9 @@ export default {
       name: null,
       icon: null,
       query: '',
-      hasItems: true,
+      // Only search() applies a local filter. Remote dropdowns can emit the
+      // input query or override search() without filtering their supplied items.
+      localSearchQuery: '',
       hasDropdownItem: false,
       focusedDropdownItem: null,
       opening: false,
@@ -204,6 +206,18 @@ export default {
     // Support both Vue 2 (value) and Vue 3 (modelValue)
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+    visibleDropdownItems() {
+      this.dropdownItemsVersion
+      return this.getDropdownItemComponents().filter((item) =>
+        item.isVisible(this.localSearchQuery)
+      )
+    },
+    selectableDropdownItems() {
+      return this.visibleDropdownItems.filter((item) => !item.disabled)
+    },
+    hasItems() {
+      return this.visibleDropdownItems.length > 0
     },
     /**
      * The items only register themselves once mounted, which never happens during
@@ -445,7 +459,13 @@ export default {
           // Prevent submitting the whole form when pressing the enter key while the
           // dropdown is open.
           event.preventDefault()
-          this.select(this.focusedDropdownItem)
+          if (
+            this.selectableDropdownItems.some((item) =>
+              _.isEqual(item.value, this.focusedDropdownItem)
+            )
+          ) {
+            this.select(this.focusedDropdownItem)
+          }
         }
         // Close on escape
         if (this.open && event.key === 'Escape') {
@@ -562,12 +582,7 @@ export default {
      * If not empty it will only show children that contain the given query.
      */
     search(query) {
-      this.hasItems = query === ''
-      this.getDropdownItemComponents().forEach((item) => {
-        if (item.search(query)) {
-          this.hasItems = true
-        }
-      })
+      this.localSearchQuery = query
     },
     /**
      * Loops over all children to see if any of the values match with given value. If
@@ -624,9 +639,7 @@ export default {
      * the index of the current child, the next child enabled child is set as focused.
      */
     handleUpAndDownArrowPress(event) {
-      const children = this.getDropdownItemComponents().filter(
-        (child) => !child.disabled && child.isVisible(this.query)
-      )
+      const children = this.selectableDropdownItems
 
       const isArrowUp = event.key === 'ArrowUp'
       let index = children.findIndex((item) =>
