@@ -69,7 +69,8 @@ def _invalid_request(error: OAuthToolkitError) -> Response:
 def _verification(application) -> dict:
     """
     A CIMD client's metadata is served from its client_id URL, so the URL's host
-    is who published it.
+    is who published it. `verified` means only that: any host can publish one, so
+    it is no sign the client can be trusted.
     """
 
     Application = get_application_model()

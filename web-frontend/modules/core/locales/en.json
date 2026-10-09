@@ -2,7 +2,7 @@
   "mcpAuthorize": {
     "title": "Connect {client}",
     "subtitle": "It will act as you in the workspace you choose.",
-    "verified": "✓ Published by {host}",
+    "publishedBy": "Published by {host}",
     "unverified": "Not verified · sends you back to {host}",
     "returns": "Returns to {host}",
     "workspace": "Workspace",
@@ -1401,7 +1401,7 @@
     "cursorInstructions": "Add this to `~/.cursor/mcp.json`. Cursor asks you to sign in when it connects.",
     "connectedApps": "Connected apps",
     "noConnections": "No apps connected yet.",
-    "verified": "✓ {host}",
+    "publishedBy": "{host}",
     "tools": "{count} tool | {count} tools",
     "connectedOn": "Connected {date}",
     "disconnect": "Disconnect",

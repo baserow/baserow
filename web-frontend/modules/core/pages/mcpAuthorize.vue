@@ -45,14 +45,11 @@
           <p class="mcp-authorize__subtitle">
             {{ $t('mcpAuthorize.subtitle') }}
           </p>
-          <Badge
-            v-if="consent.verified"
-            color="green"
-            data-test="mcp-authorize-verified"
-            >{{
-              $t('mcpAuthorize.verified', { host: consent.verified_host })
-            }}</Badge
-          >
+          <!-- Neutral: any host can publish a metadata document, so the host is
+            only who the client is, not a sign it can be trusted. -->
+          <Badge v-if="consent.verified" data-test="mcp-authorize-published">{{
+            $t('mcpAuthorize.publishedBy', { host: consent.verified_host })
+          }}</Badge>
           <Badge v-else color="yellow" data-test="mcp-authorize-unverified">{{
             $t('mcpAuthorize.unverified', { host: consent.redirect_host })
           }}</Badge>

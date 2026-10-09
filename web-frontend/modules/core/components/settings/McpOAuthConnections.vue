@@ -79,11 +79,10 @@
           }}</span>
           <Badge
             v-if="connection.verified"
-            color="green"
             size="small"
-            data-test="mcp-oauth-verified"
+            data-test="mcp-oauth-published"
             >{{
-              $t('mcpOAuthConnections.verified', {
+              $t('mcpOAuthConnections.publishedBy', {
                 host: connection.verified_host,
               })
             }}</Badge

@@ -84,9 +84,14 @@ describe('McpOAuthConnections', () => {
     expect(first.text()).toContain('Sales')
     // The test i18n returns message keys.
     expect(first.text()).toContain('mcpOAuthConnections.tools')
-    expect(first.find('[data-test="mcp-oauth-verified"]').exists()).toBe(true)
+    const badge = first.find('[data-test="mcp-oauth-published"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('mcpOAuthConnections.publishedBy')
+    expect(badge.classes()).toContain('badge--neutral')
     expect(second.text()).toContain('Ops')
-    expect(second.find('[data-test="mcp-oauth-verified"]').exists()).toBe(false)
+    expect(second.find('[data-test="mcp-oauth-published"]').exists()).toBe(
+      false
+    )
     expect(wrapper.find('[data-test="mcp-oauth-empty"]').exists()).toBe(false)
   })
 

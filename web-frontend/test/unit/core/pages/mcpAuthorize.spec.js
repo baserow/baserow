@@ -144,11 +144,13 @@ describe('MCP authorize page', () => {
     )
   })
 
-  test('the verified badge is shown only for verified clients', async () => {
+  test('the publisher badge is shown only for CIMD clients', async () => {
     const { wrapper } = await mountWithConsent()
-    expect(wrapper.find('[data-test="mcp-authorize-verified"]').exists()).toBe(
-      true
-    )
+    const badge = wrapper.find('[data-test="mcp-authorize-published"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('mcpAuthorize.publishedBy')
+    // Any host can publish a metadata document, so it isn't shown as trusted.
+    expect(badge.classes()).toContain('badge--neutral')
     wrapper.unmount()
 
     testApp.mock
@@ -157,7 +159,7 @@ describe('MCP authorize page', () => {
     const other = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
     expect(other.find('[data-test="mcp-authorize-title"]').exists()).toBe(true)
-    expect(other.find('[data-test="mcp-authorize-verified"]').exists()).toBe(
+    expect(other.find('[data-test="mcp-authorize-published"]').exists()).toBe(
       false
     )
   })
@@ -200,7 +202,7 @@ describe('MCP authorize page', () => {
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
 
-    expect(wrapper.find('[data-test="mcp-authorize-verified"]').exists()).toBe(
+    expect(wrapper.find('[data-test="mcp-authorize-published"]').exists()).toBe(
       false
     )
     expect(
