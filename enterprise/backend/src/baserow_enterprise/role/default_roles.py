@@ -290,6 +290,25 @@ from baserow.core.user_sources.operations import (
     RestoreUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+from baserow_enterprise.agent_builder.operations import (
+    CreateAgentOperationType as CreateAgentBuilderAgentOperationType,
+)
+from baserow_enterprise.agent_builder.operations import (
+    DeleteAgentOperationType as DeleteAgentBuilderAgentOperationType,
+)
+from baserow_enterprise.agent_builder.operations import (
+    ListAgentsOperationType,
+    OrderAgentsOperationType,
+)
+from baserow_enterprise.agent_builder.operations import (
+    ReadAgentOperationType as ReadAgentBuilderAgentOperationType,
+)
+from baserow_enterprise.agent_builder.operations import (
+    RestoreAgentOperationType as RestoreAgentBuilderAgentOperationType,
+)
+from baserow_enterprise.agent_builder.operations import (
+    UpdateAgentOperationType as UpdateAgentBuilderAgentOperationType,
+)
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
@@ -312,10 +331,12 @@ from baserow_enterprise.role.constants import (
 )
 from baserow_enterprise.role.operations import (
     AssignRoleWorkspaceOperationType,
+    ReadRoleAgentBuilderAgentOperationType,
     ReadRoleApplicationOperationType,
     ReadRoleTableOperationType,
     ReadRoleViewOperationType,
     ReadRoleWorkspaceOperationType,
+    UpdateRoleAgentBuilderAgentOperationType,
     UpdateRoleApplicationOperationType,
     UpdateRoleTableOperationType,
     UpdateRoleViewOperationType,
@@ -390,6 +411,7 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ReadWorkspaceOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
+        ListAgentsOperationType,
     ]
 )
 default_roles[VIEWER_ROLE_UID].extend(
@@ -436,6 +458,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadDashboardDataSourceOperationType,
         ListRowsDatabaseTableOperationType,
         ListViewRowsOperationType,
+        ReadAgentBuilderAgentOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -627,6 +650,11 @@ default_roles[BUILDER_ROLE_UID].extend(
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
         SetFieldRuleOperationType,
+        CreateAgentBuilderAgentOperationType,
+        UpdateAgentBuilderAgentOperationType,
+        DeleteAgentBuilderAgentOperationType,
+        RestoreAgentBuilderAgentOperationType,
+        OrderAgentsOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
@@ -660,6 +688,8 @@ default_roles[ADMIN_ROLE_UID].extend(
         UpdateRoleTableOperationType,
         ReadRoleApplicationOperationType,
         UpdateRoleApplicationOperationType,
+        ReadRoleAgentBuilderAgentOperationType,
+        UpdateRoleAgentBuilderAgentOperationType,
         CreateSnapshotApplicationOperationType,
         RestoreApplicationSnapshotOperationType,
         ListSnapshotsApplicationOperationType,

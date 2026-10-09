@@ -9,7 +9,7 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Application, Workspace, WorkspaceUser
 from baserow.core.object_scopes import CoreObjectScopeType
 from baserow.core.registries import (
     SubjectType,
@@ -1128,6 +1128,8 @@ class RoleAssignmentHandler:
         unique_scopes_by_type = defaultdict(set)
         unique_subjects_by_type = defaultdict(set)
         for subject, _, scope in new_role_assignments:
+            if isinstance(scope, Application):
+                scope.get_type().check_feature_flag()
             subject_type = subject_type_registry.get_by_model(subject)
             unique_subjects_by_type[subject_type].add(subject)
 

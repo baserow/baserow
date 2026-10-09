@@ -1651,6 +1651,7 @@ class CoreHandler:
         )
 
         application_type = application_type_registry.get(type_name)
+        application_type.check_feature_flag()
         allowed_values = extract_allowed(
             kwargs, self.default_create_allowed_fields + application_type.allowed_fields
         )
@@ -1703,6 +1704,7 @@ class CoreHandler:
         )
 
         application_type = application_type_registry.get_by_model(application)
+        application_type.check_feature_flag()
         allowed_values = extract_allowed(
             kwargs, self.default_update_allowed_fields + application_type.allowed_fields
         )
@@ -1769,6 +1771,7 @@ class CoreHandler:
         # export the application
         specific_application = application.specific
         application_type = application_type_registry.get_by_model(specific_application)
+        application_type.check_feature_flag()
         try:
             serialized = application_type.export_serialized(
                 specific_application, duplicate_import_export_config
@@ -1873,6 +1876,8 @@ class CoreHandler:
 
         if not isinstance(application, Application):
             raise ValueError("The application is not an instance of Application")
+
+        application.get_type().check_feature_flag()
 
         CoreHandler().check_permissions(
             user,

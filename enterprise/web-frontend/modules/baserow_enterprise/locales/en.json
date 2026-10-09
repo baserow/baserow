@@ -18,6 +18,7 @@
     "enterpriseOnlyDeactivated": "Available in the enterprise version"
   },
   "trashType": {
+    "agent_builder_agent": "agent",
     "team": "team"
   },
   "serviceType": {
@@ -942,5 +943,18 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "agentBuilder": {
+    "applicationName": "Agent Builder",
+    "applicationNamePlural": "Agent Builders",
+    "applicationDescription": "Organize and manage agents in your workspace.",
+    "createApplication": "Create Agent Builder",
+    "createAgent": "Create agent",
+    "agent": "Agent",
+    "agents": "Agents",
+    "agentOptions": "Agent options",
+    "emptyTitle": "Your agents start here",
+    "emptyDescription": "Create an agent or select one from the sidebar. Agents are empty for now and cannot perform tasks yet.",
+    "agentDescription": "This agent is empty. You can rename it or manage its access, but it cannot perform tasks yet."
   }
 }

@@ -25,6 +25,33 @@
         />
       </Tab>
       <Tab
+        v-if="agentDefinition && canManageAgentDefinition"
+        :title="$t('agentBuilder.agent')"
+      >
+        <MemberRolesTab
+          :loading="loading"
+          :workspace="workspace"
+          :scope="agentDefinition"
+          :role-assignments="agentDefinitionRoleAssignments"
+          :teams="teams"
+          :agents="agents"
+          scope-type="agent_builder_agent"
+          @invite-members="
+            (members, role) => inviteAgentDefinition(members, 'auth.User', role)
+          "
+          @invite-agents="
+            (agents, role) => inviteAgentDefinition(agents, 'core.Agent', role)
+          "
+          @invite-teams="
+            (teams, role) =>
+              inviteAgentDefinition(teams, 'baserow_enterprise.Team', role)
+          "
+          @role-updated="
+            (ra, role) => updateRole(agentDefinitionRoleAssignments, ra, role)
+          "
+        />
+      </Tab>
+      <Tab
         v-if="table && canManageTable"
         :title="$t('memberRolesModal.memberRolesTableTabTitle')"
       >
@@ -89,6 +116,10 @@ export default {
       required: false,
       default: null,
     },
+    agentDefinition: {
+      type: Object,
+      default: null,
+    },
     database: {
       type: Object,
       required: false,
@@ -108,6 +139,7 @@ export default {
   data() {
     return {
       databaseRoleAssignments: [],
+      agentDefinitionRoleAssignments: [],
       tableRoleAssignments: [],
       viewRoleAssignments: [],
       selectedTabIndex: 0,
@@ -151,6 +183,16 @@ export default {
         )
       )
     },
+    canManageAgentDefinition() {
+      return (
+        this.agentDefinition &&
+        this.$hasPermission(
+          'agent_builder_agent.read_role',
+          this.agentDefinition,
+          this.workspace.id
+        )
+      )
+    },
     canManageView() {
       return (
         this.view &&
@@ -164,7 +206,9 @@ export default {
   },
   methods: {
     async onShow() {
-      if (this.view) {
+      if (this.agentDefinition) {
+        this.selectedTabIndex = this.canManageApplication ? 1 : 0
+      } else if (this.view) {
         this.selectedTabIndex = 2
       } else if (this.table) {
         this.selectedTabIndex = 1
@@ -193,6 +237,17 @@ export default {
           this.databaseRoleAssignments = databaseRoleAssignments
         }
 
+        if (this.canManageAgentDefinition) {
+          const { data } = await RoleAssignmentsService(
+            this.$client
+          ).getRoleAssignments(
+            this.workspace.id,
+            this.agentDefinition.id,
+            'agent_builder_agent'
+          )
+          this.agentDefinitionRoleAssignments = data
+        }
+
         if (this.canManageTable) {
           const { data: tableRoleAssignments } = await RoleAssignmentsService(
             this.$client
@@ -212,6 +267,7 @@ export default {
         }
       } catch (error) {
         this.databaseRoleAssignments = []
+        this.agentDefinitionRoleAssignments = []
         this.tableRoleAssignments = []
         this.viewRoleAssignments = []
         this.showError(
@@ -266,6 +322,17 @@ export default {
       )
       this.databaseRoleAssignments =
         this.databaseRoleAssignments.concat(roleAssignments)
+    },
+    async inviteAgentDefinition(subjects, subjectType, role) {
+      const roleAssignments = await this.invite(
+        subjects,
+        subjectType,
+        role,
+        'agent_builder_agent',
+        this.agentDefinition.id
+      )
+      this.agentDefinitionRoleAssignments =
+        this.agentDefinitionRoleAssignments.concat(roleAssignments)
     },
     async inviteDatabaseTeams(teams, role) {
       const roleAssignments = await this.invite(

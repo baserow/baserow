@@ -123,8 +123,9 @@ class ImportExportConfig:
 
     copied_by: Optional["AbstractUser"] = None
     """
-    Who asked for this copy, on the paths where a person did: duplicating a
-    table or an application. An import from a file has nobody, and so does
+    Who asked for this copy, on the paths where a person did: duplicating or
+    exporting an application, duplicating a table, or creating a snapshot.
+    An import from a file has nobody, and so does
     installing a template. What is copied can carry a credential the asker may
     not read, and the serialized import path has no other way to know who to
     check that against.
@@ -331,6 +332,20 @@ class ApplicationType(
     """This serializer that is used to serialize the instance model."""
 
     supports_actions = True
+
+    feature_flag: str | None = None
+    """An optional flag that gates user access while retaining type registration."""
+
+    def is_enabled(self) -> bool:
+        from baserow.core.feature_flags import feature_flag_is_enabled
+
+        return self.feature_flag is None or feature_flag_is_enabled(self.feature_flag)
+
+    def check_feature_flag(self) -> None:
+        from baserow.core.feature_flags import feature_flag_is_enabled
+
+        if self.feature_flag is not None:
+            feature_flag_is_enabled(self.feature_flag, raise_if_disabled=True)
 
     supports_snapshots = True
 
@@ -706,6 +721,18 @@ class ApplicationTypeRegistry(
     name = "application"
     does_not_exist_exception_class = ApplicationTypeDoesNotExist
     already_registered_exception_class = ApplicationTypeAlreadyRegistered
+
+    def filter_by_enabled_types(self, queryset: QuerySet) -> QuerySet:
+        """Hide disabled types from user-facing lists without unregistering them."""
+
+        for application_type in self.get_all():
+            if not application_type.is_enabled():
+                model_meta = application_type.model_class._meta
+                queryset = queryset.exclude(
+                    content_type__app_label=model_meta.app_label,
+                    content_type__model=model_meta.model_name,
+                )
+        return queryset
 
 
 @dataclasses.dataclass(frozen=True)

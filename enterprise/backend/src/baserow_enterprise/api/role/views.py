@@ -25,6 +25,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Application
 from baserow.core.registries import object_scope_type_registry
 from baserow.core.utils import unique_dicts_in_list
 from baserow_enterprise.api.errors import (
@@ -217,6 +218,9 @@ class RoleAssignmentsView(APIView):
     ) -> Response:
         workspace = CoreHandler().get_workspace(workspace_id)
         scope = query_params.get("scope", workspace)
+
+        if isinstance(scope, Application):
+            scope.get_type().check_feature_flag()
 
         LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, request.user, workspace)
 

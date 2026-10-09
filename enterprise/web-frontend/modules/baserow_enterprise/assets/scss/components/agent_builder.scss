@@ -1,0 +1,38 @@
+.agent-builder__header-name {
+  @extend %ellipsis;
+
+  font-weight: 600;
+}
+
+.agent-builder__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 32px;
+}
+
+.agent-builder__empty {
+  max-width: 440px;
+  text-align: center;
+}
+
+.agent-builder__empty-icon {
+  font-size: 40px;
+  color: $palette-purple-500;
+}
+
+.agent-builder__title {
+  margin: 24px 0 12px;
+  font-size: 24px;
+}
+
+.agent-builder__description {
+  margin-bottom: 24px;
+  color: $palette-neutral-600;
+  line-height: 1.5;
+}
+
+.agent-builder__sidebar-name {
+  @extend %ellipsis;
+}

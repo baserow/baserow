@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
+from baserow.core.feature_flags import feature_flag_is_enabled
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
 from baserow_enterprise.models import Role, RoleAssignment, Team
@@ -65,6 +66,9 @@ class ScopeTypeField(serializers.ChoiceField):
     def to_internal_value(self, data):
         # Data is a scope_type name
         scope_type = object_scope_type_registry.get(data)
+        feature_flag = getattr(scope_type, "feature_flag", None)
+        if feature_flag:
+            feature_flag_is_enabled(feature_flag, raise_if_disabled=True)
         return ContentType.objects.get_for_model(scope_type.model_class)
 
 

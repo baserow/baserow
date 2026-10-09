@@ -296,6 +296,7 @@ def broadcast_to_permitted_users(
     scope_id: int,
     payload: Dict[str, Any],
     ignore_web_socket_id: Optional[str] = None,
+    include_trash: bool = False,
 ):
     """
     This task will broadcast a websocket message to all the users that are permitted
@@ -307,12 +308,15 @@ def broadcast_to_permitted_users(
     :param scope_name: The name of the scope that the operation is executed on
     :param scope_id: The id of the scope instance
     :param payload: The message being sent
+    :param include_trash: Include trashed permission scopes when notifying clients
+        about a deletion.
     :param ignore_web_socket_id: An optional web socket id which will not be sent the
         payload if provided. This is normally the web socket id that has originally
         made the change request.
     :return:
     """
 
+    from baserow.core.feature_flags import feature_flag_is_enabled
     from baserow.core.handler import CoreHandler
     from baserow.core.mixins import TrashableModelMixin
     from baserow.core.models import Workspace, WorkspaceUser
@@ -331,6 +335,10 @@ def broadcast_to_permitted_users(
     ]
 
     scope_type = object_scope_type_registry.get(scope_name)
+
+    feature_flag = getattr(scope_type, "feature_flag", None)
+    if feature_flag and not feature_flag_is_enabled(feature_flag):
+        return
     scope_model_class = scope_type.model_class
 
     objects = (
@@ -351,6 +359,7 @@ def broadcast_to_permitted_users(
             operation_type,
             workspace,
             context=scope,
+            include_trash=include_trash,
         )
     ]
 
@@ -812,6 +821,9 @@ def broadcast_application_created(
         application = Application.objects.get(id=application_id).specific
     except Application.DoesNotExist:
         return  # trashed in the meantime
+
+    if not application.get_type().is_enabled():
+        return
 
     workspace = application.workspace
     users_in_workspace = [

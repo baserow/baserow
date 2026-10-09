@@ -69,6 +69,7 @@ from baserow.core.operations import (
     ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
 )
+from baserow.core.registries import application_type_registry
 from baserow.core.service import CoreService
 from baserow.core.utils import Progress
 
@@ -308,6 +309,7 @@ class ExportApplicationsJobType(JobType):
         applications = Application.objects.filter(
             workspace=workspace, workspace__trashed=False
         )
+        applications = application_type_registry.filter_by_enabled_types(applications)
         if application_ids:
             applications = applications.filter(id__in=application_ids)
 

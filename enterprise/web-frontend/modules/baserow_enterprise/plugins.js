@@ -18,6 +18,7 @@ import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependenc
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
+import AgentMemberRolesContextItem from '@baserow_enterprise/agentBuilder/components/AgentMemberRolesContextItem'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -49,6 +50,15 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getAdditionalApplicationChildContextComponents(workspace, application, item) {
+    if (application.type === 'agent_builder') {
+      return this.app.$hasPermission(
+        'agent_builder_agent.read_role',
+        item,
+        workspace.id
+      )
+        ? [AgentMemberRolesContextItem]
+        : []
+    }
     if (application.type !== DatabaseApplicationType.getType()) {
       return []
     }

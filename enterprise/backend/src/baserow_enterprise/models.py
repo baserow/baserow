@@ -1,3 +1,4 @@
+from baserow_enterprise.agent_builder.models import AgentBuilder, AgentDefinition
 from baserow_enterprise.automation.nodes.models import CoreCodeActionNode
 from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
@@ -25,6 +26,8 @@ from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.teams.models import Team, TeamSubject
 
 __all__ = [
+    "AgentBuilder",
+    "AgentDefinition",
     "Team",
     "TeamSubject",
     "Role",

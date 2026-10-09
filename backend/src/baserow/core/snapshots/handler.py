@@ -114,6 +114,8 @@ class SnapshotHandler:
             context=application,
         )
 
+        application.get_type().check_feature_flag()
+
         return (
             Snapshot.objects.restorable()
             .filter(snapshot_from_application__id=application_id)
@@ -180,6 +182,7 @@ class SnapshotHandler:
         )
 
         app_type = application_type_registry.get_by_model(application.specific_class)
+        app_type.check_feature_flag()
         if app_type.supports_snapshots is False:
             raise ApplicationOperationNotSupported()
 
@@ -264,6 +267,7 @@ class SnapshotHandler:
         app_type = application_type_registry.get_by_model(
             snapshot.snapshot_from_application.specific_class
         )
+        app_type.check_feature_flag()
         if app_type.supports_snapshots is False:
             raise ApplicationOperationNotSupported()
 
@@ -327,6 +331,7 @@ class SnapshotHandler:
         app_type = application_type_registry.get_by_model(
             snapshot.snapshot_from_application.specific_class
         )
+        app_type.check_feature_flag()
         if app_type.supports_snapshots is False:
             raise ApplicationOperationNotSupported()
 
@@ -397,6 +402,7 @@ class SnapshotHandler:
             workspace_for_user_references=workspace,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            copied_by=snapshot.created_by,
         )
         try:
             exported_application = application_type.export_serialized(
