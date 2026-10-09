@@ -1,29 +1,35 @@
 <template>
-  <Modal ref="modal" :full-screen="true" :close-button="false" keep-content>
+  <Modal
+    ref="modal"
+    class="templates-modal"
+    :full-screen="true"
+    :close-button="false"
+    keep-content
+  >
     <div v-if="loading" class="loading-absolute-center"></div>
     <template v-else>
-      <TemplateHeader
+      <TemplateDetails
+        v-if="selectedTemplate !== null"
+        :key="selectedTemplate.id"
+        :template="selectedTemplate"
+        :categories="selectedTemplateCategories"
         :workspace="workspace"
-        :template="selectedTemplate"
-        :category="selectedTemplateCategory"
-        @installed="hide()"
-      ></TemplateHeader>
-      <TemplateCategories
-        ref="categories"
-        :categories="categories"
-        :selected-template="selectedTemplate"
-        @selected="selectTemplate"
-      >
-        <div class="modal__actions">
-          <a class="modal__close" @click="hide()">
-            <i class="iconoir-cancel"></i>
-          </a>
-        </div>
-      </TemplateCategories>
-      <TemplatePreview
-        :template="selectedTemplate"
+        show-back
         class="templates__body"
-      ></TemplatePreview>
+        @back="selectedTemplate = null"
+        @installed="hide()"
+      ></TemplateDetails>
+      <TemplateList
+        v-show="selectedTemplate === null"
+        :categories="categories"
+        class="templates__body"
+        @selected="selectTemplate"
+      ></TemplateList>
+      <div class="modal__actions">
+        <a class="modal__close" @click="hide()">
+          <i class="iconoir-cancel"></i>
+        </a>
+      </div>
     </template>
   </Modal>
 </template>
@@ -33,13 +39,12 @@ import modal from '@baserow/modules/core/mixins/modal'
 import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
-import TemplateHeader from '@baserow/modules/core/components/template/TemplateHeader'
-import TemplateCategories from '@baserow/modules/core/components/template/TemplateCategories'
-import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
+import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
+import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 
 export default {
   name: 'TemplateModal',
-  components: { TemplateHeader, TemplateCategories, TemplatePreview },
+  components: { TemplateDetails, TemplateList },
   mixins: [modal],
   props: {
     // When no workspace is provided, the user must choose the workspace to install
@@ -55,14 +60,20 @@ export default {
       loading: true,
       categories: [],
       selectedTemplate: null,
-      selectedTemplateCategory: null,
     }
+  },
+  computed: {
+    selectedTemplateCategories() {
+      return this.categories.filter((category) =>
+        category.templates.some((t) => t.id === this.selectedTemplate.id)
+      )
+    },
   },
   methods: {
     /**
      * When the modal is opened we want to fetch all the templates and their
-     * categories. They will be placed in the sidebar so that the user can select a
-     * template to preview.
+     * categories, so that the user can browse them. If a template id or slug is
+     * provided, the details of that template are opened right away.
      */
     async show(templateId = null, ...args) {
       modal.methods.show.call(this, ...args)
@@ -70,7 +81,6 @@ export default {
       this.loading = true
       this.categories = []
       this.selectedTemplate = null
-      this.selectedTemplateCategory = null
 
       try {
         const { data } = await TemplateService(this.$client).fetchAll()
@@ -79,31 +89,20 @@ export default {
       } catch (error) {
         notifyIf(error, 'templates')
         this.hide()
+        return
       }
 
-      // If a template ID is provided when opening, then open that one, otherwise, open
-      // the default.
-      for (let i = 0; i < this.categories.length; i++) {
-        const category = this.categories[i]
-        for (let i2 = 0; i2 < category.templates.length; i2++) {
-          const template = category.templates[i2]
-          if (
-            (templateId === null && template.is_default) ||
-            (templateId !== null &&
-              (template.id === templateId || template.slug === templateId))
-          ) {
-            this.$nextTick(() => {
-              this.$refs.categories.selectCategory(category.id)
-              this.selectTemplate({ template, category })
-            })
-            return
-          }
+      if (templateId !== null) {
+        const template = this.categories
+          .flatMap((category) => category.templates)
+          .find((t) => t.id === templateId || t.slug === templateId)
+        if (template) {
+          this.selectTemplate(template)
         }
       }
     },
-    selectTemplate({ template, category }) {
+    selectTemplate(template) {
       this.selectedTemplate = template
-      this.selectedTemplateCategory = category
     },
     async hide(...args) {
       modal.methods.hide.call(this, ...args)

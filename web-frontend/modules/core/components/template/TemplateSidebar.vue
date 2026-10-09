@@ -13,7 +13,7 @@
               :key="application.id"
               :application="application"
               :page="page"
-              @selected="selectedApplication"
+              @selected="$emit('selected-application', $event)"
               @selected-page="$emit('selected-page', $event)"
             ></component>
           </ul>
@@ -59,7 +59,7 @@ export default {
       required: true,
     },
   },
-  emits: ['collapse-toggled', 'selected-page'],
+  emits: ['collapse-toggled', 'selected-page', 'selected-application'],
   computed: {
     sortedApplications() {
       return this.applications
@@ -74,11 +74,6 @@ export default {
       return this.$registry
         .get('application', application.type)
         .getTemplateSidebarComponent()
-    },
-    selectedApplication(application) {
-      this.applications.forEach((app) => {
-        app._.selected = application.id === app.id
-      })
     },
   },
 }

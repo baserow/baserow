@@ -3,23 +3,26 @@
     <template v-if="template !== null">
       <div v-if="loading" class="loading-absolute-center"></div>
       <div v-else class="layout">
-        <div
-          class="layout__col-1"
-          :style="{ width: collapsed ? '48px' : '240px' }"
-        >
-          <TemplateSidebar
-            :template="template"
+        <div class="layout__col-1" :style="{ width: sidebarWidthPx }">
+          <slot
+            name="sidebar"
             :applications="applications"
             :page="page"
-            :collapsed="collapsed"
-            @selected-page="selectPage"
-            @collapse-toggled="collapsed = !collapsed"
-          ></TemplateSidebar>
+            :select-page="selectPage"
+            :select-application="setSelectedApplication"
+          >
+            <TemplateSidebar
+              :template="template"
+              :applications="applications"
+              :page="page"
+              :collapsed="collapsed"
+              @selected-page="selectPage"
+              @selected-application="setSelectedApplication"
+              @collapse-toggled="collapsed = !collapsed"
+            ></TemplateSidebar>
+          </slot>
         </div>
-        <div
-          class="layout__col-2"
-          :style="{ left: collapsed ? '48px' : '240px' }"
-        >
+        <div class="layout__col-2" :style="{ left: sidebarWidthPx }">
           <component
             :is="pageComponent"
             v-if="page !== null"
@@ -45,6 +48,12 @@ export default {
       required: true,
       validator: (prop) => typeof prop === 'object' || prop === null,
     },
+    // Fixed width of a custom `sidebar` slot. The default sidebar is collapsible.
+    sidebarWidth: {
+      type: Number,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
@@ -55,6 +64,12 @@ export default {
     }
   },
   computed: {
+    sidebarWidthPx() {
+      if (this.sidebarWidth !== null) {
+        return `${this.sidebarWidth}px`
+      }
+      return this.collapsed ? '48px' : '240px'
+    },
     pageComponent() {
       if (this.page !== null) {
         return this.$registry
@@ -140,6 +155,11 @@ export default {
         return true
       }
       return false
+    },
+    setSelectedApplication(application) {
+      this.applications.forEach((app) => {
+        app._.selected = application.id === app.id
+      })
     },
     selectPage({ application, value }) {
       this.page = {

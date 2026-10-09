@@ -58,11 +58,11 @@
 </template>
 
 <script>
-import templateCategories from '@baserow/modules/core/mixins/templateCategories'
+import legacyTemplateCategories from '@baserow/modules/core/components/template/legacy/legacyTemplateCategories'
 
 export default {
-  name: 'TemplateCategories',
-  mixins: [templateCategories],
+  name: 'LegacyTemplateCategories',
+  mixins: [legacyTemplateCategories],
   props: {
     selectedTemplate: {
       required: true,

@@ -1,24 +1,25 @@
 <template>
-  <TemplatePreview v-if="template" :template="template" />
-  <div v-else>error</div>
+  <TemplatePage v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)" />
+  <LegacyTemplatePage v-else />
 </template>
 
-<script>
-import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
-import TemplateService from '@baserow/modules/core/services/template'
+<script setup>
+// TODO: render only `TemplatePage` once the `user_templates` feature flag is removed.
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
+import LegacyTemplatePage from '@baserow/modules/core/components/template/legacy/LegacyTemplatePage'
+import workspacesAndApplications from '@baserow/modules/core/middleware/workspacesAndApplications'
 
-export default {
-  name: 'Template',
-  components: { TemplatePreview },
-  async asyncData({ store, params, error, $client, ...rest }) {
-    const slug = params.slug
-    try {
-      const { data } = await TemplateService($client).fetch(slug)
-
-      return { template: data }
-    } catch (error) {
-      return { template: null }
-    }
-  },
-}
+// Loads the workspaces of a logged in user, so that they can choose where to
+// install the template. The legacy page can't install, so it skips it.
+// TODO: use `middleware: ['workspacesAndApplications']` once the flag is removed.
+definePageMeta({
+  middleware: [
+    (to, from) => {
+      if (useNuxtApp().$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
+        return workspacesAndApplications(to, from)
+      }
+    },
+  ],
+})
 </script>

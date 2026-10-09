@@ -39,7 +39,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import TemplateService from '@baserow/modules/core/services/template'
 
 export default {
-  name: 'TemplateHeader',
+  name: 'LegacyTemplateHeader',
   props: {
     // When no workspace is provided, a dropdown is shown so that the user can choose
     // the workspace to install the template into.

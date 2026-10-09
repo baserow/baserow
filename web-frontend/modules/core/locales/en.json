@@ -478,11 +478,23 @@
   },
   "templateCategories": {
     "search": "Search templates",
-    "title": "Templates"
+    "title": "Templates",
+    "allTemplates": "All templates",
+    "noResults": "No templates found"
   },
   "templateHeader": {
     "use": "Use this template",
     "selectWorkspace": "Choose workspace"
+  },
+  "templateInstall": {
+    "use": "Use this template",
+    "selectWorkspace": "Choose workspace",
+    "more": "More",
+    "copyLink": "Copy sharing link"
+  },
+  "templateDetails": {
+    "back": "Back to Templates",
+    "contents": "What’s inside"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",

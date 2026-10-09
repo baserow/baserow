@@ -292,7 +292,7 @@ import WorkspaceContext from '@baserow/modules/core/components/workspace/Workspa
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
-import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
+import TemplateModal from '@baserow/modules/core/components/template/legacy/TemplateModalSwitch'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
 definePageMeta({
