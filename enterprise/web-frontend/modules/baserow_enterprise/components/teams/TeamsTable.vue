@@ -17,7 +17,20 @@
           })
         }}
       </template>
-      <template #header-right-side>
+      <template #empty>
+        <div class="placeholder">
+          <div class="placeholder__icon">
+            <i class="iconoir-community" aria-hidden="true"></i>
+          </div>
+          <h2 class="placeholder__header">
+            {{ $t('teamsTable.emptyTitle') }}
+          </h2>
+          <p class="placeholder__content">
+            {{ $t('teamsTable.emptyDescription') }}
+          </p>
+        </div>
+      </template>
+      <template #primary-action>
         <Button
           v-if="
             $hasPermission(

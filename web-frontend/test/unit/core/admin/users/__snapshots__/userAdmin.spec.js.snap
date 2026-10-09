@@ -5,8 +5,8 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
   <header class="data-table__header">
     <h1 class="data-table__title">usersAdminTable.allUsers</h1>
     <div class="data-table__actions">
-      <form>
-        <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
+      <form class="data-table__search">
+        <div class="form-input form-input--icon-left"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
           <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
             <!--v-if-->
             <!--v-if-->
@@ -17,12 +17,12 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
     </div>
   </header>
   <div class="data-table__body">
-    <table class="data-table__table">
+    <table class="data-table__table" aria-busy="false">
       <thead>
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.username</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -32,7 +32,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.name</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -49,7 +49,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.lastLogin</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -59,7 +59,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.dateJoined</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -69,7 +69,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">user.active</a>
+              <div><button type="button" class="data-table__table-cell-head-link">user.active</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -93,7 +93,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
           </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="data-table__row-group">
         <tr class="data-table__table-row">
           <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
             <div class="data-table__table-cell-content">
@@ -104,11 +104,13 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
                 </div>
                 <div class="user-admin-username__name" title="user@baserow.io">user@baserow.io</div><i class="user-admin-username__icon iconoir-user-crown"></i>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
               <div title="user name">user name</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--workspaces">
@@ -123,21 +125,25 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
                   </teleport-stub>
                 </div>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--last_login">
             <div class="data-table__table-cell-content">
               <div>04/26/2021 7:50 AM</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--date_joined">
             <div class="data-table__table-cell-content">
               <div>04/21/2021 12:04 PM</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
@@ -145,15 +151,18 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
               <div class="badge badge--neutral badge--regular badge--rounded">
                 <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
             <div class="data-table__table-cell-content">
-              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+              <div class="data-table__more-wrapper" column="[object Object]"><button type="button" class="data-table__more" aria-label="crudTable.rowActions" aria-haspopup="menu"><i class="data-table__more-icon baserow-icon-more-vertical" aria-hidden="true"></i></button></div>
+              <!--v-if-->
             </div>
           </td>
         </tr>
       </tbody>
+      <!--v-if-->
     </table>
   </div>
   <div class="data-table__footer">
@@ -174,8 +183,8 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
   <header class="data-table__header">
     <h1 class="data-table__title">usersAdminTable.allUsers</h1>
     <div class="data-table__actions">
-      <form>
-        <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
+      <form class="data-table__search">
+        <div class="form-input form-input--icon-left"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
           <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
             <!--v-if-->
             <!--v-if-->
@@ -186,12 +195,12 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
     </div>
   </header>
   <div class="data-table__body">
-    <table class="data-table__table">
+    <table class="data-table__table" aria-busy="false">
       <thead>
         <tr class="data-table__table-row">
           <th style="" class="data-table__table-cell data-table__table-cell--header data-table__table-cell--sticky-left">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.username</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.username</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -201,7 +210,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.name</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.name</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -218,7 +227,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.lastLogin</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.lastLogin</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -228,7 +237,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">usersAdminTable.dateJoined</a>
+              <div><button type="button" class="data-table__table-cell-head-link">usersAdminTable.dateJoined</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -238,7 +247,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
           <th style="" class="data-table__table-cell data-table__table-cell--header">
             <div class="data-table__table-cell-head">
-              <div><a class="data-table__table-cell-head-link">user.active</a>
+              <div><button type="button" class="data-table__table-cell-head-link">user.active</button>
                 <!--v-if-->
               </div>
               <div class="data-table__table-cell-head-sort-icon">
@@ -262,7 +271,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
           </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="data-table__row-group">
         <tr class="data-table__table-row">
           <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
             <div class="data-table__table-cell-content">
@@ -273,11 +282,13 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                 </div>
                 <div class="user-admin-username__name" title="firstUser@example.com">firstUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
               <div title="user_name">user_name</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--workspaces">
@@ -292,21 +303,25 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                   </teleport-stub>
                 </div>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--last_login">
             <div class="data-table__table-cell-content">
               <div>26-04-2021 07:50</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--date_joined">
             <div class="data-table__table-cell-content">
               <div>21-04-2021 12:04</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
@@ -314,14 +329,19 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="badge badge--neutral badge--regular badge--rounded">
                 <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
             <div class="data-table__table-cell-content">
-              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+              <div class="data-table__more-wrapper" column="[object Object]"><button type="button" class="data-table__more" aria-label="crudTable.rowActions" aria-haspopup="menu"><i class="data-table__more-icon baserow-icon-more-vertical" aria-hidden="true"></i></button></div>
+              <!--v-if-->
             </div>
           </td>
         </tr>
+      </tbody>
+      <!--v-if-->
+      <tbody class="data-table__row-group">
         <tr class="data-table__table-row">
           <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
             <div class="data-table__table-cell-content">
@@ -332,11 +352,13 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                 </div>
                 <div class="user-admin-username__name" title="secondUser@example.com">secondUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
               <div title="user_name">user_name</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--workspaces">
@@ -351,21 +373,25 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                   </teleport-stub>
                 </div>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--last_login">
             <div class="data-table__table-cell-content">
               <div>26-04-2021 07:50</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--date_joined">
             <div class="data-table__table-cell-content">
               <div>21-04-2021 12:04</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
@@ -373,14 +399,19 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="badge badge--neutral badge--regular badge--rounded">
                 <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
             <div class="data-table__table-cell-content">
-              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+              <div class="data-table__more-wrapper" column="[object Object]"><button type="button" class="data-table__more" aria-label="crudTable.rowActions" aria-haspopup="menu"><i class="data-table__more-icon baserow-icon-more-vertical" aria-hidden="true"></i></button></div>
+              <!--v-if-->
             </div>
           </td>
         </tr>
+      </tbody>
+      <!--v-if-->
+      <tbody class="data-table__row-group">
         <tr class="data-table__table-row">
           <td class="data-table__table-cell data-table__table-cell--sticky-left data-table__table-cell--username">
             <div class="data-table__table-cell-content">
@@ -391,11 +422,13 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                 </div>
                 <div class="user-admin-username__name" title="thirdUser@example.com">thirdUser@example.com</div><i class="user-admin-username__icon iconoir-user-crown"></i>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--name">
             <div class="data-table__table-cell-content">
               <div title="user_name">user_name</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--workspaces">
@@ -410,21 +443,25 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
                   </teleport-stub>
                 </div>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--last_login">
             <div class="data-table__table-cell-content">
               <div>26-04-2021 07:50</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--date_joined">
             <div class="data-table__table-cell-content">
               <div>21-04-2021 12:04</div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--is_active">
             <div class="data-table__table-cell-content">
               <div class="user-admin-active"><i class="iconoir-check user-admin-active__icon user-admin-active__icon--activated"></i></div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--two_factor_auth">
@@ -432,15 +469,18 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
               <div class="badge badge--neutral badge--regular badge--rounded">
                 <!--v-if--><span class="badge__label"><span>twoFactorAuthField.disabled</span></span>
               </div>
+              <!--v-if-->
             </div>
           </td>
           <td class="data-table__table-cell data-table__table-cell--sticky-right data-table__table-cell--more">
             <div class="data-table__table-cell-content">
-              <div class="data-table__more-wrapper" column="[object Object]"><a class="data-table__more"><i class="data-table__more-icon baserow-icon-more-horizontal"></i></a></div>
+              <div class="data-table__more-wrapper" column="[object Object]"><button type="button" class="data-table__more" aria-label="crudTable.rowActions" aria-haspopup="menu"><i class="data-table__more-icon baserow-icon-more-vertical" aria-hidden="true"></i></button></div>
+              <!--v-if-->
             </div>
           </td>
         </tr>
       </tbody>
+      <!--v-if-->
     </table>
   </div>
   <div class="data-table__footer">

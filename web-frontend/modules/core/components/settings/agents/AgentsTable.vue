@@ -10,7 +10,7 @@
     <template #title>{{
       $t('agents.title', { count, workspace: workspace.name })
     }}</template>
-    <template #header-right-side>
+    <template #primary-action>
       <Button
         v-if="canCreate"
         type="primary"

@@ -154,7 +154,7 @@ describe('AgentsTable', () => {
               template: `
                 <div>
                   <slot name="empty" />
-                  <slot name="header-right-side" />
+                  <slot name="primary-action" />
                   <span class="column-count">{{ columns.length }}</span>
                   <button class="open-row" @click="$emit('row-context', { row: agent, target: $el })">Open row</button>
                   <slot name="menus" />

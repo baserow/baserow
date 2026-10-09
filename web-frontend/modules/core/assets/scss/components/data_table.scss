@@ -3,35 +3,56 @@
 
   display: flex;
   flex-direction: column;
-  background-color: $white;
+  min-width: 0;
+  padding-bottom: 24px;
+  background-color: $palette-neutral-0;
 }
 
 .data-table__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 30px 0 20px;
-  padding: 0 40px;
-  color: $color-neutral-900;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 0 24px;
+  color: $palette-neutral-1200;
 }
 
 .data-table__title {
   @extend %ellipsis;
 
-  font-size: 24px;
-  line-height: 32px;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
   margin: 0;
 }
 
 .data-table__actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+
+  // Existing callers add a margin before their action. The shared gap owns it now.
+  > .button {
+    margin-left: 0;
+
+    @include button-size;
+  }
+}
+
+.data-table__search {
+  width: 224px;
+  max-width: 100%;
 }
 
 .data-table__filters {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 40px;
+  padding: 0 24px;
   margin-bottom: 20px;
 }
 
@@ -45,8 +66,16 @@
 
 .data-table__body {
   min-height: 0;
-  height: 100%;
+  flex: 1;
   overflow: auto;
+  margin: 0 24px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+
+  &--empty {
+    border-style: dashed;
+    border-color: $palette-neutral-400;
+  }
 }
 
 .data-table__table {
@@ -55,54 +84,63 @@
   padding: 0;
   background: none;
   border: none;
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
+
+  .data-table__body--empty & {
+    height: 100%;
+  }
 }
 
 .data-table__table-cell {
   padding: 0;
 
   &:first-child {
-    padding-left: 40px;
+    padding-left: 24px;
   }
 
   &:last-child {
-    padding-right: 40px;
+    padding-right: 24px;
   }
 
   &--sticky-left {
     position: sticky;
-    z-index: 2;
+    z-index: 1;
     left: 0;
-    background-color: $white;
+    background-color: $palette-neutral-0;
   }
 
   &--sticky-right {
     position: sticky;
-    z-index: 1;
+    z-index: 2;
     right: 0;
-    background-color: $white;
+    background-color: $palette-neutral-0;
   }
 
   &--header {
     position: sticky;
     z-index: 3;
     top: 0;
-    background-color: $white;
+    background-color: $palette-neutral-25;
+    border-bottom: 1px solid $palette-neutral-200;
     width: var(--width, auto);
   }
 
-  &--header#{&}--sticky-left,
-  &--header#{&}--sticky-right {
+  &--header#{&}--sticky-left {
     z-index: 4;
   }
 
+  &--header#{&}--sticky-right {
+    z-index: 5;
+  }
+
+  .data-table__table-row:where(:hover) &,
   .data-table__table-row--hover & {
-    background-color: $color-neutral-50;
+    background-color: $palette-neutral-25;
   }
 
   .data-table__table-row--selected & {
-    background-color: $color-primary-100;
+    background-color: $palette-blue-50;
   }
 }
 
@@ -126,17 +164,31 @@
 .data-table__table-cell-content {
   @extend %data-table-table-cell-content;
 
-  height: 60px;
-  font-size: 14px;
+  height: 64px;
+  font-size: 13px;
   line-height: 20px;
   padding: 0 10px;
-  border-top: solid 1px $color-neutral-200;
+  border-top: solid 1px $palette-neutral-200;
 
   .data-table__table-row--hover &,
   .data-table__table-row--selected &,
-  .data-table__table-row:first-child & {
+  :where(tbody:not(.data-table__row-group))
+    .data-table__table-row:where(:first-child)
+    & {
     border-top-color: transparent;
   }
+}
+
+.data-table__expanded-rows .data-table__table-cell-content {
+  border-top: 0;
+}
+
+.data-table__row-group .data-table__table-cell-content {
+  border-top-color: $palette-neutral-200;
+}
+
+thead + .data-table__row-group .data-table__table-cell-content {
+  border-top-color: transparent;
 }
 
 .data-table__table-cell-content-full-width {
@@ -155,17 +207,21 @@
 .data-table__table-cell-head {
   @extend %data-table-table-cell-content;
 
-  height: 48px;
-  color: $color-neutral-600;
-  font-weight: 600;
+  height: 40px;
+  color: $palette-neutral-900;
+  font-weight: 500;
   font-size: 12px;
-  border-bottom: solid 1px $color-neutral-200;
   justify-content: space-between;
 }
 
 .data-table__table-cell-head-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
   text-decoration: none;
-  color: $color-neutral-600;
+  color: $palette-neutral-900;
 
   &:hover {
     text-decoration: underline;
@@ -184,21 +240,155 @@
 }
 
 .data-table__more {
-  color: $color-neutral-900;
-  text-decoration: none;
-  display: flex;
-  justify-content: flex-end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: $palette-neutral-900;
+  cursor: pointer;
 
   &:hover {
-    color: $color-neutral-600;
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-1200;
   }
 }
 
 .data-table__more-icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .data-table__footer {
-  padding: 30px 40px;
-  width: 285px;
+  align-self: center;
+  flex-shrink: 0;
+  padding: 24px 24px 0;
+  width: 253px;
+  max-width: 100%;
+}
+
+.data-table__empty-cell {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.data-table__empty {
+  padding: 48px 24px;
+  color: $palette-neutral-900;
+  text-align: center;
+
+  .placeholder {
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+}
+
+.data-table__empty-action {
+  margin-top: 24px;
+
+  &:empty {
+    display: none;
+  }
+
+  > .button {
+    margin-left: 0;
+
+    @include button-size;
+  }
+}
+
+.data-table__table-row--expandable {
+  cursor: pointer;
+}
+
+.data-table__expand {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 4px 8px;
+  border: 1px solid $palette-blue-100;
+  border-radius: 16px;
+  background: $palette-blue-50;
+  color: $palette-blue-700;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: $palette-blue-100;
+  }
+}
+
+.data-table__expanded-rows {
+  background: $palette-neutral-25;
+
+  .data-table__table-cell {
+    background: $palette-neutral-25;
+  }
+
+  .data-table__table-cell:first-child {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 36px;
+      width: 1px;
+      background: $palette-neutral-200;
+    }
+
+    .data-table__table-cell-content {
+      padding-left: 56px;
+    }
+  }
+
+  tr:first-child .data-table__table-cell::before {
+    top: 16px;
+  }
+
+  tr:last-child .data-table__table-cell::before {
+    bottom: 16px;
+  }
+}
+
+.data-table__expanded-content {
+  padding: 24px;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: normal;
+}
+
+.data-table__more:focus-visible,
+.data-table__expand:focus-visible,
+.data-table__table-cell-head-link:focus-visible {
+  outline: 2px solid $palette-blue-500;
+  outline-offset: 2px;
+}
+
+@media screen and (max-width: 600px) {
+  .data-table__header {
+    padding: 0 16px;
+  }
+
+  .data-table__body {
+    margin: 0 16px;
+  }
+
+  .data-table__actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .data-table__search {
+    flex: 1;
+    min-width: 120px;
+  }
 }
