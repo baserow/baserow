@@ -117,7 +117,15 @@
         "errorWorkflowNotImmediateDispatch": "Wybrany proces musi zostać uruchomiony przez trigger, który wyzwala się w sposób natychmiastowy.",
         "coreGoto": "Przejdź do",
         "coreGotoDescription": "Jeśli warunek jest spełniony, przechodzi do innego punktu procesu.",
-        "coreGotoDestinationRequired": "Punkt docelowy jest wymagany."
+        "coreGotoDestinationRequired": "Punkt docelowy jest wymagany.",
+        "inboundEmailTrigger": "Trigger e-mail",
+        "inboundEmailTriggerDescription": "Uruchamia się po otrzymaniu wiadomości na wygenerowanym adresie e-mail.",
+        "coreResponse": "Odpowiedź",
+        "coreResponseDescription": "Zwraca odpowiedź procesu wtedy, gdy trigger obsługuje oczekiwanie na odpowiedzi i ma włączoną funkcję oczekiwania.",
+        "errorResponseBodyMissing": "Treść tej odpowiedzi JSON nie może być pusta.",
+        "errorMisconfiguredIntegration": "Integracja nie istnieje lub została usunięta do kosza",
+        "errorNoRowIdSelected": "Nie wybrano żadnego ID wiersza",
+        "errorAIModelUnavailable": "Wybrany model AI nie jest aktywny lub nie jest już dostępny"
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli Baserow"
@@ -177,12 +185,13 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slack",
-        "slackBotNoToken": "Bot Slack – nie skonfigurowany"
+        "slackBotNoToken": "Bot Slack – nie skonfigurowany",
+        "slackBotWarning": "Jakikolwiek użytkownik z uprawnieniami konfiguratora w tej aplikacji może wysyłać wiadomości za pośrednictwem tego bota oraz zamienić jego token. Użyj bota, którego dostęp może być współdzielony."
     },
     "aiForm": {
         "description": "Skonfiguruj ustawienia dostawcy AI dla tej integracji. Domyślnie dziedziczone są ustawienia AI obszaru roboczego.",
         "workspaceSettingsTitle": "Ustawienia AI obszaru roboczego",
-        "workspaceSettingsDescription": "Ta integracja domyślnie dziedziczy ustawienia dostawcy AI z obszaru roboczego. Poniżej możesz zmienić dostawców.",
+        "workspaceSettingsDescription": "Ta integracja domyślnie dziedziczy ustawienia dostawcy AI z obszaru roboczego. Nadpisanie dostawcy jest niezależne: ponieważ pola połączenia nigdy nie zawierają dziedziczonych danych uwierzytelniających, podaj osobne dane uwierzytelniające lub hosta.",
         "overrideWorkspaceSettings": "Zmień ustawienia obszaru roboczego dla tego dostawcy",
         "inherited": "Dziedziczony",
         "overridden": "Zmieniony"
@@ -214,7 +223,9 @@
         "searchFieldPlaceHolder": "Wprowadź frazę wyszukiwania...",
         "noTableChosenForFiltering": "Aby zacząć używać filtrów tego źródła danych, najpierw wybierz tabelę.",
         "noTableChosenForSorting": "Aby zacząć używać sortowań tego źródła danych, najpierw wybierz tabelę.",
-        "refinements": "Dodatkowe szczegóły"
+        "refinements": "Dodatkowe szczegóły",
+        "groupTabTitle": "Grupuj wg. | 1 grupa | {count} grup(y)",
+        "noTableChosenForGrouping": "Aby użyć grup źródeł danych, wybierz najpierw tabelę."
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Metoda HTTP",
@@ -255,7 +266,9 @@
         "supportPairingHeading": "2. Parowanie z aplikacją w Slacku",
         "supportPairingStep1": "Jeśli aplikacja jest nowo utworzona, przejdź do \"Ustawienia\" > \"Zainstaluj aplikację\". Następnie, aby zainstalować aplikację w swoim obszarze roboczym, kliknij zielony przycisk.",
         "supportPairingStep2": "Skopiuj swój \"Token OAuth bota\" i wklej go w polu \"Token bota\" w tym formularzu.",
-        "supportPairingStep3": "Na koniec, i jeśli aplikacja w Slacku jest nowo utworzona, zaproś tę aplikację na wybrany kanał za pomocą polecenia {command}"
+        "supportPairingStep3": "Na koniec, i jeśli aplikacja w Slacku jest nowo utworzona, zaproś tę aplikację na wybrany kanał za pomocą polecenia {command}",
+        "tokenKeepPlaceholder": "Aby zachować zapisany token, pozostaw puste",
+        "tokenConfigured": "Token został już zapisany. Pozostaw puste, aby go zachować."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Ta operacja musi być sparowana z aplikacją w Slacku. Aby rozpocząć, postępuj zgodnie z instrukcjami w oknie integracji.",
@@ -278,7 +291,13 @@
         "username": "Nazwa użytkownika",
         "usernamePlaceholder": "twoj-email{'@'}example.com",
         "password": "Hasło",
-        "passwordPlaceholder": "twoje-haslo"
+        "passwordPlaceholder": "twoje-haslo",
+        "security": "Zabezpieczenia",
+        "securityStartTls": "STARTTLS (zwykle port 587)",
+        "securitySsl": "SSL/TLS (zwykle port 465)",
+        "securityNone": "Bez zabezpieczeń",
+        "passwordConfigured": "Hasło zostało już zapisane. Pozostaw puste, aby je zachować.",
+        "passwordKeepPlaceholder": "Pozostaw puste, aby zachować zapisane hasło"
     },
     "smtpEmailForm": {
         "smtpConfigurationMode": "Konfiguracja SMTP",
@@ -340,12 +359,14 @@
         "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Ten proces będzie uruchamiany co określoną liczbę minut",
-        "hourHelper": "Ten proces będzie uruchamiany co godzinę, o określonej minucie",
-        "dayHelper": "Ten proces będzie uruchamiany codziennie, o określonej godzinie",
-        "weekHelper": "Ten proces będzie uruchamiany co tydzień, w określonym dniu i godzinie",
-        "monthHelper": "Ten proces będzie uruchamiany co miesiąc, w określonym dniu i godzinie",
+        "hourHelper": "Ten proces będzie uruchamiany co godzinę, o podanej minucie",
+        "dayHelper": "Ten proces będzie uruchamiany codziennie, o podanej godzinie",
+        "weekHelper": "Ten proces będzie uruchamiany co tydzień, w podanym dniu i godzinie",
+        "monthHelper": "Ten proces będzie uruchamiany co miesiąc, w podanym dniu i godzinie",
         "deactivatedTitle": "Trigger okresowy został wyłączony",
-        "deactivatedText": "Ten trigger okresowy został automatycznie wyłączony z powodu powtarzających się błędów."
+        "deactivatedText": "Ten trigger okresowy został automatycznie wyłączony z powodu powtarzających się błędów.",
+        "timezone": "Strefa czasowa",
+        "timezoneHelper": "Harmonogram zachowuje ten czas lokalny po zmianie czasu"
     },
     "localBaserowServiceForm": {
         "integrationDropdownLabel": "Integracja",
@@ -361,7 +382,8 @@
         "fieldMappingPlaceholderDecimal": "Wybierz wartość dziesiętną, np. 3,14",
         "fieldMappingPlaceholderDuration": "Określ czas trwania, np. 1:23:40",
         "noTableSelectedMessage": "Aby rozpocząć konfigurację pól, wybierz tabelę.",
-        "noWritableFields": "Ta tabela nie zawiera pól z możliwością zapisu."
+        "noWritableFields": "Ta tabela nie zawiera pól z możliwością zapisu.",
+        "noTableAccess": "Nie mamy dostępu do tej tabeli i jej pola nie mogą być tutaj wyświetlone."
     },
     "localBaserowFieldsUpdatedForm": {
         "fieldLabel": "Pola",
@@ -389,7 +411,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "Automatyzacja",
         "workflow": "Proces",
-        "workflowHelperText": "Uruchomić można wyłącznie opublikowane procesy z triggerem ręcznym. Jeśli w danym procesie znajdują się nieopublikowane zmiany, uruchomiona zostanie ostatnia opublikowana wersja."
+        "workflowHelperText": "Uruchomić można wyłącznie opublikowane procesy, które zawierają triggery uruchamiane na żądanie, tj. np. ręczne lub okresowe. Jeśli w danym procesie znajdują się nieopublikowane zmiany, uruchomiona zostanie ostatnia opublikowana wersja."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "ID wiersza/y",
