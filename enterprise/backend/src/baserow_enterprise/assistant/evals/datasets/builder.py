@@ -64,6 +64,7 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
+from baserow_enterprise.assistant.tools.builder.types.changes import name_key
 from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
@@ -2532,6 +2533,13 @@ PROMPT_MENU_ADD_PAGES_ONE_BY_ONE = (
     "In builder '{builder_name}', create a Blog page at /blog and a Careers page at "
     "/careers, and add each one to the header menu right after creating it."
 )
+PROMPT_MENU_REORDER = (
+    "In builder '{builder_name}', move Help so it comes right after Home in the "
+    "header menu."
+)
+PROMPT_MENU_REMOVE_DROPDOWN = (
+    "In builder '{builder_name}', remove the Products dropdown from the header menu."
+)
 
 SITE_MENU_ITEMS = ("Home", "Products", "Pricing", "Features", "Divider", "Help")
 
@@ -2671,6 +2679,10 @@ def _products_sub_links(
     ]
 
 
+def _top_level_names(items: dict[str, MenuItemElement]) -> list[str]:
+    return [item.name for item in items.values() if item.parent_menu_item_id is None]
+
+
 def _top_level_links_to(
     items: dict[str, MenuItemElement], page: Page | None
 ) -> list[MenuItemElement]:
@@ -2784,11 +2796,7 @@ def _check_menu_adds_pages_one_by_one(
         path: Page.objects.filter(builder=builder, path=path).first()
         for path in ("/blog", "/careers")
     }
-    top_level_names = [
-        item.name.strip().casefold()
-        for item in items.values()
-        if item.parent_menu_item_id is None
-    ]
+    top_level_keys = [name_key(name) for name in _top_level_names(items)]
     return [
         CheckResult(
             "created the Blog and Careers pages",
@@ -2807,8 +2815,50 @@ def _check_menu_adds_pages_one_by_one(
         ),
         CheckResult(
             "no duplicate top-level items",
-            len(top_level_names) == len(set(top_level_names)),
+            len(top_level_keys) == len(set(top_level_keys)),
             hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_reorders_items(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    return [
+        _site_menu_keeps(scenario, items, SITE_MENU_ITEMS),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "Help moved right after Home",
+            _top_level_names(items) == ["Home", "Help", "Products", "Divider"],
+            hint=f"top-level order: {_top_level_names(items)}",
+        ),
+        CheckResult(
+            "Pricing and Features still under Products",
+            _products_sub_links(scenario, items) == ["Pricing", "Features"],
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+    ]
+
+
+def _check_menu_removes_dropdown(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    items = _site_menu_items(scenario)
+    names = {item.name for item in items.values()}
+    kept = ("Home", "Divider", "Help")
+    return [
+        _site_menu_keeps(scenario, items, kept),
+        _site_menu_help_action_kept(scenario),
+        CheckResult(
+            "removed Products with Pricing and Features",
+            names.isdisjoint({"Products", "Pricing", "Features"}),
+            hint=f"menu: {_describe_site_menu(items)}",
+        ),
+        CheckResult(
+            "removed nothing else, added nothing and kept the order",
+            len(items) == len(kept) and _top_level_names(items) == list(kept),
+            hint=f"top-level order: {_top_level_names(items)}",
         ),
     ]
 
@@ -2872,6 +2922,32 @@ register_case(
         prompt=PROMPT_MENU_ADD_PAGES_ONE_BY_ONE.format(builder_name="Shop Site"),
         scenario="builder-site-header-menu",
         checks=_check_menu_adds_pages_one_by_one,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-reorders-items",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_REORDER.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_reorders_items,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/menu-removes-dropdown",
+        dataset="kuma-builder",
+        prompt=PROMPT_MENU_REMOVE_DROPDOWN.format(builder_name="Shop Site"),
+        scenario="builder-site-header-menu",
+        checks=_check_menu_removes_dropdown,
         mode=AgentMode.APPLICATION,
         max_iters=25,
     )

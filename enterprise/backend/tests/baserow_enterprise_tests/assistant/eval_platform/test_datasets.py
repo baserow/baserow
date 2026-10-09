@@ -223,8 +223,10 @@ EXPECTED_CASE_IDS = {
         "builder/menu-adds-link-keeps-button",
         "builder/menu-adds-pages-one-by-one",
         "builder/menu-button-opens-page",
+        "builder/menu-removes-dropdown",
         "builder/menu-removes-sub-link",
         "builder/menu-renames-button",
+        "builder/menu-reorders-items",
         "builder/moves-element-out-of-column",
         "builder/moves-table-column",
         "builder/page-specific-nav-on-page",
@@ -284,7 +286,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 3
         assert len(grouped["kuma-database"]) == 21
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 30
+        assert len(grouped["kuma-builder"]) == 32
         assert len(grouped["kuma-automation"]) == 7
         assert len(grouped["kuma-prod-replay"]) == 7
 

@@ -13,8 +13,10 @@ from baserow_enterprise.assistant.evals.datasets.builder import (
     _check_menu_adds_link_keeps_button,
     _check_menu_adds_pages_one_by_one,
     _check_menu_button_opens_page,
+    _check_menu_removes_dropdown,
     _check_menu_removes_sub_link,
     _check_menu_renames_button,
+    _check_menu_reorders_items,
     _creates_data_source_with_repeat_scenario,
     _creates_new_page_not_modifies_existing_scenario,
     _site_header_menu_scenario,
@@ -180,6 +182,16 @@ def _add_blog_then_careers(scenario: EvalScenario, fx: Fixtures) -> None:
         _update_menu(scenario, add_menu_items=[MenuItemAdd(name=name, page_id=page.id)])
 
 
+def _move_help_after_home(scenario: EvalScenario, fx: Fixtures) -> None:
+    uids = scenario.pre_state["uids"]
+    order = ("Home", "Help", "Products", "Divider")
+    _update_menu(scenario, reorder_menu_items=[uids[name] for name in order])
+
+
+def _remove_products_dropdown(scenario: EvalScenario, fx: Fixtures) -> None:
+    _update_menu(scenario, remove_menu_items=[scenario.pre_state["uids"]["Products"]])
+
+
 MENU_CASES = {
     "adds link": (_check_menu_adds_link_keeps_button, _add_contact_link),
     "renames button": (_check_menu_renames_button, _rename_help),
@@ -189,6 +201,8 @@ MENU_CASES = {
         _check_menu_adds_pages_one_by_one,
         _add_blog_then_careers,
     ),
+    "reorders items": (_check_menu_reorders_items, _move_help_after_home),
+    "removes dropdown": (_check_menu_removes_dropdown, _remove_products_dropdown),
 }
 
 
