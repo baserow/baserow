@@ -9,12 +9,15 @@ import ViewsAdminTable from '@baserow/modules/database/components/admin/views/Vi
 export default {
   components: { ViewsAdminTable },
   setup() {
-    definePageMeta({
-      layout: 'app',
-      middleware: 'staff',
-    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('viewsAdmin.title') })
   },
 }
+</script>
+
+<script setup>
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
 </script>
