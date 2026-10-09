@@ -17,6 +17,7 @@ from baserow.api.integrations.serializers import (
 )
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.models import Agent
 from baserow.core.registries import application_type_registry
 
 
@@ -51,7 +52,8 @@ def test_get_integrations(api_client, data_fixture):
     assert response_json[0]["id"] == integration1.id
     assert response_json[0]["type"] == "local_baserow"
     assert response_json[0]["context_data"]["databases"][0]["id"] == database.id
-    assert "authorized_user" in response_json[0]
+    assert response_json[0]["authorized_subject"]["id"] == user.id
+    assert response_json[0]["authorized_subject"]["type"] == "auth.User"
     assert response_json[1]["id"] == integration2.id
     assert response_json[1]["type"] == "local_baserow"
     assert response_json[1]["context_data"]["databases"][0]["id"] == database.id
@@ -79,7 +81,7 @@ def test_create_integration(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["type"] == "local_baserow"
-    assert response_json["authorized_user"]["username"] == user.username
+    assert response_json["authorized_subject"]["username"] == user.username
     assert response_json["context_data"]["databases"][0]["id"] == database.id
 
     response = api_client.post(
@@ -87,7 +89,8 @@ def test_create_integration(api_client, data_fixture):
         {
             "type": "local_baserow",
             "name": "test",
-            "authorized_user_id": 17,
+            "authorized_subject_id": user.id,
+            "authorized_subject_type": "auth.User",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -95,7 +98,83 @@ def test_create_integration(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["authorized_user"]["username"] == user.username
+    assert response_json["authorized_subject"]["username"] == user.username
+
+
+@pytest.mark.django_db
+def test_create_and_update_local_baserow_integration_with_agent(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(workspace=workspace, name="Row writer")
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "Agent connection",
+            "authorized_subject_id": agent.id,
+            "authorized_subject_type": "core.Agent",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["authorized_subject"] == {
+        "id": agent.id,
+        "name": "Row writer",
+        "trashed": False,
+        "type": "core.Agent",
+    }
+
+    integration = Integration.objects.get(id=response.json()["id"]).specific
+    assert integration.authorized_subject == agent
+
+    item_url = reverse(
+        "api:integrations:item", kwargs={"integration_id": integration.id}
+    )
+    response = api_client.patch(
+        item_url,
+        {"authorized_subject_id": user.id, "authorized_subject_type": "auth.User"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["authorized_subject"]["id"] == user.id
+    integration.refresh_from_db()
+    assert integration.authorized_subject == user
+
+
+@pytest.mark.django_db
+def test_local_baserow_integration_rejects_agent_from_another_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+    other_agent = Agent.objects.create(
+        workspace=data_fixture.create_workspace(), name="Other agent"
+    )
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "Invalid connection",
+            "authorized_subject_id": other_agent.id,
+            "authorized_subject_type": "core.Agent",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["authorized_subject_id"] == "The subject does not exist."
 
 
 @pytest.mark.django_db
@@ -173,7 +252,10 @@ def test_update_integration(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["authorized_user"]["username"] == user.username
+    assert (
+        response.json()["authorized_subject"]["username"]
+        == integration1.authorized_subject.username
+    )
 
 
 @pytest.mark.django_db

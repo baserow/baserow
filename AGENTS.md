@@ -67,6 +67,7 @@ Do not commit secrets or local overrides. Use `.env.local` for development, keep
 - Django migrations must be executed with zero downtime. This means the new database schema must remain compatible with the previous application version during the deployment.
     - Every new field must define a `db_default` or accept `null` values if they are created on a previously existing model.
     - Do not remove fields unless you are certain they are no longer used by the previous application version. Instead, keep the field and add a `# TODO ZDM: remove this field in the next version` comment so it can be safely removed in a subsequent release.
+    - Run migrations before the coordinated backend rollout. The critical compatibility path is the old backend operating against the migrated database; old and new backend workers never run concurrently. Do not add application-level dual-write compatibility solely for mixed-worker deployments.
 - CSS classes respect BEM methodology.
 - When working on translations, only update english unless told otherwise. Other languages are handled with Weblate. Don't nest keys too much, just keep one level of nesting.
 - Prefer composition API for new frontend components

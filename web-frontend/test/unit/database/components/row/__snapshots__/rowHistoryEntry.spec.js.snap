@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RowHistoryEntry > renders an Agent actor without resolving it as a colliding user 1`] = `
+"<div class="row-history-entry">
+  <div class="row-history-entry__header"><span class="row-history-entry__initials">R</span><span class="row-history-entry__name">Row writer rowHistorySidebar.updated</span><span class="row-history-entry__timestamp" title="08/05/2026 12:00 PM">12:00 PM</span></div>
+  <!--v-if-->
+</div>"
+`;
+
+exports[`RowHistoryEntry > resolves a User actor through its registered subject type 1`] = `
+"<div class="row-history-entry">
+  <div class="row-history-entry__header"><span class="row-history-entry__initials">C</span><span class="row-history-entry__name">Colliding user rowHistorySidebar.updated</span><span class="row-history-entry__timestamp" title="08/05/2026 12:00 PM">12:00 PM</span></div>
+  <!--v-if-->
+</div>"
+`;
+
+exports[`RowHistoryEntry > translates an Anonymous User actor when rendering 1`] = `
+"<div class="row-history-entry">
+  <div class="row-history-entry__header"><span class="row-history-entry__initials">R</span><span class="row-history-entry__name">rowHistorySidebar.anonymousUser rowHistorySidebar.submitted</span><span class="row-history-entry__timestamp" title="08/05/2026 12:00 PM">12:00 PM</span></div>
+  <!--v-if-->
+</div>"
+`;

@@ -307,4 +307,40 @@ describe('integration store', () => {
     // It gave up rather than asking forever.
     expect(created).toBe(3)
   })
+
+  test('update merges server-generated fields into the integration', async () => {
+    const integration = {
+      id: 1,
+      type: 'local_baserow',
+      name: 'Local Baserow',
+      authorized_subject: {
+        id: 2,
+        type: 'auth.User',
+        username: 'user@example.com',
+      },
+      context_data: { databases: [] },
+    }
+    const application = { id: 10, integrations: [integration] }
+    const updatedIntegration = {
+      ...integration,
+      authorized_subject: {
+        id: 3,
+        type: 'core.Agent',
+        name: 'Writer agent',
+      },
+      context_data: { databases: [{ id: 4, name: 'Agent database' }] },
+    }
+    testApp.mock.onPatch('/integration/1/').reply(200, updatedIntegration)
+
+    await testApp.store.dispatch('integration/update', {
+      application,
+      integrationId: integration.id,
+      values: {
+        authorized_subject_id: 3,
+        authorized_subject_type: 'core.Agent',
+      },
+    })
+
+    expect(application.integrations).toEqual([updatedIntegration])
+  })
 })

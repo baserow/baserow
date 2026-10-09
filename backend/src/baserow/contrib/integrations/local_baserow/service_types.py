@@ -109,6 +109,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.cache import global_cache
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
@@ -141,7 +142,7 @@ from baserow.core.services.types import (
     ServiceSubClass,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.types import PermissionCheck
+from baserow.core.types import PermissionCheck, Subject
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -159,32 +160,37 @@ class LocalBaserowServiceType(ServiceType):
 
     def get_acting_user(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
-    ) -> AbstractUser:
+    ) -> Subject:
         """
-        Returns the user whose permissions and identity this dispatch runs under.
+        Returns the subject whose permissions and identity this dispatch runs under.
 
-        With an integration, that integration's `authorized_user` acts, as in the
+        With an integration, that integration's `authorized_subject` acts, as in the
         builder, automation and dashboard. Without one, the dispatch context's
         actor acts instead. This is the only place a Local Baserow service type
-        may resolve its user.
+        may resolve its subject.
 
         :param service: The service being dispatched.
         :param dispatch_context: The context this dispatch runs in.
         :raises ServiceImproperlyConfiguredDispatchException: When neither an
-            integration nor an actor supplies a user.
-        :return: The acting user.
+            integration nor an actor supplies a subject.
+        :return: The acting subject.
         """
 
         if service.integration_id:
-            authorized_user = service.integration.specific.authorized_user
-            # Nullable, and an import leaves it null when the exported username
-            # is not in the target workspace. Refuse rather than let a `None`
-            # reach a permission check as anonymous.
-            if authorized_user is None:
+            integration = service.integration.specific
+            authorized_subject = integration.authorized_subject
+            if getattr(authorized_subject, "trashed", False):
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "The integration has no authorized user"
+                    "The integration's authorized agent is trashed"
                 )
-            return authorized_user
+
+            # Nullable, and an import can leave the authorized user null. Refuse
+            # rather than let a `None` reach a permission check as anonymous.
+            if authorized_subject is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has no authorized subject"
+                )
+            return authorized_subject
 
         if dispatch_context.actor is None:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -204,6 +210,21 @@ class LocalBaserowServiceType(ServiceType):
         """
 
         return False
+
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Record when this service uses an authorized agent."""
+
+        subject = (
+            service.integration.specific.authorized_subject
+            if service.integration_id
+            else None
+        )
+        if subject is not None and subject.__class__.__name__ == "Agent":
+            AgentHandler().update_last_active(subject)
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]

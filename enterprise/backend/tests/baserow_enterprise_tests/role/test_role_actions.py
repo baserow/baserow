@@ -92,7 +92,10 @@ def test_batch_assign_role_description_for_one_item(
 
     assert AuditLogEntry.objects.count() == 1
     log_entry = AuditLogEntry.objects.first()
-    assert log_entry.description.startswith("Role ")
+    assert log_entry.description == (
+        f'Role EDITOR assigned to subject type "User" ({user2.id}) '
+        f'on scope type "workspace" ({workspace.id}).'
+    )
 
 
 @pytest.mark.django_db

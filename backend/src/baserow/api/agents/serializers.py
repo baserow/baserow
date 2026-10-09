@@ -11,7 +11,7 @@ from baserow.core.models import Agent
 class AgentSubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
-        fields = ("id", "name")
+        fields = ("id", "name", "trashed")
 
 
 class AgentSerializer(serializers.ModelSerializer):

@@ -59,6 +59,14 @@ export class IntegrationType extends Registerable {
     return {}
   }
 
+  getErrorMessage(integration) {
+    return null
+  }
+
+  isInError(integration) {
+    return Boolean(this.getErrorMessage(integration))
+  }
+
   getOrder() {
     return 0
   }

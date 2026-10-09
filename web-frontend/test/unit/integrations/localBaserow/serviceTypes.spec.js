@@ -338,6 +338,9 @@ describe('Local baserow service types', () => {
             id === 5 ? { id: 5, type: 'local_baserow' } : undefined,
         },
       },
+      $registry: {
+        get: () => ({ getErrorMessage: () => null }),
+      },
       $i18n: { t: (key) => key },
     }
     const serviceType = new LocalBaserowGetRowServiceType({ app: fakeApp })
@@ -375,6 +378,34 @@ describe('Local baserow service types', () => {
         application,
       })
     ).toBe(null)
+  })
+
+  test('a trashed integration agent marks the integration and service as in error', () => {
+    const integration = {
+      id: 5,
+      type: 'local_baserow',
+      authorized_subject: {
+        id: 9,
+        type: 'core.Agent',
+        name: 'Writer',
+        trashed: true,
+      },
+    }
+    const application = { id: 1, integrations: [integration] }
+    const registry = testApp.getRegistry()
+    const integrationType = registry.get('integration', 'local_baserow')
+    const serviceType = registry.get('service', 'local_baserow_get_row')
+
+    expect(integrationType.isInError(integration)).toBe(true)
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, table_id: 99 },
+        application,
+      })
+    ).toBe('localBaserowIntegrationType.errorTrashedAgent')
+    expect(en.localBaserowIntegrationType.errorTrashedAgent).toBe(
+      'The authorized agent has been trashed'
+    )
   })
 
   test('the update row service is in error without a row ID, the create row service is not', () => {

@@ -96,7 +96,8 @@ def test_automation_export_serialized(data_fixture):
                 "name": integration.name,
                 "order": str(integration.order),
                 "type": "local_baserow",
-                "authorized_user": None,
+                "authorized_subject_type": None,
+                "authorized_subject_id": None,
             }
         ],
         "workflows": [
@@ -193,7 +194,7 @@ def test_automation_application_import(data_fixture):
 
     assert automation.integrations.count() == 1
     first_integration = automation.integrations.first().specific
-    assert first_integration.authorized_user.id == user.id
+    assert first_integration.authorized_subject == user
 
     assert automation.workflows.count() == 1
     workflow = automation.workflows.first()
