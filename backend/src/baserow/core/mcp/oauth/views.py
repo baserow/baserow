@@ -4,12 +4,19 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.views import View
 
+from oauth2_provider import cimd
 from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.views import OAuthProtectedResourceMetadataView
+from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError
 
 from .authorize import error_redirect_url, is_redirectable, validate_query
 from .throttling import MCPOAuthAuthorizeRateThrottle, rate_limited
 from .validators import MCP_SCOPE
+
+UNKNOWN_CLIENT_MESSAGE = (
+    "This app's sign-in registration is unknown or has expired. Remove the Baserow "
+    "server from the app and add it again."
+)
 
 
 class MCPAuthorizeRedirectView(View):
@@ -30,6 +37,13 @@ class MCPAuthorizeRedirectView(View):
             # to the client-supplied URI, so they are shown instead.
             if not is_redirectable(error):
                 oauthlib_error = error.oauthlib_error
+                # A registered client that was cleaned up keeps sending its stored
+                # client_id, and the app only registers again once it's re-added.
+                # CIMD clients are fetched again instead, so it doesn't apply to them.
+                if isinstance(
+                    oauthlib_error, InvalidClientIdError
+                ) and not cimd.is_cimd_client_id(request.GET.get("client_id", "")):
+                    return HttpResponseBadRequest(UNKNOWN_CLIENT_MESSAGE)
                 return HttpResponseBadRequest(
                     oauthlib_error.description or oauthlib_error.error
                 )

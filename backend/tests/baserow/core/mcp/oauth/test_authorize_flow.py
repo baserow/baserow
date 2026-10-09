@@ -187,6 +187,10 @@ def test_authorize_unknown_client_is_not_redirected(client):
     _, challenge = pkce_pair()
     response = client.get(f"/oauth/authorize/?{authorize_query('nope', challenge)}")
     assert response.status_code == 400
+    assert response.content.decode() == (
+        "This app's sign-in registration is unknown or has expired. Remove the "
+        "Baserow server from the app and add it again."
+    )
 
 
 @pytest.mark.django_db

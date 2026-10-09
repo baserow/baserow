@@ -1,6 +1,10 @@
 import re
+from datetime import timedelta
 from typing import Iterable
 
+from django.utils import timezone
+
+from oauth2_provider.models import get_application_model
 from oauth2_provider.oauth2_validators import OAuth2Validator
 from oauthlib.oauth2.rfc6749.utils import scope_to_list
 
@@ -8,6 +12,8 @@ MCP_SCOPE = "mcp"
 OFFLINE_ACCESS_SCOPE = "offline_access"
 ENDPOINT_SCOPE_RE = re.compile(r"^endpoint:(\d+)$")
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+# How stale an application's `updated` may be before a token issue bumps it.
+LAST_USED_RESOLUTION = timedelta(hours=1)
 
 
 def endpoint_scope(endpoint_id: int) -> str:
@@ -86,3 +92,12 @@ class MCPOAuth2Validator(OAuth2Validator):
             if endpoint_scope(endpoint_id) not in requested:
                 request.scope = " ".join([*requested, endpoint_scope(endpoint_id)])
         return True
+
+    def _save_bearer_token(self, token, request, *args, **kwargs):
+        # Marks the client as used, so the unused client cleanup keeps it. Only
+        # bumped once an hour, so busy clients don't write on every refresh.
+        now = timezone.now()
+        get_application_model().objects.filter(
+            pk=request.client.pk, updated__lt=now - LAST_USED_RESOLUTION
+        ).update(updated=now)
+        return super()._save_bearer_token(token, request, *args, **kwargs)

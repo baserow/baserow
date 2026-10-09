@@ -50,6 +50,9 @@ def test_cimd_other_host_is_rejected(client, settings):
         response = client.get(f"/oauth/authorize/?{query}")
 
     fetch.assert_not_called()
+    # Re-adding the server wouldn't help, so the re-add hint isn't shown.
+    assert response.status_code == 400
+    assert response.content == b"Invalid client_id parameter value."
     location = response.get("Location", "")
     assert "/mcp-authorize" not in location
     assert not location.startswith(EVIL_REDIRECT)

@@ -18,8 +18,10 @@ from baserow.core.mcp.models import MCPEndpoint
 @app.task(bind=True, queue="export")
 def delete_unused_mcp_oauth_clients(self):
     """
-    Deletes DCR and CIMD clients that have no grant, so clients stored by anonymous
-    registrations and authorization requests can't pile up.
+    Deletes DCR and CIMD clients that have no grant and haven't been used for
+    `MCP_OAUTH_UNUSED_CLIENT_DAYS`, so clients stored by anonymous registrations and
+    authorization requests can't pile up. Issuing a token bumps `updated`, so a
+    disconnected client that's still in use keeps its client_id.
     """
 
     Application = get_application_model()
@@ -31,7 +33,7 @@ def delete_unused_mcp_oauth_clients(self):
             Application.RegistrationSource.DCR,
             Application.RegistrationSource.CIMD,
         ],
-        created__lt=cutoff,
+        updated__lt=cutoff,
     ).exclude(Exists(grants))
     with transaction.atomic():
         # The registration tokens go first: the token models reference each other,

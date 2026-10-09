@@ -181,7 +181,7 @@ def test_registration_is_rate_limited_per_ip(client):
 @pytest.mark.django_db
 def test_unused_dcr_clients_are_deleted(client, api_client, data_fixture):
     Application = get_application_model()
-    with freeze_time(timezone.now() - timedelta(days=2)):
+    with freeze_time(timezone.now() - timedelta(days=31)):
         # The JWT is issued at the frozen time so it's valid there.
         user, token = data_fixture.create_user_and_token()
         workspace = data_fixture.create_workspace(user=user)
@@ -214,7 +214,7 @@ def load_cimd_client(api_client, token):
 @pytest.mark.django_db
 def test_unused_cimd_clients_are_deleted(client, api_client, data_fixture):
     Application = get_application_model()
-    with freeze_time(timezone.now() - timedelta(days=2)):
+    with freeze_time(timezone.now() - timedelta(days=31)):
         user, token = data_fixture.create_user_and_token()
         workspace = data_fixture.create_workspace(user=user)
         unused = load_cimd_client(api_client, token)
@@ -233,7 +233,7 @@ def test_dcr_client_with_a_grant_in_a_trashed_workspace_is_kept(
     client, api_client, data_fixture
 ):
     Application = get_application_model()
-    with freeze_time(timezone.now() - timedelta(days=2)):
+    with freeze_time(timezone.now() - timedelta(days=31)):
         user, token = data_fixture.create_user_and_token()
         workspace = data_fixture.create_workspace(user=user)
         client_id = register(client).json()["client_id"]
@@ -251,7 +251,7 @@ def test_dcr_client_whose_grant_was_removed_is_deleted_with_its_tokens(
     client, api_client, data_fixture
 ):
     Application = get_application_model()
-    with freeze_time(timezone.now() - timedelta(days=2)):
+    with freeze_time(timezone.now() - timedelta(days=31)):
         user, token = data_fixture.create_user_and_token()
         workspace = data_fixture.create_workspace(user=user)
         client_id = register(client).json()["client_id"]
@@ -262,6 +262,64 @@ def test_dcr_client_whose_grant_was_removed_is_deleted_with_its_tokens(
     delete_unused_mcp_oauth_clients()
 
     assert not Application.objects.filter(client_id=client_id).exists()
+
+
+@pytest.mark.django_db
+def test_disconnected_client_that_was_used_recently_is_kept(
+    client, api_client, data_fixture
+):
+    Application = get_application_model()
+    with freeze_time(timezone.now() - timedelta(days=31)):
+        client_id = register(client).json()["client_id"]
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+    MCPEndpoint.objects.filter(oauth_client_id=client_id).delete()
+
+    delete_unused_mcp_oauth_clients()
+
+    assert Application.objects.filter(client_id=client_id).exists()
+
+
+@pytest.mark.django_db
+def test_issuing_a_token_marks_the_client_as_used(client, api_client, data_fixture):
+    Application = get_application_model()
+    with freeze_time(timezone.now() - timedelta(days=31)):
+        client_id = register(client).json()["client_id"]
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    applications = Application.objects.filter(client_id=client_id)
+
+    before = timezone.now()
+    tokens = obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+    assert applications.get().updated >= before
+
+    # Within the hour the timestamp is left alone, so refreshes don't write.
+    recent = timezone.now() - timedelta(minutes=30)
+    applications.update(updated=recent)
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": client_id,
+        },
+    )
+    assert response.status_code == 200, response.content
+    assert applications.get().updated == recent
+
+    applications.update(updated=timezone.now() - timedelta(hours=2))
+    before = timezone.now()
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": response.json()["refresh_token"],
+            "client_id": client_id,
+        },
+    )
+    assert response.status_code == 200, response.content
+    assert applications.get().updated >= before
 
 
 @pytest.mark.django_db

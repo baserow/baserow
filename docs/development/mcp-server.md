@@ -65,7 +65,7 @@ Each grant is stored as an `MCPEndpoint` row with `oauth_client_id` set. Its tok
 - **CIMD**: the client URL is the client id. `BASEROW_MCP_OAUTH_CIMD_ALLOWED_HOSTS` is a comma-separated host list and defaults to `*`.
 - **DCR**: on by default. Set `BASEROW_MCP_OAUTH_DCR_ENABLED=false` to turn it off. It only accepts public clients that use the authorization code grant, with https or loopback redirect URIs.
 
-A Celery task deletes DCR and CIMD clients that have no grant after one day.
+A Celery task deletes DCR and CIMD clients that have no grant and have not been used for 30 days. Issuing or refreshing a token counts as use. An app whose client was deleted gets a 400 asking the user to remove the Baserow server from the app and add it again.
 
 ### Rate limits and tokens
 
