@@ -46,14 +46,14 @@ async function callMcp(
     },
     data: { jsonrpc: "2.0", id, method, params },
   });
+  // Error answers, like the 401 for a revoked token, aren't JSON-RPC.
+  if (!response.ok()) {
+    return { status: response.status(), body: null };
+  }
   const text = await response.text();
   // The answer is either plain JSON or a single server-sent event.
   const dataLine = text.split("\n").find((line) => line.startsWith("data:"));
-  const body = dataLine
-    ? JSON.parse(dataLine.slice("data:".length))
-    : text
-      ? JSON.parse(text)
-      : null;
+  const body = JSON.parse(dataLine ? dataLine.slice("data:".length) : text);
   return { status: response.status(), body };
 }
 
