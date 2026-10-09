@@ -207,7 +207,7 @@ class RegisterSerializer(serializers.Serializer):
     template_id = serializers.PrimaryKeyRelatedField(
         required=False,
         default=None,
-        queryset=Template.objects.official(),
+        queryset=Template.objects.all(),
         help_text="The id of the template that must be installed after creating the "
         "account. This only works if the `workspace_invitation_token` param is not "
         "provided.",

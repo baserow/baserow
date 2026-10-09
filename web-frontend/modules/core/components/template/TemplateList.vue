@@ -91,12 +91,6 @@
                 </div>
                 <div class="template-list__card-name">{{ template.name }}</div>
               </div>
-              <div
-                v-if="template.description"
-                class="template-list__card-description"
-              >
-                {{ template.description }}
-              </div>
             </a>
           </div>
         </div>

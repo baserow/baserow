@@ -79,6 +79,19 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
+  test('still opens the linked template when the list fails', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/templates/project-tracker/').reply(200, projectTracker)
+    testApp.mock.onGet('/templates/').reply(500)
+
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/project-tracker',
+      global: { stubs },
+    })
+
+    expect(wrapper.find('.details').text()).toBe('Project Tracker:')
+  })
+
   test('fails with a not found error for an unknown template', async () => {
     testApp.dontFailOnErrorResponses()
     testApp.mock.onGet('/templates/unknown/').reply(404, {

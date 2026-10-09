@@ -1,12 +1,10 @@
 from datetime import datetime, timezone
 
-from django.db import connection
-
 import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.database.models import Database
-from baserow.core.models import Template, TemplateTypes, Workspace, WorkspaceUser
+from baserow.core.models import Workspace, WorkspaceUser
 
 
 @pytest.mark.django_db
@@ -59,45 +57,3 @@ def test_core_models_hierarchy(data_fixture):
 
     assert workspace.get_parent() is None
     assert workspace.get_root() == workspace
-
-
-@pytest.mark.django_db
-def test_template_defaults(data_fixture):
-    template = data_fixture.create_template()
-
-    assert template.template_type == TemplateTypes.OFFICIAL
-
-
-@pytest.mark.django_db
-def test_template_row_inserted_without_new_columns_gets_official_defaults():
-    # The previous application version inserts templates without the new columns.
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "INSERT INTO core_template (name, slug, icon, export_hash, keywords) "
-            "VALUES ('Old', 'old', 'document', '', '') RETURNING id"
-        )
-        template_id = cursor.fetchone()[0]
-
-    template = Template.objects.get(id=template_id)
-    assert template.template_type == TemplateTypes.OFFICIAL
-
-
-@pytest.mark.django_db
-def test_template_queryset_official(data_fixture):
-    official = data_fixture.create_template()
-    user_template = data_fixture.create_user_template()
-
-    assert list(Template.objects.official()) == [official]
-    assert user_template.template_type == TemplateTypes.USER
-    assert user_template.workspace.users.count() == 0
-
-
-@pytest.mark.django_db
-def test_workspace_has_template_counts_only_official_templates(data_fixture):
-    official = data_fixture.create_template()
-    user_template = data_fixture.create_user_template()
-    plain_workspace = data_fixture.create_workspace()
-
-    assert official.workspace.has_template() is True
-    assert user_template.workspace.has_template() is False
-    assert plain_workspace.has_template() is False

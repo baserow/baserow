@@ -201,24 +201,6 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
     )
 
 
-@pytest.mark.django_db
-def test_list_applications_of_user_template_is_not_public(api_client, data_fixture):
-    owner = data_fixture.create_user()
-    _, other_token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=owner)
-    data_fixture.create_database_application(workspace=workspace)
-    data_fixture.create_user_template(workspace=workspace)
-    workspace.has_template.cache_clear()
-    url = reverse("api:applications:list", kwargs={"workspace_id": workspace.id})
-
-    response = api_client.get(url)
-    assert response.status_code == HTTP_401_UNAUTHORIZED
-
-    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
-
-
 @pytest.mark.django_db(transaction=True)
 def test_list_applications_with_permissions(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(

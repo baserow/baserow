@@ -1,4 +1,4 @@
-from baserow.core.models import Template, TemplateCategory, TemplateTypes
+from baserow.core.models import Template, TemplateCategory
 
 
 class TemplateFixtures:
@@ -45,10 +45,3 @@ class TemplateFixtures:
         template.categories.add(*categories)
 
         return template
-
-    def create_user_template(self, **kwargs):
-        """
-        Creates a user template. Its content is a hidden, memberless workspace.
-        """
-
-        return self.create_template(template_type=TemplateTypes.USER, **kwargs)

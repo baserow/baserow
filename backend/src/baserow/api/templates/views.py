@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Prefetch
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -60,10 +59,7 @@ class TemplatesView(APIView):
     def get(self, request):
         """Responds with a list of all template categories and templates."""
 
-        official_templates = Template.objects.official()
-        categories = TemplateCategory.objects.filter(
-            Exists(official_templates.filter(categories=OuterRef("pk")))
-        ).prefetch_related(Prefetch("templates", queryset=official_templates))
+        categories = TemplateCategory.objects.all().prefetch_related("templates")
         serializer = TemplateCategoriesSerializer(categories, many=True)
         return Response(serializer.data)
 
@@ -84,11 +80,7 @@ class TemplateView(APIView):
         """
 
         try:
-            template = (
-                Template.objects.official()
-                .prefetch_related("categories")
-                .get(slug=slug)
-            )
+            template = Template.objects.prefetch_related("categories").get(slug=slug)
         except Template.DoesNotExist as exc:
             raise TemplateDoesNotExist(
                 f"The template with slug {slug} does not exist."
@@ -150,9 +142,7 @@ class InstallTemplateView(APIView):
 
         handler = CoreHandler()
         workspace = handler.get_workspace(workspace_id)
-        template = handler.get_template(
-            template_id, base_queryset=Template.objects.official()
-        )
+        template = handler.get_template(template_id)
         installed_applications = action_type_registry.get_by_type(
             InstallTemplateActionType
         ).do(request.user, workspace, template)

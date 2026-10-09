@@ -4,7 +4,7 @@
     :sidebar-width="320"
     class="template-details"
   >
-    <template #sidebar="{ applications, page, selectPage }">
+    <template #sidebar="{ applications, page, selectPage, selectApplication }">
       <div class="template-details__sidebar">
         <div v-if="showBack" class="template-details__back">
           <a
@@ -46,7 +46,7 @@
               :key="application.id"
               :application="application"
               :page="page"
-              @selected="selectApplication(applications, $event)"
+              @selected="selectApplication"
               @selected-page="selectPage"
             ></component>
           </ul>
@@ -105,11 +105,5 @@ function getApplicationComponent(application) {
   return $registry
     .get('application', application.type)
     .getTemplateSidebarComponent()
-}
-
-function selectApplication(applications, application) {
-  applications.forEach((app) => {
-    app._.selected = application.id === app.id
-  })
 }
 </script>

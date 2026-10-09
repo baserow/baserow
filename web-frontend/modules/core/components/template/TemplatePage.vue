@@ -34,7 +34,10 @@ const { data, error } = await useAsyncData(`template-${slug}`, async () => {
   try {
     const [{ data: template }, { data: categories }] = await Promise.all([
       TemplateService($client).fetch(slug),
-      TemplateService($client).fetchAll(),
+      // The linked template must still render if the list can't be loaded.
+      TemplateService($client)
+        .fetchAll()
+        .catch(() => ({ data: [] })),
     ])
     return { template, categories }
   } catch (e) {

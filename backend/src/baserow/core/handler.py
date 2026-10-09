@@ -61,7 +61,6 @@ from .models import (
     Settings,
     Template,
     TemplateCategory,
-    TemplateTypes,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
@@ -2086,10 +2085,8 @@ class CoreHandler:
             # We clean the template list only if we have the full list of templates
             clean_templates = True
 
-        # Only official templates come from the templates dir, user templates are
-        # never read, updated or deleted here.
         installed_templates = (
-            Template.objects.official()
+            Template.objects.all()
             .prefetch_related("categories")
             .select_related("workspace")
         )
@@ -2138,13 +2135,12 @@ class CoreHandler:
                 for template_file_path in template_files_paths
             ]
 
-            for template in Template.objects.official().filter(~Q(slug__in=slugs)):
+            for template in Template.objects.filter(~Q(slug__in=slugs)):
                 with transaction.atomic():
                     TrashHandler.permanently_delete(template.workspace)
                     template.delete()
 
-            # Delete all the categories that don't have any templates of any type
-            # anymore.
+            # Delete all the categories that don't have any templates anymore.
             TemplateCategory.objects.annotate(num_templates=Count("templates")).filter(
                 num_templates=0
             ).delete()
@@ -2248,7 +2244,6 @@ class CoreHandler:
             "export_hash": export_hash,
             "keywords": keywords,
             "workspace": workspace,
-            "template_type": TemplateTypes.OFFICIAL,
         }
 
         # If the template was imported, then we'll map the desired open_application

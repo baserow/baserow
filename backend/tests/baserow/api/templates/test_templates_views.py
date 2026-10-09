@@ -44,9 +44,6 @@ def test_list_templates(api_client, data_fixture):
     template_3 = data_fixture.create_template(
         name="Template 3", icon="document", categories=[category_2, category_3]
     )
-    # User templates and categories only they use are not listed.
-    user_category = data_fixture.create_template_category(name="User only")
-    data_fixture.create_user_template(categories=[category_1, user_category])
 
     response = api_client.get(reverse("api:templates:list"))
     assert response.status_code == HTTP_200_OK
@@ -112,55 +109,6 @@ def test_list_templates(api_client, data_fixture):
             ],
         },
     ]
-
-
-@pytest.mark.django_db
-def test_get_template(api_client, data_fixture):
-    category = data_fixture.create_template_category(name="Cat")
-    official = data_fixture.create_template(
-        slug="project-tracker",
-        category=category,
-    )
-    # Same slug as the official template, must not shadow or break it.
-    data_fixture.create_user_template(slug="project-tracker")
-    data_fixture.create_user_template(slug="only-user")
-
-    response = api_client.get(
-        reverse("api:templates:item", kwargs={"slug": "project-tracker"})
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json["id"] == official.id
-
-    response = api_client.get(
-        reverse("api:templates:item", kwargs={"slug": "only-user"})
-    )
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
-@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
-@pytest.mark.parametrize(
-    "url_name", ["api:templates:install", "api:templates:install_async"]
-)
-def test_install_user_template_does_not_exist(api_client, data_fixture, url_name):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    # The slug matches a template file, so without the scope the official content
-    # would be installed.
-    user_template = data_fixture.create_user_template(slug="example-template")
-
-    response = api_client.post(
-        reverse(
-            url_name,
-            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-    assert Application.objects.filter(workspace=workspace).count() == 0
 
 
 @pytest.mark.django_db

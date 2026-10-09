@@ -317,16 +317,7 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
     @lru_cache
     def has_template(self):
-        """
-        Whether this workspace holds an official template. Their content is public,
-        so this grants anonymous read access to the workspace. User templates don't
-        count.
-        """
-
-        return any(
-            template.template_type == TemplateTypes.OFFICIAL
-            for template in self.template_set.all()
-        )
+        return len(self.template_set.all()) > 0
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -517,16 +508,6 @@ class TemplateCategory(models.Model):
         ordering = ("name",)
 
 
-class TemplateTypes(models.TextChoices):
-    OFFICIAL = "official", "Official"
-    USER = "user", "User"
-
-
-class TemplateQuerySet(models.QuerySet):
-    def official(self):
-        return self.filter(template_type=TemplateTypes.OFFICIAL)
-
-
 class Template(models.Model):
     name = models.CharField(max_length=64)
     slug = models.SlugField(
@@ -562,16 +543,6 @@ class Template(models.Model):
         help_text="The application ID that must be opened when the template is "
         "previewed. If null, then the first will automatically be chosen.",
     )
-    template_type = models.CharField(
-        max_length=16,
-        choices=TemplateTypes.choices,
-        default=TemplateTypes.OFFICIAL,
-        db_default=TemplateTypes.OFFICIAL,
-        help_text="Official templates are synced from the repository, user templates "
-        "are created by users. Set on create, never changed.",
-    )
-
-    objects = TemplateQuerySet.as_manager()
 
     class Meta:
         ordering = ("name",)

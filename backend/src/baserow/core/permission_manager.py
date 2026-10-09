@@ -185,11 +185,8 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     def get_permissions_object(self, actor, workspace=None):
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
-            # TODO: remove in the next release. Only kept for frontends that don't
-            # register the previewed template workspace in the `templateWorkspace`
-            # store yet.
             "workspace_template_ids": list(
-                Template.objects.official().values_list("workspace_id", flat=True)
+                Template.objects.values_list("workspace_id", flat=True)
             ),
         }
 

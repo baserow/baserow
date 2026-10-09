@@ -137,18 +137,10 @@ export class AllowIfTemplateOperationPermissionManagerType extends PermissionMan
   }
 
   hasPermission(permissions, operation, context, workspaceId) {
-    // TODO: drop `workspace_template_ids` once the backend stops sending it. The
-    // preview registers the workspace it shows, see the `templateWorkspace` store.
-    const isTemplateWorkspace =
-      permissions.workspace_template_ids?.includes(workspaceId) ||
-      this.app.$store.getters['templateWorkspace/isTemplateWorkspace'](
-        workspaceId
-      )
-    if (
-      isTemplateWorkspace &&
-      permissions.allowed_operations_on_templates.includes(operation)
-    ) {
-      return true
+    if (permissions.workspace_template_ids.includes(workspaceId)) {
+      if (permissions.allowed_operations_on_templates.includes(operation)) {
+        return true
+      }
     }
     // Workspace ID `0` can be used to fake workspace objects, like for example
     // during the onboarding.

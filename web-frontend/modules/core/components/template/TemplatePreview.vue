@@ -9,6 +9,7 @@
             :applications="applications"
             :page="page"
             :select-page="selectPage"
+            :select-application="setSelectedApplication"
           >
             <TemplateSidebar
               :template="template"
@@ -16,6 +17,7 @@
               :page="page"
               :collapsed="collapsed"
               @selected-page="selectPage"
+              @selected-application="setSelectedApplication"
               @collapse-toggled="collapsed = !collapsed"
             ></TemplateSidebar>
           </slot>
@@ -105,7 +107,6 @@ export default {
   methods: {
     async fetchApplications(template) {
       this.loading = true
-      this.$store.dispatch('templateWorkspace/register', template.workspace_id)
 
       try {
         const { data } = await ApplicationService(this.$client).fetchAll(
@@ -154,6 +155,11 @@ export default {
         return true
       }
       return false
+    },
+    setSelectedApplication(application) {
+      this.applications.forEach((app) => {
+        app._.selected = application.id === app.id
+      })
     },
     selectPage({ application, value }) {
       this.page = {

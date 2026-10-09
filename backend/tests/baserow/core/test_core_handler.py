@@ -46,7 +46,6 @@ from baserow.core.models import (
     Settings,
     Template,
     TemplateCategory,
-    TemplateTypes,
     Workspace,
     WorkspaceInvitation,
     WorkspaceUser,
@@ -1429,52 +1428,6 @@ def test_sync_templates_mapped_open_application_id(data_fixture, tmpdir):
     assert template_2.open_application == application.id
 
     settings.APPLICATION_TEMPLATES_DIR = old_templates
-
-
-TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
-
-
-@pytest.mark.django_db
-def test_sync_templates_leaves_user_templates_untouched(data_fixture, tmpdir, settings):
-    settings.APPLICATION_TEMPLATES_DIR = TEST_TEMPLATES_DIR
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    user_category = data_fixture.create_template_category(name="User category")
-    # No JSON file with this slug exists, an official one would be deleted.
-    no_file = data_fixture.create_user_template(
-        slug="has-no-json-file", category=user_category
-    )
-    # Same slug as an official template file.
-    same_slug = data_fixture.create_user_template(
-        slug="example-template",
-        name="My copy",
-        icon="star",
-        export_hash="USER_HASH",
-        keywords="mine",
-        category=user_category,
-    )
-
-    CoreHandler().sync_templates(storage=storage)
-
-    for user_template in [no_file, same_slug]:
-        refreshed = Template.objects.get(id=user_template.id)
-        assert refreshed.template_type == TemplateTypes.USER
-        assert refreshed.workspace_id == user_template.workspace_id
-        assert refreshed.workspace.application_set.count() == 0
-        assert list(refreshed.categories.all()) == [user_category]
-
-    refreshed_same_slug = Template.objects.get(id=same_slug.id)
-    assert refreshed_same_slug.name == "My copy"
-    assert refreshed_same_slug.icon == "star"
-    assert refreshed_same_slug.export_hash == "USER_HASH"
-    assert refreshed_same_slug.keywords == "mine"
-
-    official = Template.objects.official().get(slug="example-template")
-    assert official.id != same_slug.id
-    assert official.workspace_id != same_slug.workspace_id
-
-    # The category is only used by user templates, so it is kept.
-    assert TemplateCategory.objects.filter(id=user_category.id).exists()
 
 
 @pytest.mark.django_db

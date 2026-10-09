@@ -673,30 +673,6 @@ def test_create_user_with_template(data_fixture, client):
     settings.APPLICATION_TEMPLATES_DIR = old_templates
 
 
-@pytest.mark.django_db
-def test_create_user_with_user_template_id(data_fixture, client):
-    data_fixture.create_password_provider()
-    # The slug matches a template file, so without the scope the official content
-    # would be installed.
-    user_template = data_fixture.create_user_template(slug="example-template")
-
-    response = client.post(
-        reverse("api:user:index"),
-        {
-            "name": "Test1",
-            "email": "test0@test.nl",
-            "password": "thisIsAValidPassword",
-            "template_id": user_template.id,
-        },
-        format="json",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert response_json["detail"]["template_id"][0]["code"] == "does_not_exist"
-    assert not User.objects.filter(email="test0@test.nl").exists()
-
-
 @pytest.mark.django_db(transaction=True)
 def test_send_reset_password_email(data_fixture, client, mailoutbox):
     data_fixture.create_password_provider()
