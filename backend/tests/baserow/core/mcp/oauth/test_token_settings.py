@@ -93,12 +93,18 @@ def test_offline_access_is_not_added_unless_requested(client, api_client, data_f
 
 
 @pytest.mark.django_db
-def test_no_refresh_token_without_offline_access(client, api_client, data_fixture):
+def test_refresh_token_is_issued_without_offline_access(
+    client, api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     tokens = obtain_tokens(client, api_client, token, workspace)
-    assert "refresh_token" not in tokens
-    assert not RefreshToken.objects.filter(user=user).exists()
+    assert tokens["refresh_token"]
+    assert RefreshToken.objects.filter(user=user).count() == 1
+
+    response = _refresh(client, tokens)
+    assert response.status_code == 200, response.content
+    assert response.json()["refresh_token"]
 
 
 @pytest.mark.django_db

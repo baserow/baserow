@@ -77,7 +77,7 @@ The limits are per IP, as comma-separated lists.
 | `BASEROW_MCP_OAUTH_REGISTRATION_RATE_LIMITS` | `10/m,60/h` |
 | `BASEROW_MCP_OAUTH_TOKEN_RATE_LIMITS` | `30/m,300/h` |
 
-Access tokens last one hour. A refresh token is issued only when the client asks for `offline_access`; refresh tokens rotate and expire after 30 days. Replaying a used refresh token revokes the whole family.
+Access tokens last one hour. Clients always get a refresh token, whether or not they ask for `offline_access`; refresh tokens rotate and expire after 30 days. Replaying a used refresh token revokes the whole family.
 
 ### Running it locally
 
