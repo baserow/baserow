@@ -413,5 +413,9 @@
         "destinationLabel": "Węzeł docelowy",
         "destinationDescription": "Węzeł, do którego proces przejdzie, jeśli warunek jest spełniony.",
         "destinationPlaceholder": "Wybierz węzeł docelowy..."
+    },
+    "aiProviderModelFeature": {
+        "aiAgent": "Agent AI",
+        "aiAgentDescription": "Wykonaj operacje korzystając z agenta AI w automatyzacjach i w trakcie konfigurowania aplikacji."
     }
 }
