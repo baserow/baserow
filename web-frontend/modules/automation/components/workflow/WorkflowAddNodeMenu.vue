@@ -56,7 +56,7 @@ export default {
       default: () => false,
     },
   },
-  emits: ['change', 'close'],
+  emits: ['change', 'recipe', 'close'],
   computed: {
     resolvedAutomation() {
       return unref(this.automation)
@@ -94,17 +94,32 @@ export default {
               : nodeType.isWorkflowAction)
         )
     },
+    /**
+     * Recipes insert pre-configured nodes, so they are only offered when
+     * adding an action: not when picking a trigger, nor when replacing a node.
+     */
+    recipes() {
+      if (this.editingTriggerNode || this.node) {
+        return []
+      }
+      return this.$registry
+        .getOrderedList('automationNodeRecipe')
+        .filter((recipe) => recipe.isEnabled())
+    },
     menuGroups() {
       const groups = new Map()
-
-      this.nodeTypes.forEach((nodeType) => {
-        const group = nodeType.group
-
+      const addToGroup = (group, item) => {
         if (!groups.has(group.id)) {
           groups.set(group.id, { ...group, children: [] })
         }
+        groups.get(group.id).children.push(item)
+      }
 
-        groups.get(group.id).children.push(this.makeNodeTypeMenuItem(nodeType))
+      this.nodeTypes.forEach((nodeType) => {
+        addToGroup(nodeType.group, this.makeNodeTypeMenuItem(nodeType))
+      })
+      this.recipes.forEach((recipe) => {
+        addToGroup(recipe.group, this.makeRecipeMenuItem(recipe))
       })
 
       return Array.from(groups.values())
@@ -123,6 +138,7 @@ export default {
         iconColor: nodeType.iconColor,
         image: nodeType.image,
         description: nodeType.description,
+        aliases: nodeType.aliases,
         disabled: nodeType.isDeactivated({
           workspace: this.resolvedWorkspace,
         }),
@@ -132,7 +148,27 @@ export default {
         meta: nodeType,
       }
     },
+    /**
+     * Unlike node type items this carries no `meta`, so the item-meta slot and
+     * the deactivated modals above, which both expect a node type, skip it.
+     */
+    makeRecipeMenuItem(recipe) {
+      return {
+        id: `recipe-${recipe.getType()}`,
+        label: recipe.name,
+        value: recipe.getType(),
+        icon: recipe.iconClass,
+        iconColor: recipe.iconColor,
+        description: recipe.description,
+        aliases: recipe.aliases,
+        recipe,
+      }
+    },
     onMenuItemSelected(item) {
+      if (item.recipe) {
+        this.$emit('recipe', item.recipe.getType())
+        return
+      }
       this.onChange(item.meta)
     },
     onChange(nodeType) {

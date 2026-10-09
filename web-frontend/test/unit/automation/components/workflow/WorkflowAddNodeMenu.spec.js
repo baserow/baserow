@@ -116,13 +116,18 @@ const mountComponent = ({
       },
       mocks: {
         $registry: {
-          getOrderedList: () => [
-            createRowNodeType,
-            getRowNodeType,
-            repeatNodeType,
-            triggerNodeType,
-            disabledTriggerNodeType,
-          ],
+          // The menu also lists the `automationNodeRecipe` namespace, which
+          // is empty here.
+          getOrderedList: (namespace) =>
+            namespace === 'node'
+              ? [
+                  createRowNodeType,
+                  getRowNodeType,
+                  repeatNodeType,
+                  triggerNodeType,
+                  disabledTriggerNodeType,
+                ]
+              : [],
           get: (registry, type) =>
             registry === 'node' && type === triggerNodeType.getType()
               ? triggerNodeType
