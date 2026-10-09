@@ -123,7 +123,9 @@
         "chartWidget": "Widżet tworzenia wykresów",
         "chartWidgetContent": "Wizualizuj dane na pulpitach przy pomocy wykresów. Użyj dowolnej tabeli jako źródła, dodaj zakresy danych oraz grupuj lub sortuj pola, używając różnorodnych opcji podsumowań.",
         "rowColoringContent": "Zaznacz wiersze kolorami na podstawie pola wyboru pojedynczego lub określonych warunków. Ta opcja jest przydatna do wyróżniania danych, powtarzających się schematów i priorytetów.",
-        "personalViewsContent": "Skonfiguruj swoje własne widoki – to opcja przeznaczona do eksperymentów, filtrowania lub sortowania danych na własne potrzeby i bez “zakłócania” wspólnego obszaru roboczego."
+        "personalViewsContent": "Skonfiguruj swoje własne widoki – to opcja przeznaczona do eksperymentów, filtrowania lub sortowania danych na własne potrzeby i bez “zakłócania” wspólnego obszaru roboczego.",
+        "groupedAggregateRowsDataSource": "Pogrupuj i podsumuj wiersze",
+        "groupedAggregateRowsDataSourceContent": "Pogrupuj wiersze z tabeli w bazie Baserow. Podsumowania można wykorzystać na stronach aplikacji."
     },
     "licenses": {
         "titleNoLicenses": "Nie znaleziono żadnej licencji",
@@ -274,7 +276,8 @@
     },
     "premiumFieldType": {
         "ai": "Prompt AI",
-        "aiDescription": "Pole tylko do odczytu zawierające tekst wygenerowany przez AI na podstawie promptu."
+        "aiDescription": "Pole tylko do odczytu zawierające tekst wygenerowany przez AI na podstawie promptu.",
+        "aiRichTextDescription": "Pole tylko do odczytu zawierające tekst wygenerowany przez AI w oparciu o prompt zawarty w ustawieniach pola i sformatowany w języku Markdown."
     },
     "functionalGridViewFieldAI": {
         "generate": "Wygeneruj"
@@ -427,7 +430,9 @@
         "series": "Szereg danych",
         "addSeries": "Dodaj szereg danych",
         "sourceFieldLabel": "Źródło",
-        "notSelected": "Nie wybrano"
+        "notSelected": "Nie wybrano",
+        "data": "Dane",
+        "viewFieldLabel": "Widok"
     },
     "aggregationSeriesForm": {
         "deleteSeries": "Usuń szereg danych",
@@ -436,15 +441,35 @@
         "lineChart": "Liniowy",
         "pieChart": "Kołowy",
         "doughnutChart": "Pierścieniowy",
-        "polarAreaChart": "Biegunowy"
+        "polarAreaChart": "Biegunowy",
+        "aggregationTypeLabel": "Podsumowanie",
+        "aggregationFieldLabel": "Pole"
     },
     "aggregationGroupByForm": {
         "groupByNone": "Brak",
-        "groupByRowId": "ID wiersza"
+        "groupByRowId": "ID wiersza",
+        "groupByFieldLabel": "Pogrupuj wg.",
+        "rowIdDisabledTooltip": "Grupowanie wg. ID wiersza jest obecnie niemożliwe, ponieważ pole główne może zawierać wiele wartości."
     },
     "aggregationSortByForm": {
         "none": "Brak",
         "ascending": "Rosnąco",
-        "descending": "Malejąco"
+        "descending": "Malejąco",
+        "sortByFieldLabel": "Sortuj wg."
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Szereg",
+        "addSeries": "Dodaj szereg"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Pogrupuj i podsumuj wiersze",
+        "localBaserowGroupedAggregateRowsDescription": "Pogrupuj wiersze w tabeli bazy Baserow i podsumuj zawarte w nich wartości.",
+        "errorNoAggregationSeriesDefined": "Nie podano szeregu do podsumowania.",
+        "errorIncompleteAggregationSeries": "Jeden lub więcej szeregów podsumowań jest niekompletny.",
+        "errorTrashedAggregationField": "Przynajmniej jedno skonfigurowane pole zostało usunięte do kosza."
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Pola AI",
+        "aiFieldsDescription": "Wygeneruj wartości w polach AI."
     }
 }
