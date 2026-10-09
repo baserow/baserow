@@ -37,12 +37,12 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
 )
 from baserow_enterprise.assistant.types import BaseModel
 
+from .changes import name_key
 from .menu_items import ListedTopLevelMenuItem, new_menu_link
 from .table_columns import (
     TableColumnAdd,
     TableColumnItem,
     TableColumnUpdate,
-    column_name_key,
     data_source_fields,
     field_formula,
 )
@@ -581,7 +581,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
     for field_cfg in el.fields:
         if field_cfg.type != "text":
             continue
-        match = table_fields.get(column_name_key(field_cfg.name))
+        match = table_fields.get(name_key(field_cfg.name))
         if match:
             property_options.append(
                 CollectionElementPropertyOptions(
@@ -774,7 +774,7 @@ def _convert_table_fields(el: "ElementItemCreate") -> list[dict]:
             if value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
             else:
-                match = table_fields.get(column_name_key(field_cfg.name))
+                match = table_fields.get(name_key(field_cfg.name))
                 value_formula = field_formula(match) if match else "''"
             result.append(
                 {
