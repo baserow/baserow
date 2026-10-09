@@ -296,15 +296,23 @@ class BaserowMCPServer:
                 scheme, _, value = authorization.partition(" ")
                 value = value.strip()
                 endpoint, error = None, None
-                if scheme.lower() == "bearer" and value:
+                has_bearer = scheme.lower() == "bearer" and bool(value)
+                if has_bearer:
                     endpoint, error = await resolve_bearer(value)
 
                 endpoint_ctx = current_endpoint.set(endpoint)
                 try:
                     if endpoint is None:
                         status_code = 403 if error == INSUFFICIENT_SCOPE else 401
+                        # RFC 6750 section 3.1: no error code when no credentials
+                        # were sent.
+                        body = (
+                            {"error": error or INVALID_TOKEN}
+                            if has_bearer
+                            else {"detail": "Authentication required."}
+                        )
                         response = JSONResponse(
-                            {"error": error or INVALID_TOKEN},
+                            body,
                             status_code=status_code,
                             headers={"WWW-Authenticate": www_authenticate(error)},
                         )

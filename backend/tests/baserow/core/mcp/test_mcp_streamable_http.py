@@ -95,6 +95,9 @@ def _create_raw_token(user, raw, scope, resource, expires=None, client_id=None):
 def test_no_token_gets_401_with_resource_metadata():
     response = _post(INIT)
     assert response.status_code == 401
+    # RFC 6750 section 3.1: no error code when no credentials were sent.
+    assert response.json() == {"detail": "Authentication required."}
+    assert "error=" not in response.headers["www-authenticate"]
     assert "resource_metadata=" in response.headers["www-authenticate"]
     assert (
         "/.well-known/oauth-protected-resource/mcp"
@@ -106,6 +109,7 @@ def test_no_token_gets_401_with_resource_metadata():
 def test_unknown_token_gets_401():
     response = _post(LIST, "does-not-exist")
     assert response.status_code == 401
+    assert response.json() == {"error": "invalid_token"}
     assert 'error="invalid_token"' in response.headers["www-authenticate"]
 
 
