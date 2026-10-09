@@ -540,7 +540,7 @@
         "groupByFieldLabel": "Pogrupuj wg."
     },
     "aggregationSortByForm": {
-        "sortByFieldLabel": "Sortuj według",
+        "sortByFieldLabel": "Sortuj wg.",
         "none": "Brak",
         "ascending": "Rosnąco",
         "descending": "Malejąco"
@@ -945,7 +945,9 @@
     },
     "applicationUserLimitNotification": {
         "titleWarning": "W obszarze {workspaceName} wykorzystano {usage} z {limit} dostępnych użytkowników aplikacji.",
-        "titleReached": "W obszarze {workspaceName} wykorzystano {limit} użytkowników aplikacji. Dopóki limit nie zostanie zwiększony, nie będzie można zalogować się do opublikowanych aplikacji."
+        "titleReached": "W obszarze {workspaceName} wykorzystano {limit} użytkowników aplikacji. Dopóki limit nie zostanie zwiększony, nie będzie można zalogować się do opublikowanych aplikacji.",
+        "titleWarningInstance": "W tej instalacji wykorzystano {usage} z {limit} dostępnych użytkowników aplikacji. Limit jest współdzielony przez wszystkie obszary robocze, w tym {workspaceName}.",
+        "titleReachedInstance": "Ta instalacja wyczerpała limit {limit} użytkowników aplikacji. Gdy limit zostanie przekroczony, a licencja nie zostanie zaktualizowana, to nie będzie można się zalogować do aplikacji opublikowanych w obszarach roboczych, w tym w {workspaceName}."
     },
     "selectAgentsList": {
         "searchPlaceholder": "Znajdź agentów...",
