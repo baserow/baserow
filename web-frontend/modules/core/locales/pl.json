@@ -34,7 +34,12 @@
         "general": "Ogólne",
         "people": "Osoby",
         "licenses": "Licencje",
-        "replayGuidedTour": "Powtórz wycieczkę po Baserow"
+        "replayGuidedTour": "Powtórz wycieczkę po Baserow",
+        "recents": "Ostatnio wyświetlane",
+        "allWorkspaces": "Wszystkie obszary robocze",
+        "recentlyViewed": "Niedawno wyświetlane",
+        "backToHome": "Powrót na stronę główną",
+        "templates": "Szablony"
     },
     "accountForm": {
         "nameLabel": "Twoje imię",
@@ -729,7 +734,8 @@
         "title": "Ustawienia obszaru roboczego"
     },
     "workspaceSettingType": {
-        "generativeAI": "Generatywna AI"
+        "generativeAI": "Generatywna AI",
+        "aiProviders": "Dostawcy AI"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
@@ -765,7 +771,39 @@
         "anthropicModelIdentifierDescription": "Wprowadź [identyfikator modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview), np. `claude-sonnet-5`, `claude-opus-4-8`lub `claude-haiku-4-5`.",
         "mistralModelIdentifierDescription": "Wprowadź [identyfikator modelu Mistral](https://docs.mistral.ai/models/), np. `mistral-large-latest`, `mistral-medium-latest` lub `mistral-small-latest`.",
         "ollamaModelIdentifierDescription": "Wprowadź identyfikator [modelu zainstalowanego w Ollama](https://ollama.com/library), np. `gemma3`, `qwen3` lub `llama3.3`.",
-        "openRouterModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenRouter](https://openrouter.ai/models), np. `openai/gpt-5.6` lub `anthropic/claude-sonnet-5`."
+        "openRouterModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenRouter](https://openrouter.ai/models), np. `openai/gpt-5.6` lub `anthropic/claude-sonnet-5`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "Klucz API lub tajny klucz dostępu",
+        "bedrockSecretDescription": "Wprowadź [klucz API Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) lub tajny klucz dostępu powiązany z ID klucza dostępu.",
+        "bedrockChangeSecret": "Zmień klucz API lub tajny klucz dostępu",
+        "bedrockSecretUpdateHint": "Wprowadź nowy klucz API lub tajny klucz dostępu. Wprowadź go ponownie za każdym razem, gdy dodasz lub usuniesz ID klucza dostępu.",
+        "bedrockAccessKeyIdLabel": "ID klucza dostępu",
+        "bedrockAccessKeyIdDescription": "[ID klucza dostępu IAM] (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html), który jest przypisany do tajnego klucza dostępu. Pozostaw puste, aby użyć klucza API Bedrock.",
+        "bedrockRegionLabel": "Region",
+        "bedrockRegionDescription": "Region AWS, w którym ma działać Bedrock, np. `eu-central-1`.",
+        "bedrockModelsLabel": "Włączone modele",
+        "bedrockModelsDescription": "Podaj [ID modeli lub profili wnioskowania Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`)`.",
+        "bedrockModelIdentifierDescription": "Wprowadź [ID profilu wnioskowania Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), np.`eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nowsze modele odrzucają ID modelu bazowego.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Klucz API",
+        "googleApiKeyDescription": "Wprowadź klucz API Google AI Studio. [Utwórz lub wyświetl klucz API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Włączone modele",
+        "googleModelsDescription": "Podaj [identyfikatory modeli Gemini](https://ai.google.dev/gemini-api/docs/models) , których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np. `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Wprowadź [identyfikator modelu Gemini](https://ai.google.dev/gemini-api/docs/models), np.: `gemini-3.6-flash` lub `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Klucz API",
+        "groqApiKeyDescription": "Wprowadź klucz API Groq. [Utwórz lub wyświetl klucz API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Włączone modele",
+        "groqModelsDescription": "Podaj [identyfikatory modeli Groq](https://console.groq.com/docs/models) , których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Wprowadź [identyfikator modelu Groq](https://console.groq.com/docs/models), np.: `openai/gpt-oss-120b` lub `openai/gpt-oss-20b`.",
+        "xai": "xAI",
+        "xaiApiKeyLabel": "Klucz API",
+        "xaiApiKeyDescription": "Wprowadź klucz API xAI. [Utwórz lub wyświetl klucz API](https://console.x.ai).",
+        "xaiModelsLabel": "Włączone modele",
+        "xaiModelsDescription": "Podaj [identyfikatory modeli xAI](https://docs.x.ai/developers/models), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `grok-4.3,grok-4.20-non-reasoning`.",
+        "xaiModelIdentifierDescription": "Wprowadź [identyfikator modelu xAI](https://docs.x.ai/developers/models), np.: `grok-4.3` or `grok-4.20-non-reasoning`.",
+        "zai": "Z.ai",
+        "zaiApiKeyLabel": "Klucz API"
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
@@ -1296,7 +1334,8 @@
         "showErrorLabel": "Wyświetl błąd",
         "downloadFullPayload": "Pobierz cały payload",
         "truncatedLabel": "[Skrócony wynik]",
-        "truncatedPayloadWarning": "Liczba wyświetlonych znaków: {size}. Pobierz cały payload, żeby go przejrzeć w całości."
+        "truncatedPayloadWarning": "Liczba wyświetlonych znaków: {size}. Pobierz cały payload, żeby go przejrzeć w całości.",
+        "noHtmlContent": "Ten e-mail nie zawiera treści w formacie HTML."
     },
     "workspaceOutdatedToast": {
         "title": "Zbyt wiele zmian",
@@ -1396,5 +1435,50 @@
         "previous": "Poprzedni film",
         "next": "Następny film",
         "close": "Zamknij"
+    },
+    "allWorkspaces": {
+        "title": "Twoje obszary robocze",
+        "searchResults": "Wynik wyszukiwania",
+        "searchPlaceholder": "Szukaj",
+        "allItems": "Wszystkie elementy",
+        "itemsSelected": "{count} rodzaj elementu | liczba rodzajów elementów: {count}",
+        "createWorkspace": "Utwórz obszar roboczy",
+        "expandedView": "Widok rozszerzony",
+        "compactView": "Widok kompaktowy",
+        "collapseAll": "Zwiń wszystko",
+        "expandAll": "Rozwiń wszystko",
+        "workspacesSection": "Obszary robocze",
+        "itemsSection": "Elementy",
+        "noResultsTitle": "Brak rezultatów",
+        "noResultsDescription": "Nie znaleziono żadnych wyników dla frazy „{search}”. Sprawdź pisownię lub użyj innych słów kluczowych.",
+        "clearSearch": "Wyczyść wyszukiwanie",
+        "membersCount": "0 członków | 1 członek | {count} członków",
+        "itemsCount": "0 elementów | 1 element | {count} elementy/ów",
+        "moreElements": "{count} element więcej | {count} elementy/ów więcej",
+        "noApplications": "Nie ma jeszcze żadnych konfiguratorów",
+        "noFilterMatches": "Żaden z elementów nie odpowiada wybranym rodzajom.",
+        "create": "Utwórz",
+        "members": "Członkowie zespołu",
+        "settings": "Ustawienia"
+    },
+    "recentlyViewed": {
+        "title": "Niedawno wyświetlane",
+        "yourItems": "Twoje elementy",
+        "name": "Nazwa",
+        "lastViewed": "Ostatnio wyświetlone",
+        "workspace": "Obszar roboczy",
+        "allWorkspaces": "Wszystkie obszary robocze",
+        "workspacesSelected": "{count} obszar roboczy | liczba obszarów roboczych: {count}",
+        "allItems": "Wszystkie elementy",
+        "itemTypesSelected": "{count} rodzaj elementu | liczba rodzajów elementów: {count}",
+        "tableView": "Tabela",
+        "cardsView": "Karty",
+        "loadMore": "Załaduj więcej",
+        "emptyTitle": "Ostatnio nic nie było wyświetlane",
+        "emptyDescription": "Tutaj są widoczne widoki, strony, pulpity oraz obszary robocze, które otwierasz.",
+        "noFilterMatchesTitle": "Żadne elementy nie są zgodne z wybranymi filtrami",
+        "noFilterMatchesDescription": "Spróbuj wybrać inny obszar roboczy lub rodzaj elementu.",
+        "clearFilters": "Wyczyść filtry",
+        "goToWorkspaces": "Przejdź do swoich obszarów roboczych"
     }
 }
