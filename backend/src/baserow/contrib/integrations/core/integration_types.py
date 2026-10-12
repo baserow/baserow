@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -54,7 +54,11 @@ class SMTPIntegrationType(IntegrationType):
     }
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        application: Optional[Any] = None,
+        instance: Optional[SMTPIntegration] = None,
     ) -> Dict[str, Any]:
         """
         STARTTLS and implicit SSL/TLS are two ways of encrypting the same
@@ -72,7 +76,9 @@ class SMTPIntegrationType(IntegrationType):
         elif values.get("use_tls"):
             values["use_ssl"] = False
 
-        return super().prepare_values(values, user)
+        return super().prepare_values(
+            values, user, application=application, instance=instance
+        )
 
     def deserialize_property(
         self,
