@@ -310,6 +310,69 @@ describe('builder realtime integration events', () => {
   })
 })
 
+describe('builder realtime agent events', () => {
+  const matchingIntegration = {
+    id: 5,
+    type: 'local_baserow',
+    authorized_subject: { id: 10, type: 'core.Agent' },
+  }
+  const builder = {
+    id: 1,
+    type: 'builder',
+    workspace: { id: 2 },
+    integrations: [matchingIntegration],
+  }
+
+  const buildAppStore = () => ({
+    getters: {
+      'application/getAll': [
+        builder,
+        {
+          id: 2,
+          type: 'builder',
+          workspace: { id: 3 },
+          integrations: [matchingIntegration],
+        },
+        {
+          id: 3,
+          type: 'automation',
+          workspace: { id: 2 },
+          integrations: [matchingIntegration],
+        },
+        {
+          id: 4,
+          type: 'builder',
+          workspace: { id: 2 },
+          integrations: [
+            {
+              ...matchingIntegration,
+              authorized_subject: { id: 11, type: 'core.Agent' },
+            },
+          ],
+        },
+      ],
+    },
+    dispatch: vi.fn(),
+  })
+
+  test.each([
+    ['agent_created', { workspace_id: 2, agent: { id: 10 } }],
+    ['agent_deleted', { workspace_id: 2, agent_id: 10 }],
+  ])(
+    '%s re-dispatches data sources using the authorized agent',
+    (event, data) => {
+      const handlers = getHandlers()
+      const store = buildAppStore()
+
+      handlers[event]({ store }, data)
+
+      expect(
+        dispatchedWith(store, 'dataSource/redispatchForIntegration')
+      ).toEqual([{ builder, integrationId: matchingIntegration.id }])
+    }
+  )
+})
+
 describe('builder realtime user source events', () => {
   const application = { id: 1 }
 
