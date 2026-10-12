@@ -61,8 +61,5 @@ export default (client) => {
     deleteScopedInvitation(scopedInvitationId) {
       return client.delete(`/role/invitations/${scopedInvitationId}/`)
     },
-    getScopedInvitationsByToken(token) {
-      return client.get(`/role/invitations/token/${token}/`)
-    },
   }
 }

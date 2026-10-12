@@ -9,7 +9,6 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceInvitation
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
@@ -237,54 +236,3 @@ def test_delete_scoped_invitation(api_client, data_fixture):
     assert response.status_code == HTTP_204_NO_CONTENT
     assert list(WorkspaceScopedInvitation.objects.all()) == [second]
     assert WorkspaceInvitation.objects.filter(id=first.invitation_id).exists()
-
-
-@pytest.mark.django_db
-def test_get_scoped_invitations_by_token(api_client, data_fixture):
-    user, token, workspace, database, table = setup_workspace(data_fixture)
-    view = data_fixture.create_grid_view(table=table, user=user)
-    first = create_scoped_invitation(user, workspace, table)
-    second = RoleAssignmentHandler().create_scoped_invitation(
-        user, workspace, "foo@bar.com", Role.objects.get(uid="VIEWER"), view, BASE_URL
-    )
-    invitation_token = (
-        CoreHandler().get_workspace_invitation_signer().dumps(first.invitation_id)
-    )
-
-    response = api_client.get(
-        reverse(
-            "api:enterprise:role:scoped_invitations_by_token",
-            kwargs={"token": invitation_token},
-        )
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == [
-        {
-            "id": first.id,
-            "role": "EDITOR",
-            "scope_type": "database_table",
-            "scope_id": table.id,
-            "application_id": database.id,
-            "table_id": table.id,
-            "view_id": None,
-        },
-        {
-            "id": second.id,
-            "role": "VIEWER",
-            "scope_type": "database_view",
-            "scope_id": view.id,
-            "application_id": database.id,
-            "table_id": table.id,
-            "view_id": view.id,
-        },
-    ]
-
-    response = api_client.get(
-        reverse(
-            "api:enterprise:role:scoped_invitations_by_token",
-            kwargs={"token": "not-a-token"},
-        )
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "BAD_TOKEN_SIGNATURE"

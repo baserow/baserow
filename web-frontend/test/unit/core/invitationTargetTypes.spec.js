@@ -32,7 +32,9 @@ describe('WorkspaceInvitationTargetType', () => {
         { uid: 'ADMIN', isVisible: true },
       ])
       expect(targetType.getTitle(workspace, { type: 'workspace' })).toBeNull()
-      expect(targetType.getSubtitle(workspace, { type: 'workspace' })).toBeNull()
+      expect(
+        targetType.getSubtitle(workspace, { type: 'workspace' })
+      ).toBeNull()
 
       const result = await targetType.sendInvitation(
         workspace,
@@ -52,7 +54,6 @@ describe('WorkspaceInvitationTargetType', () => {
       expect(body.base_url).toBe('http://localhost/workspace-invitation')
       expect(body.captcha_token).toBe('a-token')
       expect(busEmit).toHaveBeenCalledWith('invite-submitted', invitation)
-      expect(await targetType.getLandingRoute('token', invitation)).toBeNull()
     } finally {
       vi.restoreAllMocks()
       await testApp.afterEach()

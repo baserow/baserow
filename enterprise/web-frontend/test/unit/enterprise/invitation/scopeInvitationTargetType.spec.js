@@ -118,31 +118,6 @@ describe('ScopeInvitationTargetType', () => {
       base_url: 'http://localhost/workspace-invitation',
     })
   })
-
-  test('lands the invitee on the first table or view of the invitation', async () => {
-    const client = {
-      get: vi.fn().mockResolvedValue({
-        data: [
-          { application_id: 3, table_id: null, view_id: null },
-          { application_id: 3, table_id: 5, view_id: 9 },
-        ],
-      }),
-    }
-    const targetType = new ScopeInvitationTargetType({ app: createApp(client) })
-
-    expect(await targetType.getLandingRoute('the-token')).toEqual({
-      name: 'database-table',
-      params: { databaseId: 3, tableId: 5, viewId: 9 },
-    })
-    expect(client.get).toHaveBeenCalledWith(
-      '/role/invitations/token/the-token/'
-    )
-
-    client.get.mockResolvedValue({
-      data: [{ application_id: 3, table_id: null, view_id: null }],
-    })
-    expect(await targetType.getLandingRoute('the-token')).toBeNull()
-  })
 })
 
 describe('MemberInvitationRouteType', () => {

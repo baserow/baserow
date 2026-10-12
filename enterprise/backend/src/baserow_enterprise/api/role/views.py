@@ -6,8 +6,7 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from itsdangerous.exc import BadSignature
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -18,15 +17,11 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.errors import (
-    BAD_TOKEN_SIGNATURE,
     ERROR_GROUP_DOES_NOT_EXIST,
     ERROR_HOSTNAME_IS_NOT_ALLOWED,
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.schemas import get_error_schema
-from baserow.api.workspaces.invitations.errors import (
-    ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
-)
 from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
@@ -38,7 +33,6 @@ from baserow.core.exceptions import (
     SubjectTypeNotExist,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
-    WorkspaceInvitationDoesNotExist,
     WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
@@ -85,7 +79,6 @@ from .serializers import (
     OpenApiRoleAssignmentSerializer,
     RoleAssignmentSerializer,
     ScopedInvitationSerializer,
-    ScopedInvitationTargetSerializer,
     UpdateScopedInvitationSerializer,
 )
 
@@ -620,46 +613,3 @@ class ScopedInvitationView(APIView):
         scoped_invitation = handler.get_scoped_invitation(scoped_invitation_id)
         handler.delete_scoped_invitation(request.user, scoped_invitation)
         return Response(status=204)
-
-
-class ScopedInvitationsByTokenView(APIView):
-    """Tells where an invitation leads, for the page that welcomes the invitee."""
-
-    permission_classes = (AllowAny,)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="token",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.STR,
-                description="The signed token of the workspace invitation.",
-            )
-        ],
-        tags=["Role assignments"],
-        operation_id="get_scoped_invitations_by_token",
-        description=(
-            "Lists the scopes the workspace invitation with the provided token grants "
-            "a role on, with the ids needed to navigate to them. Empty for a plain "
-            "workspace invitation."
-        ),
-        responses={
-            200: ScopedInvitationTargetSerializer(many=True),
-            400: get_error_schema(["BAD_TOKEN_SIGNATURE"]),
-            404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
-        },
-    )
-    @map_exceptions(
-        {
-            BadSignature: BAD_TOKEN_SIGNATURE,
-            WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
-        }
-    )
-    def get(self, request: Request, token: str) -> Response:
-        invitation = CoreHandler().get_workspace_invitation_by_token(token)
-        scoped_invitations = invitation.scoped_invitations.select_related(
-            "role", "scope_type"
-        )
-        return Response(
-            ScopedInvitationTargetSerializer(scoped_invitations, many=True).data
-        )

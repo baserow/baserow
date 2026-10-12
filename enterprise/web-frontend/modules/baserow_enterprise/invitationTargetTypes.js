@@ -88,27 +88,4 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     })
     return data
   }
-
-  /**
-   * Sends the invitee to the first object the invitation grants a role on. Only
-   * tables and views have a page of their own, an application target leaves the
-   * invitee on the workspace page where the application is listed.
-   */
-  async getLandingRoute(token) {
-    const { data: targets } = await RoleAssignmentsService(
-      this.app.$client
-    ).getScopedInvitationsByToken(token)
-    const target = targets.find(({ table_id: tableId }) => tableId !== null)
-    if (!target) {
-      return null
-    }
-    const params = {
-      databaseId: target.application_id,
-      tableId: target.table_id,
-    }
-    if (target.view_id !== null) {
-      params.viewId = target.view_id
-    }
-    return { name: 'database-table', params }
-  }
 }

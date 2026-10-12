@@ -6,7 +6,7 @@
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 const route = useRoute()
-const { $store: store, $client, $registry } = useNuxtApp()
+const { $store: store, $client } = useNuxtApp()
 
 const token = route.params.token
 
@@ -42,22 +42,6 @@ if (invitation.value) {
     store.getters['auth/getUsername'] === inv.email
   ) {
     try {
-      // An invitation can lead to one object of the workspace instead of the
-      // workspace itself. The target types know where, and must be asked before
-      // accepting because the invitation is deleted afterwards. A failing lookup
-      // must not stand in the way of accepting the invitation.
-      let landingRoute = null
-      for (const targetType of $registry.getOrderedList('invitationTarget')) {
-        try {
-          landingRoute = await targetType.getLandingRoute(token, inv)
-        } catch {
-          landingRoute = null
-        }
-        if (landingRoute) {
-          break
-        }
-      }
-
       // Accept the invitation - returns the workspace data
       const { data: workspace } = await WorkspaceService(
         $client
@@ -67,12 +51,9 @@ if (invitation.value) {
       store.commit('workspace/SET_LOADED', false)
       store.commit('application/SET_LOADED', false)
 
-      // Redirect to the object the invitation leads to, or the workspace.
+      // Redirect to the specific workspace
       await navigateTo(
-        landingRoute || {
-          name: 'workspace',
-          params: { workspaceId: workspace.id },
-        },
+        { name: 'workspace', params: { workspaceId: workspace.id } },
         { replace: true }
       )
     } catch {

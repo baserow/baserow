@@ -51,19 +51,6 @@ export class InvitationTargetType extends Registerable {
       'The send invitation of an invitation target type must be set.'
     )
   }
-
-  /**
-   * Where the invitee is sent after accepting the invitation with the given token,
-   * as a router location. Called before the invitation is accepted, because the
-   * invitation is deleted afterwards. Null leaves the decision to the next
-   * registered target type, and finally to the workspace page.
-   *
-   * @param {string} token The signed invitation token from the email.
-   * @param {Object} invitation The invitation fetched with the token.
-   */
-  async getLandingRoute(token, invitation) {
-    return null
-  }
 }
 
 export class WorkspaceInvitationTargetType extends InvitationTargetType {

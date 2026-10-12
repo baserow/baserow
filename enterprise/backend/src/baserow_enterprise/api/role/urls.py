@@ -3,7 +3,6 @@ from django.urls import re_path
 from .views import (
     BatchRoleAssignmentsView,
     RoleAssignmentsView,
-    ScopedInvitationsByTokenView,
     ScopedInvitationsView,
     ScopedInvitationView,
 )
@@ -30,10 +29,5 @@ urlpatterns = [
         r"^invitations/(?P<scoped_invitation_id>[0-9]+)/$",
         ScopedInvitationView.as_view(),
         name="scoped_invitation",
-    ),
-    re_path(
-        r"^invitations/token/(?P<token>.*)/$",
-        ScopedInvitationsByTokenView.as_view(),
-        name="scoped_invitations_by_token",
     ),
 ]
