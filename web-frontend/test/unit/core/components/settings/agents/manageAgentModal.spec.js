@@ -325,6 +325,46 @@ describe('ManageAgentModal', () => {
     wrapper.unmount()
   })
 
+  test('does not create an agent with a whitespace-only name', async () => {
+    const dispatch = vi.fn()
+    const wrapper = await mountSuspended(ManageAgentModal, {
+      props: { workspace: { id: 12, _: { roles: [] } } },
+      global: {
+        mocks: {
+          $registry: { getOrderedList: () => [generalSetting] },
+          $store: { dispatch },
+          $t: (key) => key,
+        },
+        stubs: {
+          Modal: modalStub,
+          Error: true,
+          FormGroup: { template: '<div><slot /></div>' },
+          FormInput: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template:
+              '<input class="name-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+            methods: { focus() {} },
+          },
+          Button: ButtonStub,
+          WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
+        },
+      },
+    })
+
+    try {
+      await wrapper.find('.name-input').setValue('   ')
+      const create = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'agents.create')
+      expect(create.attributes('disabled')).toBeDefined()
+      await wrapper.find('form').trigger('submit')
+      expect(dispatch).not.toHaveBeenCalled()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   test('hides commercial information in its role selector', async () => {
     const wrapper = await mountSuspended(ManageAgentModal, {
       props: {

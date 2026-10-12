@@ -56,7 +56,7 @@
             type="primary"
             button-type="submit"
             :loading="loading"
-            :disabled="loading || (isUpdate ? !hasChanges : !values.name)"
+            :disabled="loading || (isUpdate ? !hasChanges : !hasValidName)"
           >
             {{ isUpdate ? $t('agents.save') : $t('agents.create') }}
           </Button>
@@ -132,6 +132,9 @@ export default {
     hasChanges() {
       return Object.keys(this.changedValues).length > 0
     },
+    hasValidName() {
+      return this.values.name.trim().length > 0
+    },
     createSettings() {
       return this.registeredSettings.filter((setting) => setting.showInCreate)
     },
@@ -186,7 +189,12 @@ export default {
     },
     /** Submit only the active page while editing, or every page when creating. */
     async submit() {
-      if (this.loading || (this.isUpdate && !this.hasChanges)) return
+      if (
+        this.loading ||
+        (this.isUpdate && !this.hasChanges) ||
+        (!this.isUpdate && !this.hasValidName)
+      )
+        return
       const openingGeneration = this.openingGeneration
       this.loading = true
       this.success = false
