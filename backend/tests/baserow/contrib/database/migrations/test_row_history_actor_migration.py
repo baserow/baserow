@@ -9,7 +9,7 @@ def test_row_history_actor_types_are_backfilled_in_batches(migrator, monkeypatch
     """Existing row history keeps users and identifies anonymous actors."""
 
     migration = import_module(
-        "baserow.contrib.database.migrations.0226_rowhistory_actor"
+        "baserow.contrib.database.migrations.0227_backfill_rowhistory_anonymous_actor_type"
     )
     monkeypatch.setattr(migration, "ROW_HISTORY_BACKFILL_BATCH_SIZE", 2)
 
@@ -56,7 +56,9 @@ def test_row_history_actor_types_are_backfilled_in_batches(migrator, monkeypatch
         for index in range(3)
     ]
 
-    new_state = migrator.migrate([("database", "0226_rowhistory_actor")])
+    new_state = migrator.migrate(
+        [("database", "0227_backfill_rowhistory_anonymous_actor_type")]
+    )
     RowHistory = new_state.apps.get_model("database", "RowHistory")
 
     assert RowHistory.objects.get(id=user_entry.id).actor_type == "auth.User"
