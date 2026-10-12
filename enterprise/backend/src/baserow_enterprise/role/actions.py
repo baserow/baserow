@@ -212,8 +212,8 @@ class CreateScopedInvitationActionType(ActionType):
     description = ActionTypeDescription(
         _("Create scoped invitation"),
         _(
-            'Invitation created for "%(email)s" to join "%(workspace_name)s" '
-            '(%(workspace_id)s) as %(role_uid)s on "%(scope_type_name)s" '
+            'Invitation created for "%(email)s" to join "%(group_name)s" '
+            '(%(group_id)s) as %(role_uid)s on "%(scope_type_name)s" '
             "(%(scope_id)s)."
         ),
     )
