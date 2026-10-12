@@ -50,6 +50,13 @@ export default {
       type: Object,
       required: true,
     },
+    /**
+     * The roles offered in the role selector, in the shape of `workspace._.roles`.
+     */
+    roles: {
+      type: Array,
+      required: true,
+    },
   },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
@@ -64,9 +71,6 @@ export default {
     }
   },
   computed: {
-    roles() {
-      return this.workspace._.roles.filter((role) => role.isVisible)
-    },
     defaultRole() {
       const activeRoles = this.roles.filter((role) => !role.isDeactivated)
       return activeRoles.length > 0 ? activeRoles[activeRoles.length - 1] : null

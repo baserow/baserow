@@ -83,3 +83,9 @@ ERROR_LAST_ADMIN_OF_GROUP = (
     HTTP_400_BAD_REQUEST,
     "You can't remove the last admin of a workspace.",
 )
+
+ERROR_SCOPED_INVITATION_DOES_NOT_EXIST = (
+    "ERROR_SCOPED_INVITATION_DOES_NOT_EXIST",
+    HTTP_404_NOT_FOUND,
+    "The requested scoped invitation does not exist.",
+)

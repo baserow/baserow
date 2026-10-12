@@ -1,0 +1,149 @@
+.share-scope-input__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.share-scope-input__field {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 1px solid $palette-neutral-200;
+  cursor: text;
+
+  @include rounded($rounded-md);
+
+  &.share-scope-input__field--focused {
+    border-color: $palette-neutral-900;
+  }
+}
+
+.share-scope-input__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+  background-color: rgba($palette-neutral-1300, 0.06);
+
+  @include rounded($rounded-md);
+}
+
+.share-scope-input__chip-icon {
+  font-size: 14px;
+  color: $palette-neutral-900;
+}
+
+.share-scope-input__chip-remove {
+  display: inline-flex;
+  color: $palette-neutral-900;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.share-scope-input__input {
+  flex: 1 1 120px;
+  min-width: 120px;
+  height: 28px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+}
+
+.share-scope-input__role {
+  flex: 0 0 170px;
+}
+
+.share-scope-input__results {
+  margin-top: 8px;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.share-scope-input__tabs {
+  display: flex;
+  gap: 20px;
+  padding: 0 12px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.share-scope-input__tab {
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-900;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1200;
+  }
+
+  &.share-scope-input__tab--active {
+    color: $palette-neutral-1200;
+    border-bottom-color: $palette-neutral-1200;
+  }
+}
+
+.share-scope-input__list {
+  max-height: 260px;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.share-scope-input__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba($palette-neutral-1300, 0.04);
+  }
+}
+
+.share-scope-input__item--pending {
+  cursor: default;
+
+  &:hover {
+    background-color: transparent;
+  }
+}
+
+.share-scope-input__item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-scope-input__item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.share-scope-input__item-subtitle {
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.share-scope-input__empty {
+  padding: 16px 12px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}

@@ -335,27 +335,48 @@
       "description": "Get default workspace role from their teams."
     }
   },
-  "memberRolesModal": {
-    "memberRolesDatabaseTabTitle": "Database",
-    "memberRolesTableTabTitle": "Table",
-    "memberRolesViewTabTitle": "View",
+  "inviteModal": {
+    "memberRoute": "Invite members"
+  },
+  "scopeInvitationTarget": {
+    "title": "Share {name}",
+    "application": "Application",
+    "table": "Table",
+    "view": "View"
+  },
+  "shareScope": {
+    "searchPlaceholder": "Search members, teams, agents, or type an email",
+    "searchPlaceholderWithoutAgents": "Search members, teams, or type an email",
+    "add": "Add",
+    "addAs": "Add {count} as {role}",
+    "tabAll": "All",
+    "tabMembers": "Members",
+    "tabTeams": "Teams",
+    "tabAgents": "Agents",
+    "inviteEmail": "Invite {email}",
+    "inviteEmailDescription": "Gets {role} role on this {type} only - no workspace role",
+    "alreadyInvited": "An invitation is already pending on this {type}",
+    "noResults": "No members, teams or agents match. Type a full email address to invite someone new.",
+    "noResultsWithoutAgents": "No members or teams match. Type a full email address to invite someone new.",
+    "directAccess": "Direct access on this {type}",
+    "emptyTitle": "No one has a role set on this {type} yet.",
+    "emptyDescription": "Everyone below inherits access from higher levels.",
+    "invitePending": "Invite pending",
+    "noWorkspaceRole": "No workspace role - this {type} only",
+    "teamBadge": "Team",
+    "teamMembers": "{count} members",
+    "agentBadge": "Agent",
+    "inheritedAccess": "Also has access",
+    "inherited": "(inherited)",
+    "everyoneAt": "Everyone at {name}",
+    "roleCount": "{count} {role}",
+    "fromWorkspace": "From workspace",
+    "fromWorkspaceExplanation": "Everyone keeps their workspace role on everything inside the workspace, including this {type}.",
+    "manageWorkspaceRoles": "Manage workspace roles",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."
     }
-  },
-  "memberRolesTab": {
-    "title": "{name} {type}",
-    "selectMembers": "Select members",
-    "everyoneHasAccess": "Everyone at {name} workspace can access this {type}.",
-    "onlyYouHaveAccess": "Only you can access this {type}.",
-    "warningTitle": "Other users might inherit access!",
-    "warningMessage": "Other users might inherit access via their respective roles on the parent {parent}.",
-    "headerTooltip": "Roles on this {type} will override {overrides} roles."
-  },
-  "memberRolesShareToggle": {
-    "label": "Share with everyone at {name}",
-    "subLabel": "{totalUserAmount} workspace members"
   },
   "memberRolesDatabaseContexItem": {
     "label": "Manage members",
@@ -365,43 +386,9 @@
     "label": "Manage members",
     "additionalRoles": "Additional roles"
   },
-  "memberRolesMembersList": {
-    "remove": "Remove",
-    "teamMembersCount": "{count} team members",
-    "adminHelpText": "Admins can restrict other admins roles.",
-    "noMembers": "No members have been selected. Use the select button to add one."
-  },
-  "roleAssignmentModal": {
-    "membersTab": "Members",
-    "agentsTab": "Agents",
-    "teamsTab": "Teams",
-    "subjectTypeNameMembers": "members",
-    "subjectTypeNameTeams": "teams"
-  },
-  "selectMembersList": {
-    "searchPlaceholder": "Find members...",
-    "selectedAmountLabel": "{count} members selected"
-  },
-  "selectTeamsList": {
-    "searchPlaceholder": "Find teams...",
-    "selectedAmountLabel": "{count} teams selected"
-  },
-  "selectAgentsList": {
-    "searchPlaceholder": "Find agents...",
-    "selectedAmountLabel": "{count} agents selected"
-  },
   "subjectType": {
     "team": "Team",
     "teams": "Teams"
-  },
-  "selectSubjectsListFooter": {
-    "invite": "Invite {count} {type}",
-    "types": {
-      "members": "members",
-      "agents": "agents",
-      "teams": "teams"
-    },
-    "helpTooltip": "Member and Agent role assignments override team role assignments."
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",

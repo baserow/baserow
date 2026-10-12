@@ -1,0 +1,56 @@
+.scope-access-list__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scope-access-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+
+  // Rows are separated from each other, the list has no rule of its own.
+  & + & {
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+.scope-access-list__subject {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.scope-access-list__name {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.scope-access-list__subtitle {
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.scope-access-list__empty {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+  border: 1px dashed $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.scope-access-list__context {
+  max-width: 320px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 20px;
+}

@@ -26,17 +26,21 @@ export class InvitationRouteType extends Registerable {
 
   /**
    * The component rendered in the modal content when the route is active. It
-   * receives the `workspace` prop and must emit `submitted` with the created
-   * invitation once it has been sent, so the modal can close.
+   * receives the `workspace`, `target` and `targetType` props and must emit
+   * `submitted` with the created invitation once it has been sent, so the modal
+   * can close.
    */
   getComponent() {
     throw new Error('The component of an invitation route type must be set.')
   }
 
   /**
-   * Whether the route is offered for the given workspace.
+   * Whether the route is offered for the given workspace and invitation target.
+   *
+   * @param {Object} workspace The workspace the modal was opened in.
+   * @param {Object} target The target the modal was opened with, `{ type, ... }`.
    */
-  isEnabled(workspace) {
+  isEnabled(workspace, target) {
     return true
   }
 
@@ -58,9 +62,18 @@ export class InvitationRouteType extends Registerable {
   }
 }
 
+/**
+ * Invites someone into the workspace by email. Objects inside the workspace get
+ * their own route that combines existing members and new email addresses, so this
+ * one is only offered for the workspace itself.
+ */
 export class EmailInvitationRouteType extends InvitationRouteType {
   static getType() {
     return 'email'
+  }
+
+  isEnabled(workspace, target) {
+    return target.type === 'workspace'
   }
 
   getIconClass() {
@@ -97,7 +110,7 @@ export class LinkInvitationRouteType extends InvitationRouteType {
     return LinkInvitationRoute
   }
 
-  isEnabled(workspace) {
+  isEnabled(workspace, target) {
     return this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
   }
 

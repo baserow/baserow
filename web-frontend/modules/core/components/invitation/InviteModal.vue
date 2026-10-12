@@ -15,11 +15,18 @@
       </ul>
     </template>
     <template #content>
+      <div v-if="title" class="invite-modal__header">
+        <h2 class="invite-modal__title">{{ title }}</h2>
+        <div v-if="subtitle" class="invite-modal__subtitle">{{ subtitle }}</div>
+      </div>
       <component
         :is="activeRouteComponent"
         v-if="activeRouteComponent"
         :workspace="workspace"
+        :target="target"
+        :target-type="targetType"
         @submitted="submitted"
+        @close="hide()"
       ></component>
     </template>
   </Modal>
@@ -29,9 +36,12 @@
 import modal from '@baserow/modules/core/mixins/modal'
 
 /**
- * The common modal to invite people into a workspace. The routes listed in the
- * left sidebar come from the `invitationRoute` registry, so other modules can
- * add their own without changing this component.
+ * The common modal to invite people into a workspace, or into one object of it
+ * when opened with a more specific target. The routes listed in the left sidebar
+ * come from the `invitationRoute` registry and the behaviour of the target from
+ * the `invitationTarget` registry, so other modules can add their own without
+ * changing this component. A route emits `submitted` with the created invitation
+ * to close the modal after an invitation, or `close` to simply close it.
  */
 export default {
   name: 'InviteModal',
@@ -41,6 +51,15 @@ export default {
       type: Object,
       required: true,
     },
+    /**
+     * What people are invited to: `{ type: 'workspace' }` by default, or a target
+     * registered by another module such as `{ type: 'scope', scopeType, scope }`.
+     */
+    target: {
+      type: Object,
+      required: false,
+      default: () => ({ type: 'workspace' }),
+    },
   },
   emits: ['invite-submitted'],
   data() {
@@ -49,10 +68,19 @@ export default {
     }
   },
   computed: {
+    targetType() {
+      return this.$registry.get('invitationTarget', this.target.type)
+    },
+    title() {
+      return this.targetType.getTitle(this.workspace, this.target)
+    },
+    subtitle() {
+      return this.targetType.getSubtitle(this.workspace, this.target)
+    },
     invitationRoutes() {
       return this.$registry
         .getOrderedList('invitationRoute')
-        .filter((route) => route.isEnabled(this.workspace))
+        .filter((route) => route.isEnabled(this.workspace, this.target))
     },
     activeRouteComponent() {
       const route = this.invitationRoutes.find(
@@ -67,7 +95,6 @@ export default {
       return modal.methods.show.call(this, ...args)
     },
     submitted(invitation) {
-      this.$bus.$emit('invite-submitted', invitation)
       this.$emit('invite-submitted', invitation)
       this.hide()
     },

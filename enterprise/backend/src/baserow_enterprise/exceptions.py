@@ -32,3 +32,7 @@ class ScopeNotExist(Exception):
 
 class RoleNotExist(Exception):
     """Raised when trying to retrieve a role that does not exist."""
+
+
+class ScopedInvitationDoesNotExist(Exception):
+    """Raised when the requested scoped invitation does not exist."""

@@ -9,7 +9,12 @@ from rest_framework import serializers
 from baserow.api.serializers import NaturalKeyRelatedField
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
-from baserow_enterprise.models import Role, RoleAssignment, Team
+from baserow_enterprise.models import (
+    Role,
+    RoleAssignment,
+    Team,
+    WorkspaceScopedInvitation,
+)
 
 
 class SubjectTeamSerializer(serializers.ModelSerializer):
@@ -227,3 +232,165 @@ class GetRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
         except ObjectDoesNotExist:
             raise ScopeNotExist()
         return result
+
+
+class ScopedInvitationSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a pending invitation that grants a role on one scope, used for
+    managing them.
+    """
+
+    email = serializers.EmailField(source="invitation.email", read_only=True)
+    invitation_id = serializers.IntegerField(read_only=True)
+    role = RoleField(
+        model=Role,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    class Meta:
+        model = WorkspaceScopedInvitation
+        fields = (
+            "id",
+            "invitation_id",
+            "email",
+            "role",
+            "scope_id",
+            "scope_type",
+            "created_on",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "created_on": {"read_only": True},
+        }
+
+
+class CreateScopedInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        help_text="The email address of the person that is invited to the scope."
+    )
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The ID of the scope object the role is granted on.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+    base_url = serializers.URLField(
+        help_text="The base URL where the user can publicly accept the invitation. "
+        "The accept token is going to be appended to the base_url (base_url + "
+        "'/token')."
+    )
+    captcha_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The captcha token proving the request comes from a person, only "
+        "required if a captcha provider is enabled for workspace invitations.",
+    )
+
+    def to_internal_value(self, data):
+        """
+        Populate the scope with the actual object.
+        """
+
+        try:
+            result = super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+        try:
+            result["scope"] = result["scope_type"].get_object_for_this_type(
+                id=result["scope_id"]
+            )
+        except ObjectDoesNotExist:
+            raise ScopeNotExist()
+        return result
+
+
+class UpdateScopedInvitationSerializer(serializers.Serializer):
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+
+
+class ScopedInvitationTargetSerializer(serializers.ModelSerializer):
+    """
+    Describes where a scoped invitation leads, for the page that welcomes the invited
+    person. The parent ids let the frontend build the route to the object.
+    """
+
+    role = RoleField(model=Role, help_text="The uid of the role granted on the scope.")
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+    application_id = serializers.SerializerMethodField(
+        help_text="The application the scope belongs to, or is."
+    )
+    table_id = serializers.SerializerMethodField(
+        help_text="The table the scope belongs to, or is. Null for an application."
+    )
+    view_id = serializers.SerializerMethodField(
+        help_text="The view when the scope is a view, null otherwise."
+    )
+
+    class Meta:
+        model = WorkspaceScopedInvitation
+        fields = (
+            "id",
+            "role",
+            "scope_type",
+            "scope_id",
+            "application_id",
+            "table_id",
+            "view_id",
+        )
+
+    def _get_target_ids(self, obj):
+        if not hasattr(obj, "_target_ids"):
+            ids = {"application_id": None, "table_id": None, "view_id": None}
+            scope = obj.scope
+            if scope is not None:
+                scope_type_name = object_scope_type_registry.get_by_model(scope).type
+                if scope_type_name == "application":
+                    ids["application_id"] = scope.id
+                elif scope_type_name == "database_table":
+                    ids["application_id"] = scope.database_id
+                    ids["table_id"] = scope.id
+                elif scope_type_name == "database_view":
+                    ids["application_id"] = scope.table.database_id
+                    ids["table_id"] = scope.table_id
+                    ids["view_id"] = scope.id
+            obj._target_ids = ids
+        return obj._target_ids
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_application_id(self, obj):
+        return self._get_target_ids(obj)["application_id"]
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_table_id(self, obj):
+        return self._get_target_ids(obj)["table_id"]
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_view_id(self, obj):
+        return self._get_target_ids(obj)["view_id"]

@@ -5,6 +5,7 @@
     <WorkspaceInviteForm
       ref="inviteForm"
       :workspace="workspace"
+      :roles="roles"
       @submitted="inviteSubmitted"
     >
       <template #default>
@@ -38,7 +39,6 @@
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
@@ -50,6 +50,14 @@ export default {
       type: Object,
       required: true,
     },
+    target: {
+      type: Object,
+      required: true,
+    },
+    targetType: {
+      type: Object,
+      required: true,
+    },
   },
   emits: ['submitted'],
   data() {
@@ -57,6 +65,11 @@ export default {
       inviteLoading: false,
       captchaToken: '',
     }
+  },
+  computed: {
+    roles() {
+      return this.targetType.getRoles(this.workspace, this.target)
+    },
   },
   methods: {
     async inviteSubmitted(values) {
@@ -67,12 +80,13 @@ export default {
         // The public accept url is the page where the user can publicly navigate too,
         // to accept the workspace invitation.
         const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
-        const { data } = await WorkspaceService(this.$client).sendInvitation(
-          this.workspace.id,
-          acceptUrl,
-          { ...values, captchaToken: this.captchaToken }
+        const invitation = await this.targetType.sendInvitation(
+          this.workspace,
+          this.target,
+          { ...values, captchaToken: this.captchaToken },
+          acceptUrl
         )
-        this.$emit('submitted', data)
+        this.$emit('submitted', invitation)
       } catch (error) {
         // The captcha token can only be used once, so a new one must be solved
         // before the invitation can be sent again.

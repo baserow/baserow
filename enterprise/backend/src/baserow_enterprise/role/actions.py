@@ -9,16 +9,18 @@ from django.utils.translation import gettext_lazy as _
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
+    ActionType,
     ActionTypeDescription,
     UndoableActionType,
 )
-from baserow.core.action.scopes import WorkspaceActionScopeType
+from baserow.core.action.scopes import RootActionScopeType, WorkspaceActionScopeType
 from baserow.core.models import Workspace
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
+from baserow.core.types import ScopeObject
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.types import NewRoleAssignment
 
-from .models import RoleAssignment
+from .models import Role, RoleAssignment, WorkspaceScopedInvitation
 from .types import AssignmentTuple
 
 
@@ -203,3 +205,69 @@ class BatchAssignRoleActionType(UndoableActionType):
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
         cls.undo_redo(user, params, undo=False)
+
+
+class CreateScopedInvitationActionType(ActionType):
+    type = "create_scoped_invitation"
+    description = ActionTypeDescription(
+        _("Create scoped invitation"),
+        _(
+            'Invitation created for "%(email)s" to join "%(workspace_name)s" '
+            '(%(workspace_id)s) as %(role_uid)s on "%(scope_type_name)s" '
+            "(%(scope_id)s)."
+        ),
+    )
+    analytics_params = [
+        "workspace_id",
+        "role_uid",
+        "scope_type_name",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        email: str
+        role_uid: str
+        scope_type_name: str
+        scope_id: int
+        workspace_id: int
+        workspace_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        email: str,
+        role: Role,
+        scope: ScopeObject,
+        base_url: str,
+    ) -> WorkspaceScopedInvitation:
+        """
+        Invites an email address to one scope of the workspace and sends the
+        invitation email. Look into
+        `RoleAssignmentHandler.create_scoped_invitation` for further details.
+        """
+
+        scoped_invitation = RoleAssignmentHandler().create_scoped_invitation(
+            user, workspace, email, role, scope, base_url
+        )
+        scope_type = object_scope_type_registry.get_by_model(scope)
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                scoped_invitation.invitation.email,
+                role.uid,
+                scope_type.type,
+                scope.id,
+                workspace.id,
+                workspace.name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return scoped_invitation
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()

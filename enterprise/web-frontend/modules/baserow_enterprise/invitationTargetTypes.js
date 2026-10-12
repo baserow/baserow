@@ -1,0 +1,114 @@
+import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
+import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
+import { filterRoles } from '@baserow_enterprise/utils/roles'
+
+/**
+ * Invites people to one object of the workspace: an application, a table or a
+ * view. The target is `{ type: 'scope', scopeType, scope }` where `scopeType` is a
+ * role assignable scope type and `scope` the object itself. Invitees join the
+ * workspace without a workspace role and only get the chosen role on the object.
+ */
+export class ScopeInvitationTargetType extends InvitationTargetType {
+  static getType() {
+    return 'scope'
+  }
+
+  getRoles(workspace, { scopeType }) {
+    // Inviting someone to an object with no access on it is pointless, so that
+    // role is left out and the default becomes the lowest useful one.
+    return filterRoles(workspace._.roles, { scopeType }).filter(
+      (role) => role.uid !== 'NO_ACCESS'
+    )
+  }
+
+  getTitle(workspace, { scope }) {
+    return this.$t('scopeInvitationTarget.title', { name: scope.name })
+  }
+
+  /**
+   * Where the object lives, as "Workspace / Database / Table • Table".
+   */
+  getSubtitle(workspace, target) {
+    const path = [
+      workspace.name,
+      ...this.getParentNames(target),
+      target.scope.name,
+    ]
+    const typeName = this.getScopeTypeName(target.scopeType, target.scope)
+    return `${path.join(' / ')} • ${typeName}`
+  }
+
+  getParentNames({ scope, scopeType }) {
+    const getApplication = this.app.$store.getters['application/get']
+    if (scopeType === 'database_table') {
+      return [getApplication(scope.database_id)?.name].filter(Boolean)
+    }
+    if (scopeType === 'database_view') {
+      const table = this.app.$store.getters['table/get']?.(scope.table_id)
+      const database = table ? getApplication(table.database_id) : null
+      return [database?.name, table?.name].filter(Boolean)
+    }
+    return []
+  }
+
+  /**
+   * The human readable kind of the scope: "Table", "View", or for an application
+   * the name of its type such as "Database" or "Automation".
+   */
+  getScopeTypeName(scopeType, scope) {
+    if (scopeType === 'application') {
+      const applicationType = this.app.$registry.exists(
+        'application',
+        scope.type
+      )
+        ? this.app.$registry.get('application', scope.type)
+        : null
+      return (
+        applicationType?.getName() ||
+        this.$t('scopeInvitationTarget.application')
+      )
+    }
+    const names = {
+      database_table: this.$t('scopeInvitationTarget.table'),
+      database_view: this.$t('scopeInvitationTarget.view'),
+    }
+    return names[scopeType] || scopeType
+  }
+
+  async sendInvitation(workspace, { scope, scopeType }, values, acceptUrl) {
+    const { data } = await RoleAssignmentsService(
+      this.app.$client
+    ).createScopedInvitation(workspace.id, {
+      email: values.email,
+      roleUid: values.permissions,
+      scopeId: scope.id,
+      scopeType,
+      baseUrl: acceptUrl,
+      captchaToken: values.captchaToken,
+    })
+    return data
+  }
+
+  /**
+   * Sends the invitee to the first object the invitation grants a role on. Only
+   * tables and views have a page of their own, an application target leaves the
+   * invitee on the workspace page where the application is listed.
+   */
+  async getLandingRoute(token) {
+    const { data: targets } = await RoleAssignmentsService(
+      this.app.$client
+    ).getScopedInvitationsByToken(token)
+    const target = targets.find(({ table_id: tableId }) => tableId !== null)
+    if (!target) {
+      return null
+    }
+    const params = {
+      databaseId: target.application_id,
+      tableId: target.table_id,
+    }
+    if (target.view_id !== null) {
+      params.viewId = target.view_id
+    }
+    return { name: 'database-table', params }
+  }
+}

@@ -5,6 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import EmailInvitationRoute from '@baserow/modules/core/components/invitation/EmailInvitationRoute'
 import LinkInvitationRoute from '@baserow/modules/core/components/invitation/LinkInvitationRoute'
+import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
 
 const workspace = {
   id: 1,
@@ -35,6 +36,9 @@ describe('InviteModal', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    if (testApp.getRegistry().exists('invitationTarget', 'fake')) {
+      testApp.getRegistry().unregister('invitationTarget', 'fake')
+    }
     testApp.afterEach()
   })
 
@@ -85,6 +89,8 @@ describe('InviteModal', () => {
     expect(links[0].classes()).toContain('active')
     expect(wrapper.findComponent(EmailInvitationRoute).exists()).toBe(true)
     expect(wrapper.findComponent(LinkInvitationRoute).exists()).toBe(false)
+    // The workspace target has no header of its own.
+    expect(wrapper.find('.invite-modal__header').exists()).toBe(false)
   })
 
   test('hides a route that is not enabled for the workspace', async () => {
@@ -95,7 +101,9 @@ describe('InviteModal', () => {
     expect(getNavLinks(wrapper).map((link) => link.text())).toEqual([
       'inviteModal.emailRoute',
     ])
-    expect(getLinkRoute().isEnabled).toHaveBeenCalledWith(workspace)
+    expect(getLinkRoute().isEnabled).toHaveBeenCalledWith(workspace, {
+      type: 'workspace',
+    })
   })
 
   test('switches the content when another route is clicked', async () => {
@@ -109,6 +117,80 @@ describe('InviteModal', () => {
     expect(wrapper.findComponent(EmailInvitationRoute).exists()).toBe(false)
     expect(wrapper.html()).toContain('inviteModal.linkTitle')
     expect(wrapper.html()).toContain('inviteModal.linkEmptyTitle')
+  })
+
+  test('takes the roles and the request from the target type', async () => {
+    const sendInvitation = vi.fn().mockResolvedValue({ id: 7 })
+    class FakeInvitationTargetType extends InvitationTargetType {
+      static getType() {
+        return 'fake'
+      }
+
+      getRoles() {
+        return [
+          {
+            uid: 'VIEWER',
+            name: 'Fake viewer',
+            description: '',
+            isVisible: true,
+            isDeactivated: false,
+            isBillable: false,
+            showIsBillable: false,
+          },
+        ]
+      }
+
+      getTitle(workspace, target) {
+        return `Share ${target.name}`
+      }
+
+      getSubtitle() {
+        return 'Somewhere / Deep'
+      }
+
+      sendInvitation(...args) {
+        return sendInvitation(...args)
+      }
+    }
+    testApp
+      .getRegistry()
+      .register(
+        'invitationTarget',
+        new FakeInvitationTargetType({ app: testApp.getApp() })
+      )
+    const target = { type: 'fake', name: 'the fake object' }
+    // The email route only serves the workspace, so a route has to be enabled
+    // explicitly for the fake target.
+    vi.spyOn(
+      testApp.getRegistry().get('invitationRoute', 'email'),
+      'isEnabled'
+    ).mockReturnValue(true)
+
+    const wrapper = await testApp.mount(InviteModal, {
+      propsData: { workspace, target },
+    })
+    await wrapper.vm.show()
+    await flushPromises()
+
+    expect(wrapper.find('.invite-modal__title').text()).toBe(
+      'Share the fake object'
+    )
+    expect(wrapper.find('.invite-modal__subtitle').text()).toBe(
+      'Somewhere / Deep'
+    )
+    expect(wrapper.html()).toContain('Fake viewer')
+
+    await wrapper.find('input').setValue('test@example.com')
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(sendInvitation).toHaveBeenCalledWith(
+      workspace,
+      target,
+      { email: 'test@example.com', permissions: 'VIEWER', captchaToken: '' },
+      expect.stringContaining('/workspace-invitation')
+    )
+    expect(wrapper.emitted('invite-submitted')).toEqual([[{ id: 7 }]])
   })
 
   test('emits the invitation and closes after a successful invite', async () => {

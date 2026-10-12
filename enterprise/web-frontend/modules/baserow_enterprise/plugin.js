@@ -29,6 +29,8 @@ import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSet
 import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
 import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
+import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
+import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -180,6 +182,14 @@ export default defineNuxtPlugin({
       new EnterpriseTeamsAgentSettingsType(context)
     )
     $registry.register('subject', new TeamSubjectType(context))
+    $registry.register(
+      'invitationTarget',
+      new ScopeInvitationTargetType(context)
+    )
+    $registry.register(
+      'invitationRoute',
+      new MemberInvitationRouteType(context)
+    )
 
     $registry.register('job', new AuditLogExportJobType(context))
     $registry.register('job', new DataScanResultExportJobType(context))
