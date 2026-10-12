@@ -16,7 +16,7 @@ export class EnterpriseAdminRoleType extends AdminRoleType {
   }
 
   get allowedScopeTypes() {
-    return ['workspace', 'application', 'database_table', 'agent_builder_agent']
+    return ['workspace', 'application', 'database_table']
   }
 }
 
@@ -70,7 +70,7 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
   }
 
   get allowedScopeTypes() {
-    return ['workspace', 'application', 'database_table', 'agent_builder_agent']
+    return ['workspace', 'application', 'database_table']
   }
 }
 

@@ -123,9 +123,8 @@ class ImportExportConfig:
 
     copied_by: Optional["AbstractUser"] = None
     """
-    Who asked for this copy, on the paths where a person did: duplicating or
-    exporting an application, duplicating a table, or creating a snapshot.
-    An import from a file has nobody, and so does
+    Who asked for this copy, on the paths where a person did: duplicating a
+    table or an application. An import from a file has nobody, and so does
     installing a template. What is copied can carry a credential the asker may
     not read, and the serialized import path has no other way to know who to
     check that against.

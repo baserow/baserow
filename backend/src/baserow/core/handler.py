@@ -1842,19 +1842,32 @@ class CoreHandler:
             workspace_id=workspace.id
         ).order_by("order")
 
-        users_applications = CoreHandler().filter_queryset(
-            user,
-            ReadApplicationOperationType.type,
-            all_applications,
-            workspace=workspace,
+        users_applications = list(
+            CoreHandler()
+            .filter_queryset(
+                user,
+                ReadApplicationOperationType.type,
+                all_applications,
+                workspace=workspace,
+            )
+            .select_related("content_type")
         )
 
-        users_application_ids = list(users_applications.values_list("id", flat=True))
+        users_application_ids = {application.id for application in users_applications}
 
         # Check that all ordered ids can be ordered by the user
         for application_id in order:
             if application_id not in users_application_ids:
                 raise ApplicationNotInWorkspace(application_id)
+
+        requested_ids = set(order)
+        original_order = []
+        for application in users_applications:
+            application_type = application.get_type()
+            if application.id in requested_ids:
+                application_type.check_feature_flag()
+            if application_type.is_enabled():
+                original_order.append(application.id)
 
         new_order = Application.order_objects(all_applications, order)
 
@@ -1862,7 +1875,7 @@ class CoreHandler:
             self, workspace=workspace, order=new_order, user=user
         )
 
-        return users_application_ids
+        return original_order
 
     def delete_application(self, user: AbstractUser, application: Application):
         """

@@ -316,10 +316,9 @@ def broadcast_to_permitted_users(
     :return:
     """
 
-    from baserow.core.feature_flags import feature_flag_is_enabled
     from baserow.core.handler import CoreHandler
     from baserow.core.mixins import TrashableModelMixin
-    from baserow.core.models import Workspace, WorkspaceUser
+    from baserow.core.models import Application, Workspace, WorkspaceUser
     from baserow.core.registries import object_scope_type_registry
 
     try:
@@ -336,9 +335,6 @@ def broadcast_to_permitted_users(
 
     scope_type = object_scope_type_registry.get(scope_name)
 
-    feature_flag = getattr(scope_type, "feature_flag", None)
-    if feature_flag and not feature_flag_is_enabled(feature_flag):
-        return
     scope_model_class = scope_type.model_class
 
     objects = (
@@ -351,6 +347,9 @@ def broadcast_to_permitted_users(
         scope = objects.get(id=scope_id)
     except scope_model_class.DoesNotExist:
         return  # trashed or deleted in the meantime
+
+    if isinstance(scope, Application) and not scope.get_type().is_enabled():
+        return
 
     user_ids = [
         u.id

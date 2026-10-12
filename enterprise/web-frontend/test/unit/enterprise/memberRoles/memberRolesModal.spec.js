@@ -58,21 +58,19 @@ test.each([
   }
 )
 
-test('manages child agent roles without requiring application role access', async () => {
+test('manages the agent directly at application scope', async () => {
   const client = {
     get: vi.fn().mockResolvedValue({ data: [] }),
     post: vi.fn().mockResolvedValue({ data: [{ id: 1 }] }),
   }
-  const application = { id: 20, type: 'agent_builder', workspace }
-  const agentDefinition = { id: 40, name: 'Support', agent_builder_id: 20 }
+  const application = { id: 20, type: 'agent', name: 'Support', workspace }
   const wrapper = await mountSuspended(MemberRolesModal, {
-    props: { application, agentDefinition },
+    props: { application },
     global: {
       mocks: {
         $client: client,
         $featureFlagIsEnabled: () => false,
-        $hasPermission: (operation) =>
-          operation === 'agent_builder_agent.read_role',
+        $hasPermission: (operation) => operation === 'application.read_role',
         $store: { getters: { 'workspace/get': () => workspace } },
       },
       stubs: {
@@ -95,14 +93,12 @@ test('manages child agent roles without requiring application role access', asyn
     await wrapper.find('.open').trigger('click')
     await flushPromises()
     expect(wrapper.find('.role-management').attributes('data-scope')).toBe(
-      'agent_builder_agent'
+      'application'
     )
     expect(client.get).toHaveBeenCalledWith('/role/12/', {
-      params: { scope_id: 40, scope_type: 'agent_builder_agent' },
-    })
-    expect(client.get).not.toHaveBeenCalledWith('/role/12/', {
       params: { scope_id: 20, scope_type: 'application' },
     })
+    expect(wrapper.findAll('.role-management')).toHaveLength(1)
 
     await wrapper.find('.invite').trigger('click')
     await flushPromises()
@@ -111,8 +107,8 @@ test('manages child agent roles without requiring application role access', asyn
         {
           subject_id: 5,
           subject_type: 'auth.User',
-          scope_id: 40,
-          scope_type: 'agent_builder_agent',
+          scope_id: 20,
+          scope_type: 'application',
           role: 'BUILDER',
         },
       ],

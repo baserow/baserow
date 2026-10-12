@@ -1,7 +1,6 @@
 from baserow.contrib.database.table.operations import DatabaseTableOperationType
 from baserow.contrib.database.views.operations import ViewOperationType
 from baserow.core.operations import ApplicationOperationType, WorkspaceCoreOperationType
-from baserow_enterprise.agent_builder.operations import AgentOperationType
 
 
 class AssignRoleWorkspaceOperationType(WorkspaceCoreOperationType):
@@ -34,11 +33,3 @@ class ReadRoleViewOperationType(ViewOperationType):
 
 class UpdateRoleViewOperationType(ViewOperationType):
     type = "database.table.view.update_role"
-
-
-class ReadRoleAgentBuilderAgentOperationType(AgentOperationType):
-    type = "agent_builder_agent.read_role"
-
-
-class UpdateRoleAgentBuilderAgentOperationType(AgentOperationType):
-    type = "agent_builder_agent.update_role"

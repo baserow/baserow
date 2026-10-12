@@ -84,12 +84,12 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'agentBuilderEnabled',
-      path: resolve('./agentBuilder/middleware/agentBuilderEnabled'),
+      name: 'agentApplicationEnabled',
+      path: resolve('./agentApplication/middleware/agentApplicationEnabled'),
     })
     addRouteMiddleware({
-      name: 'selectAgentBuilder',
-      path: resolve('./agentBuilder/middleware/selectAgentBuilder'),
+      name: 'selectAgentApplication',
+      path: resolve('./agentApplication/middleware/selectAgentApplication'),
     })
 
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars

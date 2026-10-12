@@ -9,7 +9,7 @@ from baserow_enterprise.integrations.core.models import (
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 from baserow_premium.license.models import License
 
-from .fixtures.agent_builder import AgentBuilderFixtures
+from .fixtures.agent import AgentApplicationFixtures
 
 VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
     # id: "1", instance_id: "1"
@@ -17,7 +17,7 @@ VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
 )
 
 
-class EnterpriseFixtures(AgentBuilderFixtures):
+class EnterpriseFixtures(AgentApplicationFixtures):
     faker = faker.Faker()
 
     def create_enterprise_admin_user_and_token(self, **kwargs):

@@ -402,7 +402,6 @@ class SnapshotHandler:
             workspace_for_user_references=workspace,
             is_duplicate=True,
             exclude_sensitive_data=False,
-            copied_by=snapshot.created_by,
         )
         try:
             exported_application = application_type.export_serialized(
