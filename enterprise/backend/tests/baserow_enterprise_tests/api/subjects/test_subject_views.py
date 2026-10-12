@@ -7,6 +7,27 @@ from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Agent
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.teams.subjects import TeamSubjectType
+
+
+@pytest.mark.django_db
+def test_subject_options_cannot_list_teams_from_another_workspace(
+    api_client, data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace()
+    enterprise_data_fixture.create_team(workspace=workspace)
+
+    response = api_client.get(
+        reverse("api:subjects:list"),
+        {
+            "workspace_id": workspace.id,
+            "subject_types": TeamSubjectType.type,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db

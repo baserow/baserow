@@ -10,6 +10,7 @@ from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
 from baserow_enterprise.api.role.serializers import SubjectTeamSerializer
 from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_enterprise.teams.operations import ListTeamsOperationType
 
 User = get_user_model()
 
@@ -17,6 +18,7 @@ User = get_user_model()
 class TeamSubjectType(SubjectType):
     type = "baserow_enterprise.Team"
     model_class = Team
+    options_list_operation_type = ListTeamsOperationType.type
 
     def get_type_display_name(self):
         return "Team"
