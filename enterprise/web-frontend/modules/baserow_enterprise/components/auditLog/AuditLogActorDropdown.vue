@@ -18,7 +18,7 @@
           <DropdownItem
             v-for="actor in resultsForType(results, subjectType.type)"
             :key="actor.id"
-            :name="actor.label"
+            :name="actor.value"
             :value="actor.id"
             :icon="subjectType.iconClass"
           />
@@ -60,13 +60,13 @@ export default {
       this.$refs.dropdown.clear()
     },
     resultsForType(results, type) {
-      return results.filter((result) => result.subject_type === type)
+      return results.filter((result) => result.actor_type === type)
     },
     selectActor(selection) {
       const actor = selection?.item
       this.$emit(
         'input',
-        actor ? { id: actor.subject_id, type: actor.subject_type } : null
+        actor ? { id: actor.actor_id, type: actor.actor_type } : null
       )
     },
   },

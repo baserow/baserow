@@ -7,15 +7,15 @@ import AuditLogActorDropdown from '@baserow_enterprise/components/auditLog/Audit
 const actors = [
   {
     id: 'auth.User:1',
-    subject_id: 1,
-    subject_type: 'auth.User',
-    label: 'user@example.com',
+    actor_id: 1,
+    actor_type: 'auth.User',
+    value: 'user@example.com',
   },
   {
     id: 'core.Agent:1',
-    subject_id: 1,
-    subject_type: 'core.Agent',
-    label: 'Row writer',
+    actor_id: 1,
+    actor_type: 'core.Agent',
+    value: 'Row writer',
   },
 ]
 
