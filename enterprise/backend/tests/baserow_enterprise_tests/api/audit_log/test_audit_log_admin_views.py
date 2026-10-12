@@ -763,6 +763,36 @@ def test_audit_log_export_rejects_removed_filter_user_id(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_audit_log_export_requires_actor_type_with_actor_id(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    admin_user, admin_token = (
+        enterprise_data_fixture.create_enterprise_admin_user_and_token()
+    )
+
+    response = api_client.post(
+        reverse("api:enterprise:audit_log:async_export"),
+        data={
+            "csv_column_separator": ",",
+            "csv_first_row_header": True,
+            "export_charset": "utf-8",
+            "filter_actor_id": admin_user.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["filter_actor_type"] == [
+        {
+            "error": "This field is required when filter_actor_id is provided.",
+            "code": "invalid",
+        }
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_audit_log_can_export_to_csv_filtered_entries(
     api_client,
     enterprise_data_fixture,

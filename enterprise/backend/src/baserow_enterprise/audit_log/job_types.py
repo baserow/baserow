@@ -109,6 +109,25 @@ class RemovedFilterUserIdField(serializers.Field):
         )
 
 
+class AuditLogExportRequestSerializerMixin:
+    """Require the type component when filtering by a polymorphic actor ID."""
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if (
+            attrs.get("filter_actor_id") is not None
+            and attrs.get("filter_actor_type") is None
+        ):
+            raise serializers.ValidationError(
+                {
+                    "filter_actor_type": (
+                        "This field is required when filter_actor_id is provided."
+                    )
+                }
+            )
+        return attrs
+
+
 class AuditLogExportJobType(JobType):
     type = "audit_log_export"
     model_class = AuditLogExportJob
@@ -211,6 +230,16 @@ class AuditLogExportJobType(JobType):
             help_text="The URL to download the exported file.",
         ),
     }
+
+    def get_serializer_class(self, *args, **kwargs):
+        serializer_class = super().get_serializer_class(*args, **kwargs)
+        if not kwargs.get("request_serializer"):
+            return serializer_class
+        return type(
+            "AuditLogExportRequestSerializer",
+            (AuditLogExportRequestSerializerMixin, serializer_class),
+            {},
+        )
 
     def before_delete(self, job):
         """
