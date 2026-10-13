@@ -158,6 +158,7 @@ async function mountRoute(
             'agents',
             'agentsEnabled',
             'pendingEmails',
+            'assignedKeys',
             'roles',
             'emailRoleUids',
           ],
@@ -166,6 +167,7 @@ async function mountRoute(
             '<div class="picker-agents" :data-enabled="agentsEnabled">' +
             '{{ agents.map((a) => a.name).join(",") }}</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
+            '<div class="picker-assigned">{{ assignedKeys.join(",") }}</div>' +
             '<div class="picker-roles">{{ roles.map((r) => r.uid).join(",") }}' +
             '|{{ emailRoleUids.join(",") }}</div>',
           methods: {
@@ -195,15 +197,19 @@ async function mountRoute(
   return wrapper
 }
 
-test('lists pending invitations first and keeps assigned people out of the picker', async () => {
+test('lists pending invitations first and tells the picker who already has a role', async () => {
   const client = createClient()
   const wrapper = await mountRoute(client, createTargetType())
   try {
     // The agent with a role on the table is left out: agents are off.
     expect(wrapper.find('.access').text()).toBe('invitation:1,auth.User:8')
-    // Mark already has a role and the current user can't pick themselves.
-    expect(wrapper.find('.picker').text()).toBe('Jane Roe')
+    // Everyone but the current user reaches the picker, which lists the ones
+    // with a role on the table as such.
+    expect(wrapper.find('.picker').text()).toBe('Mark Delgado,Jane Roe')
     expect(wrapper.find('.picker-pending').text()).toBe('olga@x.com')
+    expect(wrapper.find('.picker-assigned').text()).toBe(
+      'auth.User:8,core.Agent:4'
+    )
     expect(wrapper.find('.picker-agents').text()).toBe('')
     expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
       'false'
@@ -233,8 +239,7 @@ test('lists and offers agents once the agents feature flag is on', async () => {
     expect(wrapper.find('.access').text()).toBe(
       'invitation:1,auth.User:8,core.Agent:4'
     )
-    // Smith already has a role on the table, so only Neo can still be picked.
-    expect(wrapper.find('.picker-agents').text()).toBe('Neo')
+    expect(wrapper.find('.picker-agents').text()).toBe('Smith,Neo')
     expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
       'true'
     )

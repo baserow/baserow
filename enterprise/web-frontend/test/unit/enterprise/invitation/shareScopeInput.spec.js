@@ -61,15 +61,17 @@ test('searches members and teams and offers an email for new people', async () =
   }
 })
 
-test('shows an already invited email as pending instead of offering it', async () => {
-  const wrapper = await mountInput()
+test('lists an invited address and an assigned subject with the reason', async () => {
+  const wrapper = await mountInput({
+    assignedKeys: ['baserow_enterprise.Team:3'],
+  })
   try {
     const input = wrapper.find('input')
     await input.trigger('focus')
     await input.setValue('Olga@x.com')
 
     const row = wrapper.find('.invite-input__item')
-    expect(row.classes()).toContain('invite-input__item--pending')
+    expect(row.classes()).toContain('invite-input__item--disabled')
     expect(itemTitles(wrapper)).toEqual(['olga@x.com'])
     expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
       'shareScope.alreadyInvited'
@@ -88,6 +90,17 @@ test('shows an already invited email as pending instead of offering it', async (
     expect(
       wrapper.find('.invite-input__row button').attributes('disabled')
     ).toBeDefined()
+
+    // A team that already holds a role on the object is listed the same way,
+    // and so would a member or an agent be.
+    await input.setValue('manage')
+    expect(itemTitles(wrapper)).toEqual(['Management'])
+    expect(wrapper.find('.invite-input__item').classes()).toContain(
+      'invite-input__item--disabled'
+    )
+    expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
+      'shareScope.alreadyAssigned'
+    )
   } finally {
     wrapper.unmount()
   }

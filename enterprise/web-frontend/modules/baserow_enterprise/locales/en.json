@@ -354,6 +354,7 @@
     "tabAgents": "Agents",
     "inviteEmailDescription": "Gets {role} role on this {type} only - no workspace role",
     "alreadyInvited": "An invitation is already pending on this {type}.\nYou can change its role in the list below instead of inviting again.",
+    "alreadyAssigned": "Already has a role on this {type}.\nYou can change it in the list below.",
     "noResults": "No members, teams or agents match. Type a full email address to invite someone new.",
     "noResultsWithoutAgents": "No members or teams match. Type a full email address to invite someone new.",
     "directAccess": "Direct access on this {type}",

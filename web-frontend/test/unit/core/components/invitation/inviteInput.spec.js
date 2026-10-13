@@ -8,14 +8,49 @@ const roles = [
   { uid: 'VIEWER', name: 'Viewer', isVisible: true, isDeactivated: false },
 ]
 const workspace = { id: 12, name: 'Widelab', _: { roles } }
+// Someone who can't be picked, with the reason the parent gives.
+const member = {
+  key: 'auth.User:8',
+  type: 'auth.User',
+  id: 8,
+  name: 'Mark Delgado',
+  email: 'mark@x.com',
+  search: 'mark@x.com',
+  initials: 'MD',
+  icon: 'iconoir-user',
+  color: 'blue',
+  disabledReason: 'Already a member',
+}
+// An address with an invitation, listed the same way.
+const pending = {
+  key: 'invitation:olga@x.com',
+  type: 'email',
+  email: 'olga@x.com',
+  name: 'olga@x.com',
+  search: 'olga@x.com',
+  icon: 'iconoir-mail',
+  color: 'neutral',
+  disabledReason: 'Already invited',
+}
+// Someone who can be picked.
+const pickable = {
+  key: 'auth.User:9',
+  type: 'auth.User',
+  id: 9,
+  name: 'Foo Bar Viewer',
+  email: 'foo@bar.com',
+  search: 'Foo Bar Viewer foo@bar.com',
+  initials: 'FV',
+  icon: 'iconoir-user',
+  color: 'blue',
+}
 
 async function mountInput(props = {}) {
   return await mountSuspended(InviteInput, {
     props: {
       workspace,
       roles,
-      pendingEmails: ['olga@x.com'],
-      memberEmails: ['mark@x.com'],
+      options: [member, pending],
       ...props,
     },
     global: {
@@ -44,7 +79,7 @@ function paste(input, text) {
   return input.trigger('paste', { clipboardData: { getData: () => text } })
 }
 
-test('only takes email addresses when there is nothing to search', async () => {
+test('only takes email addresses when there is nothing to pick', async () => {
   const wrapper = await mountInput()
   try {
     const input = wrapper.find('input')
@@ -53,7 +88,7 @@ test('only takes email addresses when there is nothing to search', async () => {
     expect(button.text()).toBe('inviteInput.invite')
     expect(button.attributes('disabled')).toBeDefined()
 
-    // Nothing to show until an address is typed: no tabs, no empty list.
+    // Nothing to show until an address is typed: no tabs, no list.
     await input.trigger('focus')
     const results = wrapper.find('.invite-input__results')
     expect(results.attributes('style')).toContain('display: none')
@@ -79,6 +114,46 @@ test('only takes email addresses when there is nothing to search', async () => {
   }
 })
 
+test('lists what cannot be picked with its reason and makes an error chip of it', async () => {
+  const wrapper = await mountInput()
+  try {
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    await input.setValue('mark@x.com')
+
+    const row = wrapper.find('.invite-input__item')
+    expect(row.classes()).toContain('invite-input__item--disabled')
+    expect(itemTitles(wrapper)).toEqual(['Mark Delgado'])
+    expect(row.find('.invite-input__item-subtitle').text()).toBe(
+      'Already a member'
+    )
+    expect(row.find('input').exists()).toBe(false)
+
+    // The row can't be picked, and the enter key only makes an error chip.
+    await row.trigger('click')
+    expect(chips(wrapper)).toEqual([])
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(errorChips(wrapper)).toEqual(['Mark Delgado'])
+    expect(wrapper.vm.chipError(wrapper.vm.selected[0])).toBe(
+      'Already a member'
+    )
+    expect(
+      wrapper.find('.invite-input__row button').attributes('disabled')
+    ).toBeDefined()
+
+    // An address with an invitation is handled the same way.
+    await input.setValue('Olga@x.com')
+    expect(itemTitles(wrapper)).toEqual(['olga@x.com'])
+    expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
+      'Already invited'
+    )
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(errorChips(wrapper)).toEqual(['Mark Delgado', 'olga@x.com'])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
 test('turns a pasted list into chips and marks the ones it cannot invite', async () => {
   const wrapper = await mountInput()
   try {
@@ -94,26 +169,23 @@ test('turns a pasted list into chips and marks the ones it cannot invite', async
       'ann@x.com',
       'bob@x.com',
       'olga@x.com',
-      'mark@x.com',
+      'Mark Delgado',
     ])
     expect(input.element.value).toBe('')
-    // The pending and the member address are chips too, marked as errors and
-    // left out of what is submitted.
-    expect(errorChips(wrapper)).toEqual(['olga@x.com', 'mark@x.com'])
-    // The invitable addresses keep a checked row in the list, like a picked
-    // member does, and can be unchecked from there.
+    // The invitation and the member are chips too, marked as errors and left
+    // out of what is submitted.
+    expect(errorChips(wrapper)).toEqual(['olga@x.com', 'Mark Delgado'])
+    // The new addresses keep a checked row in the list, like a picked member
+    // does, and can be unchecked from there. What can't be picked only shows
+    // up when searched for.
     expect(itemTitles(wrapper)).toEqual([
       'inviteInput.inviteEmail',
       'inviteInput.inviteEmail',
     ])
     const rows = wrapper.findAll('.invite-input__item')
-    expect(rows.map((row) => row.find('input').element.checked)).toEqual([
-      true,
-      true,
-    ])
+    expect(rows[0].find('input').element.checked).toBe(true)
     await rows[0].trigger('click')
-    expect(chips(wrapper)).toEqual(['bob@x.com', 'olga@x.com', 'mark@x.com'])
-    expect(itemTitles(wrapper)).toEqual(['inviteInput.inviteEmail'])
+    expect(chips(wrapper)).toEqual(['bob@x.com', 'olga@x.com', 'Mark Delgado'])
 
     const button = wrapper.find('.invite-input__row button')
     expect(button.text()).toContain('inviteInput.inviteAs')
@@ -147,19 +219,10 @@ test('flags addresses while a role that cannot be used for invitations is chosen
     isVisible: true,
     isDeactivated: false,
   }
-  const member = {
-    key: 'auth.User:8',
-    type: 'auth.User',
-    id: 8,
-    name: 'Mark',
-    search: 'mark',
-    icon: 'iconoir-user',
-    color: 'blue',
-  }
   const wrapper = await mountInput({
     roles: [...roles, noAccess],
     emailRoleUids: ['EDITOR', 'VIEWER'],
-    options: [member],
+    options: [pickable],
   })
   try {
     // No access is offered, but the default stays the last role an address
@@ -179,12 +242,12 @@ test('flags addresses while a role that cannot be used for invitations is chosen
     expect(button.attributes('disabled')).toBeDefined()
 
     // A member can still be given no access.
-    await input.setValue('mark')
+    await input.setValue('foo bar')
     await wrapper.find('.invite-input__item').trigger('click')
     expect(button.attributes('disabled')).toBeUndefined()
     await button.trigger('click')
     const [picked, roleUid] = wrapper.emitted('add')[0]
-    expect(picked.map(({ key }) => key)).toEqual(['auth.User:8'])
+    expect(picked.map(({ key }) => key)).toEqual(['auth.User:9'])
     expect(roleUid).toBe('NO_ACCESS')
 
     // Back to a role that works for everyone, the address is fine again.
@@ -196,18 +259,8 @@ test('flags addresses while a role that cannot be used for invitations is chosen
   }
 })
 
-test('clears a typed address once its member is picked from the list', async () => {
-  const member = {
-    key: 'auth.User:8',
-    type: 'auth.User',
-    id: 8,
-    name: 'Foo Bar Viewer',
-    email: 'foo@bar.com',
-    search: 'Foo Bar Viewer foo@bar.com',
-    icon: 'iconoir-user',
-    color: 'blue',
-  }
-  const wrapper = await mountInput({ options: [member], memberEmails: [] })
+test('clears a typed address once its option is picked from the list', async () => {
+  const wrapper = await mountInput({ options: [pickable] })
   try {
     const input = wrapper.find('input')
     await input.trigger('focus')
@@ -237,6 +290,12 @@ test('clears a typed address once its member is picked from the list', async () 
     await wrapper.find('.invite-input__item').trigger('click')
     expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
     expect(input.element.value).toBe('foo bar')
+
+    // Pasting the address of someone in the list picks them as well.
+    await wrapper.find('.invite-input__chip-remove').trigger('click')
+    await paste(input, 'foo@bar.com')
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
+    expect(errorChips(wrapper)).toEqual([])
   } finally {
     wrapper.unmount()
   }
@@ -261,7 +320,6 @@ test('picks every typed address on enter', async () => {
     await input.trigger('focus')
     await input.setValue('one@x.com two@x.com, olga@x.com')
     expect(itemTitles(wrapper)).toEqual([
-      'olga@x.com',
       'inviteInput.inviteEmail',
       'inviteInput.inviteEmail',
     ])

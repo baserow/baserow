@@ -75,32 +75,6 @@
       </div>
       <ul class="invite-input__list">
         <li
-          v-for="email in pendingQueryEmails"
-          :key="`pending:${email}`"
-          class="invite-input__item invite-input__item--pending"
-        >
-          <Avatar icon="iconoir-mail" color="neutral" rounded size="medium" />
-          <div class="invite-input__item-text">
-            <div class="invite-input__item-title">{{ email }}</div>
-            <div class="invite-input__item-subtitle">
-              {{ pendingTextOrDefault }}
-            </div>
-          </div>
-        </li>
-        <li
-          v-for="email in memberQueryEmails"
-          :key="`member:${email}`"
-          class="invite-input__item invite-input__item--pending"
-        >
-          <Avatar icon="iconoir-user" color="neutral" rounded size="medium" />
-          <div class="invite-input__item-text">
-            <div class="invite-input__item-title">{{ email }}</div>
-            <div class="invite-input__item-subtitle">
-              {{ $t('inviteInput.alreadyMember') }}
-            </div>
-          </div>
-        </li>
-        <li
           v-for="option in emailOptions"
           :key="option.key"
           class="invite-input__item"
@@ -129,6 +103,7 @@
           v-for="option in visibleOptions"
           :key="option.key"
           class="invite-input__item"
+          :class="{ 'invite-input__item--disabled': option.disabledReason }"
           @click="toggle(option)"
         >
           <Avatar
@@ -140,11 +115,15 @@
           />
           <div class="invite-input__item-text">
             <div class="invite-input__item-title">{{ option.name }}</div>
-            <div v-if="option.subtitle" class="invite-input__item-subtitle">
-              {{ option.subtitle }}
+            <div
+              v-if="option.disabledReason || option.subtitle"
+              class="invite-input__item-subtitle"
+            >
+              {{ option.disabledReason || option.subtitle }}
             </div>
           </div>
           <Checkbox
+            v-if="!option.disabledReason"
             :checked="isSelected(option)"
             @click.stop
             @update:model-value="toggle(option)"
@@ -183,20 +162,24 @@ export function extractEmails(text) {
 
 /**
  * The input of the invite modal: one field that takes email addresses, typed
- * or pasted in bulk, and optionally searches a list of pickable `options` such
- * as the members, teams and agents of the workspace, grouped by `tabs`. Every
- * pick is shown as a chip. Submitting emits `add` with the picked items and the
- * chosen role uid; the parent calls `remove()` or `reset()` once they were
- * added. An address in `pendingEmails` already has an invitation and one in
- * `memberEmails` belongs to a member: typed, they are explained instead of
- * offered, and once picked, for example as part of a pasted list, their chip
- * is marked as an error and left out of what is submitted. The same happens to
- * every address while a role outside `emailRoleUids` is chosen, for a role that
- * can be given to a member but makes no sense as an invitation.
+ * or pasted in bulk, and searches a list of `options`, grouped by `tabs`, such
+ * as the members, teams and agents of the workspace. Every pick is shown as a
+ * chip. Submitting emits `add` with the picked items and the chosen role uid;
+ * the parent calls `remove()` or `reset()` once they were added.
  *
- * Options are objects of `{ key, type, id, name, subtitle, search, initials,
- * icon, color }` with an optional `email` for people; `tabs` are `{ value,
- * label }` matching the option types, and an "All" tab is added in front.
+ * An option is an object of `{ key, type, id, name, subtitle, search,
+ * initials, icon, color }` with an optional `email` for someone who can be
+ * found by their address. One that can't be picked, because it already has a
+ * role, an invitation or whatever else, carries the reason in
+ * `disabledReason`: it is listed with that reason instead of a checkbox, and an
+ * address that belongs to it turns into a chip marked as an error that is left
+ * out of what is submitted. The same happens to every new address while a role
+ * outside `emailRoleUids` is chosen, for a role that can be given to a member
+ * but makes no sense as an invitation. The parent decides what is disabled and
+ * why, so the input needs to know nothing about members, agents or invitations.
+ *
+ * `tabs` are `{ value, label }` matching the option types, and an "All" tab is
+ * added in front. Without tabs the list only opens once something is typed.
  *
  * A result row toggles on click, and so does its checkbox. The checkbox is a
  * label around a native input, whose click would bubble to the row and toggle
@@ -226,16 +209,6 @@ export default {
       required: false,
       default: () => [],
     },
-    pendingEmails: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
-    memberEmails: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
     /**
      * The uids of the roles an email address can be invited with, or null when
      * every role will do. The default role is the last of these.
@@ -246,14 +219,6 @@ export default {
       default: null,
     },
     placeholder: {
-      type: String,
-      required: false,
-      default: null,
-    },
-    /**
-     * What is said about an address that already has an invitation.
-     */
-    pendingText: {
       type: String,
       required: false,
       default: null,
@@ -287,16 +252,6 @@ export default {
     noResultsTextOrDefault() {
       return this.noResultsText ?? this.$t('inviteInput.noResults')
     },
-    pendingTextOrDefault() {
-      return this.pendingText ?? this.$t('inviteInput.alreadyInvited')
-    },
-    /**
-     * The picks that can be submitted: everything but the addresses that
-     * turned out to have an invitation or a membership already.
-     */
-    validSelected() {
-      return this.selected.filter((item) => this.chipError(item) === null)
-    },
     allTabs() {
       return [
         { value: TAB_ALL, label: this.$t('inviteInput.tabAll') },
@@ -314,16 +269,24 @@ export default {
     normalizedQuery() {
       return this.query.trim().toLowerCase()
     },
+    /**
+     * The options matching the tab and the search. An address row is about an
+     * address rather than a kind of subject, so it shows under every tab. What
+     * can't be picked only shows up when it is searched for, to explain why it
+     * isn't offered, and stays out of the way otherwise.
+     */
     visibleOptions() {
       return this.options.filter(
         (option) =>
-          (this.activeTab === TAB_ALL || option.type === this.activeTab) &&
+          (this.activeTab === TAB_ALL ||
+            option.type === 'email' ||
+            option.type === this.activeTab) &&
+          (!option.disabledReason || this.normalizedQuery !== '') &&
           option.search.toLowerCase().includes(this.normalizedQuery)
       )
     },
     /**
-     * The distinct email addresses in the query, so that a pasted list that was
-     * not fully picked is explained address by address.
+     * The distinct addresses in the field.
      */
     queryEmails() {
       return [
@@ -332,33 +295,15 @@ export default {
         ),
       ]
     },
-    pendingQueryEmails() {
-      return this.queryEmails.filter((email) => this.isPending(email))
-    },
     /**
-     * The typed addresses of members, unless the member is right there in the
-     * list to be picked.
-     */
-    memberQueryEmails() {
-      return this.queryEmails.filter(
-        (email) =>
-          !this.isPending(email) &&
-          this.isMember(email) &&
-          !this.visibleOptions.some(
-            (option) => option.email?.toLowerCase() === email
-          )
-      )
-    },
-    /**
-     * The address rows of the list: one per typed address that can be invited,
-     * a valid address that neither has an invitation nor belongs to a member,
-     * followed by the picked addresses that match the search. The picked ones
-     * keep a row like a picked member does, so they can be unchecked from the
-     * list as well as from their chip.
+     * The rows of new addresses: one per typed address that isn't known as an
+     * option, followed by the picked addresses that match the search. The
+     * picked ones keep a row like a picked member does, so they can be
+     * unchecked from the list as well as from their chip.
      */
     emailOptions() {
       const typed = this.queryEmails
-        .map((email) => this.invitableOptionFor(email))
+        .map((email) => this.newEmailOptionFor(email))
         .filter(Boolean)
       const picked = this.selected.filter(
         (item) =>
@@ -370,24 +315,26 @@ export default {
       return [...typed, ...picked]
     },
     /**
-     * With a list to search the results open on focus, otherwise there is
-     * nothing to show until an address is typed.
+     * With a list to browse the results open on focus, otherwise there is
+     * nothing to show until something is typed.
      */
     showResults() {
       return (
         this.open &&
         (this.tabs.length > 0 ||
-          this.options.length > 0 ||
+          this.options.some((option) => !option.disabledReason) ||
           this.normalizedQuery !== '')
       )
     },
     nothingToShow() {
-      return (
-        this.pendingQueryEmails.length === 0 &&
-        this.memberQueryEmails.length === 0 &&
-        this.emailOptions.length === 0 &&
-        this.visibleOptions.length === 0
-      )
+      return this.emailOptions.length === 0 && this.visibleOptions.length === 0
+    },
+    /**
+     * The picks that can be submitted: everything but the chips that carry an
+     * error.
+     */
+    validSelected() {
+      return this.selected.filter((item) => this.chipError(item) === null)
     },
   },
   watch: {
@@ -413,22 +360,9 @@ export default {
     focus() {
       this.$refs.input.focus()
     },
-    isPending(email) {
-      return this.pendingEmails.some(
-        (pendingEmail) => pendingEmail.toLowerCase() === email
-      )
-    },
-    /**
-     * Whether the address belongs to a member, either one given in
-     * `memberEmails` or one that is offered as an option and should be picked
-     * as such.
-     */
-    isMember(email) {
-      return (
-        this.memberEmails.some(
-          (memberEmail) => memberEmail.toLowerCase() === email
-        ) ||
-        this.options.some((option) => option.email?.toLowerCase() === email)
+    optionWithEmail(email) {
+      return this.options.find(
+        (option) => option.email?.toLowerCase() === email
       )
     },
     emailPick(email) {
@@ -440,32 +374,26 @@ export default {
         icon: 'iconoir-mail',
       }
     },
-    invitableOptionFor(email) {
-      if (
-        !isValidEmail(email) ||
-        this.isPending(email) ||
-        this.isMember(email)
-      ) {
+    /**
+     * A pick for a new address: a valid address that no option, pickable or
+     * not, answers to.
+     */
+    newEmailOptionFor(email) {
+      if (!isValidEmail(email) || this.optionWithEmail(email)) {
         return null
       }
       return this.emailPick(email)
     },
     /**
      * Why a chip can't be submitted, or null when it can. Judged at render time
-     * so that a chip picked before the pending invitations were known is
-     * marked as soon as they are.
+     * so that a chip picked before the options were fully known is marked as
+     * soon as they are.
      */
     chipError(item) {
-      if (item.type !== 'email') {
-        return null
+      if (item.disabledReason) {
+        return item.disabledReason
       }
-      if (this.isPending(item.email)) {
-        return this.pendingTextOrDefault
-      }
-      if (this.isMember(item.email)) {
-        return this.$t('inviteInput.alreadyMember')
-      }
-      if (!this.roleAllowsEmails) {
+      if (item.type === 'email' && !this.roleAllowsEmails) {
         return this.$t('inviteInput.roleNotForEmails', { role: this.roleName })
       }
       return null
@@ -474,6 +402,9 @@ export default {
       return this.selected.some((item) => item.key === option.key)
     },
     toggle(option) {
+      if (option.disabledReason) {
+        return
+      }
       if (this.isSelected(option)) {
         this.remove(option)
       } else {
@@ -484,7 +415,7 @@ export default {
     },
     /**
      * Takes the address out of the field once it was picked, whether as a new
-     * address or as the member it belongs to, so it isn't left behind as text.
+     * address or as the option it belongs to, so it isn't left behind as text.
      */
     dropFromQuery(email) {
       const tokens = extractEmails(this.query)
@@ -502,9 +433,9 @@ export default {
       }
     },
     /**
-     * Picks every address in the text. A member who is in the list is picked
-     * as such, an address that can't be invited becomes a chip marked as an
-     * error, and only text that isn't an address stays in the field.
+     * Picks every address in the text: the option it belongs to, which makes
+     * a chip marked as an error when that option can't be picked, or else a
+     * new address. Only text that isn't an address stays in the field.
      */
     pickEmails(text) {
       const leftovers = []
@@ -514,10 +445,7 @@ export default {
           leftovers.push(token)
           continue
         }
-        const pick =
-          this.options.find(
-            (option) => option.email?.toLowerCase() === email
-          ) || this.emailPick(email)
+        const pick = this.optionWithEmail(email) || this.emailPick(email)
         if (!this.isSelected(pick)) {
           this.selected.push(pick)
         }

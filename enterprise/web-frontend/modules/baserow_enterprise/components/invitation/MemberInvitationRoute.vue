@@ -6,10 +6,11 @@
         ref="input"
         :workspace="workspace"
         :scope-type-name="scopeTypeName"
-        :users="availableUsers"
-        :teams="availableTeams"
-        :agents="availableAgents"
+        :users="otherUsers"
+        :teams="teams"
+        :agents="agents"
         :agents-enabled="agentsEnabled"
+        :assigned-keys="assignedKeys"
         :pending-emails="pendingEmails"
         :roles="assignableRoles"
         :email-role-uids="invitationRoleUids"
@@ -145,25 +146,23 @@ export default {
     agentsEnabled() {
       return this.$featureFlagIsEnabled(FF_AGENTS)
     },
-    assignedIds() {
-      const ids = { [USER]: new Set(), [TEAM]: new Set(), [AGENT]: new Set() }
-      for (const roleAssignment of this.roleAssignments) {
-        ids[roleAssignment.subject_type]?.add(roleAssignment.subject.id)
-      }
-      return ids
-    },
-    availableUsers() {
+    /**
+     * Everyone in the workspace but the current user, who can't give
+     * themselves a role.
+     */
+    otherUsers() {
       return (this.workspace.users || []).filter(
-        (user) =>
-          user.user_id !== this.userId &&
-          !this.assignedIds[USER].has(user.user_id)
+        (user) => user.user_id !== this.userId
       )
     },
-    availableTeams() {
-      return this.teams.filter(({ id }) => !this.assignedIds[TEAM].has(id))
-    },
-    availableAgents() {
-      return this.agents.filter(({ id }) => !this.assignedIds[AGENT].has(id))
+    /**
+     * The keys of the members, teams and agents that already hold a role on
+     * the object, which the picker lists as such rather than offers.
+     */
+    assignedKeys() {
+      return this.roleAssignments.map(
+        ({ subject_type: subjectType, subject }) => `${subjectType}:${subject.id}`
+      )
     },
     pendingEmails() {
       return this.scopedInvitations.map(({ email }) => email)

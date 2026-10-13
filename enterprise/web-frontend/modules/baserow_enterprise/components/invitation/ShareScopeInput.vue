@@ -5,11 +5,8 @@
     :roles="roles"
     :options="options"
     :tabs="tabs"
-    :pending-emails="pendingEmails"
-    :member-emails="memberEmails"
     :email-role-uids="emailRoleUids"
     :placeholder="placeholder"
-    :pending-text="$t('shareScope.alreadyInvited', { type: scopeTypeName })"
     :no-results-text="noResultsText"
     :disabled="disabled"
     @add="(selection, roleUid) => $emit('add', selection, roleUid)"
@@ -34,10 +31,12 @@ import InviteInput from '@baserow/modules/core/components/invitation/InviteInput
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 /**
- * The input of the share dialog: the common invite input with the workspace
- * members, teams and agents that don't have a role on the object yet as
- * pickable options, next to new email addresses. Submitting emits `add` with
- * the picked items and the chosen role uid; the parent calls `remove()` and
+ * The input of the share dialog: the common invite input listing the members,
+ * teams and agents of the workspace next to new email addresses. A subject
+ * whose key is in `assignedKeys` already holds a role on the object and an
+ * address in `pendingEmails` already has an invitation on it, so both are
+ * listed with that reason rather than offered. Submitting emits `add` with the
+ * picked items and the chosen role uid; the parent calls `remove()` and
  * `reset()` once they were added.
  *
  * Agents are only mentioned, searched and offered while `agentsEnabled` is set,
@@ -74,6 +73,14 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    /**
+     * The `<subject type>:<id>` keys of the subjects with a role on the object.
+     */
+    assignedKeys: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
     pendingEmails: {
       type: Array,
@@ -127,16 +134,9 @@ export default {
       }
       return tabs
     },
-    /**
-     * Every member of the workspace, so that the address of someone who already
-     * has a role on the object is explained rather than invited again.
-     */
-    memberEmails() {
-      return (this.workspace.users || []).map(({ email }) => email)
-    },
     options() {
       const agents = this.agentsEnabled ? this.agents : []
-      return [
+      const subjects = [
         ...this.users.map((user) => ({
           key: `auth.User:${user.user_id}`,
           type: 'auth.User',
@@ -175,6 +175,30 @@ export default {
           icon: 'iconoir-sparks',
           color: 'purple',
           subject: agent,
+        })),
+      ]
+      const assigned = this.$t('shareScope.alreadyAssigned', {
+        type: this.scopeTypeName,
+      })
+      const pending = this.$t('shareScope.alreadyInvited', {
+        type: this.scopeTypeName,
+      })
+      return [
+        ...subjects.map((option) =>
+          this.assignedKeys.includes(option.key)
+            ? { ...option, disabledReason: assigned }
+            : option
+        ),
+        ...this.pendingEmails.map((email) => ({
+          key: `invitation:${email}`,
+          type: 'email',
+          email,
+          name: email,
+          search: email,
+          initials: '',
+          icon: 'iconoir-mail',
+          color: 'neutral',
+          disabledReason: pending,
         })),
       ]
     },
