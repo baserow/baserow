@@ -1295,7 +1295,12 @@
         "methodsOptionLabel": "Dozwolone metody HTTP",
         "methodsOptionDescription": "Określa, które metody HTTP są dopuszczalne dla tego webhooka. Wykluczenie GET zmniejsza ryzyko przypadkowego wywołania webhooka.",
         "methodsOptionAll": "Wszystkie",
-        "methodsOptionExcludeGet": "Za wyjątkiem GET"
+        "methodsOptionExcludeGet": "Za wyjątkiem GET",
+        "responseOptionsLabel": "Odpowiedź",
+        "waitForResponse": "Zaczekaj na odpowiedź procesu",
+        "waitForResponseDescription": "Poczekaj, aż wykonanie dotrze do węzła odpowiedzi. Jeśli nie dotrze do żadnego, poczekaj, aż proces zakończy się i zwróci domyślną odpowiedź.",
+        "responseTimeout": "Limit czasu odpowiedzi",
+        "seconds": "sekundy"
     },
     "twoFactorAuthEmpty": {
         "title": "2FA nie jest jeszcze włączone",
@@ -1426,7 +1431,26 @@
         "retry": "Spróbuj ponownie",
         "saveError": "Dostawca AI nie został zapisany.",
         "saveModelError": "Nie udało się zapisać dostawcy AI.",
-        "actionError": "Zmiana dostawcy AI nie powiodła się."
+        "actionError": "Zmiana dostawcy AI nie powiodła się.",
+        "featureSettingError": "Nie udało się zapisać ustawień funkcji AI.",
+        "featureSettingErrorDescription": "Odśwież stronę i wybierz dostępny model.",
+        "inherited": "Odziedziczony",
+        "moreActions": "Więcej operacji",
+        "testAllModels": "Przetestuj wszystkie modele",
+        "testModel": "Przetestuj model",
+        "someTestsFailed": "Niektóre testy zakończyły się niepowodzeniem",
+        "featureTestPassed": "{feature}: Wynik pozytywny",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Trwa testowanie…",
+        "disableModelTitle": "Wyłączyć {name}?",
+        "disableModelDescription": "Model nadal jest oznaczony jako wybrany, ale nie można z niego korzystać, dopóki nie zostanie ponownie włączony.",
+        "modelFeaturesRemovedTitle": "Zmień funkcje dla jakich opcja {name} ma być dostępna?",
+        "modelFeaturesRemovedDescription": "Funkcje, które nie są zaznaczone, nie mogą już korzystać z tego modelu.",
+        "modelInUse": "{features} funkcja korzysta z tego modelu. | Liczba funkcji, które korzystają z tego modelu: {features}.",
+        "modelUsageUnknown": "Nie moża było sprawdzić jaka funkcja nadal korzysta z tego modelu.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Czy zmienić nazwę {name}?",
+        "modelIdentifierRenamedDescription": "Nadal odwołują się do poprzedniego identyfikatora i wyłączają się, o ile nie zostaną ponownie skonfigurowane."
     },
     "academy": {
         "learnMore": "Więcej o akademii Baserow"
@@ -1480,5 +1504,34 @@
         "noFilterMatchesDescription": "Spróbuj wybrać inny obszar roboczy lub rodzaj elementu.",
         "clearFilters": "Wyczyść filtry",
         "goToWorkspaces": "Przejdź do swoich obszarów roboczych"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Odpowiedź",
+        "waitForResponse": "Zaczekaj na odpowiedź procesu",
+        "waitForResponseDescription": "Poczekaj, aż wykonanie dotrze do węzła odpowiedzi. Jeśli nie dotrze do żadnego, poczekaj, aż proces zakończy się i zwróci domyślną odpowiedź.",
+        "responseTimeout": "Limit czasu odpowiedzi",
+        "seconds": "sekundy"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Kod stanu",
+        "statusCode200": "200 - OK (przetworzono pomyślnie)",
+        "statusCode201": "201 - Created (zasób został utworzony)",
+        "statusCode202": "202 - Accepted (żądanie zostało przyjęte do przetworzenia)",
+        "statusCode204": "204 - No Content (pomyślnie, bez treści odpowiedzi)",
+        "statusCode400": "400 - Bad Request (nieprawidłowe żądanie)",
+        "statusCode401": "401 - Unauthorized (wymagane uwierzytelnienie)",
+        "statusCode403": "403 - Forbidden (brak uprawnień)",
+        "statusCode404": "404 - Not Found (nie znaleziono zasobu)",
+        "statusCode405": "405 - Method Not Allowed (metoda nie jest dozwolona dla tego zasobu)",
+        "statusCode409": "409 - Conflict (konflikt z bieżącym stanem zasobu)",
+        "statusCode422": "422 - Unprocessable Content (nie można przetworzyć zawartości żądania)",
+        "statusCode429": "429 - Too Many Requests (zbyt wiele żądań)",
+        "bodyPlaceholder": "Treść odpowiedzi",
+        "headers": "Nagłówki",
+        "name": "Nazwa",
+        "value": "Wartość",
+        "namePlaceholder": "Nazwa nagłówka",
+        "valuePlaceholder": "Wartość nagłówka",
+        "addHeader": "Dodaj nagłówek"
     }
 }
