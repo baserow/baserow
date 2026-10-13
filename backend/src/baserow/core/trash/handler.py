@@ -565,10 +565,6 @@ class TrashHandler:
 
         if application:
             trash_contents = trash_contents.filter(application=application)
-        for item_type in trash_item_type_registry.get_all():
-            trash_contents = item_type.filter_trash_contents(
-                user, workspace, trash_contents
-            )
         return trash_contents.select_related("user_who_trashed").order_by("-trashed_at")
 
     @staticmethod

@@ -29,6 +29,10 @@ export class AgentApplicationType extends ApplicationType {
     return this.app.$i18n.t('agentApplication.applicationDescription')
   }
 
+  supportsTrash() {
+    return false
+  }
+
   getApplicationContextComponent() {
     return AgentApplicationContext
   }
@@ -39,6 +43,10 @@ export class AgentApplicationType extends ApplicationType {
 
   getSidebarComponent() {
     return AgentApplicationSidebar
+  }
+
+  getOrder() {
+    return 100
   }
 
   canBeCreated() {

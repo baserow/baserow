@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
+import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import { AgentApplicationType } from '@baserow_enterprise/agentApplication/applicationTypes'
 import {
   EnterpriseAdminRoleType,
@@ -24,6 +25,17 @@ describe('Agent application type', () => {
     expect(type.canBeCreated()).toBe(false)
     expect(app.$featureFlagIsEnabled).toHaveBeenCalledWith('agent-builder')
     expect(makeType(true).type.canBeCreated()).toBe(true)
+  })
+
+  test('orders the agent section after automations', () => {
+    const { type, app } = makeType(true)
+    expect(type.getOrder()).toBeGreaterThan(
+      new AutomationApplicationType({ app }).getOrder()
+    )
+  })
+
+  test('has no trashable children to show in an application trash', () => {
+    expect(makeType(true).type.supportsTrash()).toBe(false)
   })
 
   test('requires application read permission before opening the agent', async () => {

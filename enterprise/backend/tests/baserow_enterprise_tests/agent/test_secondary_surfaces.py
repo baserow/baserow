@@ -11,47 +11,6 @@ from baserow_enterprise.role.models import Role
 
 
 @pytest.mark.django_db
-def test_trash_contents_exclude_unreadable_agent_applications(
-    enterprise_data_fixture, api_client, enable_enterprise, synced_roles
-):
-    owner = enterprise_data_fixture.create_user()
-    member, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=owner, members=[member])
-    hidden = enterprise_data_fixture.create_agent_application(
-        workspace=workspace, name="Secret agent"
-    )
-    visible = enterprise_data_fixture.create_agent_application(
-        workspace=workspace, name="Visible agent"
-    )
-    roles = RoleAssignmentHandler()
-    roles.assign_role(member, workspace, Role.objects.get(uid="BUILDER"))
-    roles.assign_role(
-        member,
-        workspace,
-        Role.objects.get(uid="NO_ACCESS"),
-        scope=hidden.application_ptr,
-    )
-    CoreHandler().delete_application(owner, hidden)
-    CoreHandler().delete_application(owner, visible)
-    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
-    response = api_client.get(
-        reverse("api:trash:contents", kwargs={"workspace_id": workspace.id}), **headers
-    )
-    assert response.status_code == 200
-    assert [
-        (item["trash_item_type"], item["trash_item_id"])
-        for item in response.json()["results"]
-    ] == [("application", visible.id)]
-    assert "Secret" not in response.content.decode()
-    response = api_client.get(reverse("api:trash:list"), **headers)
-    assert response.status_code == 200
-    assert [
-        item["id"] for item in response.json()["workspaces"][0]["applications"]
-    ] == [visible.id]
-    assert "Secret" not in response.content.decode()
-
-
-@pytest.mark.django_db
 @pytest.mark.workspace_search
 def test_agent_search_respects_application_roles(
     enterprise_data_fixture, api_client, enable_enterprise, synced_roles

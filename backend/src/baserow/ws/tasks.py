@@ -315,7 +315,7 @@ def broadcast_to_permitted_users(
 
     from baserow.core.handler import CoreHandler
     from baserow.core.mixins import TrashableModelMixin
-    from baserow.core.models import Application, Workspace, WorkspaceUser
+    from baserow.core.models import Workspace, WorkspaceUser
     from baserow.core.registries import object_scope_type_registry
 
     try:
@@ -331,7 +331,6 @@ def broadcast_to_permitted_users(
     ]
 
     scope_type = object_scope_type_registry.get(scope_name)
-
     scope_model_class = scope_type.model_class
 
     objects = (
@@ -345,12 +344,6 @@ def broadcast_to_permitted_users(
     except scope_model_class.DoesNotExist:
         return  # trashed or deleted in the meantime
 
-    # Derive deletion handling from the existing event envelope so older workers
-    # can still consume messages produced during a rolling deployment.
-    include_trash = (
-        isinstance(scope, Application) and payload.get("type") == "application_deleted"
-    )
-
     user_ids = [
         u.id
         for u in CoreHandler().check_permission_for_multiple_actors(
@@ -358,7 +351,6 @@ def broadcast_to_permitted_users(
             operation_type,
             workspace,
             context=scope,
-            include_trash=include_trash,
         )
     ]
 

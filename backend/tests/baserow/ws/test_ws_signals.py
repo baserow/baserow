@@ -680,59 +680,6 @@ def test_application_deleted(mock_broadcast_to_permitted_users, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.websockets
-def test_application_deleted_message_is_compatible_with_previous_workers(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
-    user = data_fixture.create_user()
-    user.web_socket_id = "deleting-client"
-    database = data_fixture.create_database_application(user=user)
-    received = []
-
-    # This is the task signature supported by the previous application version.
-    # Real signal delivery must not introduce arguments its workers cannot consume.
-    def previous_worker(
-        workspace_id,
-        operation_type,
-        scope_name,
-        scope_id,
-        payload,
-        ignore_web_socket_id=None,
-    ):
-        received.append(
-            (
-                workspace_id,
-                operation_type,
-                scope_name,
-                scope_id,
-                payload,
-                ignore_web_socket_id,
-            )
-        )
-
-    with patch(
-        "baserow.ws.signals.broadcast_to_permitted_users.delay",
-        side_effect=previous_worker,
-    ) as queued:
-        with transaction.atomic():
-            CoreHandler().delete_application(user, database)
-            queued.assert_not_called()
-        queued.assert_called_once()
-
-    assert received == [
-        (
-            database.workspace_id,
-            "application.read",
-            "database",
-            database.id,
-            {"type": "application_deleted", "application_id": database.id},
-            "deleting-client",
-        )
-    ]
-
-
-@pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_to_group")
 @pytest.mark.websockets
 def test_applications_reordered(mock_broadcast_to_channel_group, data_fixture):

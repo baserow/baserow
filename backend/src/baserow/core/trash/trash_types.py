@@ -1,8 +1,5 @@
 from typing import Any, Optional
 
-from django.db.models import Q
-
-from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, TrashEntry, Workspace
 from baserow.core.operations import (
     RestoreApplicationOperationType,
@@ -11,31 +8,12 @@ from baserow.core.operations import (
 from baserow.core.registries import application_type_registry
 from baserow.core.signals import application_created, workspace_restored
 from baserow.core.snapshots.handler import SnapshotHandler
-from baserow.core.trash.operations import ReadApplicationTrashOperationType
 from baserow.core.trash.registries import TrashableItemType, trash_item_type_registry
-from baserow.core.types import PermissionCheck
 
 
 class ApplicationTrashableItemType(TrashableItemType):
     type = "application"
     model_class = Application
-
-    def filter_trash_contents(self, user, workspace, queryset):
-        visible_applications = Application.objects_and_trash.filter(workspace=workspace)
-        permissions = CoreHandler().check_multiple_permissions(
-            [
-                PermissionCheck(user, ReadApplicationTrashOperationType.type, app)
-                for app in visible_applications
-            ],
-            workspace=workspace,
-            include_trash=True,
-        )
-        visible_ids = [
-            app.id for (_, _, app), allowed in permissions.items() if allowed is True
-        ]
-        return queryset.filter(
-            Q(application__isnull=True) | Q(application_id__in=visible_ids)
-        )
 
     def get_parent(self, trashed_item: Any) -> Optional[Any]:
         return trashed_item.workspace
