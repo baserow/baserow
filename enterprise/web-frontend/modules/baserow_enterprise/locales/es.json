@@ -29,12 +29,14 @@
     "manageTeamForm": {
         "nameTitle": "Nombre",
         "roleTitle": "Rol por defecto",
-        "inviteMembers": "Añadir miembros",
-        "membersTitle": "Miembros",
+        "inviteMembers": "Gestionar acceso",
+        "membersTitle": "Miembros del equipo",
         "noSubjectsSelected": "Nadie tiene acceso a través de este equipo todavía.",
         "roleHelpText": "Los roles específicos de usuario siempre prevalecerán sobre los roles de equipo.",
         "submit": "Guardar",
-        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo."
+        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo.",
+        "accessModalTitle": "Gestionar el acceso del equipo",
+        "agentLabel": "Agente"
     },
     "editTeamContext": {
         "edit": "Editar equipo",
@@ -346,7 +348,8 @@
         "codeRunnerContent": "Ejecuta código JavaScript en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "xlsFileReader": "Lector de archivos XLS",
         "codeRunner": "Ejecutor de código",
-        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación."
+        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación.",
+        "builderGraphElement": "Elemento de gráfico"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Soporte directo"
@@ -596,7 +599,7 @@
     },
     "groupedAggregateRowsDataSourceForm": {
         "series": "Series",
-        "addSeries": "Añadir series",
+        "addSeries": "Añadir serie",
         "data": "Datos",
         "sourceFieldLabel": "Origen",
         "viewFieldLabel": "Vista",
@@ -605,18 +608,18 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Campo",
         "aggregationTypeLabel": "Resumen",
-        "deleteSeries": "Eliminar series",
+        "deleteSeries": "Eliminar serie",
         "chartType": "Tipo de gráfico",
         "barChart": "Barra",
         "lineChart": "Línea",
-        "pieChart": "Pastel",
+        "pieChart": "Circular",
         "doughnutChart": "Dona",
         "polarAreaChart": "Área polar"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Agrupar por",
         "groupByNone": "Ninguno",
-        "groupByRowId": "Id de fila"
+        "groupByRowId": "ID de fila"
     },
     "aggregationSortByForm": {
         "none": "Ninguno",
@@ -676,7 +679,8 @@
         "nobodyDescription": "Ningún usuario",
         "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
         "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada.",
-        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador"
+        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador",
+        "customTitle": "Usuarios, agentes o equipos específicos"
     },
     "builderSettingTypes": {
         "customCode": "CSS/JS personalizados"
@@ -710,7 +714,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "La fuente de usuario seleccionada no tiene opción de inicio de sesión",
-        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario"
+        "errorUserSourceMissing": "No se ha seleccionado ninguna fuente de usuario",
+        "graphDescription": "Muestra datos impulsados por fórmulas como un gráfico.",
+        "graph": "Gráfico"
     },
     "fieldPermissionsMenuItem": {
         "label": "Editar permisos de campo"
@@ -797,7 +803,7 @@
         "frequencyColumn": "Frecuencia",
         "statusColumn": "Estado",
         "runningSince": "Ejecutándose desde {time}",
-        "idle": "Inactivo",
+        "idle": "En reposo",
         "neverRun": "Nunca ejecutado",
         "runNow": "Ejecutar ahora",
         "edit": "Editar",
@@ -922,7 +928,10 @@
         "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero.",
         "placeholder": "ej. Realiza un seguimiento de proyectos de clientes con fechas límite, responsables y estado.",
         "generating": "Kuma está escribiendo una sugerencia para ti…",
-        "suggestionsTitle": "O empieza con uno de estos"
+        "suggestionsTitle": "O empieza con uno de estos",
+        "label": "Describe tu base de datos",
+        "modelNotSupportedTitle": "Kuma no está disponible",
+        "editDetails": "Editar detalles"
     },
     "aiPromptOnboardingType": {
         "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
@@ -932,24 +941,68 @@
     "fieldPermissionSubjectsSelector": {
         "accessNote": "La selección no otorga acceso a la tabla. Un usuario seleccionado, un agente, o un miembro de un equipo seleccionado debe tener además un rol de Editor, Constructor o Administrador donde esta tabla se encuentra.",
         "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo.",
-        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros"
+        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros",
+        "canEdit": "Usuarios, agentes y equipos seleccionados",
+        "searchPlaceholder": "Buscar usuarios, agentes o equipos",
+        "addPeopleOrTeams": "Añadir usuarios, agentes o equipos",
+        "searchHint": "Buscar por nombre",
+        "remove": "Quitar {subject}",
+        "teamDescription": "Equipo"
     },
     "applicationUserLimitNotification": {
         "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan.",
-        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Por favor, actualiza el plan.",
-        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles."
+        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que supere esto, nadie puede iniciar sesión en sus aplicaciones publicadas hasta que actualices.",
+        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles.",
+        "titleReachedInstance": "Esta instancia ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que supere esto, nadie puede iniciar sesión en las aplicaciones publicadas de ningún espacio de trabajo, incluyendo {workspaceName}, hasta que la licencia sea actualizada.",
+        "titleWarningInstance": "Esta instancia ha utilizado {usage} de los {limit} usuarios de la aplicación disponibles. El límite es compartido por todos los espacios de trabajo, incluyendo {workspaceName}."
     },
     "graphElementForm": {
         "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico.",
-        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta."
+        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta.",
+        "chartType": "Tipo de gráfico",
+        "series": "Serie {number}",
+        "addSeries": "Añadir serie",
+        "seriesLabel": "Etiqueta de la serie",
+        "seriesColor": "Color",
+        "labels": "Etiquetas",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Series",
+        "seriesLabelPlaceholder": "'Ingresos'",
+        "seriesValues": "Valores",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "barChart": "Barra",
+        "lineChart": "Línea"
     },
     "enterpriseAgents": {
         "retry": "Reintentar",
         "teamsLoadErrorDescription": "Comprueba la conexión e inténtalo de nuevo.",
-        "teamsLoadError": "No se pudieron cargar los equipos."
+        "teamsLoadError": "No se pudieron cargar los equipos.",
+        "noTeams": "No hay equipos",
+        "teams": "Equipos"
     },
     "subjectType": {
         "team": "Equipo",
         "teams": "Equipos"
+    },
+    "assistantDashboardPrompt": {
+        "title": "Cuéntanos qué te gustaría crear",
+        "placeholder": "Crear rastreador de activos de la empresa",
+        "build": "Constrúyelo"
+    },
+    "aiProviderModelFeature": {
+        "kumaDescription": "Alimenta el asistente de IA Kuma.",
+        "kuma": "Kuma"
+    },
+    "graphElement": {
+        "noData": "No hay datos para graficar",
+        "series": "Serie {number}"
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Edita tus detalles",
+        "submit": "Actualizar sugerencias"
+    },
+    "selectAgentsList": {
+        "selectedAmountLabel": "{count} agentes seleccionados",
+        "searchPlaceholder": "Encontrar agentes..."
     }
 }
