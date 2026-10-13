@@ -208,7 +208,6 @@ def test_queued_agent_application_events_hidden_after_feature_disabled(
             "application",
             agent.id,
             {"type": "application_deleted" if deleted else "application_updated"},
-            include_trash=deleted,
         )
     broadcast.assert_not_called()
 
@@ -237,11 +236,14 @@ def test_workspace_restored_broadcast_hides_disabled_agent_applications(
 
 
 @pytest.mark.django_db
-def test_deleted_agent_broadcast_respects_application_roles(
+@pytest.mark.parametrize("application_type", ["agent", "database"])
+def test_deleted_application_broadcast_respects_application_roles(
     enterprise_data_fixture,
     enable_enterprise,
     synced_roles,
     django_capture_on_commit_callbacks,
+    settings,
+    application_type,
 ):
     owner = enterprise_data_fixture.create_user()
     granted = enterprise_data_fixture.create_user()
@@ -249,29 +251,40 @@ def test_deleted_agent_broadcast_respects_application_roles(
     workspace = enterprise_data_fixture.create_workspace(
         user=owner, members=[granted, denied]
     )
-    agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
+    if application_type == "agent":
+        application = enterprise_data_fixture.create_agent_application(
+            workspace=workspace
+        )
+    else:
+        settings.FEATURE_FLAGS = []
+        application = enterprise_data_fixture.create_database_application(
+            workspace=workspace
+        )
     roles = RoleAssignmentHandler()
     roles.assign_role(granted, workspace, Role.objects.get(uid="NO_ACCESS"))
     roles.assign_role(
-        granted, workspace, Role.objects.get(uid="VIEWER"), scope=agent.application_ptr
+        granted,
+        workspace,
+        Role.objects.get(uid="VIEWER"),
+        scope=application.application_ptr,
     )
     roles.assign_role(denied, workspace, Role.objects.get(uid="BUILDER"))
     roles.assign_role(
         denied,
         workspace,
         Role.objects.get(uid="NO_ACCESS"),
-        scope=agent.application_ptr,
+        scope=application.application_ptr,
     )
     with patch("baserow.ws.signals.broadcast_to_permitted_users.delay") as queued:
         with django_capture_on_commit_callbacks(execute=True):
-            CoreHandler().delete_application(owner, agent)
+            CoreHandler().delete_application(owner, application)
     queued.assert_called_once()
-    assert queued.call_args.kwargs["include_trash"] is True
+    assert queued.call_args.kwargs == {}
     with patch("baserow.ws.tasks.broadcast_to_users") as broadcast:
         broadcast_to_permitted_users(*queued.call_args.args, **queued.call_args.kwargs)
     broadcast.assert_called_once()
     recipient_ids, payload = broadcast.call_args.args
-    assert payload == {"type": "application_deleted", "application_id": agent.id}
+    assert payload == {"type": "application_deleted", "application_id": application.id}
     assert owner.id in recipient_ids
     assert granted.id in recipient_ids
     assert denied.id not in recipient_ids

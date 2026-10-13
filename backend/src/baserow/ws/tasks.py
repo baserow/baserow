@@ -296,7 +296,6 @@ def broadcast_to_permitted_users(
     scope_id: int,
     payload: Dict[str, Any],
     ignore_web_socket_id: Optional[str] = None,
-    include_trash: bool = False,
 ):
     """
     This task will broadcast a websocket message to all the users that are permitted
@@ -308,8 +307,6 @@ def broadcast_to_permitted_users(
     :param scope_name: The name of the scope that the operation is executed on
     :param scope_id: The id of the scope instance
     :param payload: The message being sent
-    :param include_trash: Include trashed permission scopes when notifying clients
-        about a deletion.
     :param ignore_web_socket_id: An optional web socket id which will not be sent the
         payload if provided. This is normally the web socket id that has originally
         made the change request.
@@ -350,6 +347,12 @@ def broadcast_to_permitted_users(
 
     if isinstance(scope, Application) and not scope.get_type().is_enabled():
         return
+
+    # Derive deletion handling from the existing event envelope so older workers
+    # can still consume messages produced during a rolling deployment.
+    include_trash = (
+        isinstance(scope, Application) and payload.get("type") == "application_deleted"
+    )
 
     user_ids = [
         u.id

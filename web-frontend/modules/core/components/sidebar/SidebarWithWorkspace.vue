@@ -33,7 +33,10 @@
                 {{ applicationGroup.name }}
               </div>
               <a
-                v-if="canCreateApplication"
+                v-if="
+                  canCreateApplication &&
+                  applicationGroup.applicationType.canBeCreated()
+                "
                 :ref="'createApplicationModalToggle' + applicationGroup.type"
                 class="tree__heading-add"
                 @click="openCreateApplicationModal(applicationGroup.type)"
@@ -164,6 +167,11 @@ export default {
               .sort((a, b) => a.order - b.order),
           }
         })
+        .filter(
+          (group) =>
+            group.applicationType.canBeCreated() ||
+            group.applications.length > 0
+        )
       return applicationTypes
     },
     pendingJobs() {
@@ -210,7 +218,10 @@ export default {
       }
     },
     openCreateApplicationModal(type) {
-      if (!this.canCreateApplication) {
+      if (
+        !this.canCreateApplication ||
+        !this.$registry.get('application', type).canBeCreated()
+      ) {
         return
       }
 

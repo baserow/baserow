@@ -331,7 +331,6 @@ def application_deleted(sender, application_id, application, user, **kwargs):
             application.id,
             {"type": "application_deleted", "application_id": application_id},
             getattr(user, "web_socket_id", None),
-            include_trash=True,
         )
     )
 
