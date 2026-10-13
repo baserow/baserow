@@ -14,7 +14,8 @@
         "themeName": "Tema",
         "domainsName": "Dominios",
         "userSourcesName": "Usuarios",
-        "generalName": "General"
+        "generalName": "General",
+        "breakpointsName": "Puntos de ruptura"
     },
     "createPageModal": {
         "header": "Crear página",
@@ -119,13 +120,15 @@
         "imageConstraintFullWidth": "Extender a la anchura máxima"
     },
     "dataSourceForm": {
-        "servicePlaceholder": "Selecciona un servicio",
+        "servicePlaceholder": "Elige una acción...",
         "namePlaceholder": "Nombre de la fuente",
         "errorUniqueName": "El nombre de la fuente de datos debe ser único.",
-        "integrationPlaceholder": "Selecciona una integración",
+        "integrationPlaceholder": "Elige una conexión...",
         "nameLabel": "Nombre",
         "actionLabel": "Acción",
-        "integrationLabel": "Integración"
+        "integrationLabel": "Conexión",
+        "noActionsFound": "No se encontraron acciones",
+        "searchActionPlaceholder": "Buscar acciones"
     },
     "elementType": {
         "table": "Tabla",
@@ -202,7 +205,8 @@
         "errorIframeContentMissing": "Falta el contenido de «iFrame»",
         "errorNoMenuItem": "No se ha configurado ningún elemento de menú",
         "errorMenuItemInError": "Al menos un elemento del menú está mal configurado",
-        "errorSubMenuItemInError": "Al menos un submenú está mal configurado"
+        "errorSubMenuItemInError": "Al menos un submenú está mal configurado",
+        "errorOptionNameMissing": "A una opción le falta un nombre"
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
@@ -252,7 +256,8 @@
         "urlInputPlaceholder": "Introducir URL...",
         "textInputPlaceholder": "Introducir texto...",
         "invalidFormula": "La fórmula es inválida",
-        "formValidationHint": "Coloca este elemento dentro de un formulario para mostrar errores de validación antes de enviar los datos."
+        "formValidationHint": "Coloca este elemento dentro de un formulario para mostrar errores de validación antes de enviar los datos.",
+        "formValidationTitle": "Validación de formulario"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Colores",
@@ -335,7 +340,8 @@
         "refreshDataSourceDescription": "Recarga una fuente de datos y actualiza los elementos que la usan.",
         "openPageDescription": "Redirige al usuario a otra página o URL.",
         "errorNotificationContentMissing": "Una notificación requiere un título o una descripción",
-        "notificationDescription": "Mostrar un mensaje de notificación al usuario."
+        "notificationDescription": "Mostrar un mensaje de notificación al usuario.",
+        "logoutDescription": "Cierra la sesión del usuario actual."
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -359,7 +365,9 @@
         "loginToastMessage": "Has iniciado sesión correctamente.",
         "authorizedToastTitle": "Autenticación requerida",
         "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar.",
-        "previewSessionExpiredDescription": "Cierra esta pestaña y vuelve a abrir la vista previa desde el Constructor de Aplicaciones."
+        "previewSessionExpiredDescription": "Cierra esta pestaña y vuelve a abrir la vista previa desde el Constructor de Aplicaciones.",
+        "previewSessionExpiredTitle": "La sesión de vista previa expiró",
+        "loginErrorToastTitle": "Autenticación fallida"
     },
     "integrationSettings": {
         "integrationMessage": "Puedes crear nuevas integraciones añadiendo una fuente de datos, una acción o una autenticación de usuario.",
@@ -512,7 +520,9 @@
         "userSourceType": "Tipo"
     },
     "event": {
-        "addAction": "añadir acción"
+        "addAction": "añadir acción",
+        "noActionsFound": "No se encontraron acciones",
+        "searchActions": "Buscar acciones"
     },
     "pageErrors": {
         "errorStartingSlash": "Una ruta debe empezar por '/'",
@@ -647,7 +657,8 @@
         "warningMessage": "El contenido del iFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
         "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iFrame use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas.",
         "editorPreviewPlaceholder": "Este iframe no se muestra en el editor. \nUsa Vista previa para comprobar cómo aparece en tu aplicación.",
-        "allowSameOriginLabel": "Permite que el iframe acceda a los datos de su propio sitio"
+        "allowSameOriginLabel": "Permite que el iframe acceda a los datos de su propio sitio",
+        "warningTitle": "Usa solo contenido de confianza"
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -766,7 +777,7 @@
         "isAuthenticated": "Está autenticado",
         "id": "ID",
         "email": "Correo electrónico",
-        "username": "Usuario",
+        "username": "Nombre de usuario",
         "role": "Rol"
     },
     "buttonField": {
@@ -882,7 +893,8 @@
         "formulas": "Fórmulas",
         "label": "Opciones",
         "addOption": "añadir opción",
-        "addOptionDescription": "Haz clic en «añadir opción» para añadir opciones a tu desplegable"
+        "addOptionDescription": "Haz clic en «añadir opción» para añadir opciones a tu desplegable",
+        "expressions": "Expresiones"
     },
     "choiceElement": {
         "addOptions": "Añadir opciones para empezar a utilizar este elemento..."
@@ -1224,6 +1236,23 @@
         "description": "Elige cuándo tu aplicación cambia entre diseños móvil, tableta y escritorio. Los cambios se aplican ahora en el editor y en tu app publicada después de publicarla.",
         "updatedDescription": "Tus nuevos puntos de interrupción están activos en el editor. Publica tu aplicación para aplicarlos a los visitantes.",
         "mobileMustBeLessThanTablet": "El punto de interrupción (breakpoint) móvil debe ser menor que el punto de interrupción de tableta.",
-        "tabletMustBeGreaterThanMobile": "El punto de interrupción (breakpoint) de tableta debe ser mayor que el punto de interrupción móvil."
+        "tabletMustBeGreaterThanMobile": "El punto de interrupción (breakpoint) de tableta debe ser mayor que el punto de interrupción móvil.",
+        "mobileLabel": "Punto de ruptura móvil",
+        "tabletLabel": "Punto de ruptura de tablet",
+        "desktopLabel": "Punto de ruptura de escritorio",
+        "desktopDescription": "Por encima de {breakpoint}px",
+        "updatedTitle": "Puntos de ruptura guardados",
+        "titleOverview": "Puntos de ruptura"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Referencia inválida"
+    },
+    "trashType": {
+        "builder_data_source": "fuente de datos",
+        "builder_workflow_action": "acción de flujo de trabajo",
+        "builder_page": "página"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Página"
     }
 }
