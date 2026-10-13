@@ -218,7 +218,8 @@
         "personalViewsContent": "Crea vistas que solo el autor pueda ver. Esto te da espacio para experimentar, filtrar y ordenar datos sin afectar el espacio de trabajo de los demás.",
         "chartWidget": "Widget de gráfico",
         "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen.",
-        "groupedAggregateRowsDataSourceContent": "Agrupa filas de una tabla de Baserow y calcula resúmenes para usar en páginas del constructor de aplicaciones."
+        "groupedAggregateRowsDataSourceContent": "Agrupa filas de una tabla de Baserow y calcula resúmenes para usar en páginas del constructor de aplicaciones.",
+        "groupedAggregateRowsDataSource": "Agrupa y resume filas"
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -301,7 +302,8 @@
         "outputTypeChangedWarning": "Borra los valores de celda generados.",
         "autoUpdate": "Actualización automática",
         "autoUpdateHelp": "Cuando esté habilitado, el valor del campo IA se regenerará automáticamente cuando cualquiera de los campos referenciados en el prompt se actualice.",
-        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados"
+        "autoUpdateDescription": "Regenerar cuando cambien los campos referenciados",
+        "invalidPrompt": "La fórmula del prompt es inválida."
     },
     "rowEditFieldAI": {
         "generate": "Generar",
@@ -310,7 +312,8 @@
     },
     "premiumFieldType": {
         "ai": "Aviso de IA",
-        "aiDescription": "Un campo de sólo lectura que contiene el texto generado por AI basado en la pregunta del campo."
+        "aiDescription": "Un campo de sólo lectura que contiene el texto generado por AI basado en la pregunta del campo.",
+        "aiRichTextDescription": "Un campo de solo lectura que contiene texto generado por IA basado en la instrucción del campo, formateado con markdown."
     },
     "functionalGridViewFieldAI": {
         "generate": "Generar"
@@ -430,15 +433,49 @@
         "personal": "Personal"
     },
     "aggregationGroupByForm": {
-        "rowIdDisabledTooltip": "Agrupar por ID de fila no está disponible actualmente porque el campo primario puede contener varios valores."
+        "rowIdDisabledTooltip": "Agrupar por ID de fila no está disponible actualmente porque el campo primario puede contener varios valores.",
+        "groupByFieldLabel": "Agrupar por",
+        "groupByRowId": "ID de fila",
+        "groupByNone": "Ninguno"
     },
     "serviceType": {
         "localBaserowGroupedAggregateRowsDescription": "Agrupa filas de una tabla de Baserow y calcula resúmenes.",
         "errorTrashedAggregationField": "Al menos un campo configurado ha sido enviado a la papelera.",
-        "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas."
+        "errorIncompleteAggregationSeries": "Una o más series de resumen están incompletas.",
+        "errorNoAggregationSeriesDefined": "Ninguna serie de resumen definida.",
+        "localBaserowGroupedAggregateRows": "Agrupa y resume filas"
     },
     "groupedAggregateRowsDataSourceForm": {
         "sourceFieldLabel": "Origen",
-        "data": "Datos"
+        "data": "Datos",
+        "addSeries": "Añadir serie",
+        "notSelected": "No seleccionado",
+        "series": "Series",
+        "viewFieldLabel": "Vista"
+    },
+    "aiProviderModelFeature": {
+        "aiFieldsDescription": "Genera valores en los campos de IA.",
+        "aiFields": "Campos de IA"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "addSeries": "Añadir serie",
+        "series": "Series"
+    },
+    "aggregationSeriesForm": {
+        "deleteSeries": "Eliminar serie",
+        "chartType": "Tipo de gráfico",
+        "polarAreaChart": "Área polar",
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Resumen",
+        "barChart": "Barra",
+        "lineChart": "Línea",
+        "pieChart": "Circular",
+        "doughnutChart": "Dona"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Ordenar por",
+        "none": "Ninguno",
+        "ascending": "Ascendente",
+        "descending": "Descendente"
     }
 }
