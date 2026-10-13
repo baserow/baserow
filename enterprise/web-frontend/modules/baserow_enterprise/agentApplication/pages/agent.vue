@@ -11,7 +11,6 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
-    'agentApplicationEnabled',
     'workspacesAndApplications',
     'selectAgentApplication',
   ],

@@ -9,8 +9,12 @@ Add/remove features flags to the list below:
 
 - `agents` — workspace Agent management and Agent creation.
 - `user_templates` — template marketplace: the new template browser and user templates.
-- `agent-builder` — create and manage Agent applications. Each application is one
-  empty agent, with no conversation or execution capabilities yet.
+- `agent-builder` — enable creation of empty Agent applications, with no conversation
+  or execution capabilities yet.
+
+The Agent application flag only controls creation. Existing-application paths use
+normal application permissions and lifecycle behavior. While the rollout flag exists,
+environments with creation disabled are assumed to contain no Agent applications.
 
 ## Enabling feature flags
 

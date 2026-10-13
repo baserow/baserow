@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { requireAgentApplicationEnabled } from '@baserow_enterprise/agentApplication/middleware/agentApplicationEnabled'
 import { selectAgentApplication } from '@baserow_enterprise/agentApplication/middleware/selectAgentApplication'
 
 describe('Agent application routes', () => {
@@ -15,18 +14,12 @@ describe('Agent application routes', () => {
     await testApp.afterEach()
   })
 
-  test('denies direct routes when the feature flag is disabled', () => {
-    expect(() =>
-      requireAgentApplicationEnabled({ $featureFlagIsEnabled: () => false })
-    ).toThrow('Agent not found')
-    expect(testApp.mock.history.get).toHaveLength(0)
-    expect(testApp.$registry.get('application', 'agent')).toBeDefined()
+  test('uses the application ID route and standard selection middleware', () => {
     const route = testApp.nuxtApp.$router.resolve({
       name: 'agent-application',
       params: { agentId: 10 },
     })
     expect(route.path).toBe('/agent/10')
-    expect(route.meta.middleware).toContain('agentApplicationEnabled')
     expect(route.meta.middleware).toContain('selectAgentApplication')
   })
 

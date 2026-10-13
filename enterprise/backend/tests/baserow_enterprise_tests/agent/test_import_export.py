@@ -15,14 +15,11 @@ from baserow_enterprise.agent.models import AgentApplication
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("enabled_at_import", [True, False])
-def test_agent_archive_round_trip_uses_application_ids_and_respects_flag(
+def test_agent_archive_round_trip_uses_independent_application_ids(
     enterprise_data_fixture,
     api_client,
     use_tmp_media_root,
     django_capture_on_commit_callbacks,
-    settings,
-    enabled_at_import,
 ):
     user, token = enterprise_data_fixture.create_user_and_token()
     source = enterprise_data_fixture.create_workspace(user=user)
@@ -77,10 +74,6 @@ def test_agent_archive_round_trip_uses_application_ids_and_respects_flag(
     assert response.status_code == 200, response.json()
     resource_id = response.json()["id"]
 
-    if not enabled_at_import:
-        settings.FEATURE_FLAGS = []
-        # Production workers report asynchronous failures through the job state.
-        settings.CELERY_TASK_EAGER_PROPAGATES = False
     with django_capture_on_commit_callbacks(execute=True):
         response = api_client.post(
             reverse(
@@ -98,19 +91,15 @@ def test_agent_archive_round_trip_uses_application_ids_and_respects_flag(
     assert response.status_code == 200, response.json()
     imported = AgentApplication.objects.filter(workspace=destination).order_by("order")
 
-    if not enabled_at_import:
-        assert response.json()["state"] == "failed"
-        assert not imported.exists()
-    else:
-        assert response.json()["state"] == "finished", response.json()
-        imported = list(imported)
-        assert [agent.name for agent in imported] == ["Researcher", "Writer"]
-        assert {agent.id for agent in imported}.isdisjoint(agent.id for agent in agents)
-        assert {item["id"] for item in response.json()["installed_applications"]} == {
-            agent.id for agent in imported
-        }
-        CoreHandler().update_application(user, imported[0], name="Independent copy")
-        CoreHandler().delete_application(user, imported[1])
+    assert response.json()["state"] == "finished", response.json()
+    imported = list(imported)
+    assert [agent.name for agent in imported] == ["Researcher", "Writer"]
+    assert {agent.id for agent in imported}.isdisjoint(agent.id for agent in agents)
+    assert {item["id"] for item in response.json()["installed_applications"]} == {
+        agent.id for agent in imported
+    }
+    CoreHandler().update_application(user, imported[0], name="Independent copy")
+    CoreHandler().delete_application(user, imported[1])
 
     assert list(
         AgentApplication.objects.filter(workspace=source)

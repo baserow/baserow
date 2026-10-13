@@ -345,9 +345,6 @@ def broadcast_to_permitted_users(
     except scope_model_class.DoesNotExist:
         return  # trashed or deleted in the meantime
 
-    if isinstance(scope, Application) and not scope.get_type().is_enabled():
-        return
-
     # Derive deletion handling from the existing event envelope so older workers
     # can still consume messages produced during a rolling deployment.
     include_trash = (
@@ -823,9 +820,6 @@ def broadcast_application_created(
         application = Application.objects.get(id=application_id).specific
     except Application.DoesNotExist:
         return  # trashed in the meantime
-
-    if not application.get_type().is_enabled():
-        return
 
     workspace = application.workspace
     users_in_workspace = [

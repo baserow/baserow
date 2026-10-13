@@ -18,19 +18,16 @@ describe('Agent application type', () => {
     return { type: new AgentApplicationType({ app }), app }
   }
 
-  test('keeps the stored type available while the feature is disabled', async () => {
+  test('offers creation only while the rollout flag is enabled', () => {
     const { type, app } = makeType(false)
     expect(type.getType()).toBe('agent')
     expect(type.canBeCreated()).toBe(false)
-    expect(type.isVisible(application)).toBe(false)
-    expect(await type.select(application)).toBe(false)
-    expect(app.$router.push).not.toHaveBeenCalled()
     expect(app.$featureFlagIsEnabled).toHaveBeenCalledWith('agent-builder')
+    expect(makeType(true).type.canBeCreated()).toBe(true)
   })
 
   test('requires application read permission before opening the agent', async () => {
     const { type, app } = makeType(true, false)
-    expect(type.canBeCreated()).toBe(true)
     expect(type.isVisible(application)).toBe(false)
     expect(await type.select(application)).toBe(false)
     expect(app.$hasPermission).toHaveBeenCalledWith(

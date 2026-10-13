@@ -21,9 +21,7 @@ class ApplicationTrashableItemType(TrashableItemType):
     model_class = Application
 
     def filter_trash_contents(self, user, workspace, queryset):
-        visible_applications = application_type_registry.filter_by_enabled_types(
-            Application.objects_and_trash.filter(workspace=workspace)
-        )
+        visible_applications = Application.objects_and_trash.filter(workspace=workspace)
         permissions = CoreHandler().check_multiple_permissions(
             [
                 PermissionCheck(user, ReadApplicationTrashOperationType.type, app)
@@ -50,7 +48,6 @@ class ApplicationTrashableItemType(TrashableItemType):
         trashed_item: Application,
         trash_entry: TrashEntry,
     ):
-        trashed_item.get_type().check_feature_flag()
         super().restore(trashed_item, trash_entry)
         application_created.send(
             self,

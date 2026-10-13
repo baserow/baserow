@@ -108,30 +108,6 @@ def test_agents_use_workspace_application_ordering(enterprise_data_fixture, api_
 
 
 @pytest.mark.django_db
-def test_ordering_disabled_agent_is_rejected_without_writes(
-    enterprise_data_fixture, api_client, settings
-):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(user=user, order=2)
-    database = enterprise_data_fixture.create_database_application(
-        workspace=agent.workspace, order=1
-    )
-    settings.FEATURE_FLAGS = []
-    response = api_client.post(
-        reverse("api:applications:order", kwargs={"workspace_id": agent.workspace_id}),
-        {"application_ids": [agent.id, database.id]},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == 403
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert list(
-        Application.objects.filter(workspace=agent.workspace).values_list("id", "order")
-    ) == [(database.id, 1), (agent.id, 2)]
-    assert not Action.objects.exists()
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize("name", ["", " ", None, "x" * 161])
 @pytest.mark.parametrize("method", ["post", "patch"])
 def test_agent_application_name_validation_does_not_write(
@@ -204,88 +180,55 @@ def test_agent_application_crud_requires_authentication(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("method", ["get", "patch", "delete", "duplicate", "post"])
-def test_agent_application_crud_disabled_by_feature_flag(
-    enterprise_data_fixture, api_client, settings, method
-):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
-    settings.FEATURE_FLAGS = []
-    if method == "post":
-        url = reverse(
-            "api:applications:list", kwargs={"workspace_id": agent.workspace_id}
-        )
-        payload = {"name": "Changed", "type": "agent"}
-    elif method == "duplicate":
-        url = reverse(
-            "api:applications:async_duplicate", kwargs={"application_id": agent.id}
-        )
-        method = "post"
-        payload = {}
-    else:
-        url = application_url(agent)
-        payload = {"name": "Changed"}
-    response = getattr(api_client, method)(
-        url, payload, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-    )
-    assert response.status_code == 403
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert AgentApplication.objects.count() == 1
-    agent.refresh_from_db()
-    assert not agent.trashed
-    assert not Action.objects.exists()
-
-
-@pytest.mark.django_db
-def test_application_lists_hide_agents_when_disabled(
-    enterprise_data_fixture, api_client, settings
-):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
-    database = enterprise_data_fixture.create_database_application(
-        workspace=agent.workspace
-    )
-    settings.FEATURE_FLAGS = []
-    for url in [
-        reverse("api:applications:list", kwargs={"workspace_id": agent.workspace_id}),
-        reverse("api:applications:list"),
-    ]:
-        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
-        assert response.status_code == 200
-        assert [item["id"] for item in response.json()] == [database.id]
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("enabled", [True, False])
-def test_template_preview_lists_agent_applications_and_respects_feature_flag(
-    enterprise_data_fixture, api_client, settings, enabled
+def test_template_preview_lists_agent_applications_and_is_read_only(
+    enterprise_data_fixture, api_client
 ):
     _, token = enterprise_data_fixture.create_user_and_token()
     template = enterprise_data_fixture.create_template()
     agent = enterprise_data_fixture.create_agent_application(
         workspace=template.workspace, name="Template agent"
     )
-    settings.FEATURE_FLAGS = ["agent-builder"] if enabled else []
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     response = api_client.get(
         reverse("api:applications:list", kwargs={"workspace_id": agent.workspace_id})
     )
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()] == ([agent.id] if enabled else [])
-    if enabled:
-        assert response.json()[0]["name"] == "Template agent"
+    assert [item["id"] for item in response.json()] == [agent.id]
+    assert response.json()[0]["name"] == "Template agent"
     assert (
         api_client.patch(
             application_url(agent), {"name": "Changed"}, format="json", **headers
         ).status_code
         == 400
     )
-    assert api_client.delete(application_url(agent), **headers).status_code == (
-        400 if enabled else 403
-    )
+    assert api_client.delete(application_url(agent), **headers).status_code == 400
     agent.refresh_from_db()
     assert agent.name == "Template agent"
     assert not agent.trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("init_with_data", [True, False])
+def test_agent_application_creation_disabled_by_feature_flag(
+    enterprise_data_fixture, api_client, settings, init_with_data
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    settings.FEATURE_FLAGS = []
+    response = api_client.post(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        {"name": "Researcher", "type": "agent", "init_with_data": init_with_data},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 403
+    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+    assert not AgentApplication.objects.exists()
+    assert list(Application.objects.filter(workspace=workspace)) == [
+        database.application_ptr
+    ]
+    assert not Action.objects.exists()
 
 
 @pytest.mark.django_db

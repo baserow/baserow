@@ -61,8 +61,6 @@ def register_agent_features():
     from baserow_enterprise.agent.application_types import AgentApplicationType
     from baserow_enterprise.agent.search_types import AgentSearchType
 
-    # Keep persisted applications and action history readable when the flag is off.
-    # Shared application operations enforce the flag for user-facing access.
     application_type_registry.register(AgentApplicationType())
     workspace_search_registry.register(AgentSearchType())
 

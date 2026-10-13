@@ -6,14 +6,9 @@ import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 describe('Agent application search', () => {
   const application = { id: 10, type: 'agent', workspace: { id: 1 } }
 
-  function makeSearchType(
-    enabled = true,
-    allowed = true,
-    resultApplication = application
-  ) {
+  function makeSearchType(allowed = true, resultApplication = application) {
     const app = {
       $i18n: { t: (key) => key },
-      $featureFlagIsEnabled: () => enabled,
       $hasPermission: () => allowed,
       $store: {
         getters: {
@@ -49,11 +44,8 @@ describe('Agent application search', () => {
     }
   })
 
-  test.each([
-    [false, true],
-    [true, false],
-  ])('honors feature enabled=%s and read permission=%s', (enabled, allowed) => {
-    const { type, app } = makeSearchType(enabled, allowed)
+  test('requires application read permission', () => {
+    const { type, app } = makeSearchType(false)
     expect(type.buildUrl({ id: 10 })).toBeNull()
     expect(type.isNavigable({ id: 10 })).toBe(false)
     expect(type.focusInSidebar({ id: 10 })).toBe(false)
@@ -65,7 +57,7 @@ describe('Agent application search', () => {
     const { type } = makeSearchType()
     expect(type.buildUrl({ id: 99 })).toBeNull()
     expect(type.buildUrl({ id: 'invalid' })).toBeNull()
-    const other = makeSearchType(true, true, {
+    const other = makeSearchType(true, {
       ...application,
       type: 'database',
     })

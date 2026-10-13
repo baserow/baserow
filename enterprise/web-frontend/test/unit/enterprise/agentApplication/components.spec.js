@@ -38,10 +38,6 @@ describe('Agent application components', () => {
 
   test('opens the application directly from its single sidebar row', async () => {
     const push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
-    vi.spyOn(
-      testApp.$registry.get('application', 'agent'),
-      'canBeCreated'
-    ).mockReturnValue(true)
     const wrapper = await testApp.mount(AgentApplicationSidebar, {
       props: { application: agent, workspace: agent.workspace },
       global: {

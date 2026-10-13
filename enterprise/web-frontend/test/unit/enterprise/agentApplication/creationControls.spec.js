@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import SidebarWithWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithWorkspace'
 
-describe('Agent application sidebar discovery', () => {
+describe('Agent application creation controls', () => {
   let testApp, workspace
 
   beforeEach(async () => {
@@ -21,33 +21,18 @@ describe('Agent application sidebar discovery', () => {
     await testApp.afterEach()
   })
 
-  test('hides the Agent sidebar group and add controls when disabled', async () => {
+  test('does not offer Agent creation when disabled', async () => {
     vi.spyOn(
       testApp.$registry.get('application', 'agent'),
       'canBeCreated'
     ).mockReturnValue(false)
-    const existingAgent = await testApp.store.dispatch(
-      'application/forceCreate',
-      {
-        id: 10,
-        name: 'Existing Agent',
-        type: 'agent',
-        workspace: { id: 1 },
-      }
-    )
     const wrapper = await testApp.mount(SidebarWithWorkspace, {
-      props: { applications: [existingAgent], selectedWorkspace: workspace },
+      props: { applications: [], selectedWorkspace: workspace },
     })
-
-    expect(wrapper.find('[data-highlight="applications-agent"]').exists()).toBe(
-      false
-    )
-    expect(
-      wrapper.find('[data-highlight="applications-database"]').exists()
-    ).toBe(true)
-    expect(
-      wrapper.find('[data-highlight="applications-dashboard"]').exists()
-    ).toBe(true)
+    const heading = wrapper
+      .findAll('.tree__heading')
+      .find((item) => item.text() === 'agentApplication.applicationNamePlural')
+    expect(heading.find('.tree__heading-add').exists()).toBe(false)
     await wrapper.find('.sidebar__new').trigger('click')
     const applicationNames = wrapper
       .findAll('.create-application-context .context__menu-item-title')

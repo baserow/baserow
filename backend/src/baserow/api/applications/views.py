@@ -210,6 +210,7 @@ class ApplicationsView(APIView):
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
             ),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
@@ -446,7 +447,6 @@ class OrderApplicationsView(APIView):
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_APPLICATION_NOT_IN_GROUP"]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )

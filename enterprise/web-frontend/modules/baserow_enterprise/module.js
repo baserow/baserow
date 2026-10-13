@@ -84,10 +84,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'agentApplicationEnabled',
-      path: resolve('./agentApplication/middleware/agentApplicationEnabled'),
-    })
-    addRouteMiddleware({
       name: 'selectAgentApplication',
       path: resolve('./agentApplication/middleware/selectAgentApplication'),
     })

@@ -2,7 +2,6 @@ import json
 
 import pytest
 
-from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, TrashEntry
 from baserow.core.registries import ImportExportConfig
@@ -139,70 +138,3 @@ def test_agent_access_hidden_while_workspace_trashed(
         ).status_code
         == 200
     )
-
-
-@pytest.mark.django_db
-def test_agent_import_disabled_by_feature_flag(enterprise_data_fixture, settings):
-    workspace = enterprise_data_fixture.create_workspace()
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        AgentApplicationType().import_serialized(
-            workspace,
-            {"id": 1, "name": "Researcher", "order": 1, "type": "agent"},
-            ImportExportConfig(include_permission_data=False),
-            {},
-        )
-    assert not AgentApplication.objects.exists()
-
-
-@pytest.mark.django_db
-def test_agent_restore_disabled_by_feature_flag(enterprise_data_fixture, settings):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
-    CoreHandler().delete_application(user, agent)
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        TrashHandler.restore_item(user, "application", agent.id)
-    assert TrashEntry.objects.filter(
-        trash_item_type="application", trash_item_id=agent.id
-    ).exists()
-    assert AgentApplication.objects_and_trash.get(id=agent.id).trashed
-
-
-@pytest.mark.django_db
-def test_agent_permanent_cleanup_works_when_disabled(enterprise_data_fixture, settings):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
-    other = enterprise_data_fixture.create_agent_application(workspace=agent.workspace)
-    CoreHandler().delete_application(user, agent)
-    TrashEntry.objects.filter(
-        trash_item_type="application", trash_item_id=agent.id
-    ).update(should_be_permanently_deleted=True)
-    settings.FEATURE_FLAGS = []
-    TrashHandler.permanently_delete_marked_trash()
-    assert not AgentApplication.objects_and_trash.filter(id=agent.id).exists()
-    assert not Application.objects_and_trash.filter(id=agent.id).exists()
-    assert not TrashEntry.objects.exists()
-    assert AgentApplication.objects.filter(id=other.id).exists()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("operation", ["list", "create", "restore"])
-def test_agent_snapshots_disabled_by_feature_flag(
-    enterprise_data_fixture, settings, operation
-):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
-    handler = SnapshotHandler()
-    snapshot = handler.create(agent.id, user, "Agent snapshot")
-    handler.perform_create(snapshot, Progress(total=100))
-    snapshot.refresh_from_db()
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        if operation == "list":
-            handler.list(agent.id, user)
-        elif operation == "create":
-            handler.create(agent.id, user, "Another snapshot")
-        else:
-            handler.start_restore_job(snapshot.id, user)
-    assert AgentApplication.objects.filter(workspace=agent.workspace).count() == 1
