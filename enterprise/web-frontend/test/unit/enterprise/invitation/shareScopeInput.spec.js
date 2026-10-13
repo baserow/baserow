@@ -30,9 +30,7 @@ async function mountInput(props = {}) {
 }
 
 function itemTitles(wrapper) {
-  return wrapper
-    .findAll('.invite-input__item-title')
-    .map((item) => item.text())
+  return wrapper.findAll('.invite-input__item-title').map((item) => item.text())
 }
 
 function tabLabels(wrapper) {
@@ -149,8 +147,9 @@ test('opens the tabs on focus even when there is nobody left to pick', async () 
   const wrapper = await mountInput({ users: [], teams: [], agents: [] })
   try {
     await wrapper.find('input').trigger('focus')
-    expect(wrapper.find('.invite-input__results').attributes('style') ?? '')
-      .not.toContain('display: none')
+    expect(
+      wrapper.find('.invite-input__results').attributes('style') ?? ''
+    ).not.toContain('display: none')
     expect(tabLabels(wrapper)).toEqual([
       'inviteInput.tabAll',
       'shareScope.tabMembers',
