@@ -161,7 +161,8 @@ export default {
      */
     assignedKeys() {
       return this.roleAssignments.map(
-        ({ subject_type: subjectType, subject }) => `${subjectType}:${subject.id}`
+        ({ subject_type: subjectType, subject }) =>
+          `${subjectType}:${subject.id}`
       )
     },
     pendingEmails() {
