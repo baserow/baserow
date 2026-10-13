@@ -23,7 +23,7 @@
         "defaultResultCountPlaceholder": "Valor predeterminado…"
     },
     "localBaserowTableServiceConditionalForm": {
-        "addFilter": "Añadir filtro adicional",
+        "addFilter": "Añadir filtro",
         "relatedFieldNotFound": "No se encuentra el campo relacionado.",
         "filterTypeNotFound": "El tipo de filtro no es compatible.",
         "noCompatibleFilterTypesErrorTitle": "No hay tipos de filtro compatibles",
@@ -34,7 +34,9 @@
         "noFilterText": "Los filtros de fuente de datos le permiten mostrar las filas de la tabla Baserow que se aplican a tus condiciones.",
         "useDefaultForValue": "Utiliza el filtro por defecto para este campo",
         "textFilterInputPlaceholder": "Escribe el texto…",
-        "useExpressionForValue": "Usa una expresión para este filtro"
+        "useExpressionForValue": "Usa una expresión para este filtro",
+        "expressionFilterInputPlaceholder": "Elige una expresión...",
+        "addFilterGroup": "Añadir grupo de filtros"
     },
     "localBaserowTableServiceSortForm": {
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
@@ -63,7 +65,7 @@
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserowWarning": "Autorizar su cuenta les otorga a todos los que tienen permisos de edición en la aplicación acceso completo a los datos a los que usted tiene acceso. Es posible crear un segundo usuario, otorgarle los permisos correctos y usarlo.",
         "smtp": "Correo electrónico SMTP",
-        "slackBot": "Bot de Slack",
+        "slackBot": "Slack",
         "ai": "IA"
     },
     "serviceType": {
@@ -145,7 +147,13 @@
         "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada.",
         "inboundEmailTriggerDescription": "Se desencadena cuando se recibe un correo electrónico en la dirección de correo generada.",
         "errorAIModelUnavailable": "El modelo de IA seleccionado está deshabilitado o ya no está disponible",
-        "errorMisconfiguredIntegration": "Falta la integración o ha sido enviada a la papelera"
+        "errorMisconfiguredIntegration": "Falta la integración o ha sido enviada a la papelera",
+        "errorResponseBodyMissing": "El cuerpo de la respuesta JSON no puede estar vacío.",
+        "coreGotoDestinationRequired": "Se requiere un destino.",
+        "errorNoRowIdSelected": "Ningún ID de fila seleccionado",
+        "coreGoto": "Ir a",
+        "inboundEmailTrigger": "Disparador de correo electrónico",
+        "coreResponse": "Respuesta"
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -285,7 +293,11 @@
         "password": "Contraseña",
         "passwordPlaceholder": "tu-contraseña",
         "passwordConfigured": "Hay una contraseña guardada. Déjalo en blanco para conservarla.",
-        "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada"
+        "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada",
+        "securitySsl": "SSL/TLS (normalmente puerto 465)",
+        "securityStartTls": "STARTTLS (normalmente puerto 587)",
+        "security": "Seguridad",
+        "securityNone": "Ninguno"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "Integración",
@@ -420,9 +432,12 @@
         "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo.",
         "destinationDescription": "El nodo al que saltar cuando la condición es verdadera.",
         "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino.",
-        "conditionLabel": "Condición"
+        "conditionLabel": "Condición",
+        "destinationPlaceholder": "Elige un nodo de destino...",
+        "destinationLabel": "Nodo de destino"
     },
     "aiProviderModelFeature": {
-        "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones."
+        "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones.",
+        "aiAgent": "Agente de IA"
     }
 }
