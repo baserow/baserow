@@ -5,7 +5,7 @@
     </header>
     <div class="layout__col-2-2 agent-application__content">
       <div class="agent-application__empty">
-        <i class="agent-application__empty-icon iconoir-sparks"></i>
+        <i class="agent-application__empty-icon baserow-icon-agent"></i>
         <h1 class="agent-application__title">{{ agent.name }}</h1>
         <p class="agent-application__description">
           {{ $t('agentApplication.emptyDescription') }}

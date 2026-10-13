@@ -10,7 +10,7 @@ export class AgentApplicationType extends ApplicationType {
   }
 
   getIconClass() {
-    return 'iconoir-sparks'
+    return 'baserow-icon-agent'
   }
 
   getIconColor() {
