@@ -1349,7 +1349,7 @@ class RoleAssignmentHandler:
                 invitation__workspace=workspace,
                 scope_type=ContentType.objects.get_for_model(scope),
                 scope_id=scope.id,
-            ).select_related("invitation", "role")
+            ).select_related("invitation", "role", "scope_type")
         )
 
     def get_scoped_invitation(

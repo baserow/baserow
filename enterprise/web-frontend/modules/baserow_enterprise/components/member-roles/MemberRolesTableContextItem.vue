@@ -56,6 +56,7 @@ export default {
         type: 'scope',
         scopeType: 'database_table',
         scope: this.table,
+        database: this.database,
       }
     },
     deactivated() {

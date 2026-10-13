@@ -28,6 +28,34 @@ const subjectType = {
   isCurrentUser: (subject, userId) => subject.id === userId,
   avatarColor: 'blue',
 }
+const team = {
+  key: 'baserow_enterprise.Team:3',
+  type: 'baserow_enterprise.Team',
+  id: 3,
+}
+const emailPick = (email) => ({ key: `email:${email}`, type: 'email', email })
+// What the route asked the picker to do, reset on every mount.
+const picker = { removed: [], resets: 0 }
+// A captcha widget that needs a moment to issue every token, like the real
+// one does after a reset.
+const captchaWidget = {
+  template: '<div></div>',
+  emits: ['token'],
+  data: () => ({ captchaEnabled: true, issued: 0 }),
+  mounted() {
+    this.issue()
+  },
+  methods: {
+    issue() {
+      const token = `token-${++this.issued}`
+      setTimeout(() => this.$emit('token', token), 0)
+    },
+    reset() {
+      this.$emit('token', '')
+      this.issue()
+    },
+  },
+}
 
 function createTargetType() {
   return {
@@ -102,7 +130,13 @@ function createClient() {
   }
 }
 
-async function mountRoute(client, targetType, { agentsEnabled = false } = {}) {
+async function mountRoute(
+  client,
+  targetType,
+  { agentsEnabled = false, captcha = false } = {}
+) {
+  picker.removed = []
+  picker.resets = 0
   const wrapper = await mountSuspended(MemberInvitationRoute, {
     props: { workspace, target, targetType },
     global: {
@@ -122,7 +156,14 @@ async function mountRoute(client, targetType, { agentsEnabled = false } = {}) {
             '<div class="picker-agents" :data-enabled="agentsEnabled">' +
             '{{ agents.map((a) => a.name).join(",") }}</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>',
-          methods: { reset() {} },
+          methods: {
+            reset() {
+              picker.resets += 1
+            },
+            remove(item) {
+              picker.removed.push(item.key)
+            },
+          },
         },
         ScopeAccessList: {
           props: ['items'],
@@ -130,7 +171,9 @@ async function mountRoute(client, targetType, { agentsEnabled = false } = {}) {
             '<div class="access">{{ items.map((i) => i.key).join(",") }}</div>',
         },
         ScopeInheritedAccess: { template: '<div class="inherited"></div>' },
-        CaptchaWidget: { template: '<div></div>', methods: { reset() {} } },
+        CaptchaWidget: captcha
+          ? captchaWidget
+          : { template: '<div></div>', methods: { reset() {} } },
       },
     },
   })
@@ -184,17 +227,7 @@ test('adds picked subjects in one request and invites emails one by one', async 
   const targetType = createTargetType()
   const wrapper = await mountRoute(client, targetType)
   try {
-    await wrapper.vm.add(
-      [
-        {
-          key: 'baserow_enterprise.Team:3',
-          type: 'baserow_enterprise.Team',
-          id: 3,
-        },
-        { key: 'email:new@x.com', type: 'email', email: 'new@x.com' },
-      ],
-      'EDITOR'
-    )
+    await wrapper.vm.add([team, emailPick('new@x.com')], 'EDITOR')
     await flushPromises()
 
     expect(client.post).toHaveBeenCalledWith('/role/12/batch/', {
@@ -219,6 +252,82 @@ test('adds picked subjects in one request and invites emails one by one', async 
     )
     // The new invitation is pending now, so its address can't be picked again.
     expect(wrapper.find('.picker-pending').text()).toBe('olga@x.com,new@x.com')
+    expect(picker.removed).toEqual([
+      'baserow_enterprise.Team:3',
+      'email:new@x.com',
+    ])
+    expect(picker.resets).toBe(1)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('sends every invitation with a captcha token of its own', async () => {
+  const targetType = createTargetType()
+  targetType.sendInvitation.mockImplementation(async (w, t, { email }) => ({
+    id: email === 'a@x.com' ? 2 : 3,
+    email,
+    role: 'EDITOR',
+    scope_id: 20,
+  }))
+  const wrapper = await mountRoute(createClient(), targetType, {
+    captcha: true,
+  })
+  try {
+    await wrapper.vm.add([emailPick('a@x.com'), emailPick('b@x.com')], 'EDITOR')
+    await flushPromises()
+
+    // A token is accepted once, so the second address waited for the token the
+    // widget issued after its reset.
+    expect(
+      targetType.sendInvitation.mock.calls.map(([, , values]) => [
+        values.email,
+        values.captchaToken,
+      ])
+    ).toEqual([
+      ['a@x.com', 'token-1'],
+      ['b@x.com', 'token-2'],
+    ])
+    expect(wrapper.find('.access').text()).toBe(
+      'invitation:1,invitation:2,invitation:3,auth.User:8'
+    )
+    expect(picker.resets).toBe(1)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('keeps what was not added yet picked and tells why when an invitation fails', async () => {
+  const client = createClient()
+  const targetType = createTargetType()
+  const handler = {
+    isTooManyRequests: () => false,
+    getMessage: () => ({ title: 'Already a member', message: 'Give a role.' }),
+    handled: vi.fn(),
+  }
+  targetType.sendInvitation
+    .mockResolvedValueOnce({ id: 2, email: 'a@x.com', role: 'EDITOR' })
+    .mockRejectedValueOnce({ handler })
+  const wrapper = await mountRoute(client, targetType)
+  try {
+    await wrapper.vm.add(
+      [team, emailPick('a@x.com'), emailPick('b@x.com')],
+      'EDITOR'
+    )
+    await flushPromises()
+
+    // The team and the first address made it, the second is still picked.
+    expect(picker.removed).toEqual([
+      'baserow_enterprise.Team:3',
+      'email:a@x.com',
+    ])
+    expect(picker.resets).toBe(0)
+    expect(wrapper.find('.access').text()).toBe(
+      'invitation:1,invitation:2,auth.User:8,baserow_enterprise.Team:3'
+    )
+    expect(handler.handled).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Already a member')
+    expect(wrapper.vm.adding).toBe(false)
   } finally {
     wrapper.unmount()
   }

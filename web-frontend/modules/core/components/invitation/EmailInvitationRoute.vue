@@ -2,49 +2,43 @@
   <div>
     <h2 class="box__title">{{ $t('inviteModal.emailTitle') }}</h2>
     <Error :error="error"></Error>
-    <WorkspaceInviteForm
-      ref="inviteForm"
+    <InviteInput
+      ref="input"
       :workspace="workspace"
       :roles="roles"
-      @submitted="inviteSubmitted"
-    >
-      <template #default>
-        <CaptchaWidget
-          ref="captchaWidget"
-          class="col col-12 margin-top-2"
-          context="workspace_invitation"
-          @token="onCaptchaToken"
-        />
-        <div class="col col-12 align-right margin-top-2">
-          <Button
-            type="primary"
-            :loading="inviteLoading"
-            :disabled="inviteLoading"
-          >
-            {{ $t('membersSettings.membersInviteModal.submit') }}
-          </Button>
-        </div>
-      </template>
-      <template #roleSelectorLabel>
-        <HelpIcon
-          class="margin-right-1"
-          :tooltip="$t('membersSettings.membersInviteModal.helpIconText')"
-        />
-      </template>
-    </WorkspaceInviteForm>
+      :member-emails="memberEmails"
+      :pending-emails="pendingEmails"
+      :disabled="inviting"
+      @add="invite"
+    />
+    <CaptchaWidget
+      ref="captchaWidget"
+      class="margin-top-2"
+      context="workspace_invitation"
+      @token="onCaptchaToken"
+    />
   </div>
 </template>
 
 <script>
-import error from '@baserow/modules/core/mixins/error'
-import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
-import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
+import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
+import error from '@baserow/modules/core/mixins/error'
+import WorkspaceService from '@baserow/modules/core/services/workspace'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
+/**
+ * Invites people into the workspace by email. One input takes any number of
+ * addresses, typed or pasted, and every address gets its own invitation with
+ * the chosen role. The modal closes once all of them were sent; after a
+ * failure the addresses that were not invited yet stay in the input. An address
+ * with a pending invitation is pointed out instead of being invited again.
+ */
 export default {
   name: 'EmailInvitationRoute',
-  components: { WorkspaceInviteForm, CaptchaWidget },
-  mixins: [error],
+  components: { CaptchaWidget, InviteInput },
+  mixins: [error, emailInvitations],
   props: {
     workspace: {
       type: Object,
@@ -62,73 +56,47 @@ export default {
   emits: ['submitted'],
   data() {
     return {
-      inviteLoading: false,
-      captchaToken: '',
+      inviting: false,
+      pendingEmails: [],
     }
   },
   computed: {
     roles() {
       return this.targetType.getRoles(this.workspace, this.target)
     },
+    memberEmails() {
+      return (this.workspace.users || []).map(({ email }) => email)
+    },
+  },
+  async mounted() {
+    try {
+      const { data } = await WorkspaceService(this.$client).fetchAllInvitations(
+        this.workspace.id
+      )
+      this.pendingEmails = data.map(({ email }) => email)
+    } catch (error) {
+      notifyIf(error, 'workspace')
+    }
   },
   methods: {
-    async inviteSubmitted(values) {
-      this.inviteLoading = true
+    async invite(picks, roleUid) {
+      this.inviting = true
       this.hideError()
+      const invitations = []
 
       try {
-        // The public accept url is the page where the user can publicly navigate too,
-        // to accept the workspace invitation.
-        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
-        const invitation = await this.targetType.sendInvitation(
-          this.workspace,
-          this.target,
-          { ...values, captchaToken: this.captchaToken },
-          acceptUrl
-        )
-        this.$emit('submitted', invitation)
-      } catch (error) {
-        // The captcha token can only be used once, so a new one must be solved
-        // before the invitation can be sent again.
-        if (this.$refs.captchaWidget) {
-          this.$refs.captchaWidget.reset()
-        }
-        // The backend responds with a generic throttled error, so it can't be
-        // matched on an error code like the ones below.
-        if (error.handler?.isTooManyRequests()) {
-          this.showError(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.text'
-            )
-          )
-          error.handler.handled()
-          this.inviteLoading = false
-          return
-        }
-
-        this.handleError(error, 'workspace', {
-          ERROR_GROUP_USER_ALREADY_EXISTS: new ResponseErrorMessage(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.text'
-            )
-          ),
-          ERROR_CAPTCHA_VERIFICATION_FAILED: new ResponseErrorMessage(
-            this.$t('error.captchaVerificationFailedTitle'),
-            this.$t('error.captchaVerificationFailedMessage')
-          ),
+        await this.sendInvitations(picks, roleUid, (pick, invitation) => {
+          this.$refs.input.remove(pick)
+          this.pendingEmails.push(invitation.email)
+          invitations.push(invitation)
         })
+        this.$refs.input.reset()
+        this.$emit('submitted', invitations)
+      } catch (error) {
+        this.handleInvitationError(error)
+      } finally {
+        this.inviting = false
       }
-
-      this.inviteLoading = false
-    },
-    onCaptchaToken(token) {
-      this.captchaToken = token
     },
   },
 }

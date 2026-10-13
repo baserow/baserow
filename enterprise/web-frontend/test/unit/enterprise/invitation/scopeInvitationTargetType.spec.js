@@ -32,15 +32,13 @@ function createApp(client = {}) {
         if (key === 'scopeInvitationTarget.table') {
           return 'Table'
         }
+        if (key === 'scopeInvitationTarget.view') {
+          return 'View'
+        }
         return params ? `${key}:${JSON.stringify(params)}` : key
       },
     },
     $hasFeature: vi.fn().mockReturnValue(true),
-    $store: {
-      getters: {
-        'application/get': (id) => ({ id, name: 'Project Tracker' }),
-      },
-    },
     $registry: {
       exists: (namespace, type) => type === 'automation',
       get: () => ({ getName: () => 'Automation' }),
@@ -66,10 +64,9 @@ describe('ScopeInvitationTargetType', () => {
 
   test('titles the modal after the object and tells where it lives', () => {
     const targetType = new ScopeInvitationTargetType({ app: createApp() })
-    const target = {
-      scopeType: 'database_table',
-      scope: { id: 5, name: 'Customers', database_id: 3 },
-    }
+    const database = { id: 3, name: 'Project Tracker' }
+    const table = { id: 5, name: 'Customers', database_id: 3 }
+    const target = { scopeType: 'database_table', scope: table, database }
 
     expect(targetType.getTitle({ name: 'Widelab' }, target)).toBe(
       'Share Customers'
@@ -77,6 +74,17 @@ describe('ScopeInvitationTargetType', () => {
     expect(targetType.getSubtitle({ name: 'Widelab' }, target)).toBe(
       'Widelab / Project Tracker / Customers • Table'
     )
+    expect(
+      targetType.getSubtitle(
+        { name: 'Widelab' },
+        {
+          scopeType: 'database_view',
+          scope: { id: 9, name: 'Active', table_id: 5 },
+          database,
+          table,
+        }
+      )
+    ).toBe('Widelab / Project Tracker / Customers / Active • View')
   })
 
   test('names an application after its type', () => {

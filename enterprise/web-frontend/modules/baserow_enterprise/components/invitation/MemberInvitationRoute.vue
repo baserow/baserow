@@ -1,7 +1,7 @@
 <template>
   <div class="share-scope">
-    <Error v-if="error.visible" :error="error"></Error>
-    <template v-else>
+    <Error :error="error"></Error>
+    <template v-if="!fetchFailed">
       <ShareScopeInput
         ref="input"
         :workspace="workspace"
@@ -19,7 +19,7 @@
         ref="captchaWidget"
         class="margin-top-2"
         context="workspace_invitation"
-        @token="captchaToken = $event"
+        @token="onCaptchaToken"
       />
       <h3 class="share-scope__section-title">
         {{ $t('shareScope.directAccess', { type: scopeTypeName }) }}
@@ -52,6 +52,7 @@ import { mapGetters } from 'vuex'
 
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
+import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
 import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import AgentService from '@baserow/modules/core/services/agent'
@@ -82,7 +83,7 @@ export default {
     ScopeInheritedAccess,
     ShareScopeInput,
   },
-  mixins: [error],
+  mixins: [error, emailInvitations],
   props: {
     workspace: {
       type: Object,
@@ -97,12 +98,11 @@ export default {
       required: true,
     },
   },
-  emits: ['submitted'],
   data() {
     return {
       loading: false,
+      fetchFailed: false,
       adding: false,
-      captchaToken: '',
       roleAssignments: [],
       scopedInvitations: [],
       teams: [],
@@ -235,6 +235,7 @@ export default {
   },
   methods: {
     showFetchError() {
+      this.fetchFailed = true
       this.showError(
         this.$t('shareScope.error.title'),
         this.$t('shareScope.error.description')
@@ -297,10 +298,13 @@ export default {
     },
     /**
      * Gives the picked members, teams and agents the role on the object in one
-     * request, and sends one scoped invitation per picked email address.
+     * request, then sends one scoped invitation per picked email address. Every
+     * pick leaves the input as soon as it is added, so after a failure exactly
+     * what wasn't added yet is still picked.
      */
     async add(selection, roleUid) {
       this.adding = true
+      this.hideError()
       const subjects = selection.filter(({ type }) => type !== 'email')
       const emails = selection.filter(({ type }) => type === 'email')
 
@@ -319,19 +323,10 @@ export default {
           this.roleAssignments = this.roleAssignments.concat(
             roleAssignments.filter(Boolean)
           )
+          subjects.forEach((item) => this.$refs.input.remove(item))
         }
-        // The public accept url is the page where the user can publicly
-        // navigate to, to accept the workspace invitation.
-        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
-        for (const { email } of emails) {
-          const scopedInvitation = await this.targetType.sendInvitation(
-            this.workspace,
-            this.target,
-            { email, permissions: roleUid, captchaToken: this.captchaToken },
-            acceptUrl
-          )
-          this.captchaToken = ''
-          this.$refs.captchaWidget?.reset()
+        await this.sendInvitations(emails, roleUid, (item, scopedInvitation) => {
+          this.$refs.input.remove(item)
           const index = this.scopedInvitations.findIndex(
             ({ id }) => id === scopedInvitation.id
           )
@@ -340,11 +335,10 @@ export default {
           } else {
             this.scopedInvitations[index] = scopedInvitation
           }
-        }
+        })
         this.$refs.input.reset()
       } catch (error) {
-        this.$refs.captchaWidget?.reset()
-        notifyIf(error, 'workspace')
+        this.handleInvitationError(error)
       } finally {
         this.adding = false
       }

@@ -1,4 +1,6 @@
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import (
@@ -11,6 +13,11 @@ from rest_framework.status import (
 
 from baserow.core.models import WorkspaceInvitation
 from baserow.test_utils.helpers import AnyInt
+from baserow_enterprise.audit_log.models import AuditLogEntry
+from baserow_enterprise.role.actions import (
+    DeleteScopedInvitationActionType,
+    UpdateScopedInvitationActionType,
+)
 from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, WorkspaceScopedInvitation
@@ -186,6 +193,31 @@ def test_list_scoped_invitations(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_scoped_invitations_query_count_is_constant(api_client, data_fixture):
+    user, token, workspace, database, table = setup_workspace(data_fixture)
+    url = reverse(
+        "api:enterprise:role:scoped_invitations", kwargs={"workspace_id": workspace.id}
+    )
+    params = {"scope_id": table.id, "scope_type": "database_table"}
+    create_scoped_invitation(user, workspace, table, email="one@bar.com")
+
+    with CaptureQueriesContext(connection) as with_one:
+        response = api_client.get(url, params, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 1
+
+    for i in range(4):
+        create_scoped_invitation(user, workspace, table, email=f"more{i}@bar.com")
+
+    with CaptureQueriesContext(connection) as with_five:
+        response = api_client.get(url, params, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 5
+
+    assert len(with_five.captured_queries) == len(with_one.captured_queries)
+
+
+@pytest.mark.django_db
 def test_update_scoped_invitation(api_client, data_fixture):
     user, token, workspace, database, table = setup_workspace(data_fixture)
     scoped_invitation = create_scoped_invitation(user, workspace, table)
@@ -204,6 +236,27 @@ def test_update_scoped_invitation(api_client, data_fixture):
     assert response.json()["role"] == "VIEWER"
     scoped_invitation.refresh_from_db()
     assert scoped_invitation.role.uid == "VIEWER"
+
+    # The change is written to the audit log like a workspace invitation change.
+    entry = AuditLogEntry.objects.get(action_type=UpdateScopedInvitationActionType.type)
+    assert entry.user_id == user.id
+    assert entry.workspace_id == workspace.id
+    assert entry.action_params == {
+        "scoped_invitation_id": scoped_invitation.id,
+        "invitation_id": scoped_invitation.invitation_id,
+        "email": "foo@bar.com",
+        "role_uid": "VIEWER",
+        "original_role_uid": "EDITOR",
+        "scope_type_name": "database_table",
+        "scope_id": table.id,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+    }
+    assert entry.description == (
+        f'Invitation ({scoped_invitation.invitation_id}) role for "foo@bar.com" on '
+        f'"database_table" ({table.id}) in "{workspace.name}" ({workspace.id}) '
+        "changed from EDITOR to VIEWER."
+    )
 
     response = api_client.patch(
         reverse(
@@ -236,3 +289,23 @@ def test_delete_scoped_invitation(api_client, data_fixture):
     assert response.status_code == HTTP_204_NO_CONTENT
     assert list(WorkspaceScopedInvitation.objects.all()) == [second]
     assert WorkspaceInvitation.objects.filter(id=first.invitation_id).exists()
+
+    # Revoking is written to the audit log like deleting a workspace invitation.
+    entry = AuditLogEntry.objects.get(action_type=DeleteScopedInvitationActionType.type)
+    assert entry.user_id == user.id
+    assert entry.workspace_id == workspace.id
+    assert entry.action_params == {
+        "scoped_invitation_id": first.id,
+        "invitation_id": first.invitation_id,
+        "email": "foo@bar.com",
+        "role_uid": "EDITOR",
+        "scope_type_name": "database_table",
+        "scope_id": table.id,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+    }
+    assert entry.description == (
+        f'Invitation ({first.invitation_id}) role EDITOR for "foo@bar.com" on '
+        f'"database_table" ({table.id}) in "{workspace.name}" ({workspace.id}) '
+        "revoked."
+    )

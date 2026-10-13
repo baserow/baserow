@@ -58,6 +58,8 @@ export default {
         type: 'scope',
         scopeType: 'database_view',
         scope: this.view,
+        database: this.database,
+        table: this.table,
       }
     },
     deactivated() {

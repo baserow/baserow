@@ -95,6 +95,8 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.role.actions import (
             BatchAssignRoleActionType,
             CreateScopedInvitationActionType,
+            DeleteScopedInvitationActionType,
+            UpdateScopedInvitationActionType,
         )
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
@@ -163,6 +165,8 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(DeleteTeamSubjectActionType())
         action_type_registry.register(BatchAssignRoleActionType())
         action_type_registry.register(CreateScopedInvitationActionType())
+        action_type_registry.register(UpdateScopedInvitationActionType())
+        action_type_registry.register(DeleteScopedInvitationActionType())
         action_type_registry.register(UpdateFieldPermissionsActionType())
 
         trash_item_type_registry.register(TeamTrashableItemType())

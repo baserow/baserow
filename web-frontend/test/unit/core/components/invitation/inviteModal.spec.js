@@ -32,6 +32,7 @@ describe('InviteModal', () => {
   beforeEach(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
+    mockServer.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [])
   })
 
   afterEach(() => {
@@ -59,9 +60,25 @@ describe('InviteModal', () => {
     return wrapper
   }
 
-  async function mountAndFillForm() {
+  async function pickEmails(wrapper, emails) {
+    const input = wrapper.find('.invite-input__input')
+    for (const email of emails) {
+      await input.setValue(email)
+      await input.trigger('keydown', { key: 'Enter' })
+    }
+  }
+
+  function submitInvites(wrapper) {
+    return wrapper.find('.invite-input__row button').trigger('click')
+  }
+
+  function chips(wrapper) {
+    return wrapper.findAll('.invite-input__chip').map((chip) => chip.text())
+  }
+
+  async function mountAndFillForm(emails = ['test@example.com']) {
     const wrapper = await mountAndShow()
-    await wrapper.find('input').setValue('test@example.com')
+    await pickEmails(wrapper, emails)
     return wrapper
   }
 
@@ -180,8 +197,8 @@ describe('InviteModal', () => {
     )
     expect(wrapper.html()).toContain('Fake viewer')
 
-    await wrapper.find('input').setValue('test@example.com')
-    await wrapper.find('form').trigger('submit.prevent')
+    await pickEmails(wrapper, ['test@example.com'])
+    await submitInvites(wrapper)
     await flushPromises()
 
     expect(sendInvitation).toHaveBeenCalledWith(
@@ -190,7 +207,7 @@ describe('InviteModal', () => {
       { email: 'test@example.com', permissions: 'VIEWER', captchaToken: '' },
       expect.stringContaining('/workspace-invitation')
     )
-    expect(wrapper.emitted('invite-submitted')).toEqual([[{ id: 7 }]])
+    expect(wrapper.emitted('invite-submitted')).toEqual([[[{ id: 7 }]]])
   })
 
   test('emits the invitation and closes after a successful invite', async () => {
@@ -201,10 +218,10 @@ describe('InviteModal', () => {
     const busEmit = vi.spyOn(testApp.getApp().$bus, '$emit')
 
     const wrapper = await mountAndFillForm()
-    await wrapper.find('form').trigger('submit.prevent')
+    await submitInvites(wrapper)
     await flushPromises()
 
-    expect(wrapper.emitted('invite-submitted')).toEqual([[invitation]])
+    expect(wrapper.emitted('invite-submitted')).toEqual([[[invitation]]])
     expect(busEmit).toHaveBeenCalledWith('invite-submitted', invitation)
     await waitForModalToClose()
     expect(wrapper.vm.$refs.modal.open).toBe(false)
@@ -219,7 +236,7 @@ describe('InviteModal', () => {
     wrapper
       .findComponent(EmailInvitationRoute)
       .vm.onCaptchaToken('a-captcha-token')
-    await wrapper.find('form').trigger('submit.prevent')
+    await submitInvites(wrapper)
     await flushPromises()
 
     const requests = getInvitationRequests()
@@ -233,7 +250,7 @@ describe('InviteModal', () => {
       .reply(200, { id: 1, workspace: 1, email: 'test@example.com' })
 
     const wrapper = await mountAndFillForm()
-    await wrapper.find('form').trigger('submit.prevent')
+    await submitInvites(wrapper)
     await flushPromises()
 
     const body = JSON.parse(getInvitationRequests()[0].data)
@@ -244,10 +261,84 @@ describe('InviteModal', () => {
   test('does not render an empty container when the captcha is disabled', async () => {
     const wrapper = await mountAndFillForm()
 
-    // Only the container of the submit button should be rendered, the captcha
-    // widget must not leave an empty column behind.
-    expect(wrapper.findAll('.col-12')).toHaveLength(1)
+    // The captcha widget must not leave an empty element behind.
     expect(wrapper.html()).not.toContain('margin-top-2"><!--v-if-->')
+  })
+
+  test('invites every picked address and closes with all of them', async () => {
+    const first = { id: 1, workspace: 1, email: 'first@example.com' }
+    const second = { id: 2, workspace: 1, email: 'second@example.com' }
+    mockServer.mock
+      .onPost('/workspaces/invitations/workspace/1/')
+      .replyOnce(200, first)
+      .onPost('/workspaces/invitations/workspace/1/')
+      .replyOnce(200, second)
+
+    const wrapper = await mountAndFillForm([
+      'first@example.com',
+      'second@example.com',
+    ])
+    expect(chips(wrapper)).toEqual(['first@example.com', 'second@example.com'])
+    expect(wrapper.find('.invite-input__row button').text()).toContain(
+      'inviteInput.inviteAs'
+    )
+
+    await submitInvites(wrapper)
+    await flushPromises()
+
+    const emails = getInvitationRequests().map(
+      (request) => JSON.parse(request.data).email
+    )
+    expect(emails).toEqual(['first@example.com', 'second@example.com'])
+    expect(wrapper.emitted('invite-submitted')).toEqual([[[first, second]]])
+    await waitForModalToClose()
+    expect(wrapper.vm.$refs.modal.open).toBe(false)
+  })
+
+  test('points out a pending invitation instead of sending it again', async () => {
+    mockServer.mock
+      .onGet('/workspaces/invitations/workspace/1/')
+      .reply(200, [{ id: 3, workspace: 1, email: 'olga@example.com' }])
+
+    const wrapper = await mountAndShow()
+    const input = wrapper.find('.invite-input__input')
+    await input.setValue('Olga@example.com')
+    await input.trigger('keydown', { key: 'Enter' })
+
+    // The address becomes a chip marked as an error, so nothing can be sent.
+    expect(chips(wrapper)).toEqual(['olga@example.com'])
+    expect(wrapper.find('.invite-input__chip--error').exists()).toBe(true)
+    expect(
+      wrapper.find('.invite-input__row button').attributes('disabled')
+    ).toBeDefined()
+  })
+
+  test('keeps the addresses that were not invited when one fails', async () => {
+    mockServer.mock
+      .onPost('/workspaces/invitations/workspace/1/')
+      .replyOnce(200, { id: 1, workspace: 1, email: 'first@example.com' })
+      .onPost('/workspaces/invitations/workspace/1/')
+      .replyOnce(400, {
+        error: 'ERROR_GROUP_USER_ALREADY_EXISTS',
+        detail: 'The user is already a member.',
+      })
+
+    const wrapper = await mountAndFillForm([
+      'first@example.com',
+      'member@example.com',
+      'third@example.com',
+    ])
+    await submitInvites(wrapper)
+    await flushPromises()
+
+    // The first address went out, the one that failed and the one after it
+    // are still picked, and the modal stays open to explain.
+    expect(chips(wrapper)).toEqual(['member@example.com', 'third@example.com'])
+    expect(wrapper.html()).toContain(
+      'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.title'
+    )
+    expect(wrapper.emitted('invite-submitted')).toBeUndefined()
+    expect(wrapper.vm.$refs.modal.open).toBe(true)
   })
 
   test('starts with a fresh captcha token when shown again', async () => {
@@ -272,7 +363,7 @@ describe('InviteModal', () => {
       .reply(429, { detail: 'Request was throttled.' })
 
     const wrapper = await mountAndFillForm()
-    await wrapper.find('form').trigger('submit.prevent')
+    await submitInvites(wrapper)
     await flushPromises()
 
     expect(wrapper.html()).toContain(
@@ -288,7 +379,7 @@ describe('InviteModal', () => {
     })
 
     const wrapper = await mountAndFillForm()
-    await wrapper.find('form').trigger('submit.prevent')
+    await submitInvites(wrapper)
     await flushPromises()
 
     expect(wrapper.html()).toContain('error.captchaVerificationFailedTitle')

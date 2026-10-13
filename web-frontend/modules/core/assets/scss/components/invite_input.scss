@@ -1,10 +1,10 @@
-.share-scope-input__row {
+.invite-input__row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
-.share-scope-input__field {
+.invite-input__field {
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
@@ -17,12 +17,12 @@
 
   @include rounded($rounded-md);
 
-  &.share-scope-input__field--focused {
+  &.invite-input__field--focused {
     border-color: $palette-neutral-900;
   }
 }
 
-.share-scope-input__chip {
+.invite-input__chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -35,12 +35,21 @@
   @include rounded($rounded-md);
 }
 
-.share-scope-input__chip-icon {
-  font-size: 14px;
-  color: $palette-neutral-900;
+.invite-input__chip--error {
+  color: $palette-red-800;
+  background-color: $palette-red-100;
 }
 
-.share-scope-input__chip-remove {
+.invite-input__chip-icon {
+  font-size: 14px;
+  color: $palette-neutral-900;
+
+  .invite-input__chip--error & {
+    color: $palette-red-700;
+  }
+}
+
+.invite-input__chip-remove {
   display: inline-flex;
   color: $palette-neutral-900;
 
@@ -48,9 +57,17 @@
     color: $palette-neutral-1200;
     text-decoration: none;
   }
+
+  .invite-input__chip--error & {
+    color: $palette-red-700;
+
+    &:hover {
+      color: $palette-red-900;
+    }
+  }
 }
 
-.share-scope-input__input {
+.invite-input__input {
   flex: 1 1 120px;
   min-width: 120px;
   height: 28px;
@@ -61,25 +78,25 @@
   color: $palette-neutral-1200;
 }
 
-.share-scope-input__role {
+.invite-input__role {
   flex: 0 0 170px;
 }
 
-.share-scope-input__results {
+.invite-input__results {
   margin-top: 8px;
   border: 1px solid $palette-neutral-200;
 
   @include rounded($rounded-md);
 }
 
-.share-scope-input__tabs {
+.invite-input__tabs {
   display: flex;
   gap: 20px;
   padding: 0 12px;
   border-bottom: 1px solid $palette-neutral-200;
 }
 
-.share-scope-input__tab {
+.invite-input__tab {
   padding: 10px 0;
   font-size: 13px;
   font-weight: 500;
@@ -92,13 +109,13 @@
     color: $palette-neutral-1200;
   }
 
-  &.share-scope-input__tab--active {
+  &.invite-input__tab--active {
     color: $palette-neutral-1200;
     border-bottom-color: $palette-neutral-1200;
   }
 }
 
-.share-scope-input__list {
+.invite-input__list {
   max-height: 260px;
   margin: 0;
   padding: 4px 0;
@@ -106,7 +123,7 @@
   list-style: none;
 }
 
-.share-scope-input__item {
+.invite-input__item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -118,7 +135,7 @@
   }
 }
 
-.share-scope-input__item--pending {
+.invite-input__item--pending {
   cursor: default;
 
   &:hover {
@@ -126,23 +143,24 @@
   }
 }
 
-.share-scope-input__item-text {
+.invite-input__item-text {
   flex: 1;
   min-width: 0;
 }
 
-.share-scope-input__item-title {
+.invite-input__item-title {
   font-size: 13px;
   font-weight: 500;
   color: $palette-neutral-1200;
 }
 
-.share-scope-input__item-subtitle {
+.invite-input__item-subtitle {
   font-size: 12px;
   color: $palette-neutral-900;
+  white-space: pre-line;
 }
 
-.share-scope-input__empty {
+.invite-input__empty {
   padding: 16px 12px;
   font-size: 13px;
   color: $palette-neutral-900;

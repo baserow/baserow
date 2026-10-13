@@ -64,6 +64,8 @@ from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.actions import (
     BatchAssignRoleActionType,
     CreateScopedInvitationActionType,
+    DeleteScopedInvitationActionType,
+    UpdateScopedInvitationActionType,
 )
 from baserow_enterprise.role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -570,11 +572,12 @@ class ScopedInvitationView(APIView):
     @validate_body(UpdateScopedInvitationSerializer, return_validated=True)
     @transaction.atomic
     def patch(self, request: Request, scoped_invitation_id: int, data) -> Response:
-        handler = RoleAssignmentHandler()
-        scoped_invitation = handler.get_scoped_invitation(scoped_invitation_id)
-        scoped_invitation = handler.update_scoped_invitation(
-            request.user, scoped_invitation, data["role"]
+        scoped_invitation = RoleAssignmentHandler().get_scoped_invitation(
+            scoped_invitation_id
         )
+        scoped_invitation = action_type_registry.get_by_type(
+            UpdateScopedInvitationActionType
+        ).do(request.user, scoped_invitation, data["role"])
         return Response(ScopedInvitationSerializer(scoped_invitation).data)
 
     @extend_schema(
@@ -609,7 +612,10 @@ class ScopedInvitationView(APIView):
     )
     @transaction.atomic
     def delete(self, request: Request, scoped_invitation_id: int) -> Response:
-        handler = RoleAssignmentHandler()
-        scoped_invitation = handler.get_scoped_invitation(scoped_invitation_id)
-        handler.delete_scoped_invitation(request.user, scoped_invitation)
+        scoped_invitation = RoleAssignmentHandler().get_scoped_invitation(
+            scoped_invitation_id
+        )
+        action_type_registry.get_by_type(DeleteScopedInvitationActionType).do(
+            request.user, scoped_invitation
+        )
         return Response(status=204)

@@ -31,12 +31,12 @@ async function mountInput(props = {}) {
 
 function itemTitles(wrapper) {
   return wrapper
-    .findAll('.share-scope-input__item-title')
+    .findAll('.invite-input__item-title')
     .map((item) => item.text())
 }
 
 function tabLabels(wrapper) {
-  return wrapper.findAll('.share-scope-input__tab').map((tab) => tab.text())
+  return wrapper.findAll('.invite-input__tab').map((tab) => tab.text())
 }
 
 test('searches members and teams and offers an email for new people', async () => {
@@ -54,8 +54,8 @@ test('searches members and teams and offers an email for new people', async () =
     expect(itemTitles(wrapper)).toEqual(['Mark Delgado'])
 
     await input.setValue('new@x.com')
-    expect(itemTitles(wrapper)).toEqual(['shareScope.inviteEmail'])
-    expect(wrapper.find('.share-scope-input__item-subtitle').text()).toBe(
+    expect(itemTitles(wrapper)).toEqual(['inviteInput.inviteEmail'])
+    expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
       'shareScope.inviteEmailDescription'
     )
   } finally {
@@ -70,19 +70,26 @@ test('shows an already invited email as pending instead of offering it', async (
     await input.trigger('focus')
     await input.setValue('Olga@x.com')
 
-    const row = wrapper.find('.share-scope-input__item')
-    expect(row.classes()).toContain('share-scope-input__item--pending')
+    const row = wrapper.find('.invite-input__item')
+    expect(row.classes()).toContain('invite-input__item--pending')
     expect(itemTitles(wrapper)).toEqual(['olga@x.com'])
-    expect(wrapper.find('.share-scope-input__item-subtitle').text()).toBe(
+    expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
       'shareScope.alreadyInvited'
     )
     expect(row.find('input').exists()).toBe(false)
-    expect(wrapper.find('.share-scope-input__empty').exists()).toBe(false)
+    expect(wrapper.find('.invite-input__empty').exists()).toBe(false)
 
-    // Neither the row nor the enter key can pick it.
+    // The row can't pick it, and the enter key only makes an error chip that
+    // can't be submitted.
     await row.trigger('click')
+    expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
     await input.trigger('keydown', { key: 'Enter' })
-    expect(wrapper.findAll('.share-scope-input__chip')).toHaveLength(0)
+    expect(
+      wrapper.findAll('.invite-input__chip--error').map((chip) => chip.text())
+    ).toEqual(['olga@x.com'])
+    expect(
+      wrapper.find('.invite-input__row button').attributes('disabled')
+    ).toBeDefined()
   } finally {
     wrapper.unmount()
   }
@@ -97,7 +104,7 @@ test('only mentions and offers agents while they are enabled', async () => {
     )
     await input.trigger('focus')
     expect(tabLabels(withoutAgents)).toEqual([
-      'shareScope.tabAll',
+      'inviteInput.tabAll',
       'shareScope.tabMembers',
       'shareScope.tabTeams',
     ])
@@ -105,7 +112,7 @@ test('only mentions and offers agents while they are enabled', async () => {
 
     await input.setValue('smith')
     expect(itemTitles(withoutAgents)).toEqual([])
-    expect(withoutAgents.find('.share-scope-input__empty').text()).toBe(
+    expect(withoutAgents.find('.invite-input__empty').text()).toBe(
       'shareScope.noResultsWithoutAgents'
     )
   } finally {
@@ -118,7 +125,7 @@ test('only mentions and offers agents while they are enabled', async () => {
     expect(input.attributes('placeholder')).toBe('shareScope.searchPlaceholder')
     await input.trigger('focus')
     expect(tabLabels(withAgents)).toEqual([
-      'shareScope.tabAll',
+      'inviteInput.tabAll',
       'shareScope.tabMembers',
       'shareScope.tabTeams',
       'shareScope.tabAgents',
@@ -130,7 +137,7 @@ test('only mentions and offers agents while they are enabled', async () => {
     ])
 
     await input.setValue('nobody')
-    expect(withAgents.find('.share-scope-input__empty').text()).toBe(
+    expect(withAgents.find('.invite-input__empty').text()).toBe(
       'shareScope.noResults'
     )
   } finally {
@@ -138,19 +145,38 @@ test('only mentions and offers agents while they are enabled', async () => {
   }
 })
 
+test('opens the tabs on focus even when there is nobody left to pick', async () => {
+  const wrapper = await mountInput({ users: [], teams: [], agents: [] })
+  try {
+    await wrapper.find('input').trigger('focus')
+    expect(wrapper.find('.invite-input__results').attributes('style') ?? '')
+      .not.toContain('display: none')
+    expect(tabLabels(wrapper)).toEqual([
+      'inviteInput.tabAll',
+      'shareScope.tabMembers',
+      'shareScope.tabTeams',
+    ])
+    expect(wrapper.find('.invite-input__empty').text()).toBe(
+      'shareScope.noResultsWithoutAgents'
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})
+
 test('collects picks as chips and emits them with the role', async () => {
   const wrapper = await mountInput()
   try {
-    const button = wrapper.find('.share-scope-input__row button')
+    const button = wrapper.find('.invite-input__row button')
     expect(button.attributes('disabled')).toBeDefined()
 
     const input = wrapper.find('input')
     await input.trigger('focus')
-    await wrapper.find('.share-scope-input__item').trigger('click')
+    await wrapper.find('.invite-input__item').trigger('click')
     await input.setValue('new@x.com')
     await input.trigger('keydown', { key: 'Enter' })
 
-    const chips = wrapper.findAll('.share-scope-input__chip')
+    const chips = wrapper.findAll('.invite-input__chip')
     expect(chips.map((chip) => chip.text())).toEqual([
       'Mark Delgado',
       'new@x.com',
@@ -170,19 +196,19 @@ test('collects picks as chips and emits them with the role', async () => {
 
     wrapper.vm.reset()
     await wrapper.vm.$nextTick()
-    expect(wrapper.findAll('.share-scope-input__chip')).toHaveLength(0)
+    expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
 
     // The cross on a chip removes it again.
-    await wrapper.find('.share-scope-input__item').trigger('click')
-    await wrapper.find('.share-scope-input__chip-remove').trigger('click')
-    expect(wrapper.findAll('.share-scope-input__chip')).toHaveLength(0)
+    await wrapper.find('.invite-input__item').trigger('click')
+    await wrapper.find('.invite-input__chip-remove').trigger('click')
+    expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
 
     // The checkbox toggles through its own change event, not through the row.
-    const checkbox = wrapper.find('.share-scope-input__item input')
+    const checkbox = wrapper.find('.invite-input__item input')
     await checkbox.setValue(true)
-    expect(wrapper.findAll('.share-scope-input__chip')).toHaveLength(1)
+    expect(wrapper.findAll('.invite-input__chip')).toHaveLength(1)
     await checkbox.setValue(false)
-    expect(wrapper.findAll('.share-scope-input__chip')).toHaveLength(0)
+    expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
   } finally {
     wrapper.unmount()
   }

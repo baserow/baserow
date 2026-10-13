@@ -5,8 +5,10 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 /**
  * Invites people to one object of the workspace: an application, a table or a
  * view. The target is `{ type: 'scope', scopeType, scope }` where `scopeType` is a
- * role assignable scope type and `scope` the object itself. Invitees join the
- * workspace without a workspace role and only get the chosen role on the object.
+ * role assignable scope type and `scope` the object itself. A table target also
+ * carries its `database` and a view target its `database` and `table`, so the
+ * modal can tell where the object lives. Invitees join the workspace without a
+ * workspace role and only get the chosen role on the object.
  */
 export class ScopeInvitationTargetType extends InvitationTargetType {
   static getType() {
@@ -38,14 +40,11 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     return `${path.join(' / ')} • ${typeName}`
   }
 
-  getParentNames({ scope, scopeType }) {
-    const getApplication = this.app.$store.getters['application/get']
+  getParentNames({ scopeType, database, table }) {
     if (scopeType === 'database_table') {
-      return [getApplication(scope.database_id)?.name].filter(Boolean)
+      return [database?.name].filter(Boolean)
     }
     if (scopeType === 'database_view') {
-      const table = this.app.$store.getters['table/get']?.(scope.table_id)
-      const database = table ? getApplication(table.database_id) : null
       return [database?.name, table?.name].filter(Boolean)
     }
     return []
