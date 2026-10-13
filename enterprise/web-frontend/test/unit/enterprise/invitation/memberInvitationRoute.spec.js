@@ -4,10 +4,12 @@ import { expect, test, vi } from 'vitest'
 
 import MemberInvitationRoute from '@baserow_enterprise/components/invitation/MemberInvitationRoute'
 
+// The roles an invitation can grant, which is every role but no access.
 const roles = [
   { uid: 'EDITOR', name: 'Editor', isVisible: true },
   { uid: 'VIEWER', name: 'Viewer', isVisible: true },
 ]
+const noAccess = { uid: 'NO_ACCESS', name: 'No access', isVisible: true }
 const workspace = {
   id: 12,
   name: 'Widelab',
@@ -16,7 +18,7 @@ const workspace = {
     { id: 2, user_id: 8, name: 'Mark Delgado', email: 'mark@x.com' },
     { id: 3, user_id: 9, name: 'Jane Roe', email: 'jane@x.com' },
   ],
-  _: { roles },
+  _: { roles: [...roles, noAccess] },
 }
 const target = {
   type: 'scope',
@@ -150,12 +152,22 @@ async function mountRoute(
       },
       stubs: {
         ShareScopeInput: {
-          props: ['users', 'teams', 'agents', 'agentsEnabled', 'pendingEmails'],
+          props: [
+            'users',
+            'teams',
+            'agents',
+            'agentsEnabled',
+            'pendingEmails',
+            'roles',
+            'emailRoleUids',
+          ],
           template:
             '<div class="picker">{{ users.map((u) => u.name).join(",") }}</div>' +
             '<div class="picker-agents" :data-enabled="agentsEnabled">' +
             '{{ agents.map((a) => a.name).join(",") }}</div>' +
-            '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>',
+            '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
+            '<div class="picker-roles">{{ roles.map((r) => r.uid).join(",") }}' +
+            '|{{ emailRoleUids.join(",") }}</div>',
           methods: {
             reset() {
               picker.resets += 1
@@ -168,7 +180,9 @@ async function mountRoute(
         ScopeAccessList: {
           props: ['items'],
           template:
-            '<div class="access">{{ items.map((i) => i.key).join(",") }}</div>',
+            '<div class="access">{{ items.map((i) => i.key).join(",") }}</div>' +
+            '<div class="access-roles">{{ items.map((i) => i.key + "=" + ' +
+            'i.roles.map((r) => r.uid).join("/")).join(",") }}</div>',
         },
         ScopeInheritedAccess: { template: '<div class="inherited"></div>' },
         CaptchaWidget: captcha
@@ -199,6 +213,13 @@ test('lists pending invitations first and keeps assigned people out of the picke
       expect.anything()
     )
     expect(wrapper.find('.inherited').exists()).toBe(true)
+    // Members can be given no access on the table, invitations can't.
+    expect(wrapper.find('.picker-roles').text()).toBe(
+      'EDITOR,VIEWER,NO_ACCESS|EDITOR,VIEWER'
+    )
+    expect(wrapper.find('.access-roles').text()).toBe(
+      'invitation:1=EDITOR/VIEWER,auth.User:8=EDITOR/VIEWER/NO_ACCESS'
+    )
   } finally {
     wrapper.unmount()
   }

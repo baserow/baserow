@@ -12,6 +12,7 @@
           v-tooltip:[chipTooltipOptions]="chipError(item)"
           class="invite-input__chip"
           :class="{ 'invite-input__chip--error': chipError(item) !== null }"
+          @mousedown.prevent
         >
           <i class="invite-input__chip-icon" :class="item.icon"></i>
           {{ item.name }}
@@ -189,7 +190,9 @@ export function extractEmails(text) {
  * added. An address in `pendingEmails` already has an invitation and one in
  * `memberEmails` belongs to a member: typed, they are explained instead of
  * offered, and once picked, for example as part of a pasted list, their chip
- * is marked as an error and left out of what is submitted.
+ * is marked as an error and left out of what is submitted. The same happens to
+ * every address while a role outside `emailRoleUids` is chosen, for a role that
+ * can be given to a member but makes no sense as an invitation.
  *
  * Options are objects of `{ key, type, id, name, subtitle, search, initials,
  * icon, color }` with an optional `email` for people; `tabs` are `{ value,
@@ -198,7 +201,8 @@ export function extractEmails(text) {
  * A result row toggles on click, and so does its checkbox. The checkbox is a
  * label around a native input, whose click would bubble to the row and toggle
  * it back, so the checkbox keeps its click to itself and toggles through its
- * own change event instead.
+ * own change event instead. The list stays open while the chips and the list
+ * itself are clicked, because neither takes the focus away from the input.
  */
 export default {
   name: 'InviteInput',
@@ -232,6 +236,15 @@ export default {
       required: false,
       default: () => [],
     },
+    /**
+     * The uids of the roles an email address can be invited with, or null when
+     * every role will do. The default role is the last of these.
+     */
+    emailRoleUids: {
+      type: Array,
+      required: false,
+      default: null,
+    },
     placeholder: {
       type: String,
       required: false,
@@ -264,7 +277,7 @@ export default {
       open: false,
       activeTab: TAB_ALL,
       selected: [],
-      roleUid: this.defaultRoleUid(this.roles),
+      roleUid: this.initialRoleUid(this.roles),
     }
   },
   computed: {
@@ -292,6 +305,11 @@ export default {
     },
     roleName() {
       return this.roles.find((role) => role.uid === this.roleUid)?.name || ''
+    },
+    roleAllowsEmails() {
+      return (
+        this.emailRoleUids === null || this.emailRoleUids.includes(this.roleUid)
+      )
     },
     normalizedQuery() {
       return this.query.trim().toLowerCase()
@@ -332,13 +350,24 @@ export default {
       )
     },
     /**
-     * One option per typed address that can be invited: a valid address that
-     * neither has an invitation nor belongs to a member.
+     * The address rows of the list: one per typed address that can be invited,
+     * a valid address that neither has an invitation nor belongs to a member,
+     * followed by the picked addresses that match the search. The picked ones
+     * keep a row like a picked member does, so they can be unchecked from the
+     * list as well as from their chip.
      */
     emailOptions() {
-      return this.queryEmails
+      const typed = this.queryEmails
         .map((email) => this.invitableOptionFor(email))
         .filter(Boolean)
+      const picked = this.selected.filter(
+        (item) =>
+          item.type === 'email' &&
+          this.chipError(item) === null &&
+          !typed.some(({ key }) => key === item.key) &&
+          item.email.includes(this.normalizedQuery)
+      )
+      return [...typed, ...picked]
     },
     /**
      * With a list to search the results open on focus, otherwise there is
@@ -364,16 +393,21 @@ export default {
   watch: {
     roles(roles) {
       if (!roles.some((role) => role.uid === this.roleUid)) {
-        this.roleUid = this.defaultRoleUid(roles)
+        this.roleUid = this.initialRoleUid(roles)
       }
     },
   },
   methods: {
     /**
-     * The last active role is the one with the least access, the safest default.
+     * The last active role is the one with the least access, the safest
+     * default, as long as an address can be invited with it.
      */
-    defaultRoleUid(roles) {
-      const active = roles.filter((role) => !role.isDeactivated)
+    initialRoleUid(roles) {
+      const active = roles.filter(
+        (role) =>
+          !role.isDeactivated &&
+          (this.emailRoleUids === null || this.emailRoleUids.includes(role.uid))
+      )
       return active.length > 0 ? active[active.length - 1].uid : null
     },
     focus() {
@@ -431,6 +465,9 @@ export default {
       if (this.isMember(item.email)) {
         return this.$t('inviteInput.alreadyMember')
       }
+      if (!this.roleAllowsEmails) {
+        return this.$t('inviteInput.roleNotForEmails', { role: this.roleName })
+      }
       return null
     },
     isSelected(option) {
@@ -441,13 +478,20 @@ export default {
         this.remove(option)
       } else {
         this.selected.push(option)
-        if (option.type === 'email') {
-          this.query = extractEmails(this.query)
-            .filter((email) => email.toLowerCase() !== option.email)
-            .join(' ')
-        }
+        this.dropFromQuery(option.email)
       }
       this.focus()
+    },
+    /**
+     * Takes the address out of the field once it was picked, whether as a new
+     * address or as the member it belongs to, so it isn't left behind as text.
+     */
+    dropFromQuery(email) {
+      const tokens = extractEmails(this.query)
+      const matches = (token) => token.toLowerCase() === email?.toLowerCase()
+      if (email && tokens.some(matches)) {
+        this.query = tokens.filter((token) => !matches(token)).join(' ')
+      }
     },
     remove(item) {
       this.selected = this.selected.filter(({ key }) => key !== item.key)

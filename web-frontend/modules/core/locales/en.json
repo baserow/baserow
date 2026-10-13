@@ -409,6 +409,7 @@
     "inviteEmailDescription": "Joins the workspace as {role}",
     "alreadyInvited": "An invitation is already pending.\nYou can change its role on the Invites page instead of inviting again.",
     "alreadyMember": "Already a member of this workspace",
+    "roleNotForEmails": "Someone new can't be invited with the {role} role",
     "noResults": "Type a full email address to invite someone."
   },
   "workspaceContext": {

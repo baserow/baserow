@@ -7,6 +7,7 @@
     :tabs="tabs"
     :pending-emails="pendingEmails"
     :member-emails="memberEmails"
+    :email-role-uids="emailRoleUids"
     :placeholder="placeholder"
     :pending-text="$t('shareScope.alreadyInvited', { type: scopeTypeName })"
     :no-results-text="noResultsText"
@@ -82,6 +83,15 @@ export default {
     roles: {
       type: Array,
       required: true,
+    },
+    /**
+     * The uids of the roles a new address can be invited with, see the roles
+     * of the scope invitation target.
+     */
+    emailRoleUids: {
+      type: Array,
+      required: false,
+      default: null,
     },
     disabled: {
       type: Boolean,

@@ -15,9 +15,13 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     return 'scope'
   }
 
+  /**
+   * The roles a new person can be invited to the object with. Inviting someone
+   * to an object with no access on it is pointless, so that role is left out
+   * here; members, teams and agents who already belong to the workspace can
+   * still be given it on the object.
+   */
   getRoles(workspace, { scopeType }) {
-    // Inviting someone to an object with no access on it is pointless, so that
-    // role is left out and the default becomes the lowest useful one.
     return filterRoles(workspace._.roles, { scopeType }).filter(
       (role) => role.uid !== 'NO_ACCESS'
     )

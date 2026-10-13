@@ -33,7 +33,7 @@
         </div>
         <RoleSelector
           :value="getRole(item)"
-          :roles="roles"
+          :roles="item.roles || roles"
           :disabled="item.disabled"
           :allow-removing-role="true"
           :workspace="workspace"

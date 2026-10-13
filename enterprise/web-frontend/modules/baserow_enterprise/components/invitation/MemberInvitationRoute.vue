@@ -11,7 +11,8 @@
         :agents="availableAgents"
         :agents-enabled="agentsEnabled"
         :pending-emails="pendingEmails"
-        :roles="roles"
+        :roles="assignableRoles"
+        :email-role-uids="invitationRoleUids"
         :disabled="loading || adding"
         @add="add"
       />
@@ -28,7 +29,7 @@
       <ScopeAccessList
         v-else
         :items="accessItems"
-        :roles="roles"
+        :roles="assignableRoles"
         :scope-type-name="scopeTypeName"
         :workspace="workspace"
         @role-updated="updateItemRole"
@@ -62,6 +63,7 @@ import ScopeInheritedAccess from '@baserow_enterprise/components/invitation/Scop
 import ShareScopeInput from '@baserow_enterprise/components/invitation/ShareScopeInput'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
+import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 const USER = 'auth.User'
 const TEAM = 'baserow_enterprise.Team'
@@ -72,7 +74,9 @@ const AGENT = 'core.Agent'
  * agents with a role on the object, or invites a new person by email with a role
  * on the object only. Below it, everyone with a direct role is listed, pending
  * invitations included, followed by who else reaches the object through the
- * workspace. Agents only take part while the agents feature flag is on: they
+ * workspace. Members, teams and agents can be given no access on the object,
+ * which takes it away from them below their workspace role; an invitation
+ * can't, as there is no point in inviting someone to nothing. Agents only take part while the agents feature flag is on: they
  * are neither searched nor listed without it.
  */
 export default {
@@ -122,8 +126,21 @@ export default {
         .getScopeTypeName(this.scopeType, this.scope)
         .toLowerCase()
     },
+    /**
+     * The roles an invitation can grant on the object.
+     */
     roles() {
       return this.targetType.getRoles(this.workspace, this.target)
+    },
+    invitationRoleUids() {
+      return this.roles.map(({ uid }) => uid)
+    },
+    /**
+     * The roles a member, team or agent can hold on the object, no access
+     * included.
+     */
+    assignableRoles() {
+      return filterRoles(this.workspace._.roles, { scopeType: this.scopeType })
     },
     agentsEnabled() {
       return this.$featureFlagIsEnabled(FF_AGENTS)
@@ -170,6 +187,7 @@ export default {
         icon: 'iconoir-mail',
         color: 'neutral',
         roleUid: scopedInvitation.role,
+        roles: this.roles,
         disabled: false,
         scopedInvitation,
       }))
@@ -195,6 +213,7 @@ export default {
             icon: 'iconoir-user',
             color: subjectType.avatarColor,
             roleUid: roleAssignment.role,
+            roles: this.assignableRoles,
             disabled: false,
             roleAssignment,
           }
@@ -325,17 +344,21 @@ export default {
           )
           subjects.forEach((item) => this.$refs.input.remove(item))
         }
-        await this.sendInvitations(emails, roleUid, (item, scopedInvitation) => {
-          this.$refs.input.remove(item)
-          const index = this.scopedInvitations.findIndex(
-            ({ id }) => id === scopedInvitation.id
-          )
-          if (index === -1) {
-            this.scopedInvitations.push(scopedInvitation)
-          } else {
-            this.scopedInvitations[index] = scopedInvitation
+        await this.sendInvitations(
+          emails,
+          roleUid,
+          (item, scopedInvitation) => {
+            this.$refs.input.remove(item)
+            const index = this.scopedInvitations.findIndex(
+              ({ id }) => id === scopedInvitation.id
+            )
+            if (index === -1) {
+              this.scopedInvitations.push(scopedInvitation)
+            } else {
+              this.scopedInvitations[index] = scopedInvitation
+            }
           }
-        })
+        )
         this.$refs.input.reset()
       } catch (error) {
         this.handleInvitationError(error)
