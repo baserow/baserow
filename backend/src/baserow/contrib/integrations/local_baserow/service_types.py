@@ -178,7 +178,7 @@ class LocalBaserowServiceType(ServiceType):
 
         if service.integration_id:
             integration = service.integration.specific
-            authorized_subject = integration.authorized_subject
+            authorized_subject = integration.authorized_subject_including_trash
             if getattr(authorized_subject, "trashed", False):
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration's authorized agent is trashed"

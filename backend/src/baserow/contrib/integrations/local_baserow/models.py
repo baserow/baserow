@@ -59,20 +59,39 @@ class LocalBaserowIntegration(Integration):
             kwargs["update_fields"] = set(kwargs["update_fields"]) | migrated_fields
         super().save(*args, **kwargs)
 
-    @property
-    def authorized_subject(self):
-        """Return the subject whose permissions are used by this integration."""
+    def get_authorized_subject(self, include_trash: bool = False):
+        """
+        Return the subject whose permissions are used by this integration.
+
+        :param include_trash: Whether a trashed subject (e.g. a trashed agent) is
+            returned. It must never be used to act, only to report why the
+            integration can't be used.
+        """
 
         if self.authorized_subject_type and self.authorized_subject_id:
             from baserow.core.registries import subject_type_registry
 
             try:
                 return subject_type_registry.get_subject(
-                    self.authorized_subject_type, self.authorized_subject_id
+                    self.authorized_subject_type,
+                    self.authorized_subject_id,
+                    include_trash=include_trash,
                 )
             except SubjectTypeNotExist:
                 return None
         return self.authorized_user
+
+    @property
+    def authorized_subject(self):
+        """Return the usable subject, so None when it has been trashed."""
+
+        return self.get_authorized_subject()
+
+    @property
+    def authorized_subject_including_trash(self):
+        """Return the subject even when trashed, to report its trashed state."""
+
+        return self.get_authorized_subject(include_trash=True)
 
 
 class LocalBaserowTableService(Service):

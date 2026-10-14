@@ -11,7 +11,7 @@
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
-    "localBaserowAgentSummary": "Local Baserow - Agent: {name}",
+    "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
     "errorTrashedAgent": "The authorized agent has been trashed",
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."

@@ -5,15 +5,7 @@
         :value="authenticationSubject"
         :fetch-page="fetchAgentPage"
         :add-empty-item="false"
-        :initial-display-name="
-          defaultValues.authorized_subject?.type === 'core.Agent'
-            ? defaultValues.authorized_subject.name
-            : defaultValues.authorized_subject?.id === currentUserId ||
-                !defaultValues.authorized_subject
-              ? $t('localBaserowForm.currentUser')
-              : defaultValues.authorized_subject.first_name ||
-                defaultValues.authorized_subject.username
-        "
+        :initial-display-name="initialSubjectName"
         :include-display-name-in-selected-event="true"
         @input="setAuthenticationSubject"
       >
@@ -67,6 +59,22 @@ export default {
   computed: {
     currentUserId() {
       return this.$store.getters['auth/getUserId']
+    },
+    initialSubjectName() {
+      const subject = this.defaultValues.authorized_subject
+      // A trashed agent isn't selectable, so show nothing selected and let the
+      // user pick another subject.
+      if (subject?.trashed) {
+        return null
+      }
+      if (!subject) {
+        return this.$t('localBaserowForm.currentUser')
+      }
+      const subjectType = this.$registry.get('subject', subject.type)
+      if (subjectType.isCurrentUser(subject, this.currentUserId)) {
+        return this.$t('localBaserowForm.currentUser')
+      }
+      return subjectType.getDisplayName(subject)
     },
     authenticationSubject: {
       get() {

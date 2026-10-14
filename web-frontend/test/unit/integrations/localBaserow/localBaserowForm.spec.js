@@ -81,6 +81,21 @@ describe('LocalBaserowForm', () => {
     expect(wrapper.find('.dropdown__selected-text').text()).toBe('Reader agent')
   })
 
+  test('shows nothing selected for a saved trashed agent', async () => {
+    const wrapper = await mountComponent({
+      authorized_subject: {
+        id: 11,
+        type: 'core.Agent',
+        name: 'Reader agent',
+        trashed: true,
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').exists()).toBe(false)
+    expect(wrapper.find('.dropdown__selected').text()).toBe('action.makeChoice')
+  })
+
   test('shows the saved current user as selected', async () => {
     const wrapper = await mountComponent({
       authorized_subject: { id: 1, type: 'auth.User', first_name: 'Admin' },

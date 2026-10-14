@@ -397,6 +397,18 @@ describe('Local baserow service types', () => {
     const serviceType = registry.get('service', 'local_baserow_get_row')
 
     expect(integrationType.isInError(integration)).toBe(true)
+    expect(integrationType.getSummary(integration)).toBe(
+      'localBaserowIntegrationType.localBaserowNoUser'
+    )
+    expect(
+      integrationType.getSummary({
+        ...integration,
+        authorized_subject: {
+          ...integration.authorized_subject,
+          trashed: false,
+        },
+      })
+    ).toBe('localBaserowIntegrationType.localBaserowSubjectSummary')
     expect(
       serviceType.getErrorMessage({
         service: { integration_id: 5, table_id: 99 },

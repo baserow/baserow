@@ -21,19 +21,22 @@ export class LocalBaserowIntegrationType extends IntegrationType {
 
   getSummary(integration) {
     const subject = integration.authorized_subject
-    if (subject?.type === 'core.Agent') {
-      return this.app.$i18n.t(
-        'localBaserowIntegrationType.localBaserowAgentSummary',
-        { name: subject.name }
-      )
-    }
-
-    if (!subject) {
+    // A trashed agent can't authenticate, so the integration isn't configured.
+    if (!subject || subject.trashed) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
 
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const displayName = subjectType.getDisplayName(subject)
+    if (!subjectType.isUser()) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowSubjectSummary',
+        { type: subjectType.getTypeDisplayName(), name: displayName }
+      )
+    }
+
     return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
-      name: subject.first_name,
+      name: displayName,
       username: subject.username,
     })
   }

@@ -28,6 +28,10 @@ export class SubjectType extends Registerable {
   isCurrentUser() {
     return false
   }
+
+  isUser() {
+    return false
+  }
 }
 
 export class UserSubjectType extends SubjectType {
@@ -66,6 +70,10 @@ export class UserSubjectType extends SubjectType {
   isCurrentUser(subject, currentUserId) {
     return this.getId(subject) === currentUserId
   }
+
+  isUser() {
+    return true
+  }
 }
 
 export class AnonymousUserSubjectType extends SubjectType {
@@ -102,4 +110,5 @@ export class AgentSubjectType extends SubjectType {
   getPluralTypeDisplayName() {
     return this.$t('subjectType.agents')
   }
+
 }

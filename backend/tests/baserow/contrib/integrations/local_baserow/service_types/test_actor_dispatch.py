@@ -107,11 +107,16 @@ def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
     service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
 
     with pytest.raises(
-        ServiceImproperlyConfiguredDispatchException, match="no authorized subject"
+        ServiceImproperlyConfiguredDispatchException,
+        match="authorized agent is trashed",
     ):
         ServiceHandler().dispatch_service(service, FakeDispatchContext())
 
     assert table.get_model().objects.count() == 0
+    # Only the trash-inclusive lookup returns the agent, so it can never act.
+    integration.refresh_from_db()
+    assert integration.authorized_subject is None
+    assert integration.authorized_subject_including_trash == agent
 
 
 @pytest.mark.django_db

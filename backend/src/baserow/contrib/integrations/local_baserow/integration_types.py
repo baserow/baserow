@@ -56,7 +56,10 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     serializer_field_overrides = {
         "context_data": LocalBaserowContextDataSerializer(read_only=True),
-        "authorized_subject": AuthorizedSubjectSerializerField(read_only=True),
+        # Include a trashed agent so clients can show the integration in error.
+        "authorized_subject": AuthorizedSubjectSerializerField(
+            source="authorized_subject_including_trash", read_only=True
+        ),
     }
 
     request_serializer_field_names = [

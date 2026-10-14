@@ -19,6 +19,7 @@ from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.models import Agent
 from baserow.core.registries import application_type_registry
+from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db
@@ -148,6 +149,34 @@ def test_create_and_update_local_baserow_integration_with_agent(
     assert response.json()["authorized_subject"]["id"] == user.id
     integration.refresh_from_db()
     assert integration.authorized_subject == user
+
+
+@pytest.mark.django_db
+def test_local_baserow_integration_serializes_a_trashed_agent(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(workspace=workspace, name="Row writer")
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user, authorized_agent=agent
+    )
+    TrashHandler.trash(user, workspace, None, agent)
+
+    response = api_client.get(
+        reverse("api:integrations:list", kwargs={"application_id": application.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    [response_integration] = [
+        item for item in response.json() if item["id"] == integration.id
+    ]
+    assert response_integration["authorized_subject"] == {
+        "id": agent.id,
+        "name": "Row writer",
+        "trashed": True,
+        "type": "core.Agent",
+    }
 
 
 @pytest.mark.django_db
