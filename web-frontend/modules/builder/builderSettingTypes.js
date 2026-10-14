@@ -1,5 +1,6 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
+import { integrationsInError } from '@baserow/modules/core/utils/integration'
 import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
 import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
 import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
@@ -33,6 +34,18 @@ export class BuilderSettingType extends Registerable {
 
   get componentPadding() {
     return true
+  }
+
+  /**
+   * Returns whether this setting contains something that needs the user's
+   * attention. Used to flag the setting, and the "Settings" entry leading to
+   * it, so the user can follow the trail to the issue.
+   *
+   * @param {object} application The application the setting belongs to.
+   * @returns {boolean} If the setting is in error.
+   */
+  isInError(application) {
+    return false
   }
 
   isDeactivated({ workspace }) {
@@ -111,6 +124,10 @@ export class IntegrationsBuilderSettingsType extends BuilderSettingType {
 
   get component() {
     return IntegrationSettings
+  }
+
+  isInError(application) {
+    return integrationsInError(this.app, application.integrations)
   }
 }
 

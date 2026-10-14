@@ -37,6 +37,29 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * Returns why this integration can't be used as it is, or null when it's
+   * valid. Services, applications and settings built on top of an integration
+   * use this to show the user where a misconfiguration comes from.
+   *
+   * @param {object} integration The integration to validate.
+   * @returns {string|null} The error message, if any.
+   */
+  getErrorMessage(integration) {
+    return null
+  }
+
+  /**
+   * Override `getErrorMessage` instead of this method so an invalid
+   * integration also provides a user-facing explanation.
+   *
+   * @param {object} integration The integration to validate.
+   * @returns {boolean} If the integration is in error.
+   */
+  isInError(integration) {
+    return Boolean(this.getErrorMessage(integration))
+  }
+
+  /**
    * The form to edit this integration.
    */
   get formComponent() {

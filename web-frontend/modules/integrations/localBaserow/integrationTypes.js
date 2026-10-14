@@ -30,6 +30,13 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     })
   }
 
+  getErrorMessage(integration) {
+    if (!integration.authorized_user) {
+      return this.app.$i18n.t('localBaserowIntegrationType.errorNoUser')
+    }
+    return super.getErrorMessage(integration)
+  }
+
   get formComponent() {
     return LocalBaserowForm
   }

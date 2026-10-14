@@ -21,11 +21,16 @@
               active:
                 settingSelected &&
                 setting.getType() === settingSelected.getType(),
+              'modal-sidebar__nav-link--error': setting.isInError(automation),
             }"
             @click="settingSelected = setting"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
             {{ setting.name }}
+            <i
+              v-if="setting.isInError(automation)"
+              class="modal-sidebar__nav-error-icon iconoir-warning-circle"
+            ></i>
           </a>
         </li>
       </ul>

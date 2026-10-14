@@ -119,6 +119,18 @@ export class ApplicationType extends Registerable {
     return []
   }
 
+  /**
+   * Returns whether something in the application needs the user's attention,
+   * for example a misconfigured integration. It's used to flag the
+   * application in the sidebar, so the user can follow the trail to the issue.
+   *
+   * @param {object} application The application to check.
+   * @returns {boolean} If the application is in error.
+   */
+  isInError(application) {
+    return false
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()

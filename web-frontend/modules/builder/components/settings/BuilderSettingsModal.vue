@@ -20,6 +20,7 @@
               active:
                 settingSelected &&
                 setting.getType() === settingSelected.getType(),
+              'modal-sidebar__nav-link--error': setting.isInError(builder),
             }"
             @click="onClick(setting)"
           >
@@ -28,6 +29,10 @@
             <i
               v-if="setting.isDeactivated({ workspace })"
               class="iconoir-lock"
+            ></i>
+            <i
+              v-else-if="setting.isInError(builder)"
+              class="modal-sidebar__nav-error-icon iconoir-warning-circle"
             ></i>
           </a>
           <component
