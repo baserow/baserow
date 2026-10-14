@@ -12,7 +12,11 @@ class Migration(migrations.Migration):
             model_name="localbaserowintegration",
             name="authorized_subject_type",
             field=models.CharField(
-                db_default="auth.User", default="auth.User", max_length=255
+                blank=True,
+                db_default="auth.User",
+                default="auth.User",
+                max_length=255,
+                null=True,
             ),
         ),
         migrations.SeparateDatabaseAndState(

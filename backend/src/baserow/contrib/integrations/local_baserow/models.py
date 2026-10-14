@@ -29,7 +29,7 @@ class LocalBaserowIntegration(Integration):
     """
 
     authorized_subject_type = models.CharField(
-        max_length=255, default="auth.User", db_default="auth.User"
+        max_length=255, null=True, blank=True, default="auth.User", db_default="auth.User"
     )
     authorized_subject_id = models.BigIntegerField(
         null=True, blank=True, db_column="authorized_user_id"
