@@ -38,10 +38,9 @@ describe('Agent application type', () => {
     expect(makeType(true).type.supportsTrash()).toBe(false)
   })
 
-  test('requires application read permission before opening the agent', async () => {
+  test('hides an agent without application read permission', () => {
     const { type, app } = makeType(true, false)
     expect(type.isVisible(application)).toBe(false)
-    expect(await type.select(application)).toBe(false)
     expect(app.$hasPermission).toHaveBeenCalledWith(
       'application.read',
       application,
