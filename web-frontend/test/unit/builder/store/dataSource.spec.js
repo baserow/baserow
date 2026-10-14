@@ -87,6 +87,8 @@ describe('dataSource store', () => {
         { type: 'local_baserow_get_row' },
       ])
 
+    expect(store.getters['dataSource/getFetched'](page)).toBe(false)
+
     await store.dispatch('dataSource/fetch', {
       page,
     })
@@ -95,6 +97,7 @@ describe('dataSource store', () => {
       store.getters['dataSource/getPageDataSources'](page)
 
     expect(collectionDataSources.length).toBe(3)
+    expect(store.getters['dataSource/getFetched'](page)).toBe(true)
   })
 
   test('fetchPublished uses the selected builder in preview mode', async () => {
