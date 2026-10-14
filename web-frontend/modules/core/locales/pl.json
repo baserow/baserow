@@ -173,7 +173,8 @@
         "title": "Szablony"
     },
     "templateHeader": {
-        "use": "Użyj tego szablonu"
+        "use": "Użyj tego szablonu",
+        "selectWorkspace": "Wybierz obszar roboczy"
     },
     "trashSidebar": {
         "title": "Śmieci",
@@ -284,7 +285,8 @@
         "backDashboard": "Powrót do pulpitu",
         "backLogin": "Powrót do logowania",
         "wrong": "Wystąpił błąd",
-        "refresh": "Odśwież stronę"
+        "refresh": "Odśwież stronę",
+        "pageNotFoundTitle": "Nie znaleziono strony"
     },
     "dashboard": {
         "title": "Pulpit",
@@ -317,7 +319,9 @@
         "noWorkspaceDescription": "Rozpocznij od utworzenia nowego obszaru roboczego",
         "starOnGitHub": "Oceń nas na GitHub",
         "academy": "Akademia Baserow",
-        "academyMessage": "Weź udział w naszych kursach i zostań ekspertem"
+        "academyMessage": "Weź udział w naszych kursach i zostań ekspertem",
+        "templates": "Szablony",
+        "templatesMessage": "Rozpocznij korzystając z gotowego rozwiązania"
     },
     "dashboardSidebar": {
         "workspaces": "Grupy",
@@ -690,7 +694,9 @@
     "integrationCreateEditModal": {
         "createTitle": "Nowa integracja",
         "editTitle": "Edytuj integrację",
-        "warningTitle": "Ostrzeżenie"
+        "warningTitle": "Ostrzeżenie",
+        "credentialRequiredTitle": "Wymagane uwierzytelnienie",
+        "credentialRequiredMessage": "Aby zmienić połączenie integracji, ponownie wprowadź dane uwierzytelniające."
     },
     "integrationEditForm": {
         "name": "Nazwa",
@@ -724,7 +730,9 @@
         "errorInvalidFormula": "Ta formuła jest nieprawidłowa.",
         "advancedFormulaMode": "Tryb zaawansowany",
         "invalidFormulaTitle": "Nieprawidłowa formuła",
-        "invalidSyntax": "Ta formuła jest nieprawidłowa. Sprawdź składnię."
+        "invalidSyntax": "Ta formuła jest nieprawidłowa. Sprawdź składnię.",
+        "useFormulaMode": "Użyj trybu formuł",
+        "useRawMode": "Użyj trybu źródłowego"
     },
     "dataExplorer": {
         "noMatchingNodesText": "Nie znaleziono pasujących wyników.",
@@ -803,7 +811,11 @@
         "xaiModelsDescription": "Podaj [identyfikatory modeli xAI](https://docs.x.ai/developers/models), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `grok-4.3,grok-4.20-non-reasoning`.",
         "xaiModelIdentifierDescription": "Wprowadź [identyfikator modelu xAI](https://docs.x.ai/developers/models), np.: `grok-4.3` or `grok-4.20-non-reasoning`.",
         "zai": "Z.ai",
-        "zaiApiKeyLabel": "Klucz API"
+        "zaiApiKeyLabel": "Klucz API",
+        "zaiApiKeyDescription": "Wprowadź klucz API Z.ai. [Utwórz lub wyświetl klucz API](https://z.ai/manage-apikey/apikey-list).",
+        "zaiModelsLabel": "Włączone modele",
+        "zaiModelsDescription": "Podaj [identyfikatory modeli Z.ai](https://docs.z.ai/guides/overview/pricing), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami, np.: `glm-5.2,glm-4.6v`.",
+        "zaiModelIdentifierDescription": "Wprowadź [identyfikator modelu Z.ai](https://docs.z.ai/guides/overview/pricing). Np.: `glm-5.2` lub `glm-4.6v`."
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
@@ -812,7 +824,16 @@
         "description": "Ustawienia te są opcjonalne i służą do skonfigurowania AI na poziomie obszaru roboczego. Funkcje takie jak pole AI mogą być wyłączone, ponieważ nie został podany klucz API dla jednego z obsługiwanych modeli. Podając klucz, można te funkcje włączyć. Pozostawienie pustej wartości spowoduje zastosowanie globalnych ustawień. W takim wypadku należy pamiętać, że ustawienia te będą wspólne dla wszystkich użytkowników.",
         "changedDescription": "Ustawienia zostały zaktualizowane i od teraz mają zastosowanie w tym obszarze roboczym.",
         "openSettings": "Otwórz ustawienia",
-        "hideSettings": "Ukryj ustawienia"
+        "hideSettings": "Ukryj ustawienia",
+        "providerTitle": "Dostawcy AI",
+        "providerDescription": "Zarządzaj dostawcami w tym obszarze roboczym lub włączaj i wyłączaj dostawców odziedziczonych w instancji.",
+        "sharedModelsTitle": "Modele współdzielone we wszystkich obszarach",
+        "addWorkspaceConfiguration": "Dodaj konfigurację obszaru roboczego",
+        "overridden": "Zastąpienia",
+        "overriddenByWorkspace": "Nadpisane przez obszar roboczy",
+        "disabledInWorkspace": "Wyłączone w obszarze roboczym",
+        "noProviders": "Brak dostępnych dostawców AI",
+        "noProvidersDescription": "Dodaj dostawcę dla tego obszaru roboczego lub poproś, aby administrator skonfigurował go."
     },
     "userPasswordChangedToast": {
         "title": "Hasło zostało zmienione",
@@ -822,7 +843,8 @@
         "addIntegration": "Dodaj nową integrację",
         "noIntegrations": "Nie znaleziono żadnych integracji.",
         "selectTypeFirst": "Najpierw wybierz rodzaj",
-        "integrationPlaceholder": "Wybierz integrację"
+        "integrationPlaceholder": "Wybierz integrację",
+        "editIntegration": "Edytuj integrację"
     },
     "richTextEditorFloatingMenu": {
         "paragraph": "Ustęp",
@@ -1450,7 +1472,29 @@
         "modelUsageUnknown": "Nie moża było sprawdzić jaka funkcja nadal korzysta z tego modelu.",
         "modelUsageFeature": "{feature} ({count})",
         "modelIdentifierRenamedTitle": "Czy zmienić nazwę {name}?",
-        "modelIdentifierRenamedDescription": "Nadal odwołują się do poprzedniego identyfikatora i wyłączają się, o ile nie zostaną ponownie skonfigurowane."
+        "modelIdentifierRenamedDescription": "Nadal odwołują się do poprzedniego identyfikatora i wyłączają się, o ile nie zostaną ponownie skonfigurowane.",
+        "extraField_region": "Region",
+        "extraField_access_key_id": "ID klucza dostępu",
+        "availableFor": "Dostępny dla",
+        "availableForDescription": "Wybierz, które z podanych funkcji AI mogą być używane przez ten model.",
+        "availableForList": "Dostępne dla: {features}",
+        "availableForNone": "Niedostępne dla żadnej z wymienionych funkcji",
+        "featureSettingsTitle": "Funkcje AI",
+        "featureSettingsDescription": "Dla każdej funkcji należy wybrać jeden ze skonfigurowanych modeli. Modele środowiskowe zostały wycofane.",
+        "kumaDisabled": "Wyłączony",
+        "kumaInvalidFallback": "Wybrany model jest wyłączony - użyty zostanie starszy model środowiskowy: {model}",
+        "kumaInvalidNoFallback": "Wybrany model nie jest dostępny - brak skonfigurowanego modelu środowiskowego",
+        "kumaDisabledInWorkspace": "Wyłączony w tym obszarze roboczym",
+        "kumaUseInstance": "Użyj ustawień instancji - {model}",
+        "kumaInheritedUnavailable": "wybrany model instancji nie jest dostępny",
+        "kumaUseLegacy": "Użyj modelu środowiskowego (przestarzała opcja): {model}",
+        "kumaLegacyFallback": "model środowiskowy (przestarzały): {model}",
+        "kumaLegacyEmpty": "pusty",
+        "kumaNotConfigured": "nieskonfigurowany",
+        "featureModelLabel": "Model dla funkcji {feature}",
+        "modelScopeInstance": "Instancja",
+        "modelScopeWorkspace": "Obszar roboczy",
+        "noFeatureModels": "Nie ma dostępnych modeli spełniających kryteria. Edytuj model i wybierz, które funkcje mogą z niego korzystać."
     },
     "academy": {
         "learnMore": "Więcej o akademii Baserow"
@@ -1532,6 +1576,28 @@
         "value": "Wartość",
         "namePlaceholder": "Nazwa nagłówka",
         "valuePlaceholder": "Wartość nagłówka",
-        "addHeader": "Dodaj nagłówek"
+        "addHeader": "Dodaj nagłówek",
+        "bodyType": "Rodzaj treści",
+        "bodyTypeEmpty": "Pusty",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Tekst",
+        "body": "Treść",
+        "nameFieldRequired": "Wymagana jest nazwa nagłówka.",
+        "nameFieldInvalid": "Nazwy nagłówków mogą zawierać wyłącznie litery, cyfry, myślniki i znaki podkreślenia, ponadto nie mogą zaczynać się od myślnika ani znaku podkreślenia."
+    },
+    "trashType": {
+        "integration": "integracja",
+        "user_source": "źródło użytkowników"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Nie można osadzić pliku graficznego",
+        "errorUnsupportedImageMessage": "Błąd: {name} nie jest obsługiwanym typem pliku graficznego."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "Adres e-mail",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Opublikowany",
+        "copyAddress": "Skopiuj adres e-mail",
+        "description": "Każda wiadomość e-mail wysłana na ten adres uruchomi proces, a jako payload zostaną użyte: nadawca, temat, treść oraz załączniki tej wiadomości."
     }
 }
