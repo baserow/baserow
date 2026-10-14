@@ -50,7 +50,6 @@ class LocalBaserowIntegrationType(IntegrationType):
     allowed_fields = [
         "authorized_subject_type",
         "authorized_subject_id",
-        "authorized_user",
     ]
     sensitive_fields = ["authorized_subject_type", "authorized_subject_id"]
 
@@ -94,8 +93,7 @@ class LocalBaserowIntegrationType(IntegrationType):
                 "authorized_subject_type",
             }.intersection(values)
             has_existing_authorization = instance is not None and (
-                (instance.authorized_subject_type and instance.authorized_subject_id)
-                or instance.authorized_user_id
+                instance.authorized_subject_type and instance.authorized_subject_id
             )
             if authorization_not_updated and has_existing_authorization:
                 return super().prepare_values(
@@ -128,9 +126,6 @@ class LocalBaserowIntegrationType(IntegrationType):
                 raise serializers.ValidationError(
                     {"authorized_subject_id": "The agent is trashed."}
                 )
-
-        # A save migrates legacy values to the canonical pair.
-        values["authorized_user"] = None
 
         return super().prepare_values(
             values, user, application=application, instance=instance
@@ -218,12 +213,10 @@ class LocalBaserowIntegrationType(IntegrationType):
         # Imports from another workspace are always reauthorized to the importer.
         instance.authorized_subject_type = subject_type_registry.get_by_model(user).type
         instance.authorized_subject_id = user.id
-        instance.authorized_user = None
         instance.save(
             update_fields=[
                 "authorized_subject_type",
                 "authorized_subject_id",
-                "authorized_user",
             ]
         )
 
@@ -241,15 +234,14 @@ class LocalBaserowIntegrationType(IntegrationType):
         Import a serialized integration, accepting legacy user authorization.
 
         Workspace exports made before typed subjects stored the user email in
-        ``authorized_user``. Resolve it to the matching workspace user so the model
-        save can migrate it to the canonical subject pair.
+        ``authorized_user``. Resolve it to the matching workspace user and convert
+        it to the canonical subject pair before importing.
         """
 
         if cache is None:
             cache = {}
 
         serialized_values = serialized_values.copy()
-        legacy_authorized_user = None
         username = serialized_values.pop("authorized_user", None)
         if username:
             workspace_users = cache.setdefault(
@@ -262,6 +254,9 @@ class LocalBaserowIntegrationType(IntegrationType):
                 },
             )
             legacy_authorized_user = workspace_users.get(username)
+            if legacy_authorized_user:
+                serialized_values["authorized_subject_type"] = "auth.User"
+                serialized_values["authorized_subject_id"] = legacy_authorized_user.id
 
         integration = super().import_serialized(
             application,
@@ -272,13 +267,10 @@ class LocalBaserowIntegrationType(IntegrationType):
             storage=storage,
             cache=cache,
         )
-        if legacy_authorized_user:
-            integration.authorized_user = legacy_authorized_user
-            integration.save(update_fields=["authorized_user"])
         return integration
 
     def enhance_queryset(self, queryset):
-        return queryset.select_related("authorized_user")
+        return queryset
 
     def get_context_data(self, instance: LocalBaserowIntegration) -> Optional[Dict]:
         try:

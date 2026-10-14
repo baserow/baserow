@@ -72,7 +72,6 @@ def test_get_acting_user_raises_when_the_integration_has_no_authorized_subject(
     )
     integration.authorized_subject_type = None
     integration.authorized_subject_id = None
-    integration.authorized_user = None
     integration.save()
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration

@@ -431,3 +431,48 @@ def test_0034_migrate_local_baserow_filter_value_mode_forwards(
     assert first_raw_filter.value["mode"] == "raw"
     assert last_raw_filter.value["mode"] == "raw"
     assert formula_filter.value["mode"] == "simple"
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0039_reuses_authorized_user_column_for_typed_subjects(migrator):
+    migrate_from = [
+        ("core", "0121_agent"),
+        ("integrations", "0038_smtpintegration_use_ssl"),
+    ]
+    migrate_to = [("integrations", "0039_localbaserowintegration_authorized_agent")]
+
+    old_state = migrator.migrate(migrate_from)
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    User = old_state.apps.get_model("core", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Application = old_state.apps.get_model("core", "Application")
+    LocalBaserowIntegration = old_state.apps.get_model(
+        "integrations", "LocalBaserowIntegration"
+    )
+
+    user = User.objects.create(username="legacy-user", email="legacy@example.com")
+    workspace = Workspace.objects.create(name="Workspace")
+    application = Application.objects.create(
+        name="Application",
+        order=1,
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Application),
+    )
+    integration = LocalBaserowIntegration.objects.create(
+        application=application,
+        content_type=ContentType.objects.get_for_model(LocalBaserowIntegration),
+        authorized_user=user,
+    )
+
+    new_state = migrator.migrate(migrate_to)
+    LocalBaserowIntegration = new_state.apps.get_model(
+        "integrations", "LocalBaserowIntegration"
+    )
+    integration = LocalBaserowIntegration.objects.get(id=integration.id)
+
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id
+    assert (
+        LocalBaserowIntegration._meta.get_field("authorized_subject_id").column
+        == "authorized_user_id"
+    )

@@ -80,7 +80,11 @@ def load_test_data():
         )
     except Integration.DoesNotExist:
         integration = IntegrationHandler().create_integration(
-            integration_type, builder, name="Local baserow", authorized_user=user
+            integration_type,
+            builder,
+            name="Local baserow",
+            authorized_subject_type="auth.User",
+            authorized_subject_id=user.id,
         )
 
     heading_element_type = element_type_registry.get("heading")

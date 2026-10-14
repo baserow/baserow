@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import F, OrderBy
 
@@ -22,8 +21,6 @@ from baserow.core.services.models import (
     ServiceSort,
 )
 
-User = get_user_model()
-
 
 class LocalBaserowIntegration(Integration):
     """
@@ -31,33 +28,12 @@ class LocalBaserowIntegration(Integration):
     accessible by the associated user can be accessed with this integration.
     """
 
-    # Kept only to read integrations created before typed subjects were introduced.
-    # TODO ZDM: remove this field in the next version.
-    authorized_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    authorized_subject_type = models.CharField(max_length=255, null=True, blank=True)
-    authorized_subject_id = models.BigIntegerField(null=True, blank=True)
-
-    def save(self, *args, **kwargs):
-        """Migrate legacy authorization whenever this integration is saved."""
-
-        migrated_fields = set()
-        if self.authorized_subject_type and self.authorized_subject_id:
-            self.authorized_user = None
-            migrated_fields.add("authorized_user")
-        elif self.authorized_user_id:
-            self.authorized_subject_type = "auth.User"
-            self.authorized_subject_id = self.authorized_user_id
-            self.authorized_user = None
-            migrated_fields.update(
-                {
-                    "authorized_subject_type",
-                    "authorized_subject_id",
-                    "authorized_user",
-                }
-            )
-        if kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | migrated_fields
-        super().save(*args, **kwargs)
+    authorized_subject_type = models.CharField(
+        max_length=255, default="auth.User", db_default="auth.User"
+    )
+    authorized_subject_id = models.BigIntegerField(
+        null=True, blank=True, db_column="authorized_user_id"
+    )
 
     def get_authorized_subject(self, include_trash: bool = False):
         """
@@ -79,8 +55,6 @@ class LocalBaserowIntegration(Integration):
                 )
             except SubjectTypeNotExist:
                 return None
-        return self.authorized_user
-
     @property
     def authorized_subject(self):
         """Return the usable subject, so None when it has been trashed."""
