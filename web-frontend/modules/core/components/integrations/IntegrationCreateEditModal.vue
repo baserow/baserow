@@ -41,6 +41,7 @@
 
 <script>
 import { mapActions } from 'vuex'
+import _ from 'lodash'
 import error from '@baserow/modules/core/mixins/error'
 import modal from '@baserow/modules/core/mixins/modal'
 import IntegrationEditForm from '@baserow/modules/core/components/integrations/IntegrationEditForm'
@@ -73,7 +74,7 @@ export default {
   },
   emits: ['created'],
   data() {
-    return { loading: false }
+    return { loading: false, initialValues: null }
   },
   computed: {
     actualIntegrationType() {
@@ -96,6 +97,7 @@ export default {
 
     shown() {
       this.hideError()
+      this.initialValues = this.$refs.form.getFormValues()
     },
     getDefaultIntegrationValues() {
       const name = getNextAvailableNameInSequence(
@@ -117,11 +119,18 @@ export default {
           })
           this.$emit('created', newIntegration)
         } else {
-          await this.actionUpdateIntegration({
-            application: this.application,
-            integrationId: this.integration.id,
-            values,
-          })
+          const differences = Object.fromEntries(
+            Object.entries(values).filter(
+              ([key, value]) => !_.isEqual(value, this.initialValues[key])
+            )
+          )
+          if (Object.keys(differences).length > 0) {
+            await this.actionUpdateIntegration({
+              application: this.application,
+              integrationId: this.integration.id,
+              values: differences,
+            })
+          }
         }
         this.hide()
       } catch (error) {
