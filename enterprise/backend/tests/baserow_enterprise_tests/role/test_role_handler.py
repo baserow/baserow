@@ -25,7 +25,6 @@ from baserow_enterprise.role.constants import ALLOWED_SUBJECT_TYPE_BY_PRIORITY
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.role.types import NewRoleAssignment
-from baserow_enterprise.teams.models import TeamSubject
 
 
 @pytest.fixture(autouse=True)
@@ -1275,20 +1274,19 @@ def test_get_roles_per_scope_workspace_admin_ignores_lower_scope_roles(
 
 
 @pytest.mark.django_db
-def test_get_roles_per_scope_team_admin_of_no_role_member_ignores_lower_scope_roles(
+def test_get_roles_per_scope_team_admin_on_the_workspace_is_not_sticky(
     data_fixture, enterprise_data_fixture
 ):
+    # A "No role" member takes their team's admin role on the workspace like any
+    # other team role: it isn't held directly, so a role on a scope inside still
+    # applies to them.
     owner = data_fixture.create_user()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner, members=[user])
+    other_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=owner, workspace=workspace)
     table = data_fixture.create_database_table(user=owner, database=database)
-    admin_team = enterprise_data_fixture.create_team(
-        workspace=workspace, members=[user]
-    )
-    other_team = enterprise_data_fixture.create_team(
-        workspace=workspace, members=[user]
-    )
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
 
     admin_role = Role.objects.get(uid="ADMIN")
     no_access_role = Role.objects.get(uid="NO_ACCESS")
@@ -1296,16 +1294,25 @@ def test_get_roles_per_scope_team_admin_of_no_role_member_ignores_lower_scope_ro
 
     handler = RoleAssignmentHandler()
     handler.assign_role(user, workspace, role=low_priority_role, scope=workspace)
-    handler.assign_role(admin_team, workspace, role=admin_role, scope=workspace)
-    handler.assign_role(other_team, workspace, role=no_access_role, scope=workspace)
-    handler.assign_role(other_team, workspace, role=no_access_role, scope=table)
-    handler.assign_role(user, workspace, role=no_access_role, scope=database)
+    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
+    handler.assign_role(user, workspace, role=no_access_role, scope=table)
 
-    assert handler.get_roles_per_scope(workspace, user) == [(workspace, [admin_role])]
+    expected = [(workspace, [admin_role]), (table, [no_access_role])]
+    assert handler.get_roles_per_scope(workspace, user) == expected
+    # A second workspace makes the multi workspace resolution run instead of
+    # delegating to the single one, and the cleared cache keeps it from reusing the
+    # result above.
+    local_cache.clear()
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace, other_workspace], user)[
+            workspace.id
+        ]
+        == expected
+    )
 
 
 @pytest.mark.django_db
-def test_get_roles_per_scope_team_admin_on_the_workspace_beats_a_lesser_stored_role(
+def test_get_roles_per_scope_team_admin_on_the_workspace_keeps_the_stored_role(
     data_fixture, enterprise_data_fixture
 ):
     owner = data_fixture.create_user()
@@ -1313,47 +1320,36 @@ def test_get_roles_per_scope_team_admin_on_the_workspace_beats_a_lesser_stored_r
     workspace = data_fixture.create_workspace(
         user=owner, custom_permissions=[(user, "EDITOR")]
     )
+    other_workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=owner, workspace=workspace)
     table = data_fixture.create_database_table(user=owner, database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
 
     admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
     no_access_role = Role.objects.get(uid="NO_ACCESS")
 
     handler = RoleAssignmentHandler()
     handler.assign_role(team, workspace, role=admin_role, scope=workspace)
-    handler.assign_role(user, workspace, role=no_access_role, scope=database)
+    handler.assign_role(
+        user, workspace, role=no_access_role, scope=database.application_ptr
+    )
     handler.assign_role(team, workspace, role=no_access_role, scope=table)
 
-    expected = [(workspace, [admin_role])]
+    expected = [
+        (workspace, [editor_role]),
+        (database.application_ptr, [no_access_role]),
+        (table, [no_access_role]),
+    ]
     assert handler.get_roles_per_scope(workspace, user) == expected
+    # A second workspace makes the multi workspace resolution run instead of
+    # delegating to the single one, and the cleared cache keeps it from reusing the
+    # result above.
+    local_cache.clear()
     assert (
-        handler.get_roles_per_scope_for_workspaces([workspace], user)[workspace.id]
-        == expected
-    )
-
-
-@pytest.mark.django_db
-def test_get_roles_per_scope_team_admin_on_the_workspace_needs_a_membership(
-    data_fixture, enterprise_data_fixture
-):
-    # A team subject without a membership, which only stale data can produce, must
-    # not become an admin through the team.
-    owner = data_fixture.create_user()
-    outsider = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=owner)
-    team = enterprise_data_fixture.create_team(workspace=workspace)
-    TeamSubject.objects.create(team=team, subject=outsider)
-
-    admin_role = Role.objects.get(uid="ADMIN")
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    handler = RoleAssignmentHandler()
-    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
-
-    expected = [(workspace, [no_access_role])]
-    assert handler.get_roles_per_scope(workspace, outsider) == expected
-    assert (
-        handler.get_roles_per_scope_for_workspaces([workspace], outsider)[workspace.id]
+        handler.get_roles_per_scope_for_workspaces([workspace, other_workspace], user)[
+            workspace.id
+        ]
         == expected
     )
 
@@ -1367,6 +1363,7 @@ def test_get_roles_per_scope_team_non_admin_role_on_the_workspace_keeps_stored_r
     workspace = data_fixture.create_workspace(
         user=owner, custom_permissions=[(user, "VIEWER")]
     )
+    other_workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
 
     editor_role = Role.objects.get(uid="EDITOR")
@@ -1377,8 +1374,14 @@ def test_get_roles_per_scope_team_non_admin_role_on_the_workspace_keeps_stored_r
 
     expected = [(workspace, [viewer_role])]
     assert handler.get_roles_per_scope(workspace, user) == expected
+    # A second workspace makes the multi workspace resolution run instead of
+    # delegating to the single one, and the cleared cache keeps it from reusing the
+    # result above.
+    local_cache.clear()
     assert (
-        handler.get_roles_per_scope_for_workspaces([workspace], user)[workspace.id]
+        handler.get_roles_per_scope_for_workspaces([workspace, other_workspace], user)[
+            workspace.id
+        ]
         == expected
     )
 
@@ -1440,9 +1443,11 @@ def test_get_roles_per_scope_admin_of_a_scope_keeps_it_and_its_descendants(
 
 
 @pytest.mark.django_db
-def test_get_roles_per_scope_team_admin_beats_direct_lower_role_on_the_same_scope(
+def test_get_roles_per_scope_direct_role_beats_team_admin_on_the_same_scope(
     data_fixture, enterprise_data_fixture
 ):
+    # On one scope the user's own row wins over the rows of their teams whatever
+    # role the team holds: a team's admin role doesn't make its members admins.
     owner = data_fixture.create_user()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=owner, members=[user])
@@ -1452,16 +1457,97 @@ def test_get_roles_per_scope_team_admin_beats_direct_lower_role_on_the_same_scop
 
     admin_role = Role.objects.get(uid="ADMIN")
     editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
 
     handler = RoleAssignmentHandler()
     handler.assign_role(user, workspace, role=editor_role, scope=workspace)
-    handler.assign_role(user, workspace, role=editor_role, scope=table)
+    handler.assign_role(user, workspace, role=viewer_role, scope=table)
     handler.assign_role(team, workspace, role=admin_role, scope=table)
 
     assert handler.get_roles_per_scope(workspace, user) == [
         (workspace, [editor_role]),
-        (table, [admin_role]),
+        (table, [viewer_role]),
     ]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_admin_on_a_scope_is_not_sticky(
+    data_fixture, enterprise_data_fixture
+):
+    # The admin role a team holds on a database applies on the database, but a
+    # role on a table inside still wins there, as for any other role.
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    other_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(
+        team, workspace, role=admin_role, scope=database.application_ptr
+    )
+    handler.assign_role(user, workspace, role=viewer_role, scope=table)
+
+    expected = [
+        (workspace, [editor_role]),
+        (database.application_ptr, [admin_role]),
+        (table, [viewer_role]),
+    ]
+    assert handler.get_roles_per_scope(workspace, user) == expected
+    # A second workspace makes the multi workspace resolution run instead of
+    # delegating to the single one, and the cleared cache keeps it from reusing the
+    # result above.
+    local_cache.clear()
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace, other_workspace], user)[
+            workspace.id
+        ]
+        == expected
+    )
+    assert handler.get_computed_roles(expected, table) == [viewer_role]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_ignores_a_stale_direct_row_on_the_workspace(data_fixture):
+    # A member's workspace role lives on their membership. A leftover role assignment
+    # row of theirs on the workspace scope, which older data may contain, must not
+    # make them an admin on either resolution path.
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    other_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace, role=no_access_role, scope=table)
+    RoleAssignment.objects.create(
+        subject=user, workspace=workspace, scope=workspace, role=admin_role
+    )
+
+    expected = [(workspace, [editor_role]), (table, [no_access_role])]
+    assert handler.get_roles_per_scope(workspace, user) == expected
+    local_cache.clear()
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace, other_workspace], user)[
+            workspace.id
+        ]
+        == expected
+    )
 
 
 @pytest.mark.django_db

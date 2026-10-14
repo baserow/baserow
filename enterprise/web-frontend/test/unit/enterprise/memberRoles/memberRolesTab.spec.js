@@ -35,6 +35,12 @@ test('locks admins of the workspace and of the database and keeps them out of th
             email: 'carol@acme.io',
             permissions: 'MEMBER',
           },
+          {
+            user_id: 4,
+            name: 'Dan',
+            email: 'dan@acme.io',
+            permissions: 'MEMBER',
+          },
         ],
       },
       scope: { id: 5, name: 'People' },
@@ -50,7 +56,7 @@ test('locks admins of the workspace and of the database and keeps them out of th
         { id: 7, name: 'Bot', role_uid: 'ADMIN' },
         { id: 8, name: 'Helper', role_uid: 'BUILDER' },
       ],
-      ancestorAdmins: { 'baserow_enterprise.Team:9': 'database' },
+      ancestorAdmins: { 'auth.User:4': 'database' },
     },
     global: {
       mocks: {
@@ -68,7 +74,7 @@ test('locks admins of the workspace and of the database and keeps them out of th
 
   const list = wrapper.find('.list')
   expect(JSON.parse(list.text())).toStrictEqual({
-    'baserow_enterprise.Team:9': 'database',
+    'auth.User:4': 'database',
     'auth.User:1': 'common.workspace',
     'auth.User:2': 'common.workspace',
     'core.Agent:7': 'common.workspace',
@@ -76,9 +82,9 @@ test('locks admins of the workspace and of the database and keeps them out of th
   expect(list.attributes('data-scope-type-name')).toBe('trashtype.table')
 
   // Neither the current user, nor Bob who already has a role here, nor the
-  // admins can be picked.
+  // admins can be picked. Teams always can: their roles never lock anyone.
   const picker = wrapper.find('.picker')
   expect(picker.attributes('data-users')).toBe('3')
-  expect(picker.attributes('data-teams')).toBe('10')
+  expect(picker.attributes('data-teams')).toBe('9,10')
   expect(picker.attributes('data-agents')).toBe('8')
 })

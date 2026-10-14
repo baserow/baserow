@@ -40,6 +40,13 @@ describe('SubjectType', () => {
     expect(subjectType.avatarColor).toBe(expected)
   })
 
+  test.each([[new UserSubjectType(context)], [new AgentSubjectType(context)]])(
+    'holds its roles directly',
+    (subjectType) => {
+      expect(subjectType.holdsRolesDirectly).toBe(true)
+    }
+  )
+
   test.each([
     [new UserSubjectType(context), { id: 1, user_id: 2 }, 2],
     [new UserSubjectType(context), { id: 1 }, 1],

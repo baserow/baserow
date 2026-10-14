@@ -60,6 +60,7 @@
         <HelpIcon
           v-else-if="
             getRole(roleAssignment).uid === 'ADMIN' &&
+            getSubjectType(roleAssignment).holdsRolesDirectly &&
             scopeType !== 'database_view'
           "
           class="margin-right-1"
@@ -138,9 +139,9 @@ export default {
       default: () => [],
     },
     /**
-     * The subjects that are an admin of the workspace or of a scope above this
-     * one, as `{ '<subject type>:<id>': '<scope label>' }`. Their role here has
-     * no effect, so they are shown as admins with a locked role.
+     * The users and agents that are an admin of the workspace or of a scope
+     * above this one, as `{ '<subject type>:<id>': '<scope label>' }`. Their
+     * role here has no effect, so they are shown as admins with a locked role.
      */
     inheritedAdmins: {
       type: Object,

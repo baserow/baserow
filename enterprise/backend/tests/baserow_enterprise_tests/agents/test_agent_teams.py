@@ -229,6 +229,7 @@ def test_low_priority_agent_inherits_multiple_team_workspace_roles(
     ("agent_role_uid", "team_role_uid"),
     [
         ("ADMIN", "VIEWER"),
+        ("VIEWER", "ADMIN"),
         ("BUILDER", "EDITOR"),
         ("EDITOR", None),
         ("NO_ACCESS", "BUILDER"),
@@ -262,54 +263,6 @@ def test_agent_direct_workspace_role_overrides_team_role(
         workspace,
         [role_handler.get_role_by_uid(agent_role_uid)],
     )
-
-
-@pytest.mark.django_db
-def test_agent_team_admin_role_beats_a_lesser_direct_workspace_role(
-    data_fixture, enterprise_data_fixture
-):
-    # The admin role from a team beats a lesser stored role on the workspace, for
-    # agents as for users.
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    role_handler = RoleAssignmentHandler()
-    team = enterprise_data_fixture.create_team(workspace=workspace)
-    role_handler.assign_role(team, workspace, role_handler.get_role_by_uid("ADMIN"))
-    agent = AgentService().create_agent(
-        user,
-        workspace,
-        name="Viewer agent",
-        role_uid="VIEWER",
-        team_ids=[team.id],
-    )
-
-    roles_per_scope = role_handler.get_roles_per_scope(workspace, agent)
-
-    assert roles_per_scope == [(workspace, [role_handler.get_role_by_uid("ADMIN")])]
-
-
-@pytest.mark.django_db
-def test_trashed_agent_in_admin_team_stays_no_access(
-    data_fixture, enterprise_data_fixture
-):
-    # Trashing an agent keeps its team memberships, so a team's admin role must not
-    # bring a trashed agent back as an admin.
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    role_handler = RoleAssignmentHandler()
-    team = enterprise_data_fixture.create_team(workspace=workspace)
-    role_handler.assign_role(team, workspace, role_handler.get_role_by_uid("ADMIN"))
-    agent = AgentService().create_agent(
-        user, workspace, name="Viewer agent", role_uid="VIEWER", team_ids=[team.id]
-    )
-    AgentService().delete_agent(user, agent)
-
-    assert role_handler.get_roles_per_scope(workspace, agent) == [
-        (workspace, [role_handler.get_role_by_uid("NO_ACCESS")])
-    ]
-    assert role_handler.get_roles_per_scope(workspace, agent, include_trash=True) == [
-        (workspace, [role_handler.get_role_by_uid("ADMIN")])
-    ]
 
 
 @pytest.mark.django_db

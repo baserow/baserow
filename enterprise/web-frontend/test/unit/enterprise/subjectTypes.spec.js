@@ -21,6 +21,10 @@ describe('TeamSubjectType', () => {
     ).toBe(null)
   })
 
+  test('passes its roles on to its members instead of holding them', () => {
+    expect(subjectType.holdsRolesDirectly).toBe(false)
+  })
+
   test('resolves its display names', () => {
     expect(subjectType.getTypeDisplayName()).toBe('Team')
     expect(subjectType.getPluralTypeDisplayName()).toBe('Teams')

@@ -29,6 +29,16 @@ export class SubjectType extends Registerable {
     return null
   }
 
+  /**
+   * Whether a subject of this type holds its roles itself, as users and agents
+   * do. A team passes its roles on to its members instead: such a role applies
+   * on the scope it is held on, but it never makes a member an admin of what is
+   * inside that scope.
+   */
+  get holdsRolesDirectly() {
+    return true
+  }
+
   getTypeDisplayName() {
     return this.type
   }

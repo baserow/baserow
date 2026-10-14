@@ -9,6 +9,10 @@ export class TeamSubjectType extends SubjectType {
     return 'iconoir-community'
   }
 
+  get holdsRolesDirectly() {
+    return false
+  }
+
   getTypeDisplayName() {
     return this.$t('subjectType.team')
   }

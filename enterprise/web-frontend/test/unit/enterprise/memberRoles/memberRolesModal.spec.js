@@ -58,7 +58,7 @@ test.each([
   }
 )
 
-test('tells the table tab who is an admin of the database', async () => {
+test('tells the table tab which users and agents are admins of the database', async () => {
   const client = {
     get: vi.fn((url, config) => {
       if (
@@ -68,10 +68,17 @@ test('tells the table tab who is an admin of the database', async () => {
         return Promise.resolve({
           data: [
             { subject_type: 'auth.User', subject: { id: 5 }, role: 'ADMIN' },
+            { subject_type: 'core.Agent', subject: { id: 8 }, role: 'ADMIN' },
             {
               subject_type: 'baserow_enterprise.Team',
               subject: { id: 6 },
               role: 'EDITOR',
+            },
+            // A team's admin role doesn't protect its members on the tables.
+            {
+              subject_type: 'baserow_enterprise.Team',
+              subject: { id: 7 },
+              role: 'ADMIN',
             },
           ],
         })
@@ -120,6 +127,7 @@ test('tells the table tab who is an admin of the database', async () => {
     expect(JSON.parse(tabs[0].text())).toStrictEqual({})
     expect(JSON.parse(tabs[1].text())).toStrictEqual({
       'auth.User:5': 'database',
+      'core.Agent:8': 'database',
     })
   } finally {
     wrapper.unmount()

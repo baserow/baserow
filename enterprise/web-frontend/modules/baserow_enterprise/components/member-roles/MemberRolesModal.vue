@@ -137,10 +137,11 @@ export default {
       )
     },
     /**
-     * The subjects holding the admin role on the database, keyed by subject
-     * type and id, mapped to the level that makes them an admin as the tab
-     * labels it. An admin of the database keeps full access to every table and
-     * view inside it.
+     * The users and agents holding the admin role on the database themselves,
+     * keyed by subject type and id, mapped to the level that makes them an
+     * admin as the tab labels it. Such an admin keeps full access to every
+     * table and view inside the database. A team's admin role doesn't count: it
+     * applies on the database, but a role on a table inside still wins there.
      */
     tableAncestorAdmins() {
       return this.adminSubjects(this.databaseRoleAssignments, 'database')
@@ -183,7 +184,11 @@ export default {
     adminSubjects(roleAssignments, level) {
       return Object.fromEntries(
         roleAssignments
-          .filter(({ role }) => role === 'ADMIN')
+          .filter(
+            ({ subject_type: subjectType, role }) =>
+              role === 'ADMIN' &&
+              this.$registry.get('subject', subjectType).holdsRolesDirectly
+          )
           .map(({ subject_type: subjectType, subject }) => [
             this.$registry.get('subject', subjectType).getKey(subject),
             level,

@@ -65,7 +65,6 @@ import RoleAssignmentModal from '@baserow_enterprise/components/member-roles/Rol
 
 const USER = 'auth.User'
 const AGENT = 'core.Agent'
-const TEAM = 'baserow_enterprise.Team'
 
 const MEMBER_ROLE_SCOPE_CONFIG = {
   application: {
@@ -126,9 +125,11 @@ export default {
       default: false,
     },
     /**
-     * The subjects that are an admin of a scope above this one, other than the
-     * workspace, as `{ '<subject type>:<id>': '<level>' }` where the level is
-     * one of the names `scopeLabel` understands, like `database` or `table`.
+     * The users and agents that are an admin of a scope above this one, other
+     * than the workspace, as `{ '<subject type>:<id>': '<level>' }` where the
+     * level is one of the names `scopeLabel` understands, like `database` or
+     * `table`. Teams are never listed: a team's admin role on a scope above
+     * doesn't protect its members from a lower role here.
      */
     ancestorAdmins: {
       type: Object,
@@ -184,10 +185,10 @@ export default {
       return this.workspace.users || []
     },
     /**
-     * The subjects whose role on this scope can't be lowered because they are an
-     * admin of the workspace or of a scope above this one, mapped to the label of
-     * the scope that makes them an admin. Their role here has no effect, so they
-     * are shown as admins in the list and can't be picked.
+     * The users and agents whose role on this scope can't be lowered because
+     * they are an admin of the workspace or of a scope above this one, mapped to
+     * the label of the scope that makes them an admin. Their role here has no
+     * effect, so they are shown as admins in the list and can't be picked.
      */
     inheritedAdmins() {
       const admins = {}
@@ -219,10 +220,7 @@ export default {
     },
     teamsNotInvited() {
       const teamIds = this.teamRoleAssignments.map(({ subject }) => subject.id)
-      return this.teams.filter(
-        (team) =>
-          !teamIds.includes(team.id) && !this.isInheritedAdmin(TEAM, team)
-      )
+      return this.teams.filter((team) => !teamIds.includes(team.id))
     },
     agentsNotInvited() {
       const agentIds = this.agentRoleAssignments.map(

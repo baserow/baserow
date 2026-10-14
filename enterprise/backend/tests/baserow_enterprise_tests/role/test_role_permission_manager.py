@@ -2131,9 +2131,12 @@ def test_workspace_admin_is_never_locked_out(data_fixture, enterprise_data_fixtu
 
 
 @pytest.mark.django_db
-def test_team_admin_on_the_workspace_makes_a_member_a_workspace_admin(
+def test_team_admin_on_a_database_does_not_protect_its_tables(
     data_fixture, enterprise_data_fixture
 ):
+    # Only the admin role a member holds themselves is kept on everything inside.
+    # The admin role of a team applies on the database, and a lower role on a
+    # table inside still wins there.
     owner = data_fixture.create_user()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(
@@ -2141,29 +2144,32 @@ def test_team_admin_on_the_workspace_makes_a_member_a_workspace_admin(
     )
     database = data_fixture.create_database_application(user=owner, workspace=workspace)
     table = data_fixture.create_database_table(user=owner, database=database)
+    other_table = data_fixture.create_database_table(user=owner, database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
 
     admin_role = Role.objects.get(uid="ADMIN")
     no_access_role = Role.objects.get(uid="NO_ACCESS")
     handler = RoleAssignmentHandler()
-    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
+    handler.assign_role(
+        team, workspace, role=admin_role, scope=database.application_ptr
+    )
     handler.assign_role(user, workspace, role=no_access_role, scope=table)
 
     perm_manager = RolePermissionManagerType()
 
     checks = [
-        PermissionCheck(user, DeleteDatabaseTableOperationType.type, table),
-        PermissionCheck(user, DeleteWorkspaceOperationType.type, workspace),
+        PermissionCheck(user, DeleteDatabaseTableOperationType.type, other_table),
+        PermissionCheck(user, ReadDatabaseTableOperationType.type, table),
     ]
     result = perm_manager.check_multiple_permissions(checks, workspace)
-    assert [result[check] for check in checks] == [True, True]
+    assert result[checks[0]] is True
+    assert isinstance(result[checks[1]], PermissionException)
 
     permissions = perm_manager.get_permissions_object(user, workspace)
-    assert permissions[DeleteDatabaseTableOperationType.type] == {
+    assert permissions[ReadDatabaseTableOperationType.type] == {
         "default": True,
-        "exceptions": [],
+        "exceptions": [table.id],
     }
-    assert permissions[DeleteWorkspaceOperationType.type]["default"] is True
 
     tables = perm_manager.filter_queryset(
         user,
@@ -2171,7 +2177,7 @@ def test_team_admin_on_the_workspace_makes_a_member_a_workspace_admin(
         Table.objects.filter(database__workspace=workspace),
         workspace=workspace,
     )
-    assert list(tables) == [table]
+    assert list(tables) == [other_table]
 
 
 @pytest.mark.django_db

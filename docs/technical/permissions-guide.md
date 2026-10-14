@@ -17,70 +17,70 @@ swapped out as needed without having to make significant changes to the overall 
 Before going any further, we need to agree on the definition of some terms:
 
 **Object**: represents a piece of data in Baserow. One of Field, Row, Table, Database,
-  Workspace, User, Team, Role, Webhook, …
+Workspace, User, Team, Role, Webhook, …
 
-**Hierarchical Objects**: in Basrow, *Objects* are related to each others and we
-can have a parent <-> children dependency between two *Objects*. A full
+**Hierarchical Objects**: in Basrow, _Objects_ are related to each others and we
+can have a parent <-> children dependency between two _Objects_. A full
 hierarchy tree can be created with all the Baserow objects. For instance, The
-`Table` *Object* is a child of a `Database`.
+`Table` _Object_ is a child of a `Database`.
 
-**Actor**: A generic term grouping anything that can perform *Operations* on an
-*Object* in Baserow. Can be a `User` but also a `Personal API Token` or an
+**Actor**: A generic term grouping anything that can perform _Operations_ on an
+_Object_ in Baserow. Can be a `User` but also a `Personal API Token` or an
 `AnonymousUser`...
 
-**Operation**: an action an *Actor* do on an *Object*. Some examples:
+**Operation**: an action an _Actor_ do on an _Object_. Some examples:
 
 - `database.list_tables`: the operation to list the `Tables` related to a `Database`.
 - `database_table.create_row`: the action to create a `Row` in a `Table`.
-- `database_table.update`: the action to update a `Table` *Object*.
+- `database_table.update`: the action to update a `Table` _Object_.
 
-**Context**: the `Object` on which the an *Operation* is applied. For instance:
+**Context**: the `Object` on which the an _Operation_ is applied. For instance:
 
-- for the *Operation* `database.list_tables` the context object is the
+- for the _Operation_ `database.list_tables` the context object is the
   `Database` we want the `Table` list for.
-- for the *Operation* `database_table.create_row` the context object is the
+- for the _Operation_ `database_table.create_row` the context object is the
   `Table` we want to create the `Row` for.
-- for the *Operation* `database_table.update` the context object is also the
+- for the _Operation_ `database_table.update` the context object is also the
   `Table` we want to update.
 
-**Permission request**: a *Permission request* is represented by a triplet
-consisting of an *Actor*, an *Operation*, and a *Context*, which is used to
+**Permission request**: a _Permission request_ is represented by a triplet
+consisting of an _Actor_, an _Operation_, and a _Context_, which is used to
 determine if access to a specific resource or functionality is granted or denied
-by the *Permission system*. The *Context* can be omitted if the *Operation*
+by the _Permission system_. The _Context_ can be omitted if the _Operation_
 doesn't need one.
 
 **Permission system**: the whole mechanism in Baserow that decides if a
-*Permission request* is allowed or not. The *Permission system* relies on
-*Permission managers* to take a decision regarding a specific *Permission
-request* in a given *Workspace*.
+_Permission request_ is allowed or not. The _Permission system_ relies on
+_Permission managers_ to take a decision regarding a specific _Permission
+request_ in a given _Workspace_.
 
-**Permission manager**: a *Permission manager* is a pluggable part of the
-*Permission system* that can decide if a *Permission Request* is allowed or not
-when some criteria are met. Each *Permission manager* is responsible to take a
+**Permission manager**: a _Permission manager_ is a pluggable part of the
+_Permission system_ that can decide if a _Permission Request_ is allowed or not
+when some criteria are met. Each _Permission manager_ is responsible to take a
 decision in some situation. For instance the `StaffOnlyPermissionManager` can
-decide to disallow an *Operation* if the given *Actor* is not part of the staff.
+decide to disallow an _Operation_ if the given _Actor_ is not part of the staff.
 
-**Workspace**: An *Operation* can take place in a specific *Workspace* (Formerly
+**Workspace**: An _Operation_ can take place in a specific _Workspace_ (Formerly
 Group).
 
-**Subject**: includes all *Actors* but also groups of *Actors* like `Teams`.
+**Subject**: includes all _Actors_ but also groups of _Actors_ like `Teams`.
 
 **Personal API Token**: An authentication token which can be created by users in
-their settings area in Baserow. It is owned by a `User`, for a *Workspace*,
+their settings area in Baserow. It is owned by a `User`, for a _Workspace_,
 allowing access to some of our API endpoints.
 
 ## 📃 Main principles
 
-For every *Operation* an *Actor* wants to perform on a *Context*, a *Permission
-request* is checked by the permission system. Behind the scene, the *Permission
-request* is tested by each *Permission manager* one by one always in same order.
-Each *Permission manager* can:
+For every _Operation_ an _Actor_ wants to perform on a _Context_, a _Permission
+request_ is checked by the permission system. Behind the scene, the _Permission
+request_ is tested by each _Permission manager_ one by one always in same order.
+Each _Permission manager_ can:
 
 - Allow the Permission Request. Then the operation can be executed.
 - Disallow the Permission Request. The operation is canceled and an error is
   raised.
 - Passthrough the Permission Request. The Permission Request is then tested by
-  the next *Permission manager*
+  the next _Permission manager_
 
 If none of the Permission managers have allowed or disallowed the Permission,
 then the permission is disallowed by default.
@@ -91,30 +91,30 @@ then the permission is disallowed by default.
 
 Example:
 
-1) If a non admin user wants to create `Table` in a `Database` of his
-`Workspace`, the following permission is tested:
-`(user, "database.create_table", database)` by the Permission system. 2) The
-Permission request is first given to the `CorePermissionManager` that can't take
-a decision, because it's not a core operation. Then it is given to the
-`StaffOnlyPermissionManager` that also can't decide because this is not a staff
-only operation. 3) The last permission manager the permission will be tested is
-the `BasicPermissionManager` that will allows the Permission request because
-it's not an Admin only operation so the user can execute it.
+1. If a non admin user wants to create `Table` in a `Database` of his
+   `Workspace`, the following permission is tested:
+   `(user, "database.create_table", database)` by the Permission system. 2) The
+   Permission request is first given to the `CorePermissionManager` that can't take
+   a decision, because it's not a core operation. Then it is given to the
+   `StaffOnlyPermissionManager` that also can't decide because this is not a staff
+   only operation. 3) The last permission manager the permission will be tested is
+   the `BasicPermissionManager` that will allows the Permission request because
+   it's not an Admin only operation so the user can execute it.
 
 ## ⚙️ The backend
 
 Most of the Permission system is driven by the backend. The main components of
 the Permissions system are the following:
 
-- `OperationType`: you need an `OperationType` for every *Operation* you want to
+- `OperationType`: you need an `OperationType` for every _Operation_ you want to
   check.
-- `PermissionManagerType`: the *Permission managers* are responsible for
+- `PermissionManagerType`: the _Permission managers_ are responsible for
   allowing or not the Permission requests.
-- `SubjectType`: every *Actor* you want to use in the *Permission system* must
+- `SubjectType`: every _Actor_ you want to use in the _Permission system_ must
   belongs to a `SubjectType`.
-- `ObjectScopeType`: every *Context* object must be part of the Baserow *Object*
+- `ObjectScopeType`: every _Context_ object must be part of the Baserow _Object_
   hierarchy. By now it's implemented by having a related `ObjectScopeType` for
-  each *Object* type.
+  each _Object_ type.
 
 All of them are objects you can register in their related registry to extend the
 core functionnalities of Baserow Permission system.
@@ -127,10 +127,10 @@ When you want to test a permission on the backend, you'll have to use the
 ```python
 CoreHandler().check_permission(
     # The actor can be the user who did the request: actor = request.user.
-    actor, 
+    actor,
     # CreateRowDatabaseTable is an `OperationType` class and `.type` is its name.
-    CreateRowDatabaseTable.type,  
-    context=table, 
+    CreateRowDatabaseTable.type,
+    context=table,
     workspace=workspace
 )
 ```
@@ -138,7 +138,7 @@ CoreHandler().check_permission(
 If the permission request is allowed then this method will return `True` if not,
 it will raise a `PermissionException`.
 
-The workspace (formerly known as a group) is optional if the operation is a core 
+The workspace (formerly known as a group) is optional if the operation is a core
 operation that does not belong to any specific workspace.
 
 ### Filter a Django Queryset
@@ -150,9 +150,9 @@ this method call.
 ```python
 CoreHandler().filter_queryset(
     # The actor can be the user who did the request: actor = request.user.
-    actor, 
+    actor,
     # CreateRowDatabaseTable is an `OperationType` class and `.type` is its name.
-    ListTablesDatabaseTableOperationType.type,  
+    ListTablesDatabaseTableOperationType.type,
     queryset,
     workspace=workspace
 )
@@ -180,8 +180,8 @@ class ListTablesDatabaseTableOperationType(OperationType):
 
 For most of the operation the `context_scope_name` and the `object_scope_name`
 are the same, so the last can be omitted. However regarding all "list"
-operations, the object_scope_name is in general one of the children of the
-context object in the hierarchy of the *Objects*. When you want to list all
+operations, the object*scope_name is in general one of the children of the
+context object in the hierarchy of the \_Objects*. When you want to list all
 `Tables` of a `Database`, the context is a `Database` and the objects are the
 `Tables`. When you list all `Databases` of an `Application`, the context is an
 `Application` and the objects are the related `Databases`.
@@ -299,32 +299,28 @@ The permission object looks like this:
 
 ```json
 [
-  {
-    "name": "core",
-    "permissions": [
-      "list_workspaces"
-    ]
-  },
-  {
-    "name": "staff",
-    "permissions": {
-      "staff_only_operations": [
-        "settings.update"
-      ],
-      "is_staff": true
+    {
+        "name": "core",
+        "permissions": ["list_workspaces"]
+    },
+    {
+        "name": "staff",
+        "permissions": {
+            "staff_only_operations": ["settings.update"],
+            "is_staff": true
+        }
+    },
+    {
+        "name": "basic",
+        "permissions": {
+            "admin_only_operations": [
+                "workspace.list_invitations",
+                "...",
+                "workspace.delete"
+            ],
+            "is_admin": true
+        }
     }
-  },
-  {
-    "name": "basic",
-    "permissions": {
-      "admin_only_operations": [
-        "workspace.list_invitations",
-        "...",
-        "workspace.delete"
-      ],
-      "is_admin": true
-    }
-  }
 ]
 ```
 
@@ -346,9 +342,9 @@ method will be called with the following object:
 ```json
 {
     "admin_only_operations": [
-    "workspace.list_invitations",
-    "...",
-    "workspace_user.delete"
+        "workspace.list_invitations",
+        "...",
+        "workspace_user.delete"
     ],
     "is_admin": true
 }
@@ -364,17 +360,16 @@ manager (some permission managers don't need one).
 You can create a frontend permission manager this way:
 
 ```js
-import { PermissionManagerType } from '@baserow/modules/core/permissionManagerTypes'
-
+import { PermissionManagerType } from "@baserow/modules/core/permissionManagerTypes";
 
 export class OwnedTablePermissionManagerType extends PermissionManagerType {
-  static getType() {
-    return 'owned_table'
-  }
+    static getType() {
+        return "owned_table";
+    }
 
-  hasPermission(permissions, operation, context) {
-    // ...
-  }
+    hasPermission(permissions, operation, context) {
+        // ...
+    }
 }
 ```
 
@@ -385,7 +380,10 @@ Then you need to register it during the Vue plugin initialisation phase in the
 `plugin.js` frontend file of your project.
 
 ```js
-app.$registry.register('permissionManager', new OwnedTablePermissionManagerType(context))
+app.$registry.register(
+    "permissionManager",
+    new OwnedTablePermissionManagerType(context),
+);
 ```
 
 And that's it, you have a fully functionnal frontend permission manager.
@@ -394,26 +392,25 @@ And that's it, you have a fully functionnal frontend permission manager.
 
 The enterprise `role` permission manager resolves an actor's roles per scope,
 from the workspace down to the application, table and view, and normally the
-most specific scope wins. Three rules take precedence over that, applied by
+most specific scope wins. One rule takes precedence over that, applied by
 `RoleAssignmentHandler.apply_admin_precedence` when the per scope list is built,
-so every consumer of the list sees the same result:
+so every consumer of the list sees the same result: the admin role an actor holds
+directly, as their stored workspace role or as a role assignment of their own,
+holds on that scope and on everything inside it. Any lower role on a descendant
+scope, directly assigned or through a team, has no effect. An admin of the
+workspace is therefore an admin everywhere in it. To restrict them, lower the
+admin role itself.
 
-- An admin of the workspace is an admin everywhere in it. Any lower role given
-  to them on an application, table or view, directly or through a team, has no
-  effect. To restrict them, lower their stored workspace role and remove any
-  team admin role they hold on the workspace.
-- An admin of an application, table or view keeps the admin role on that scope
-  and on everything inside it. Lower roles on the same scope from other subject
-  types, and any role on a descendant scope, have no effect.
-- The admin role from any subject type beats a lesser role on the same scope,
-  the workspace included: a team's admin role on the workspace makes a member
-  or an agent whose stored role is Editor an admin of the workspace. Between
-  non-admin roles
-  the subject priority keeps deciding, and a team's non-admin role on the
-  workspace still applies only to members whose stored role is "No role".
+Roles held through a team don't get that treatment. A team's admin role on a
+database applies on the database like any other team role, and a role on a table
+inside still wins there. On one scope the actor's own role keeps winning over the
+roles of their teams, whatever they are. A team's admin role on the workspace
+applies to the members whose stored role is "No role", as any team role does:
+they resolve to admin on the workspace, but without the precedence, so a lower
+role on a scope inside still wins for them.
 
-Existing role assignments that these rules make inert are kept as they are; the
-rules apply the moment the code runs, without a data migration. The `role`
+Existing role assignments that the rule makes inert are kept as they are; the
+rule applies the moment the code runs, without a data migration. The `role`
 permission manager also returns early for admins of the workspace when building the
 permissions object and the queryset filters: both come from the admin role alone,
 with no exceptions. Permission checks still walk the scope list, since that walk is
@@ -425,8 +422,9 @@ Nobody can change their own role through the API, neither on the workspace
 application, table or view. Another admin has to do it, and the last admin check
 still applies to them.
 
-The reasoning, and the 2022 decision in #1474 that these rules reverse, are recorded in
-[ADR 010](../decisions/010-admin-role-precedence.md).
+The reasoning is recorded in [ADR 010](../decisions/010-admin-role-precedence.md),
+and [its role matrix](../decisions/010-role-matrix-after.md) lists how every
+combination of roles resolves before and after the rule.
 
 ## 📝 Conclusion
 

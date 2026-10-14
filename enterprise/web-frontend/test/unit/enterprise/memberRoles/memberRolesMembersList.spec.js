@@ -98,12 +98,20 @@ describe('MemberRolesMembersList', () => {
             subject: { id: 4, name: 'Sales', subject_count: 1 },
             role: 'VIEWER',
           },
+          {
+            subject_type: 'baserow_enterprise.Team',
+            subject: { id: 5, name: 'Ops', subject_count: 3 },
+            role: 'ADMIN',
+          },
         ],
         scopeId: 1,
         scopeType: 'database_table',
         scopeTypeName: 'table',
         workspaceId: 1,
-        teams: [{ id: 4, subject_count: 1 }],
+        teams: [
+          { id: 4, subject_count: 1 },
+          { id: 5, subject_count: 3 },
+        ],
         inheritedAdmins: { 'auth.User:2': 'workspace' },
       },
       global: {
@@ -157,5 +165,15 @@ describe('MemberRolesMembersList', () => {
       'VIEWER'
     )
     expect(row('Sales').find('.help-icon').exists()).toBe(false)
+
+    // A team's admin role is a role like any other: it doesn't protect its
+    // members on the views inside, so there is nothing to explain.
+    expect(row('Ops').find('.role-selector').attributes('data-role')).toBe(
+      'ADMIN'
+    )
+    expect(row('Ops').find('.role-selector').attributes('data-roles')).toBe(
+      'ADMIN,VIEWER,NO_ACCESS'
+    )
+    expect(row('Ops').find('.help-icon').exists()).toBe(false)
   })
 })
