@@ -35,6 +35,7 @@
           :role-assignments="tableRoleAssignments"
           :teams="teams"
           :agents="agents"
+          :ancestor-admins="tableAncestorAdmins"
           scope-type="database_table"
           @invite-members="inviteTableMembers"
           @invite-agents="inviteTableAgents"
@@ -55,6 +56,7 @@
           :role-assignments="viewRoleAssignments"
           :teams="teams"
           :agents="agents"
+          :ancestor-admins="viewAncestorAdmins"
           scope-type="database_view"
           @invite-members="inviteViewMembers"
           @invite-agents="inviteViewAgents"
@@ -134,6 +136,21 @@ export default {
         this.$t('memberRolesModal.memberRolesDatabaseTabTitle')
       )
     },
+    /**
+     * The subjects holding the admin role on the database, keyed by subject
+     * type and id, mapped to the level that makes them an admin as the tab
+     * labels it. An admin of the database keeps full access to every table and
+     * view inside it.
+     */
+    tableAncestorAdmins() {
+      return this.adminSubjects(this.databaseRoleAssignments, 'database')
+    },
+    viewAncestorAdmins() {
+      return {
+        ...this.tableAncestorAdmins,
+        ...this.adminSubjects(this.tableRoleAssignments, 'table'),
+      }
+    },
     canManageApplication() {
       return this.$hasPermission(
         'application.read_role',
@@ -163,6 +180,16 @@ export default {
     },
   },
   methods: {
+    adminSubjects(roleAssignments, level) {
+      return Object.fromEntries(
+        roleAssignments
+          .filter(({ role }) => role === 'ADMIN')
+          .map(({ subject_type: subjectType, subject }) => [
+            this.$registry.get('subject', subjectType).getKey(subject),
+            level,
+          ])
+      )
+    },
     async onShow() {
       if (this.view) {
         this.selectedTabIndex = 2

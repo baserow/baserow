@@ -25,6 +25,7 @@ from baserow.core.exceptions import (
     ApplicationNotInWorkspace,
     ApplicationTypeDoesNotExist,
     BaseURLHostnameNotAllowed,
+    CannotChangeYourOwnWorkspaceRole,
     DuplicateApplicationMaxLocksExceededException,
     IsNotAdminError,
     LastAdminOfWorkspace,
@@ -138,7 +139,7 @@ def test_update_workspace_user(send_mock, data_fixture):
     user_2 = data_fixture.create_user()
     user_3 = data_fixture.create_user()
     workspace_1 = data_fixture.create_workspace()
-    data_fixture.create_user_workspace(
+    workspace_user_1 = data_fixture.create_user_workspace(
         user=user_1, workspace=workspace_1, permissions="ADMIN"
     )
     workspace_user_2 = data_fixture.create_user_workspace(
@@ -152,6 +153,14 @@ def test_update_workspace_user(send_mock, data_fixture):
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
         handler.update_workspace_user(user=user_2, workspace_user=workspace_user_2)
+
+    # Nobody can change their own role, not even an admin.
+    with pytest.raises(CannotChangeYourOwnWorkspaceRole):
+        handler.update_workspace_user(
+            user=user_1, workspace_user=workspace_user_1, permissions="MEMBER"
+        )
+    workspace_user_1.refresh_from_db()
+    assert workspace_user_1.permissions == "ADMIN"
 
     tmp = handler.update_workspace_user(
         user=user_1, workspace_user=workspace_user_2, permissions="ADMIN"

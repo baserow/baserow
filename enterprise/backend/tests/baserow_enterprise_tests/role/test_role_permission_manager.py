@@ -1,4 +1,5 @@
 from django.db import IntegrityError, connection, reset_queries
+from django.db.models import Q
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 
@@ -29,6 +30,10 @@ from baserow.contrib.database.table.operations import (
     ReadDatabaseTableOperationType,
     UpdateDatabaseTableOperationType,
 )
+from baserow.contrib.database.views.operations import (
+    ReadViewOperationType,
+    UpdateViewOperationType,
+)
 from baserow.core.ai_provider.operations import ManageAIProvidersOperationType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
@@ -51,7 +56,7 @@ from baserow.core.operations import (
     UpdateSettingsOperationType,
     UpdateWorkspaceOperationType,
 )
-from baserow.core.registries import operation_type_registry
+from baserow.core.registries import WorkspaceFilterDecision, operation_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import Progress
@@ -2057,3 +2062,251 @@ def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
 
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_workspace_admin_is_never_locked_out(data_fixture, enterprise_data_fixture):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = data_fixture.create_database_table(user=admin, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[admin])
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    handler = RoleAssignmentHandler()
+    handler.assign_role(admin, workspace, role=no_access_role, scope=table)
+    handler.assign_role(
+        team, workspace, role=no_access_role, scope=database.application_ptr
+    )
+
+    perm_manager = RolePermissionManagerType()
+
+    checks = [
+        PermissionCheck(admin, ReadDatabaseTableOperationType.type, table),
+        PermissionCheck(admin, DeleteDatabaseTableOperationType.type, table),
+        PermissionCheck(
+            admin, ReadApplicationOperationType.type, database.application_ptr
+        ),
+        PermissionCheck(admin, DeleteWorkspaceOperationType.type, workspace),
+    ]
+    result = perm_manager.check_multiple_permissions(checks, workspace)
+    assert [result[check] for check in checks] == [True, True, True, True]
+
+    assert CoreHandler().check_permissions(
+        admin, DeleteDatabaseTableOperationType.type, workspace=workspace, context=table
+    )
+
+    permissions = perm_manager.get_permissions_object(admin, workspace)
+    assert len(permissions) == len(operation_type_registry.get_all())
+    assert all(policy["exceptions"] == [] for policy in permissions.values())
+    for operation_type in [
+        ReadDatabaseTableOperationType,
+        DeleteDatabaseTableOperationType,
+        ListTablesDatabaseTableOperationType,
+        ReadApplicationOperationType,
+        DeleteWorkspaceOperationType,
+    ]:
+        assert permissions[operation_type.type] == {
+            "default": True,
+            "exceptions": [],
+        }
+    # Operations the admin role itself doesn't hold stay denied.
+    assert permissions[UpdateSettingsOperationType.type]["default"] is False
+
+    tables = perm_manager.filter_queryset(
+        admin,
+        ListTablesDatabaseTableOperationType.type,
+        Table.objects.filter(database__workspace=workspace),
+        workspace=workspace,
+    )
+    assert list(tables) == [table]
+
+    applications = perm_manager.filter_queryset(
+        admin,
+        ListApplicationsWorkspaceOperationType.type,
+        Application.objects.filter(workspace=workspace),
+        workspace=workspace,
+    )
+    assert list(applications) == [database.application_ptr]
+
+
+@pytest.mark.django_db
+def test_team_admin_on_the_workspace_makes_a_member_a_workspace_admin(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    handler = RoleAssignmentHandler()
+    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
+    handler.assign_role(user, workspace, role=no_access_role, scope=table)
+
+    perm_manager = RolePermissionManagerType()
+
+    checks = [
+        PermissionCheck(user, DeleteDatabaseTableOperationType.type, table),
+        PermissionCheck(user, DeleteWorkspaceOperationType.type, workspace),
+    ]
+    result = perm_manager.check_multiple_permissions(checks, workspace)
+    assert [result[check] for check in checks] == [True, True]
+
+    permissions = perm_manager.get_permissions_object(user, workspace)
+    assert permissions[DeleteDatabaseTableOperationType.type] == {
+        "default": True,
+        "exceptions": [],
+    }
+    assert permissions[DeleteWorkspaceOperationType.type]["default"] is True
+
+    tables = perm_manager.filter_queryset(
+        user,
+        ListTablesDatabaseTableOperationType.type,
+        Table.objects.filter(database__workspace=workspace),
+        workspace=workspace,
+    )
+    assert list(tables) == [table]
+
+
+@pytest.mark.django_db
+def test_admin_of_an_application_keeps_access_to_everything_inside_it(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    database_1 = data_fixture.create_database_application(
+        user=owner, workspace=workspace
+    )
+    table_1_1 = data_fixture.create_database_table(user=owner, database=database_1)
+    table_1_2 = data_fixture.create_database_table(user=owner, database=database_1)
+    view_1_1 = data_fixture.create_grid_view(user=owner, table=table_1_1)
+    database_2 = data_fixture.create_database_application(
+        user=owner, workspace=workspace
+    )
+    table_2_1 = data_fixture.create_database_table(user=owner, database=database_2)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    handler = RoleAssignmentHandler()
+    handler.assign_role(
+        user, workspace, role=admin_role, scope=database_1.application_ptr
+    )
+    handler.assign_role(user, workspace, role=no_access_role, scope=table_1_1)
+    handler.assign_role(team, workspace, role=no_access_role, scope=view_1_1.view_ptr)
+    handler.assign_role(user, workspace, role=no_access_role, scope=table_2_1)
+
+    def allowed(operation_name, context):
+        return CoreHandler().check_permissions(
+            user,
+            operation_name,
+            workspace=workspace,
+            context=context,
+            raise_permission_exceptions=False,
+        )
+
+    assert allowed(DeleteDatabaseTableOperationType.type, table_1_1)
+    assert allowed(UpdateViewOperationType.type, view_1_1)
+    assert allowed(ReadViewOperationType.type, view_1_1)
+    assert allowed(UpdateDatabaseTableOperationType.type, table_1_2)
+    assert not allowed(ReadDatabaseTableOperationType.type, table_2_1)
+    # Still an editor elsewhere.
+    assert not allowed(DeleteApplicationOperationType.type, database_2.application_ptr)
+
+    perm_manager = RolePermissionManagerType()
+    permissions = perm_manager.get_permissions_object(user, workspace)
+    assert permissions[ReadDatabaseTableOperationType.type] == {
+        "default": True,
+        "exceptions": [table_2_1.id],
+    }
+    delete_policy = permissions[DeleteDatabaseTableOperationType.type]
+    assert delete_policy["default"] is False
+    # The exception ids come from a set, so their order isn't guaranteed.
+    assert sorted(delete_policy["exceptions"]) == sorted([table_1_1.id, table_1_2.id])
+
+    tables = perm_manager.filter_queryset(
+        user,
+        ListTablesDatabaseTableOperationType.type,
+        Table.objects.filter(database__workspace=workspace).order_by("id"),
+        workspace=workspace,
+    )
+    assert list(tables) == [table_1_1, table_1_2]
+
+
+@pytest.mark.django_db
+def test_filter_queryset_for_workspaces_applies_admin_precedence(data_fixture):
+    user = data_fixture.create_user()
+    owner = data_fixture.create_user()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_2 = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    database_1 = data_fixture.create_database_application(
+        user=user, workspace=workspace_1
+    )
+    table_1 = data_fixture.create_database_table(user=user, database=database_1)
+    database_2 = data_fixture.create_database_application(
+        user=owner, workspace=workspace_2
+    )
+    table_2 = data_fixture.create_database_table(user=owner, database=database_2)
+    database_3 = data_fixture.create_database_application(
+        user=owner, workspace=workspace_2
+    )
+    table_3 = data_fixture.create_database_table(user=owner, database=database_3)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace_1, role=no_access_role, scope=table_1)
+    handler.assign_role(
+        user, workspace_2, role=admin_role, scope=database_2.application_ptr
+    )
+    handler.assign_role(user, workspace_2, role=no_access_role, scope=table_2)
+    handler.assign_role(user, workspace_2, role=no_access_role, scope=table_3)
+
+    perm_manager = RolePermissionManagerType()
+    decisions = perm_manager.filter_queryset_for_workspaces(
+        user,
+        ListTablesDatabaseTableOperationType.type,
+        Table.objects.filter(database__workspace__in=[workspace_1, workspace_2]),
+        [workspace_1, workspace_2],
+    )
+
+    # The admin of workspace 1 sees every table in it, the editor of workspace 2
+    # only loses the table outside the database they administer.
+    assert decisions == {
+        workspace_2.id: WorkspaceFilterDecision(q=~Q(id__in=[table_3.id]))
+    }
+
+
+@pytest.mark.django_db
+def test_workspace_admin_is_not_an_admin_of_another_workspaces_objects(data_fixture):
+    """A permission check pairs a workspace with a context. When a client pairs
+    the workspace they administer with an object of another workspace, the
+    role manager must still deny, as it did before admins took a shortcut."""
+
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    other_workspace = data_fixture.create_workspace()
+    other_database = data_fixture.create_database_application(workspace=other_workspace)
+    other_table = data_fixture.create_database_table(database=other_database)
+
+    perm_manager = RolePermissionManagerType()
+    checks = [
+        PermissionCheck(admin, ReadDatabaseTableOperationType.type, other_table),
+        PermissionCheck(
+            admin, ReadApplicationOperationType.type, other_database.application_ptr
+        ),
+    ]
+    result = perm_manager.check_multiple_permissions(checks, workspace)
+
+    assert all(isinstance(result[check], PermissionException) for check in checks)

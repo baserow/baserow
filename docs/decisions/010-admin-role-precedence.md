@@ -164,9 +164,9 @@ Two points the rules leave open, and how this record settles them:
   Production resolves both to the lesser role, because the stored workspace role and the
   user's row win. This record resolves both to Admin, so that nobody can lower an Admin
   at the level they are an Admin of, which is what the maintainer comment on #1532 asks
-  for. Between non-admin roles the subject priority keeps deciding: a stored Viewer whose
-  team is Editor at the workspace stays a Viewer, and "No role" members keep taking their
-  teams' roles.
+  for. It applies to users and agents alike. Between non-admin roles the subject
+  priority keeps deciding: a stored Viewer whose team is Editor at the workspace stays a
+  Viewer, and "No role" members keep taking their teams' roles.
 - **Views.** The UI doesn't offer Admin on a view. The backend applies rule 2 to every
   scope regardless, so a view Admin assigned through the API behaves the same way.
 
@@ -243,8 +243,9 @@ rejected for the admins it happens to contain, and the UI never sends it.
   locked in the role modal, because team membership isn't known client side. The backend
   ignores their lower roles regardless.
 - The members page shows the stored workspace role, so lowering it has no visible effect
-  while a team the member belongs to holds Admin on the workspace. The last admin check
-  counts stored Admins only. Both need to learn about team derived workspace admins.
+  while a team the member belongs to holds Admin on the workspace. #6374 adds the
+  effective role and its source to that page. The last admin check counts stored Admins
+  only and still needs to learn about team derived workspace admins.
 - The ordering endpoints work for admins without placeholders, which was #1474's first
   motivation.
 - Follow-up work: #6012 (picker defaults to Viewer, confirmation before "No access",

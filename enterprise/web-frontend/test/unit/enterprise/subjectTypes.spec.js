@@ -14,6 +14,13 @@ describe('TeamSubjectType', () => {
     expect(subjectType.getId({ id: 1 })).toBe(1)
   })
 
+  test('keys a team and has no workspace role of its own', () => {
+    expect(subjectType.getKey({ id: 1 })).toBe('baserow_enterprise.Team:1')
+    expect(
+      subjectType.getWorkspaceRoleUid({ id: 1, default_role: 'ADMIN' })
+    ).toBe(null)
+  })
+
   test('resolves its display names', () => {
     expect(subjectType.getTypeDisplayName()).toBe('Team')
     expect(subjectType.getPluralTypeDisplayName()).toBe('Teams')

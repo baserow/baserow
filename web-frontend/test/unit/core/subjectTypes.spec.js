@@ -49,6 +49,30 @@ describe('SubjectType', () => {
   })
 
   test.each([
+    [new UserSubjectType(context), { id: 1, user_id: 2 }, 'auth.User:2'],
+    [new UserSubjectType(context), { id: 1 }, 'auth.User:1'],
+    [new AgentSubjectType(context), { id: 1 }, 'core.Agent:1'],
+  ])('keys a subject by type and id', (subjectType, subject, expected) => {
+    expect(subjectType.getKey(subject)).toBe(expected)
+  })
+
+  test.each([
+    [
+      new UserSubjectType(context),
+      { user_id: 2, permissions: 'ADMIN' },
+      'ADMIN',
+    ],
+    [new UserSubjectType(context), { id: 2 }, null],
+    [new AgentSubjectType(context), { id: 1, role_uid: 'BUILDER' }, 'BUILDER'],
+    [new AgentSubjectType(context), { id: 1 }, null],
+  ])(
+    'reads the workspace role off a subject',
+    (subjectType, subject, expected) => {
+      expect(subjectType.getWorkspaceRoleUid(subject)).toBe(expected)
+    }
+  )
+
+  test.each([
     [{ name: 'Workspace member' }, 'Workspace member'],
     [{ first_name: 'Role subject' }, 'Role subject'],
     [{ email: 'user@example.com' }, 'user@example.com'],

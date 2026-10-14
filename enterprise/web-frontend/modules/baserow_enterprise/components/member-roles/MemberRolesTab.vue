@@ -25,13 +25,18 @@
         <p>
           {{ $t('memberRolesTab.warningMessage', translationParams) }}
         </p>
+        <p>
+          {{ $t('memberRolesTab.adminMessage', translationParams) }}
+        </p>
       </Alert>
       <MemberRolesMembersList
         :role-assignments="roleAssignments"
         :scope-type="scopeType"
+        :scope-type-name="memberRoleScope.type"
         :scope-id="scopeId"
         :workspace-id="workspace.id"
         :teams="teams"
+        :inherited-admins="inheritedAdmins"
         @role-updated="
           (roleAssignment, newRole) =>
             $emit('role-updated', roleAssignment, newRole)
@@ -57,6 +62,10 @@
 import { mapGetters } from 'vuex'
 import MemberRolesMembersList from '@baserow_enterprise/components/member-roles/MemberRolesMembersList'
 import RoleAssignmentModal from '@baserow_enterprise/components/member-roles/RoleAssignmentModal'
+
+const USER = 'auth.User'
+const AGENT = 'core.Agent'
+const TEAM = 'baserow_enterprise.Team'
 
 const MEMBER_ROLE_SCOPE_CONFIG = {
   application: {
@@ -116,6 +125,16 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * The subjects that are an admin of a scope above this one, other than the
+     * workspace, as `{ '<subject type>:<id>': '<level>' }` where the level is
+     * one of the names `scopeLabel` understands, like `database` or `table`.
+     */
+    ancestorAdmins: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
   },
   computed: {
     ...mapGetters({ userId: 'auth/getUserId' }),
@@ -164,25 +183,64 @@ export default {
     workspaceUsers() {
       return this.workspace.users || []
     },
+    /**
+     * The subjects whose role on this scope can't be lowered because they are an
+     * admin of the workspace or of a scope above this one, mapped to the label of
+     * the scope that makes them an admin. Their role here has no effect, so they
+     * are shown as admins in the list and can't be picked.
+     */
+    inheritedAdmins() {
+      const admins = {}
+      for (const [key, level] of Object.entries(this.ancestorAdmins)) {
+        admins[key] = this.scopeLabel(level)
+      }
+      const workspaceLabel = this.scopeLabel('workspace')
+      for (const [typeName, subjects] of [
+        [USER, this.workspaceUsers],
+        [AGENT, this.agents],
+      ]) {
+        const subjectType = this.$registry.get('subject', typeName)
+        for (const subject of subjects) {
+          if (subjectType.getWorkspaceRoleUid(subject) === 'ADMIN') {
+            admins[subjectType.getKey(subject)] = workspaceLabel
+          }
+        }
+      }
+      return admins
+    },
     workspaceUsersNotInvited() {
       const userIds = this.userRoleAssignments.map(({ subject }) => subject.id)
       return this.workspaceUsers.filter(
-        ({ user_id: userId }) =>
-          !userIds.includes(userId) && userId !== this.userId
+        (user) =>
+          !userIds.includes(user.user_id) &&
+          user.user_id !== this.userId &&
+          !this.isInheritedAdmin(USER, user)
       )
     },
     teamsNotInvited() {
       const teamIds = this.teamRoleAssignments.map(({ subject }) => subject.id)
-      return this.teams.filter(({ id }) => !teamIds.includes(id))
+      return this.teams.filter(
+        (team) =>
+          !teamIds.includes(team.id) && !this.isInheritedAdmin(TEAM, team)
+      )
     },
     agentsNotInvited() {
       const agentIds = this.agentRoleAssignments.map(
         ({ subject }) => subject.id
       )
-      return this.agents.filter(({ id }) => !agentIds.includes(id))
+      return this.agents.filter(
+        (agent) =>
+          !agentIds.includes(agent.id) && !this.isInheritedAdmin(AGENT, agent)
+      )
     },
   },
   methods: {
+    isInheritedAdmin(typeName, subject) {
+      return (
+        this.$registry.get('subject', typeName).getKey(subject) in
+        this.inheritedAdmins
+      )
+    },
     scopeLabel(scope) {
       let label = null
 

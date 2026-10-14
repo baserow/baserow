@@ -40,8 +40,9 @@ def test_workspace_search_filters_tables_by_permissions(
     admin_user, admin_token = enterprise_data_fixture.create_user_and_token()
     viewer_user, viewer_token = enterprise_data_fixture.create_user_and_token()
 
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
     workspace = enterprise_data_fixture.create_workspace(
-        users=[admin_user, viewer_user]
+        users=[admin_user], custom_permissions=[(viewer_user, "VIEWER")]
     )
 
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
@@ -156,7 +157,11 @@ def test_workspace_search_team_permission_inheritance(
     api_client, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(users=[user])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
 
     team = enterprise_data_fixture.create_team(
         workspace=workspace, name="Engineering Team"
@@ -289,7 +294,11 @@ def test_workspace_search_actor_role_precedence_over_team(
     api_client, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(users=[user])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
 
     team = enterprise_data_fixture.create_team(workspace=workspace)
     enterprise_data_fixture.create_subject(team=team, subject=user)

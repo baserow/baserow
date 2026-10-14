@@ -27,7 +27,11 @@ def test_can_undo_updating_field_permissions(
 ):
     session_id = "session-id"
     user = enterprise_data_fixture.create_user(session_id=session_id)
-    table = enterprise_data_fixture.create_database_table(name="Car", user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    table = enterprise_data_fixture.create_database_table(name="Car")
+    enterprise_data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="VIEWER"
+    )
     field = enterprise_data_fixture.create_text_field(table=table)
     editor_role = Role.objects.get(uid="BUILDER")
     RoleAssignmentHandler().assign_role(
@@ -68,7 +72,11 @@ def test_can_undo_redo_updating_field_permissions(
 ):
     session_id = "session-id"
     user = enterprise_data_fixture.create_user(session_id=session_id)
-    table = enterprise_data_fixture.create_database_table(name="Car", user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    table = enterprise_data_fixture.create_database_table(name="Car")
+    enterprise_data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="VIEWER"
+    )
     field = enterprise_data_fixture.create_text_field(table=table)
     editor_role = Role.objects.get(uid="BUILDER")
     RoleAssignmentHandler().assign_role(

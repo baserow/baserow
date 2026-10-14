@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Admins can no longer be locked out of databases, tables or views by a lower role",
+    "issue_origin": "github",
+    "issue_number": 1532,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-13"
+}

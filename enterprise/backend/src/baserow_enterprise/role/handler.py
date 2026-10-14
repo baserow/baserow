@@ -19,6 +19,7 @@ from baserow.core.registries import (
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck, ScopeObject, Subject
 from baserow_enterprise.exceptions import (
+    CannotAssignRoleToSelf,
     ScopeNotExist,
     SubjectNotExist,
     SubjectUnsupported,
@@ -35,6 +36,7 @@ from baserow_enterprise.teams.models import Team, TeamSubject
 from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
+    ADMIN_ROLE_UID,
     ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
     INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
@@ -45,6 +47,10 @@ from .constants import (
 from .types import NewRoleAssignment
 
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
+
+# The subject type priority recorded for a scope once the admin role was found on it.
+# No real priority is negative, so no later role assignment can join that scope.
+ADMIN_ROLE_PRIORITY = -1
 
 # Sentinel distinguishing a request local cache miss from a cached falsy value.
 _UNCACHED = object()
@@ -541,7 +547,15 @@ class RoleAssignmentHandler:
                 actor_ids = [subject_id]
 
             for actor_id in actor_ids:
-                if not roles_by_scope[actor_id].get(scope_param, []):
+                if role.uid == ADMIN_ROLE_UID:
+                    # The admin role on a scope beats every other role on that
+                    # scope, whatever subject type granted it. It replaces what was
+                    # collected so far and nothing can join the scope afterwards.
+                    roles_by_scope[actor_id][scope_param] = [role]
+                    priorities_by_scope_per_actor_id[actor_id][scope_param] = (
+                        ADMIN_ROLE_PRIORITY
+                    )
+                elif not roles_by_scope[actor_id].get(scope_param, []):
                     # If there is no role yet for the scope of the role assignment
                     # We can define one from the assignment.
                     # We don't use defaultdict here to be sure we have the right key
@@ -573,6 +587,8 @@ class RoleAssignmentHandler:
         )
         if workspace_roles_by_actor_id is not None:
             for actor in actors:
+                # Non members and trashed actors are absent from the lookup.
+                in_workspace = actor.id in workspace_roles_by_actor_id
                 workspace_level_role = self.get_role_by_uid(
                     workspace_roles_by_actor_id.get(actor.id, NO_ACCESS_ROLE_UID),
                     use_fallback=True,
@@ -587,7 +603,14 @@ class RoleAssignmentHandler:
                         roles_by_scope[actor.id][workspace_scope_param] = [
                             self.get_role_by_uid(NO_ACCESS_ROLE_UID)
                         ]
-                else:
+                elif not (
+                    in_workspace and self._grants_admin(inherited_workspace_roles)
+                ):
+                    # The stored workspace role is canonical, unless a team makes
+                    # the actor an admin of the workspace: the admin role beats a
+                    # lesser role on the same scope, the workspace included. Without
+                    # a live membership the actor stays "no access" whatever their
+                    # teams hold.
                     roles_by_scope[actor.id][workspace_scope_param] = [
                         workspace_level_role
                     ]
@@ -601,6 +624,7 @@ class RoleAssignmentHandler:
         # Finally replace scope_params by real scope
         roles_per_scope_per_user = defaultdict(list)
         for actor in actors:
+            roles_per_scope = []
             for key, value in roles_by_scope[actor.id].items():
                 # scope_cache contains all the filtered scopes we need to check
                 # permissions for. Objects from snapshotted applications (table,
@@ -608,7 +632,10 @@ class RoleAssignmentHandler:
                 # user, so we can safely ignore them here.
                 if key not in scope_cache:
                     continue
-                roles_per_scope_per_user[actor].append((scope_cache[key], value))
+                roles_per_scope.append((scope_cache[key], value))
+            roles_per_scope_per_user[actor] = self.apply_admin_precedence(
+                roles_per_scope
+            )
 
         return roles_per_scope_per_user
 
@@ -821,7 +848,12 @@ class RoleAssignmentHandler:
 
                 scopes_to_query[scope_type_id].add(scope_id)
 
-                if not roles_by_scope.get(scope_param, []):
+                if role.uid == ADMIN_ROLE_UID:
+                    # See `get_roles_per_scope_for_actors`: the admin role beats
+                    # every other role on the same scope.
+                    roles_by_scope[scope_param] = [role]
+                    priorities_by_scope[scope_param] = ADMIN_ROLE_PRIORITY
+                elif not roles_by_scope.get(scope_param, []):
                     roles_by_scope[scope_param] = [role]
                     priorities_by_scope[scope_param] = role_priority
                 elif (
@@ -843,7 +875,12 @@ class RoleAssignmentHandler:
                         roles_by_scope[workspace_scope_param] = [
                             self.get_role_by_uid(NO_ACCESS_ROLE_UID)
                         ]
-                else:
+                elif not (
+                    permissions is not None
+                    and self._grants_admin(roles_by_scope.get(workspace_scope_param))
+                ):
+                    # See `get_roles_per_scope_for_actors`: a team's admin role on
+                    # the workspace beats the stored workspace role of a member.
                     roles_by_scope[workspace_scope_param] = [workspace_level_role]
 
             roles_by_scope_per_workspace[workspace.id] = roles_by_scope
@@ -868,6 +905,7 @@ class RoleAssignmentHandler:
                 if key not in scope_cache:
                     continue
                 roles_per_scope.append((scope_cache[key], value))
+            roles_per_scope = self.apply_admin_precedence(roles_per_scope)
 
             # Prime the request local cache `get_roles_per_scope` reads from. If it
             # was already computed earlier in the request, the existing value wins to
@@ -929,6 +967,76 @@ class RoleAssignmentHandler:
                 )
 
         return permissions_per_workspace
+
+    @staticmethod
+    def _grants_admin(roles: Optional[List[Role]]) -> bool:
+        """
+        Whether the given roles, as collected for one scope, include the admin role.
+        """
+
+        return any(role.uid == ADMIN_ROLE_UID for role in roles or [])
+
+    def apply_admin_precedence(
+        self, roles_per_scope: List[Tuple[ScopeObject, List[Role]]]
+    ) -> List[Tuple[ScopeObject, List[Role]]]:
+        """
+        Applies the rule that an admin can never be locked out of what they
+        administer to an ordered `(scope, roles)` list, the workspace entry first.
+
+        An admin of the workspace, by their stored role or through a team, is an
+        admin everywhere in it: every lower scope entry is dropped, so a "no access"
+        or lower role given to them on an application, table or view, directly or
+        through a team, has no effect. An admin of a lower scope likewise keeps the
+        admin role on that scope and on everything inside it: lower roles on the
+        same scope and the entries of its descendant scopes are dropped.
+
+        :param roles_per_scope: The ordered roles per scope of one actor.
+        :return: The same list with the entries an admin role makes inert removed.
+        """
+
+        if not roles_per_scope:
+            return roles_per_scope
+
+        admin_role = self.get_role_by_uid(ADMIN_ROLE_UID)
+
+        workspace_scope, workspace_roles = roles_per_scope[0]
+        if any(role.uid == ADMIN_ROLE_UID for role in workspace_roles):
+            return [(workspace_scope, [admin_role])]
+
+        result = []
+        admin_scopes = []
+        for scope, roles in roles_per_scope:
+            if any(
+                object_scope_type_registry.scope_includes_context(admin_scope, scope)
+                for admin_scope in admin_scopes
+            ):
+                continue
+            if any(role.uid == ADMIN_ROLE_UID for role in roles):
+                roles = [admin_role]
+                admin_scopes.append(scope)
+            result.append((scope, roles))
+
+        return result
+
+    @staticmethod
+    def is_workspace_admin(
+        roles_per_scope: List[Tuple[ScopeObject, List[Role]]],
+    ) -> bool:
+        """
+        Whether the given ordered `(scope, roles)` list, as returned by
+        `get_roles_per_scope`, grants the admin role on the workspace itself. Such an
+        actor can't be denied anything in the workspace, see
+        `apply_admin_precedence`.
+
+        :param roles_per_scope: The ordered roles per scope of one actor.
+        :return: True if the actor is an admin of the workspace.
+        """
+
+        if not roles_per_scope:
+            return False
+
+        _, workspace_roles = roles_per_scope[0]
+        return any(role.uid == ADMIN_ROLE_UID for role in workspace_roles)
 
     def get_computed_roles(
         self, roles_per_scopes, context: Any, cache: Optional[Dict] = None
@@ -1115,12 +1223,23 @@ class RoleAssignmentHandler:
             role assignments.
         :raise ScopeNotExist: If at least one of the scopes is not a child of the
             workspace.
+        :raise CannotAssignRoleToSelf: If the user assigns a role to themselves, on
+            the workspace or on anything inside it.
         :return: A list of the result of each assignment. Each result can be a
             RoleAssignment object or None if the assignment has been removed.
         """
 
         # First check licence
         LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
+
+        # Nobody can give themselves a role: an admin could demote themselves or
+        # lock themselves out of an application, table or view that way.
+        for subject, _, _ in new_role_assignments:
+            if (
+                subject_type_registry.get_by_model(subject).type == UserSubjectType.type
+                and subject.id == user.id
+            ):
+                raise CannotAssignRoleToSelf()
 
         # Create a dict of unique scope and subject by type to allow performants
         # preliminary checks

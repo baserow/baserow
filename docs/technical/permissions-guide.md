@@ -390,6 +390,44 @@ app.$registry.register('permissionManager', new OwnedTablePermissionManagerType(
 
 And that's it, you have a fully functionnal frontend permission manager.
 
+## 👑 Admins can't be locked out (enterprise RBAC)
+
+The enterprise `role` permission manager resolves an actor's roles per scope,
+from the workspace down to the application, table and view, and normally the
+most specific scope wins. Three rules take precedence over that, applied by
+`RoleAssignmentHandler.apply_admin_precedence` when the per scope list is built,
+so every consumer of the list sees the same result:
+
+- An admin of the workspace is an admin everywhere in it. Any lower role given
+  to them on an application, table or view, directly or through a team, has no
+  effect. To restrict them, lower their stored workspace role and remove any
+  team admin role they hold on the workspace.
+- An admin of an application, table or view keeps the admin role on that scope
+  and on everything inside it. Lower roles on the same scope from other subject
+  types, and any role on a descendant scope, have no effect.
+- The admin role from any subject type beats a lesser role on the same scope,
+  the workspace included: a team's admin role on the workspace makes a member
+  or an agent whose stored role is Editor an admin of the workspace. Between
+  non-admin roles
+  the subject priority keeps deciding, and a team's non-admin role on the
+  workspace still applies only to members whose stored role is "No role".
+
+Existing role assignments that these rules make inert are kept as they are; the
+rules apply the moment the code runs, without a data migration. The `role`
+permission manager also returns early for admins of the workspace when building the
+permissions object and the queryset filters: both come from the admin role alone,
+with no exceptions. Permission checks still walk the scope list, since that walk is
+what denies a context that doesn't belong to the workspace of the check.
+
+Nobody can change their own role through the API, neither on the workspace
+(`ERROR_CANNOT_CHANGE_YOUR_OWN_ROLE` on the workspace user endpoint and
+`ERROR_CANT_ASSIGN_ROLE_TO_SELF` on the role assignment endpoints) nor on an
+application, table or view. Another admin has to do it, and the last admin check
+still applies to them.
+
+The reasoning, and the 2022 decision in #1474 that these rules reverse, are recorded in
+[ADR 010](../decisions/010-admin-role-precedence.md).
+
 ## 📝 Conclusion
 
 If you want to create a new way to validate Permissions, you'll have to:

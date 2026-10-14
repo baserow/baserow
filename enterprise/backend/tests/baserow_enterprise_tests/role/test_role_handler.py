@@ -16,6 +16,7 @@ from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.subjects import UserSubjectType
 from baserow.core.utils import Progress
 from baserow_enterprise.exceptions import (
+    CannotAssignRoleToSelf,
     ScopeNotExist,
     SubjectNotExist,
     SubjectUnsupported,
@@ -24,6 +25,7 @@ from baserow_enterprise.role.constants import ALLOWED_SUBJECT_TYPE_BY_PRIORITY
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.role.types import NewRoleAssignment
+from baserow_enterprise.teams.models import TeamSubject
 
 
 @pytest.fixture(autouse=True)
@@ -983,16 +985,18 @@ def test_get_role_per_scope_per_actors(data_fixture, enterprise_data_fixture):
 @pytest.mark.django_db
 def test_get_roles_per_scope_trashed_teams(data_fixture, enterprise_data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    # Not an admin of the workspace, who would be an admin everywhere in it.
+    workspace = data_fixture.create_workspace(custom_permissions=[(user, "EDITOR")])
     database = data_fixture.create_database_application(workspace=workspace)
     team = enterprise_data_fixture.create_team(workspace=workspace)
     admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
 
     enterprise_data_fixture.create_subject(team, user)
     RoleAssignmentHandler().assign_role(team, workspace, admin_role, scope=database)
 
     assert RoleAssignmentHandler().get_roles_per_scope(workspace, user) == [
-        (workspace, [admin_role]),
+        (workspace, [editor_role]),
         (database, [admin_role]),
     ]
 
@@ -1001,7 +1005,7 @@ def test_get_roles_per_scope_trashed_teams(data_fixture, enterprise_data_fixture
     local_cache.clear()
 
     assert RoleAssignmentHandler().get_roles_per_scope(workspace, user) == [
-        (workspace, [admin_role]),
+        (workspace, [editor_role]),
     ]
 
 
@@ -1244,3 +1248,333 @@ def test_snapshot_with_roles_doesnt_cause_get_permission_objects(
     # There was a bug where get_permissions would crash if a user had a certain set
     # of roles on a database that was snapshotted.
     CoreHandler().get_permissions(user_2, workspace)
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_workspace_admin_ignores_lower_scope_roles(
+    data_fixture, enterprise_data_fixture
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = data_fixture.create_database_table(user=admin, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[admin])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(admin, workspace, role=no_access_role, scope=table)
+    handler.assign_role(
+        team, workspace, role=no_access_role, scope=database.application_ptr
+    )
+    handler.assign_role(team, workspace, role=viewer_role, scope=workspace)
+
+    assert handler.get_roles_per_scope(workspace, admin) == [(workspace, [admin_role])]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_admin_of_no_role_member_ignores_lower_scope_roles(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner, members=[user])
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+    admin_team = enterprise_data_fixture.create_team(
+        workspace=workspace, members=[user]
+    )
+    other_team = enterprise_data_fixture.create_team(
+        workspace=workspace, members=[user]
+    )
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    low_priority_role = Role.objects.get(uid="NO_ROLE_LOW_PRIORITY")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace, role=low_priority_role, scope=workspace)
+    handler.assign_role(admin_team, workspace, role=admin_role, scope=workspace)
+    handler.assign_role(other_team, workspace, role=no_access_role, scope=workspace)
+    handler.assign_role(other_team, workspace, role=no_access_role, scope=table)
+    handler.assign_role(user, workspace, role=no_access_role, scope=database)
+
+    assert handler.get_roles_per_scope(workspace, user) == [(workspace, [admin_role])]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_admin_on_the_workspace_beats_a_lesser_stored_role(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
+    handler.assign_role(user, workspace, role=no_access_role, scope=database)
+    handler.assign_role(team, workspace, role=no_access_role, scope=table)
+
+    expected = [(workspace, [admin_role])]
+    assert handler.get_roles_per_scope(workspace, user) == expected
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace], user)[workspace.id]
+        == expected
+    )
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_admin_on_the_workspace_needs_a_membership(
+    data_fixture, enterprise_data_fixture
+):
+    # A team subject without a membership, which only stale data can produce, must
+    # not become an admin through the team.
+    owner = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    TeamSubject.objects.create(team=team, subject=outsider)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    handler = RoleAssignmentHandler()
+    handler.assign_role(team, workspace, role=admin_role, scope=workspace)
+
+    expected = [(workspace, [no_access_role])]
+    assert handler.get_roles_per_scope(workspace, outsider) == expected
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace], outsider)[workspace.id]
+        == expected
+    )
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_non_admin_role_on_the_workspace_keeps_stored_role(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "VIEWER")]
+    )
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(team, workspace, role=editor_role, scope=workspace)
+
+    expected = [(workspace, [viewer_role])]
+    assert handler.get_roles_per_scope(workspace, user) == expected
+    assert (
+        handler.get_roles_per_scope_for_workspaces([workspace], user)[workspace.id]
+        == expected
+    )
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_admin_of_a_scope_keeps_it_and_its_descendants(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner, members=[user])
+    database1 = data_fixture.create_database_application(
+        user=owner, workspace=workspace
+    )
+    table11 = data_fixture.create_database_table(user=owner, database=database1)
+    view11 = data_fixture.create_grid_view(user=owner, table=table11)
+    database2 = data_fixture.create_database_application(
+        user=owner, workspace=workspace
+    )
+    table21 = data_fixture.create_database_table(user=owner, database=database2)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    read_only_role = Role.objects.get(uid="READ_ONLY")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace, role=editor_role, scope=workspace)
+    # Admin on the database, as the API stores it, with lower roles on the same
+    # scope through a team and on everything inside it.
+    handler.assign_role(
+        user, workspace, role=admin_role, scope=database1.application_ptr
+    )
+    handler.assign_role(
+        team, workspace, role=no_access_role, scope=database1.application_ptr
+    )
+    handler.assign_role(user, workspace, role=no_access_role, scope=table11)
+    handler.assign_role(team, workspace, role=viewer_role, scope=view11.view_ptr)
+    # Another database is not protected by the admin role on the first one.
+    handler.assign_role(user, workspace, role=viewer_role, scope=table21)
+
+    roles_per_scope = handler.get_roles_per_scope(workspace, user)
+
+    assert roles_per_scope == [
+        (workspace, [editor_role]),
+        (database1.application_ptr, [admin_role]),
+        (table21, [viewer_role]),
+    ]
+    assert handler.get_computed_roles(roles_per_scope, table11) == [admin_role]
+    assert handler.get_computed_roles(roles_per_scope, view11) == [admin_role]
+    assert handler.get_computed_roles(roles_per_scope, table21) == [viewer_role]
+    # The viewer role on the table inside still grants reading the database.
+    assert handler.get_computed_roles(roles_per_scope, database2) == [
+        editor_role,
+        read_only_role,
+    ]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_team_admin_beats_direct_lower_role_on_the_same_scope(
+    data_fixture, enterprise_data_fixture
+):
+    owner = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner, members=[user])
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    table = data_fixture.create_database_table(user=owner, database=database)
+    team = enterprise_data_fixture.create_team(workspace=workspace, members=[user])
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace, role=editor_role, scope=workspace)
+    handler.assign_role(user, workspace, role=editor_role, scope=table)
+    handler.assign_role(team, workspace, role=admin_role, scope=table)
+
+    assert handler.get_roles_per_scope(workspace, user) == [
+        (workspace, [editor_role]),
+        (table, [admin_role]),
+    ]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_demoted_admin_gets_their_lower_scope_roles_back(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    other_admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(other_admin, "ADMIN")]
+    )
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = data_fixture.create_database_table(user=admin, database=database)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(admin, workspace, role=no_access_role, scope=table)
+
+    assert handler.get_roles_per_scope(workspace, admin) == [(workspace, [admin_role])]
+
+    handler.assign_role(admin, workspace, role=editor_role, scope=workspace)
+
+    assert handler.get_roles_per_scope(workspace, admin) == [
+        (workspace, [editor_role]),
+        (table, [no_access_role]),
+    ]
+
+
+@pytest.mark.django_db
+def test_get_roles_per_scope_for_workspaces_applies_admin_precedence(data_fixture):
+    user = data_fixture.create_user()
+    owner = data_fixture.create_user()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_2 = data_fixture.create_workspace(
+        user=owner, custom_permissions=[(user, "EDITOR")]
+    )
+    database_1 = data_fixture.create_database_application(
+        user=user, workspace=workspace_1
+    )
+    table_1 = data_fixture.create_database_table(user=user, database=database_1)
+    database_2 = data_fixture.create_database_application(
+        user=owner, workspace=workspace_2
+    )
+    table_2 = data_fixture.create_database_table(user=owner, database=database_2)
+    database_3 = data_fixture.create_database_application(
+        user=owner, workspace=workspace_2
+    )
+    table_3 = data_fixture.create_database_table(user=owner, database=database_3)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+
+    handler = RoleAssignmentHandler()
+    handler.assign_role(user, workspace_1, role=no_access_role, scope=table_1)
+    handler.assign_role(
+        user, workspace_2, role=admin_role, scope=database_2.application_ptr
+    )
+    handler.assign_role(user, workspace_2, role=no_access_role, scope=table_2)
+    handler.assign_role(user, workspace_2, role=viewer_role, scope=table_3)
+
+    result = handler.get_roles_per_scope_for_workspaces(
+        [workspace_1, workspace_2], user
+    )
+
+    assert result == {
+        workspace_1.id: [(workspace_1, [admin_role])],
+        workspace_2.id: [
+            (workspace_2, [editor_role]),
+            (database_2.application_ptr, [admin_role]),
+            (table_3, [viewer_role]),
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_assign_role_batch_for_user_rejects_a_role_on_yourself(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    other_admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(other_admin, "ADMIN")]
+    )
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = data_fixture.create_database_table(user=admin, database=database)
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+
+    handler = RoleAssignmentHandler()
+
+    with pytest.raises(CannotAssignRoleToSelf):
+        handler.assign_role_batch_for_user(
+            admin,
+            workspace,
+            [
+                NewRoleAssignment(other_admin, viewer_role, table),
+                NewRoleAssignment(admin, viewer_role, table),
+            ],
+        )
+
+    assert RoleAssignment.objects.count() == 0
+
+    # Nor on the workspace itself, which would let an admin demote themselves.
+    with pytest.raises(CannotAssignRoleToSelf):
+        handler.assign_role_batch_for_user(
+            admin, workspace, [NewRoleAssignment(admin, editor_role, workspace)]
+        )
+
+    assert handler.get_roles_per_scope(workspace, admin) == [(workspace, [admin_role])]

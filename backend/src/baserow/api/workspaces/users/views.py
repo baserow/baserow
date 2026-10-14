@@ -27,11 +27,13 @@ from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.schemas import get_error_schema
 from baserow.api.user.registries import member_data_registry
 from baserow.api.workspaces.users.errors import (
+    ERROR_CANNOT_CHANGE_YOUR_OWN_ROLE,
     ERROR_CANNOT_DELETE_YOURSELF_FROM_GROUP,
     ERROR_GROUP_USER_DOES_NOT_EXIST,
 )
 from baserow.core.db import specific_queryset
 from baserow.core.exceptions import (
+    CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
@@ -180,6 +182,7 @@ class WorkspaceUserView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_CANNOT_CHANGE_YOUR_OWN_ROLE",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_USER_DOES_NOT_EXIST"]),
@@ -192,6 +195,7 @@ class WorkspaceUserView(APIView):
             WorkspaceUserDoesNotExist: ERROR_GROUP_USER_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
+            CannotChangeYourOwnWorkspaceRole: ERROR_CANNOT_CHANGE_YOUR_OWN_ROLE,
         }
     )
     def patch(self, request, data, workspace_user_id):

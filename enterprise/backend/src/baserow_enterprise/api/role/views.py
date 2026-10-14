@@ -28,6 +28,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.registries import object_scope_type_registry
 from baserow.core.utils import unique_dicts_in_list
 from baserow_enterprise.api.errors import (
+    ERROR_CANT_ASSIGN_ROLE_TO_SELF,
     ERROR_DUPLICATE_ROLE_ASSIGNMENTS,
     ERROR_LAST_ADMIN_OF_GROUP,
     ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
@@ -38,6 +39,7 @@ from baserow_enterprise.api.errors import (
     ERROR_SUBJECT_TYPE_UNSUPPORTED,
 )
 from baserow_enterprise.exceptions import (
+    CannotAssignRoleToSelf,
     RoleNotExist,
     ScopeNotExist,
     SubjectNotExist,
@@ -90,6 +92,7 @@ class RoleAssignmentsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_CANT_ASSIGN_ROLE_EXCEPTION_TO_ADMIN",
+                    "ERROR_CANT_ASSIGN_ROLE_TO_SELF",
                 ]
             ),
             404: get_error_schema(
@@ -114,6 +117,7 @@ class RoleAssignmentsView(APIView):
             ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
             RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
             LastAdminOfWorkspace: ERROR_LAST_ADMIN_OF_GROUP,
+            CannotAssignRoleToSelf: ERROR_CANT_ASSIGN_ROLE_TO_SELF,
         }
     )
     @validate_body(CreateRoleAssignmentSerializer, return_validated=True)
@@ -263,6 +267,7 @@ class BatchRoleAssignmentsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_DUPLICATE_ROLE_ASSIGNMENTS",
                     "ERROR_CANT_ASSIGN_ROLE_EXCEPTION_TO_ADMIN",
+                    "ERROR_CANT_ASSIGN_ROLE_TO_SELF",
                 ]
             ),
             404: get_error_schema(
@@ -287,6 +292,7 @@ class BatchRoleAssignmentsView(APIView):
             ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
             RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
             DuplicateRoleAssignments: ERROR_DUPLICATE_ROLE_ASSIGNMENTS,
+            CannotAssignRoleToSelf: ERROR_CANT_ASSIGN_ROLE_TO_SELF,
         }
     )
     @validate_body(
