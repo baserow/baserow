@@ -1335,22 +1335,20 @@ class RoleAssignmentHandler:
 
     def get_scoped_invitations(
         self, workspace: Workspace, scope: ScopeObject
-    ) -> List[WorkspaceScopedInvitation]:
+    ) -> QuerySet[WorkspaceScopedInvitation]:
         """
         Returns the pending scoped invitations that grant a role on the given scope.
 
         :param workspace: The workspace the scope belongs to.
         :param scope: The scope the invitations grant a role on.
-        :return: The scoped invitations, oldest first.
+        :return: A queryset of the scoped invitations, oldest first.
         """
 
-        return list(
-            WorkspaceScopedInvitation.objects.filter(
-                invitation__workspace=workspace,
-                scope_type=ContentType.objects.get_for_model(scope),
-                scope_id=scope.id,
-            ).select_related("invitation", "role", "scope_type")
-        )
+        return WorkspaceScopedInvitation.objects.filter(
+            invitation__workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+        ).select_related("invitation", "role", "scope_type")
 
     def get_scoped_invitation(
         self, scoped_invitation_id: int

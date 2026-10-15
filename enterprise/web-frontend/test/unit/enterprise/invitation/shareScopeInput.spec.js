@@ -1,4 +1,5 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { flushPromises } from '@vue/test-utils'
 import { expect, test } from 'vitest'
 
 import ShareScopeInput from '@baserow_enterprise/components/invitation/ShareScopeInput'
@@ -8,20 +9,29 @@ const roles = [
   { uid: 'VIEWER', name: 'Viewer', isVisible: true, isDeactivated: false },
 ]
 const workspace = { id: 12, name: 'Widelab', _: { roles } }
+const users = [{ user_id: 8, name: 'Mark Delgado', email: 'mark@x.com' }]
+const teams = [{ id: 3, name: 'Management', subject_count: 2 }]
+const agents = [{ id: 4, name: 'Smith' }]
 
 async function mountInput(props = {}) {
   return await mountSuspended(ShareScopeInput, {
     props: {
       workspace,
       scopeTypeName: 'table',
-      users: [{ user_id: 8, name: 'Mark Delgado', email: 'mark@x.com' }],
-      teams: [{ id: 3, name: 'Management', subject_count: 2 }],
-      agents: [{ id: 4, name: 'Smith' }],
+      subjects: {
+        'auth.User': users,
+        'baserow_enterprise.Team': teams,
+      },
       pendingEmails: ['olga@x.com'],
       roles,
       ...props,
     },
     global: {
+      mocks: {
+        // Shows the subject types the placeholder and empty text list.
+        $t: (key, params) =>
+          params?.subjects === undefined ? key : `${key}: ${params.subjects}`,
+      },
       stubs: {
         WorkspaceRoleSelector: { template: '<div class="role"></div>' },
       },
@@ -106,40 +116,48 @@ test('lists an invited address and an assigned subject with the reason', async (
   }
 })
 
-test('only mentions and offers agents while they are enabled', async () => {
+test('only mentions and offers the subject types it is given', async () => {
   const withoutAgents = await mountInput()
   try {
     const input = withoutAgents.find('input')
     expect(input.attributes('placeholder')).toBe(
-      'shareScope.searchPlaceholderWithoutAgents'
+      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams'
     )
     await input.trigger('focus')
     expect(tabLabels(withoutAgents)).toEqual([
       'inviteInput.tabAll',
-      'shareScope.tabMembers',
-      'shareScope.tabTeams',
+      'subjectType.members',
+      'subjectType.teams',
     ])
     expect(itemTitles(withoutAgents)).toEqual(['Mark Delgado', 'Management'])
 
     await input.setValue('smith')
     expect(itemTitles(withoutAgents)).toEqual([])
     expect(withoutAgents.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResultsWithoutAgents'
+      'shareScope.noResults: subjecttype.members or subjecttype.teams'
     )
   } finally {
     withoutAgents.unmount()
   }
 
-  const withAgents = await mountInput({ agentsEnabled: true })
+  const withAgents = await mountInput({
+    subjects: {
+      'auth.User': users,
+      'baserow_enterprise.Team': teams,
+      'core.Agent': agents,
+    },
+  })
   try {
     const input = withAgents.find('input')
-    expect(input.attributes('placeholder')).toBe('shareScope.searchPlaceholder')
+    expect(input.attributes('placeholder')).toBe(
+      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams, subjecttype.agents'
+    )
     await input.trigger('focus')
     expect(tabLabels(withAgents)).toEqual([
       'inviteInput.tabAll',
-      'shareScope.tabMembers',
-      'shareScope.tabTeams',
-      'shareScope.tabAgents',
+      'subjectType.members',
+      'subjectType.teams',
+      'subjectType.agents',
     ])
     expect(itemTitles(withAgents)).toEqual([
       'Mark Delgado',
@@ -149,7 +167,7 @@ test('only mentions and offers agents while they are enabled', async () => {
 
     await input.setValue('nobody')
     expect(withAgents.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResults'
+      'shareScope.noResults: subjecttype.members, subjecttype.teams, or subjecttype.agents'
     )
   } finally {
     withAgents.unmount()
@@ -157,19 +175,20 @@ test('only mentions and offers agents while they are enabled', async () => {
 })
 
 test('opens the tabs on focus even when there is nobody left to pick', async () => {
-  const wrapper = await mountInput({ users: [], teams: [], agents: [] })
+  const wrapper = await mountInput({
+    subjects: { 'auth.User': [], 'baserow_enterprise.Team': [] },
+  })
   try {
     await wrapper.find('input').trigger('focus')
-    expect(
-      wrapper.find('.invite-input__results').attributes('style') ?? ''
-    ).not.toContain('display: none')
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'Context' }).vm.isOpen()).toBe(true)
     expect(tabLabels(wrapper)).toEqual([
       'inviteInput.tabAll',
-      'shareScope.tabMembers',
-      'shareScope.tabTeams',
+      'subjectType.members',
+      'subjectType.teams',
     ])
     expect(wrapper.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResultsWithoutAgents'
+      'shareScope.noResults: subjecttype.members or subjecttype.teams'
     )
   } finally {
     wrapper.unmount()
@@ -216,10 +235,12 @@ test('collects picks as chips and emits them with the role', async () => {
     expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
 
     // The checkbox toggles through its own change event, not through the row.
-    const checkbox = wrapper.find('.invite-input__item input')
-    await checkbox.setValue(true)
+    // The stubbed teleport of the results context renders its content anew,
+    // so the checkbox is looked up again after every change.
+    const checkbox = () => wrapper.find('.invite-input__item input')
+    await checkbox().setValue(true)
     expect(wrapper.findAll('.invite-input__chip')).toHaveLength(1)
-    await checkbox.setValue(false)
+    await checkbox().setValue(false)
     expect(wrapper.findAll('.invite-input__chip')).toHaveLength(0)
   } finally {
     wrapper.unmount()

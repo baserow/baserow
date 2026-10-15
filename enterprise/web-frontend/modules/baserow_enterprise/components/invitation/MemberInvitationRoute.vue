@@ -6,10 +6,7 @@
         ref="input"
         :workspace="workspace"
         :scope-type-name="scopeTypeName"
-        :users="otherUsers"
-        :teams="teams"
-        :agents="agents"
-        :agents-enabled="agentsEnabled"
+        :subjects="pickableSubjects"
         :assigned-keys="assignedKeys"
         :pending-emails="pendingEmails"
         :roles="assignableRoles"
@@ -23,7 +20,7 @@
         context="workspace_invitation"
         @token="onCaptchaToken"
       />
-      <h3 class="share-scope__section-title">
+      <h3 class="invite-list__title">
         {{ $t('shareScope.directAccess', { type: scopeTypeName }) }}
       </h3>
       <div v-if="loading" class="loading"></div>
@@ -35,9 +32,9 @@
         :workspace="workspace"
         @role-updated="updateItemRole"
       />
-      <h3 class="share-scope__section-title">
+      <h3 class="invite-list__title">
         {{ $t('shareScope.inheritedAccess') }}
-        <span class="share-scope__section-title-muted">
+        <span class="invite-list__title-muted">
           {{ $t('shareScope.inherited') }}
         </span>
       </h3>
@@ -53,32 +50,25 @@
 import { mapGetters } from 'vuex'
 
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
-import AgentService from '@baserow/modules/core/services/agent'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ScopeAccessList from '@baserow_enterprise/components/invitation/ScopeAccessList'
 import ScopeInheritedAccess from '@baserow_enterprise/components/invitation/ScopeInheritedAccess'
 import ShareScopeInput from '@baserow_enterprise/components/invitation/ShareScopeInput'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
-import TeamService from '@baserow_enterprise/services/team'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
 
-const USER = 'auth.User'
-const TEAM = 'baserow_enterprise.Team'
-const AGENT = 'core.Agent'
-
 /**
- * The share dialog of one object. One input adds existing members, teams and
- * agents with a role on the object, or invites a new person by email with a role
- * on the object only. Below it, everyone with a direct role is listed, pending
- * invitations included, followed by who else reaches the object through the
- * workspace. Members, teams and agents can be given no access on the object,
- * which takes it away from them below their workspace role; an invitation
- * can't, as there is no point in inviting someone to nothing. Agents only take part while the agents feature flag is on: they
- * are neither searched nor listed without it.
+ * The share dialog of one object. One input adds existing subjects, like
+ * members, teams and agents, with a role on the object, or invites a new person
+ * by email with a role on the object only. Below it, everyone with a direct
+ * role is listed, pending invitations included, followed by who else reaches
+ * the object through the workspace. Subjects can be given no access on the
+ * object, which takes it away from them below their workspace role; an
+ * invitation can't, as there is no point in inviting someone to nothing. Only
+ * the subject types that are enabled take part, agents for example need the
+ * agents feature flag: they are neither searched nor listed without it.
  */
 export default {
   name: 'MemberInvitationRoute',
@@ -110,8 +100,7 @@ export default {
       adding: false,
       roleAssignments: [],
       scopedInvitations: [],
-      teams: [],
-      agents: [],
+      subjects: {},
     }
   },
   computed: {
@@ -143,16 +132,23 @@ export default {
     assignableRoles() {
       return filterRoles(this.workspace._.roles, { scopeType: this.scopeType })
     },
-    agentsEnabled() {
-      return this.$featureFlagIsEnabled(FF_AGENTS)
+    subjectTypes() {
+      return this.$registry
+        .getOrderedList('subject')
+        .filter((subjectType) => subjectType.isEnabled(this.workspace))
     },
     /**
-     * Everyone in the workspace but the current user, who can't give
-     * themselves a role.
+     * The fetched subjects per enabled subject type, without the current user,
+     * who can't give themselves a role.
      */
-    otherUsers() {
-      return (this.workspace.users || []).filter(
-        (user) => user.user_id !== this.userId
+    pickableSubjects() {
+      return Object.fromEntries(
+        this.subjectTypes.map((subjectType) => [
+          subjectType.type,
+          (this.subjects[subjectType.type] || []).filter(
+            (subject) => !subjectType.isCurrentUser(subject, this.userId)
+          ),
+        ])
       )
     },
     /**
@@ -170,8 +166,8 @@ export default {
     },
     /**
      * The rows of the direct access list: pending invitations first, then the
-     * members, teams and agents with a role assignment on the object. Agent
-     * rows are left out while the agents feature flag is off.
+     * subjects with a role assignment on the object. Rows of a subject type
+     * that isn't enabled are left out.
      */
     accessItems() {
       const invitations = this.scopedInvitations.map((scopedInvitation) => ({
@@ -191,50 +187,32 @@ export default {
         disabled: false,
         scopedInvitation,
       }))
+      const enabledTypes = this.subjectTypes.map(({ type }) => type)
       const assignments = this.roleAssignments
-        .filter(
-          (roleAssignment) =>
-            this.agentsEnabled || roleAssignment.subject_type !== AGENT
+        .filter(({ subject_type: subjectType }) =>
+          enabledTypes.includes(subjectType)
         )
         .map((roleAssignment) => {
+          const { subject } = roleAssignment
           const subjectType = this.$registry.get(
             'subject',
             roleAssignment.subject_type
           )
-          const name = subjectType.getDisplayName(roleAssignment.subject)
-          const item = {
-            key: `${roleAssignment.subject_type}:${roleAssignment.subject.id}`,
+          return {
+            key: `${roleAssignment.subject_type}:${subject.id}`,
             kind: roleAssignment.subject_type,
-            name,
-            subtitle: null,
-            badge: null,
+            name: subjectType.getDisplayName(subject),
+            subtitle: subjectType.getSubtitle(subject),
+            badge: subjectType.getBadge(),
             badgeColor: 'neutral',
-            initials: '',
-            icon: 'iconoir-user',
+            initials: subjectType.getInitials(subject),
+            icon: subjectType.iconClass,
             color: subjectType.avatarColor,
             roleUid: roleAssignment.role,
             roles: this.assignableRoles,
-            disabled: false,
+            disabled: subjectType.isCurrentUser(subject, this.userId),
             roleAssignment,
           }
-          if (roleAssignment.subject_type === USER) {
-            item.initials = nameAbbreviation(name)
-            item.subtitle = roleAssignment.subject.email
-            item.disabled = subjectType.isCurrentUser(
-              roleAssignment.subject,
-              this.userId
-            )
-          } else if (roleAssignment.subject_type === TEAM) {
-            item.icon = 'iconoir-community'
-            item.badge = this.$t('shareScope.teamBadge')
-            item.subtitle = this.$t('shareScope.teamMembers', {
-              count: roleAssignment.subject.subject_count,
-            })
-          } else if (roleAssignment.subject_type === AGENT) {
-            item.icon = 'iconoir-sparks'
-            item.badge = this.$t('shareScope.agentBadge')
-          }
-          return item
         })
       return [...invitations, ...assignments]
     },
@@ -245,8 +223,9 @@ export default {
       await Promise.all([
         this.fetchRoleAssignments(),
         this.fetchScopedInvitations(),
-        this.fetchTeams(),
-        this.fetchAgents(),
+        ...this.subjectTypes.map((subjectType) =>
+          this.fetchSubjects(subjectType)
+        ),
       ])
     } finally {
       this.loading = false
@@ -282,41 +261,21 @@ export default {
         this.showFetchError()
       }
     },
-    async fetchTeams() {
+    /**
+     * Fetches the subjects of one type that can be given a role. Without them
+     * the rest of the dialog still works, so a failure only notifies.
+     */
+    async fetchSubjects(subjectType) {
       try {
-        const { data } = await TeamService(this.$client).fetchAll(
-          this.workspace.id
-        )
-        this.teams = data
+        this.subjects[subjectType.type] =
+          await subjectType.fetchAssignableSubjects(this.workspace)
       } catch (error) {
-        this.teams = []
-        this.showFetchError()
-      }
-    },
-    async fetchAgents() {
-      this.agents = []
-      if (
-        !this.agentsEnabled ||
-        !this.$hasPermission(
-          'workspace.list_agents',
-          this.workspace,
-          this.workspace.id
-        )
-      ) {
-        return
-      }
-      try {
-        const { data } = await AgentService(this.$client).list(
-          this.workspace.id
-        )
-        this.agents = data.results
-      } catch (error) {
-        this.agents = []
-        notifyIf(error, 'agent')
+        this.subjects[subjectType.type] = []
+        notifyIf(error)
       }
     },
     /**
-     * Gives the picked members, teams and agents the role on the object in one
+     * Gives the picked subjects the role on the object in one
      * request, then sends one scoped invitation per picked email address. Every
      * pick leaves the input as soon as it is added, so after a failure exactly
      * what wasn't added yet is still picked.

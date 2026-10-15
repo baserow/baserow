@@ -110,6 +110,56 @@ describe('InviteModal', () => {
     expect(wrapper.find('.invite-modal__header').exists()).toBe(false)
   })
 
+  test('shows an empty state while no invitation is pending', async () => {
+    const wrapper = await mountAndShow()
+
+    expect(wrapper.find('.invite-list__empty').text()).toContain(
+      'inviteModal.pendingEmptyTitle'
+    )
+    expect(wrapper.findAll('.invite-list__item')).toHaveLength(0)
+  })
+
+  test('lists the pending invitations and adds the ones it sends', async () => {
+    mockServer.mock
+      .onGet('/workspaces/invitations/workspace/1/')
+      .reply(200, [{ id: 3, email: 'olga@x.com', permissions: 'ADMIN' }])
+    mockServer.mock
+      .onPost('/workspaces/invitations/workspace/1/')
+      .reply(200, { id: 4, email: 'new@x.com', permissions: 'ADMIN' })
+    const wrapper = await mountAndFillForm(['new@x.com'])
+
+    expect(wrapper.find('.invite-list__empty').exists()).toBe(false)
+    const rows = () =>
+      wrapper.findAll('.invite-list__item').map((row) => row.text())
+    expect(rows()).toEqual([expect.stringMatching(/olga@x\.com\s*Admin/)])
+
+    // The modal closes once everything was sent, so the list is read from the
+    // route rather than from the rendered rows.
+    const route = wrapper.findComponent(EmailInvitationRoute).vm
+    await submitInvites(wrapper)
+    await flushPromises()
+    expect(route.invitations.map(({ email }) => email)).toEqual([
+      'olga@x.com',
+      'new@x.com',
+    ])
+  })
+
+  test('says a pending invitation without a workspace role has none', async () => {
+    mockServer.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [
+      {
+        id: 3,
+        email: 'olga@x.com',
+        permissions: 'NO_ROLE_LOW_PRIORITY',
+      },
+    ])
+    const wrapper = await mountAndShow()
+    await flushPromises()
+
+    expect(wrapper.find('.invite-list__subtitle').text()).toBe(
+      'inviteModal.pendingNoWorkspaceRole'
+    )
+  })
+
   test('hides a route that is not enabled for the workspace', async () => {
     vi.spyOn(getLinkRoute(), 'isEnabled').mockReturnValue(false)
 

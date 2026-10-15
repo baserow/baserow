@@ -2,7 +2,12 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 
+import {
+  AgentSubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes'
 import MemberInvitationRoute from '@baserow_enterprise/components/invitation/MemberInvitationRoute'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 
 // The roles an invitation can grant, which is every role but no access.
 const roles = [
@@ -25,10 +30,17 @@ const target = {
   scopeType: 'database_table',
   scope: { id: 20, name: 'Projects' },
 }
-const subjectType = {
-  getDisplayName: (subject) => subject.name,
-  isCurrentUser: (subject, userId) => subject.id === userId,
-  avatarColor: 'blue',
+// The registered subject types, with the app they fetch their subjects with.
+function createRegistry(app) {
+  const subjectTypes = [
+    new UserSubjectType({ app }),
+    new TeamSubjectType({ app }),
+    new AgentSubjectType({ app }),
+  ]
+  return {
+    get: (namespace, type) => subjectTypes.find((s) => s.type === type),
+    getOrderedList: () => subjectTypes,
+  }
 }
 const team = {
   key: 'baserow_enterprise.Team:3',
@@ -139,6 +151,12 @@ async function mountRoute(
 ) {
   picker.removed = []
   picker.resets = 0
+  const app = {
+    $client: client,
+    $featureFlagIsEnabled: () => agentsEnabled,
+    $hasPermission: () => true,
+    $i18n: { t: (key) => key },
+  }
   const wrapper = await mountSuspended(MemberInvitationRoute, {
     props: { workspace, target, targetType },
     global: {
@@ -148,24 +166,24 @@ async function mountRoute(
         $hasPermission: () => true,
         $config: { public: { baserowEmbeddedShareUrl: 'http://localhost' } },
         $store: { getters: { 'auth/getUserId': 7 } },
-        $registry: { get: () => subjectType },
+        $registry: createRegistry(app),
       },
       stubs: {
         ShareScopeInput: {
           props: [
-            'users',
-            'teams',
-            'agents',
-            'agentsEnabled',
+            'subjects',
             'pendingEmails',
             'assignedKeys',
             'roles',
             'emailRoleUids',
           ],
           template:
-            '<div class="picker">{{ users.map((u) => u.name).join(",") }}</div>' +
-            '<div class="picker-agents" :data-enabled="agentsEnabled">' +
-            '{{ agents.map((a) => a.name).join(",") }}</div>' +
+            '<div class="picker">' +
+            '{{ subjects["auth.User"].map((u) => u.name).join(",") }}</div>' +
+            '<div class="picker-agents" ' +
+            ':data-enabled="String(\'core.Agent\' in subjects)">' +
+            '{{ (subjects["core.Agent"] || []).map((a) => a.name).join(",") }}' +
+            '</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
             '<div class="picker-assigned">{{ assignedKeys.join(",") }}</div>' +
             '<div class="picker-roles">{{ roles.map((r) => r.uid).join(",") }}' +

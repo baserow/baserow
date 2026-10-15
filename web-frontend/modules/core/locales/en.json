@@ -398,7 +398,11 @@
     "emailTitle": "Invite members by email",
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
-    "linkEmptyDescription": "You can create multiple links with different roles."
+    "linkEmptyDescription": "You can create multiple links with different roles.",
+    "pendingTitle": "Pending invitations",
+    "pendingEmptyTitle": "No invitations are pending.",
+    "pendingEmptyDescription": "Invitations show up here until they are accepted.",
+    "pendingNoWorkspaceRole": "No workspace role"
   },
   "inviteInput": {
     "placeholder": "Type or paste email addresses",
@@ -1557,7 +1561,8 @@
     "user": "User",
     "users": "Users",
     "agent": "Agent",
-    "agents": "Agents"
+    "agents": "Agents",
+    "members": "Members"
   },
   "agents": {
     "saved": "Changes saved",

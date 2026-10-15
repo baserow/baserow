@@ -293,7 +293,7 @@ def test_update_and_delete_scoped_invitation(data_fixture):
     # Only the scope is revoked, the invitation and its other scope remain.
     assert WorkspaceInvitation.objects.filter(id=first.invitation_id).exists()
     assert list(handler.get_scoped_invitations(workspace, table_b)) == [second]
-    assert handler.get_scoped_invitations(workspace, table_a) == []
+    assert not handler.get_scoped_invitations(workspace, table_a).exists()
     with pytest.raises(ScopedInvitationDoesNotExist):
         handler.get_scoped_invitation(first.id)
 

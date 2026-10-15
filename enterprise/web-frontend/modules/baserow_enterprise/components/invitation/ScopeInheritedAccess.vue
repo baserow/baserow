@@ -1,16 +1,16 @@
 <template>
-  <div class="scope-access-list__item">
-    <div class="scope-access-list__subject">
+  <div class="invite-list__item">
+    <div class="invite-list__subject">
       <Avatar
         :initials="nameAbbreviation(workspace.name)"
         rounded
         size="large"
       />
       <div>
-        <div class="scope-access-list__name">
+        <div class="invite-list__name">
           {{ $t('shareScope.everyoneAt', { name: workspace.name }) }}
         </div>
-        <div class="scope-access-list__subtitle">
+        <div class="invite-list__subtitle">
           <template v-for="(entry, index) in roleCounts" :key="entry.uid">
             <span v-if="index > 0"> • </span>
             {{ $t('shareScope.roleCount', entry) }}
@@ -23,7 +23,7 @@
         {{ $t('shareScope.fromWorkspace') }}
         <i class="iconoir-nav-arrow-down"></i>
       </a>
-      <Context ref="context" class="scope-access-list__context">
+      <Context ref="context" class="scope-inherited-access__context">
         <p>
           {{
             $t('shareScope.fromWorkspaceExplanation', { type: scopeTypeName })
@@ -44,6 +44,7 @@
 
 <script>
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
+import { getRbacRoleUid } from '@baserow_enterprise/utils/roles'
 
 const ROLES_WITHOUT_ACCESS = ['NO_ACCESS', 'NO_ROLE_LOW_PRIORITY']
 
@@ -67,11 +68,15 @@ export default {
     roleCounts() {
       const counts = {}
       for (const user of this.workspace.users || []) {
-        counts[user.permissions] = (counts[user.permissions] || 0) + 1
+        const uid = getRbacRoleUid(user.permissions)
+        counts[uid] = (counts[uid] || 0) + 1
       }
       return this.workspace._.roles
         .filter(
-          (role) => counts[role.uid] && !ROLES_WITHOUT_ACCESS.includes(role.uid)
+          (role) =>
+            role.isVisible &&
+            counts[role.uid] &&
+            !ROLES_WITHOUT_ACCESS.includes(role.uid)
         )
         .map((role) => ({
           uid: role.uid,

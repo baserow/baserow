@@ -1,12 +1,12 @@
 <template>
-  <div class="scope-access-list">
-    <div v-if="items.length === 0" class="scope-access-list__empty">
+  <div class="invite-list">
+    <div v-if="items.length === 0" class="invite-list__empty">
       <div>{{ $t('shareScope.emptyTitle', { type: scopeTypeName }) }}</div>
       <div>{{ $t('shareScope.emptyDescription') }}</div>
     </div>
-    <ul v-else class="scope-access-list__items">
-      <li v-for="item in items" :key="item.key" class="scope-access-list__item">
-        <div class="scope-access-list__subject">
+    <ul v-else class="invite-list__items">
+      <li v-for="item in items" :key="item.key" class="invite-list__item">
+        <div class="invite-list__subject">
           <Avatar
             :initials="item.initials"
             :icon="item.initials ? '' : item.icon"
@@ -15,7 +15,7 @@
             size="large"
           />
           <div>
-            <div class="scope-access-list__name">
+            <div class="invite-list__name">
               {{ item.name }}
               <Badge
                 v-if="item.badge"
@@ -26,7 +26,7 @@
                 {{ item.badge }}
               </Badge>
             </div>
-            <div v-if="item.subtitle" class="scope-access-list__subtitle">
+            <div v-if="item.subtitle" class="invite-list__subtitle">
               {{ item.subtitle }}
             </div>
           </div>

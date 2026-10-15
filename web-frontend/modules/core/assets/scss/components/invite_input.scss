@@ -83,10 +83,7 @@
 }
 
 .invite-input__results {
-  margin-top: 8px;
-  border: 1px solid $palette-neutral-200;
-
-  @include rounded($rounded-md);
+  overflow: hidden;
 }
 
 .invite-input__tabs {

@@ -28,19 +28,16 @@
 
 <script>
 import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 /**
- * The input of the share dialog: the common invite input listing the members,
- * teams and agents of the workspace next to new email addresses. A subject
- * whose key is in `assignedKeys` already holds a role on the object and an
- * address in `pendingEmails` already has an invitation on it, so both are
- * listed with that reason rather than offered. Submitting emits `add` with the
- * picked items and the chosen role uid; the parent calls `remove()` and
+ * The input of the share dialog: the common invite input listing the subjects
+ * of the workspace next to new email addresses. `subjects` holds the subjects
+ * that can be picked per subject type, and every type in it gets a tab. A
+ * subject whose key is in `assignedKeys` already holds a role on the object
+ * and an address in `pendingEmails` already has an invitation on it, so both
+ * are listed with that reason rather than offered. Submitting emits `add` with
+ * the picked items and the chosen role uid; the parent calls `remove()` and
  * `reset()` once they were added.
- *
- * Agents are only mentioned, searched and offered while `agentsEnabled` is set,
- * which the parent ties to the agents feature flag.
  */
 export default {
   name: 'ShareScopeInput',
@@ -54,25 +51,14 @@ export default {
       type: String,
       required: true,
     },
-    users: {
-      type: Array,
+    /**
+     * The subjects that can be picked, keyed by subject type, in the order of
+     * the tabs.
+     */
+    subjects: {
+      type: Object,
       required: false,
-      default: () => [],
-    },
-    teams: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
-    agents: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
-    agentsEnabled: {
-      type: Boolean,
-      required: false,
-      default: false,
+      default: () => ({}),
     },
     /**
      * The `<subject type>:<id>` keys of the subjects with a role on the object.
@@ -108,75 +94,33 @@ export default {
   },
   emits: ['add'],
   computed: {
+    subjectTypes() {
+      return Object.keys(this.subjects).map((type) =>
+        this.$registry.get('subject', type)
+      )
+    },
     placeholder() {
-      return this.agentsEnabled
-        ? this.$t('shareScope.searchPlaceholder')
-        : this.$t('shareScope.searchPlaceholderWithoutAgents')
+      return this.$t('shareScope.searchPlaceholder', {
+        subjects: this.formatTabNames('unit'),
+      })
     },
     noResultsText() {
-      return this.agentsEnabled
-        ? this.$t('shareScope.noResults')
-        : this.$t('shareScope.noResultsWithoutAgents')
+      return this.$t('shareScope.noResults', {
+        subjects: this.formatTabNames('disjunction'),
+      })
     },
     tabs() {
-      const tabs = [
-        { value: 'auth.User', label: this.$t('shareScope.tabMembers') },
-        {
-          value: 'baserow_enterprise.Team',
-          label: this.$t('shareScope.tabTeams'),
-        },
-      ]
-      if (this.agentsEnabled) {
-        tabs.push({
-          value: 'core.Agent',
-          label: this.$t('shareScope.tabAgents'),
-        })
-      }
-      return tabs
+      return this.subjectTypes.map((subjectType) => ({
+        value: subjectType.type,
+        label: subjectType.getTabDisplayName(),
+      }))
     },
     options() {
-      const agents = this.agentsEnabled ? this.agents : []
-      const subjects = [
-        ...this.users.map((user) => ({
-          key: `auth.User:${user.user_id}`,
-          type: 'auth.User',
-          id: user.user_id,
-          name: user.name,
-          email: user.email,
-          subtitle: user.email,
-          search: `${user.name} ${user.email}`,
-          initials: nameAbbreviation(user.name),
-          icon: 'iconoir-user',
-          color: 'blue',
-          subject: user,
-        })),
-        ...this.teams.map((team) => ({
-          key: `baserow_enterprise.Team:${team.id}`,
-          type: 'baserow_enterprise.Team',
-          id: team.id,
-          name: team.name,
-          subtitle: this.$t('shareScope.teamMembers', {
-            count: team.subject_count,
-          }),
-          search: team.name,
-          initials: '',
-          icon: 'iconoir-community',
-          color: 'neutral',
-          subject: team,
-        })),
-        ...agents.map((agent) => ({
-          key: `core.Agent:${agent.id}`,
-          type: 'core.Agent',
-          id: agent.id,
-          name: agent.name,
-          subtitle: this.$t('shareScope.agentBadge'),
-          search: agent.name,
-          initials: '',
-          icon: 'iconoir-sparks',
-          color: 'purple',
-          subject: agent,
-        })),
-      ]
+      const subjects = this.subjectTypes.flatMap((subjectType) =>
+        this.subjects[subjectType.type].map((subject) =>
+          subjectType.getInviteOption(subject)
+        )
+      )
       const assigned = this.$t('shareScope.alreadyAssigned', {
         type: this.scopeTypeName,
       })
@@ -204,6 +148,18 @@ export default {
     },
   },
   methods: {
+    /**
+     * The tab names as one list for a sentence, like "members, teams, agents"
+     * for the `unit` type or "members, teams, or agents" for `disjunction`.
+     */
+    formatTabNames(type) {
+      const locale = this.$i18n.locale
+      return new Intl.ListFormat(locale, { type }).format(
+        this.subjectTypes.map((subjectType) =>
+          subjectType.getTabDisplayName().toLocaleLowerCase(locale)
+        )
+      )
+    },
     focus() {
       this.$refs.input.focus()
     },

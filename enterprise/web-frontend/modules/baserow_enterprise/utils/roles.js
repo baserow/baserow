@@ -18,3 +18,12 @@ export const filterRoles = (roles, { scopeType, subjectType }) => {
         allowedSubjectTypes.includes(subjectType))
   )
 }
+
+/**
+ * Returns the RBAC role uid of a workspace user's permissions. The basic
+ * `MEMBER` permission is the `BUILDER` role, like the backend translates it.
+ *
+ * @param {string} uid The role uid or basic permission of a workspace user.
+ * @returns the RBAC role uid
+ */
+export const getRbacRoleUid = (uid) => (uid === 'MEMBER' ? 'BUILDER' : uid)

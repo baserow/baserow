@@ -1,6 +1,6 @@
 <template>
   <div class="invite-input">
-    <div class="invite-input__row">
+    <div ref="row" class="invite-input__row">
       <div
         class="invite-input__field"
         :class="{ 'invite-input__field--focused': open }"
@@ -61,7 +61,13 @@
         </slot>
       </Button>
     </div>
-    <div v-show="showResults" class="invite-input__results" @mousedown.prevent>
+    <Context
+      ref="results"
+      class="invite-input__results"
+      :style="{ width: resultsWidth }"
+      :hide-on-click-outside="false"
+      @mousedown.prevent
+    >
       <div v-if="tabs.length > 0" class="invite-input__tabs">
         <a
           v-for="tab in allTabs"
@@ -133,7 +139,7 @@
       <div v-if="nothingToShow" class="invite-input__empty">
         {{ noResultsTextOrDefault }}
       </div>
-    </div>
+    </Context>
   </div>
 </template>
 
@@ -185,7 +191,8 @@ export function extractEmails(text) {
  * label around a native input, whose click would bubble to the row and toggle
  * it back, so the checkbox keeps its click to itself and toggles through its
  * own change event instead. The list stays open while the chips and the list
- * itself are clicked, because neither takes the focus away from the input.
+ * itself are clicked, because neither takes the focus away from the input. It
+ * opens in a context below the input, as wide as it, over what follows.
  */
 export default {
   name: 'InviteInput',
@@ -243,6 +250,7 @@ export default {
       activeTab: TAB_ALL,
       selected: [],
       roleUid: this.initialRoleUid(this.roles),
+      resultsWidth: null,
     }
   },
   computed: {
@@ -338,6 +346,22 @@ export default {
     },
   },
   watch: {
+    showResults(show) {
+      if (show) {
+        this.showResultsContext()
+      } else {
+        this.$refs.results.hide()
+      }
+    },
+    /**
+     * The chips can wrap onto another line, which moves the bottom of the
+     * input that the results sit below.
+     */
+    'selected.length'() {
+      if (this.showResults) {
+        this.$nextTick(() => this.showResultsContext())
+      }
+    },
     roles(roles) {
       if (!roles.some((role) => role.uid === this.roleUid)) {
         this.roleUid = this.initialRoleUid(roles)
@@ -359,6 +383,11 @@ export default {
     },
     focus() {
       this.$refs.input.focus()
+    },
+    showResultsContext() {
+      const row = this.$refs.row
+      this.resultsWidth = `${row.offsetWidth}px`
+      this.$refs.results.show(row, 'bottom', 'left', 8)
     },
     optionWithEmail(email) {
       return this.options.find(

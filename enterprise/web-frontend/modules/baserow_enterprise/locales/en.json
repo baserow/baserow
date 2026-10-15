@@ -345,26 +345,18 @@
     "view": "View"
   },
   "shareScope": {
-    "searchPlaceholder": "Search members, teams, agents, or type an email",
-    "searchPlaceholderWithoutAgents": "Search members, teams, or type an email",
+    "searchPlaceholder": "Search {subjects}, or type an email",
     "add": "Add",
     "addAs": "Add {count} as {role}",
-    "tabMembers": "Members",
-    "tabTeams": "Teams",
-    "tabAgents": "Agents",
     "inviteEmailDescription": "Gets {role} role on this {type} only - no workspace role",
     "alreadyInvited": "An invitation is already pending on this {type}.\nYou can change its role in the list below instead of inviting again.",
     "alreadyAssigned": "Already has a role on this {type}.\nYou can change it in the list below.",
-    "noResults": "No members, teams or agents match. Type a full email address to invite someone new.",
-    "noResultsWithoutAgents": "No members or teams match. Type a full email address to invite someone new.",
+    "noResults": "No {subjects} match. Type a full email address to invite someone new.",
     "directAccess": "Direct access on this {type}",
     "emptyTitle": "No one has a role set on this {type} yet.",
     "emptyDescription": "Everyone below inherits access from higher levels.",
     "invitePending": "Invite pending",
     "noWorkspaceRole": "No workspace role - this {type} only",
-    "teamBadge": "Team",
-    "teamMembers": "{count} members",
-    "agentBadge": "Agent",
     "inheritedAccess": "Also has access",
     "inherited": "(inherited)",
     "everyoneAt": "Everyone at {name}",
@@ -387,7 +379,8 @@
   },
   "subjectType": {
     "team": "Team",
-    "teams": "Teams"
+    "teams": "Teams",
+    "teamMembers": "{count} members"
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",

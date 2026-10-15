@@ -1,4 +1,5 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { flushPromises } from '@vue/test-utils'
 import { expect, test } from 'vitest'
 
 import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
@@ -75,6 +76,10 @@ function itemTitles(wrapper) {
   return wrapper.findAll('.invite-input__item-title').map((item) => item.text())
 }
 
+function resultsOpen(wrapper) {
+  return wrapper.findComponent({ name: 'Context' }).vm.isOpen()
+}
+
 function paste(input, text) {
   return input.trigger('paste', { clipboardData: { getData: () => text } })
 }
@@ -90,12 +95,12 @@ test('only takes email addresses when there is nothing to pick', async () => {
 
     // Nothing to show until an address is typed: no tabs, no list.
     await input.trigger('focus')
-    const results = wrapper.find('.invite-input__results')
-    expect(results.attributes('style')).toContain('display: none')
+    expect(resultsOpen(wrapper)).toBe(false)
     expect(wrapper.find('.invite-input__tabs').exists()).toBe(false)
 
     await input.setValue('new@x.com')
-    expect(results.attributes('style') ?? '').not.toContain('display: none')
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(true)
     expect(itemTitles(wrapper)).toEqual(['inviteInput.inviteEmail'])
     expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
       'inviteInput.inviteEmailDescription'
@@ -175,12 +180,17 @@ test('turns a pasted list into chips and marks the ones it cannot invite', async
     // The invitation and the member are chips too, marked as errors and left
     // out of what is submitted.
     expect(errorChips(wrapper)).toEqual(['olga@x.com', 'Mark Delgado'])
-    // The new addresses keep a checked row in the list, like a picked member
-    // does, and can be unchecked from there. What can't be picked only shows
-    // up when searched for.
+    // Nothing can be picked from the list, so it only opens once searched.
+    // The new addresses keep a checked row in it, like a picked member does,
+    // and can be unchecked from there. What can't be picked shows up too, as
+    // it is searched for.
+    await input.setValue('@x')
+    await flushPromises()
     expect(itemTitles(wrapper)).toEqual([
       'inviteInput.inviteEmail',
       'inviteInput.inviteEmail',
+      'Mark Delgado',
+      'olga@x.com',
     ])
     const rows = wrapper.findAll('.invite-input__item')
     expect(rows[0].find('input').element.checked).toBe(true)
