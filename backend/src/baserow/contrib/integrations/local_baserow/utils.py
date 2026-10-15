@@ -1,7 +1,5 @@
 from typing import Any, Callable, List, Optional, Union
 
-from django.contrib.auth.models import AbstractUser
-
 from loguru import logger
 from rest_framework.fields import Field
 from rest_framework.serializers import Serializer
@@ -21,6 +19,8 @@ from baserow.core.formula.validator import (
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Subject
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
@@ -29,15 +29,19 @@ from baserow.core.user_files.exceptions import (
 
 def prepare_files_for_db(
     value: Any,
-    user: AbstractUser,
+    actor: Subject,
 ) -> List[dict]:
     """
     Transforms the generic files from the frontend into files that can be associated
     with rows.
 
     :param value: The value from the request.
-    :param user: The user to store the file with.
+    :param actor: The subject dispatching the service.
     """
+
+    uploading_user = (
+        actor if subject_type_registry.get_by_model(actor).is_interactive_user else None
+    )
 
     # It must be an array
     data = ensure_array(value)
@@ -46,7 +50,7 @@ def prepare_files_for_db(
     for f in data:
         if isinstance(f, ServiceFile):
             try:
-                result.append(f.to_file_field_dict(user))
+                result.append(f.to_file_field_dict(uploading_user))
             except FileURLCouldNotBeReached as exc:
                 file_name = f.visible_name or f.name or "unnamed"
                 raise ServiceImproperlyConfiguredDispatchException(
@@ -68,7 +72,7 @@ def prepare_files_for_db(
             file_name = f.get("name", "unnamed")
             try:
                 service_file = ServiceFile.from_serialized(f)
-                result.append(service_file.to_file_field_dict(user))
+                result.append(service_file.to_file_field_dict(uploading_user))
             except FileURLCouldNotBeReached as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The file {file_name} couldn't be reached."
@@ -91,13 +95,13 @@ def prepare_files_for_db(
 
 
 def guess_cast_function_from_response_serializer_field(
-    serializer_field: Union[Field, Serializer], user: AbstractUser
+    serializer_field: Union[Field, Serializer], actor: Subject
 ) -> Optional[Callable]:
     """
     Return the appropriate cast function for a serializer type.
 
     :param serializer_field: The serializer field.
-    :param user: The user the uploaded files are attributed to.
+    :param actor: The subject dispatching the service.
     :return: A function that can be used to cast a value to this serializer field type.
     """
 
@@ -109,7 +113,7 @@ def guess_cast_function_from_response_serializer_field(
         # Special case for file field serializer, we want to convert files data to
         # match expected value. We have to upload the files first before we can
         # includes them in the row.
-        return lambda value: prepare_files_for_db(value, user)
+        return lambda value: prepare_files_for_db(value, actor)
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
 
