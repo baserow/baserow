@@ -6,6 +6,9 @@ from baserow_enterprise.integrations.core.models import (
     CoreCodeService,
     CoreXLSFileReaderService,
 )
+from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowSemanticSearch,
+)
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 from baserow_premium.license.models import License
 
@@ -46,6 +49,9 @@ class EnterpriseFixtures:
 
     def create_enterprise_core_xls_file_reader_service(self, **kwargs):
         return self.create_service(CoreXLSFileReaderService, **kwargs)
+
+    def create_local_baserow_semantic_search_service(self, **kwargs):
+        return self.create_service(LocalBaserowSemanticSearch, **kwargs)
 
     def create_team(self, **kwargs):
         if "name" not in kwargs:

@@ -1,9 +1,9 @@
 {
     "type": "feature",
-    "message": "Adds semantic search to text fields",
+    "message": "Added semantic search to fields and search actions",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",
     "bullet_points": [],
-    "created_at": "2026-10-13"
+    "created_at": "2026-11-03"
 }

@@ -187,9 +187,14 @@ def classify_tool_error(exc: Exception) -> ToolError:
     if isinstance(exc, DRFPermissionDenied):
         return ToolError(ToolErrorCode.PERMISSION_DENIED, str(exc.detail))
     if isinstance(exc, DRFValidationError):
+        detail = exc.detail
+        # A coded error, like `{"detail": "...", "error": "invalid_view"}`, of which
+        # the code is for the editor.
+        if isinstance(detail, dict) and set(detail) == {"detail", "error"}:
+            detail = detail["detail"]
         return ToolError(
             ToolErrorCode.INVALID_INPUT,
-            "Invalid value. " + "; ".join(flatten_error_detail(exc.detail)),
+            "Invalid value. " + "; ".join(flatten_error_detail(detail)),
         )
     # Any other client error. Those come as an error code and a message.
     if isinstance(exc, APIException) and exc.status_code < 500:

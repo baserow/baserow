@@ -269,6 +269,39 @@ def test_update_data_source(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_data_source_with_a_view_of_another_table(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(database=database, user=user)
+    other_table = data_fixture.create_database_table(database=database, user=user)
+    view = data_fixture.create_grid_view(user, table=table)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+        ),
+        {"table_id": other_table.id, "view_id": view.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    # The error code lets the editor show the error, instead of the change
+    # seemingly being saved.
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "invalid_view",
+        "detail": f"The view with ID {view.id} is not related to the given table "
+        f"{other_table.id}.",
+    }
+
+
+@pytest.mark.django_db
 def test_updating_data_source_with_invalid_formula_arguments_throws_error(
     api_client, data_fixture
 ):
