@@ -170,7 +170,17 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    * specialized rendering and formula paths.
    */
   getDefaultCollectionFields(service) {
-    const properties = this.getSchemaProperties(service) || {}
+    return this.getCollectionFieldsForProperties(
+      this.getSchemaProperties(service) || {},
+      'current_record'
+    )
+  }
+
+  /**
+   * @param {object} properties - The schema properties of a record.
+   * @param {string} recordPath - The formula path to a record.
+   */
+  getCollectionFieldsForProperties(properties, recordPath) {
     return Object.keys(properties)
       .filter(
         (field) =>
@@ -184,7 +194,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
           ? type
           : properties[field].original_type || type
         let outputType = 'text'
-        let valueFormula = `get('current_record.${field}')`
+        let valueFormula = `get('${recordPath}.${field}')`
         if (originalType === 'boolean') {
           outputType = 'boolean'
         } else if (originalType === 'rating') {
@@ -206,21 +216,21 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
             id: uuid(),
             name: properties[field].title,
             type: 'image',
-            src: { formula: `get('current_record.${field}.*.url')` },
-            alt: { formula: `get('current_record.${field}.*.visible_name')` },
+            src: { formula: `get('${recordPath}.${field}.*.url')` },
+            alt: { formula: `get('${recordPath}.${field}.*.visible_name')` },
           }
         } else if (
           originalType === 'last_modified_by' ||
           originalType === 'created_by'
         ) {
-          valueFormula = `get('current_record.${field}.name')`
+          valueFormula = `get('${recordPath}.${field}.name')`
         } else if (originalType === 'single_select') {
-          valueFormula = `get('current_record.${field}.value')`
+          valueFormula = `get('${recordPath}.${field}.value')`
         }
         if (originalType === 'multiple_collaborators') {
-          valueFormula = `get('current_record.${field}.*.name')`
+          valueFormula = `get('${recordPath}.${field}.*.name')`
         } else if (type === 'array') {
-          valueFormula = `get('current_record.${field}.*.value')`
+          valueFormula = `get('${recordPath}.${field}.*.value')`
         }
         return {
           name: properties[field].title,

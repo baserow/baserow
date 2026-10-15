@@ -26,7 +26,10 @@
     "coreXLSFileReader": "Read an XLS file",
     "coreXLSFileReaderDescription": "Reads rows from an XLS or XLSX file.",
     "errorCodeMissing": "Missing code property",
-    "errorXLSFileMissing": "Missing XLS file property"
+    "errorXLSFileMissing": "Missing XLS file property",
+    "localBaserowSemanticSearch": "Semantic search",
+    "localBaserowSemanticSearchDescription": "Finds the rows that best match the meaning of a search query.",
+    "semanticSearchUnavailable": "Semantic search isn't configured on this instance"
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -52,7 +55,8 @@
   },
   "nodeType": {
     "codeLabel": "Execute code",
-    "xlsFileReaderLabel": "Read an XLS file"
+    "xlsFileReaderLabel": "Read an XLS file",
+    "localBaserowSemanticSearchLabel": "Semantic search in {tableName}"
   },
   "semanticSearchFieldSetting": {
     "label": "Semantic search",
@@ -63,6 +67,23 @@
     "statusError": "The values couldn't be indexed because the embeddings service failed. It's retried automatically.",
     "statusPaused": "Indexing is paused because the workspace doesn't have the advanced plan anymore.",
     "statusUnavailable": "Indexing is paused because semantic search isn't configured on this instance anymore."
+  },
+  "localBaserowSemanticSearchForm": {
+    "fields": "Fields to search in",
+    "fieldsPlaceholder": "All fields with semantic search",
+    "fieldsHelper": "Leave empty to search in all fields with semantic search. Each row is returned once, with the field of which the value matches best.",
+    "searchFieldsGone": "None of the chosen fields can be searched anymore. Pick the fields to search in.",
+    "noFields": "This table has no fields with semantic search. To enable it, open the settings of a text field in the table, go to the Advanced tab and switch on Semantic search.",
+    "searchQuery": "Search query",
+    "searchQueryHelper": "The text of which the meaning is searched for.",
+    "searchQueryPlaceholder": "Enter a search query...",
+    "includedFields": "Returned fields",
+    "includedFieldsHelper": "The fields of which the values are included in the results. All fields are returned when none are chosen.",
+    "includedFieldsPlaceholder": "All fields",
+    "maxResults": "Maximum number of results",
+    "minSimilarity": "Minimum similarity",
+    "minSimilarityHelper": "Between 0 and 1. Rows of which the meaning is less similar to the search query are left out.",
+    "minSimilarityPlaceholder": "No minimum"
   },
   "createTeamModal": {
     "title": "Create team",

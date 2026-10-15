@@ -112,11 +112,14 @@ import {
 import {
   CoreCodeWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
+  LocalBaserowSemanticSearchWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
 import {
   CoreCodeActionNodeType,
   CoreXLSFileReaderActionNodeType,
+  LocalBaserowSemanticSearchActionNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
+import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -252,6 +255,18 @@ export default defineNuxtPlugin({
       $registry.register(
         'fieldFormAdvancedSetting',
         new SemanticSearchFieldFormAdvancedSettingType(context)
+      )
+      $registry.register(
+        'service',
+        new LocalBaserowSemanticSearchServiceType(context)
+      )
+      $registry.register(
+        'workflowAction',
+        new LocalBaserowSemanticSearchWorkflowActionType(context)
+      )
+      $registry.register(
+        'node',
+        new LocalBaserowSemanticSearchActionNodeType(context)
       )
     }
 

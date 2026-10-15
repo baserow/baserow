@@ -1,9 +1,13 @@
-import { NodeType } from '@baserow/modules/automation/nodeTypes'
+import {
+  LocalBaserowNodeType,
+  NodeType,
+} from '@baserow/modules/automation/nodeTypes'
 import { ActionNodeTypeMixin } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
+import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 
 export class CoreCodeActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
@@ -46,6 +50,33 @@ export class CoreXLSFileReaderActionNodeType extends ActionNodeTypeMixin(
     return this.app.$registry.get(
       'service',
       CoreXLSFileReaderServiceType.getType()
+    )
+  }
+}
+
+export class LocalBaserowSemanticSearchActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'local_baserow_semantic_search'
+  }
+
+  getOrder() {
+    return 5.5
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowSemanticSearchLabel'
+  }
+
+  get dataType() {
+    return 'array'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowSemanticSearchServiceType.getType()
     )
   }
 }

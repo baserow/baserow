@@ -138,6 +138,7 @@ describe('Automation node types', () => {
       'local_baserow_delete_row',
       'local_baserow_get_row',
       'local_baserow_list_rows',
+      'local_baserow_semantic_search',
       'local_baserow_aggregate_rows',
       'start_workflow',
       'http_request',

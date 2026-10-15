@@ -1,13 +1,17 @@
 import hashlib
 import json
 import time
-from typing import TYPE_CHECKING, Optional
+from collections import defaultdict
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from django.conf import settings
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import F, QuerySet
 
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search.registries import search_data_updater_registry
 from baserow.contrib.database.table.models import Table
 from baserow.core.embeddings import (
@@ -23,16 +27,32 @@ from baserow_premium.license.handler import LicenseHandler
 
 from .models import SemanticSearchField, SemanticSearchPendingUpdate
 from .registries import SemanticSearchFieldType, semantic_search_field_type_registry
-from .vector_table import SemanticSearchVectorTable
+from .vector_table import (
+    EXACT_SEARCH_MAX_ROWS,
+    MAX_INDEX_CANDIDATES,
+    SemanticSearchVectorTable,
+)
 
 if TYPE_CHECKING:
     from .search_data_updater_types import SemanticSearchDataUpdaterType
 
 INDEX_BATCH_ROWS = 100
 EMBEDDING_BATCH_CHUNKS = 64
+MAX_FULL_TEXT_QUERY_TERMS = 64
+# The constant of reciprocal rank fusion. It dampens the influence of the top ranks,
+# so a row ranked well by both searches beats a row ranked first by only one.
+RANK_FUSION_CONSTANT = 60
 MAX_FAILED_ATTEMPTS_BEFORE_ERROR = 3
 MAX_RETRY_DELAY_SECONDS = 60 * 15
 EMBEDDINGS_REQUEST_TIMEOUT_SECONDS = 60
+
+
+class SemanticSearchMatch(NamedTuple):
+    row_id: int
+    # The field of which the value matches best.
+    field_id: int
+    # None if the row isn't indexed yet, and only matches by the words it contains.
+    similarity: float | None
 
 
 class SemanticSearchStatus:
@@ -386,6 +406,158 @@ class SemanticSearchHandler:
         """
 
         SemanticSearchVectorTable(workspace_id).drop()
+
+    def search(
+        self,
+        fields: list[Field],
+        query: str,
+        queryset: QuerySet,
+        limit: int,
+        min_similarity: float | None = None,
+    ) -> list[SemanticSearchMatch]:
+        """
+        Finds the rows of the queryset matching the query best in any of the fields,
+        based on their meaning and on the words they contain.
+
+        :return: The matches ordered by relevance.
+        :raises EmbeddingsServiceError: If the query can't be embedded.
+        """
+
+        field_ids = [field.id for field in fields]
+        vector_table = SemanticSearchVectorTable(fields[0].table.database.workspace_id)
+        queryset = queryset.order_by()
+        # The embedding model only reads the start of a text, so a longer query only
+        # costs more to send.
+        query = query[: settings.BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE]
+        query_embedding = get_embedder()([query])[0]
+        semantic_matches = self._get_semantic_matches(
+            vector_table, field_ids, query_embedding, queryset, limit
+        )
+        full_text_matches = self._get_full_text_matches(fields, query, queryset, limit)
+
+        scores = defaultdict(float)
+        for ranked_row_ids in (semantic_matches, full_text_matches):
+            for rank, row_id in enumerate(ranked_row_ids):
+                scores[row_id] += 1 / (RANK_FUSION_CONSTANT + rank)
+
+        best_chunks = dict(semantic_matches)
+        missing_row_ids = [r for r in full_text_matches if r not in best_chunks]
+        if missing_row_ids:
+            best_chunks.update(
+                (row_id, (field_id, similarity))
+                for row_id, field_id, similarity in vector_table.get_similarities(
+                    field_ids, query_embedding, missing_row_ids, limit
+                )
+            )
+        matches = [
+            SemanticSearchMatch(
+                row_id,
+                # Rows that aren't indexed yet only match by their words.
+                *best_chunks.get(row_id, (full_text_matches.get(row_id), None)),
+            )
+            for row_id in sorted(scores, key=scores.get, reverse=True)
+        ]
+        if min_similarity is not None:
+            matches = [
+                match for match in matches if (match.similarity or 0) >= min_similarity
+            ]
+        return matches[:limit]
+
+    def _get_semantic_matches(
+        self,
+        vector_table: SemanticSearchVectorTable,
+        field_ids: list[int],
+        query_embedding: list[float],
+        queryset: QuerySet,
+        limit: int,
+    ) -> dict[int, tuple[int, float]]:
+        """
+        :return: The `(field_id, similarity)` of the best chunk per row, ordered by
+            similarity.
+        """
+
+        candidate_row_ids = list(
+            queryset.values_list("id", flat=True)[: EXACT_SEARCH_MAX_ROWS + 1]
+        )
+        if len(candidate_row_ids) <= EXACT_SEARCH_MAX_ROWS:
+            return {
+                row_id: (field_id, similarity)
+                for row_id, field_id, similarity in vector_table.get_similarities(
+                    field_ids, query_embedding, candidate_row_ids, limit
+                )
+            }
+
+        # The vector index doesn't know about the filters and permissions of the
+        # queryset, so more chunks are fetched until enough of them are visible.
+        # Every field gets its share, so that rows matching in one field aren't
+        # pushed out by the chunks of another.
+        chunk_limit = min(limit * 4 * len(field_ids), MAX_INDEX_CANDIDATES)
+        while True:
+            chunks = vector_table.get_nearest_chunks(
+                field_ids, query_embedding, chunk_limit
+            )
+            best_chunks = {}
+            for row_id, field_id, similarity in chunks:
+                if similarity > best_chunks.get(row_id, (None, -1))[1]:
+                    best_chunks[row_id] = (field_id, similarity)
+            visible_row_ids = set(
+                queryset.filter(id__in=best_chunks).values_list("id", flat=True)
+            )
+            matches = sorted(
+                (
+                    (row_id, best_chunk)
+                    for row_id, best_chunk in best_chunks.items()
+                    if row_id in visible_row_ids
+                ),
+                key=lambda match: match[1][1],
+                reverse=True,
+            )
+            if (
+                len(matches) >= limit
+                or len(chunks) < chunk_limit
+                or chunk_limit >= MAX_INDEX_CANDIDATES
+            ):
+                return dict(matches[:limit])
+            chunk_limit = min(chunk_limit * 4, MAX_INDEX_CANDIDATES)
+
+    def _get_full_text_matches(
+        self, fields: list[Field], query: str, queryset: QuerySet, limit: int
+    ) -> dict[int, int]:
+        """
+        :return: The field matching best per row, ordered by rank.
+        """
+
+        table = fields[0].table
+        if not SearchHandler.can_use_full_text_search(table):
+            return {}
+
+        terms = SearchHandler.escape_query(query).split()[:MAX_FULL_TEXT_QUERY_TERMS]
+        if not terms:
+            return {}
+
+        # All words must match, so that this finds exact names and terms, while
+        # common words in a question don't match unrelated rows.
+        search_query = SearchQuery(
+            " & ".join(f"$${term}$$" for term in terms),
+            search_type="raw",
+            config=SearchHandler.search_config(),
+        )
+        search_model = SearchHandler.get_workspace_search_table_model(
+            table.database.workspace_id
+        )
+        matches = {}
+        for row_id, field_id in (
+            search_model.objects.filter(
+                field_id__in=[field.id for field in fields],
+                value=search_query,
+                row_id__in=queryset.values("id"),
+            )
+            .annotate(rank=SearchRank(F("value"), search_query))
+            .order_by("-rank")
+            .values_list("row_id", "field_id")[: limit * len(fields)]
+        ):
+            matches.setdefault(row_id, field_id)
+        return dict(list(matches.items())[:limit])
 
 
 class _FieldIndexer:

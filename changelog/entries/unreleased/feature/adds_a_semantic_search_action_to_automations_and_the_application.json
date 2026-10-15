@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds a semantic search action to automations and the application builder",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-10-15"
+}
