@@ -336,6 +336,33 @@ def test_get_subject_options_returns_searchable_workspace_users_and_teams(
 
 
 @pytest.mark.django_db
+def test_get_subject_options_orders_users_by_displayed_name(enterprise_data_fixture):
+    admin = enterprise_data_fixture.create_user()
+    first_by_email = enterprise_data_fixture.create_user(
+        first_name="Zoe", email="a@example.com"
+    )
+    first_by_name = enterprise_data_fixture.create_user(
+        first_name="Ada", email="z@example.com"
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    enterprise_data_fixture.create_user_workspace(
+        user=first_by_email, workspace=workspace, permissions="EDITOR"
+    )
+    enterprise_data_fixture.create_user_workspace(
+        user=first_by_name, workspace=workspace, permissions="EDITOR"
+    )
+
+    options = FieldPermissionsHandler.get_subject_options(
+        workspace, exclude_user_ids=[admin.id]
+    )
+
+    assert [option["subject_id"] for option in options] == [
+        first_by_name.id,
+        first_by_email.id,
+    ]
+
+
+@pytest.mark.django_db
 def test_sync_empty_field_permission_subjects_uses_single_delete_query(
     enterprise_data_fixture, django_assert_num_queries
 ):

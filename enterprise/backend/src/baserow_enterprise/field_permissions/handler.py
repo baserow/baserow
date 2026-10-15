@@ -101,6 +101,7 @@ class FieldPermissionsHandler:
                 TeamSubjectType.type: exclude_team_ids or [],
                 AgentSubjectType.type: exclude_agent_ids or [],
             },
+            order_by=("subject_name", "subject_type", "subject_id"),
         )
 
     @classmethod

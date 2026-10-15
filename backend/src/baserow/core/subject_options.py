@@ -15,11 +15,14 @@ class SubjectOptionsHandler:
         subject_types: set[str] | None = None,
         exclude_ids: dict[str, list[int]] | None = None,
         subject_type_options_kwargs: dict[str, dict] | None = None,
+        order_by: tuple[str, ...] = ("subject_label", "subject_type", "subject_id"),
     ) -> QuerySet:
         """Return a unified queryset supplied by listable subject types.
 
         Permission checks remain with the caller because consumers expose subject
         options under different capabilities.
+
+        :param order_by: The shared option fields used to order the combined queryset.
         """
 
         search = (search or "").strip()
@@ -45,4 +48,4 @@ class SubjectOptionsHandler:
         queryset = option_querysets[0]
         for option_queryset in option_querysets[1:]:
             queryset = queryset.union(option_queryset, all=True)
-        return queryset.order_by("subject_label", "subject_type", "subject_id")
+        return queryset.order_by(*order_by)
