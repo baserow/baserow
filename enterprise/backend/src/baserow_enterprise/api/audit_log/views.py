@@ -257,15 +257,10 @@ class AuditLogActorFilterView(APIView):
         workspace = None
         if workspace_id is not None:
             workspace = CoreHandler().get_workspace(workspace_id)
-        queryset = SubjectOptionsHandler.get_options(
+        queryset = SubjectOptionsHandler.get_historical_options(
             workspace=workspace,
             search=query_params.get("search") or "",
             subject_types={UserSubjectType.type, AgentSubjectType.type},
-            subject_type_options_kwargs={
-                UserSubjectType.type: {
-                    "include_inactive_and_scheduled_for_deletion": True
-                }
-            },
         )
         page, paginator = self.paginate_queryset(queryset, request)
         return paginator.get_paginated_response(

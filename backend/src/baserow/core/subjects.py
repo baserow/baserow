@@ -103,6 +103,21 @@ class UserSubjectType(SubjectType):
             "subject_count",
         )
 
+    def get_historical_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return users retained for historical records after access is removed."""
+
+        return self.get_options_queryset(
+            workspace=workspace,
+            search=search,
+            exclude_ids=exclude_ids,
+            include_inactive_and_scheduled_for_deletion=True,
+        )
+
     def get_workspace_role_uids(
         self,
         subjects: List[Subject],

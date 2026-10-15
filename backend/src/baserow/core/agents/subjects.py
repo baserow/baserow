@@ -41,10 +41,15 @@ class AgentSubjectType(SubjectType):
         workspace: Workspace | None = None,
         search: str = "",
         exclude_ids: List[int] | None = None,
+        include_trash: bool = False,
     ):
-        """Return searchable agent options, optionally scoped to a workspace."""
+        """Return searchable agent options, optionally scoped to a workspace.
 
-        queryset = Agent.objects.exclude(id__in=exclude_ids or [])
+        :param include_trash: Whether trashed agents should be included.
+        """
+
+        manager = Agent.objects_and_trash if include_trash else Agent.objects
+        queryset = manager.exclude(id__in=exclude_ids or [])
         if workspace is not None:
             queryset = queryset.filter(workspace=workspace)
         if search:
@@ -63,6 +68,21 @@ class AgentSubjectType(SubjectType):
             "subject_label",
             "subject_email",
             "subject_count",
+        )
+
+    def get_historical_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return agents retained for historical records after being trashed."""
+
+        return self.get_options_queryset(
+            workspace=workspace,
+            search=search,
+            exclude_ids=exclude_ids,
+            include_trash=True,
         )
 
     def _get_workspace_agents(self, workspace: Workspace, include_trash: bool):

@@ -1427,6 +1427,18 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return None
 
+    def get_historical_options_queryset(
+        self,
+        workspace: Optional["Workspace"] = None,
+        search: str = "",
+        exclude_ids: Optional[List[int]] = None,
+    ) -> Optional[QuerySet]:
+        """Return options including subjects retained for historical records."""
+
+        return self.get_options_queryset(
+            workspace=workspace, search=search, exclude_ids=exclude_ids
+        )
+
     def get_label(self, subject: Subject) -> str:
         """Return the label shown when this subject is presented as an option."""
 
