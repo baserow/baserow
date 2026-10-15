@@ -43,6 +43,25 @@ def authenticate_builder_preview(api_client, builder, user):
     api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("auto_height", [False, True])
+def test_public_iframe_auto_height(api_client, data_fixture, auto_height):
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(published_to=builder)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_iframe_element(
+        page=page,
+        source_type="embed",
+        auto_height=auto_height,
+    )
+    response = api_client.get(
+        reverse("api:builder:domains:list_elements", kwargs={"page_id": page.id})
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[0]["id"] == element.id
+    assert response.json()[0]["auto_height"] is auto_height
+
+
 @pytest.fixture
 def data_source_element_roles_fixture(data_fixture):
     """

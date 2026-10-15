@@ -902,6 +902,11 @@ class IFrameElement(Element):
         help_text="A link to the page to embed",
     )
     embed = FormulaField(help_text="Inline HTML to embed")
+    auto_height = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Automatically resize embedded HTML to fit its content.",
+    )
     height = models.PositiveIntegerField(
         help_text="Height in pixels of the iframe",
         default=300,
