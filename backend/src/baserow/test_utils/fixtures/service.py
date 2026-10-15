@@ -21,6 +21,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
+    LocalBaserowIntegration,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
     LocalBaserowRowsDeleted,
@@ -217,10 +218,16 @@ class ServiceFixtures:
             integration = None
             integrations_args = kwargs.pop("integration_args", {})
             service_type = service_type_registry.get_by_model(model_class)
-            if service_type.get_integration_type():
-                integration = self.create_integration(
-                    service_type.get_integration_type().model_class, **integrations_args
-                )
+            integration_type = service_type.get_integration_type()
+            if integration_type:
+                if integration_type.model_class is LocalBaserowIntegration:
+                    integration = self.create_local_baserow_integration(
+                        **integrations_args
+                    )
+                else:
+                    integration = self.create_integration(
+                        integration_type.model_class, **integrations_args
+                    )
         else:
             integration = kwargs.pop("integration", None)
             kwargs.pop("integration_args", None)

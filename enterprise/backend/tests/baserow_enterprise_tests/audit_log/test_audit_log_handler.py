@@ -87,6 +87,7 @@ def test_actor_fields_reuse_the_legacy_user_columns(enterprise_data_fixture):
     assert AuditLogEntry._meta.get_field("actor_id").column == "user_id"
     assert AuditLogEntry._meta.get_field("actor_name").column == "user_email"
     assert entry.actor_id == user.id
+    assert entry.user_id == user.id
     assert entry.actor_type == UserSubjectType.type
     assert entry.actor_name == user.email
 

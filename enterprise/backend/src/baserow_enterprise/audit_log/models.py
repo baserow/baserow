@@ -68,6 +68,11 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
     ip_address = models.GenericIPAddressField(null=True)
 
     @property
+    def user_id(self):
+        """Compatibility alias for integrations still reading the former field."""
+        return self.actor_id
+
+    @property
     def actor_display(self):
         if not self.actor_id:
             return ""
