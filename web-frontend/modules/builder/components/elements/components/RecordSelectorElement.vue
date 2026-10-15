@@ -319,7 +319,9 @@ export default {
       try {
         const data = await DataSourceService(this.$client).getRecordNames(
           this.element.data_source_id,
-          unresolvedRecordIds
+          unresolvedRecordIds,
+          this.mode,
+          this.builder.id
         )
         this.defaultValueOptions = [
           ...locallyResolvedOptions,
