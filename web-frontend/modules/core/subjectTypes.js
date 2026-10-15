@@ -110,5 +110,4 @@ export class AgentSubjectType extends SubjectType {
   getPluralTypeDisplayName() {
     return this.$t('subjectType.agents')
   }
-
 }

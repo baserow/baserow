@@ -30,7 +30,11 @@ class LocalBaserowIntegration(Integration):
     """
 
     authorized_subject_type = models.CharField(
-        max_length=255, null=True, blank=True, default="auth.User", db_default="auth.User"
+        max_length=255,
+        null=True,
+        blank=True,
+        default="auth.User",
+        db_default="auth.User",
     )
     authorized_subject_id = models.BigIntegerField(
         null=True, blank=True, db_column="authorized_user_id"
@@ -64,6 +68,7 @@ class LocalBaserowIntegration(Integration):
                 f"{include_trash}",
                 get_subject,
             )
+
     @property
     def authorized_subject(self):
         """Return the usable subject, so None when it has been trashed."""

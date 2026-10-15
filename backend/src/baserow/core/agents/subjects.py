@@ -19,6 +19,7 @@ class AgentSubjectType(SubjectType):
     options_list_operation_type = ListAgentsWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
+
     def track_usage(self, subject: Agent) -> None:
         """Track agent service usage by updating its last-active timestamp."""
 

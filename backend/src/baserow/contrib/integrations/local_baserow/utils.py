@@ -16,10 +16,10 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
+from baserow.core.registries import subject_type_registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.core.registries import subject_type_registry
 from baserow.core.types import Subject
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
