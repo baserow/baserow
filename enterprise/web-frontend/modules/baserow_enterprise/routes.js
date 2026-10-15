@@ -5,7 +5,7 @@ export const rootChildRoutes = [
   {
     name: 'agent-application',
     path: '/agent/:agentId',
-    file: path.resolve(__dirname, 'agentApplication/pages/agent.vue'),
+    file: path.resolve(__dirname, 'agent/pages/agent.vue'),
   },
   {
     name: 'admin-auth-providers',

@@ -8,7 +8,7 @@
         <i class="agent-application__empty-icon baserow-icon-agent"></i>
         <h1 class="agent-application__title">{{ agent.name }}</h1>
         <p class="agent-application__description">
-          {{ $t('agentApplication.emptyDescription') }}
+          {{ $t('agent.emptyDescription') }}
         </p>
       </div>
     </div>

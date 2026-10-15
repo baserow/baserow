@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
-import { AgentApplicationType } from '@baserow_enterprise/agentApplication/applicationTypes'
+import { AgentApplicationType } from '@baserow_enterprise/agent/applicationTypes'
 import {
   EnterpriseAdminRoleType,
   EnterpriseBuilderRoleType,

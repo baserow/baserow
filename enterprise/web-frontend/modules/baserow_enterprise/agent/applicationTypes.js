@@ -1,8 +1,8 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import AgentApplicationContext from '@baserow_enterprise/agentApplication/components/AgentApplicationContext'
-import AgentApplicationForm from '@baserow_enterprise/agentApplication/components/AgentApplicationForm'
-import AgentApplicationSidebar from '@baserow_enterprise/agentApplication/components/AgentApplicationSidebar'
-import { FF_AGENT_BUILDER } from '@baserow_enterprise/agentApplication/constants'
+import AgentApplicationContext from '@baserow_enterprise/agent/components/AgentApplicationContext'
+import AgentApplicationForm from '@baserow_enterprise/agent/components/AgentApplicationForm'
+import AgentApplicationSidebar from '@baserow_enterprise/agent/components/AgentApplicationSidebar'
+import { FF_AGENT_BUILDER } from '@baserow_enterprise/agent/constants'
 
 export class AgentApplicationType extends ApplicationType {
   static getType() {
@@ -18,15 +18,15 @@ export class AgentApplicationType extends ApplicationType {
   }
 
   getName() {
-    return this.app.$i18n.t('agentApplication.applicationName')
+    return this.app.$i18n.t('agent.applicationName')
   }
 
   getNamePlural() {
-    return this.app.$i18n.t('agentApplication.applicationNamePlural')
+    return this.app.$i18n.t('agent.applicationNamePlural')
   }
 
   getDescription() {
-    return this.app.$i18n.t('agentApplication.applicationDescription')
+    return this.app.$i18n.t('agent.applicationDescription')
   }
 
   supportsTrash() {

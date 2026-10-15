@@ -31,13 +31,13 @@ describe('Agent application creation controls', () => {
     })
     const heading = wrapper
       .findAll('.tree__heading')
-      .find((item) => item.text() === 'agentApplication.applicationNamePlural')
+      .find((item) => item.text() === 'agent.applicationNamePlural')
     expect(heading.find('.tree__heading-add').exists()).toBe(false)
     await wrapper.find('.sidebar__new').trigger('click')
     const applicationNames = wrapper
       .findAll('.create-application-context .context__menu-item-title')
       .map((item) => item.text())
-    expect(applicationNames).not.toContain('agentApplication.applicationName')
+    expect(applicationNames).not.toContain('agent.applicationName')
   })
 
   test('opens the single Agent creation form from its enabled sidebar group', async () => {
@@ -46,15 +46,15 @@ describe('Agent application creation controls', () => {
     })
     const heading = wrapper
       .findAll('.tree__heading')
-      .find((item) => item.text() === 'agentApplication.applicationNamePlural')
+      .find((item) => item.text() === 'agent.applicationNamePlural')
 
     await heading.find('.tree__heading-add').trigger('click')
     expect(wrapper.findAll('.modal__wrapper')).toHaveLength(1)
     expect(wrapper.find('.modal__wrapper button').text()).toBe(
-      'agentApplication.createApplication'
+      'agent.createApplication'
     )
     expect(wrapper.find('.modal__wrapper input').element.value).toBe(
-      'agentApplication.applicationName'
+      'agent.applicationName'
     )
   })
 })

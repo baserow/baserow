@@ -7,7 +7,7 @@
   >
     <div class="actions actions--right">
       <Button size="large" :loading="loading" :disabled="loading">
-        {{ $t('agentApplication.createApplication') }}
+        {{ $t('agent.createApplication') }}
       </Button>
     </div>
   </ApplicationForm>

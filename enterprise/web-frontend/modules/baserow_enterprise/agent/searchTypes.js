@@ -4,7 +4,7 @@ export class AgentApplicationSearchType extends BaseSearchType {
   constructor(context = {}) {
     super(context)
     this.type = 'agent'
-    this.name = this.app.$i18n.t('agentApplication.applicationName')
+    this.name = this.app.$i18n.t('agent.applicationName')
     this.icon = 'baserow-icon-agent'
     this.priority = 5
   }

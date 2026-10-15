@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import AgentApplicationContent from '@baserow_enterprise/agentApplication/components/AgentApplicationContent'
-import AgentApplicationSidebar from '@baserow_enterprise/agentApplication/components/AgentApplicationSidebar'
+import AgentApplicationContent from '@baserow_enterprise/agent/components/AgentApplicationContent'
+import AgentApplicationSidebar from '@baserow_enterprise/agent/components/AgentApplicationSidebar'
 
 describe('Agent application components', () => {
   let testApp
@@ -28,7 +28,7 @@ describe('Agent application components', () => {
     })
     expect(wrapper.find('h1').text()).toBe('Support agent')
     expect(wrapper.find('.agent-application__description').text()).toBe(
-      'agentApplication.emptyDescription'
+      'agent.emptyDescription'
     )
     expect(wrapper.find('button').exists()).toBe(false)
 
