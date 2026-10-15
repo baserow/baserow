@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('inviteModal.linkTitle') }}</h2>
+    <h2 v-if="!targetType.getTitle(workspace, target)" class="box__title">
+      {{ $t('inviteModal.linkTitle') }}
+    </h2>
     <div class="invitation-link-empty">
       <div class="invitation-link-empty__icon">
         <i class="iconoir-link"></i>
@@ -25,6 +27,14 @@ export default {
   name: 'LinkInvitationRoute',
   props: {
     workspace: {
+      type: Object,
+      required: true,
+    },
+    target: {
+      type: Object,
+      required: true,
+    },
+    targetType: {
       type: Object,
       required: true,
     },

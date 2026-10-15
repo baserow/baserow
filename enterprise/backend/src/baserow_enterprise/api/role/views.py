@@ -6,45 +6,67 @@ from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,
     validate_query_parameters,
 )
-from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.api.errors import (
+    ERROR_GROUP_DOES_NOT_EXIST,
+    ERROR_HOSTNAME_IS_NOT_ALLOWED,
+    ERROR_USER_NOT_IN_GROUP,
+)
 from baserow.api.schemas import get_error_schema
+from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
+from baserow.core.captcha.exceptions import CaptchaVerificationFailed
+from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
+    BaseURLHostnameNotAllowed,
     LastAdminOfWorkspace,
     ObjectScopeTypeDoesNotExist,
     SubjectTypeNotExist,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
+    WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import object_scope_type_registry
-from baserow.core.utils import unique_dicts_in_list
+from baserow.core.utils import (
+    get_user_remote_ip_address_from_request,
+    unique_dicts_in_list,
+)
+from baserow.throttling.handler import WorkspaceInvitationRateThrottle
 from baserow_enterprise.api.errors import (
     ERROR_DUPLICATE_ROLE_ASSIGNMENTS,
     ERROR_LAST_ADMIN_OF_GROUP,
     ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
     ERROR_ROLE_DOES_NOT_EXIST,
     ERROR_SCOPE_DOES_NOT_EXIST,
+    ERROR_SCOPED_INVITATION_DOES_NOT_EXIST,
     ERROR_SUBJECT_DOES_NOT_EXIST,
     ERROR_SUBJECT_TYPE_DOES_NOT_EXIST,
     ERROR_SUBJECT_TYPE_UNSUPPORTED,
 )
 from baserow_enterprise.exceptions import (
     RoleNotExist,
+    ScopedInvitationDoesNotExist,
     ScopeNotExist,
     SubjectNotExist,
     SubjectUnsupported,
 )
 from baserow_enterprise.features import RBAC
-from baserow_enterprise.role.actions import BatchAssignRoleActionType
+from baserow_enterprise.role.actions import (
+    BatchAssignRoleActionType,
+    CreateScopedInvitationActionType,
+    DeleteScopedInvitationActionType,
+    UpdateScopedInvitationActionType,
+)
 from baserow_enterprise.role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.types import NewRoleAssignment
@@ -54,9 +76,12 @@ from .exceptions import DuplicateRoleAssignments
 from .serializers import (
     BatchCreateRoleAssignmentSerializer,
     CreateRoleAssignmentSerializer,
+    CreateScopedInvitationSerializer,
     GetRoleAssignmentsQueryParametersSerializer,
     OpenApiRoleAssignmentSerializer,
     RoleAssignmentSerializer,
+    ScopedInvitationSerializer,
+    UpdateScopedInvitationSerializer,
 )
 
 User = get_user_model()
@@ -332,3 +357,265 @@ class BatchRoleAssignmentsView(APIView):
         ]
 
         return Response(response)
+
+
+class ScopedInvitationsView(APIView):
+    """Lists and creates invitations that grant a role on one scope."""
+
+    permission_classes = (IsAuthenticated,)
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+
+        if self.request.method == "POST":
+            self.invitation_throttle = WorkspaceInvitationRateThrottle()
+            throttles.append(self.invitation_throttle)
+
+        return throttles
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        # The throttle reserves a slot before this view runs, so that parallel
+        # requests can't all pass the check. If no invitation was sent after all,
+        # the slot is given back and the request costs the user nothing.
+        if response.status_code >= 400 and hasattr(self, "invitation_throttle"):
+            self.invitation_throttle.release()
+
+        return super().finalize_response(request, response, *args, **kwargs)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workspace the scope belongs to.",
+            ),
+            OpenApiParameter(
+                name="scope_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="The id of the scope to list the pending invitations of.",
+            ),
+            OpenApiParameter(
+                name="scope_type",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The type of the scope to list the pending invitations of.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="list_scoped_invitations",
+        description=(
+            "Lists the pending invitations that grant a role on the given scope once "
+            "they are accepted."
+        ),
+        responses={
+            200: ScopedInvitationSerializer(many=True),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                    "ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            ObjectScopeTypeDoesNotExist: ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
+        }
+    )
+    @validate_query_parameters(
+        GetRoleAssignmentsQueryParametersSerializer, return_validated=True
+    )
+    def get(
+        self,
+        request: Request,
+        workspace_id: int,
+        query_params: Dict[str, Any],
+    ) -> Response:
+        workspace = CoreHandler().get_workspace(workspace_id)
+        scope = query_params["scope"]
+
+        handler = RoleAssignmentHandler()
+        handler.check_scoped_invitation_permissions(
+            request.user, workspace, scope, operation="READ"
+        )
+        scoped_invitations = handler.get_scoped_invitations(workspace, scope)
+
+        return Response(ScopedInvitationSerializer(scoped_invitations, many=True).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workspace the scope belongs to.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="create_scoped_invitation",
+        description=(
+            "Invites an email address to one scope of the workspace. The person joins "
+            "the workspace without a workspace role and gets the given role on the "
+            "scope once they accept. If a pending invitation already exists for the "
+            "address, the scope is added to it. The invitation email is sent out "
+            "immediately."
+        ),
+        request=CreateScopedInvitationSerializer,
+        responses={
+            200: ScopedInvitationSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_GROUP_USER_ALREADY_EXISTS",
+                    "ERROR_HOSTNAME_IS_NOT_ALLOWED",
+                    "ERROR_CAPTCHA_VERIFICATION_FAILED",
+                ]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                    "ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST",
+                    "ERROR_ROLE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ObjectScopeTypeDoesNotExist: ERROR_OBJECT_SCOPE_TYPE_DOES_NOT_EXIST,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+            WorkspaceUserAlreadyExists: ERROR_GROUP_USER_ALREADY_EXISTS,
+            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
+            CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
+        }
+    )
+    @validate_body(CreateScopedInvitationSerializer, return_validated=True)
+    def post(self, request: Request, workspace_id: int, data) -> Response:
+        """Creates a scoped invitation and sends it to the provided email."""
+
+        CaptchaHandler.validate_if_required(
+            "workspace_invitation",
+            data.get("captcha_token"),
+            get_user_remote_ip_address_from_request(request),
+        )
+
+        with transaction.atomic():
+            workspace = CoreHandler().get_workspace(workspace_id)
+            scoped_invitation = action_type_registry.get_by_type(
+                CreateScopedInvitationActionType
+            ).do(
+                request.user,
+                workspace,
+                data["email"],
+                data["role"],
+                data["scope"],
+                data["base_url"],
+            )
+
+        return Response(ScopedInvitationSerializer(scoped_invitation).data)
+
+
+class ScopedInvitationView(APIView):
+    """Changes or revokes the role one pending invitation grants on a scope."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="scoped_invitation_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The scoped invitation to change.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="update_scoped_invitation",
+        description="Changes the role a pending invitation grants on its scope.",
+        request=UpdateScopedInvitationSerializer,
+        responses={
+            200: ScopedInvitationSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_SCOPED_INVITATION_DOES_NOT_EXIST",
+                    "ERROR_SCOPE_DOES_NOT_EXIST",
+                    "ERROR_ROLE_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            ScopedInvitationDoesNotExist: ERROR_SCOPED_INVITATION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+            RoleNotExist: ERROR_ROLE_DOES_NOT_EXIST,
+        }
+    )
+    @validate_body(UpdateScopedInvitationSerializer, return_validated=True)
+    @transaction.atomic
+    def patch(self, request: Request, scoped_invitation_id: int, data) -> Response:
+        scoped_invitation = RoleAssignmentHandler().get_scoped_invitation(
+            scoped_invitation_id
+        )
+        scoped_invitation = action_type_registry.get_by_type(
+            UpdateScopedInvitationActionType
+        ).do(request.user, scoped_invitation, data["role"])
+        return Response(ScopedInvitationSerializer(scoped_invitation).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="scoped_invitation_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The scoped invitation to revoke.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="delete_scoped_invitation",
+        description=(
+            "Revokes the role a pending invitation grants on its scope. The "
+            "invitation itself and its other scopes are kept."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(
+                ["ERROR_SCOPED_INVITATION_DOES_NOT_EXIST", "ERROR_SCOPE_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            ScopedInvitationDoesNotExist: ERROR_SCOPED_INVITATION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ScopeNotExist: ERROR_SCOPE_DOES_NOT_EXIST,
+        }
+    )
+    @transaction.atomic
+    def delete(self, request: Request, scoped_invitation_id: int) -> Response:
+        scoped_invitation = RoleAssignmentHandler().get_scoped_invitation(
+            scoped_invitation_id
+        )
+        action_type_registry.get_by_type(DeleteScopedInvitationActionType).do(
+            request.user, scoped_invitation
+        )
+        return Response(status=204)

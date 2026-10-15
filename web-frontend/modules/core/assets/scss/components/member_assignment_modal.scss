@@ -1,0 +1,7 @@
+// The title and description sit above the member list in the full height
+// modal, so the list only takes the height that is left.
+.member-assignment-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

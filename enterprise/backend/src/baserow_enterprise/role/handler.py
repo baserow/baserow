@@ -9,7 +9,7 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
 from baserow.core.object_scopes import CoreObjectScopeType
 from baserow.core.registries import (
     SubjectType,
@@ -18,14 +18,16 @@ from baserow.core.registries import (
 )
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck, ScopeObject, Subject
+from baserow.core.user.utils import normalize_email_address
 from baserow_enterprise.exceptions import (
+    ScopedInvitationDoesNotExist,
     ScopeNotExist,
     SubjectNotExist,
     SubjectUnsupported,
 )
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.models import RoleAssignment
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, WorkspaceScopedInvitation
 from baserow_enterprise.signals import (
     role_assignment_created,
     role_assignment_deleted,
@@ -1225,3 +1227,216 @@ class RoleAssignmentHandler:
             and scope.id == workspace.id
             and subject_type_registry.get_by_model(subject).has_direct_workspace_roles
         )
+
+    def check_scoped_invitation_permissions(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        scope: ScopeObject,
+        operation: str = "UPDATE",
+    ):
+        """
+        Runs the checks that guard managing scoped invitations: the RBAC licence, the
+        scope being a role assignable object inside the workspace other than the
+        workspace itself, and the user holding the scope's role operation.
+
+        :param user: The user managing the scoped invitation.
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the invitation grants a role on.
+        :param operation: Which role operation of the scope must be held, `UPDATE`
+            to change invitations or `READ` to list them.
+        :raises ScopeNotExist: If the scope can't carry a scoped invitation or isn't
+            part of the workspace.
+        :raises PermissionDenied: If the user doesn't hold the operation on the scope.
+        """
+
+        LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
+
+        scope_type = object_scope_type_registry.get_by_model(scope)
+        if scope_type.type not in ROLE_ASSIGNABLE_OBJECT_MAP or isinstance(
+            scope, Workspace
+        ):
+            raise ScopeNotExist()
+        if not scope_type.are_objects_child_of([scope], workspace)[0]:
+            raise ScopeNotExist()
+
+        CoreHandler().check_permissions(
+            user,
+            ROLE_ASSIGNABLE_OBJECT_MAP[scope_type.type][operation],
+            workspace=workspace,
+            context=scope,
+        )
+
+    def _get_live_scope(
+        self, scoped_invitation: WorkspaceScopedInvitation
+    ) -> ScopeObject:
+        """
+        Returns the scope of a scoped invitation, or raises when it was deleted or
+        trashed in the meantime, because nothing can be managed on it anymore.
+        """
+
+        scope = scoped_invitation.scope
+        if scope is None or getattr(scope, "trashed", False):
+            raise ScopeNotExist()
+        return scope
+
+    def create_scoped_invitation(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        email: str,
+        role: Role,
+        scope: ScopeObject,
+        base_url: str,
+    ) -> WorkspaceScopedInvitation:
+        """
+        Invites the given email address to one scope of the workspace. The person
+        joins the workspace with the `NO_ROLE_LOW_PRIORITY` workspace role and gets
+        the given role on the scope once they accept. If a pending invitation already
+        exists for the address it is reused: its workspace role is kept as it is and
+        the scope is added to it, so one invitation can grant roles on several
+        objects. Inviting the same address to the same scope again updates the role.
+
+        :param user: The user on whose behalf the invitation is created.
+        :param workspace: The workspace the scope belongs to.
+        :param email: The email address of the person that is invited.
+        :param role: The role granted on the scope once the invitation is accepted.
+        :param scope: The application, table or view the role is granted on.
+        :param base_url: The base url of the frontend where the invitation can be
+            accepted, passed on to the workspace invitation email.
+        :raises ScopeNotExist: If the scope can't carry a scoped invitation.
+        :raises WorkspaceUserAlreadyExists: If the address already belongs to a
+            member of the workspace, who should be given a role directly instead.
+        :return: The created or updated scoped invitation.
+        """
+
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        email = normalize_email_address(email)
+        existing_invitation = WorkspaceInvitation.objects.filter(
+            workspace=workspace, email=email
+        ).first()
+        permissions = (
+            existing_invitation.permissions
+            if existing_invitation
+            else NO_ROLE_LOW_PRIORITY_ROLE_UID
+        )
+        invitation = CoreHandler().create_workspace_invitation(
+            user, workspace, email, permissions, base_url
+        )
+
+        scoped_invitation, _ = WorkspaceScopedInvitation.objects.update_or_create(
+            invitation=invitation,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+            defaults={"role": role},
+        )
+        return scoped_invitation
+
+    def get_scoped_invitations(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> QuerySet[WorkspaceScopedInvitation]:
+        """
+        Returns the pending scoped invitations that grant a role on the given scope.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the invitations grant a role on.
+        :return: A queryset of the scoped invitations, oldest first.
+        """
+
+        return WorkspaceScopedInvitation.objects.filter(
+            invitation__workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+        ).select_related("invitation", "role", "scope_type")
+
+    def get_scoped_invitation(
+        self, scoped_invitation_id: int
+    ) -> WorkspaceScopedInvitation:
+        """
+        Returns the scoped invitation with the given id.
+
+        :param scoped_invitation_id: The id of the scoped invitation.
+        :raises ScopedInvitationDoesNotExist: If it doesn't exist.
+        :return: The scoped invitation with its invitation, workspace and role loaded.
+        """
+
+        try:
+            return WorkspaceScopedInvitation.objects.select_related(
+                "invitation__workspace", "role", "scope_type"
+            ).get(id=scoped_invitation_id)
+        except WorkspaceScopedInvitation.DoesNotExist:
+            raise ScopedInvitationDoesNotExist(
+                f"The scoped invitation with id {scoped_invitation_id} does not exist."
+            )
+
+    def update_scoped_invitation(
+        self,
+        user: AbstractUser,
+        scoped_invitation: WorkspaceScopedInvitation,
+        role: Role,
+    ) -> WorkspaceScopedInvitation:
+        """
+        Changes the role a pending scoped invitation grants.
+
+        :param user: The user changing the invitation.
+        :param scoped_invitation: The scoped invitation to change.
+        :param role: The new role.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :return: The updated scoped invitation.
+        """
+
+        workspace = scoped_invitation.invitation.workspace
+        scope = self._get_live_scope(scoped_invitation)
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        scoped_invitation.role = role
+        scoped_invitation.save()
+        return scoped_invitation
+
+    def delete_scoped_invitation(
+        self, user: AbstractUser, scoped_invitation: WorkspaceScopedInvitation
+    ):
+        """
+        Revokes the role a pending invitation grants on one scope. Only that scope is
+        removed, the workspace invitation itself and its other scopes are kept.
+
+        :param user: The user revoking the scoped invitation.
+        :param scoped_invitation: The scoped invitation to delete.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        """
+
+        workspace = scoped_invitation.invitation.workspace
+        scope = self._get_live_scope(scoped_invitation)
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        scoped_invitation.delete()
+
+    def assign_scoped_invitation_roles(
+        self, invitation: WorkspaceInvitation, user: AbstractUser
+    ) -> List[Optional[RoleAssignment]]:
+        """
+        Turns the scoped invitations of an accepted workspace invitation into role
+        assignments for the user who accepted it. Scopes that were deleted or trashed
+        in the meantime are skipped, so the person still joins the workspace.
+
+        :param invitation: The accepted invitation, still carrying its scopes.
+        :param user: The user who accepted it and is now a member of the workspace.
+        :return: The created role assignments.
+        """
+
+        new_role_assignments = []
+        for scoped_invitation in invitation.scoped_invitations.select_related(
+            "role", "scope_type"
+        ):
+            scope = scoped_invitation.scope
+            if scope is None or getattr(scope, "trashed", False):
+                continue
+            new_role_assignments.append(
+                NewRoleAssignment(user, scoped_invitation.role, scope)
+            )
+
+        if not new_role_assignments:
+            return []
+
+        return self.assign_role_batch(invitation.workspace, new_role_assignments)

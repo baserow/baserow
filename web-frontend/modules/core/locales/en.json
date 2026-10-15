@@ -398,11 +398,23 @@
     "emailTitle": "Invite members by email",
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
-    "linkEmptyDescription": "You can create multiple links with different roles."
+    "linkEmptyDescription": "You can create multiple links with different roles.",
+    "pendingTitle": "Pending invitations",
+    "pendingEmptyTitle": "No invitations are pending.",
+    "pendingEmptyDescription": "Invitations show up here until they are accepted.",
+    "pendingNoWorkspaceRole": "No workspace role"
   },
-  "workspaceInviteForm": {
-    "errorInvalidEmail": "Please enter a valid e-mail address.",
-    "additionalRoles": "Additional roles"
+  "inviteInput": {
+    "placeholder": "Type or paste email addresses",
+    "invite": "Invite",
+    "inviteAs": "Invite {count} as {role}",
+    "tabAll": "All",
+    "inviteEmail": "Invite {email}",
+    "inviteEmailDescription": "Joins the workspace as {role}",
+    "alreadyInvited": "An invitation is already pending.\nYou can change its role on the Invites page instead of inviting again.",
+    "alreadyMember": "Already a member of this workspace",
+    "roleNotForEmails": "Someone new can't be invited with the {role} role",
+    "noResults": "Type a full email address to invite someone."
   },
   "workspaceContext": {
     "renameWorkspace": "Rename workspace",
@@ -931,8 +943,6 @@
       }
     },
     "membersInviteModal": {
-      "submit": "Send invite",
-      "helpIconText": "The selected role will be the users default role in this workspace.",
       "errors": {
         "userAlreadyInWorkspace": {
           "title": "User is already in the workspace.",
@@ -1551,7 +1561,8 @@
     "user": "User",
     "users": "Users",
     "agent": "Agent",
-    "agents": "Agents"
+    "agents": "Agents",
+    "members": "Members"
   },
   "agents": {
     "saved": "Changes saved",

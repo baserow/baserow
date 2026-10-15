@@ -9,7 +9,12 @@ from rest_framework import serializers
 from baserow.api.serializers import NaturalKeyRelatedField
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
-from baserow_enterprise.models import Role, RoleAssignment, Team
+from baserow_enterprise.models import (
+    Role,
+    RoleAssignment,
+    Team,
+    WorkspaceScopedInvitation,
+)
 
 
 class SubjectTeamSerializer(serializers.ModelSerializer):
@@ -227,3 +232,101 @@ class GetRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
         except ObjectDoesNotExist:
             raise ScopeNotExist()
         return result
+
+
+class ScopedInvitationSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a pending invitation that grants a role on one scope, used for
+    managing them.
+    """
+
+    email = serializers.EmailField(source="invitation.email", read_only=True)
+    invitation_id = serializers.IntegerField(read_only=True)
+    role = RoleField(
+        model=Role,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    class Meta:
+        model = WorkspaceScopedInvitation
+        fields = (
+            "id",
+            "invitation_id",
+            "email",
+            "role",
+            "scope_id",
+            "scope_type",
+            "created_on",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "created_on": {"read_only": True},
+        }
+
+
+class CreateScopedInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        help_text="The email address of the person that is invited to the scope."
+    )
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The ID of the scope object the role is granted on.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+    base_url = serializers.URLField(
+        help_text="The base URL where the user can publicly accept the invitation. "
+        "The accept token is going to be appended to the base_url (base_url + "
+        "'/token')."
+    )
+    captcha_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The captcha token proving the request comes from a person, only "
+        "required if a captcha provider is enabled for workspace invitations.",
+    )
+
+    def to_internal_value(self, data):
+        """
+        Populate the scope with the actual object.
+        """
+
+        try:
+            result = super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+        try:
+            result["scope"] = result["scope_type"].get_object_for_this_type(
+                id=result["scope_id"]
+            )
+        except ObjectDoesNotExist:
+            raise ScopeNotExist()
+        return result
+
+
+class UpdateScopedInvitationSerializer(serializers.Serializer):
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()

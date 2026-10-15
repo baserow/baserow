@@ -4,9 +4,13 @@ from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
 from baserow.core.registries import subject_type_registry
-from baserow.core.signals import permissions_updated, workspace_user_updated
+from baserow.core.signals import (
+    permissions_updated,
+    workspace_invitation_accepted,
+    workspace_user_updated,
+)
 from baserow.core.types import Subject
 from baserow.ws.tasks import broadcast_to_users
 from baserow_enterprise.signals import (
@@ -44,6 +48,21 @@ def send_permissions_updated_when_workspace_user_updated(
 @receiver(team_restored)
 def send_permissions_updated_when_team_was_deleted(sender, team: Team, **kwargs):
     permissions_updated.send(sender, subject=team, workspace=team.workspace)
+
+
+@receiver(workspace_invitation_accepted)
+def assign_scoped_invitation_roles_when_invitation_accepted(
+    sender, invitation: WorkspaceInvitation, user: User, **kwargs
+):
+    """
+    Turns the scopes attached to the accepted invitation into role assignments for
+    the new member. The signal fires before the invitation row is deleted, so its
+    scoped invitations are still there.
+    """
+
+    from .handler import RoleAssignmentHandler
+
+    RoleAssignmentHandler().assign_scoped_invitation_roles(invitation, user)
 
 
 @receiver(permissions_updated)
@@ -95,13 +114,16 @@ def cascade_workspace_user_delete(sender, instance, **kwargs):
 
 def cascade_scope_delete(sender, instance, **kwargs):
     """
-    Delete role assignments linked to deleted scope.
+    Delete role assignments and pending scoped invitations linked to deleted scope.
     """
 
-    from .models import RoleAssignment
+    from .models import RoleAssignment, WorkspaceScopedInvitation
 
     scope_ct = ContentType.objects.get_for_model(instance)
     RoleAssignment.objects.filter(scope_id=instance.id, scope_type=scope_ct).delete()
+    WorkspaceScopedInvitation.objects.filter(
+        scope_id=instance.id, scope_type=scope_ct
+    ).delete()
 
 
 def connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments():
