@@ -4,7 +4,6 @@ from baserow.core.exceptions import FeatureDisabledException
 
 FF_ENABLE_ALL = "*"
 FF_AGENTS = "agents"
-FF_AI_PROVIDERS = "ai-providers"
 
 
 def feature_flag_is_enabled(feature_flag: str, raise_if_disabled=False) -> bool:
