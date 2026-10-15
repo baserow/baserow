@@ -41,7 +41,6 @@
 
 <script>
 import { mapActions } from 'vuex'
-import _ from 'lodash'
 import error from '@baserow/modules/core/mixins/error'
 import modal from '@baserow/modules/core/mixins/modal'
 import IntegrationEditForm from '@baserow/modules/core/components/integrations/IntegrationEditForm'
@@ -120,10 +119,9 @@ export default {
           })
           this.$emit('created', newIntegration)
         } else {
-          const differences = Object.fromEntries(
-            Object.entries(values).filter(
-              ([key, value]) => !_.isEqual(value, this.initialValues[key])
-            )
+          const differences = this.actualIntegrationType.getUpdatedValues(
+            values,
+            this.initialValues
           )
           if (Object.keys(differences).length > 0) {
             await this.actionUpdateIntegration({

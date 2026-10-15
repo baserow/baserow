@@ -63,6 +63,22 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     }
   }
 
+  getUpdatedValues(values, initialValues) {
+    const updatedValues = super.getUpdatedValues(values, initialValues)
+    const authorizationKeys = [
+      'authorized_subject_id',
+      'authorized_subject_type',
+    ]
+
+    if (authorizationKeys.some((key) => key in updatedValues)) {
+      for (const key of authorizationKeys) {
+        updatedValues[key] = values[key]
+      }
+    }
+
+    return updatedValues
+  }
+
   getErrorMessage(integration) {
     if (
       integration.authorized_subject?.type === 'core.Agent' &&

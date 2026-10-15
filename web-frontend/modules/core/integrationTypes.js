@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
 
 export class IntegrationType extends Registerable {
@@ -57,6 +58,17 @@ export class IntegrationType extends Registerable {
    */
   getDefaultValues() {
     return {}
+  }
+
+  /**
+   * Returns the form values that changed since the integration was opened.
+   */
+  getUpdatedValues(values, initialValues) {
+    return Object.fromEntries(
+      Object.entries(values).filter(
+        ([key, value]) => !_.isEqual(value, initialValues[key])
+      )
+    )
   }
 
   getErrorMessage(integration) {
