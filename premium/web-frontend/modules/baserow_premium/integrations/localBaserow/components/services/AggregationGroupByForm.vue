@@ -20,7 +20,7 @@
       </DropdownItem>
     </Dropdown>
     <FormGroup
-      v-if="isMultipleSelect"
+      v-if="isMultipleValueRelation"
       :label="$t('aggregationGroupByForm.modeLabel')"
       class="margin-top-2"
     >
@@ -68,15 +68,15 @@ export default {
     }
   },
   computed: {
-    isMultipleSelect() {
-      return (
+    isMultipleValueRelation() {
+      return ['link_row', 'multiple_collaborators', 'multiple_select'].includes(
         this.tableFields.find((field) => field.id === this.aggregationGroupBy)
-          ?.type === 'multiple_select'
+          ?.type
       )
     },
     compatibleFields() {
       return this.tableFields.filter((field) =>
-        this.$registry.exists('groupedAggregationGroupedBy', field.type)
+        this.$registry.get('field', field.type).getCanGroupByInView(field)
       )
     },
     groupByOptions() {

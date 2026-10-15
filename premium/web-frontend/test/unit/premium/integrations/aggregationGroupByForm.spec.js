@@ -28,6 +28,30 @@ describe('Multiple-select aggregation grouping', () => {
   let wrapper
   afterEach(() => wrapper?.unmount())
 
+  test('uses Database field grouping compatibility', async () => {
+    wrapper = await mountSuspended(AggregationGroupByForm, {
+      props: {
+        tableFields: [
+          { id: 1, name: 'Date', type: 'date' },
+          { id: 2, name: 'Duration', type: 'duration' },
+          {
+            id: 3,
+            name: 'Rich text',
+            type: 'long_text',
+            long_text_enable_rich_text: true,
+          },
+        ],
+        aggregationGroupBys: [],
+      },
+      global: { stubs: dropdownStubs },
+    })
+
+    const optionNames = wrapper.findAll('option').map((option) => option.text())
+    expect(optionNames).toContain('Date')
+    expect(optionNames).toContain('Duration')
+    expect(optionNames).not.toContain('Rich text')
+  })
+
   test('selects either mode, restores saved settings, and hides modes for Row Id', async () => {
     wrapper = await mountSuspended(AggregationGroupByForm, {
       props: {

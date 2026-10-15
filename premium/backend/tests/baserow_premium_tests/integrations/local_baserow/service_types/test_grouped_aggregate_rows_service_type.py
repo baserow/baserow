@@ -1090,6 +1090,42 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_in_table(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_factory", ["create_date_field", "create_duration_field"]
+)
+def test_create_grouped_aggregate_rows_service_group_by_database_compatible_field(
+    data_fixture, field_factory
+):
+    """Fields accepted by Database grouping are accepted by grouped aggregations."""
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    aggregation_field = data_fixture.create_number_field(table=table)
+    group_by_field = getattr(data_fixture, field_factory)(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    values = service_type.prepare_values(
+        {
+            "view_id": view.id,
+            "table_id": table.id,
+            "integration_id": integration.id,
+            "service_aggregation_series": [
+                {"field_id": aggregation_field.id, "aggregation_type": "sum"},
+            ],
+            "service_aggregation_group_bys": [{"field_id": group_by_field.id}],
+        },
+        user,
+    )
+
+    service = ServiceHandler().create_service(service_type, **values)
+
+    assert service.service_aggregation_group_bys.get().field_id == group_by_field.id
+
+
+@pytest.mark.django_db
 def test_create_grouped_aggregate_rows_service_group_by_field_not_compatible(
     data_fixture,
 ):

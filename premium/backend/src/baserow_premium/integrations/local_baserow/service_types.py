@@ -9,7 +9,6 @@ from django.db.models import F, Min, OuterRef, Q, Subquery
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
-from baserow.contrib.database.fields.exceptions import FieldTypeDoesNotExist
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
@@ -48,10 +47,7 @@ from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationSeries,
     LocalBaserowTableServiceAggregationSortBy,
 )
-from baserow_premium.integrations.registries import (
-    grouped_aggregation_group_by_registry,
-    grouped_aggregation_registry,
-)
+from baserow_premium.integrations.registries import grouped_aggregation_registry
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.services.types import (
     ServiceAggregationGroupByDict,
@@ -633,9 +629,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
                 )
 
-                try:
-                    grouped_aggregation_group_by_registry.get_by_type(field.get_type())
-                except FieldTypeDoesNotExist:
+                if not field.get_type().check_can_group_by(
+                    field.specific, DEFAULT_SORT_TYPE_KEY
+                ):
                     raise DRFValidationError(
                         detail=f"The field with ID {group_by['field_id']} cannot "
                         "be used as a group by field.",
@@ -986,11 +982,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} is trashed."
                 )
-            try:
-                grouped_aggregation_group_by_registry.get_by_type(
-                    group_by.field.get_type()
-                )
-            except FieldTypeDoesNotExist:
+            if not group_by.field.get_type().check_can_group_by(
+                group_by.field.specific, DEFAULT_SORT_TYPE_KEY
+            ):
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} cannot be used for group by."
                 )
@@ -1096,9 +1090,16 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 field_type = field_obj["type"]
                 if collection_field is not None:
                     if collection_mode == AggregationGroupByMode.INDIVIDUAL:
-                        sort_annotations["_grouped_sort"] = Min(
-                            F(f"{collection_field.db_column}__value")
-                        )
+                        if collection_field.get_type().type == "multiple_select":
+                            sort_field = f"{collection_field.db_column}__value"
+                        elif collection_field.get_type().type == "link_row":
+                            sort_field = (
+                                f"{collection_field.db_column}__"
+                                f"{collection_field.link_row_table_primary_field.db_column}"
+                            )
+                        else:
+                            sort_field = f"{collection_field.db_column}__first_name"
+                        sort_annotations["_grouped_sort"] = Min(F(sort_field))
                         expression = F("_grouped_sort")
                         sorts.append(
                             expression.asc(nulls_first=True)
@@ -1106,26 +1107,18 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                             else expression.desc(nulls_last=True)
                         )
                         continue
-                    field_order = field_type.get_order(
+                    field_order = field_type.get_group_by_order(
                         field=field_obj["field"],
                         field_name=sort_by.reference,
                         order_direction=sort_by.direction,
                         sort_type=DEFAULT_SORT_TYPE_KEY,
                         table_model=model,
                     )
-                    for key, value in field_order.annotation.items():
-                        if value.contains_aggregate:
-                            value = Subquery(
-                                model.objects.filter(pk=OuterRef("pk"))
-                                .values("id")
-                                .annotate(_sort_value=value)
-                                .values("_sort_value")[:1]
-                            )
-                        # Row grouping can use the row's sort value directly. Field
-                        # grouping reduces sort values without splitting equal sets.
-                        sort_annotations[key] = (
-                            value if "id" in group_by_values else Min(value)
-                        )
+                    if field_order.annotation is not None:
+                        sort_annotations = {
+                            **sort_annotations,
+                            **field_order.annotation,
+                        }
                     sorts.extend(field_order.order_bys)
                     continue
                 field_annotated_order_by = field_type.get_order(
