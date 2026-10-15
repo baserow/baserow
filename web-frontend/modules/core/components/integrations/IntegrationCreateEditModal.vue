@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal">
+  <Modal ref="modal" @show="shown">
     <h2 class="box__title">
       {{
         create
@@ -95,8 +95,9 @@ export default {
       actionCreateIntegration: 'integration/create',
     }),
 
-    shown() {
+    async shown() {
       this.hideError()
+      await this.$nextTick()
       this.initialValues = this.$refs.form.getFormValues()
     },
     getDefaultIntegrationValues() {

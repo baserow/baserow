@@ -34,7 +34,7 @@ describe('IntegrationCreateEditModal', () => {
       props: { application, integration },
     })
 
-    wrapper.vm.shown()
+    await wrapper.vm.shown()
     await wrapper.vm.submit({
       name: 'Renamed integration',
       authorized_subject_id: 2,
