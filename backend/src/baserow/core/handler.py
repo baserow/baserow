@@ -37,6 +37,7 @@ from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
     BaseURLHostnameNotAllowed,
+    CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
@@ -1070,8 +1071,10 @@ class CoreHandler:
         """
         Updates the values of an existing workspace user.
 
-        :param user: The user on whose behalf the workspace user is deleted.
+        :param user: The user on whose behalf the workspace user is updated.
         :param workspace_user: The workspace user that must be updated.
+        :raises CannotChangeYourOwnWorkspaceRole: If the user tries to change their
+            own role in the workspace.
         :return: The updated workspace user instance.
         """
 
@@ -1084,6 +1087,12 @@ class CoreHandler:
             workspace=workspace_user.workspace,
             context=workspace_user,
         )
+
+        if user.id == workspace_user.user_id:
+            # Otherwise an admin could demote themselves and lose access.
+            raise CannotChangeYourOwnWorkspaceRole(
+                "Cannot change your own role in the workspace."
+            )
 
         return self.force_update_workspace_user(user, workspace_user, **kwargs)
 

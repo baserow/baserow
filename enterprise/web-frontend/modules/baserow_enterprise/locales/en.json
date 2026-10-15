@@ -351,6 +351,7 @@
     "onlyYouHaveAccess": "Only you can access this {type}.",
     "warningTitle": "Other users might inherit access!",
     "warningMessage": "Other users might inherit access via their respective roles on the parent {parent}.",
+    "adminMessage": "Admins of the {parent} always keep full access to this {type}. They can't be given a lower role here. To restrict them, lower their role on the {parent} first.",
     "headerTooltip": "Roles on this {type} will override {overrides} roles."
   },
   "memberRolesShareToggle": {
@@ -368,7 +369,8 @@
   "memberRolesMembersList": {
     "remove": "Remove",
     "teamMembersCount": "{count} team members",
-    "adminHelpText": "Admins can restrict other admins roles.",
+    "inheritedAdminHelpText": "Admin of the {level}: always has full access to this {type}. The role set here has no effect. To restrict them, lower their {level} role first.",
+    "scopeAdminHelpText": "Has full access to this {type} and everything inside it. Roles set on anything inside have no effect on them. To restrict them, lower this role first.",
     "noMembers": "No members have been selected. Use the select button to add one."
   },
   "roleAssignmentModal": {
@@ -405,7 +407,7 @@
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",
-    "adminHelpText": "Admins can restrict other admins roles."
+    "adminFullAccessHelpText": "Admins have full access to everything in this workspace. Their role on a database, table or view can't be lowered. To restrict an admin, lower their workspace role first."
   },
   "membersPagePlugin": {
     "roleHelpText": "Can be overriden with roles on databases and tables."

@@ -35,6 +35,7 @@
           :role-assignments="tableRoleAssignments"
           :teams="teams"
           :agents="agents"
+          :ancestor-admins="tableAncestorAdmins"
           scope-type="database_table"
           @invite-members="inviteTableMembers"
           @invite-agents="inviteTableAgents"
@@ -55,6 +56,7 @@
           :role-assignments="viewRoleAssignments"
           :teams="teams"
           :agents="agents"
+          :ancestor-admins="viewAncestorAdmins"
           scope-type="database_view"
           @invite-members="inviteViewMembers"
           @invite-agents="inviteViewAgents"
@@ -134,6 +136,22 @@ export default {
         this.$t('memberRolesModal.memberRolesDatabaseTabTitle')
       )
     },
+    /**
+     * The users and agents holding the admin role on the database themselves,
+     * keyed by subject type and id, mapped to the level that makes them an
+     * admin as the tab labels it. Such an admin keeps full access to every
+     * table and view inside the database. A team's admin role doesn't count: it
+     * applies on the database, but a role on a table inside still wins there.
+     */
+    tableAncestorAdmins() {
+      return this.adminSubjects(this.databaseRoleAssignments, 'database')
+    },
+    viewAncestorAdmins() {
+      return {
+        ...this.tableAncestorAdmins,
+        ...this.adminSubjects(this.tableRoleAssignments, 'table'),
+      }
+    },
     canManageApplication() {
       return this.$hasPermission(
         'application.read_role',
@@ -163,6 +181,20 @@ export default {
     },
   },
   methods: {
+    adminSubjects(roleAssignments, level) {
+      return Object.fromEntries(
+        roleAssignments
+          .filter(
+            ({ subject_type: subjectType, role }) =>
+              role === 'ADMIN' &&
+              this.$registry.get('subject', subjectType).holdsRolesDirectly
+          )
+          .map(({ subject_type: subjectType, subject }) => [
+            this.$registry.get('subject', subjectType).getKey(subject),
+            level,
+          ])
+      )
+    },
     async onShow() {
       if (this.view) {
         this.selectedTabIndex = 2

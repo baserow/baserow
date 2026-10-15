@@ -91,6 +91,13 @@ class CannotDeleteYourselfFromWorkspace(Exception):
     """
 
 
+class CannotChangeYourOwnWorkspaceRole(Exception):
+    """
+    Raised when the user tries to change their own role in a workspace. Another
+    admin of the workspace has to do that.
+    """
+
+
 class ApplicationDoesNotExist(Exception):
     """Raised when trying to get an application that does not exist."""
 

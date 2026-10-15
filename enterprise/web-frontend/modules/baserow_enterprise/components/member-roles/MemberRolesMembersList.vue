@@ -48,9 +48,27 @@
       </div>
       <div class="member-roles-members-list__role-selector">
         <HelpIcon
-          v-if="getRole(roleAssignment).uid === 'ADMIN'"
+          v-if="getInheritedAdminLevel(roleAssignment)"
           class="margin-right-1"
-          :tooltip="$t('memberRolesMembersList.adminHelpText')"
+          :tooltip="
+            $t('memberRolesMembersList.inheritedAdminHelpText', {
+              type: scopeTypeName,
+              level: getInheritedAdminLevel(roleAssignment),
+            })
+          "
+        />
+        <HelpIcon
+          v-else-if="
+            getRole(roleAssignment).uid === 'ADMIN' &&
+            getSubjectType(roleAssignment).holdsRolesDirectly &&
+            scopeType !== 'database_view'
+          "
+          class="margin-right-1"
+          :tooltip="
+            $t('memberRolesMembersList.scopeAdminHelpText', {
+              type: scopeTypeName,
+            })
+          "
         />
         <RoleSelector
           :disabled="
@@ -59,8 +77,16 @@
               userId
             )
           "
-          :roles="getAvailableRoles(roles)"
-          :value="getRole(roleAssignment)"
+          :roles="
+            getInheritedAdminLevel(roleAssignment)
+              ? [adminRole]
+              : getAvailableRoles(roles)
+          "
+          :value="
+            getInheritedAdminLevel(roleAssignment)
+              ? adminRole
+              : getRole(roleAssignment)
+          "
           :allow-removing-role="true"
           :workspace="workspace"
           @delete="$emit('role-updated', roleAssignment, null)"
@@ -95,6 +121,14 @@ export default {
       type: String,
       required: true,
     },
+    /**
+     * The lower case label of the scope, used in the explanations.
+     */
+    scopeTypeName: {
+      type: String,
+      required: false,
+      default: '',
+    },
     workspaceId: {
       type: Number,
       required: true,
@@ -104,6 +138,16 @@ export default {
       required: false,
       default: () => [],
     },
+    /**
+     * The users and agents that are an admin of the workspace or of a scope
+     * above this one, as `{ '<subject type>:<id>': '<scope label>' }`. Their
+     * role here has no effect, so they are shown as admins with a locked role.
+     */
+    inheritedAdmins: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
   },
   computed: {
     ...mapGetters({ userId: 'auth/getUserId' }),
@@ -112,6 +156,9 @@ export default {
     },
     roles() {
       return this.workspace._.roles
+    },
+    adminRole() {
+      return this.roles.find((role) => role.uid === 'ADMIN')
     },
     roleAssignmentsSorted() {
       return [...this.roleAssignments].sort((a, b) =>
@@ -133,6 +180,12 @@ export default {
     },
     getRole(roleAssignment) {
       return this.roles.find((role) => role.uid === roleAssignment.role)
+    },
+    getInheritedAdminLevel(roleAssignment) {
+      const key = this.getSubjectType(roleAssignment).getKey(
+        roleAssignment.subject
+      )
+      return this.inheritedAdmins[key] || null
     },
     getCount(teamId) {
       return this.teams.find(({ id }) => id === teamId).subject_count

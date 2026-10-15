@@ -57,3 +57,79 @@ test.each([
     }
   }
 )
+
+test('tells the table tab which users and agents are admins of the database', async () => {
+  const client = {
+    get: vi.fn((url, config) => {
+      if (
+        url.startsWith('/role/') &&
+        config?.params?.scope_type === 'application'
+      ) {
+        return Promise.resolve({
+          data: [
+            { subject_type: 'auth.User', subject: { id: 5 }, role: 'ADMIN' },
+            { subject_type: 'core.Agent', subject: { id: 8 }, role: 'ADMIN' },
+            {
+              subject_type: 'baserow_enterprise.Team',
+              subject: { id: 6 },
+              role: 'EDITOR',
+            },
+            // A team's admin role doesn't protect its members on the tables.
+            {
+              subject_type: 'baserow_enterprise.Team',
+              subject: { id: 7 },
+              role: 'ADMIN',
+            },
+          ],
+        })
+      }
+      return Promise.resolve({ data: [] })
+    }),
+  }
+  const wrapper = await mountSuspended(MemberRolesModal, {
+    props: {
+      database: { id: 20, type: 'database', workspace },
+      table: { id: 30, database_id: 20 },
+    },
+    global: {
+      mocks: {
+        $client: client,
+        $featureFlagIsEnabled: () => false,
+        $hasPermission: () => true,
+        $store: { getters: { 'workspace/get': () => workspace } },
+      },
+      stubs: {
+        Modal: {
+          template:
+            '<div><button class="open" @click="$emit(\'show\')">Open</button><slot /></div>',
+        },
+        Tabs: { template: '<div><slot /></div>' },
+        Tab: { template: '<div><slot /></div>' },
+        MemberRolesTab: {
+          props: {
+            scopeType: String,
+            ancestorAdmins: { type: Object, default: () => ({}) },
+          },
+          template:
+            '<div class="tab" :data-scope-type="scopeType">{{ JSON.stringify(ancestorAdmins) }}</div>',
+        },
+      },
+    },
+  })
+  try {
+    await wrapper.find('.open').trigger('click')
+    await flushPromises()
+    const tabs = wrapper.findAll('.tab')
+    expect(tabs.map((tab) => tab.attributes('data-scope-type'))).toStrictEqual([
+      'application',
+      'database_table',
+    ])
+    expect(JSON.parse(tabs[0].text())).toStrictEqual({})
+    expect(JSON.parse(tabs[1].text())).toStrictEqual({
+      'auth.User:5': 'database',
+      'core.Agent:8': 'database',
+    })
+  } finally {
+    wrapper.unmount()
+  }
+})

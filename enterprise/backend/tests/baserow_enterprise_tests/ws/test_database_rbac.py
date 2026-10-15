@@ -130,7 +130,11 @@ async def test_database_created_message_not_leaking(data_fixture):
 @pytest.mark.enable_all_signals
 async def test_workspace_restored_applications_arent_leaked(data_fixture):
     user_excluded, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user_excluded)
+    # An admin of the workspace keeps the admin role on every application in it.
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user_excluded, "VIEWER")]
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     database_excluded = data_fixture.create_database_application(workspace=workspace)
     no_access_role = Role.objects.get(uid="NO_ACCESS")
@@ -152,10 +156,10 @@ async def test_workspace_restored_applications_arent_leaked(data_fixture):
     await communicator.receive_json_from()
 
     await sync_to_async(TrashHandler.trash)(
-        user_excluded, workspace, None, trash_item=workspace
+        admin, workspace, None, trash_item=workspace
     )
     await sync_to_async(TrashHandler.restore_item)(
-        user_excluded, WorkspaceTrashableItemType.type, workspace.id
+        admin, WorkspaceTrashableItemType.type, workspace.id
     )
 
     workspace_restored_message = await get_message(communicator, "group_restored")

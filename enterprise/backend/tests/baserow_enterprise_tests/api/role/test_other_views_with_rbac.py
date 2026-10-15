@@ -30,7 +30,12 @@ def test_personal_views_created_by_editor_cant_be_shared_publicly(
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     view = data_fixture.create_grid_view(
         user, table=table, owned_by=user, ownership_type=OWNERSHIP_TYPE_PERSONAL
     )
@@ -59,7 +64,12 @@ def test_personal_views_created_by_builder_can_be_shared_publicly(
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     view = data_fixture.create_grid_view(
         user, table=table, owned_by=user, ownership_type=OWNERSHIP_TYPE_PERSONAL
     )
@@ -89,7 +99,12 @@ def test_personal_views_shared_by_builder_stops_working_if_builder_looses_table_
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     view = data_fixture.create_grid_view(
         user,
         table=table,
@@ -118,7 +133,12 @@ def test_viewer_can_make_personal_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
         user, table.database.workspace, role=viewer, scope=table
@@ -138,7 +158,12 @@ def test_viewer_cant_make_public_personal_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
         user, table.database.workspace, role=viewer, scope=table
@@ -163,7 +188,12 @@ def test_builder_can_make_public_personal_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     builder = RoleAssignmentHandler().get_role_by_uid("BUILDER")
     RoleAssignmentHandler().assign_role(
         user, table.database.workspace, role=builder, scope=table
@@ -190,7 +220,12 @@ def test_viewer_cant_make_collab_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
         user, table.database.workspace, role=viewer, scope=table
@@ -210,7 +245,12 @@ def test_viewer_can_create_filter_on_their_own_personal_view(api_client, data_fi
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     field = data_fixture.create_text_field(table=table)
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
@@ -241,7 +281,12 @@ def test_viewer_cant_create_filter_on_someone_elses_personal_view(
         workspace=workspace,
     )
     user2 = data_fixture.create_user(workspace=workspace)
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     field = data_fixture.create_text_field(table=table)
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
@@ -265,7 +310,12 @@ def test_viewer_cant_submit_their_own_personal_form_view(api_client, data_fixtur
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     field = data_fixture.create_text_field(table=table)
     viewer = RoleAssignmentHandler().get_role_by_uid("VIEWER")
     RoleAssignmentHandler().assign_role(
@@ -311,7 +361,11 @@ def test_list_views_doesnt_include_personal_views_the_user_used_to_have(data_fix
     RoleAssignmentHandler._init = False
 
     workspace = data_fixture.create_workspace(name="Workspace 1")
-    user = data_fixture.create_user(workspace=workspace)
+    user = data_fixture.create_user()
+    # Not an admin of the workspace, who would keep the admin role on the table.
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=user, permissions="NO_ACCESS"
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
     handler = ViewHandler()
@@ -378,7 +432,12 @@ def test_viewer_can_create_filters_and_filter_groups_in_personal_views(
         first_name="Test1",
         workspace=workspace,
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     field = data_fixture.create_text_field(table=table)
     viewer = RoleAssignmentHandler().get_role_by_uid(role)
     RoleAssignmentHandler().assign_role(
@@ -445,7 +504,12 @@ def test_builders_and_up_can_change_views_ownership_type(
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     view = data_fixture.create_grid_view(
         user, table=table, owned_by=user, ownership_type=initial_ownership_type
     )
@@ -487,7 +551,12 @@ def test_editor_personal_view_default_values_applied_to_new_row(
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the admin
+    # role on every table in it, so the role on the table would have no effect.
+    table = data_fixture.create_database_table()
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="NO_ACCESS"
+    )
     text_field = data_fixture.create_text_field(table=table)
 
     editor_role = RoleAssignmentHandler().get_role_by_uid("EDITOR")

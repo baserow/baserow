@@ -105,9 +105,15 @@ class RolePermissionManagerType(PermissionManagerType):
 
         scope_includes_cache = {}
         for actor, context_and_checks in checks_by_actor_and_context.items():
+            roles_per_scope = roles_per_scope_by_actor[actor]
             for context, checks in context_and_checks.items():
+                # An admin of the workspace holds the admin role on everything in
+                # it, whatever roles they were given on lower scopes, and their
+                # list is already reduced to the workspace entry. No shortcut
+                # here though: the walk is what denies a context that doesn't
+                # belong to the workspace of the check.
                 computed_roles = RoleAssignmentHandler().get_computed_roles(
-                    roles_per_scope_by_actor[actor], context, scope_includes_cache
+                    roles_per_scope, context, scope_includes_cache
                 )
                 permitted_operations = set(
                     [
@@ -251,11 +257,27 @@ class RolePermissionManagerType(PermissionManagerType):
         # Get all role assignments for this actor into this workspace
         roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(workspace, actor)
 
+        all_operations = for_operation_types or operation_type_registry.get_all()
+
+        if RoleAssignmentHandler.is_workspace_admin(roles_by_scope):
+            # An admin of the workspace holds the admin role everywhere in it,
+            # whatever roles they were given on lower scopes, so the admin role
+            # alone decides every operation and there are no exceptions.
+            _, workspace_roles = roles_by_scope[0]
+            admin_operations = set()
+            for role in workspace_roles:
+                admin_operations |= self.get_role_operations(role)
+            return {
+                operation_type.type: {
+                    "default": operation_type.type in admin_operations,
+                    "exceptions": [],
+                }
+                for operation_type in all_operations
+            }
+
         policy_per_operation = defaultdict(lambda: {"default": False, "exceptions": []})
 
         scope_map_with_mixed_types_per_scope = defaultdict(set)
-
-        all_operations = for_operation_types or operation_type_registry.get_all()
 
         # First, for each operation we want the default policy and exceptions
         for operation_type in all_operations:
@@ -374,6 +396,19 @@ class RolePermissionManagerType(PermissionManagerType):
         policy_per_workspace = {}
         all_exception_scopes = set()
         for workspace in workspaces:
+            roles_per_scope = roles_per_scope_per_workspace[workspace.id]
+            if RoleAssignmentHandler.is_workspace_admin(roles_per_scope):
+                # An admin of the workspace holds the admin role on every object
+                # in it, whatever roles they were given on lower scopes, so there
+                # are no exceptions to resolve.
+                _, workspace_roles = roles_per_scope[0]
+                default = any(
+                    operation_type.type in self.get_role_operations(role)
+                    for role in workspace_roles
+                )
+                policy_per_workspace[workspace.id] = (default, set(), set())
+                continue
+
             default, exceptions, inclusions = self.get_operation_policy(
                 roles_per_scope_per_workspace[workspace.id],
                 operation_type,

@@ -16,8 +16,14 @@ def test_list_applications_filtered_by_roles(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    workspace_1 = data_fixture.create_workspace(user=user)
-    workspace_2 = data_fixture.create_workspace(user=user)
+    # The user is not an admin of the workspaces, who would see every application.
+    admin = data_fixture.create_user()
+    workspace_1 = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "BUILDER")]
+    )
+    workspace_2 = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "BUILDER")]
+    )
     database_1 = data_fixture.create_database_application(
         workspace=workspace_1, order=1
     )
@@ -72,7 +78,11 @@ def test_list_applications_filtered_by_roles(api_client, data_fixture):
 @pytest.mark.django_db
 def test_list_tables_filtered_by_roles(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    database = data_fixture.create_database_application(user=user)
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "BUILDER")]
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
     table_1 = data_fixture.create_database_table(database=database, order=2)
     table_2 = data_fixture.create_database_table(database=database, order=1)
 
@@ -95,7 +105,11 @@ def test_get_database_application_with_tables_filtered_by_roles(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
-    database = data_fixture.create_database_application(user=user)
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "BUILDER")]
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
     table_1 = data_fixture.create_database_table(database=database, order=0)
     table_2 = data_fixture.create_database_table(database=database, order=1)
 
