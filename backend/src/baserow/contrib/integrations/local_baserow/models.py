@@ -10,6 +10,7 @@ from baserow.contrib.database.views.models import (
     SORT_ORDER_CHOICES,
     View,
 )
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
@@ -47,14 +48,22 @@ class LocalBaserowIntegration(Integration):
         if self.authorized_subject_type and self.authorized_subject_id:
             from baserow.core.registries import subject_type_registry
 
-            try:
-                return subject_type_registry.get_subject(
-                    self.authorized_subject_type,
-                    self.authorized_subject_id,
-                    include_trash=include_trash,
-                )
-            except SubjectTypeNotExist:
-                return None
+            def get_subject():
+                try:
+                    return subject_type_registry.get_subject(
+                        self.authorized_subject_type,
+                        self.authorized_subject_id,
+                        include_trash=include_trash,
+                    )
+                except SubjectTypeNotExist:
+                    return None
+
+            return local_cache.get(
+                "local_baserow_authorized_subject_"
+                f"{self.authorized_subject_type}_{self.authorized_subject_id}_"
+                f"{include_trash}",
+                get_subject,
+            )
     @property
     def authorized_subject(self):
         """Return the usable subject, so None when it has been trashed."""

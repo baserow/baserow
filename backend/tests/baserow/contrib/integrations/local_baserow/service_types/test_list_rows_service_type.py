@@ -28,6 +28,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
 from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_formula
@@ -78,6 +79,22 @@ def test_before_dispatch_updates_authorized_agent_last_active(data_fixture):
 
     assert agent.last_active is not None
     assert agent.last_active >= before
+
+
+@pytest.mark.django_db
+def test_before_dispatch_tracks_an_authorized_user(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(user=user), user=user
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration
+    )
+
+    with patch.object(UserSubjectType, "track_usage") as track_usage:
+        service.get_type().before_dispatch(service, FakeDispatchContext())
+
+    track_usage.assert_called_once_with(user)
 
 
 @pytest.mark.django_db

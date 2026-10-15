@@ -109,7 +109,6 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.agents.handler import AgentHandler
 from baserow.core.cache import global_cache
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
@@ -121,6 +120,7 @@ from baserow.core.formula.validator import (
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -218,13 +218,17 @@ class LocalBaserowServiceType(ServiceType):
     ) -> None:
         """Record when this service uses an authorized agent."""
 
-        subject = (
-            service.integration.specific.authorized_subject
-            if service.integration_id
-            else None
-        )
-        if subject is not None and subject.__class__.__name__ == "Agent":
-            AgentHandler().update_last_active(subject)
+        if not service.integration_id:
+            return
+
+        integration = service.integration.specific
+        if not integration.authorized_subject_type:
+            return
+
+        subject_type = subject_type_registry.get(integration.authorized_subject_type)
+        subject = integration.authorized_subject
+        if subject is not None:
+            subject_type.track_usage(subject)
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]

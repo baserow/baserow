@@ -1371,6 +1371,11 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     # set_workspace_role_uid. Other types keep using RoleAssignment records.
     has_direct_workspace_roles: bool = False
 
+    def track_usage(self, subject: Subject) -> None:
+        """Record usage when a subject dispatches a service through an integration."""
+
+        pass
+
     def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
         """Return the subjects whose direct roles belong to a workspace.
 

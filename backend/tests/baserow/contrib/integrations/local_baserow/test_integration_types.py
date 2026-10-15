@@ -10,6 +10,7 @@ from tqdm import tqdm
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
+from baserow.core.cache import local_cache
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Agent
@@ -29,6 +30,21 @@ def test_create_local_baserow_integration_with_user(data_fixture):
     assert integration.authorized_subject == user
     assert integration.authorized_subject_type == "auth.User"
     assert integration.authorized_subject_id == user.id
+
+
+@pytest.mark.django_db
+def test_authorized_subject_is_locally_cached(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    with local_cache.context(), CaptureQueriesContext(connection) as queries:
+        assert integration.authorized_subject == user
+        assert integration.authorized_subject == user
+
+    assert len(queries) == 1
 
 
 @pytest.mark.django_db
@@ -193,7 +209,7 @@ def test_get_local_baserow_databases_number_of_queries(
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
-    with CaptureQueriesContext(connection) as queries:
+    with local_cache.context(), CaptureQueriesContext(connection) as queries:
         LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     data_fixture.create_database_table(database=database)
@@ -202,7 +218,7 @@ def test_get_local_baserow_databases_number_of_queries(
     )
     data_fixture.create_database_table(database=database_2)
 
-    with CaptureQueriesContext(connection) as queries_2:
+    with local_cache.context(), CaptureQueriesContext(connection) as queries_2:
         LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     assert len(queries.captured_queries) == len(queries_2.captured_queries)

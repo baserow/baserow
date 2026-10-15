@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField, F, IntegerField, Value
 from django.db.models.functions import Cast
 
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.models import Agent, Workspace
 from baserow.core.registries import SubjectType
@@ -18,6 +19,10 @@ class AgentSubjectType(SubjectType):
     options_list_operation_type = ListAgentsWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
+    def track_usage(self, subject: Agent) -> None:
+        """Track agent service usage by updating its last-active timestamp."""
+
+        AgentHandler().update_last_active(subject)
 
     def get_type_display_name(self):
         return "Agent"
