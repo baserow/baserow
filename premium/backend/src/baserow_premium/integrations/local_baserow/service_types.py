@@ -811,7 +811,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             for series in instance.service_aggregation_series.all()
         ]
         values["service_aggregation_group_bys"] = [
-            {"field_id": group_by.field_id}
+            {"field_id": group_by.field_id, "mode": group_by.mode}
             for group_by in instance.service_aggregation_group_bys.all()
         ]
         values["service_aggregation_sorts"] = [

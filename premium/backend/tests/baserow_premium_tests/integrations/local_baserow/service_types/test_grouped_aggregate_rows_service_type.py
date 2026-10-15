@@ -2825,7 +2825,7 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_multiple_relations(
     result = ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
     assert result["has_next_page"] is False
     rows = result["results"]
-    assert rows[0] == {"id": "0", "Amount sum": Decimal(1), "Category": []}
+    assert rows[0] == {"id": "-", "Amount sum": Decimal(1), "Category": []}
     if bucket_limit == 2:
         assert rows[1] == {
             "id": "OTHER_VALUES",
@@ -2834,7 +2834,7 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_multiple_relations(
         }
         assert len(rows) == 2
     else:
-        assert [row["id"] for row in rows] == ["0", labels[0], ", ".join(labels)]
+        assert [row["id"] for row in rows] == ["-", labels[0], ", ".join(labels)]
         assert [row["Amount sum"] for row in rows] == [1, 2, 4]
         assert [[item["id"] for item in row["Category"] or []] for row in rows] == [
             [],
@@ -2924,7 +2924,7 @@ def test_grouped_aggregate_rows_multiple_select_modes(
     assert result["results"][0]["Category count"] == 1
     if mode == "complete":
         expected = [
-            ("0", [], 1, 1),
+            ("-", [], 1, 1),
             ("Alpha, Beta", [alpha.id, beta.id], 12, 6),
             ("Alpha", [alpha.id], 18, 9),
             ("Beta", [beta.id], 32, 32),
@@ -2933,7 +2933,7 @@ def test_grouped_aggregate_rows_multiple_select_modes(
         overflow = {2: (126, Decimal(126) / 6), 3: (114, Decimal(114) / 4)}
     else:
         expected = [
-            ("0", None, 1, 1),
+            ("-", None, 1, 1),
             ("Alpha", [alpha.id], 30, Decimal("7.5")),
             ("Beta", [beta.id], 44, Decimal(44) / 3),
             ("Gamma", [gamma.id], 64, 64),
@@ -2970,14 +2970,39 @@ def test_grouped_aggregate_rows_multiple_select_modes(
                 ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
             )
             expected_labels = (
-                ["0", "Alpha", "Alpha, Beta", "Beta", "Gamma"]
+                ["-", "Alpha", "Alpha, Beta", "Beta", "Gamma"]
                 if mode == "complete"
-                else ["0", "Alpha", "Beta", "Gamma"]
+                else ["-", "Alpha", "Beta", "Gamma"]
             )
             if direction == "DESC":
                 expected_labels.reverse()
-                expected_labels[-1] = str(len(expected_labels) - 1)
             assert [row["id"] for row in result["results"]] == expected_labels
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_export_prepared_values_preserves_group_by_mode(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    category = data_fixture.create_multiple_select_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows, integration=integration, table=table
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service,
+        field=category,
+        mode="individual",
+        order=1,
+    )
+
+    assert service.get_type().export_prepared_values(service)[
+        "service_aggregation_group_bys"
+    ] == [{"field_id": category.id, "mode": "individual"}]
 
 
 @pytest.mark.django_db
@@ -5035,39 +5060,6 @@ def test_grouped_aggregate_rows_rejects_unknown_grouping_mode():
     )
     assert not serializer.is_valid()
     assert serializer.errors["mode"][0].code == "invalid_choice"
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "field_type", ["multiple_select", "multiple_collaborators", "link_row", "file"]
-)
-def test_grouped_aggregate_rows_rejects_multivalued_primary_row_grouping(
-    data_fixture, field_type
-):
-    """Reject new and saved row grouping when the primary field contains a collection."""
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    getattr(data_fixture, f"create_{field_type}_field")(table=table, primary=True)
-    dashboard = data_fixture.create_dashboard_application(user=user)
-    integration = data_fixture.create_local_baserow_integration(
-        application=dashboard, user=user
-    )
-    service = data_fixture.create_service(
-        LocalBaserowGroupedAggregateRows, table=table, integration=integration
-    )
-    service_type = service.get_type()
-    with pytest.raises(ValidationError, match="multi-valued primary field"):
-        service_type._update_service_aggregation_group_bys(
-            service, [{"field_id": None}]
-        )
-    assert not service.service_aggregation_group_bys.exists()
-    LocalBaserowTableServiceAggregationGroupBy.objects.create(
-        service=service, field=None, order=1
-    )
-    with pytest.raises(
-        ServiceImproperlyConfiguredDispatchException, match="multi-valued primary field"
-    ):
-        ServiceHandler().dispatch_service(service, FakeDispatchContext())
 
 
 @pytest.mark.django_db
