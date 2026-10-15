@@ -2356,7 +2356,7 @@ def test_get_record_names_published_builder(
         table=data_source_fixture["table"],
     )
     url = reverse(
-        "api:builder:domain:public_record_names",
+        "api:builder:domains:public_record_names",
         kwargs={"data_source_id": data_source.id},
     )
     token = data_source_fixture["user_source_user_token"]
@@ -2526,6 +2526,9 @@ def test_get_record_names_uses_preview_scoped_session(
 ):
     """A preview session can resolve names only through its scoped API route."""
 
+    primary_field = data_source_fixture["fields"][0]
+    primary_field.primary = True
+    primary_field.save()
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=data_source_fixture["user"],
         page=data_source_fixture["page"],
