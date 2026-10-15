@@ -226,7 +226,7 @@ class AuditLogActorFilterView(APIView):
     serializer_class = AuditLogActorFilterSerializer
 
     def paginate_queryset(self, queryset, request):
-        paginator = PageNumberPagination()
+        paginator = PageNumberPagination(limit_page_size=100)
         page = paginator.paginate_queryset(queryset, request, view=self)
         return page, paginator
 

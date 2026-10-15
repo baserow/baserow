@@ -222,6 +222,21 @@ def test_audit_log_actor_filter_returns_pagination_links(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_audit_log_actor_filter_limits_page_size(api_client, enterprise_data_fixture):
+    _, token = enterprise_data_fixture.create_enterprise_admin_user_and_token()
+
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:actors") + "?size=101",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_audit_log_action_type_filter_returns_action_types_correctly(
     api_client, enterprise_data_fixture
 ):

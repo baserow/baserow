@@ -251,7 +251,6 @@ class AuditLogExportJobType(JobType):
 
         storage = get_default_storage()
         storage_location = ExportHandler.export_file_path(job.exported_file_name)
-        print("before delete ===", storage)
         try:
             storage.delete(storage_location)
         except FileNotFoundError:
