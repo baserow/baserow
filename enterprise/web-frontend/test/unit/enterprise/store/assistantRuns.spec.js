@@ -84,6 +84,7 @@ describe('Kuma durable streamed send and resume', () => {
     api = {
       stream: vi.fn(() => new Promise(() => {})),
       get: vi.fn().mockResolvedValue({ status: 'running' }),
+      cancel: vi.fn().mockResolvedValue({ status: 'running' }),
     }
     coreService.mockReturnValue(api)
     await store.dispatch('workspace/forceCreate', workspace)
@@ -436,5 +437,63 @@ describe('Kuma durable streamed send and resume', () => {
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
     expect(api.stream).not.toHaveBeenCalled()
     expect(store.getters['chatRuns/getFollower']('other-run')).toBeNull()
+  })
+
+  test('Stop clicked before metadata is sent to the committed run as soon as it is known', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    await emit('human', human, { cursor: cursor(1) })
+    expect((await starting).runId).toBe('run-1')
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+    finish()
+  })
+
+  test('a failed Stop queued before metadata notifies and allows another Stop', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    const notify = vi.fn()
+    api.cancel.mockRejectedValueOnce({ handler: { notifyIf: notify } })
+
+    await emit('human', human, { cursor: cursor(1) })
+    await starting
+    expect(notify).toHaveBeenCalledOnce()
+    expect(store.getters['assistant/currentChat'].cancelling).toBe(false)
+    expect(follower().stopRequested).toBe(false)
+    await store.dispatch('assistant/cancelMessage')
+    expect(api.cancel).toHaveBeenCalledTimes(2)
+    finish()
+  })
+
+  test('a queued Stop before metadata keeps both the saved human prompt and terminal answer', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    api.get.mockResolvedValue({
+      status: 'cancelled',
+      message: { ...answer, content: 'Stopped' },
+    })
+    await emit('human', human, { cursor: cursor(1), status: 'queued' })
+    await starting
+    expect(
+      store.getters['assistant/messages'].map(({ id, content }) => [
+        id,
+        content,
+      ])
+    ).toEqual([
+      [501, 'Hi'],
+      [502, 'Stopped'],
+    ])
+    finish()
   })
 })

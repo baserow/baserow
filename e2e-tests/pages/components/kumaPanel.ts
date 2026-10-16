@@ -51,6 +51,22 @@ export class KumaPanel {
     ).not.toHaveClass(/is-running/, { timeout: 60_000 });
   }
 
+  /** What the panel says Kuma is doing, above the input. */
+  status(): Locator {
+    return this.panel.locator(".assistant__status-message");
+  }
+
+  async stop(): Promise<void> {
+    await this.panel.locator(".assistant__send-button--is-running").click();
+  }
+
+  /** The note under the last AI message when its run stopped or failed. */
+  lastRunOutcome(): Locator {
+    return this.panel
+      .locator(".assistant__message--ai .assistant__message-run-outcome")
+      .last();
+  }
+
   async openLatestChat(): Promise<void> {
     await this.panel.getByTitle("Chat History").click();
     await this.page.locator(".select__item-link:visible").first().click();

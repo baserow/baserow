@@ -7,6 +7,7 @@ import {
   getStoredOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 
 function parseMessage(message) {
@@ -494,6 +495,15 @@ export const actions = {
       }
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
       resolveAccepted({ outcome: SEND_OUTCOME.ACCEPTED, runId })
+      if (chat.cancelling) {
+        try {
+          await dispatch('chatRuns/cancelRun', runId, { root: true })
+        } catch (error) {
+          notifyIf(error)
+        } finally {
+          commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
+        }
+      }
     }
     assistant(this.$client)
       .sendMessage(
@@ -582,6 +592,7 @@ export const actions = {
             { root: true }
           )
         commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+        commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
       })
     return accepted
   },
@@ -637,10 +648,16 @@ export const actions = {
     return outcome
   },
 
-  async cancelMessage({ dispatch, getters }) {
+  async cancelMessage({ commit, dispatch, getters }) {
     const follower = getters.activeFollower
     if (follower) {
       await dispatch('chatRuns/cancelRun', follower.runId, { root: true })
+      return
+    }
+    const chat = getters.currentChat
+    if (chat?.running) {
+      // Until the send is accepted there is no run; register stops it then.
+      commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
     }
   },
 

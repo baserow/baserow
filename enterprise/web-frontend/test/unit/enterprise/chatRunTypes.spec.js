@@ -51,6 +51,20 @@ describe('Kuma HTTP record adapter', () => {
     return destroyRunsTestApp(testApp)
   })
 
+  test('a stop requested in another tab marks the run as stopping', async () => {
+    await acceptRecord(
+      store,
+      runRecord(
+        'chat-run-state',
+        {},
+        { cancel_requested: true, cursor: cursor(1) }
+      )
+    )
+    expect(
+      store.getters['chatRuns/getFollower']('run-1').view.cancelRequested
+    ).toBe(true)
+  })
+
   test('cumulative records replace text rather than appending it twice', async () => {
     await acceptRecord(
       store,

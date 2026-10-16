@@ -127,14 +127,20 @@ export default {
       return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
+      const follower = this.activeFollower
       return Boolean(
-        this.currentChat?.cancelling || this.activeFollower?.stopRequested
+        this.currentChat?.cancelling ||
+        follower?.stopRequested ||
+        follower?.view.cancelRequested
       )
     },
     assistantRunningMessage() {
       const follower = this.activeFollower
       if (!follower) {
         return ''
+      }
+      if (follower.stopRequested || follower.view.cancelRequested) {
+        return this.$t('assistant.statusStopping')
       }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')
