@@ -130,6 +130,13 @@ class ImportExportConfig:
     check that against.
     """
 
+    exported_by: Optional["AbstractUser"] = None
+    """
+    The authenticated person exporting an archive, when there is one. Application
+    types can protect private configuration independently of application.read.
+    System and CLI exports leave this unset; copying retains its existing context.
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """

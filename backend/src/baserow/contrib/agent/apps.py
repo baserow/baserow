@@ -5,11 +5,18 @@ class AgentConfig(AppConfig):
     name = "baserow.contrib.agent"
 
     def ready(self):
-        from baserow.core.registries import application_type_registry
+        from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
+        from baserow.contrib.agent.application_types import AgentApplicationType
+        from baserow.contrib.agent.operations import ReadAgentSettingsOperationType
+        from baserow.contrib.agent.search_types import AgentSearchType
+        from baserow.core.action.registries import action_type_registry
+        from baserow.core.registries import (
+            application_type_registry,
+            operation_type_registry,
+        )
         from baserow.core.search.registries import workspace_search_registry
-
-        from .application_types import AgentApplicationType
-        from .search_types import AgentSearchType
 
         application_type_registry.register(AgentApplicationType())
         workspace_search_registry.register(AgentSearchType())
+        operation_type_registry.register(ReadAgentSettingsOperationType())
+        action_type_registry.register(UpdateAgentConfigurationActionType())

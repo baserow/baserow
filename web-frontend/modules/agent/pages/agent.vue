@@ -17,8 +17,11 @@ definePageMeta({
 })
 
 const { $store } = useNuxtApp()
+const route = useRoute()
 const agent = computed(() => {
-  const selected = $store.getters['application/getSelected']
+  const selected = $store.getters['application/get'](
+    Number(route.params.agentId)
+  )
   return selected?.type === 'agent' ? selected : null
 })
 useHead(() => ({ title: agent.value?.name }))
