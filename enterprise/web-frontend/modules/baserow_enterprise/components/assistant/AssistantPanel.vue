@@ -72,6 +72,7 @@ import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
 import ApplicationService from '@baserow/modules/core/services/application'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
@@ -126,12 +127,20 @@ export default {
       return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
-      return Boolean(this.currentChat?.cancelling)
+      const follower = this.activeFollower
+      return Boolean(
+        this.currentChat?.cancelling ||
+        follower?.stopRequested ||
+        follower?.view.cancelRequested
+      )
     },
     assistantRunningMessage() {
       const follower = this.activeFollower
       if (!follower) {
         return this.currentChat?.runningMessage || ''
+      }
+      if (follower.stopRequested || follower.view.cancelRequested) {
+        return this.$t('assistant.statusStopping')
       }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')
@@ -416,7 +425,11 @@ export default {
     },
 
     async handleCancelMessage() {
-      await this.cancelMessage()
+      try {
+        await this.cancelMessage()
+      } catch (error) {
+        notifyIf(error)
+      }
     },
 
     toggleChatHistoryContext() {

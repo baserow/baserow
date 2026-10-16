@@ -7,7 +7,8 @@
     "bullet_points": [
         "The export worker also consumes chat_run",
         "Export worker stop grace period is now 120s",
-        "New Helm value for that grace period"
+        "New Helm value for that grace period",
+        "Stop waits for active tools and preserves committed changes."
     ],
     "created_at": "2026-10-15"
 }

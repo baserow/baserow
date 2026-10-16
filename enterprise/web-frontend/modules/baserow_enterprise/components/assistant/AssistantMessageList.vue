@@ -111,8 +111,8 @@ export default {
       return message.role === 'ai' ? runOutcomeKey(message) : null
     },
     /**
-     * An answer without text whose run failed, such as the empty answer of a
-     * run no worker picked up, shows only its note.
+     * An answer without text whose run stopped or failed, such as the empty
+     * answer of a run stopped while queued, shows only its note.
      */
     showsBubble(message) {
       return Boolean(message.content) || !this.outcomeKey(message)

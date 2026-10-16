@@ -8,6 +8,7 @@ import {
   getStoredOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 
 const MESSAGE_TYPE = {
@@ -510,6 +511,15 @@ export const actions = {
       }
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
       resolveAccepted({ outcome: SEND_OUTCOME.ACCEPTED, runId })
+      if (chat.cancelling) {
+        try {
+          await dispatch('chatRuns/cancelRun', runId, { root: true })
+        } catch (error) {
+          notifyIf(error)
+        } finally {
+          commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
+        }
+      }
     }
     assistant(this.$client)
       .sendMessage(
@@ -519,8 +529,9 @@ export const actions = {
         async (record) => {
           if (controller.signal.aborted) return
           if (record._run?.id) {
-            // Save the accepted human prompt before registering its follower,
-            // which can already observe a terminal run and ignore later records.
+            // A queued Stop can commit and close this response while register
+            // awaits cancellation. Save the accepted human prompt before that
+            // terminal transition makes the follower ignore further records.
             if (record.type === 'human' && state.currentChatId === chat.id) {
               commit('REMOVE_MESSAGE', draftId)
               commit('UPSERT_MESSAGE', parseMessage(record))
@@ -550,6 +561,10 @@ export const actions = {
               id: legacyId,
               update: record,
             })
+            // An older backend identifies the legacy stream before any run ID.
+            if (record.type === MESSAGE_TYPE.AI_STARTED && chat.cancelling) {
+              await dispatch('cancelLegacyMessage', chat)
+            }
           }
         },
         { tabId: getTabId(), signal: controller.signal }
@@ -615,6 +630,8 @@ export const actions = {
             { root: true }
           )
         commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+        commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
+        commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
       })
     return accepted
   },
@@ -827,21 +844,27 @@ export const actions = {
     }
   },
 
-  async cancelMessage({ commit, state }) {
-    const { $client, $i18n } = this
+  async cancelMessage({ commit, dispatch, getters }) {
+    const chat = getters.currentChat
     if (usesBackgroundRuns(this.app)) {
-      // Background execution stays independent of this HTTP connection.
-      return
+      if (getters.activeFollower) {
+        await dispatch('chatRuns/cancelRun', getters.activeFollower.runId, {
+          root: true,
+        })
+        return
+      }
+      if (chat?.running && !chat.currentMessageId) {
+        // Before the first record, queue Stop until its run or legacy stream is known.
+        commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
+        return
+      }
     }
-    if (!state.currentChatId) {
-      return
-    }
+    return dispatch('cancelLegacyMessage', chat)
+  },
 
-    const chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat || !chat.running) {
-      return
-    }
-
+  async cancelLegacyMessage({ commit }, chat) {
+    if (!chat?.running) return
+    const { $client, $i18n } = this
     commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
     commit('SET_ASSISTANT_RUNNING_MESSAGE', {
       chat,
@@ -849,7 +872,7 @@ export const actions = {
     })
 
     try {
-      await assistant($client).cancelMessage(state.currentChatId)
+      await assistant($client).cancelMessage(chat.id)
     } catch (error) {
       commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })

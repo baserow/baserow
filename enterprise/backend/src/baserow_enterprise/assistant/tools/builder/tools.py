@@ -26,6 +26,7 @@ from baserow_enterprise.assistant.tools.shared import (
     permission_denied_result,
     raise_if_permission_denied,
     require_payload,
+    stopped_after,
 )
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
@@ -183,10 +184,13 @@ def create_pages(
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
     created_pages: list[PageItem] = []
     skipped_pages: list[PageItem] = []
+    stopped = None
 
     with transaction.atomic():
-        for page_create in pages:
-            tool_helpers.raise_if_cancelled()
+        for index, page_create in enumerate(pages):
+            if tool_helpers.is_cancelled:
+                stopped = stopped_after(index, len(pages))
+                break
             ex = existing.get(page_create.name.lower())
             if ex:
                 skipped_pages.append(ex)
@@ -225,6 +229,8 @@ def create_pages(
             "create_form_elements, create_collection_elements), "
             "then actions for buttons/forms (create_actions)."
         )
+    if stopped:
+        result["stopped"] = stopped
     return result
 
 

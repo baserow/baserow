@@ -24,6 +24,7 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     store = testApp.store
     api = {
       get: vi.fn().mockResolvedValue({ status: 'running' }),
+      cancel: vi.fn().mockResolvedValue({ status: 'running' }),
     }
     coreService.mockReturnValue(api)
     assistantService.mockReturnValue({
@@ -71,9 +72,13 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(status()).toBe('Creating rows')
   })
 
-  test('live output loss shows a waiting state for the saved response', async () => {
+  test('live output loss shows a waiting state while Stop still works', async () => {
     await receive(runRecord('chat-run-state', {}, { replay_unavailable: true }))
     expect(status()).toBe('assistant.statusWaitingForOutput')
+    await wrapper.find('.assistant__send-button').trigger('click')
+    await flushPromises()
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+    expect(status()).toBe('assistant.statusStopping')
   })
 
   test('a durable interrupted outcome removes Stop and shows why the answer ended', async () => {

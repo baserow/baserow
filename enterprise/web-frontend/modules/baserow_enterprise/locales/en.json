@@ -517,6 +517,8 @@
     "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",
     "statusWaitingForWorker": "Waiting for a free worker...",
     "statusWaitingForOutput": "Waiting for the saved response…",
+    "statusStopping": "Stopping...",
+    "runStopped": "You stopped Kuma. Changes it made before stopping are kept.",
     "runErrorInterrupted": "Kuma was interrupted. Some changes may already have been made, so check them, then tell Kuma how to continue.",
     "runErrorNotStarted": "Kuma couldn't start on this message because no worker picked it up. Nothing was changed.",
     "runErrorTimeout": "Kuma ran out of time before finishing. Some changes may already have been made.",
