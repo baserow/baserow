@@ -8,12 +8,17 @@
       @update:model-value="updateValue('name', $event)"
     />
   </FormGroup>
-  <FormGroup :label="$t('agents.workspaceRole')" required>
+  <FormGroup
+    :label="$t('agents.workspaceRole')"
+    :helper-text="canUseNoAccess ? $t('agents.roleHelpText') : null"
+    required
+  >
     <WorkspaceRoleSelector
       :model-value="modelValue.role_uid"
       :workspace="workspace"
       :roles="roles"
       :show-commercial-info="false"
+      show-role-icons
       @update:model-value="updateValue('role_uid', $event)"
     />
   </FormGroup>
@@ -32,6 +37,13 @@ export default {
     roles: { type: Array, required: true },
   },
   emits: ['update:modelValue'],
+  computed: {
+    canUseNoAccess() {
+      return this.roles.some(
+        (role) => role.uid === 'NO_ACCESS' && !role.isDeactivated
+      )
+    },
+  },
   methods: {
     focus() {
       this.$refs.name?.focus()

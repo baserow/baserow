@@ -1,7 +1,17 @@
 <template>
-  <ExpandOnOverflowList ref="expandOnOverflow" :row="row" :column="column">
+  <ExpandOnOverflowList
+    ref="expandOnOverflow"
+    :row="row"
+    :column="column"
+    class="management-teams-field"
+  >
+    <template #record="{ record }"
+      ><Badge rounded size="large">{{ record.name }}</Badge></template
+    >
     <template #no-records>
-      {{ $t('userTeamsField.no_records') }}
+      <span class="management-teams-field__empty">{{
+        $t('userTeamsField.no_records')
+      }}</span>
     </template>
   </ExpandOnOverflowList>
 </template>

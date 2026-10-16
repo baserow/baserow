@@ -5,14 +5,14 @@
       :service="service"
       :columns="columns"
       row-id-key="id"
+      :search-placeholder="$t('teamsTable.search')"
       @row-context="onRowContext"
-      @rows-update="teamCount = $event.length"
       @edit-role-context="onEditRoleContext"
     >
-      <template #title>
+      <template #title="{ count }">
         {{
           $t('teamsTable.title', {
-            teamCount: teamCount,
+            teamCount: count,
             workspaceName: workspace.name,
           })
         }}
@@ -41,7 +41,7 @@
           "
           type="primary"
           size="large"
-          class="margin-left-2"
+          icon="iconoir-plus"
           @click="$refs.createModal.show()"
         >
           {{ $t('teamsTable.createNew') }}
@@ -80,8 +80,8 @@ import SubjectSampleField from '@baserow_enterprise/components/crudTable/fields/
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import TeamService from '@baserow_enterprise/services/team'
 import { mapGetters } from 'vuex'
+import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import EditTeamContext from '@baserow_enterprise/components/teams/EditTeamContext'
 
@@ -102,7 +102,6 @@ export default {
   data() {
     return {
       focusedTeam: {},
-      teamCount: 0,
       editRoleTeam: {},
     }
   },
@@ -141,9 +140,11 @@ export default {
         new CrudTableColumn(
           'name',
           this.$t('teamsTable.nameColumn'),
-          SimpleField,
+          ManagementNameField,
           true,
-          true
+          true,
+          false,
+          { icon: 'iconoir-community', color: 'neutral' }
         ),
         new CrudTableColumn(
           'default_role',

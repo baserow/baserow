@@ -6,6 +6,7 @@
       :ref="`role${role.uid}`"
       :name="role.name"
       :value="role.uid"
+      :icon="showRoleIcons ? role.icon : null"
       :disabled="role.isDeactivated"
       :description="role.description"
       @click="clickOnDeactivatedItem($event)"
@@ -49,6 +50,7 @@
 export default {
   name: 'WorkspaceRoleSelector',
   props: {
+    showRoleIcons: { type: Boolean, default: false },
     modelValue: {
       type: String,
       required: true,

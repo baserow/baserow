@@ -5,14 +5,14 @@
       :service="service"
       :columns="columns"
       row-id-key="id"
-      @rows-update="invitesAmount = $event.length"
+      :search-placeholder="$t('membersSettings.invitesTable.search')"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
-      <template #title>
+      <template #title="{ count }">
         {{
           $t('membersSettings.invitesTable.title', {
-            invitesAmount,
+            invitesAmount: count,
             workspaceName: workspace.name,
           })
         }}
@@ -34,7 +34,7 @@
         <Button
           type="primary"
           size="large"
-          class="margin-left-2"
+          icon="iconoir-plus"
           @click="$refs.inviteModal.show()"
         >
           {{ $t('membersSettings.membersTable.inviteMember') }}
@@ -90,7 +90,6 @@ export default {
     return {
       editInvitation: {},
       editRoleInvitation: {},
-      invitesAmount: 0,
     }
   },
   computed: {

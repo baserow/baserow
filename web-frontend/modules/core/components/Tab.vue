@@ -13,6 +13,7 @@ export default {
     },
   },
   props: {
+    badge: { type: String, default: null },
     title: {
       type: String,
       default: 'Tab',

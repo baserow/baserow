@@ -6,7 +6,7 @@
     <FormInput
       ref="searchInput"
       v-model="headerSearchTerm"
-      :placeholder="$t('crudTableSearch.search')"
+      :placeholder="placeholder || $t('crudTableSearch.search')"
       icon-left="iconoir-search"
       :loading="loading"
       @input="doSearch($event, false)"
@@ -31,6 +31,7 @@ import debounce from 'lodash/debounce'
 export default {
   name: 'CrudTableSearch',
   props: {
+    placeholder: { type: String, default: null },
     loading: {
       type: Boolean,
       required: true,

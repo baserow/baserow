@@ -1,13 +1,10 @@
 <template>
   <div>
-    <a
-      ref="editRoleContextLink"
-      class="member-role-field__link"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      <span>{{ roleName(roles, rowSanitised) }}</span>
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+    <RoleSelectorButton
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="rowSanitised"
@@ -20,6 +17,8 @@
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import EditRoleContext from '@baserow/modules/core/components/settings/members/EditRoleContext'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -29,7 +28,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'InvitationsRoleField',
   emits: ['row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,
@@ -41,6 +40,11 @@ export default {
     },
   },
   computed: {
+    selectedRole() {
+      return this.roles.find(
+        (role) => role.uid === this.rowSanitised.permissions
+      )
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     workspace() {
       return this.$store.getters['workspace/get'](
@@ -62,10 +66,6 @@ export default {
     },
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.permissions)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: invitation }) {
       const oldInvitation = clone(invitation)
       const newInvitation = clone(invitation)

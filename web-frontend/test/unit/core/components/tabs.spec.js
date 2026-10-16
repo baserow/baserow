@@ -65,3 +65,18 @@ describe('Tabs', () => {
     expect(tabItem.get('.tabs__link').text()).toBe('Agents')
   })
 })
+
+test('shows an optional tab badge without changing its navigation label', async () => {
+  const wrapper = await mountSuspended(Tabs, {
+    slots: {
+      default:
+        '<Tab title="Members">Members</Tab><Tab title="Agents" badge="New">Agents</Tab>',
+    },
+  })
+  const links = wrapper.findAll('.tabs__link')
+  expect(links[0].find('.badge').exists()).toBe(false)
+  expect(links[1].get('.badge').text()).toBe('New')
+  await links[1].trigger('click')
+  expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
+  wrapper.unmount()
+})
