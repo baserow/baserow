@@ -39,6 +39,7 @@ class AssistantChat(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     title = models.CharField(
         max_length=TITLE_MAX_LENGTH, blank=True, help_text="The title of the chat."
     )
+    # TODO ZDM: remove this field in the next version
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.IDLE
     )
