@@ -161,6 +161,7 @@ export default defineNuxtPlugin({
     const registry = nuxtApp.$registry
 
     registry.registerNamespace('plugin')
+    registry.registerNamespace('chatRunType')
     registry.registerNamespace('permissionManager')
     registry.registerNamespace('application')
     registry.registerNamespace('authProvider')

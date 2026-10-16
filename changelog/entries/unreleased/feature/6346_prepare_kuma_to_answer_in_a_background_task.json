@@ -1,0 +1,13 @@
+{
+    "type": "feature",
+    "message": "Add reusable background chat runs with HTTP streaming and replay.",
+    "issue_origin": "github",
+    "issue_number": 6346,
+    "domain": "core",
+    "bullet_points": [
+        "The export worker also consumes chat_run",
+        "Export worker stop grace period is now 120s",
+        "New Helm value for that grace period"
+    ],
+    "created_at": "2026-10-15"
+}

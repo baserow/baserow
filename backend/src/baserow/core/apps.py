@@ -719,6 +719,13 @@ class CoreConfig(AppConfig):
             plugin_dir.register(HerokuExternalFileStorageConfiguredHealthCheck)
         plugin_dir.register(DefaultFileStorageHealthCheck)
 
+        from baserow.core.chat_runs.health_checks import ChatRunsHealthCheck
+        from baserow.core.chat_runs.pages import ChatRunsPageType
+        from baserow.ws.registries import page_registry
+
+        plugin_dir.register(ChatRunsHealthCheck)
+        page_registry.register(ChatRunsPageType())
+
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
         import baserow.core.integrations.ws.signals  # noqa: F403, F401

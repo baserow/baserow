@@ -18,6 +18,7 @@ import presenceStoreModule from '../store/presence'
 import aiProviderStoreModule from '../store/aiProvider'
 import guidedTourStoreModule from '../store/guidedTour'
 import agentStoreModule from '../store/agent'
+import chatRunsStoreModule from '../store/chatRuns'
 
 export default defineNuxtPlugin({
   name: 'create-store',
@@ -42,6 +43,7 @@ export default defineNuxtPlugin({
         aiProvider: aiProviderStoreModule,
         guidedTour: guidedTourStoreModule,
         agent: agentStoreModule,
+        chatRuns: chatRunsStoreModule,
       },
     })
     nuxtApp.vueApp.use(store)

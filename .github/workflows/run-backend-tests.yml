@@ -44,6 +44,14 @@ jobs:
           --health-retries 5
           --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
           --shm-size=512m
+      redis:
+        image: redis:6-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /data:rw,noexec,nosuid,size=256m
     steps:
       - name: Log in to GitHub Container Registry
         if: inputs.is_fork != 'true'
@@ -85,6 +93,7 @@ jobs:
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
+            -e BASEROW_TEST_CHAT_RUN_REDIS_URL=redis://redis:6379/15 \
             -e SECRET_KEY=test-secret-key \
             -e BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE=/usr/local/bin/wasmtime \
             -e BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=/usr/local/lib/baserow/qjs.wasm \
