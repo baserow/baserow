@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
+    HeadingElementType,
 )
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
@@ -10,6 +13,8 @@ from baserow.contrib.builder.elements.exceptions import (
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element, HeadingElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.core.cache import local_cache
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -624,3 +629,46 @@ def test_get_element_property_options_returns_expected_options(
             "sortable": sortable,
         },
     }
+
+
+@pytest.mark.django_db
+def test_get_previous_positions_builds_the_page_point_map_once(data_fixture):
+    page = data_fixture.create_builder_page()
+    elements = [
+        data_fixture.create_builder_heading_element(page=page) for _ in range(30)
+    ]
+
+    built_point_maps = []
+    build_point_map = BaseGraphHandler.build_point_map
+
+    def spy(self, points):
+        point_map = build_point_map(self, points)
+        built_point_maps.append(point_map)
+        return point_map
+
+    with local_cache.context(), patch.object(BaseGraphHandler, "build_point_map", spy):
+        positions = page.get_graph().get_previous_positions(elements[-1])
+
+    # Walking back a 30 element chain looks up every previous element, but the
+    # point map of the page must only be built once for all those lookups.
+    assert [p[0] for p in positions] == elements[:-1]
+    assert len(built_point_maps) >= len(elements) - 1
+    assert len({id(point_map) for point_map in built_point_maps}) == 1
+
+
+@pytest.mark.django_db
+def test_page_point_map_includes_an_element_created_after_it_was_built(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_heading_element(page=page)
+
+    with local_cache.context():
+        graph = page.get_graph()
+        assert graph.get_point(first.id) == first
+
+        created = ElementHandler().create_element(HeadingElementType(), page=page)
+        graph.insert(created, first, GraphPointPosition.SOUTH, "")
+
+        assert graph.get_point(created.id) == created
+        assert set(graph.get_point_map()) == {first.id, created.id}

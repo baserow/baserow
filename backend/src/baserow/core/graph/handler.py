@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 from django.db import models, transaction
 
@@ -287,6 +287,30 @@ class BaseGraphHandler(ABC):
         """
         ...
 
+    def build_point_map(self, points: Iterable[GraphPoint]) -> Dict[int, GraphPoint]:
+        """
+        Builds the `{point_id: point}` mapping for the given points. The mapping is
+        reused for as long as the very same `points` object is passed again, which
+        is the case for a request-cached list of points. When that cache is
+        invalidated, a new list is passed and the mapping is rebuilt.
+
+        Without this, every `get_point` call rebuilds the mapping, which makes walks
+        such as `get_previous_positions` quadratic in the number of points.
+
+        :param points: The points of the graph, usually the cached list.
+        :return: The mapping of point ID to point.
+        """
+
+        memo = getattr(self, "_point_map_memo", None)
+        if memo is not None and memo[0] is points:
+            return memo[1]
+
+        point_map = {point.id: point for point in points}
+        # Keeping a reference to `points` guarantees the identity check above
+        # can't match a different object that reused the same memory address.
+        self._point_map_memo = (points, point_map)
+        return point_map
+
     def get_point(self, point_id: str | int) -> GraphPoint:
         """
         Given a graph point, return the corresponding model instance from the point map.
@@ -295,10 +319,11 @@ class BaseGraphHandler(ABC):
         :return: The model instance corresponding to the given graph point ID.
         """
 
-        if int(point_id) not in self.get_point_map():
-            raise self.does_not_exist_exception(point_id)
-
-        return self.get_point_map()[int(point_id)]
+        point_map = self.get_point_map()
+        try:
+            return point_map[int(point_id)]
+        except KeyError:
+            raise self.does_not_exist_exception(point_id) from None
 
     def get_point_at_position(
         self,
