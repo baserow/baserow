@@ -274,3 +274,29 @@ def test_ai_agent_count_model_references_keeps_services_with_one_live_owner(
     )
 
     assert feature_type.count_model_references("openai", "agent-model", workspace) == 1
+
+
+@pytest.mark.django_db
+def test_ai_agent_count_model_references_includes_live_agent_applications(
+    data_fixture,
+):
+    selection = {"provider_type": "openai", "model_identifier": "agent-model"}
+    agent = data_fixture.create_agent_application(**selection)
+    data_fixture.create_agent_application(workspace=None, **selection)
+    data_fixture.create_agent_application(
+        workspace=agent.workspace, trashed=True, **selection
+    )
+    trashed_workspace = data_fixture.create_workspace()
+    trashed_workspace.trashed = True
+    trashed_workspace.save()
+    data_fixture.create_agent_application(workspace=trashed_workspace, **selection)
+    data_fixture.create_agent_application(**selection)
+    feature_type = ai_provider_model_feature_type_registry.get(
+        AI_PROVIDER_FEATURE_AI_AGENT
+    )
+
+    assert (
+        feature_type.count_model_references("openai", "agent-model", agent.workspace)
+        == 1
+    )
+    assert feature_type.count_model_references("openai", "agent-model", None) == 2

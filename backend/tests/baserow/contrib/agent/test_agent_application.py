@@ -58,15 +58,22 @@ def test_agent_creation_requires_feature_flag(data_fixture, settings):
 @pytest.mark.parametrize(
     "copy_agent", [duplicate, restore_snapshot, import_workspace_archive]
 )
-def test_agent_copy_is_a_new_agent(data_fixture, use_tmp_media_root, copy_agent):
+def test_agent_copy_is_a_new_agent_with_the_same_configuration(
+    data_fixture, use_tmp_media_root, configured_agent, copy_agent
+):
     user = data_fixture.create_user()
-    agent = data_fixture.create_agent_application(user=user)
+    agent = configured_agent(user=user)
 
     copied = copy_agent(data_fixture, user, agent).specific
 
     assert isinstance(copied, AgentApplication)
     assert copied.id != agent.id
     assert AgentApplication.objects.filter(id=agent.id).exists()
+    assert (copied.instructions, copied.provider_type, copied.model_identifier) == (
+        agent.instructions,
+        agent.provider_type,
+        agent.model_identifier,
+    )
 
 
 @pytest.mark.django_db

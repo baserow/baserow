@@ -4,6 +4,25 @@
     "applicationNamePlural": "Agents",
     "applicationDescription": "Create an agent in your workspace.",
     "createApplication": "Create agent",
-    "emptyDescription": "This agent is empty. You can rename it or manage its access, but it cannot perform tasks yet."
+    "configuration": "Configuration",
+    "instructions": "Instructions",
+    "instructionsDescription": "Describe your agent’s behavior.",
+    "instructionsHelper": "Write plain-text instructions for this agent.",
+    "agentSettings": "Agent settings",
+    "agentSettingsDescription": "Name and AI provider/model.",
+    "name": "Name",
+    "provider": "AI provider",
+    "model": "Model",
+    "talkTo": "Talk to {name}",
+    "chatDescription": "Start a conversation with your agent.",
+    "configurationRequired": "Complete the agent configuration",
+    "completeConfiguration": "Save the required settings before writing a message.",
+    "configurationPermissionRequired": "You don’t have permission to edit this agent’s configuration. Ask your workspace administrator to give you permission or complete the configuration for you.",
+    "modelUnavailable": "The selected model is unavailable. Choose an available model.",
+    "saving": "Saving changes…",
+    "configurationLoadError": "The agent configuration could not be loaded.",
+    "configurationSaveError": "Changes could not be saved.",
+    "readinessLoadError": "The agent’s availability could not be checked.",
+    "readinessRetry": "Try again before writing a message."
   }
 }
