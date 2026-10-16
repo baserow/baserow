@@ -30,6 +30,13 @@ from baserow_enterprise.assistant.types import (
 )
 
 
+@pytest.fixture(autouse=True)
+def legacy_execution(settings):
+    """This module verifies the original in-request implementation with the flag off."""
+
+    settings.FEATURE_FLAGS = []
+
+
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cannot_list_assistant_chats_without_valid_workspace(
@@ -102,10 +109,10 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
         chat = data["results"][i]
         assert chat == {
             "uuid": AnyStr(),
+            "chat_id": created_chats[i].id,
             "user_id": user.id,
             "workspace_id": workspace.id,
             "title": f"Chat {i}",
-            "status": AssistantChat.Status.IDLE,
             "created_on": "2024-01-14T12:00:00Z",
             "updated_on": "2024-01-14T12:00:00Z",
         }
@@ -124,10 +131,10 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
     assert len(data["results"]) == 1
     assert data["results"][0] == {
         "uuid": AnyStr(),
+        "chat_id": created_chats[2].id,
         "user_id": user.id,
         "workspace_id": workspace.id,
         "title": "Chat 2",
-        "status": AssistantChat.Status.IDLE,
         "created_on": "2024-01-14T12:00:00Z",
         "updated_on": "2024-01-14T12:00:00Z",
     }

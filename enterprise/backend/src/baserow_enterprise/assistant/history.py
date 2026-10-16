@@ -7,7 +7,15 @@ turn down to (user prompt, final answer) and trim to a fixed window so the
 context doesn't grow unboundedly.
 """
 
-from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+from loguru import logger
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelMessagesTypeAdapter,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
 
 from baserow_enterprise.assistant.action_memory import (
     _has_user_prompt,
@@ -15,6 +23,11 @@ from baserow_enterprise.assistant.action_memory import (
 )
 
 MAX_HISTORY_MESSAGES = 20
+UNFINISHED_ANSWER = (
+    "I couldn't finish my answer, but some changes may already have been made. "
+    "Please check them, then tell me how to continue."
+)
+NOT_STARTED_ANSWER = "I couldn't start working on this message, so nothing changed."
 
 
 def _get_final_text_response(turn: list[ModelMessage]) -> ModelResponse | None:
@@ -109,3 +122,56 @@ def compact_message_history(
         compacted = compacted[-max_messages:]
 
     return carry_verified_actions(messages, compacted)
+
+
+def unfinished_answer(text: str) -> str:
+    """
+    :param text: What the user saw of the answer when the run stopped.
+    :return: That text followed by the note that tells the model the turn is
+        unfinished.
+    """
+
+    return f"{text}\n\n{UNFINISHED_ANSWER}" if text else UNFINISHED_ANSWER
+
+
+def count_user_prompts(messages: list[ModelMessage]) -> int:
+    """
+    Counts user prompt parts. pydantic-ai's history cleaning can merge messages
+    but keeps every part, so comparing counts tells whether the agent added its
+    prompt.
+
+    :param messages: A message history.
+    :return: The number of user prompt parts.
+    """
+
+    return sum(
+        isinstance(part, UserPromptPart)
+        for message in messages
+        if isinstance(message, ModelRequest)
+        for part in message.parts
+    )
+
+
+def append_turn(history: bytes | memoryview | None, prompt: str, answer: str) -> bytes:
+    """
+    Adds a prompt and its answer to a saved history, for a message whose run didn't
+    record its own turn. A history that can't be read is replaced, as loading it
+    would discard it anyway.
+
+    :param history: The chat's saved history, if any.
+    :param prompt: The human message.
+    :param answer: The answer to record for it.
+    :return: The new history, serialized.
+    """
+
+    messages: list[ModelMessage] = []
+    if history:
+        try:
+            messages = ModelMessagesTypeAdapter.validate_json(bytes(history))
+        except ValueError:
+            logger.warning("Replacing an assistant message history that can't be read")
+    messages += [
+        ModelRequest(parts=[UserPromptPart(content=prompt)]),
+        ModelResponse(parts=[TextPart(content=answer)]),
+    ]
+    return ModelMessagesTypeAdapter.dump_json(messages)
