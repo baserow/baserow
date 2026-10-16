@@ -75,6 +75,12 @@ class DashboardConfig(AppConfig):
         operation_type_registry.register(ReadDashboardDataSourceOperationType())
         operation_type_registry.register(DispatchDashboardDataSourceOperationType())
 
+        from baserow.contrib.dashboard.operations import (
+            UpdateDashboardSlugOperationType,
+        )
+
+        operation_type_registry.register(UpdateDashboardSlugOperationType())
+
         from baserow.contrib.dashboard.widgets.registries import widget_type_registry
         from baserow.contrib.dashboard.widgets.widget_types import SummaryWidgetType
 
@@ -105,6 +111,7 @@ class DashboardConfig(AppConfig):
         )
 
         import baserow.contrib.dashboard.receivers  # noqa: F401
+        from baserow.contrib.dashboard.actions import RotateDashboardSlugActionType
         from baserow.contrib.dashboard.data_sources.actions import (
             UpdateDashboardDataSourceActionType,
         )
@@ -128,6 +135,7 @@ class DashboardConfig(AppConfig):
         action_type_registry.register(UpdateWidgetLayoutActionType())
         action_type_registry.register(DeleteWidgetActionType())
         action_type_registry.register(UpdateDashboardDataSourceActionType())
+        action_type_registry.register(RotateDashboardSlugActionType())
 
         from baserow.core.search.registries import workspace_search_registry
 
