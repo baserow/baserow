@@ -30,7 +30,11 @@
             @change="renameApplication(application, $event)"
           ></Editable>
         </span>
-        <i v-if="isInError" class="tree__error-icon iconoir-warning-circle"></i>
+        <i
+          v-if="isInError"
+          v-tooltip="errorMessage"
+          class="tree__error-icon iconoir-warning-circle"
+        ></i>
       </a>
 
       <a
@@ -111,8 +115,11 @@ export default {
     applicationType() {
       return this.$registry.get('application', this.application.type)
     },
+    errorMessage() {
+      return this.applicationType.getErrorMessage(this.application)
+    },
     isInError() {
-      return this.applicationType.isInError(this.application)
+      return Boolean(this.errorMessage)
     },
   },
 }

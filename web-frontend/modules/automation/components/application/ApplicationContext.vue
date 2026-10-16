@@ -25,6 +25,7 @@
             {{ $t('sidebarComponentBuilder.settings') }}
             <i
               v-if="settingsInError"
+              v-tooltip="settingsErrorMessage"
               class="context__menu-item-error-icon iconoir-warning-circle"
             ></i>
           </a>
@@ -72,16 +73,25 @@ export default defineComponent({
       context.value.hide()
     }
 
-    const settingsInError = computed(() =>
-      app.$registry
-        .getOrderedList('automationSettings')
-        .some((setting) => setting.isInError(application.value))
-    )
+    const settingsErrorMessage = computed(() => {
+      for (const setting of app.$registry.getOrderedList(
+        'automationSettings'
+      )) {
+        const message = setting.getErrorMessage(application.value)
+        if (message) {
+          return message
+        }
+      }
+      return null
+    })
+
+    const settingsInError = computed(() => Boolean(settingsErrorMessage.value))
 
     return {
       context,
       automationSettingsModal,
       openSettingsModal,
+      settingsErrorMessage,
       settingsInError,
     }
   },

@@ -120,15 +120,27 @@ export class ApplicationType extends Registerable {
   }
 
   /**
-   * Returns whether something in the application needs the user's attention,
-   * for example a misconfigured integration. It's used to flag the
-   * application in the sidebar, so the user can follow the trail to the issue.
+   * Returns why something in the application needs the user's attention, for
+   * example a misconfigured integration, or null when nothing does. It's used
+   * to flag the application in the sidebar, so the user can follow the trail
+   * to the issue.
+   *
+   * @param {object} application The application to check.
+   * @returns {string|null} The error message, if any.
+   */
+  getErrorMessage(application) {
+    return null
+  }
+
+  /**
+   * Override `getErrorMessage` instead of this method so an application in
+   * error also provides a user-facing explanation.
    *
    * @param {object} application The application to check.
    * @returns {boolean} If the application is in error.
    */
   isInError(application) {
-    return false
+    return Boolean(this.getErrorMessage(application))
   }
 
   constructor(...args) {

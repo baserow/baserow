@@ -25,6 +25,7 @@
             {{ $t('sidebarComponentBuilder.settings') }}
             <i
               v-if="settingsInError"
+              v-tooltip="settingsErrorMessage"
               class="context__menu-item-error-icon iconoir-warning-circle"
             ></i>
           </a>
@@ -62,10 +63,17 @@ export default {
     },
   },
   computed: {
+    settingsErrorMessage() {
+      for (const setting of this.$registry.getOrderedList('builderSettings')) {
+        const message = setting.getErrorMessage(this.application)
+        if (message) {
+          return message
+        }
+      }
+      return null
+    },
     settingsInError() {
-      return this.$registry
-        .getOrderedList('builderSettings')
-        .some((setting) => setting.isInError(this.application))
+      return Boolean(this.settingsErrorMessage)
     },
   },
   methods: {

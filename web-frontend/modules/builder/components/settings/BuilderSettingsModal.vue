@@ -32,6 +32,7 @@
             ></i>
             <i
               v-else-if="setting.isInError(builder)"
+              v-tooltip="setting.getErrorMessage(builder)"
               class="modal-sidebar__nav-error-icon iconoir-warning-circle"
             ></i>
           </a>

@@ -8,7 +8,7 @@ import BuilderApplicationContext from '@baserow/modules/builder/components/appli
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
-import { integrationsInError } from '@baserow/modules/core/utils/integration'
+import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {
@@ -59,8 +59,8 @@ export class BuilderApplicationType extends ApplicationType {
     return BuilderApplicationContext
   }
 
-  isInError(application) {
-    return integrationsInError(this.app, application.integrations)
+  getErrorMessage(application) {
+    return integrationsErrorMessage(this.app, application.integrations)
   }
 
   getTemplateSidebarComponent() {

@@ -16,7 +16,7 @@
             :image="getIntegrationType(integration).image"
             :icon="getIntegrationType(integration).iconClass"
             :title="integration.name"
-            :subtitle="getIntegrationType(integration).getSummary(integration)"
+            :subtitle="getSubtitle(integration)"
             :subtitle-error="
               showErrors &&
               getIntegrationType(integration).isInError(integration)
@@ -56,7 +56,10 @@
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import { mapActions } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { showIntegrationErrors } from '@baserow/modules/core/utils/integration'
+import {
+  integrationSubtitle,
+  showIntegrationErrors,
+} from '@baserow/modules/core/utils/integration'
 
 export default {
   name: 'IntegrationSettings',
@@ -99,6 +102,9 @@ export default {
     }),
     getIntegrationType(integration) {
       return this.$registry.get('integration', integration.type)
+    },
+    getSubtitle(integration) {
+      return integrationSubtitle(this, integration)
     },
     async deleteIntegration(integration) {
       try {

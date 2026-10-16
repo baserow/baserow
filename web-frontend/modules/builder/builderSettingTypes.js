@@ -1,6 +1,6 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import { integrationsInError } from '@baserow/modules/core/utils/integration'
+import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
 import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
 import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
@@ -37,15 +37,27 @@ export class BuilderSettingType extends Registerable {
   }
 
   /**
-   * Returns whether this setting contains something that needs the user's
-   * attention. Used to flag the setting, and the "Settings" entry leading to
-   * it, so the user can follow the trail to the issue.
+   * Returns why this setting contains something that needs the user's
+   * attention, or null when nothing does. Used to flag the setting, and the
+   * "Settings" entry leading to it, so the user can follow the trail to the
+   * issue.
+   *
+   * @param {object} application The application the setting belongs to.
+   * @returns {string|null} The error message, if any.
+   */
+  getErrorMessage(application) {
+    return null
+  }
+
+  /**
+   * Override `getErrorMessage` instead of this method so a setting in error
+   * also provides a user-facing explanation.
    *
    * @param {object} application The application the setting belongs to.
    * @returns {boolean} If the setting is in error.
    */
   isInError(application) {
-    return false
+    return Boolean(this.getErrorMessage(application))
   }
 
   isDeactivated({ workspace }) {
@@ -126,8 +138,8 @@ export class IntegrationsBuilderSettingsType extends BuilderSettingType {
     return IntegrationSettings
   }
 
-  isInError(application) {
-    return integrationsInError(this.app, application.integrations)
+  getErrorMessage(application) {
+    return integrationsErrorMessage(this.app, application.integrations)
   }
 }
 

@@ -29,6 +29,7 @@
             {{ setting.name }}
             <i
               v-if="setting.isInError(automation)"
+              v-tooltip="setting.getErrorMessage(automation)"
               class="modal-sidebar__nav-error-icon iconoir-warning-circle"
             ></i>
           </a>

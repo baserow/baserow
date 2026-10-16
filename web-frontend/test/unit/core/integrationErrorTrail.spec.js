@@ -4,6 +4,7 @@ import SidebarApplication from '@baserow/modules/core/components/sidebar/Sidebar
 import Presentation from '@baserow/modules/core/components/Presentation'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import { IntegrationsBuilderSettingsType } from '@baserow/modules/builder/builderSettingTypes'
+import { integrationSubtitle } from '@baserow/modules/core/utils/integration'
 
 const LOCAL_BASEROW_OK = {
   id: 1,
@@ -64,6 +65,15 @@ describe('Integration error trail', () => {
           integrations: [LOCAL_BASEROW_OK, LOCAL_BASEROW_NO_USER],
         })
       ).toBe(true)
+      // The message comes from the integration that is in error.
+      expect(
+        applicationType.getErrorMessage({
+          integrations: [LOCAL_BASEROW_OK, LOCAL_BASEROW_NO_USER],
+        })
+      ).toBe('localBaserowIntegrationType.errorNoUser')
+      expect(
+        applicationType.getErrorMessage({ integrations: [LOCAL_BASEROW_OK] })
+      ).toBe(null)
     }
   )
 
@@ -95,6 +105,25 @@ describe('Integration error trail', () => {
     )
   })
 
+  test('the subtitle explains why an integration is in error', () => {
+    const app = {
+      $registry: registry(),
+      $featureFlagIsEnabled: vi.fn().mockReturnValue(true),
+    }
+    expect(integrationSubtitle(app, LOCAL_BASEROW_NO_USER)).toBe(
+      'localBaserowIntegrationType.errorNoUser'
+    )
+    expect(integrationSubtitle(app, LOCAL_BASEROW_OK)).toBe(
+      'localBaserowIntegrationType.localBaserowSummary'
+    )
+
+    // Without the feature flag, the summary is kept.
+    app.$featureFlagIsEnabled.mockReturnValue(false)
+    expect(integrationSubtitle(app, LOCAL_BASEROW_NO_USER)).toBe(
+      'localBaserowIntegrationType.localBaserowNoUser'
+    )
+  })
+
   test('applications without integrations are never in error', () => {
     expect(registry().get('application', 'database').isInError({})).toBe(false)
   })
@@ -111,6 +140,11 @@ describe('Integration error trail', () => {
         .filter((setting) => setting.isInError(application))
         .map((setting) => setting.getType())
       expect(inError).toEqual(['integrations'])
+      expect(
+        registry()
+          .get(registryName, 'integrations')
+          .getErrorMessage(application)
+      ).toBe('localBaserowIntegrationType.errorNoUser')
       expect(
         registry().get('application', applicationType).isInError(application)
       ).toBe(true)

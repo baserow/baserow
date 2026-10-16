@@ -7,7 +7,7 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
 import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
-import { integrationsInError } from '@baserow/modules/core/utils/integration'
+import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -50,8 +50,8 @@ export class AutomationApplicationType extends ApplicationType {
     return ApplicationContext
   }
 
-  isInError(application) {
-    return integrationsInError(this.app, application.integrations)
+  getErrorMessage(application) {
+    return integrationsErrorMessage(this.app, application.integrations)
   }
 
   getApplicationFormComponent() {
