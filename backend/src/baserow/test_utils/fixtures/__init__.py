@@ -1,6 +1,7 @@
 from baserow.core.db import get_collation_name
 from baserow.test_utils.fixtures.two_factor_auth import TwoFactorAuthFixtures
 
+from .agent import AgentApplicationFixtures
 from .airtable import AirtableFixtures
 from .app_auth_provider import AppAuthProviderFixtures
 from .application import ApplicationFixtures
@@ -48,6 +49,7 @@ class Fixtures(
     UserFileFixtures,
     WorkspaceFixtures,
     ApplicationFixtures,
+    AgentApplicationFixtures,
     AutomationWorkflowFixtures,
     AutomationWorkflowHistoryFixtures,
     AutomationNodeFixtures,

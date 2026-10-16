@@ -3,11 +3,6 @@ import path from 'path'
 // Routes that should be children of 'root' (inherit layout and middlewares)
 export const rootChildRoutes = [
   {
-    name: 'agent-application',
-    path: '/agent/:agentId',
-    file: path.resolve(__dirname, 'agent/pages/agent.vue'),
-  },
-  {
     name: 'admin-auth-providers',
     path: '/admin/auth-providers',
     file: path.resolve(__dirname, 'pages/admin/authProviders.vue'),

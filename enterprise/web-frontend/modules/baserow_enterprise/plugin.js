@@ -14,9 +14,6 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
-import { AgentApplicationType } from '@baserow_enterprise/agent/applicationTypes'
-import { AgentApplicationSearchType } from '@baserow_enterprise/agent/searchTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -144,8 +141,6 @@ export default defineNuxtPlugin({
 
     $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
     $store.registerModuleNuxtSafe('assistant', assistantStore)
-    $registry.register('application', new AgentApplicationType(context))
-    searchTypeRegistry.register(new AgentApplicationSearchType(context))
 
     $registry.register('admin', new AuthProvidersType(context))
     $registry.unregister(

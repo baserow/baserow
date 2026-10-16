@@ -55,22 +55,10 @@ def register_xls_file_reader_features():
     automation_node_type_registry.register(CoreXLSFileReaderActionNodeType())
 
 
-def register_agent_features():
-    from baserow.core.registries import application_type_registry
-    from baserow.core.search.registries import workspace_search_registry
-    from baserow_enterprise.agent.application_types import AgentApplicationType
-    from baserow_enterprise.agent.search_types import AgentSearchType
-
-    application_type_registry.register(AgentApplicationType())
-    workspace_search_registry.register(AgentSearchType())
-
-
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
-        register_agent_features()
-
         from baserow.core.agents.registries import agent_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
         from baserow_enterprise.agents.agent_extension_types import (

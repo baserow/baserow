@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { selectAgentApplication } from '@baserow_enterprise/agent/middleware/selectAgentApplication'
+import { selectAgentApplication } from '@baserow/modules/agent/middleware/selectAgentApplication'
 
 describe('Agent application routes', () => {
   let testApp

@@ -1,5 +1,5 @@
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.search.search_types import ApplicationSearchType
-from baserow_enterprise.agent.models import AgentApplication
 
 
 class AgentSearchType(ApplicationSearchType):

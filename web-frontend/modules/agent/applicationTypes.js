@@ -1,8 +1,8 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import AgentApplicationContext from '@baserow_enterprise/agent/components/AgentApplicationContext'
-import AgentApplicationForm from '@baserow_enterprise/agent/components/AgentApplicationForm'
-import AgentApplicationSidebar from '@baserow_enterprise/agent/components/AgentApplicationSidebar'
-import { FF_AGENT_BUILDER } from '@baserow_enterprise/agent/constants'
+import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
+import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
+import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
+import { FF_AGENT_BUILDER } from '@baserow/modules/agent/constants'
 
 export class AgentApplicationType extends ApplicationType {
   static getType() {

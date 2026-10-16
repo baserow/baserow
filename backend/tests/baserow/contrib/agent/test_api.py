@@ -2,6 +2,7 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.action.models import Action
 from baserow.core.actions import (
     CreateApplicationActionType,
@@ -15,7 +16,6 @@ from baserow.core.registries import (
     subject_type_registry,
 )
 from baserow.core.trash.registries import trash_item_type_registry
-from baserow_enterprise.agent.models import AgentApplication
 
 
 def application_url(application):
@@ -25,10 +25,10 @@ def application_url(application):
 @pytest.mark.django_db
 @pytest.mark.parametrize("init_with_data", [True, False])
 def test_agent_application_crud_uses_core_actions(
-    enterprise_data_fixture, api_client, init_with_data
+    data_fixture, api_client, init_with_data
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     response = api_client.post(
         reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
@@ -72,12 +72,10 @@ def test_agent_application_crud_uses_core_actions(
 
 
 @pytest.mark.django_db
-def test_agents_use_workspace_application_ordering(enterprise_data_fixture, api_client):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    database = enterprise_data_fixture.create_database_application(
-        workspace=workspace, order=1
-    )
+def test_agents_use_workspace_application_ordering(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace, order=1)
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     url = reverse("api:applications:list", kwargs={"workspace_id": workspace.id})
     first = api_client.post(
@@ -111,10 +109,10 @@ def test_agents_use_workspace_application_ordering(enterprise_data_fixture, api_
 @pytest.mark.parametrize("name", ["", " ", None, "x" * 161])
 @pytest.mark.parametrize("method", ["post", "patch"])
 def test_agent_application_name_validation_does_not_write(
-    enterprise_data_fixture, api_client, name, method
+    data_fixture, api_client, name, method
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(user=user, name="Original")
+    user, token = data_fixture.create_user_and_token()
+    agent = data_fixture.create_agent_application(user=user, name="Original")
     url = (
         reverse("api:applications:list", kwargs={"workspace_id": agent.workspace_id})
         if method == "post"
@@ -137,10 +135,10 @@ def test_agent_application_name_validation_does_not_write(
 @pytest.mark.django_db
 @pytest.mark.parametrize("method", ["get", "post", "patch", "delete"])
 def test_agent_application_crud_requires_workspace_membership(
-    enterprise_data_fixture, api_client, method
+    data_fixture, api_client, method
 ):
-    _, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(name="Private")
+    _, token = data_fixture.create_user_and_token()
+    agent = data_fixture.create_agent_application(name="Private")
     url = (
         reverse("api:applications:list", kwargs={"workspace_id": agent.workspace_id})
         if method == "post"
@@ -164,9 +162,9 @@ def test_agent_application_crud_requires_workspace_membership(
 @pytest.mark.django_db
 @pytest.mark.parametrize("method", ["get", "post", "patch", "delete"])
 def test_agent_application_crud_requires_authentication(
-    enterprise_data_fixture, api_client, method
+    data_fixture, api_client, method
 ):
-    agent = enterprise_data_fixture.create_agent_application()
+    agent = data_fixture.create_agent_application()
     url = (
         reverse("api:applications:list", kwargs={"workspace_id": agent.workspace_id})
         if method == "post"
@@ -181,11 +179,11 @@ def test_agent_application_crud_requires_authentication(
 
 @pytest.mark.django_db
 def test_template_preview_lists_agent_applications_and_is_read_only(
-    enterprise_data_fixture, api_client
+    data_fixture, api_client
 ):
-    _, token = enterprise_data_fixture.create_user_and_token()
-    template = enterprise_data_fixture.create_template()
-    agent = enterprise_data_fixture.create_agent_application(
+    _, token = data_fixture.create_user_and_token()
+    template = data_fixture.create_template()
+    agent = data_fixture.create_agent_application(
         workspace=template.workspace, name="Template agent"
     )
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
@@ -210,11 +208,11 @@ def test_template_preview_lists_agent_applications_and_is_read_only(
 @pytest.mark.django_db
 @pytest.mark.parametrize("init_with_data", [True, False])
 def test_agent_application_creation_disabled_by_feature_flag(
-    enterprise_data_fixture, api_client, settings, init_with_data
+    data_fixture, api_client, settings, init_with_data
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
     settings.FEATURE_FLAGS = []
     response = api_client.post(
         reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
@@ -232,8 +230,8 @@ def test_agent_application_creation_disabled_by_feature_flag(
 
 
 @pytest.mark.django_db
-def test_agent_application_is_distinct_from_execution_subject(enterprise_data_fixture):
-    application = enterprise_data_fixture.create_agent_application()
+def test_agent_application_is_distinct_from_execution_subject(data_fixture):
+    application = data_fixture.create_agent_application()
     subject = Agent.objects.create(
         workspace=application.workspace, name="Execution actor"
     )

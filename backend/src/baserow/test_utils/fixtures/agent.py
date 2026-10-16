@@ -1,4 +1,4 @@
-from baserow_enterprise.agent.models import AgentApplication
+from baserow.contrib.agent.models import AgentApplication
 
 
 class AgentApplicationFixtures:

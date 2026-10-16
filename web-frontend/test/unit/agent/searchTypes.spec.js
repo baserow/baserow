@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
-import { AgentApplicationSearchType } from '@baserow_enterprise/agent/searchTypes'
-import { AgentApplicationType } from '@baserow_enterprise/agent/applicationTypes'
+import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
+import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 describe('Agent application search', () => {

@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import WorkspaceActionScopeType
@@ -11,7 +12,6 @@ from baserow.core.actions import (
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
 )
-from baserow_enterprise.agent.models import AgentApplication
 from baserow_enterprise.audit_log.models import AuditLogEntry
 
 

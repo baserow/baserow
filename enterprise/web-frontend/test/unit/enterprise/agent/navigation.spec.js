@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { AgentApplicationType } from '@baserow_enterprise/agent/applicationTypes'
-import { selectAgentApplication } from '@baserow_enterprise/agent/middleware/selectAgentApplication'
+import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
+import { selectAgentApplication } from '@baserow/modules/agent/middleware/selectAgentApplication'
 import { RolePermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
 
 describe('Opening an Agent from an unselected workspace', () => {

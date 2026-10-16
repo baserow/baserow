@@ -4,7 +4,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import AgentApplicationContent from '@baserow_enterprise/agent/components/AgentApplicationContent'
+import AgentApplicationContent from '@baserow/modules/agent/components/AgentApplicationContent'
 
 definePageMeta({
   layout: 'app',

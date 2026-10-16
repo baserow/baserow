@@ -2,23 +2,23 @@ import json
 
 import pytest
 
+from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, TrashEntry
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
-from baserow_enterprise.agent.application_types import AgentApplicationType
-from baserow_enterprise.agent.models import AgentApplication
 
 from .test_api import application_url
 
 
 @pytest.mark.django_db
 def test_agent_export_import_preserves_application_and_remaps_id(
-    enterprise_data_fixture,
+    data_fixture,
 ):
-    agent = enterprise_data_fixture.create_agent_application(name="Researcher", order=2)
+    agent = data_fixture.create_agent_application(name="Researcher", order=2)
     config = ImportExportConfig(include_permission_data=False)
     serialized = json.loads(
         json.dumps(AgentApplicationType().export_serialized(agent, config))
@@ -29,7 +29,7 @@ def test_agent_export_import_preserves_application_and_remaps_id(
         "order": 2,
         "type": "agent",
     }
-    destination = enterprise_data_fixture.create_workspace()
+    destination = data_fixture.create_workspace()
     mapping = {}
     imported = AgentApplicationType().import_serialized(
         destination, serialized, config, mapping
@@ -44,11 +44,9 @@ def test_agent_export_import_preserves_application_and_remaps_id(
 
 
 @pytest.mark.django_db
-def test_duplicate_agent_creates_independent_application(enterprise_data_fixture):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(
-        user=user, name="Researcher"
-    )
+def test_duplicate_agent_creates_independent_application(data_fixture):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user, name="Researcher")
     copied = CoreHandler().duplicate_application(user, agent).specific
     assert isinstance(copied, AgentApplication)
     assert copied.id != agent.id
@@ -61,12 +59,10 @@ def test_duplicate_agent_creates_independent_application(enterprise_data_fixture
 
 
 @pytest.mark.django_db
-def test_snapshot_captures_and_restores_independent_agent(enterprise_data_fixture):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(
-        user=user, name="Researcher"
-    )
-    snapshot = enterprise_data_fixture.create_snapshot(
+def test_snapshot_captures_and_restores_independent_agent(data_fixture):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user, name="Researcher")
+    snapshot = data_fixture.create_snapshot(
         snapshot_from_application=agent, name="Agent snapshot", created_by=user
     )
     SnapshotHandler().perform_create(snapshot, Progress(total=100))
@@ -88,12 +84,10 @@ def test_snapshot_captures_and_restores_independent_agent(enterprise_data_fixtur
 
 
 @pytest.mark.django_db
-def test_agent_trash_restore_and_cleanup_preserve_other_agents(enterprise_data_fixture):
-    user = enterprise_data_fixture.create_user()
-    agent = enterprise_data_fixture.create_agent_application(
-        user=user, name="Researcher"
-    )
-    other = enterprise_data_fixture.create_agent_application(workspace=agent.workspace)
+def test_agent_trash_restore_and_cleanup_preserve_other_agents(data_fixture):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user, name="Researcher")
+    other = data_fixture.create_agent_application(workspace=agent.workspace)
     CoreHandler().delete_application(user, agent)
     assert not AgentApplication.objects.filter(id=agent.id).exists()
     entry = TrashEntry.objects.get(
@@ -119,11 +113,9 @@ def test_agent_trash_restore_and_cleanup_preserve_other_agents(enterprise_data_f
 
 
 @pytest.mark.django_db
-def test_agent_access_hidden_while_workspace_trashed(
-    enterprise_data_fixture, api_client
-):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    agent = enterprise_data_fixture.create_agent_application(user=user)
+def test_agent_access_hidden_while_workspace_trashed(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    agent = data_fixture.create_agent_application(user=user)
     TrashHandler.trash(user, agent.workspace, None, agent.workspace)
     assert (
         api_client.get(

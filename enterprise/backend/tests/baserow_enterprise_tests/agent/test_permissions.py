@@ -2,15 +2,17 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.action.models import Action
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.agent.models import AgentApplication
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
-from .test_api import application_url
+
+def application_url(application):
+    return reverse("api:applications:item", kwargs={"application_id": application.id})
 
 
 @pytest.mark.django_db

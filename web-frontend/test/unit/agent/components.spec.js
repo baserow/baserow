@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import AgentApplicationContent from '@baserow_enterprise/agent/components/AgentApplicationContent'
-import AgentApplicationSidebar from '@baserow_enterprise/agent/components/AgentApplicationSidebar'
+import AgentApplicationContent from '@baserow/modules/agent/components/AgentApplicationContent'
+import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
 
 describe('Agent application components', () => {
   let testApp

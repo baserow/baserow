@@ -1,4 +1,3 @@
-from baserow_enterprise.agent.models import AgentApplication
 from baserow_enterprise.automation.nodes.models import CoreCodeActionNode
 from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
@@ -26,7 +25,6 @@ from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.teams.models import Team, TeamSubject
 
 __all__ = [
-    "AgentApplication",
     "Team",
     "TeamSubject",
     "Role",

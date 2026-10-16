@@ -5,8 +5,9 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+    initial = True
+
     dependencies = [
-        ("baserow_enterprise", "0067_graph_element"),
         ("core", "0126_alter_aiproviderconfig_api_key_max_length"),
     ]
 

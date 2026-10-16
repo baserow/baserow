@@ -83,11 +83,6 @@ export default defineNuxtModule({
       global: true,
     })
 
-    addRouteMiddleware({
-      name: 'selectAgentApplication',
-      path: resolve('./agent/middleware/selectAgentApplication'),
-    })
-
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
     nuxt.options.runtimeConfig.public = _.defaultsDeep(

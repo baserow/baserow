@@ -6,31 +6,29 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.handler import MANIFEST_NAME, ImportExportHandler
 from baserow.core.models import ExportApplicationsJob
 from baserow.core.storage import get_default_storage
-from baserow_enterprise.agent.models import AgentApplication
 
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_agent_archive_round_trip_uses_independent_application_ids(
-    enterprise_data_fixture,
+    data_fixture,
     api_client,
     use_tmp_media_root,
     django_capture_on_commit_callbacks,
 ):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    source = enterprise_data_fixture.create_workspace(user=user)
-    destination = enterprise_data_fixture.create_workspace(user=user)
+    user, token = data_fixture.create_user_and_token()
+    source = data_fixture.create_workspace(user=user)
+    destination = data_fixture.create_workspace(user=user)
     agents = [
-        enterprise_data_fixture.create_agent_application(
-            workspace=source, name=name, order=order
-        )
+        data_fixture.create_agent_application(workspace=source, name=name, order=order)
         for order, name in enumerate(["Researcher", "Writer"], start=1)
     ]
-    enterprise_data_fixture.create_import_export_trusted_source()
+    data_fixture.create_import_export_trusted_source()
     headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
     with django_capture_on_commit_callbacks(execute=True):

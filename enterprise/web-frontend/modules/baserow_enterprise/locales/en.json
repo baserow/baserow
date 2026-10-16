@@ -942,12 +942,5 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
-  },
-  "agent": {
-    "applicationName": "Agent",
-    "applicationNamePlural": "Agents",
-    "applicationDescription": "Create an agent in your workspace.",
-    "createApplication": "Create agent",
-    "emptyDescription": "This agent is empty. You can rename it or manage its access, but it cannot perform tasks yet."
   }
 }
