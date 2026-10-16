@@ -5,7 +5,6 @@ from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     BuilderWorkflowServiceAction,
 )
-from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 
 
@@ -23,9 +22,7 @@ def before_permanently_deleted(sender, instance, **kwargs):
         # The action is also deleted by cascade when its service is deleted, for
         # example by `DomainHandler.delete_published_builder`. The service is
         # already gone then, and this costs a single empty query.
-        ServiceHandler().delete_services(
-            Service.objects_and_trash.filter(id=service_id)
-        )
+        Service.objects_and_trash.filter(id=service_id).delete()
 
     transaction.on_commit(delete_service_after_commit)
 

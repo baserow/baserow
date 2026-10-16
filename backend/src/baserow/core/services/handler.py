@@ -225,28 +225,6 @@ class ServiceHandler:
         service_type.before_delete(service)
         service.delete()
 
-    def delete_services(self, services: QuerySet[Service]):
-        """
-        Deletes many services in a single batched pass of the deletion collector.
-        `delete_service` runs the collector over every service subclass table once
-        per service, which is slow when deleting many services at once.
-
-        :param services: The services to delete. Use a manager that includes
-            trashed services, or those are left behind.
-        """
-
-        # `before_delete` needs the specific instances, so only load them for the
-        # service types that implement the hook.
-        for service_type in service_type_registry.get_all():
-            if type(service_type).before_delete is ServiceType.before_delete:
-                continue
-            for service in service_type.model_class.objects_and_trash.filter(
-                id__in=services.values("id")
-            ):
-                service_type.before_delete(service)
-
-        services.delete()
-
     def dispatch_service(
         self,
         service: Service,

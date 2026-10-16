@@ -28,7 +28,6 @@ from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig, application_type_registry
-from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import get_default_storage
 from baserow.core.telemetry.utils import baserow_trace
@@ -280,9 +279,7 @@ class DomainHandler:
                     ).values("service_id")
                 )
 
-        ServiceHandler().delete_services(
-            Service.objects_and_trash.filter(services_filter)
-        )
+        Service.objects_and_trash.filter(services_filter).delete()
         builder.delete()
 
     @baserow_trace(tracer)
