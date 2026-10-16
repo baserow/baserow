@@ -920,6 +920,22 @@ describe('elementTypes tests', () => {
       expect(elementType.isValid(element, 1, {})).toBe(true)
     })
     test.each([
+      [true, undefined, false],
+      [true, null, false],
+      [true, [], false],
+      [true, [1], true],
+      [false, undefined, false],
+      [false, null, false],
+      [false, 1, true],
+    ])(
+      'RecordSelectorElementType | required | multiple=%s, value=%j',
+      (multiple, value, expected) => {
+        const elementType = new RecordSelectorElementType()
+        const element = { required: true, multiple, data_source_id: 1 }
+        expect(elementType.isValid(element, value, {})).toBe(expected)
+      }
+    )
+    test.each([
       [false, '', null],
       [false, null, null],
       [false, '42', 42],

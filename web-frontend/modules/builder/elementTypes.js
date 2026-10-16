@@ -2305,10 +2305,12 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
     }
 
     if (element.required) {
-      if (element.multiple && value.length === 0) {
+      // The value is `undefined` while the element has no form data, e.g. once
+      // the form data of the page has been reset.
+      if (element.multiple && (!Array.isArray(value) || value.length === 0)) {
         return false
       }
-      if (!element.multiple && value === null) {
+      if (!element.multiple && (value === null || value === undefined)) {
         return false
       }
     }

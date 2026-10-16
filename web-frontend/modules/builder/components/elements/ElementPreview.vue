@@ -362,11 +362,12 @@ export default {
         this.observer.disconnect()
       }
 
-      // Ensure pageTop is a valid number to prevent IntersectionObserver error
-      const topMargin =
-        typeof this.pageTop === 'number' && !isNaN(this.pageTop)
-          ? this.pageTop
-          : 0
+      // Ensure pageTop is a finite, non-negative number: the page top is negative
+      // once it's scrolled above the viewport, and `--10px` would make the
+      // IntersectionObserver constructor throw.
+      const topMargin = Number.isFinite(this.pageTop)
+        ? Math.max(this.pageTop, 0)
+        : 0
 
       const options = {
         root: null,
