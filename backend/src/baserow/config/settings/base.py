@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
     "baserow.contrib.automation",
+    "baserow.contrib.agent",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
