@@ -73,6 +73,9 @@ const mutations = {
   SET_LOADING(state, { page, value }) {
     page._.dataSourceLoading = value
   },
+  SET_FETCHED(state, { page }) {
+    page._.dataSourceFetched = true
+  },
 }
 
 const actions = {
@@ -388,6 +391,7 @@ const actions = {
         dispatch('forceCreate', { page, dataSource })
       )
     )
+    commit('SET_FETCHED', { page })
     commit('SET_LOADING', { page, value: false })
 
     return dataSources
@@ -412,6 +416,7 @@ const actions = {
         dispatch('forceCreate', { page, dataSource })
       )
     )
+    commit('SET_FETCHED', { page })
     commit('SET_LOADING', { page, value: false })
 
     return dataSources
@@ -465,6 +470,9 @@ const getters = {
   },
   getLoading: (state) => (page) => {
     return page._.dataSourceLoading
+  },
+  getFetched: (state) => (page) => {
+    return page._.dataSourceFetched === true
   },
 }
 

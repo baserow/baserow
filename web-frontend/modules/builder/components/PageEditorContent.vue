@@ -65,10 +65,11 @@ const { $store, $registry } = useNuxtApp()
 
 const panelWidth = ref(360)
 
+// Only wait for the initial data source fetch. `dataSource/getLoading` is also
+// true during every create, update, move, etc. and showing the skeleton then
+// would unmount the header (closing the data source modal) and the preview.
 const pageLoading = computed(
-  () =>
-    props.loading ||
-    $store.getters['dataSource/getLoading'](props.page) === true
+  () => props.loading || !$store.getters['dataSource/getFetched'](props.page)
 )
 
 // The preview of the skeleton is the same width as the device that's selected,
