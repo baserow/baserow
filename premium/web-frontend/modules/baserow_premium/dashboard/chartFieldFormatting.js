@@ -34,3 +34,18 @@ export class SingleSelectFormattingType extends ChartFieldFormattingType {
     return value ?? ''
   }
 }
+
+export class MultipleSelectFormattingType extends SingleSelectFormattingType {
+  static getType() {
+    return 'multiple_select'
+  }
+
+  formatGroupByFieldValue(field, value) {
+    if (value === null || value === undefined || value.length === 0) {
+      return this.$t('chart.empty')
+    }
+    return value
+      .map((option) => super.formatGroupByFieldValue(field, option))
+      .join(', ')
+  }
+}

@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Multiple-select aggregation grouping > selects either mode, restores saved settings, and hides modes for Row Id 1`] = `
+"<div class="form-section margin-bottom-2">
+  <div class="form-section__title-container">
+    <h3 class="form-section__title">aggregationGroupByForm.groupByFieldLabel</h3>
+    <div></div>
+  </div><select show-search="true" error="false" fixed-items="" value="1">
+    <option value="1">Tags</option>
+    <option value="null">aggregationGroupByForm.groupByRowId</option>
+    <option value="none">aggregationGroupByForm.groupByNone</option>
+  </select>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-0" class="control__label"><span>aggregationGroupByForm.modeLabel</span><span class="control__required">common.optional</span>
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper"><select fixed-items="" value="complete">
+            <option value="complete">aggregationGroupByForm.completeSelection</option>
+            <option value="individual">aggregationGroupByForm.eachOption</option>
+          </select></div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+</div>"
+`;

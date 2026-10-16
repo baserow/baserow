@@ -30,18 +30,6 @@ import {
 } from '@baserow_premium/decoratorValueProviders'
 import { FormViewSurveyModeType } from '@baserow_premium/formViewModeTypes'
 import {
-  TextFieldType,
-  LongTextFieldType,
-  URLFieldType,
-  EmailFieldType,
-  NumberFieldType,
-  RatingFieldType,
-  BooleanFieldType,
-  SingleSelectFieldType,
-  PhoneNumberFieldType,
-  AutonumberFieldType,
-} from '@baserow/modules/database/fieldTypes'
-import {
   CountViewAggregationType,
   EmptyCountViewAggregationType,
   NotEmptyCountViewAggregationType,
@@ -64,7 +52,10 @@ import {
   ChartWidgetType,
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
-import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import {
+  SingleSelectFormattingType,
+  MultipleSelectFormattingType,
+} from '@baserow_premium/dashboard/chartFieldFormatting'
 import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
@@ -152,7 +143,6 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('paidFeature')
     $registry.registerNamespace('license')
     $registry.registerNamespace('groupedAggregation')
-    $registry.registerNamespace('groupedAggregationGroupedBy')
     $registry.registerNamespace('chartFieldFormatting')
 
     $registry.register('plugin', new PremiumPlugin(context))
@@ -302,49 +292,15 @@ export default defineNuxtPlugin({
       new UniqueCountViewAggregationType(context)
     )
 
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new TextFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new LongTextFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new NumberFieldType(context)
-    )
-    $registry.register('groupedAggregationGroupedBy', new URLFieldType(context))
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new RatingFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new BooleanFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new EmailFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new SingleSelectFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new PhoneNumberFieldType(context)
-    )
-    $registry.register(
-      'groupedAggregationGroupedBy',
-      new AutonumberFieldType(context)
-    )
-
     $registry.register('dashboardWidget', new ChartWidgetType(context))
     $registry.register('dashboardWidget', new PieChartWidgetType(context))
     $registry.register(
       'chartFieldFormatting',
       new SingleSelectFormattingType(context)
+    )
+    $registry.register(
+      'chartFieldFormatting',
+      new MultipleSelectFormattingType(context)
     )
     $registry.register(
       'service',

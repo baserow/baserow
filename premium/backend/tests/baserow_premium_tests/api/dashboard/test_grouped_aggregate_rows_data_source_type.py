@@ -83,7 +83,12 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     assert len(response_json) == 2
     assert response_json[0] == {
         "aggregation_group_bys": [
-            {"field_id": field_3.id, "order": 1, "trashed": False}
+            {
+                "field_id": field_3.id,
+                "order": 1,
+                "mode": "complete",
+                "trashed": False,
+            }
         ],
         "aggregation_series": [
             {
@@ -233,7 +238,12 @@ def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixt
         },
     ]
     assert response_json["aggregation_group_bys"] == [
-        {"field_id": field_3.id, "order": 0, "trashed": False}
+        {
+            "field_id": field_3.id,
+            "order": 0,
+            "mode": "complete",
+            "trashed": False,
+        }
     ]
     assert response_json["aggregation_sorts"] == [
         {
