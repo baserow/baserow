@@ -6,6 +6,10 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 vi.mock('@baserow_enterprise/services/assistant', () => ({
   default: vi.fn(),
 }))
+vi.mock('@baserow_enterprise/utils/assistant', async (importOriginal) => ({
+  ...(await importOriginal()),
+  usesBackgroundRuns: () => false,
+}))
 
 const workspace = { id: 1, name: 'Test workspace' }
 

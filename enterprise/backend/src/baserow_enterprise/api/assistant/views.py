@@ -1,8 +1,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from urllib.request import Request
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.db import DEFAULT_DB_ALIAS
 from django.http import StreamingHttpResponse
@@ -12,10 +11,15 @@ from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from loguru import logger
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from baserow.api.chat_runs.errors import (
+    ERROR_CHAT_RUN_DOES_NOT_EXIST,
+    ERROR_CHAT_RUN_LIMIT,
+)
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,
@@ -30,7 +34,17 @@ from baserow.api.sessions import (
     set_untrusted_client_session_id_from_request_or_raise_if_invalid,
 )
 from baserow.config.db_routers import set_db_alias
+from baserow.core.chat_runs.exceptions import (
+    ChatRunAlreadyActive,
+    ChatRunDoesNotExist,
+    ChatRunLimitReached,
+)
+from baserow.core.chat_runs.service import ChatRunService, serialize_run
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.feature_flags import (
+    FF_ASSISTANT_BACKGROUND_RUNS,
+    feature_flag_is_enabled,
+)
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
 from baserow_enterprise.assistant.exceptions import (
@@ -51,6 +65,8 @@ from baserow_enterprise.assistant.onboarding import (
     generate_onboarding_prompt_suggestions,
 )
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
+from baserow_enterprise.assistant.runs import ASSISTANT_RUN_TYPE
+from baserow_enterprise.assistant.stream import stream_run_messages
 from baserow_enterprise.assistant.types import (
     AiCancelledMessage,
     AiErrorMessage,
@@ -66,6 +82,7 @@ from .errors import (
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
     ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
 )
+from .exceptions import ChatRunInProgressAPIException
 from .serializers import (
     AssistantChatMessagesSerializer,
     AssistantChatSerializer,
@@ -82,8 +99,8 @@ class AssistantStreamingHttpResponse(StreamingHttpResponse):
     """Propagate ASGI response closure to the assistant's root generator.
 
     Django wraps async streaming content with delegating generators that don't
-    forward ``aclose()``. Owning the root iterator here ensures a client
-    disconnect reaches the assistant's task and provider cleanup immediately.
+    forward ``aclose()``. Owning the root iterator closes output reads on client
+    disconnect. Background execution belongs to the worker and continues.
     """
 
     async def __aiter__(self) -> AsyncIterator[bytes]:
@@ -202,6 +219,8 @@ class AssistantChatView(APIView):
                 ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
             ),
             AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+            ChatRunLimitReached: ERROR_CHAT_RUN_LIMIT,
+            ChatRunDoesNotExist: ERROR_CHAT_RUN_DOES_NOT_EXIST,
         }
     )
     def post(
@@ -214,6 +233,13 @@ class AssistantChatView(APIView):
         :param data: The validated message and UI-context payload.
         :return: A streaming response containing assistant events.
         """
+
+        if feature_flag_is_enabled(FF_ASSISTANT_BACKGROUND_RUNS):
+            return self._background_response(request, chat_uuid, data)
+        if "run_id" in data:
+            feature_flag_is_enabled(
+                FF_ASSISTANT_BACKGROUND_RUNS, raise_if_disabled=True
+            )
 
         # The selected model and its credentials are security-sensitive execution
         # inputs. Read them from primary so a replica cannot revive a just-disabled
@@ -298,6 +324,59 @@ class AssistantChatView(APIView):
         response["X-Accel-Buffering"] = "no"  # helpful behind Nginx
         return response
 
+    def _background_response(self, request, chat_uuid, data):
+        """Commit and enqueue a new run, or attach read-only to existing work."""
+
+        set_db_alias(DEFAULT_DB_ALIAS)
+        handler = AssistantHandler()
+        human_message = None
+        if "run_id" in data:
+            run = ChatRunService().get_run(request.user, data["run_id"])
+            chat = handler.get_chat(request.user, chat_uuid)
+            if run.run_type != ASSISTANT_RUN_TYPE or run.chat_id != chat.id:
+                raise ChatRunDoesNotExist()
+        else:
+            ui_context = UIContext.from_validate_request(request, data["ui_context"])
+            workspace = CoreHandler().get_workspace(ui_context.workspace.id)
+            CoreHandler().check_permissions(
+                request.user,
+                ChatAssistantChatOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+            handler.get_existing_chat(request.user, workspace, chat_uuid)
+            check_lm_ready_or_raise(
+                model_profile=resolve_assistant_model(workspace=workspace)
+            )
+            set_untrusted_client_session_id_from_request_or_raise_if_invalid(
+                request.user, request
+            )
+            try:
+                run, human_message = handler.send_message(
+                    request.user,
+                    workspace,
+                    chat_uuid,
+                    data["content"],
+                    ui_context,
+                    data.get("tab_id", ""),
+                )
+            except ChatRunAlreadyActive as exc:
+                raise ChatRunInProgressAPIException(exc.run_id) from exc
+        response = AssistantStreamingHttpResponse(
+            stream_run_messages(
+                run,
+                request.user,
+                cursor=data.get("cursor") or None,
+                tab_id=data.get("tab_id", ""),
+                human_message=human_message,
+            ),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        response["X-Chat-Run-ID"] = str(run.id)
+        return response
+
     def _stream_assistant_message(self, message: AssistantMessageUnion) -> str:
         if AssistantMessageSerializer.can_serialize(message):
             serializer = AssistantMessageSerializer(message)
@@ -306,7 +385,10 @@ class AssistantChatView(APIView):
     @extend_schema(
         tags=["AI Assistant"],
         operation_id="list_assistant_chat_messages",
-        description=("List all messages in the specified AI assistant chat.\n\n"),
+        description=(
+            "List all messages in the specified AI assistant chat, with the run "
+            "answering its latest message while Kuma works on it.\n\n"
+        ),
         responses={
             200: AssistantChatMessagesSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
@@ -319,7 +401,17 @@ class AssistantChatView(APIView):
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
         }
     )
-    def get(self, request: Request, chat_uuid: str) -> Response:
+    def get(self, request: Request, chat_uuid: UUID) -> Response:
+        """
+        Lists the chat's messages with its active run, read together.
+
+        :param request: The authenticated API request.
+        :param chat_uuid: The chat identifier.
+        :return: The chat id, its messages and its active run.
+        """
+
+        # A replica can lag behind a chat or run created a moment ago.
+        set_db_alias(DEFAULT_DB_ALIAS)
         handler = AssistantHandler()
         chat = handler.get_chat(request.user, chat_uuid)
 
@@ -331,11 +423,23 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
-        messages = handler.list_chat_messages(chat)
-
-        # Pass the messages as an instance for serialization
-        serializer = AssistantChatMessagesSerializer({"messages": messages})
-
+        snapshot = handler.get_chat_snapshot(chat)
+        serializer = AssistantChatMessagesSerializer(
+            {
+                "chat_id": chat.id,
+                "chat_title": snapshot.chat_title,
+                "messages": snapshot.messages,
+                "active_run": snapshot.active_run,
+                "latest_run": {
+                    **serialize_run(snapshot.latest_run),
+                    "human_message_id": snapshot.latest_run.context.get(
+                        "human_message_id"
+                    ),
+                }
+                if snapshot.latest_run
+                else None,
+            }
+        )
         return Response(serializer.data)
 
     @extend_schema(
@@ -368,7 +472,14 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
-        set_assistant_cancellation_key(chat.uuid)
+        if feature_flag_is_enabled(FF_ASSISTANT_BACKGROUND_RUNS):
+            from baserow.core.chat_runs.handler import ChatRunHandler
+
+            active = ChatRunHandler().get_active_run(ASSISTANT_RUN_TYPE, chat.id)
+            if active is not None:
+                ChatRunService().request_cancel(request.user, active.id)
+        else:
+            set_assistant_cancellation_key(chat.uuid)
 
         return Response(status=HTTP_204_NO_CONTENT)
 

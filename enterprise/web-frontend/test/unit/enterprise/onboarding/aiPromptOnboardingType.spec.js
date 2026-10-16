@@ -1,0 +1,88 @@
+import { flushPromises } from '@vue/test-utils'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+
+import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
+import {
+  getStoredOnboardingRunId,
+  getStoredPanelOpen,
+} from '@baserow_enterprise/utils/assistantTabStorage'
+
+const workspace = { id: 3 }
+const data = { ai_prompt: { prompt: 'A CRM', industry: 'Sales', team: 'Ops' } }
+const tableLocation = { type: 'database-table', database_id: 1, table_id: 2 }
+
+function onboardingStep({
+  backgroundRuns = true,
+  start = { outcome: 'accepted', runId: 'run-1' },
+} = {}) {
+  const app = {
+    $featureFlagIsEnabled: () => backgroundRuns,
+    $i18n: { t: (key) => key },
+    $store: {
+      dispatch: vi.fn(async (action) =>
+        action === 'assistant/startRun' ? start : undefined
+      ),
+      getters: {
+        'assistant/currentChat': { id: 'chat', running: false },
+        'assistant/uiLocationHistory': [tableLocation],
+      },
+    },
+    $bus: { $emit: vi.fn() },
+    hooks: { hookOnce: (name, callback) => callback() },
+  }
+  return { app, step: new AIPromptOnboardingType({ app }) }
+}
+
+const complete = (step) =>
+  step.complete(data, { database: { workspace } }, vi.fn())
+
+describe('AIPromptOnboardingType', () => {
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  test('with background runs, hands off to the workspace and opens the panel once Kuma accepted the message', async () => {
+    const { app, step } = onboardingStep()
+
+    const response = await complete(step)
+    const route = step.getCompletedRoute(data, { ai_prompt: response })
+    await flushPromises()
+
+    expect(response).toEqual({ workspace, runId: 'run-1' })
+    expect(getStoredPanelOpen()).toBe(true)
+    expect(getStoredOnboardingRunId()).toBe('run-1')
+    expect(route).toEqual({ name: 'workspace', params: { workspaceId: 3 } })
+    expect(app.$bus.$emit).toHaveBeenCalledWith('toggle-right-sidebar', true)
+  })
+
+  test('with background runs, fails when Kuma did not accept the message', async () => {
+    const { step } = onboardingStep({
+      start: { outcome: 'failed', runId: null },
+    })
+
+    await expect(complete(step)).rejects.toThrow()
+    expect(getStoredOnboardingRunId()).toBe(null)
+  })
+
+  test('without background runs, opens the first table of the streamed answer', async () => {
+    const { step } = onboardingStep({ backgroundRuns: false })
+
+    const response = await complete(step)
+
+    expect(step.getCompletedRoute(data, { ai_prompt: response })).toEqual({
+      name: 'database-table',
+      params: { databaseId: 1, tableId: 2 },
+    })
+  })
+
+  test('a backend without optional run metadata completes from the same streamed answer', async () => {
+    const { step } = onboardingStep({
+      start: { outcome: 'accepted', runId: null },
+    })
+    const response = await complete(step)
+    expect(step.getCompletedRoute(data, { ai_prompt: response })).toEqual({
+      name: 'database-table',
+      params: { databaseId: 1, tableId: 2 },
+    })
+  })
+})

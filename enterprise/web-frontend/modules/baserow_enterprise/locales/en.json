@@ -511,7 +511,18 @@
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
     "statusCancelling": "Cancelling...",
-    "messageCancelled": "Message cancelled"
+    "messageCancelled": "Message cancelled",
+    "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
+    "runMessageTooLong": "This message is too long for Kuma. Shorten it and send it again.",
+    "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",
+    "statusWaitingForWorker": "Waiting for a free worker...",
+    "statusWaitingForOutput": "Waiting for the saved response…",
+    "runErrorInterrupted": "Kuma was interrupted. Some changes may already have been made, so check them, then tell Kuma how to continue.",
+    "runErrorNotStarted": "Kuma couldn't start on this message because no worker picked it up. Nothing was changed.",
+    "runErrorTimeout": "Kuma ran out of time before finishing. Some changes may already have been made.",
+    "runErrorFailed": "Something went wrong while Kuma was working. Some changes may already have been made.",
+    "runErrorPersistFailed": "Kuma finished, but its answer couldn't be saved. The changes it made are kept.",
+    "runErrorModelUnavailable": "Kuma's AI model isn't available right now, so nothing was changed."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

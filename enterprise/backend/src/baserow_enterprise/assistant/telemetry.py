@@ -41,6 +41,8 @@ from enum import StrEnum
 from typing import Callable
 from uuid import uuid4
 
+from django.db import transaction
+
 from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
@@ -556,10 +558,15 @@ class AssistantTraceOutcome(StrEnum):
     CANCELLED = "cancelled"
     INTERRUPTED = "interrupted"
     NO_ANSWER = "no_answer"
+    NOT_STARTED = "not_started"
 
 
 _FAILED_OUTCOMES = frozenset(
-    {AssistantTraceOutcome.ERROR, AssistantTraceOutcome.NO_ANSWER}
+    {
+        AssistantTraceOutcome.ERROR,
+        AssistantTraceOutcome.NO_ANSWER,
+        AssistantTraceOutcome.NOT_STARTED,
+    }
 )
 
 
@@ -595,14 +602,7 @@ class PosthogTracingCallback:
             stop, used to tell a deliberate cancel apart from a dropped run.
         """
 
-        self.chat = chat
-        self.human_msg = human_message
-        self.trace_id = _uuid()
-        self.span_id = _uuid()
-        self.user_id = str(chat.user_id)
-        self.workspace_id = str(chat.workspace_id)
-        self.chat_uuid = str(chat.uuid)
-        self.trace_outputs = None
+        self._begin(chat, human_message)
 
         start_time = _utc_now()
 
@@ -636,25 +636,80 @@ class PosthogTracingCallback:
             if tool_call_names and isinstance(output_state, dict):
                 output_state["tool_calls"] = tool_call_names
 
-            self._capture_event(
-                "$ai_trace",
-                timestamp=start_time,
-                properties={
-                    "$ai_session_id": chat.uuid,
-                    "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
-                    "$ai_span_id": self.span_id,
-                    "$ai_latency": (_utc_now() - start_time).total_seconds(),
-                    "$ai_is_error": outcome in _FAILED_OUTCOMES,
-                    "$ai_input_state": {"user_message": human_message},
-                    "$ai_output_state": output_state,
-                    "assistant_outcome": outcome.value,
-                },
-            )
+            self._send_trace(start_time, outcome, output_state)
 
-            try:
-                get_posthog_client().flush()
-            except Exception:
-                pass
+    def capture_outcome(
+        self,
+        chat: AssistantChat,
+        human_message: str,
+        outcome: AssistantTraceOutcome,
+        start_time: datetime,
+    ) -> None:
+        """
+        Reports a message whose agent didn't trace itself, because it never ran or
+        its worker died. The event is sent once the current transaction commits.
+
+        :param chat: The chat of the message.
+        :param human_message: The message.
+        :param outcome: How answering it ended.
+        :param start_time: When the work on it started, or was queued.
+        """
+
+        self._begin(chat, human_message)
+        transaction.on_commit(
+            lambda: self._send_trace(start_time, outcome, {"status": outcome.value})
+        )
+
+    def _begin(self, chat: AssistantChat, human_message: str) -> None:
+        """
+        Starts a new trace for a message of the chat.
+
+        :param chat: The chat.
+        :param human_message: The message being answered.
+        """
+
+        self.chat = chat
+        self.human_msg = human_message
+        self.trace_id = _uuid()
+        self.span_id = _uuid()
+        self.user_id = str(chat.user_id)
+        self.workspace_id = str(chat.workspace_id)
+        self.chat_uuid = str(chat.uuid)
+        self.trace_outputs = None
+
+    def _send_trace(
+        self,
+        start_time: datetime,
+        outcome: AssistantTraceOutcome,
+        output_state: dict | str,
+    ) -> None:
+        """
+        Sends the trace's `$ai_trace` event.
+
+        :param start_time: When the traced work started.
+        :param outcome: How it ended.
+        :param output_state: The answer, the error or the terminal status.
+        """
+
+        self._capture_event(
+            "$ai_trace",
+            timestamp=start_time,
+            properties={
+                "$ai_session_id": self.chat.uuid,
+                "$ai_span_name": f"{self.user_id}: {self.human_msg[:20]}",
+                "$ai_span_id": self.span_id,
+                "$ai_latency": (_utc_now() - start_time).total_seconds(),
+                "$ai_is_error": outcome in _FAILED_OUTCOMES,
+                "$ai_input_state": {"user_message": self.human_msg},
+                "$ai_output_state": output_state,
+                "assistant_outcome": outcome.value,
+            },
+        )
+
+        try:
+            get_posthog_client().flush()
+        except Exception:
+            pass
 
     def _resolve_outcome(
         self,

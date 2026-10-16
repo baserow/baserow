@@ -136,6 +136,7 @@ class AiReasoningChunk(BaseModel):
 
 
 class AiMessage(AiMessageChunk):
+    onboarding_target: dict | None = None
     id: int | None = Field(
         default=None,
         description="The unique UUID of the message",
@@ -154,6 +155,14 @@ class AiMessage(AiMessageChunk):
             "The sentiment of the message as submitted by the user. It can be 'LIKE', "
             "'DISLIKE', or None if no sentiment has been submitted."
         ),
+    )
+    run_status: Optional[str] = Field(
+        default=None,
+        description="How the run that wrote this message ended, when it didn't complete.",
+    )
+    error_code: Optional[str] = Field(
+        default=None,
+        description="Why that run failed or stopped, if it did.",
     )
 
 

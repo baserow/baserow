@@ -78,6 +78,7 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0.3
 ```
 
 **About temperature:**
+
 - Controls randomness in the main assistant's LLM responses.
 - **Default: 0.3** (focused, consistent responses)
 - Higher values (depending on the model) = more creative/varied responses.
@@ -240,28 +241,61 @@ variables are unchanged or bridged for backward compatibility.
 
 ### Environment compatibility
 
-| Variable | Notes |
-|----------|-------|
-| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | **Deprecated.** Kuma uses this model until you make a model available to Kuma and select it under **Admin tools → AI providers → AI features**. It is also used when that selection becomes unavailable, but not when Kuma is set to **Disabled** there. Both `provider/model` and `provider:model` formats are accepted. |
-| `BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE` | Still supported. Overrides the orchestrator temperature when set. |
-| `OPENAI_API_KEY` | Unchanged. |
-| `GROQ_API_KEY` | Unchanged. |
-| `AWS_BEARER_TOKEN_BEDROCK` | Still works — pydantic-ai supports Bedrock bearer token auth natively. |
+| Variable                                       | Notes                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`       | **Deprecated.** Kuma uses this model until you make a model available to Kuma and select it under **Admin tools → AI providers → AI features**. It is also used when that selection becomes unavailable, but not when Kuma is set to **Disabled** there. Both `provider/model` and `provider:model` formats are accepted. |
+| `BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE` | Still supported. Overrides the orchestrator temperature when set.                                                                                                                                                                                                                                                         |
+| `OPENAI_API_KEY`                               | Unchanged.                                                                                                                                                                                                                                                                                                                |
+| `GROQ_API_KEY`                                 | Unchanged.                                                                                                                                                                                                                                                                                                                |
+| `AWS_BEARER_TOKEN_BEDROCK`                     | Still works — pydantic-ai supports Bedrock bearer token auth natively.                                                                                                                                                                                                                                                    |
 
 ### Bridged for backward compatibility
 
-| Old variable | Equivalent | Notes |
-|--------------|------------|-------|
-| `UDSPY_LM_MODEL` | Kuma model under **Admin tools → AI providers → AI features** | **Deprecated.** Used only when `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is not set. Selecting a Kuma model in **AI features** replaces it; renaming it to `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` does not. |
-| `UDSPY_LM_API_KEY` | **API key** of the provider in **Admin tools → AI providers** | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use the provider's own variable instead, such as `OPENAI_API_KEY` or `GROQ_API_KEY`. |
-| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | **Base URL** (OpenAI) or **Host** (Ollama) of the provider in **Admin tools → AI providers** | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use `OPENAI_BASE_URL` or `OLLAMA_BASE_URL` instead. |
-| `AWS_REGION_NAME` | `AWS_DEFAULT_REGION` | Still works; bridged automatically. |
+| Old variable                          | Equivalent                                                                                   | Notes                                                                                                                                                                                                        |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `UDSPY_LM_MODEL`                      | Kuma model under **Admin tools → AI providers → AI features**                                | **Deprecated.** Used only when `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is not set. Selecting a Kuma model in **AI features** replaces it; renaming it to `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` does not. |
+| `UDSPY_LM_API_KEY`                    | **API key** of the provider in **Admin tools → AI providers**                                | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use the provider's own variable instead, such as `OPENAI_API_KEY` or `GROQ_API_KEY`.                                |
+| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | **Base URL** (OpenAI) or **Host** (Ollama) of the provider in **Admin tools → AI providers** | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use `OPENAI_BASE_URL` or `OLLAMA_BASE_URL` instead.                                                                 |
+| `AWS_REGION_NAME`                     | `AWS_DEFAULT_REGION`                                                                         | Still works; bridged automatically.                                                                                                                                                                          |
 
 ### New variables
 
-| Variable | Notes |
-|----------|-------|
-| `OPENAI_BASE_URL` | Preferred replacement for `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL`. |
-| `AWS_DEFAULT_REGION` | Preferred replacement for `AWS_REGION_NAME`. |
-| `OLLAMA_BASE_URL` | Replaces `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` for Ollama. Defaults to `http://localhost:11434/v1`. |
-| `ANTHROPIC_API_KEY` | New provider — Anthropic models are now supported. |
+| Variable             | Notes                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `OPENAI_BASE_URL`    | Preferred replacement for `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL`.                                    |
+| `AWS_DEFAULT_REGION` | Preferred replacement for `AWS_REGION_NAME`.                                                        |
+| `OLLAMA_BASE_URL`    | Replaces `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` for Ollama. Defaults to `http://localhost:11434/v1`. |
+| `ANTHROPIC_API_KEY`  | New provider — Anthropic models are now supported.                                                  |
+
+## 8) Background runs
+
+With the `assistant_background_runs` feature flag on (`FEATURE_FLAGS=assistant_background_runs`), Kuma answers each message in a background task, so a reply keeps going when the browser is closed and a reloaded page picks up where it left off. Without it, Kuma answers inside the web request as before, and closing or reloading the tab can lose the reply. The flag is off by default until a later release switches it on.
+
+Kuma keeps its message endpoint and HTTP 200 streaming response. With background
+runs enabled, that response follows the worker's output in Redis Streams. A
+refresh attaches to the existing run without repeating its prompt or tools.
+
+Redis holds temporary replay output, bounded to 8 MiB or 10,000 events per run.
+Buffers expire after an hour while active; available replay lasts 24 hours after
+completion. If the
+buffer is missing, incomplete or full, live replay becomes unavailable and the
+worker continues. Postgres saves the answer and conversation history only when
+the run ends; there are no periodic output checkpoints. A healthy worker can
+save its final answer despite Redis output failure. If both worker and replay
+history are lost, the partial answer can be lost entirely. Tool changes already
+committed remain, and interrupted runs are never retried automatically.
+
+The shared engine supports the minimum Redis version, 6.2.7, without an upgrade.
+HTTP followers have a separate capacity limit of 100 per application process and
+a separate bounded Redis connection pool, so they do not occupy ordinary REST
+concurrency slots.
+
+For adapter and protocol details, see
+[Background chat runs](../development/background-chat-runs.md).
+
+When background runs are enabled:
+
+- **Worker.** The tasks run on the `chat_run` queue, which the existing export worker (`celery-exportworker`) consumes, so no new service is needed. On single-process installs (`BASEROW_RUN_MINIMAL` with one worker) the one Celery process also runs Kuma's answers, so realtime updates, emails, webhooks, automations, imports and exports wait; to keep them responsive, run the normal worker setup. A custom worker command must include `chat_run` in its `-Q` list, or Kuma messages wait and fail after an hour.
+- **Sharing.** Kuma shares the export worker with exports, imports, webhooks and notification emails. When they delay each other, isolate Kuma without code changes: start the export worker with `-X chat_run` and add a container that runs `celery-exportworker -Q chat_run`.
+- **Deploys.** A deploy interrupts runs that take longer than the worker's stop grace. The compose files and the Helm chart give the export worker 120 seconds. The all-in-one image stops it after 10 seconds, so a deploy there interrupts the runs in flight. An interrupted run ends with an error, and the message can be sent again.
+- **Health.** The health check warns when a run has waited more than 5 minutes for a worker, or when a run lost its worker and wasn't cleaned up (check that `celery-beat` runs).
