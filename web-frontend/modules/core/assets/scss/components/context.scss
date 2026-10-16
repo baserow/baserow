@@ -119,6 +119,14 @@
     }
   }
 
+  &.context__menu-item-link--error {
+    background: $palette-red-50;
+
+    &:hover:not(.disabled) {
+      background: $palette-red-100;
+    }
+  }
+
   &.context__menu-item-link--delete {
     &:hover:not(.disabled) {
       background: $palette-red-50;
@@ -281,4 +289,9 @@
   flex-shrink: 0;
 
   @include flex-align-items(8px);
+}
+
+.context__menu-item-error-icon {
+  margin-left: auto;
+  color: $palette-red-700;
 }

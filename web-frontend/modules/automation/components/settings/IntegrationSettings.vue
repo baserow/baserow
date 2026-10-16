@@ -16,7 +16,11 @@
             :image="getIntegrationType(integration).image"
             :icon="getIntegrationType(integration).iconClass"
             :title="integration.name"
-            :subtitle="getIntegrationType(integration).getSummary(integration)"
+            :subtitle="getSubtitle(integration)"
+            :subtitle-error="
+              showErrors &&
+              getIntegrationType(integration).isInError(integration)
+            "
             :rounded-icon="false"
             avatar-color="transparent"
             style="flex: 1"
@@ -52,6 +56,10 @@
 import { useStore } from 'vuex'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  integrationSubtitle,
+  showIntegrationErrors,
+} from '@baserow/modules/core/utils/integration'
 import { defineComponent, ref, computed, onMounted, toRefs } from 'vue'
 
 export default defineComponent({
@@ -78,8 +86,14 @@ export default defineComponent({
       return store.getters['integration/getIntegrations'](automation.value)
     })
 
+    const showErrors = computed(() => showIntegrationErrors(app))
+
     const getIntegrationType = (integration) => {
       return app.$registry.get('integration', integration.type)
+    }
+
+    const getSubtitle = (integration) => {
+      return integrationSubtitle(app, integration)
     }
 
     const fetchIntegrations = async () => {
@@ -114,7 +128,9 @@ export default defineComponent({
       state,
       integrationTypes,
       integrations,
+      showErrors,
       getIntegrationType,
+      getSubtitle,
       deleteIntegration,
     }
   },

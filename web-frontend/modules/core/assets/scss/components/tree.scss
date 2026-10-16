@@ -62,6 +62,14 @@
     background-color: rgba($palette-neutral-1300, 0.04);
   }
 
+  &.tree__action--error {
+    background-color: $palette-red-50;
+
+    &:not(.tree__action--disabled):hover {
+      background-color: $palette-red-100;
+    }
+  }
+
   .tree__item.active &:hover {
     background-color: transparent;
   }
@@ -137,6 +145,12 @@
   .active & {
     color: $palette-neutral-1200;
   }
+}
+
+.tree__error-icon {
+  flex-shrink: 0;
+  color: $palette-red-700;
+  font-size: 14px;
 }
 
 .tree__icon-right {

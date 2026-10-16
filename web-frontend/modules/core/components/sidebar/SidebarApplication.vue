@@ -7,7 +7,10 @@
   >
     <div
       class="tree__action tree__action--has-options"
-      :class="{ 'tree__action--highlighted': highlighted }"
+      :class="{
+        'tree__action--highlighted': highlighted,
+        'tree__action--error': isInError,
+      }"
       data-sortable-handle
       :data-highlight="`sidebar-application-${application.id}`"
     >
@@ -27,6 +30,11 @@
             @change="renameApplication(application, $event)"
           ></Editable>
         </span>
+        <i
+          v-if="isInError"
+          v-tooltip="errorMessage"
+          class="tree__error-icon iconoir-warning-circle"
+        ></i>
       </a>
 
       <a
@@ -106,6 +114,12 @@ export default {
     },
     applicationType() {
       return this.$registry.get('application', this.application.type)
+    },
+    errorMessage() {
+      return this.applicationType.getErrorMessage(this.application)
+    },
+    isInError() {
+      return Boolean(this.errorMessage)
     },
   },
 }

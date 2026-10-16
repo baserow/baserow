@@ -16,9 +16,18 @@
           "
           class="context__menu-item"
         >
-          <a class="context__menu-item-link" @click="openSettingsModal">
+          <a
+            class="context__menu-item-link"
+            :class="{ 'context__menu-item-link--error': settingsInError }"
+            @click="openSettingsModal"
+          >
             <i class="context__menu-item-icon iconoir-settings"></i>
             {{ $t('sidebarComponentBuilder.settings') }}
+            <i
+              v-if="settingsInError"
+              v-tooltip="settingsErrorMessage"
+              class="context__menu-item-error-icon iconoir-warning-circle"
+            ></i>
           </a>
         </li>
       </template>
@@ -51,6 +60,20 @@ export default {
     workspace: {
       type: Object,
       required: true,
+    },
+  },
+  computed: {
+    settingsErrorMessage() {
+      for (const setting of this.$registry.getOrderedList('builderSettings')) {
+        const message = setting.getErrorMessage(this.application)
+        if (message) {
+          return message
+        }
+      }
+      return null
+    },
+    settingsInError() {
+      return Boolean(this.settingsErrorMessage)
     },
   },
   methods: {
