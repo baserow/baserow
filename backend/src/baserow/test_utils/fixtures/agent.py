@@ -1,8 +1,12 @@
+from django.contrib.auth.models import AbstractUser
+
 from baserow.contrib.agent.models import AgentApplication
 
 
 class AgentApplicationFixtures:
-    def create_agent_application(self, user=None, **kwargs):
+    def create_agent_application(
+        self, user: AbstractUser | None = None, **kwargs
+    ) -> AgentApplication:
         if "workspace" not in kwargs:
             kwargs["workspace"] = self.create_workspace(user=user)
         kwargs.setdefault("name", self.fake.name())

@@ -62,8 +62,7 @@ export class AgentApplicationType extends ApplicationType {
   }
 
   async select(application) {
-    // The route loads workspace permissions before checking application access.
-    // They are not loaded yet when opening from All workspaces.
+    // Workspace permissions load in the route; they aren't loaded yet from All workspaces.
     await this.app.$router.push({
       name: 'agent-application',
       params: { agentId: application.id },
