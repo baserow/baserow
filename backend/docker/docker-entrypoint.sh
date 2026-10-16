@@ -173,7 +173,7 @@ gunicorn            : Start Baserow backend django using a prod ready gunicorn s
                          * Binds to BASEROW_BACKEND_BIND_ADDRESS which defaults to 0.0.0.0
 gunicorn-wsgi       : Same as gunicorn but runs a wsgi server which does not support WS
 celery-worker       : Start the celery worker queue which runs important async tasks
-celery-exportworker : Start the celery worker queue which runs slower async tasks
+celery-exportworker : Start the celery worker queue which runs slower async tasks and Kuma runs
 celery-beat         : Start the celery beat service used to schedule periodic jobs
 email-receiver      : Start the mox mail server which receives inbound email for
                       the "Start workflow by email" automation trigger and forwards
@@ -378,7 +378,7 @@ case "$1" in
       if [[ -n "${BASEROW_RUN_MINIMAL}" && $BASEROW_AMOUNT_OF_WORKERS == "1" ]]; then
         export OTEL_SERVICE_NAME="celery-worker-combined"
         echo "Starting combined celery and export worker..."
-        start_celery_worker -Q celery,export,automation_workflow -n default-worker@%h "${@:2}"
+        start_celery_worker -Q celery,export,automation_workflow,chat_run -n default-worker@%h "${@:2}"
       else
         export OTEL_SERVICE_NAME="celery-worker"
         start_celery_worker -Q celery,automation_workflow -n default-worker@%h "${@:2}"
@@ -395,7 +395,7 @@ case "$1" in
         while true; do sleep 2073600; done
       else
         export OTEL_SERVICE_NAME="celery-exportworker"
-        start_celery_worker -Q export -n export-worker@%h "${@:2}"
+        start_celery_worker -Q export,chat_run --disable-prefetch -n export-worker@%h "${@:2}"
       fi
     ;;
     celery-exportworker-healthcheck)

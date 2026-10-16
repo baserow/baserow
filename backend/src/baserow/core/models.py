@@ -28,6 +28,7 @@ from .ai_provider.models import (
     AIProviderFeatureSetting,
     AIProviderModel,
 )
+from .chat_runs.models import ChatRun
 from .integrations.models import Integration
 from .last_viewed.models import UserLastViewedItem
 from .mixins import (
@@ -43,6 +44,7 @@ from .notifications.models import Notification
 from .services.models import Service
 
 __all__ = [
+    "ChatRun",
     "Settings",
     "UserLastViewedItem",
     "Workspace",

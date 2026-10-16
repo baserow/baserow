@@ -5,6 +5,12 @@ from celery_singleton import Singleton
 from baserow.config.celery import app
 
 from .action.tasks import cleanup_old_actions, setup_periodic_action_tasks
+from .chat_runs.tasks import (
+    execute_chat_run,
+    prune_chat_runs,
+    setup_periodic_chat_run_tasks,
+    sweep_chat_runs,
+)
 from .last_viewed.tasks import (
     clean_up_stale_last_viewed_items,
     mark_item_viewed,
@@ -45,6 +51,10 @@ def sync_templates_task(self):
 __all__ = [
     "delete_unused_mcp_oauth_clients",
     "setup_periodic_mcp_oauth_tasks",
+    "execute_chat_run",
+    "prune_chat_runs",
+    "setup_periodic_chat_run_tasks",
+    "sweep_chat_runs",
     "permanently_delete_marked_trash",
     "mark_old_trash_for_permanent_deletion",
     "setup_period_trash_tasks",

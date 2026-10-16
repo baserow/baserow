@@ -103,14 +103,14 @@ class CeleryQueueSizeExceededView(APIView):
                 type=OpenApiTypes.STR,
                 description=(
                     "The name of the queues to check. Can be provided multiple times. "
-                    "Accepts either `celery` or `export`."
+                    "Accepts `celery`, `export` or `chat_run`."
                 ),
             )
         ],
         operation_id="celery_queue_size_check",
         description=(
-            f"Health check endpoint to check if the the celery and/or export celery "
-            f"queue has  exceeded the maximum healthy size. Responds with `200` if "
+            f"Health check endpoint to check if the celery, export and/or chat_run "
+            f"queue has exceeded the maximum healthy size. Responds with `200` if "
             f"there there are less than "
             f"{settings.BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE} in all queues provided. "
             f"Otherwise responds with a `503`."
@@ -127,7 +127,7 @@ class CeleryQueueSizeExceededView(APIView):
         if len(queues) == 0:
             return Response("no queue provided", status=HTTP_400_BAD_REQUEST)
 
-        allowed_queues = ["celery", "export"]
+        allowed_queues = ["celery", "export", "chat_run"]
 
         for queue in queues:
             if queue not in allowed_queues:

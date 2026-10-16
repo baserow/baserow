@@ -476,12 +476,13 @@ caddy:
 
 ### Baserow Celery export worker Configuration
 
-| Name                                            | Description                                                            | Value                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------- |
-| `baserow-celery-export-worker.image.repository` | Docker image repository for the Celery export worker.                  | `backend`                 |
-| `baserow-celery-export-worker.args`             | Arguments passed to the Celery export worker.                          | `["celery-exportworker"]` |
-| `baserow-celery-export-worker.replicaCount`     | Number of replicas for the Celery export worker.                       | `1`                       |
-| `baserow-celery-export-worker.service.create`   | Set to false to disable creating a service for the Celery beat worker. | `false`                   |
+| Name                                                         | Description                                                                             | Value                     |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------- |
+| `baserow-celery-export-worker.image.repository`              | Docker image repository for the Celery export worker.                                   | `backend`                 |
+| `baserow-celery-export-worker.args`                          | Arguments passed to the Celery export worker.                                           | `["celery-exportworker"]` |
+| `baserow-celery-export-worker.replicaCount`                  | Number of replicas for the Celery export worker.                                        | `1`                       |
+| `baserow-celery-export-worker.service.create`                | Set to false to disable creating a service for the Celery beat worker.                  | `false`                   |
+| `baserow-celery-export-worker.terminationGracePeriodSeconds` | Seconds the export worker gets to finish running tasks, such as Kuma runs, on shutdown. | `120`                     |
 
 ### Baserow Celery worker Configuration
 

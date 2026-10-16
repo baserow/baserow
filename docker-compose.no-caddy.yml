@@ -388,6 +388,8 @@ services:
     image: baserow/backend:2.4.1
     restart: unless-stopped
     command: celery-exportworker
+    # Lets Celery's warm shutdown finish most Kuma runs before the container is killed.
+    stop_grace_period: 120s
     environment:
       <<: *backend-variables
     # The backend image's baked in healthcheck defaults to the django healthcheck
