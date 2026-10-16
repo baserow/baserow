@@ -36,7 +36,7 @@ export function runOutcomeKey({ run_status: status, error_code: errorCode }) {
     return RUN_ERROR_KEYS[errorCode]
   }
   if (status === RUN_STATUS.CANCELLED) {
-    return 'assistant.messageCancelled'
+    return 'assistant.runStopped'
   }
   return status === RUN_STATUS.FAILED ? 'assistant.runErrorFailed' : null
 }

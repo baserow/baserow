@@ -83,6 +83,8 @@ async def stream_run_messages(
                 metadata["status"] = ChatRunStatus.QUEUED
             case ChatRunEventKind.RUN_STARTED:
                 metadata["status"] = ChatRunStatus.RUNNING
+            case ChatRunEventKind.RUN_CANCEL_REQUESTED:
+                metadata["cancel_requested"] = True
             case ChatRunEventKind.RUN_FINISHED:
                 metadata.update(
                     status=data["status"], error_code=data.get("error_code", "")

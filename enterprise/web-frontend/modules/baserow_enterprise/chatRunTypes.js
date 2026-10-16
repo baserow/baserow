@@ -1,6 +1,7 @@
 import { ChatRunType } from '@baserow/modules/core/chatRuns/chatRunType'
 import {
   RUN_BASELINE,
+  RUN_CANCEL_REQUESTED,
   RUN_CREATED,
   RUN_FINISHED,
   RUN_STARTED,
@@ -63,6 +64,9 @@ export class AssistantChatRunType extends ChatRunType {
           message: record,
         },
       }
+    }
+    if (metadata.cancel_requested) {
+      return { kind: RUN_CANCEL_REQUESTED, data: {} }
     }
     switch (record.type) {
       case 'human':
