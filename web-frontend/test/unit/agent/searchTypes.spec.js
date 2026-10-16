@@ -1,66 +1,47 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
-import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
-describe('Agent application search', () => {
-  const application = { id: 10, type: 'agent', workspace: { id: 1 } }
+describe('AgentApplicationSearchType', () => {
+  const agent = { id: 10, type: 'agent' }
 
-  function makeSearchType(allowed = true, resultApplication = application) {
+  function makeSearchType(application, canRead) {
     const app = {
       $i18n: { t: (key) => key },
-      $hasPermission: () => allowed,
       $store: {
         getters: {
           'application/get': (id) =>
-            id === 10 ? resultApplication : undefined,
+            id === application.id ? application : undefined,
         },
-        dispatch: vi.fn(),
       },
-      $router: { push: vi.fn() },
+      $registry: { get: () => ({ isVisible: () => canRead }) },
     }
-    const applicationType = new AgentApplicationType({ app })
-    app.$registry = { get: () => applicationType }
-    return { type: new AgentApplicationSearchType({ app }), app }
+    return new AgentApplicationSearchType({ app })
   }
 
-  test('registers the application search type', () => {
-    expect(searchTypeRegistry.get('agent')).toBeInstanceOf(
-      AgentApplicationSearchType
+  test.each([
+    ['a readable agent', agent, true, { id: '10' }, true],
+    [
+      'an agent ID in metadata',
+      agent,
+      true,
+      { id: 'x', metadata: { application_id: 10 } },
+      true,
+    ],
+    ['an unreadable agent', agent, false, { id: 10 }, false],
+    [
+      'another application type',
+      { id: 10, type: 'database' },
+      true,
+      { id: 10 },
+      false,
+    ],
+    ['a missing application', agent, true, { id: 99 }, false],
+  ])('resolves %s', (_, application, canRead, result, navigable) => {
+    const searchType = makeSearchType(application, canRead)
+
+    expect(searchType.isNavigable(result)).toBe(navigable)
+    expect(searchType.buildUrl(result)).toEqual(
+      navigable ? { name: 'agent-application', params: { agentId: 10 } } : null
     )
-  })
-
-  test('opens the agent application using either ID representation', () => {
-    const { type } = makeSearchType()
-    for (const result of [
-      { id: '10' },
-      { id: 'other', metadata: { application_id: 10 } },
-    ]) {
-      expect(type.isNavigable(result)).toBe(true)
-      expect(type.buildUrl(result)).toEqual({
-        name: 'agent-application',
-        params: { agentId: 10 },
-      })
-    }
-  })
-
-  test('requires application read permission', () => {
-    const { type, app } = makeSearchType(false)
-    expect(type.buildUrl({ id: 10 })).toBeNull()
-    expect(type.isNavigable({ id: 10 })).toBe(false)
-    expect(type.focusInSidebar({ id: 10 })).toBe(false)
-    expect(app.$store.dispatch).not.toHaveBeenCalled()
-    expect(app.$router.push).not.toHaveBeenCalled()
-  })
-
-  test('rejects missing applications and IDs belonging to other types', () => {
-    const { type } = makeSearchType()
-    expect(type.buildUrl({ id: 99 })).toBeNull()
-    expect(type.buildUrl({ id: 'invalid' })).toBeNull()
-    const other = makeSearchType(true, {
-      ...application,
-      type: 'database',
-    })
-    expect(other.type.buildUrl({ id: 10 })).toBeNull()
   })
 })

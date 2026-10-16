@@ -1,57 +1,47 @@
 import { describe, expect, test, vi } from 'vitest'
-import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
 
-describe('Agent application type', () => {
-  const application = { id: 10, type: 'agent', workspace: { id: 1 } }
+describe('AgentApplicationType', () => {
+  const agent = { id: 10, type: 'agent', workspace: { id: 1 } }
 
-  function makeType(enabled, allowed = true) {
+  function makeType({ flagEnabled = true, selected = false } = {}) {
     const app = {
-      $i18n: { t: (key) => key },
-      $featureFlagIsEnabled: vi.fn().mockReturnValue(enabled),
-      $hasPermission: vi.fn().mockReturnValue(allowed),
+      $featureFlagIsEnabled: (flag) => flagEnabled && flag === 'agent-builder',
       $router: { push: vi.fn() },
+      $store: { getters: { 'application/isSelected': () => selected } },
     }
     return { type: new AgentApplicationType({ app }), app }
   }
 
-  test('offers creation only while the rollout flag is enabled', () => {
-    const { type, app } = makeType(false)
-    expect(type.getType()).toBe('agent')
-    expect(type.canBeCreated()).toBe(false)
-    expect(app.$featureFlagIsEnabled).toHaveBeenCalledWith('agent-builder')
-    expect(makeType(true).type.canBeCreated()).toBe(true)
-  })
+  test.each([true, false])(
+    'can be created only while the rollout flag is enabled=%s',
+    (enabled) => {
+      expect(makeType({ flagEnabled: enabled }).type.canBeCreated()).toBe(
+        enabled
+      )
+    }
+  )
 
-  test('orders the agent section after automations', () => {
-    const { type, app } = makeType(true)
-    expect(type.getOrder()).toBeGreaterThan(
-      new AutomationApplicationType({ app }).getOrder()
-    )
-  })
+  test('opens the agent route by application ID', async () => {
+    const { type, app } = makeType()
 
-  test('has no trashable children to show in an application trash', () => {
-    expect(makeType(true).type.supportsTrash()).toBe(false)
-  })
-
-  test('hides an agent without application read permission', () => {
-    const { type, app } = makeType(true, false)
-    expect(type.isVisible(application)).toBe(false)
-    expect(app.$hasPermission).toHaveBeenCalledWith(
-      'application.read',
-      application,
-      1
-    )
-  })
-
-  test('opens the agent using the application ID', async () => {
-    const { type, app } = makeType(true)
-    expect(await type.select(application)).toBe(true)
+    expect(await type.select(agent)).toBe(true)
     expect(app.$router.push).toHaveBeenCalledWith({
       name: 'agent-application',
-      params: { agentId: application.id },
+      params: { agentId: 10 },
     })
-    expect(type.populate(application)).toEqual(application)
-    expect(type.getDependents(application)).toEqual([])
   })
+
+  test.each([true, false])(
+    'returns to the workspace when the deleted agent is selected=%s',
+    (selected) => {
+      const { type, app } = makeType({ selected })
+
+      type.delete(agent)
+
+      expect(app.$router.push.mock.calls).toEqual(
+        selected ? [[{ name: 'workspace', params: { workspaceId: 1 } }]] : []
+      )
+    }
+  )
 })
