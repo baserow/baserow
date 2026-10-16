@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Favorite Food Places",
+    "description": "Keep track of favorite restaurants, dishes and delivery orders.",
     "icon": "iconoir-pizza-slice",
     "keywords": [
         "food",

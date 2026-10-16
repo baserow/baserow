@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Teacher Lesson Plans",
+    "description": "Plan lessons by unit and subject, with assignments and resources.",
     "icon": "iconoir-calendar",
     "keywords": [
         "teacher",

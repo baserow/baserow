@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Healthcare Theme",
+  "description": "Calm light application theme in cyan and green.",
   "icon": "",
   "keywords": [
     "application",

@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Legal Theme",
+  "description": "Formal light application theme in navy and brown with serif headings.",
   "icon": "",
   "keywords": [
     "application",

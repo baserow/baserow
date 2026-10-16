@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Project Tracker",
+    "description": "Track client projects, tasks, deadlines and the team working on them.",
     "icon": "iconoir-strategy",
     "keywords": [
         "project tracker",

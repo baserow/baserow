@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Health Inspection Reports",
+    "description": "Record health inspections, violations and managers per establishment.",
     "icon": "iconoir-health-shield",
     "keywords": [
         "health",

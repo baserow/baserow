@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Payroll Management",
+    "description": "Plan recurring payroll tasks for clients and balance staff workload.",
     "icon": "iconoir-coins",
     "keywords": [
         "payroll",

@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Startup Theme",
+  "description": "Light application theme in violet and pink.",
   "icon": "",
   "keywords": [
     "application",

@@ -69,6 +69,18 @@ describe('TemplateDetails', () => {
     expect(wrapper.find('.template-install').exists()).toBe(true)
   })
 
+  test('shows the description only when the template has one', async () => {
+    let wrapper = await mountComponent({
+      template: { ...template, description: 'Track projects.' },
+    })
+    expect(wrapper.find('.template-details__description').text()).toBe(
+      'Track projects.'
+    )
+
+    wrapper = await mountComponent()
+    expect(wrapper.find('.template-details__description').exists()).toBe(false)
+  })
+
   test('lists the applications by order and switches the selection', async () => {
     const wrapper = await mountComponent()
 

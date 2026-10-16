@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Trip History",
+    "description": "Keep a history of past trips, stays, attractions and transport by city.",
     "icon": "iconoir-large-suitcase",
     "keywords": [
         "trip",

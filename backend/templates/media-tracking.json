@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Media Tracking",
+    "description": "Track media publications, contacts and SEO ratings.",
     "icon": "iconoir-media-image-list",
     "keywords": [
         "publications",

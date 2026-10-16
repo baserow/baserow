@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Beverage Sales Management",
+    "description": "Manage a drinks menu, ingredients, orders and customer loyalty points.",
     "icon": "iconoir-coffee-cup",
     "keywords": [
         "beverage",

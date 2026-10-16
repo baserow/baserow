@@ -86,6 +86,9 @@ replace the values with something that matches your template. We keep all the te
 as JSON files so that everyone who self hosts also has access them.
 
 -   **name**: The name of the template that is visible to the user.
+-   **description**: One sentence about what the template helps with, shown on the
+    template card and in its details panel. Changing only the description doesn't
+    reinstall the template.
 -   **icon**: An icon class name that is visible to the user (`iconoir-{icon}` or `baserow-icon-{icon}`).
 -   **keyword**: Invisible keywords will only be used to improve searching.
 -   **categories**: The categories that the template belongs to.
@@ -97,6 +100,7 @@ as JSON files so that everyone who self hosts also has access them.
 {
     "baserow_template_version": 1,
     "name": "Content Calendar",
+    "description": "Plan, schedule and track content across channels.",
     "icon": "iconoir-user",
     "keywords": ["Example", "Template", "For", "Search"],
     "categories": ["Test category 1"],

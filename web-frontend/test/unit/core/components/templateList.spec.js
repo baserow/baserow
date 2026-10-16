@@ -4,10 +4,11 @@ import { useNuxtApp } from '#app'
 
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 
-const template = (id, name, keywords = '') => ({
+const template = (id, name, keywords = '', description = '') => ({
   id,
   name,
   slug: name.toLowerCase().replace(/ /g, '-'),
+  description,
   icon: 'iconoir-table',
   keywords,
 })
@@ -17,7 +18,7 @@ const categories = [
     id: 1,
     name: 'Business',
     templates: [
-      template(1, 'Project Tracker', 'tasks,planning'),
+      template(1, 'Project Tracker', 'tasks,planning', 'Track projects.'),
       template(2, 'Applicant Tracker', 'hiring'),
     ],
   },
@@ -59,6 +60,18 @@ describe('TemplateList', () => {
       'Applicant Tracker',
       'Recipe Book',
     ])
+  })
+
+  test('shows the description only on cards that have one', async () => {
+    const wrapper = await mountComponent()
+
+    const cards = wrapper.findAll('.template-list__card')
+    expect(cards[0].find('.template-list__card-description').text()).toBe(
+      'Track projects.'
+    )
+    expect(cards[1].find('.template-list__card-description').exists()).toBe(
+      false
+    )
   })
 
   test('shows only the selected category', async () => {

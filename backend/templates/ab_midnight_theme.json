@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Midnight Theme",
+  "description": "Dark application theme with gold and blue accents.",
   "icon": "",
   "keywords": [
     "application",

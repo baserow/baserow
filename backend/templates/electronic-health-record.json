@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Electronic Health Record",
+    "description": "Keep patient records with exams, prescriptions, allergies and vaccines.",
     "icon": "iconoir-home-hospital",
     "keywords": [
         "healthcare",

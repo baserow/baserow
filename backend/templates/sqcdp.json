@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "SQCDP - Safety, Quality, Cost, Delivery, People",
+    "description": "Track daily Safety, Quality, Cost, Delivery and People metrics.",
     "icon": "iconoir-industry",
     "keywords": [
         "sqcdp",

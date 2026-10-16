@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Competitor Analysis",
+    "description": "Compare your product with competitors feature by feature.",
     "icon": "iconoir-git-compare",
     "keywords": [
         "competitors",

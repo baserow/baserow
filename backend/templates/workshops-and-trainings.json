@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Workshops and Trainings",
+    "description": "Schedule workshops and trainings with facilitators and rooms.",
     "icon": "iconoir-tools",
     "keywords": [
         "training",

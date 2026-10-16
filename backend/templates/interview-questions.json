@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Interview Questions",
+    "description": "Build a bank of interview questions with sample answers per role.",
     "icon": "iconoir-chat-bubble-question",
     "keywords": [
         "interviews",

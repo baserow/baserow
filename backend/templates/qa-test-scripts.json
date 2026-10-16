@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "QA Test Scripts",
+    "description": "Write QA test cases with step-by-step scripts and track pass rates.",
     "icon": "iconoir-test-tube",
     "keywords": [
         "test scripts",

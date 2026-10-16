@@ -2249,6 +2249,7 @@ class CoreHandler:
         kwargs = {
             "type": Template.Type.OFFICIAL,
             "name": parsed_json["name"],
+            "description": parsed_json.get("description", ""),
             "icon": parsed_json["icon"],
             "export_hash": export_hash,
             "keywords": keywords,

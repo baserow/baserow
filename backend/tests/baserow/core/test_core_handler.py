@@ -1,4 +1,6 @@
+import json
 import os
+import shutil
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -1380,6 +1382,7 @@ def test_sync_templates(data_fixture, tmpdir):
         == "7d86876e8fa061bb0deec179ce2a1b24a220f5cd4eb6ddacbdccf036160c7bf3"
     )
     assert refreshed_template_2.keywords == "Example,Template,For,Search"
+    assert refreshed_template_2.description == "An example template used by the tests."
     assert refreshed_template_2.categories.all().first().id == categories[0].id
     assert template_2.workspace_id != refreshed_template_2.workspace_id
     assert refreshed_template_2.workspace.name == "Example template"
@@ -1387,6 +1390,8 @@ def test_sync_templates(data_fixture, tmpdir):
 
     refreshed_template_3 = Template.objects.get(id=template_3.id)
     assert template_3.workspace_id == refreshed_template_3.workspace_id
+    # `example-template-2.json` has no description key.
+    assert refreshed_template_3.description == ""
     # We expect the workspace count to be zero because the export hash matches and
     # nothing was updated.
     assert refreshed_template_3.workspace.application_set.count() == 0
@@ -1535,6 +1540,32 @@ def test_sync_templates_update_sets_updated_on(data_fixture, tmpdir):
     template.refresh_from_db()
     assert template.name == "Example template"
     assert template.updated_on is not None
+
+
+@pytest.mark.django_db
+def test_sync_templates_description_change_keeps_workspace(data_fixture, tmpdir):
+    templates_dir = tmpdir.mkdir("templates")
+    template_path = Path(templates_dir) / "example-template.json"
+    shutil.copy(Path(TEST_TEMPLATES_DIR) / "example-template.json", template_path)
+    shutil.copy(
+        Path(TEST_TEMPLATES_DIR) / "example-template.zip",
+        Path(templates_dir) / "example-template.zip",
+    )
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    with override_settings(APPLICATION_TEMPLATES_DIR=str(templates_dir)):
+        CoreHandler().sync_templates(storage=storage)
+        template = Template.objects.get(slug="example-template")
+
+        template_json = json.loads(template_path.read_text())
+        template_json["description"] = "Changed description."
+        template_path.write_text(json.dumps(template_json))
+        CoreHandler().sync_templates(storage=storage)
+
+    refreshed_template = Template.objects.get(id=template.id)
+    assert refreshed_template.description == "Changed description."
+    assert refreshed_template.export_hash == template.export_hash
+    assert refreshed_template.workspace_id == template.workspace_id
 
 
 @pytest.mark.django_db

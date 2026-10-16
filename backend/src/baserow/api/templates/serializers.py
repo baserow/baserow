@@ -24,6 +24,7 @@ class TemplateSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "slug",
+            "description",
             "icon",
             "keywords",
             "workspace_id",

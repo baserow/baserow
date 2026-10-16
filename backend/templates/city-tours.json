@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "City Tours",
+    "description": "Publish city tours with highlights and map locations on a website.",
     "icon": "iconoir-city",
     "keywords": [
         "city trip",

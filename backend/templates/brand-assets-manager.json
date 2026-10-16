@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Brand Assets Manager",
+    "description": "Organize brand assets, messaging and style guides, with approvals.",
     "icon": "iconoir-bookmark-empty",
     "keywords": [
         "branding",

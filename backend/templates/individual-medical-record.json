@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Individual Medical Record",
+    "description": "Keep a personal record of medical visits, tests, results and prescriptions.",
     "icon": "iconoir-pharmacy-cross-circle",
     "keywords": [
         "health",

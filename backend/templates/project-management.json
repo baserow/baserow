@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Project Management",
+    "description": "Manage projects in phases with tasks, subtasks, assignees and automations.",
     "icon": "iconoir-strategy",
     "keywords": [
         "project tracker",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Car Dealership Inventory",
+    "description": "Manage a car dealership's stock, offers, branches, staff and customers.",
     "icon": "iconoir-car",
     "keywords": [
         "inventory",

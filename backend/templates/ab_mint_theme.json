@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Mint Theme",
+  "description": "Fresh light application theme in mint and indigo.",
   "icon": "",
   "keywords": [
     "application",

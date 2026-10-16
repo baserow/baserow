@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Software Application Bug Tracker",
+    "description": "Track software bugs by severity and status, linked to code and features.",
     "icon": "iconoir-data-transfer-check",
     "keywords": [
         "software",

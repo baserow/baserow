@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Office Guest Log",
+    "description": "Log office visitors, their purpose and the employee they are visiting.",
     "icon": "iconoir-system-restart",
     "keywords": [
         "office guest",

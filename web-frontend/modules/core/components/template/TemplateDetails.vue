@@ -26,6 +26,12 @@
             </div>
             <div class="template-details__name">{{ template.name }}</div>
           </div>
+          <div
+            v-if="template.description"
+            class="template-details__description"
+          >
+            {{ template.description }}
+          </div>
           <div v-if="categories.length" class="template-details__categories">
             <span
               v-for="category in categories"

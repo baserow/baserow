@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Finance Theme",
+  "description": "Light application theme in deep green and gold.",
   "icon": "",
   "keywords": [
     "application",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Event Planning",
+    "description": "Plan events with venues, schedules, speakers, registrations and vendors.",
     "icon": "iconoir-calendar",
     "keywords": [
         "events",

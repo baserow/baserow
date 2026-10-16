@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Online Freelancer Management",
+    "description": "Match freelancers to client projects by skill and track their progress.",
     "icon": "iconoir-numbered-list-left",
     "keywords": [
         "talent",

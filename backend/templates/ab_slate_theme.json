@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Slate Theme",
+  "description": "Minimal light application theme in charcoal and grey.",
   "icon": "",
   "keywords": [
     "application",

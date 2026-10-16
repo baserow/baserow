@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "SMB Business Plan",
+    "description": "Build a small business plan with markets, costs and forecasts.",
     "icon": "iconoir-shop-alt",
     "keywords": [
         "smb",

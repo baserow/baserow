@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Formula demo",
+  "description": "Step-by-step task databases that teach Baserow formulas.",
   "icon": "iconoir-sigma-function",
   "keywords": [
     "All",

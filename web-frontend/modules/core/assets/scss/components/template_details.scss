@@ -59,6 +59,14 @@
   overflow-wrap: anywhere;
 }
 
+.template-details__description {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+}
+
 .template-details__categories {
   display: flex;
   flex-wrap: wrap;

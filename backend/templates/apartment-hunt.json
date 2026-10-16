@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Apartment Hunt",
+    "description": "Compare apartments by neighborhood, rent and amenities.",
     "icon": "iconoir-neighbourhood",
     "keywords": [
         "apartment",

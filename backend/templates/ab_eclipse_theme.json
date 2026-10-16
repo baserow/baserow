@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Eclipse Theme",
+  "description": "Dark application theme with blue and aqua accents.",
   "icon": "",
   "keywords": [
     "application",

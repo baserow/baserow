@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Blog Post Management",
+    "description": "Plan and approve blog posts with authors, SEO details and channels.",
     "icon": "iconoir-view-grid",
     "keywords": [
         "blog",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Action Plan Management",
+    "description": "Turn OKRs into action plans with milestones, tasks and updates.",
     "icon": "iconoir-task-list",
     "keywords": [
         "action management",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Santa's Logistics",
+    "description": "Playful holiday template: run Santa's workshop from letters to deliveries.",
     "icon": "iconoir-pine-tree",
     "keywords": [
         "Santa",

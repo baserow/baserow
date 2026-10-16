@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Holiday Shopping",
+    "description": "Plan holiday gifts per person, with prices, shops and order status.",
     "icon": "iconoir-cart-alt",
     "keywords": [
         "holiday",

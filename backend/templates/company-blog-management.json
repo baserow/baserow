@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Company Blog Management",
+    "description": "Plan and approve company blog posts with authors and categories.",
     "icon": "iconoir-orthogonal-view",
     "keywords": [
         "blog post management",

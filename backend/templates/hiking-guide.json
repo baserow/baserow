@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Hiking Guide",
+    "description": "Collect hiking trails with length, difficulty and elevation by park.",
     "icon": "iconoir-walking",
     "keywords": [
         "hiking guide",

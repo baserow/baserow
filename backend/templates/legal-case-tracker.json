@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Legal Case Tracker",
+    "description": "Track legal cases, staff hours, billing entries and invoices.",
     "icon": "iconoir-locked-book",
     "keywords": [
         "legal case tracker",

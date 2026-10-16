@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Podcast Content Manager",
+    "description": "Plan podcast episodes with guests, sponsors and ad placements.",
     "icon": "iconoir-album-open",
     "keywords": [
         "podcast content",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "A/B Testing",
+    "description": "Plan A/B tests by brand and market, with hypotheses, KPIs and variants.",
     "icon": "iconoir-test-tube",
     "keywords": [
         "experiments",

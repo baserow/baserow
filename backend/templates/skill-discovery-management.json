@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Skill Discovery Management",
+    "description": "Assess employees' performance, potential and abilities.",
     "icon": "iconoir-people-tag",
     "keywords": [
         "assessments",

@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Coral Theme",
+  "description": "Warm light application theme with coral and teal accents.",
   "icon": "",
   "keywords": [
     "application",

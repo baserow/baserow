@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Non-emergency Call Center",
+    "description": "Log non-emergency calls and raise tickets for the right department.",
     "icon": "iconoir-antenna-signal",
     "keywords": [
         "emergency",

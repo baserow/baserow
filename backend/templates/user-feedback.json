@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "User Feedback",
+    "description": "Collect user feedback and see which features are most requested.",
     "icon": "iconoir-chat-lines",
     "keywords": [
         "user feedback",

@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Program Management & KPI Tracker",
+  "description": "Manage donor-funded programs, track KPIs and report to donors.",
   "icon": "iconoir-dashboard",
   "keywords": [
     "donations",

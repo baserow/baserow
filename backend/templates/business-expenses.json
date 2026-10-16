@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Business Expenses",
+    "description": "Record business expenses by type and supplier, with tax deductions.",
     "icon": "iconoir-dollar",
     "keywords": [
         "expense",

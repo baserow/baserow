@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Personal Health Log",
+    "description": "Log daily health stats, meals and workouts and see your trends.",
     "icon": "iconoir-weight-alt",
     "keywords": [
         "health",

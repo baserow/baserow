@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Emergency Triage Log",
+    "description": "Log emergency admissions by ESI level with vitals and staff on duty.",
     "icon": "iconoir-hospital",
     "keywords": [
         "emergencies",

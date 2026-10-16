@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Home Remodeling",
+    "description": "Plan a home remodel room by room, with tasks, budgets and vendors.",
     "icon": "iconoir-bathroom",
     "keywords": [
         "home remodeling",

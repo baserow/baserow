@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Agile Product Roadmap",
+    "description": "Plan epics, features, user stories, sprints and releases in one roadmap.",
     "icon": "iconoir-agile",
     "keywords": [
         "agile",

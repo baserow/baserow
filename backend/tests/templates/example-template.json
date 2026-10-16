@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Example template",
+  "description": "An example template used by the tests.",
   "icon": "file",
   "keywords": ["Example", "Template", "For", "Search"],
   "categories": ["Test category 1"],

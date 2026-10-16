@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Student Planner",
+    "description": "Plan your studies with semesters, classes, assignments and due dates.",
     "icon": "iconoir-math-book",
     "keywords": [
         "student planner",

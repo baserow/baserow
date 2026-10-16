@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Property Showings",
+    "description": "Schedule property showings and match properties to clients' needs.",
     "icon": "iconoir-balcony",
     "keywords": [
         "real estate",

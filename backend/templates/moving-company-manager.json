@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Moving Company Manager",
+    "description": "Plan moving jobs with customers, locations, staff, vehicles and shifts.",
     "icon": "iconoir-delivery-truck",
     "keywords": [
         "moving",

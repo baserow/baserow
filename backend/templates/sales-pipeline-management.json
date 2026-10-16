@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Sales Pipeline Management",
+    "description": "Track sales opportunities against revenue goals per account.",
     "icon": "iconoir-money-square",
     "keywords": [
         "prospects",

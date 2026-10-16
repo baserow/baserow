@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Company Advertising Campaigns",
+    "description": "Plan ad campaigns across platforms and measure clicks and conversions.",
     "icon": "iconoir-send-dollars",
     "keywords": [
         "ads",

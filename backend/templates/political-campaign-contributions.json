@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Political Campaign Contributions",
+    "description": "Track political campaign donations, donors and fund allocation.",
     "icon": "iconoir-privacy-policy",
     "keywords": [
         "politics",

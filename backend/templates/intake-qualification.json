@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 2,
     "name": "Intake & Qualification Engine",
+    "description": "Qualify incoming leads, assign them by workload and log every interaction.",
     "icon": "iconoir-check",
     "keywords": [
         "lead",

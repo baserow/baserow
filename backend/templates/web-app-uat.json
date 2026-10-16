@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Web App UAT",
+    "description": "Run user acceptance testing for web apps with test cases and results.",
     "icon": "iconoir-app-window",
     "keywords": [
         "user acceptance testing",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Advertising Campaigns",
+    "description": "Organize ad campaigns by target group, platform, budget and owner.",
     "icon": "iconoir-playlist-play",
     "keywords": [
         "marketing play",

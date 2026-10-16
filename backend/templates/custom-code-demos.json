@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Custom code demos",
+    "description": "Ten small applications showing what custom code can do in Baserow.",
     "icon": "iconoir-code",
     "keywords": [
         "application",

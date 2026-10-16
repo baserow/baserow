@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Order Kiosk",
+    "description": "Self-service kiosk where customers order drinks and check out.",
     "icon": "iconoir-coffee-cup",
     "keywords": [
         "orders",

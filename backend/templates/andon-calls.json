@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "ANDON Calls",
+    "description": "Report shop floor issues per station and track how managers respond.",
     "icon": "iconoir-phone-income",
     "keywords": [
         "andon calls",

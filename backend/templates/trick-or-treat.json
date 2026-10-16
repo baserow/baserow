@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Trick or Treat Management",
+    "description": "Playful Halloween template: plan a trick-or-treat candy route.",
     "icon": "iconoir-potion",
     "keywords": [
         "trick or treat",

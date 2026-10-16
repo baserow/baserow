@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Public Library Inventory",
+    "description": "Manage a library's books, eBooks, DVDs and games across branches.",
     "icon": "iconoir-book-stack",
     "keywords": [
         "library",

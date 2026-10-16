@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Job Search",
+    "description": "Organize a job search with applications, contacts and resumes.",
     "icon": "iconoir-large-suitcase",
     "keywords": [
         "job",
