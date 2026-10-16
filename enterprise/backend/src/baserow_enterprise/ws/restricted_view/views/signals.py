@@ -3,12 +3,17 @@ from django.dispatch import receiver
 
 from baserow.contrib.database.views import signals as view_signals
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.ws.views.rows.registries import (
+    view_realtime_rows_registry,
+)
 from baserow.ws.registries import page_registry
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+from baserow_enterprise.ws.restricted_view.rows.view_realtime_rows import (
+    RestrictedViewRealtimeRowsType,
+)
 
 
 def _send_force_rows_refresh_if_view_restricted(view):
-    view_page_type = page_registry.get("restricted_view")
     view_type = view_type_registry.get_by_model(view.specific_class)
     if (
         view.ownership_type == RestrictedViewOwnershipType.type
@@ -17,12 +22,11 @@ def _send_force_rows_refresh_if_view_restricted(view):
         # for real-time updates of a row in the form view.
         view_type.can_filter
     ):
+        realtime_rows_type = view_realtime_rows_registry.get(
+            RestrictedViewRealtimeRowsType.type
+        )
         transaction.on_commit(
-            lambda: view_page_type.broadcast(
-                {"type": "force_view_rows_refresh", "view_id": view.id},
-                None,
-                restricted_view_id=view.id,
-            )
+            lambda: realtime_rows_type.broadcast_force_rows_refresh(view)
         )
 
 

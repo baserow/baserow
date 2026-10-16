@@ -2117,3 +2117,38 @@ def test_given_row_invisible_in_public_view_when_moved_no_update_sent(
             call(f"table-{table.id}", ANY, ANY, None),
         ]
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_batch_update_rows_leaving_public_view_never_sends_never_visible_rows(
+    mock_broadcast_to_channel_group, data_fixture, public_realtime_view_tester
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    public_view = public_realtime_view_tester.create_public_view(
+        user, table, visible_fields=[field]
+    )
+    data_fixture.create_view_filter(view=public_view, field=field, value="Visible")
+    model = table.get_model()
+    visible_row = model.objects.create(**{field.db_column: "Visible"})
+    hidden_row = model.objects.create(**{field.db_column: "Hidden"})
+
+    with transaction.atomic():
+        RowHandler().update_rows(
+            user,
+            table,
+            [
+                {"id": visible_row.id, field.db_column: "Gone"},
+                {"id": hidden_row.id, field.db_column: "Still hidden"},
+            ],
+        )
+
+    [payload] = [
+        mock_call.args[1]
+        for mock_call in mock_broadcast_to_channel_group.delay.mock_calls
+        if mock_call.args[0] == f"view-{public_view.slug}"
+    ]
+    assert (payload["type"], payload["row_ids"]) == ("rows_deleted", [visible_row.id])
+    assert [row["id"] for row in payload["rows"]] == [visible_row.id]

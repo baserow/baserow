@@ -2920,6 +2920,65 @@ describe('Grid view store', () => {
       ).toEqual([])
       expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
     })
+
+    test.each([
+      ['a search term', 'Alice', []],
+      [
+        'a link_row_has filter',
+        '',
+        [{ id: 1, view: 1, field: 4, type: 'link_row_has', value: '11' }],
+      ],
+    ])(
+      'deletedExistingRow removes a held row by id when the payload omits the value of %s',
+      async (_, activeSearchTerm, filters) => {
+        const linkField = { id: 4, name: 'Link', type: 'link_row' }
+        store.commit('grid/SET_SEARCH', {
+          activeSearchTerm,
+          hideRowsNotMatchingSearch: true,
+        })
+
+        await store.dispatch('grid/deletedExistingRow', {
+          view: { ...baseView, filters },
+          fields: [...fields, linkField],
+          row: { id: 10, order: '1.00' },
+        })
+
+        expect(leafCount('A', 'Open')).toBe(0)
+        expect(topCount('A')).toBe(0)
+        expect(store.getters['grid/getCount']).toBe(1)
+        expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
+      }
+    )
+
+    const heldGroupValues = { field_2: 'A', field_3: 'Open' }
+    test.each([
+      [
+        'filtered',
+        { filters: [{ id: 1, view: 1, field: 1, type: 'empty' }] },
+        heldGroupValues,
+      ],
+      [
+        'sorted',
+        { sortings: [{ id: 1, view: 1, field: 1, order: 'ASC' }] },
+        heldGroupValues,
+      ],
+      ['grouped', {}, { field_1: 'Bob' }],
+    ])(
+      'deletedExistingRow leaves the counts unchanged for an unheld row whose payload omits a %s field',
+      async (_, viewExtra, values) => {
+        await store.dispatch('grid/deletedExistingRow', {
+          view: { ...baseView, ...viewExtra },
+          fields,
+          row: { id: 99, order: '9.00', ...values },
+        })
+
+        expect(store.getters['grid/getCount']).toBe(2)
+        expect(store.getters['grid/getBufferStartIndex']).toBe(0)
+        expect(leafCount('A', 'Open')).toBe(1)
+        expect(topCount('A')).toBe(1)
+        expect(topCount('B')).toBe(1)
+      }
+    )
   })
 
   test('updatedExistingRow keeps a selected group-by change in place with a warning', async () => {

@@ -145,6 +145,7 @@ describe('SelectRowContent', () => {
     const events = wrapper.emitted()
     expect(events.selected).toHaveLength(1)
     expect(events.selected[0][0].row.id).toBe(42)
+    expect(events.selected[0][0].created).toBeUndefined()
     expect(events.unselected).toBeUndefined()
   })
 
@@ -220,6 +221,7 @@ describe('SelectRowContent', () => {
     // Must emit 'selected' to link the row
     expect(events.selected).toHaveLength(1)
     expect(events.selected[0][0].row.id).toBe(createdRowId)
+    expect(events.selected[0][0].created).toBe(true)
     // Must NOT emit 'unselected'
     expect(events.unselected).toBeUndefined()
   })

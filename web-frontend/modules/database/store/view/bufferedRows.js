@@ -15,6 +15,7 @@ import {
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
+  canTellIfDeletedRowWasCounted,
   extractChangedFields,
   getRowMetadata,
   resolveBeforeRow,
@@ -1110,14 +1111,30 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         }
       }
     },
-    /**
-     * When a new row deleted and it does exist in the store, it must be deleted
-     * removed from is. Based on the provided values of the row we can figure out if
-     * it was in the store and we can figure out what index it has.
-     */
-    async afterExistingRowDeleted({ dispatch, commit }, { view, fields, row }) {
+    /** Removes the row by id if held, else its estimated placeholder. */
+    async afterExistingRowDeleted(
+      { dispatch, commit, getters },
+      { view, fields, row }
+    ) {
+      const heldIndex = getters.getRows.findIndex((r) => r?.id === row.id)
+      if (heldIndex > -1) {
+        commit('DELETE_ROW_AT_INDEX', { index: heldIndex })
+        return
+      }
+
       row = clone(row)
       populateRow(row)
+
+      const canTellIfCounted = canTellIfDeletedRowWasCounted({
+        row,
+        view,
+        fields,
+        fieldOptions: getters.getAllFieldOptions,
+        checkSortAndGroupBy: true,
+      })
+      if (!canTellIfCounted) {
+        return
+      }
 
       const rowMatchesFilters = await dispatch('rowMatchesFilters', {
         view,
@@ -1138,7 +1155,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         fields,
         row,
       })
-      if (index > -1) {
+      // A held row at the estimated slot is a neighbour, not the deleted row.
+      if (index > -1 && getters.getRows[index] === null) {
         commit('DELETE_ROW_AT_INDEX', { index })
       }
     },

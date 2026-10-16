@@ -38,6 +38,7 @@ import {
   computeRowMatchFlags,
   computeRowInsertPosition,
   resolveBeforeRow,
+  canTellIfDeletedRowWasCounted,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import {
@@ -6260,12 +6261,11 @@ export const actions = {
     }
   ) {
     const { $registry } = this
-    const rowInBuffer = hiddenByBackend ? getters.getRow(row.id) : undefined
-    if (rowInBuffer !== undefined) {
+    const rowInBuffer = getters.getRow(row.id)
+    if (rowInBuffer !== undefined && hiddenByBackend) {
       commit('SET_ROW_HIDDEN_BY_BACKEND', rowInBuffer)
     }
-    row = clone(row)
-    populateRow(row)
+    row = rowInBuffer ?? populateRow(clone(row))
 
     const remove = (rowId) => {
       if (getters.isGroupByMode) {
@@ -6324,6 +6324,17 @@ export const actions = {
     // Sync, so the closing row modal's refresh can't remove it a second time.
     if (rowInBuffer !== undefined) {
       remove(row.id)
+      return
+    }
+
+    const canTellIfCounted = canTellIfDeletedRowWasCounted({
+      row,
+      view,
+      fields,
+      fieldOptions: getters.getAllFieldOptions,
+      checkSortAndGroupBy: true,
+    })
+    if (!canTellIfCounted) {
       return
     }
 

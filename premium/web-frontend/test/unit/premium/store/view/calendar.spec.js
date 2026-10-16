@@ -1640,6 +1640,34 @@ describe('Calendar view store', () => {
         const resultStack2nd = store.state.calendar.dateStacks['2023-01-02']
         expect(resultStack2nd.count).toBe(4)
       })
+
+      test('removes a held row from its stack when the payload omits the filtered values', async () => {
+        const results = [
+          { id: 10, order: '10.00', field_2: '2023-01-01' },
+          { id: 11, order: '11.00', field_2: '2023-01-01' },
+        ]
+        const state = Object.assign(calendarStore.state(), {
+          dateFieldId: 2,
+          dateStacks: { '2023-01-01': { count: 100, results } },
+        })
+        store.replaceState({ ...store.state, calendar: state })
+
+        await store.dispatch('calendar/deletedExistingRow', {
+          view: {
+            filters_disabled: false,
+            filter_type: 'AND',
+            filters: [
+              { id: 1, view: 1, field: 1, type: 'contains', value: 'A' },
+            ],
+          },
+          row: { id: 11, order: '11.00' },
+          fields,
+        })
+
+        const stack = store.state.calendar.dateStacks['2023-01-01']
+        expect(stack.count).toBe(99)
+        expect(stack.results.map((r) => r.id)).toEqual([10])
+      })
     })
   })
 

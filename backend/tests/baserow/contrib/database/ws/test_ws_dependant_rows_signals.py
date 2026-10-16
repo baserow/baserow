@@ -1,5 +1,7 @@
+from typing import List
 from unittest.mock import AsyncMock, patch
 
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.test.utils import override_settings
 
@@ -10,6 +12,7 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.signals import dependant_rows_updated
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.ws.rows.tasks import broadcast_dependant_rows_updated
 
 
@@ -140,6 +143,43 @@ def test_every_affected_table_under_the_limit_is_broadcast_exactly(
     # disruptive refresh; only the per-table row limit can force a refresh.
     assert mock_broadcast_task.delay.call_count == 12
     assert mock_broadcast_to_permitted_users.delay.call_count == 0
+
+
+def _send_cascade_update(user: AbstractUser, table: Table, row_ids: List[int]) -> None:
+    dependant_rows_updated.send(
+        None,
+        user=user,
+        table=table,
+        dependant_rows_updates=[
+            DependantRowsUpdate(
+                table=table, row_ids=row_ids, field_ids=[1], requires_refresh=False
+            )
+        ],
+        send_realtime_update=True,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.ws.rows.signals.broadcast_dependant_rows_updated")
+def test_cascades_of_one_transaction_are_broadcast_once_without_rolled_back_ones(
+    mock_broadcast_task, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    with transaction.atomic():
+        _send_cascade_update(user, table, [1])
+        try:
+            with transaction.atomic():
+                _send_cascade_update(user, table, [2])
+                raise ValueError()
+        except ValueError:
+            pass
+        _send_cascade_update(user, table, [3])
+
+    assert [
+        call.kwargs["row_ids"] for call in mock_broadcast_task.delay.call_args_list
+    ] == [[1, 3]]
 
 
 @pytest.mark.django_db(transaction=True)

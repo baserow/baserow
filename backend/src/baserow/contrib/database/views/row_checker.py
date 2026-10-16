@@ -148,6 +148,24 @@ class FilteredViewRowChecker:
         self, rows: List[GeneratedTableModel]
     ) -> List[FilteredViewRows]:
         """
+        See `get_filtered_views_where_row_ids_are_visible`.
+
+        :param rows: List of rows that must be checked in all the views of the provided
+            `_views_queryset` views.
+        :return: Per view, the ids of the provided rows visible in it.
+        """
+
+        return self.get_filtered_views_where_row_ids_are_visible(
+            [row.id for row in rows]
+        )
+
+    def get_filtered_views_where_row_ids_are_visible(
+        self,
+        row_ids: Iterable[int],
+        include_views_without_visible_rows: bool = False,
+        excluded_filter_field_ids: Iterable[int] = (),
+    ) -> List[FilteredViewRows]:
+        """
         Checks if the provided rows match the filters of all the views provided in the
         `views_queryset` argument as constructor, using one single query when needed.
 
@@ -155,18 +173,27 @@ class FilteredViewRowChecker:
         Both positive and negative results are cached in that case to avoid future
         reads.
 
-        :param rows: List of rows that must be checked in all the views of the provided
-            `_views_queryset` views.
+        :param row_ids: The ids of the rows to check in every view.
+        :param include_views_without_visible_rows: Also return the views showing
+            none of the rows, with an empty set.
+        :param excluded_filter_field_ids: Skip the views filtering on these fields.
+        :return: Per view, the ids of the provided rows visible in it.
         """
 
         result_for_views: List[FilteredViewRows] = []
-        input_row_ids: List[int] = [row.id for row in rows]
+        input_row_ids: List[int] = list(row_ids)
+        excluded_filter_field_ids = set(excluded_filter_field_ids)
 
         # Plan which views need querying and which are already fully decided by cache.
         view_checks: List[FilterCheck] = []
         row_ids_to_check: Set[int] = set()
 
         for view, filter_qs, can_use_cache in self._views_with_filters:
+            if excluded_filter_field_ids and any(
+                view_filter.field_id in excluded_filter_field_ids
+                for view_filter in view.viewfilter_set.all()
+            ):
+                continue
             if can_use_cache:
                 cache_for_view: Dict[int, bool] = self._view_row_check_cache[view.id]
                 # Fully cached means every row_id has a cached bool (True or False).
@@ -241,7 +268,7 @@ class FilteredViewRowChecker:
                         rid for rid in input_row_ids if cache_for_view.get(rid, False)
                     )
 
-            if visible_ids_for_view:
+            if visible_ids_for_view or include_views_without_visible_rows:
                 result_for_views.append(
                     FilteredViewRows(view_check.view, visible_ids_for_view)
                 )

@@ -12,7 +12,10 @@ from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.row_checker import FilteredViewRows, ViewHandler
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
 from baserow.contrib.database.ws.rows.signals import serialize_rows_values
-from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
+from baserow.contrib.database.ws.views.rows.handler import (
+    ViewRealtimeRowsHandler,
+    split_views_rows_changes,
+)
 from baserow.core.telemetry.utils import baserow_trace
 
 tracer = trace.get_tracer(__name__)
@@ -168,84 +171,24 @@ def views_rows_updated(
     view_rows: List[FilteredViewRows] = (
         existing_checker.get_filtered_views_where_rows_are_visible(rows)
     )
-
-    view_slug_to_updated_view_rows = {view.view.slug: view for view in view_rows}
-
-    # When a row is updated from the point of view of a view it might not always
-    # result in a `rows_updated` event. For example if a row was previously not visible
-    # in the view due to its filters, but the row update makes it now match the
-    # filters we want to send a `rows_created` event to that views page as the
-    # clients won't know anything about the row and hence a `rows_updated` event makes
-    # no sense for them.
-    views_where_rows_were_created: List[FilteredViewRows] = []
-    views_where_rows_were_updated: List[FilteredViewRows] = []
-    views_where_rows_were_deleted: List[FilteredViewRows] = []
-
-    for old_view_rows in old_row_views:
-        (old_row_view, old_visible_ids) = old_view_rows
-
-        updated_view_rows = view_slug_to_updated_view_rows.pop(old_row_view.slug, None)
-
-        if updated_view_rows is None:
-            views_where_rows_were_deleted.append(FilteredViewRows(old_row_view, None))
-        else:
-            new_visible_ids = updated_view_rows.allowed_row_ids
-
-            if (
-                old_visible_ids == FilteredViewRows.ALL_ROWS_ALLOWED
-                and new_visible_ids == FilteredViewRows.ALL_ROWS_ALLOWED
-            ):
-                views_where_rows_were_updated.append(
-                    FilteredViewRows(old_row_view, FilteredViewRows.ALL_ROWS_ALLOWED)
-                )
-                continue
-
-            if old_visible_ids == FilteredViewRows.ALL_ROWS_ALLOWED:
-                old_visible_ids = new_visible_ids
-
-            if new_visible_ids == FilteredViewRows.ALL_ROWS_ALLOWED:
-                new_visible_ids = old_visible_ids
-
-            deleted_ids = old_visible_ids - new_visible_ids
-            if len(deleted_ids) > 0:
-                views_where_rows_were_deleted.append(
-                    FilteredViewRows(old_row_view, deleted_ids)
-                )
-
-            created_ids = new_visible_ids - old_visible_ids
-            if len(created_ids) > 0:
-                views_where_rows_were_created.append(
-                    FilteredViewRows(old_row_view, created_ids)
-                )
-
-            updated_ids = new_visible_ids - created_ids - deleted_ids
-            if len(updated_ids) > 0:
-                views_where_rows_were_updated.append(
-                    FilteredViewRows(old_row_view, updated_ids)
-                )
-
-    # Any remaining views in the updated_rows_views dict are views which
-    # previously didn't show the old row, but now show the new row, so we want created.
-    views_where_rows_were_created = views_where_rows_were_created + list(
-        view_slug_to_updated_view_rows.values()
-    )
+    changes = split_views_rows_changes(old_row_views, view_rows)
 
     @baserow_trace(tracer, allow_nested=True)
     def _send_created_updated_deleted_row_signals_to_views():
         _send_rows_deleted_event_to_views(
-            serialized_old_rows, views_where_rows_were_deleted, user=user
+            serialized_old_rows, changes.deleted, user=user
         )
         _send_rows_created_event_to_views(
             serialized_updated_rows,
             before=None,
-            views=views_where_rows_were_created,
+            views=changes.created,
             user=user,
         )
 
         view_handler = ViewHandler()
         view_realtime_rows_handler = ViewRealtimeRowsHandler()
 
-        for view, visible_row_ids in views_where_rows_were_updated:
+        for view, visible_row_ids in changes.updated:
             visible_fields_only_updated_rows = view_handler.restrict_rows_for_view(
                 view, serialized_updated_rows, visible_row_ids
             )

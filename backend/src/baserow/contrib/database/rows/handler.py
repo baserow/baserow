@@ -1177,6 +1177,11 @@ class RowHandler:
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
             collect_dependant_rows=collect_dependant_rows,
         )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependant_fields_group in all_dependent_fields_grouped_by_depth
+            for dependant_field, _, _ in dependant_fields_group
+        )
         updated_fields = []
         for depth, dependant_fields_group in enumerate(
             all_dependent_fields_grouped_by_depth
@@ -1591,6 +1596,11 @@ class RowHandler:
                 associated_relations_changed=True,
                 database_id_prefilter=table.database_id,
             )
+        )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependant_fields_group in all_dependent_fields_grouped_by_depth
+            for dependant_field, _, _ in dependant_fields_group
         )
 
         for depth, dependant_fields_group in enumerate(
@@ -3095,6 +3105,11 @@ class RowHandler:
                 database_id_prefilter=table.database_id,
             )
         )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependent_fields_level in all_dependent_fields_grouped_by_level
+            for dependant_field, _, _ in dependent_fields_level
+        )
 
         for depth, dependent_fields_level in enumerate(
             all_dependent_fields_grouped_by_level
@@ -3266,6 +3281,11 @@ class RowHandler:
                 associated_relations_changed=True,
                 database_id_prefilter=table.database_id,
             )
+        )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependent_fields_level in all_dependent_fields_grouped_by_level
+            for _, dependant_field, _ in dependent_fields_level
         )
 
         for depth, dependent_fields_level in enumerate(

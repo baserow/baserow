@@ -1,16 +1,25 @@
+from typing import Any, Dict, List, Set, Tuple
 from unittest.mock import patch
 
+from django.db import connection
 from django.db.models import Case, Value, When
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    BeforeRowsSnapshot,
+    DependantRowsUpdate,
     FieldUpdateCollector,
+    PathBasedUpdateStatementCollector,
+    merge_dependant_rows_updates,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import LinkRowField
+from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
+from baserow.test_utils.fixtures import Fixtures
 
 
 @pytest.mark.django_db
@@ -800,3 +809,289 @@ def test_self_link_update_statements_also_update_rows_linking_to_starting_rows(
     updates = update_collector.get_dependant_rows_updates()
     assert len(updates) == 1
     assert updates[0].row_ids == [row_b.id]
+
+
+class _CascadeIntoFilteredView:
+    """Rows linked to a starting row, in a table whose public view filters them."""
+
+    def __init__(self, data_fixture: Fixtures, filtered_values: List[str]) -> None:
+        self.table, starting_table, self.link_field = (
+            data_fixture.create_two_linked_tables()
+        )
+        self.filtered_field = data_fixture.create_text_field(table=self.table)
+        self.other_field = data_fixture.create_text_field(table=self.table)
+        self.view = data_fixture.create_grid_view(table=self.table, public=True)
+        data_fixture.create_view_filter(
+            view=self.view, field=self.filtered_field, type="equal", value="match"
+        )
+        self.starting_row_id = starting_table.get_model().objects.create().id
+        self.collector = FieldUpdateCollector(
+            starting_table, starting_row_ids=[self.starting_row_id]
+        )
+        self.model = self.table.get_model()
+        self.rows = [self.create_row(value) for value in filtered_values]
+        for row in self.rows:
+            self.link(row)
+
+    def create_row(self, value: str) -> GeneratedTableModel:
+        return self.model.objects.create(**{self.filtered_field.db_column: value})
+
+    def link(self, row: GeneratedTableModel) -> None:
+        getattr(row, self.link_field.db_column).add(self.starting_row_id)
+
+    def apply(self, field: Field, value: str) -> List[str]:
+        self.collector.add_field_with_pending_update_statement(
+            field, Value(value), via_path_to_starting_table=[self.link_field]
+        )
+        with CaptureQueriesContext(connection) as captured:
+            self.collector.apply_updates_and_get_updated_fields(FieldCache())
+        return [query["sql"] for query in captured.captured_queries]
+
+    def get_snapshot_reads(self, sqls: List[str]) -> List[str]:
+        table_sql = f'FROM "{self.table.get_database_table_name()}" WHERE '
+        # The visibility query of the checked views reads the table too.
+        return [
+            sql
+            for sql in sqls
+            if sql.startswith("SELECT") and table_sql in sql and "visible_v" not in sql
+        ]
+
+
+@pytest.mark.django_db
+@override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=4)
+def test_snapshot_never_captures_a_row_twice_nor_after_the_cascade_changed_it(
+    data_fixture,
+):
+    cascade = _CascadeIntoFilteredView(data_fixture, ["nope", "nope"])
+    first, second = cascade.rows
+    late, later = cascade.create_row("match"), cascade.create_row("match")
+    execute_update_statements = (
+        PathBasedUpdateStatementCollector._execute_pending_update_statements
+    )
+
+    def link_late_row_before_updating(
+        collector: PathBasedUpdateStatementCollector, *args: Any, **kwargs: Any
+    ) -> List[int]:
+        if collector.table.id == cascade.table.id:
+            cascade.link(late)
+        return execute_update_statements(collector, *args, **kwargs)
+
+    # As if another transaction committed the link between the snapshot and UPDATE.
+    with patch.object(
+        PathBasedUpdateStatementCollector,
+        "_execute_pending_update_statements",
+        autospec=True,
+        side_effect=link_late_row_before_updating,
+    ):
+        cascade.apply(cascade.filtered_field, "match")
+    cascade.link(later)
+    cascade.apply(cascade.other_field, "changed")
+
+    [update] = cascade.collector.get_dependant_rows_updates()
+    assert update.row_ids == [first.id, second.id, late.id, later.id]
+    # later fits the limit only because the rows not to snapshot are skipped first.
+    assert update.before_rows.keys() == {first.id, second.id, later.id}
+    assert update.before_rows[first.id][cascade.filtered_field.db_column] == "nope"
+    visible = update.before_visible_view_ids
+    assert visible == {first.id: set(), second.id: set(), later.id: {cascade.view.id}}
+    assert update.before_checked_view_ids == {cascade.view.id}
+
+
+def _create_rows_linked_through_each_path_shape(
+    data_fixture: Fixtures,
+) -> Tuple[Dict[str, List[LinkRowField]], Dict[str, GeneratedTableModel]]:
+    """Creates named rows linked to a starting table by a self link, one or two hops."""
+
+    user = data_fixture.create_user()
+    middle, start, middle_link = data_fixture.create_two_linked_tables(user=user)
+    end, _, end_link = data_fixture.create_two_linked_tables(user=user, table_b=middle)
+    self_link = data_fixture.create_link_row_field(table=start, link_row_table=start)
+    paths = {"self": [self_link], "middle": [middle_link]}
+    paths["end"] = [end_link, middle_link]
+    paths["middle_and_back"] = [middle_link, middle_link.link_row_related_field]
+    models = {table.id: table.get_model() for table in (start, middle, end)}
+    rows: Dict[str, GeneratedTableModel] = {}
+    for name, path_name, linked_row_names in [
+        ("linked_by_start", "self", []),
+        ("start", "self", ["linked_by_start"]),
+        ("other_start", "self", []),
+        ("linking_to_start", "self", ["start"]),
+        ("linked", "middle", ["start"]),
+        ("linked_to_both", "middle", ["start", "other_start"]),
+        ("trashed", "middle", ["start"]),
+        ("unlinked", "middle", []),
+        ("deleted", "middle", ["other_start"]),
+        ("linked_twice", "end", ["linked", "linked_to_both"]),
+        ("via_trashed", "end", ["trashed"]),
+        ("via_unlinked", "end", ["unlinked"]),
+        ("via_deleted", "end", ["deleted"]),
+    ]:
+        link = paths[path_name][0]
+        rows[name] = models[link.table_id].objects.create(trashed=name == "trashed")
+        getattr(rows[name], link.db_column).add(*[rows[n].id for n in linked_row_names])
+    # Like a batch permanent deletion, which leaves the row's relations behind.
+    deleted_rows = models[middle.id].objects.filter(id=rows["deleted"].id)
+    deleted_rows._raw_delete(connection.alias)
+    return paths, rows
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path_name,starting_row_names,removes_link,expected_row_names",
+    [
+        ("middle", ["start"], False, ["linked", "linked_to_both"]),
+        ("end", ["start"], False, ["linked_twice", "via_trashed"]),
+        ("self", ["start"], False, ["linking_to_start"]),
+        ("middle", ["start"], True, ["linked", "linked_to_both", "unlinked"]),
+        ("end", ["start"], True, ["linked_twice", "via_trashed", "via_unlinked"]),
+        ("middle", ["start", "other_start"], False, ["linked", "linked_to_both"]),
+        ("end", ["other_start"], False, ["linked_twice"]),
+        ("middle_and_back", ["linked"], False, ["linked", "linked_to_both"]),
+    ],
+    ids=[
+        "one_hop",
+        "two_hops",
+        "self_link",
+        "removed_link_on_one_hop",
+        "removed_link_on_two_hops",
+        "row_linked_to_several_starting_rows",
+        "orphaned_relation_of_a_permanently_deleted_middle_row",
+        "link_and_back_through_the_lazily_built_reverse_relation",
+    ],
+)
+def test_snapshot_statement_selects_the_cascade_filter_rows(
+    data_fixture,
+    path_name: str,
+    starting_row_names: List[str],
+    removes_link: bool,
+    expected_row_names: List[str],
+):
+    paths, rows = _create_rows_linked_through_each_path_shape(data_fixture)
+    path = paths[path_name]
+    model = path[0].table.get_model()
+    starting_row_ids = [rows[name].id for name in starting_row_names]
+    removed_link_row_ids = {rows["unlinked"].id} if removes_link else set()
+    deleted_rels = {path[-1].link_row_related_field_id: removed_link_row_ids}
+    collector = PathBasedUpdateStatementCollector(
+        model.baserow_table, connection_here=path[0], connection_is_broken=False
+    )
+    snapshot = BeforeRowsSnapshot(needs_view_checks=True)
+
+    selected_row_ids = [
+        [
+            row.id
+            for row in collector._read_rows_to_snapshot(
+                model, row_filter, set(), 100, snapshot, None
+            )
+        ]
+        for row_filter in collector._filters_for_rows_to_snapshot(
+            model, path, starting_row_ids, deleted_rels
+        )
+    ]
+    # Ordered by id and listed once, while the cascade filter's joins repeat rows.
+    assert selected_row_ids == [
+        sorted(set(model.objects.filter(row_filter).values_list("id", flat=True)))
+        for row_filter in collector._filters_for_rows_connected_to_starting_rows(
+            path, starting_row_ids, deleted_rels, include_starting_rows=False
+        )
+    ]
+    assert sorted(sum(selected_row_ids, [])) == sorted(
+        rows[name].id for name in expected_row_names
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("a_view_needs_checks", [True, False])
+def test_snapshot_reads_the_link_tables_and_locks_only_when_a_view_needs_checks(
+    data_fixture, a_view_needs_checks: bool
+):
+    cascade = _CascadeIntoFilteredView(data_fixture, ["nope"])
+    field = cascade.filtered_field if a_view_needs_checks else cascade.other_field
+    cascade.collector.set_dependant_fields([field])
+    sqls = cascade.apply(field, "match")
+
+    reads = cascade.get_snapshot_reads(sqls)
+    assert all("= ANY(ARRAY(" in sql and "IN (SELECT" not in sql for sql in reads)
+    # The first read tells whether a view needs checks, only then rows are locked.
+    lock = f'FOR UPDATE OF "{cascade.table.get_database_table_name()}"'
+    expected_locks = [False, True] if a_view_needs_checks else [False]
+    assert [lock in sql for sql in reads] == expected_locks
+    assert sum("FOR UPDATE" in sql for sql in sqls) == expected_locks.count(True)
+
+
+@pytest.mark.django_db
+@override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=2)
+def test_snapshot_work_stops_once_the_table_overflows(data_fixture):
+    cascade = _CascadeIntoFilteredView(data_fixture, ["nope"] * 3)
+    with patch.object(
+        ViewRealtimeRowsHandler, "get_checked_views_row_checker"
+    ) as get_row_checker:
+        sqls = cascade.apply(cascade.filtered_field, "match")
+        sqls += cascade.apply(cascade.other_field, "changed")
+
+    [update] = cascade.collector.get_dependant_rows_updates()
+    assert update.requires_refresh is True
+    assert get_row_checker.call_count == 0
+    assert not any("FOR UPDATE" in sql or "visible_v" in sql for sql in sqls)
+    # The second depth level skips the snapshot of the overflowed table.
+    assert len(cascade.get_snapshot_reads(sqls)) == 1
+    snapshot = cascade.collector._before_snapshots_per_table[cascade.table.id]
+    assert snapshot.rows == {} and snapshot.row_ids_updated_without_snapshot == set()
+
+
+@pytest.mark.django_db
+def test_snapshot_records_the_fields_with_unknown_before_values_of_each_level(
+    data_fixture,
+):
+    cascade = _CascadeIntoFilteredView(data_fixture, ["nope"])
+    path = [cascade.link_field]
+    cascade.collector.add_field_which_has_changed(cascade.link_field, path)
+    cascade.apply(cascade.filtered_field, "match")
+    cascade.collector.add_field_which_has_changed(cascade.other_field, path)
+    cascade.collector.apply_updates_and_get_updated_fields(FieldCache())
+
+    [update] = cascade.collector.get_dependant_rows_updates()
+    unknown_field_ids = {cascade.link_field.id, cascade.other_field.id}
+    assert update.field_ids_with_unknown_before_values == unknown_field_ids
+
+
+def _dependant_rows_updates(
+    field_id: int, row_ids: List[int], visible_view_ids: Dict[int, Set[int]]
+) -> List[DependantRowsUpdate]:
+    """An update of a field with unknown before values, snapshotting the given rows."""
+
+    return [
+        DependantRowsUpdate(
+            table=Table(id=1),
+            row_ids=row_ids,
+            field_ids=[field_id],
+            requires_refresh=False,
+            field_ids_with_unknown_before_values={field_id},
+            before_rows={row_id: {"field_id": field_id} for row_id in visible_view_ids},
+            before_visible_view_ids=visible_view_ids,
+            before_checked_view_ids={100},
+        )
+    ]
+
+
+def test_merge_dependant_rows_updates_keeps_the_earliest_snapshot_until_the_limit():
+    [merged] = merge_dependant_rows_updates(
+        _dependant_rows_updates(10, [1], {}),
+        _dependant_rows_updates(11, [1, 2], {1: {100}, 2: {100}}),
+        _dependant_rows_updates(12, [2], {2: set()}),
+    )
+    assert merged.row_ids == [1, 2]
+    # Row 1's later snapshot would show it after the first update changed it.
+    assert merged.before_rows == {2: {"field_id": 11}}
+    assert merged.before_visible_view_ids == {2: {100}}
+    assert merged.field_ids_with_unknown_before_values == {10, 11, 12}
+
+    with override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=1):
+        [overflowed] = merge_dependant_rows_updates(
+            _dependant_rows_updates(10, [1], {1: {100}}),
+            _dependant_rows_updates(11, [2], {2: {100}}),
+        )
+    assert overflowed.requires_refresh is True
+    assert overflowed.before_rows == {} and overflowed.before_visible_view_ids == {}
+    assert overflowed.before_checked_view_ids == set()
+    assert overflowed.field_ids_with_unknown_before_values == {10, 11}

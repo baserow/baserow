@@ -1,6 +1,7 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import { applyRowsUpdated } from '@baserow/modules/database/utils/row'
 
 export default {
   emits: ['update'],
@@ -140,8 +141,9 @@ export default {
     },
     /**
      * Adds a new relation to the value. This typically happens via the modal.
+     * A created row that links back skips the PATCH: the backend holds the link.
      */
-    addValue(value, { row, primary }) {
+    addValue(value, { row, primary, created = false }) {
       // Check if the relation already exists.
       for (let i = 0; i < value.length; i++) {
         if (value[i].id === row.id) {
@@ -149,8 +151,7 @@ export default {
         }
       }
 
-      // Prepare the new value with all the relations and emit that value to the
-      // parent.
+      // Prepare the new value with all the relations.
       const rowValue = this.$registry
         .get('field', primary.type)
         .toHumanReadableString(primary, row[`field_${primary.id}`])
@@ -167,6 +168,24 @@ export default {
             ? a.id - b.id
             : 1
       })
+
+      const relatedValue =
+        row[`field_${this.field.link_row_related_field_id}`] || []
+      if (
+        // A listed row's values may predate an unlink made in this modal.
+        created &&
+        // Other tables get no realtime, only the PATCH response refreshes them.
+        this.field.table_id === this.$store.getters['table/getSelectedId'] &&
+        relatedValue.some(({ id }) => id === this.row.id)
+      ) {
+        return applyRowsUpdated(this.$registry, this.$store, {
+          table_id: this.field.table_id,
+          rows: [{ id: this.row.id, [`field_${this.field.id}`]: newValue }],
+          // The grid rebuilds the row's metadata from the event.
+          metadata: { [this.row.id]: this.row._?.metadata },
+          updated_field_ids: [this.field.id],
+        })
+      }
       this.$emit('update', newValue, value)
     },
   },

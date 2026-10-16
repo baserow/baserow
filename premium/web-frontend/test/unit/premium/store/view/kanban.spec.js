@@ -210,6 +210,33 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(11)
   })
 
+  test('deletedExistingRow removes a held card from its stack when the payload omits the filtered values', async () => {
+    const results = [
+      { id: 10, order: '10.00', field_1: { id: 1 } },
+      { id: 11, order: '11.00', field_1: { id: 1 } },
+    ]
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks: { 1: { count: 100, results } },
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    await store.dispatch('kanban/deletedExistingRow', {
+      view: {
+        ...view,
+        filter_type: 'AND',
+        filters: [{ id: 1, view: 1, field: 2, type: 'contains', value: 'A' }],
+      },
+      row: { id: 11, order: '11.00' },
+      fields: [{ id: 2, type: 'text' }],
+    })
+
+    expect(store.state.kanban.stacks['1'].count).toBe(99)
+    expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+      10,
+    ])
+  })
+
   test('updateRowValue removes the row hidden by the backend and closes its row modal', async () => {
     const stacks = {}
     stacks['1'] = {

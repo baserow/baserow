@@ -16,6 +16,7 @@ import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 import {
+  canTellIfDeletedRowWasCounted,
   extractChangedFields,
   getRowMetadata,
   resolveBeforeRow,
@@ -560,8 +561,28 @@ export const actions = {
     { dispatch, commit, getters },
     { view, row, fields }
   ) {
+    const current = getters.findStackIdAndIndex(row.id)
+    if (current !== undefined) {
+      const currentStackId = current[0]
+      const currentIndex = current[1]
+      const currentRow = current[2]
+      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
+      commit('DECREASE_COUNT', { stackId: currentStackId })
+      return currentRow
+    }
+
     row = clone(row)
     populateRow(row)
+
+    const canTellIfCounted = canTellIfDeletedRowWasCounted({
+      row,
+      view,
+      fields,
+      fieldOptions: getters.getAllFieldOptions,
+    })
+    if (!canTellIfCounted) {
+      return
+    }
 
     const matchesFilters = await dispatch('rowMatchesFilters', {
       view,
@@ -575,18 +596,7 @@ export const actions = {
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const option = row[`field_${singleSelectFieldId}`]
     const stackId = option !== null ? option.id : 'null'
-    const current = getters.findStackIdAndIndex(row.id)
-
-    if (current !== undefined) {
-      const currentStackId = current[0]
-      const currentIndex = current[1]
-      const currentRow = current[2]
-      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
-      commit('DECREASE_COUNT', { stackId: currentStackId })
-      return currentRow
-    } else {
-      commit('DECREASE_COUNT', { stackId })
-    }
+    commit('DECREASE_COUNT', { stackId })
 
     return null
   },

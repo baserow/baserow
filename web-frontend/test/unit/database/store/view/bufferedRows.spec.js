@@ -2049,6 +2049,61 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11]).toBe(null)
   })
 
+  describe('rows deleted with a payload that omits values', () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Link', type: 'link_row', link_row_table_id: 2 },
+    ]
+    const fieldOptions = { 1: { hidden: false }, 2: { hidden: false } }
+    const row = (id) => ({ id, order: `${id}.00000000000000000000` })
+    const deleteFromBuffer = async (rows, view, deletedRow, state = {}) => {
+      const store = createStore(
+        { service: null },
+        { viewId: 1, fieldOptions, rows, ...state }
+      )
+      await store.dispatch('test/afterExistingRowDeleted', {
+        view,
+        fields,
+        row: deletedRow,
+      })
+      return store.getters['test/getRows'].map((r) => r?.id ?? null)
+    }
+
+    test('removes a held row by id when its payload no longer matches the search', async () => {
+      const ids = await deleteFromBuffer(
+        [null, row(2), row(3), null],
+        createView(),
+        row(2),
+        { activeSearchTerm: 'Alpha' }
+      )
+
+      expect(ids).toEqual([null, 3, null])
+    })
+
+    test('leaves the buffer unchanged for an unheld row when the payload omits a filtered field', async () => {
+      const filter = { id: 1, view: 1, field: 2, type: 'empty', value: '' }
+      const view = createView({ filter_type: 'AND', filters: [filter] })
+
+      const ids = await deleteFromBuffer(
+        [row(1), null, null, row(4)],
+        view,
+        row(3)
+      )
+
+      expect(ids).toEqual([1, null, null, 4])
+    })
+
+    test('leaves a held neighbour alone when the deleted row is not held', async () => {
+      const ids = await deleteFromBuffer(
+        [row(1), row(2), row(4)],
+        createView(),
+        row(3)
+      )
+
+      expect(ids).toEqual([1, 2, 4])
+    })
+  })
+
   test('created row hidden by the backend is not added', async () => {
     const view = {
       id: 1,
