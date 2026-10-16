@@ -45,4 +45,4 @@ def test_duplicated_application_imports_integration(data_fixture):
 
     new_builder = CoreHandler().duplicate_application(user, builder)
 
-    assert new_builder.integrations.all()[0].specific.authorized_user == user
+    assert new_builder.integrations.all()[0].specific.authorized_subject == user

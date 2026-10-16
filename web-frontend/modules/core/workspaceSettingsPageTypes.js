@@ -9,6 +9,10 @@ export class WorkspaceSettingsPageType extends Registerable {
     return null
   }
 
+  get developmentStage() {
+    return null
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -109,6 +113,10 @@ export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
 
   getName() {
     return this.app.$i18n.t('agents.tabTitle')
+  }
+
+  get developmentStage() {
+    return 'beta'
   }
 
   hasPermission(workspace) {

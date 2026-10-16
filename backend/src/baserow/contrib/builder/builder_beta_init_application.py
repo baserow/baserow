@@ -91,7 +91,8 @@ class BuilderApplicationTypeInitApplication:
         return IntegrationHandler().create_integration(
             integration_type_registry.get("local_baserow"),
             self.application,
-            authorized_user=self.user,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=self.user.id,
             name=self.first_integration_name,
         )
 

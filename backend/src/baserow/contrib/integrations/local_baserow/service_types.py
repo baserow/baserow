@@ -120,6 +120,7 @@ from baserow.core.formula.validator import (
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -141,7 +142,7 @@ from baserow.core.services.types import (
     ServiceSubClass,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.types import PermissionCheck
+from baserow.core.types import PermissionCheck, Subject
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -159,32 +160,37 @@ class LocalBaserowServiceType(ServiceType):
 
     def get_acting_user(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
-    ) -> AbstractUser:
+    ) -> Subject:
         """
-        Returns the user whose permissions and identity this dispatch runs under.
+        Returns the subject whose permissions and identity this dispatch runs under.
 
-        With an integration, that integration's `authorized_user` acts, as in the
+        With an integration, that integration's `authorized_subject` acts, as in the
         builder, automation and dashboard. Without one, the dispatch context's
         actor acts instead. This is the only place a Local Baserow service type
-        may resolve its user.
+        may resolve its subject.
 
         :param service: The service being dispatched.
         :param dispatch_context: The context this dispatch runs in.
         :raises ServiceImproperlyConfiguredDispatchException: When neither an
-            integration nor an actor supplies a user.
-        :return: The acting user.
+            integration nor an actor supplies a subject.
+        :return: The acting subject.
         """
 
         if service.integration_id:
-            authorized_user = service.integration.specific.authorized_user
-            # Nullable, and an import leaves it null when the exported username
-            # is not in the target workspace. Refuse rather than let a `None`
-            # reach a permission check as anonymous.
-            if authorized_user is None:
+            integration = service.integration.specific
+            authorized_subject = integration.authorized_subject_including_trash
+            if getattr(authorized_subject, "trashed", False):
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "The integration has no authorized user"
+                    "The integration's authorized agent is trashed"
                 )
-            return authorized_user
+
+            # Nullable, and an import can leave the authorized user null. Refuse
+            # rather than let a `None` reach a permission check as anonymous.
+            if authorized_subject is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has no authorized subject"
+                )
+            return authorized_subject
 
         if dispatch_context.actor is None:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -204,6 +210,25 @@ class LocalBaserowServiceType(ServiceType):
         """
 
         return False
+
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Record when this service uses an authorized agent."""
+
+        if not service.integration_id:
+            return
+
+        integration = service.integration.specific
+        if not integration.authorized_subject_type:
+            return
+
+        subject_type = subject_type_registry.get(integration.authorized_subject_type)
+        subject = integration.authorized_subject
+        if subject is not None:
+            subject_type.track_usage(subject)
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]

@@ -22,8 +22,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.models import Agent
 from baserow.core.notifications.handler import NotificationHandler
-from baserow.core.notifications.models import NotificationRecipient
+from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import (
     AnyInt,
@@ -35,6 +36,73 @@ pytestmark = pytest.mark.enable_signals(
     "baserow.core.notifications.tasks.send_queued_notifications_to_users.delay",
     "baserow.ws.tasks.broadcast_to_users.delay",
 )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixture):
+    owner = data_fixture.create_user()
+    collaborator = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(members=[owner, collaborator])
+    agent = Agent.objects.create(
+        workspace=workspace,
+        name="Row writer",
+        role_uid="ADMIN",
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        table=table,
+        notify_user_when_added=True,
+    )
+
+    RowHandler().create_row(
+        user=agent,
+        table=table,
+        values={collaborator_field.id: [{"id": collaborator.id}]},
+    )
+
+    notification = Notification.objects.get(
+        type=CollaboratorAddedToRowNotificationType.type
+    )
+    assert notification.sender is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
+    owner = data_fixture.create_user()
+    mentioned_user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(members=[owner, mentioned_user])
+    agent = Agent.objects.create(
+        workspace=workspace,
+        name="Row writer",
+        role_uid="ADMIN",
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    rich_text_field = data_fixture.create_long_text_field(
+        table=table,
+        long_text_enable_rich_text=True,
+    )
+    with transaction.atomic():
+        row = RowHandler().create_row(user=agent, table=table)
+        RowHandler().update_row(
+            user=agent,
+            table=table,
+            row=row,
+            values={rich_text_field.id: f"Hello @{mentioned_user.id}"},
+        )
+
+    notification = Notification.objects.get(
+        type=UserMentionInRichTextFieldNotificationType.type
+    )
+    assert notification.sender is None
+    assert (
+        UserMentionInRichTextFieldNotificationType.get_notification_title_for_email(
+            notification, {}
+        )
+        == f"An unknown user mentioned you in {rich_text_field.name} in row "
+        f"{row} in {table.name}."
+    )
 
 
 @pytest.mark.django_db(transaction=True)

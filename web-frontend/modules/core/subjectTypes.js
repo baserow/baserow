@@ -28,6 +28,10 @@ export class SubjectType extends Registerable {
   isCurrentUser() {
     return false
   }
+
+  isUser() {
+    return false
+  }
 }
 
 export class UserSubjectType extends SubjectType {
@@ -51,12 +55,38 @@ export class UserSubjectType extends SubjectType {
     return subject.user_id ?? super.getId(subject)
   }
 
-  getDisplayName(subject) {
-    return subject.name || subject.first_name || subject.email
+  getDisplayName(
+    subject,
+    { currentUserId, currentUserName, resolveUserName } = {}
+  ) {
+    if (currentUserName && subject.id === currentUserId) {
+      return currentUserName
+    }
+    return resolveUserName
+      ? resolveUserName(subject)
+      : subject.name || subject.first_name || subject.email
   }
 
   isCurrentUser(subject, currentUserId) {
     return this.getId(subject) === currentUserId
+  }
+
+  isUser() {
+    return true
+  }
+}
+
+export class AnonymousUserSubjectType extends SubjectType {
+  static getType() {
+    return 'anonymous'
+  }
+
+  getTypeDisplayName() {
+    return this.$t('subjectType.anonymousUser')
+  }
+
+  getDisplayName(subject, { anonymousName } = {}) {
+    return anonymousName || super.getDisplayName(subject)
   }
 }
 

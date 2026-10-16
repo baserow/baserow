@@ -430,8 +430,9 @@ def test_check_history_content_for_password_field(data_fixture):
 
     history_entries = list(
         RowHistory.objects.order_by("row_id").values(
-            "user_id",
-            "user_name",
+            "actor_id",
+            "actor_type",
+            "actor_name",
             "table_id",
             "row_id",
             "action_timestamp",

@@ -1355,8 +1355,11 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     can execute an operation.
     """
 
+    # Interactive users can persist undoable actions and emit product analytics.
+    is_interactive_user = False
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
+    options_list_operation_type: Optional[str] = None
 
     def supports_lookup_field(self, field_name: str) -> bool:
         """Return whether this subject type supports lookup by the given field."""
@@ -1367,6 +1370,11 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     # must implement get_workspace_subjects, get_workspace_role_uids, and
     # set_workspace_role_uid. Other types keep using RoleAssignment records.
     has_direct_workspace_roles: bool = False
+
+    def track_usage(self, subject: Subject) -> None:
+        """Record usage when a subject dispatches a service through an integration."""
+
+        pass
 
     def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
         """Return the subjects whose direct roles belong to a workspace.
@@ -1393,6 +1401,48 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
         :return: The implementation-specific result of persisting the role.
         """
         raise NotImplementedError()
+
+    def get_display_name(self, subject: Subject) -> str:
+        """Return the snapshot-friendly name used to identify a subject."""
+
+        return str(subject)
+
+    def get_type_display_name(self) -> str:
+        """Return the human-readable name of this subject type."""
+
+        return self.type
+
+    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
+        """Return subjects matching the workspace scope, if listable."""
+
+        return None
+
+    def get_options_queryset(
+        self,
+        workspace: Optional["Workspace"] = None,
+        search: str = "",
+        exclude_ids: Optional[List[int]] = None,
+    ) -> Optional[QuerySet]:
+        """Return a standardized queryset of selectable subject options."""
+
+        return None
+
+    def get_historical_options_queryset(
+        self,
+        workspace: Optional["Workspace"] = None,
+        search: str = "",
+        exclude_ids: Optional[List[int]] = None,
+    ) -> Optional[QuerySet]:
+        """Return options including subjects retained for historical records."""
+
+        return self.get_options_queryset(
+            workspace=workspace, search=search, exclude_ids=exclude_ids
+        )
+
+    def get_label(self, subject: Subject) -> str:
+        """Return the label shown when this subject is presented as an option."""
+
+        return self.get_display_name(subject)
 
     def get_workspace_role_uids(
         self,
@@ -1513,17 +1563,24 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
         instance_type = self.get_by_model(model_instance)
         return instance_type.get_serializer(model_instance, **kwargs)
 
-    def get_subject(self, type_name: str, subject_id: int) -> Optional[Subject]:
+    def get_subject(
+        self, type_name: str, subject_id: int, include_trash: bool = False
+    ) -> Optional[Subject]:
         """
         Returns the subject stored as a type and id pair.
 
         :param type_name: The subject type, for example `auth.User`.
         :param subject_id: The id of the subject.
+        :param include_trash: Whether a trashed subject is returned as well, for
+            subject types that can be trashed.
         :return: The subject, or None when it no longer exists or its type is not
             stored in the database.
         """
 
-        manager = getattr(self.get(type_name).model_class, "objects", None)
+        model_class = self.get(type_name).model_class
+        manager = getattr(model_class, "objects", None)
+        if include_trash:
+            manager = getattr(model_class, "objects_and_trash", manager)
         if manager is None:
             return None
         return manager.filter(id=subject_id).first()

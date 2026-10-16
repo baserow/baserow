@@ -1,6 +1,7 @@
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.contrib.builder.api.domains.errors import ERROR_DOMAIN_DOES_NOT_EXIST
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.jobs.registries import JobType
 from baserow.core.registries import application_type_registry
 
@@ -16,6 +17,10 @@ class PublishDomainJobType(JobType):
     type = "publish_domain"
     model_class = PublishDomainJob
     max_count = 2
+    job_exceptions_map = {
+        IntegrationImproperlyConfigured: "The application contains an improperly "
+        "configured integration: {e}"
+    }
 
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,

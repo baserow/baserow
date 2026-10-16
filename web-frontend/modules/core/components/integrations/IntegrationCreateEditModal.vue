@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal">
+  <Modal ref="modal" @show="shown">
     <h2 class="box__title">
       {{
         create
@@ -73,7 +73,7 @@ export default {
   },
   emits: ['created'],
   data() {
-    return { loading: false }
+    return { loading: false, initialValues: null }
   },
   computed: {
     actualIntegrationType() {
@@ -94,8 +94,10 @@ export default {
       actionCreateIntegration: 'integration/create',
     }),
 
-    shown() {
+    async shown() {
       this.hideError()
+      await this.$nextTick()
+      this.initialValues = this.$refs.form.getFormValues()
     },
     getDefaultIntegrationValues() {
       const name = getNextAvailableNameInSequence(
@@ -117,11 +119,17 @@ export default {
           })
           this.$emit('created', newIntegration)
         } else {
-          await this.actionUpdateIntegration({
-            application: this.application,
-            integrationId: this.integration.id,
+          const differences = this.actualIntegrationType.getUpdatedValues(
             values,
-          })
+            this.initialValues
+          )
+          if (Object.keys(differences).length > 0) {
+            await this.actionUpdateIntegration({
+              application: this.application,
+              integrationId: this.integration.id,
+              values: differences,
+            })
+          }
         }
         this.hide()
       } catch (error) {

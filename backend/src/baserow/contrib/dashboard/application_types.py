@@ -47,7 +47,8 @@ class DashboardApplicationType(ApplicationType):
                 LocalBaserowIntegrationType.type
             ),
             application=application,
-            authorized_user=user,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=user.id,
         )
 
     def pre_delete(self, dashboard):

@@ -790,7 +790,8 @@ class CoreHandler:
         )
         workspaceuser_workspaces = WorkspaceUser.objects.select_related(
             "workspace"
-        ).prefetch_related(
+        ).annotate(workspace_agent_count=Count("workspace__agents", distinct=True))
+        workspaceuser_workspaces = workspaceuser_workspaces.prefetch_related(
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,

@@ -192,27 +192,6 @@ def test_agent_openapi_operations_have_stable_ids_and_explicit_path_parameters(
 
 
 @pytest.mark.django_db
-def test_cannot_create_agent_when_feature_flag_is_disabled(
-    data_fixture, api_client, settings
-):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.post(
-        url,
-        {"name": "Writer", "role_uid": "MEMBER"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == 403
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert not Agent.objects.filter(workspace=workspace).exists()
-
-
-@pytest.mark.django_db
 def test_duplicate_agent_names_and_model_defaults(data_fixture):
     workspace = data_fixture.create_workspace()
     first = Agent.objects.create(workspace=workspace, name="Same")

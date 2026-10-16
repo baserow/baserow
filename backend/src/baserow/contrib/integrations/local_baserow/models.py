@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import F, OrderBy
 
@@ -11,6 +10,8 @@ from baserow.contrib.database.views.models import (
     SORT_ORDER_CHOICES,
     View,
 )
+from baserow.core.cache import local_cache
+from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import (
@@ -21,8 +22,6 @@ from baserow.core.services.models import (
     ServiceSort,
 )
 
-User = get_user_model()
-
 
 class LocalBaserowIntegration(Integration):
     """
@@ -30,7 +29,57 @@ class LocalBaserowIntegration(Integration):
     accessible by the associated user can be accessed with this integration.
     """
 
-    authorized_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    authorized_subject_type = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        default="auth.User",
+        db_default="auth.User",
+    )
+    authorized_subject_id = models.BigIntegerField(
+        null=True, blank=True, db_column="authorized_user_id"
+    )
+
+    def get_authorized_subject(self, include_trash: bool = False):
+        """
+        Return the subject whose permissions are used by this integration.
+
+        :param include_trash: Whether a trashed subject (e.g. a trashed agent) is
+            returned. It must never be used to act, only to report why the
+            integration can't be used.
+        """
+
+        if self.authorized_subject_type and self.authorized_subject_id:
+            from baserow.core.registries import subject_type_registry
+
+            def get_subject():
+                try:
+                    return subject_type_registry.get_subject(
+                        self.authorized_subject_type,
+                        self.authorized_subject_id,
+                        include_trash=include_trash,
+                    )
+                except SubjectTypeNotExist:
+                    return None
+
+            return local_cache.get(
+                "local_baserow_authorized_subject_"
+                f"{self.authorized_subject_type}_{self.authorized_subject_id}_"
+                f"{include_trash}",
+                get_subject,
+            )
+
+    @property
+    def authorized_subject(self):
+        """Return the usable subject, so None when it has been trashed."""
+
+        return self.get_authorized_subject()
+
+    @property
+    def authorized_subject_including_trash(self):
+        """Return the subject even when trashed, to report its trashed state."""
+
+        return self.get_authorized_subject(include_trash=True)
 
 
 class LocalBaserowTableService(Service):

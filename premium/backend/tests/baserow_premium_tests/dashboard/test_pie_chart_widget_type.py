@@ -137,7 +137,8 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": integration.id,
                 "name": "",
                 "order": "1.00000000000000000000",
@@ -223,7 +224,8 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": 1,
                 "name": "IntegrationName",
                 "order": "1.00000000000000000000",
@@ -291,7 +293,7 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
     assert integration.content_type == ContentType.objects.get_for_model(
         LocalBaserowIntegration
     )
-    assert integration.authorized_user.id == user.id
+    assert integration.authorized_subject == user
     assert integration.name == "IntegrationName"
     assert integration.order == Decimal("1.0")
 

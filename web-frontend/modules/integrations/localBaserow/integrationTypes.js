@@ -20,13 +20,24 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   getSummary(integration) {
-    if (!integration.authorized_user) {
+    const subject = integration.authorized_subject
+    // A trashed agent can't authenticate, so the integration isn't configured.
+    if (!subject || subject.trashed) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
 
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const displayName = subjectType.getDisplayName(subject)
+    if (!subjectType.isUser()) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowSubjectSummary',
+        { type: subjectType.getTypeDisplayName(), name: displayName }
+      )
+    }
+
     return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
-      name: integration.authorized_user.first_name,
-      username: integration.authorized_user.username,
+      name: displayName,
+      username: subject.username,
     })
   }
 
@@ -41,8 +52,41 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   getDefaultValues() {
     const user = this.app.$store.getters['auth/getUserObject']
     return {
-      authorized_user: { username: user.username, first_name: user.first_name },
+      authorized_subject: {
+        id: user.id,
+        type: 'auth.User',
+        username: user.username,
+        first_name: user.first_name,
+      },
+      authorized_subject_id: user.id,
+      authorized_subject_type: 'auth.User',
     }
+  }
+
+  getUpdatedValues(values, initialValues) {
+    const updatedValues = super.getUpdatedValues(values, initialValues)
+    const authorizationKeys = [
+      'authorized_subject_id',
+      'authorized_subject_type',
+    ]
+
+    if (authorizationKeys.some((key) => key in updatedValues)) {
+      for (const key of authorizationKeys) {
+        updatedValues[key] = values[key]
+      }
+    }
+
+    return updatedValues
+  }
+
+  getErrorMessage(integration) {
+    if (
+      integration.authorized_subject?.type === 'core.Agent' &&
+      integration.authorized_subject.trashed
+    ) {
+      return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
+    }
+    return super.getErrorMessage(integration)
   }
 
   getOrder() {

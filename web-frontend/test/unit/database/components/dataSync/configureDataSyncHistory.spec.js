@@ -150,17 +150,26 @@ describe('ConfigureDataSyncHistory', () => {
     const firstPage = Array.from({ length: 10 }, (_, index) =>
       createSyncJob({ id: 100 - index, state: 'finished' })
     )
-    mockServer.mock.onGet('jobs/').replyOnce(200, {
-      jobs: firstPage,
-      count: 20,
-    })
+    const requestParams = {
+      type: 'sync_data_sync_table',
+      sync_data_sync_table_data_sync_id: table.data_sync.id,
+      limit: 10,
+    }
     mockServer.mock
-      .onGet('jobs/')
+      .onGet('jobs/', { params: { ...requestParams, offset: 0 } })
+      .reply(200, {
+        jobs: firstPage,
+        count: 20,
+      })
+    mockServer.mock
+      .onGet('jobs/', { params: { ...requestParams, offset: 10 } })
       .replyOnce(400, { error: 'ERROR_SOMETHING', detail: '' })
-    mockServer.mock.onGet('jobs/').replyOnce(200, {
-      jobs: [createSyncJob({ id: 1, state: 'finished' })],
-      count: 20,
-    })
+    mockServer.mock
+      .onGet('jobs/', { params: { ...requestParams, offset: 10 } })
+      .replyOnce(200, {
+        jobs: [createSyncJob({ id: 1, state: 'finished' })],
+        count: 20,
+      })
 
     const wrapper = await testApp.mount(ConfigureDataSyncHistory, {
       propsData: { database, table },

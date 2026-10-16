@@ -131,4 +131,32 @@ describe('Agent store', () => {
       agentId: 1,
     })
   })
+
+  test('force actions keep the workspace members count in sync', () => {
+    const state = makeState()
+    const commit = (type, payload) => mutations[type](state, payload)
+    const dispatch = vi.fn()
+    const agent = { id: 1, workspace_id: 42, name: 'Writer' }
+
+    actions.forceCreate({ commit, state, dispatch }, agent)
+    actions.forceCreate({ commit, state, dispatch }, agent)
+    actions.forceDelete(
+      { commit, state, dispatch },
+      { workspaceId: 42, agentId: 1 }
+    )
+
+    expect(dispatch).toHaveBeenNthCalledWith(
+      1,
+      'workspace/updateAgentsCount',
+      { workspaceId: 42, delta: 1 },
+      { root: true }
+    )
+    expect(dispatch).toHaveBeenNthCalledWith(
+      2,
+      'workspace/updateAgentsCount',
+      { workspaceId: 42, delta: -1 },
+      { root: true }
+    )
+    expect(dispatch).toHaveBeenCalledTimes(2)
+  })
 })

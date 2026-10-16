@@ -435,6 +435,13 @@ def test_rows_history_updated(
                             "user": OrderedDict(
                                 [("id", user.id), ("name", user.first_name)]
                             ),
+                            "actor": OrderedDict(
+                                [
+                                    ("id", user.id),
+                                    ("type", "auth.User"),
+                                    ("name", user.first_name),
+                                ]
+                            ),
                             "timestamp": "2023-03-30T00:00:00Z",
                             "before": {f"field_{field.id}": "row 1"},
                             "after": {f"field_{field.id}": "row 1 updated"},
@@ -456,6 +463,13 @@ def test_rows_history_updated(
                             "action_command_type": "DO",
                             "user": OrderedDict(
                                 [("id", user.id), ("name", user.first_name)]
+                            ),
+                            "actor": OrderedDict(
+                                [
+                                    ("id", user.id),
+                                    ("type", "auth.User"),
+                                    ("name", user.first_name),
+                                ]
                             ),
                             "timestamp": "2023-03-30T00:00:00Z",
                             "before": {f"field_{field.id}": "row 2"},

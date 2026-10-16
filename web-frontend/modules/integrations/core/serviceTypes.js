@@ -233,6 +233,10 @@ export class CoreGotoServiceType extends WorkflowActionServiceTypeMixin(
     return 'iconoir-long-arrow-up-right'
   }
 
+  get group() {
+    return getWorkflowGroup(this.app)
+  }
+
   getErrorMessage({ service }) {
     if (service === undefined) {
       return null
@@ -590,6 +594,10 @@ export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
 
   get icon() {
     return 'iconoir-reply'
+  }
+
+  get group() {
+    return getWorkflowGroup(this.app)
   }
 
   get formComponent() {

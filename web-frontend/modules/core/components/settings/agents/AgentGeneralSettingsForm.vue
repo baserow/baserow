@@ -4,7 +4,7 @@
       ref="name"
       :model-value="modelValue.name"
       required
-      maxlength="160"
+      :maxlength="160"
       @update:model-value="updateValue('name', $event)"
     />
   </FormGroup>

@@ -267,6 +267,7 @@ class IntegrationHandler:
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Optional[Integration]:
         """
         Imports a serialized integration into an application.
@@ -277,6 +278,7 @@ class IntegrationHandler:
         :param cache: Shared across one import, for values worth reusing.
         :param files_zip: The archive the export's files came in, if any.
         :param storage: Where those files are written.
+        :param import_export_config: Options controlling how integrations are imported.
         :return: The imported integration, or None when the application does
             not accept its type. `DatabaseApplicationType` is the only one
             that narrows what it accepts, and it ignores what this returns, so
@@ -312,6 +314,7 @@ class IntegrationHandler:
             application,
             serialized_integration,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

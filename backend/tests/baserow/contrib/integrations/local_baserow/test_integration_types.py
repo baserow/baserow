@@ -3,14 +3,17 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
+from rest_framework import serializers
 from rest_framework.status import HTTP_200_OK
 from tqdm import tqdm
 
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
+from baserow.core.cache import local_cache
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.models import Agent
 
 
 @pytest.mark.django_db
@@ -24,7 +27,104 @@ def test_create_local_baserow_integration_with_user(data_fixture):
         user, integration_type, application=application
     )
 
-    assert integration.authorized_user.id == user.id
+    assert integration.authorized_subject == user
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id
+
+
+@pytest.mark.django_db
+def test_authorized_subject_is_locally_cached(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    with local_cache.context(), CaptureQueriesContext(connection) as queries:
+        assert integration.authorized_subject == user
+        assert integration.authorized_subject == user
+
+    assert len(queries) == 1
+
+
+@pytest.mark.django_db
+def test_update_local_baserow_integration_authorizes_current_user_only(data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    agent = Agent.objects.create(
+        workspace=application.workspace, name="Writer", role_uid="ADMIN"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, authorized_agent=agent
+    )
+
+    updated_integration = (
+        IntegrationService()
+        .update_integration(
+            user,
+            integration,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=user.id,
+        )
+        .integration
+    )
+
+    assert updated_integration.authorized_subject == user
+
+    with pytest.raises(serializers.ValidationError):
+        IntegrationService().update_integration(
+            user,
+            updated_integration,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=other_user.id,
+        )
+
+
+@pytest.mark.django_db
+def test_update_local_baserow_integration_keeps_existing_authorization(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    agent = Agent.objects.create(
+        workspace=application.workspace, name="Writer", role_uid="ADMIN"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, authorized_agent=agent
+    )
+
+    updated_integration = (
+        IntegrationService()
+        .update_integration(user, integration, name="Renamed integration")
+        .integration
+    )
+
+    assert updated_integration.name == "Renamed integration"
+    assert updated_integration.authorized_subject == agent
+
+
+@pytest.mark.django_db
+def test_import_legacy_authorized_user_reauthorizes_the_importing_user(data_fixture):
+    importing_user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=importing_user)
+    integration_type = integration_type_registry.get("local_baserow")
+
+    imported = integration_type.import_serialized(
+        application,
+        {
+            "id": 1,
+            "name": "Legacy local Baserow",
+            "order": "1.00000000000000000000",
+            "type": "local_baserow",
+            "authorized_user": "former-user@example.com",
+        },
+        {"import_workspace_id": application.workspace_id},
+    )
+    integration_type.after_import(importing_user, imported)
+    imported.refresh_from_db()
+
+    assert imported.authorized_subject == importing_user
+    assert imported.authorized_subject_type == "auth.User"
+    assert imported.authorized_subject_id == importing_user.id
 
 
 @pytest.mark.django_db
@@ -35,6 +135,25 @@ def test_get_local_baserow_databases_no_databases(data_fixture):
     databases = LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     assert len(databases) == 0
+
+
+@pytest.mark.django_db
+def test_get_local_baserow_databases_with_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Reader", role_uid="ADMIN")
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user,
+        authorized_agent=agent,
+        application=builder,
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    data_fixture.create_database_table(database=database)
+
+    databases = LocalBaserowIntegrationType.get_local_baserow_databases(integration)
+
+    assert [item.id for item in databases] == [database.id]
 
 
 @pytest.mark.django_db
@@ -90,7 +209,7 @@ def test_get_local_baserow_databases_number_of_queries(
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
-    with CaptureQueriesContext(connection) as queries:
+    with local_cache.context(), CaptureQueriesContext(connection) as queries:
         LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     data_fixture.create_database_table(database=database)
@@ -99,7 +218,7 @@ def test_get_local_baserow_databases_number_of_queries(
     )
     data_fixture.create_database_table(database=database_2)
 
-    with CaptureQueriesContext(connection) as queries_2:
+    with local_cache.context(), CaptureQueriesContext(connection) as queries_2:
         LocalBaserowIntegrationType.get_local_baserow_databases(integration)
 
     assert len(queries.captured_queries) == len(queries_2.captured_queries)
@@ -265,13 +384,14 @@ def test_after_import(data_fixture):
         user, integration_type, application=application
     )
 
-    integration.authorized_user = None
+    integration.authorized_subject_type = None
+    integration.authorized_subject_id = None
     integration.save()
-
-    assert integration.authorized_user is None
 
     integration.get_type().after_import(user, integration)
 
     integration.refresh_from_db()
 
-    assert integration.authorized_user == user
+    assert integration.authorized_subject == user
+    assert integration.authorized_subject_type == "auth.User"
+    assert integration.authorized_subject_id == user.id
