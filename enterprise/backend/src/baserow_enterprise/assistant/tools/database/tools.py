@@ -38,6 +38,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
     return_permission_error,
+    stopped_after,
 )
 from baserow_enterprise.assistant.tools.toolset import inline_refs
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
@@ -736,11 +737,14 @@ def update_fields(
     updated = []
     errors = []
     changed = False
+    stopped = None
     formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
 
     with transaction.atomic():
-        for field_update in fields:
-            tool_helpers.raise_if_cancelled()
+        for index, field_update in enumerate(fields):
+            if tool_helpers.is_cancelled:
+                stopped = stopped_after(index, len(fields))
+                break
             tool_helpers.update_status(
                 _("Updating field %(field_id)s...")
                 % {"field_id": field_update.field_id}
@@ -760,6 +764,8 @@ def update_fields(
     result: dict[str, Any] = {"updated_fields": updated, "changed": changed}
     if errors:
         result["errors"] = errors
+    if stopped:
+        result["stopped"] = stopped
     return result
 
 
@@ -797,10 +803,13 @@ def delete_fields(
 
     deleted = []
     errors = []
+    stopped = None
 
     with transaction.atomic():
-        for field_id in field_ids:
-            tool_helpers.raise_if_cancelled()
+        for index, field_id in enumerate(field_ids):
+            if tool_helpers.is_cancelled:
+                stopped = stopped_after(index, len(field_ids))
+                break
             tool_helpers.update_status(
                 _("Deleting field %(field_id)s...") % {"field_id": field_id}
             )
@@ -816,6 +825,8 @@ def delete_fields(
     result: dict[str, Any] = {"deleted_field_ids": deleted}
     if errors:
         result["errors"] = errors
+    if stopped:
+        result["stopped"] = stopped
     return result
 
 
@@ -896,9 +907,12 @@ def create_views(
     table = helpers.get_table(user, workspace, table_id)
 
     created_views = []
+    stopped = None
     with transaction.atomic():
-        for view in views:
-            tool_helpers.raise_if_cancelled()
+        for index, view in enumerate(views):
+            if tool_helpers.is_cancelled:
+                stopped = stopped_after(index, len(views))
+                break
             tool_helpers.update_status(
                 _("Creating %(view_type)s view %(view_name)s")
                 % {"view_type": view.type, "view_name": view.name}
@@ -950,6 +964,9 @@ def create_views(
                     f"input: {', '.join(skipped_fields)}"
                 )
             created_views.append(created)
+
+    if stopped:
+        return {"created_views": created_views, "stopped": stopped}
 
     tool_helpers.navigate_to(
         ViewNavigationType(

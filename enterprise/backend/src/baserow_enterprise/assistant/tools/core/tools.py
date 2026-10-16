@@ -10,7 +10,7 @@ from pydantic_ai.toolsets import FunctionToolset
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
-from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.shared import require_payload, stopped_after
 
 from . import helpers
 from .types import BuilderItem, BuilderItemCreate, BuilderUpdate
@@ -120,9 +120,12 @@ def create_builders(
     created_builders = []
     reused_builders = []
     reused_requests = []
+    stopped = None
     with transaction.atomic():
-        for builder in requested_builders:
-            tool_helpers.raise_if_cancelled()
+        for index, builder in enumerate(requested_builders):
+            if tool_helpers.is_cancelled:
+                stopped = stopped_after(index, len(requested_builders))
+                break
             key = (builder.type, builder.name)
             if existing := existing_builders.get(key):
                 reused_builders.append(existing)
@@ -150,6 +153,8 @@ def create_builders(
         "reused_builders": reused_builders,
     }
     result.update(helpers.reused_builder_report(user, reused_requests))
+    if stopped:
+        result["stopped"] = stopped
     return result
 
 

@@ -1,4 +1,5 @@
 import { getClient } from "../../client";
+import { BARRIER_STUB_URL, arrivedAt, release } from "../../fixtures/barrier";
 import { KumaPanel } from "../../pages/components/kumaPanel";
 import { WorkspacePage } from "../../pages/workspacePage";
 import { baserowConfig } from "../../playwright.config";
@@ -53,6 +54,32 @@ async function activeRun(
     `${chatsUrl}${chats.results[0].uuid}/messages/`,
   );
   return data.active_run;
+}
+
+/** Stop is durable even when the Redis output stream is unavailable. */
+async function stopRequested(
+  workspacePage: WorkspacePage,
+  runId: string,
+): Promise<boolean> {
+  const { data } = await getClient(workspacePage.user).get(
+    `chat-runs/${runId}/`,
+  );
+  return !!data.cancel_requested_at;
+}
+
+/** The names of the workspace's databases and of their tables, read over REST. */
+async function databasesOf(
+  workspacePage: WorkspacePage,
+): Promise<Record<string, string[]>> {
+  const { data } = await getClient(workspacePage.user).get(
+    `applications/workspace/${workspacePage.workspace.id}/`,
+  );
+  return Object.fromEntries(
+    data.map((database: { name: string; tables: { name: string }[] }) => [
+      database.name,
+      database.tables.map((table) => table.name),
+    ]),
+  );
 }
 
 test("a reload while Kuma answers picks the answer up where it was", async ({
@@ -221,4 +248,46 @@ test("with two tabs on a chat, only the tab that sent the message follows Kuma t
   await expect(watcher.answers()).toHaveText([UNSCRIPTED_ANSWER, answerOf(5)]);
   await watcher.expectIdle();
   expect(watcher.page.url()).toBe(watcherUrl);
+});
+
+test("a stop during a slow tool waits for the tool and keeps what it made", async ({
+  page,
+  workspacePage,
+}) => {
+  test.skip(
+    !BARRIER_STUB_URL,
+    "Needs the barrier stub: set E2E_BARRIER_STUB_URL.",
+  );
+  const holdKey = `kuma-sample-rows-${workspacePage.workspace.id}`;
+  const kuma = new KumaPanel(page);
+  await workspacePage.goto();
+  await kuma.open();
+
+  try {
+    await kuma.send(
+      `${scriptedMessage(5)} rows-hold=${BARRIER_STUB_URL}/hold/${holdKey}`,
+    );
+    // The sample rows' model call is held, so create_tables is still running.
+    await expect.poll(() => arrivedAt(holdKey), { timeout: 30_000 }).toBe(1);
+    const { id: runId } = (await activeRun(workspacePage))!;
+
+    await kuma.stop();
+    // The run saw the stop, and saves nothing after it while its tool is held.
+    await expect
+      .poll(() => stopRequested(workspacePage, runId), { timeout: 10_000 })
+      .toBe(true);
+    await expect(kuma.status()).toHaveText("Stopping...");
+    await expect(kuma.lastRunOutcome()).toBeHidden();
+
+    await release(holdKey);
+    await expect(kuma.lastRunOutcome()).toHaveText(
+      "You stopped Kuma. Changes it made before stopping are kept.",
+      { timeout: 30_000 },
+    );
+    await kuma.expectIdle();
+    expect(await databasesOf(workspacePage)).toEqual({ Tracker: ["Tasks"] });
+  } finally {
+    // A hold left in place would keep the backend's tool waiting after a failure.
+    await release(holdKey);
+  }
 });
