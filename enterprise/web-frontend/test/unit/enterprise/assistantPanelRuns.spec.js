@@ -83,7 +83,7 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     await flushPromises()
     expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
     expect(stop.element.disabled).toBe(true)
-    expect(status()).toBe('assistant.statusCancelling')
+    expect(status()).toBe('assistant.statusStopping')
   })
 
   test('live output loss shows a waiting state for the saved response', async () => {
