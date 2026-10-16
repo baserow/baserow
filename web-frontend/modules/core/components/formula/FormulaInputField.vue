@@ -73,6 +73,7 @@
       v-if="!isRawMode && isFocused && !readOnly"
       ref="formulaInputExplorerContext"
       :node-selected="nodeSelected"
+      :reveal-node="revealNode"
       :loading="loading"
       :mode="activeMode"
       :has-value="Boolean(value && value.length)"
@@ -94,6 +95,8 @@
       ref="nodeHelpTooltip"
       :node="hoveredFunctionNode"
       :nodes-hierarchy="nodesHierarchy"
+      @mouseenter="onHelpTooltipEnter"
+      @mouseleave="onHelpTooltipLeave"
     />
 
     <FormulaInputModeChangeModal
@@ -116,7 +119,10 @@ import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/fo
 import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
 import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
-import { ParenMatchHighlightExtension } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
+import {
+  ParenMatchHighlightExtension,
+  findFunctionOpener,
+} from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
@@ -219,6 +225,10 @@ const FORMAT_LABEL_KEYS = {
 const FORMAT_BADGES = {
   [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'M',
 }
+
+// How long the function help tooltip stays open after the mouse leaves the
+// function or the tooltip. Matches the tooltip in the explorer.
+const HELP_TOOLTIP_HIDE_DELAY = 250
 
 export default {
   name: 'FormulaInputField',
@@ -344,6 +354,15 @@ export default {
       errorExpanded: false,
       isFocused: false,
       hoveredFunctionNode: null,
+      // Whether the mouse is over the function help tooltip, which then stays
+      // open so its examples can be read and scrolled.
+      isHelpTooltipHovered: false,
+      helpTooltipHideTimer: null,
+      // The formula node the user last clicked, which the explorer context
+      // reveals by opening its tab and scrolling to it. A new object is set on
+      // every click so clicking the same node twice reveals it again. Cleared
+      // on blur, see the `isFocused` watcher.
+      revealNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
       isEditorInitialized: false,
@@ -504,13 +523,18 @@ export default {
           : [
               FunctionHelpTooltipExtension.configure({
                 functionDefinitions: this.formulaRegistry.definitions,
+                // Long enough for the mouse to travel from the function into
+                // the tooltip, which then keeps it open.
+                hideDelay: HELP_TOOLTIP_HIDE_DELAY,
                 onShowTooltip: (el, node) => {
+                  this.cancelHelpTooltipHide()
                   this.hoveredFunctionNode = node
                   this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
                 },
                 onHideTooltip: () => {
-                  this.$refs.nodeHelpTooltip?.hide()
-                  this.hoveredFunctionNode = null
+                  if (!this.isHelpTooltipHovered) {
+                    this.hideHelpTooltip()
+                  }
                 },
               }),
             ]),
@@ -554,6 +578,14 @@ export default {
     },
   },
   watch: {
+    // The explorer context only exists while focused and reveals `revealNode`
+    // when it mounts, so a reveal must not outlive the focus. Otherwise every
+    // later focus would reveal the node again, even after it was deleted.
+    isFocused(newValue) {
+      if (!newValue) {
+        this.revealNode = null
+      }
+    },
     // The `input` event only fires for valid formulas, so parents that must
     // block submission on an invalid one need this signal too.
     isFormulaInvalid(newValue) {
@@ -632,6 +664,7 @@ export default {
     this.setupIntersectionObserver()
   },
   beforeUnmount() {
+    this.cancelHelpTooltipHide()
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },
@@ -690,6 +723,7 @@ export default {
       this.isEditorInitialized = true
 
       this.editor.on('data-node-clicked', this.dataNodeClicked)
+      this.editor.on('formula-node-clicked', this.formulaNodeClicked)
     },
     recreateEditor(formula = null) {
       const currentFormula =
@@ -959,10 +993,59 @@ export default {
     },
     dataNodeClicked(node) {
       this.editor.commands.selectNode(node)
+      this.revealNode = { type: 'data', path: node.attrs.path }
     },
-    handleEditorClick() {
+    /**
+     * Called when a function or operator node is clicked in the editor.
+     * @param {Object} target the `{ type, name }` of the clicked node, where
+     *   `name` is the function name or the operator symbol.
+     */
+    formulaNodeClicked(target) {
+      this.revealNode = { ...target }
+    },
+    onHelpTooltipEnter() {
+      this.isHelpTooltipHovered = true
+      this.cancelHelpTooltipHide()
+    },
+    onHelpTooltipLeave() {
+      this.isHelpTooltipHovered = false
+      this.cancelHelpTooltipHide()
+      this.helpTooltipHideTimer = setTimeout(() => {
+        this.helpTooltipHideTimer = null
+        this.hideHelpTooltip()
+      }, HELP_TOOLTIP_HIDE_DELAY)
+    },
+    cancelHelpTooltipHide() {
+      clearTimeout(this.helpTooltipHideTimer)
+      this.helpTooltipHideTimer = null
+    },
+    hideHelpTooltip() {
+      this.$refs.nodeHelpTooltip?.hide()
+      this.hoveredFunctionNode = null
+    },
+    handleEditorClick(event) {
       if (this.editor && !this.disabled && !this.readOnly) {
         this.editor.commands.showContext()
+        this.revealClickedFunctionPunctuation(event.target)
+      }
+    },
+    /**
+     * Closing parentheses and argument commas are plain nodes without a
+     * component to emit `formula-node-clicked`, so a click on one reveals the
+     * function it belongs to from here.
+     * @param {HTMLElement} target the clicked element.
+     */
+    revealClickedFunctionPunctuation(target) {
+      const punctuation = target?.closest?.(
+        '[data-formula-closing-paren], [data-formula-comma]'
+      )
+      if (!punctuation) {
+        return
+      }
+      const opener = findFunctionOpener(this.editor.view.dom, punctuation)
+      const name = opener?.textContent.trim().match(/^[A-Za-z_]\w*/)?.[0]
+      if (name) {
+        this.formulaNodeClicked({ type: 'function', name })
       }
     },
     /**

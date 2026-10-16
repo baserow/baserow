@@ -3,6 +3,12 @@
     as="span"
     class="operator-formula-component"
     :contenteditable="false"
+    @click="
+      emitToEditor('formula-node-clicked', {
+        type: 'operator',
+        name: operatorSymbol,
+      })
+    "
   >
     <span class="operator-formula-component__symbol">{{ operatorSymbol }}</span>
   </NodeViewWrapper>

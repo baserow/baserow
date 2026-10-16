@@ -160,9 +160,12 @@
   @include rounded;
 }
 
-// Remove left padding for closing parenthesis of functions with no arguments
+// Remove left padding for closing parenthesis of functions with no arguments.
+// Its inner corners are square so it joins its opener into a single pill.
 .formula-input-field__parenthesis[data-no-args='true'] {
   padding-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 // Spacing between adjacent formula atoms (closing parens, commas, group parens)
@@ -206,6 +209,8 @@
 .function-formula-component[data-no-args='true'] {
   .function-formula-component__name {
     padding-right: 2px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
   }
 }
 
@@ -225,5 +230,23 @@
 
   &.function-formula-component .function-formula-component__name {
     box-shadow: inset 0 0 0 1.5px $palette-cyan-800;
+  }
+}
+
+// A function with no arguments renders as one pill, e.g. `today()`, so its
+// opener and closer each draw their part of a single outline around it.
+.formula-input-field__paren-highlight[data-no-args='true'] {
+  &.function-formula-component .function-formula-component__name {
+    box-shadow:
+      inset 1.5px 0 0 $palette-cyan-800,
+      inset 0 1.5px 0 $palette-cyan-800,
+      inset 0 -1.5px 0 $palette-cyan-800;
+  }
+
+  &.formula-input-field__parenthesis {
+    box-shadow:
+      inset -1.5px 0 0 $palette-cyan-800,
+      inset 0 1.5px 0 $palette-cyan-800,
+      inset 0 -1.5px 0 $palette-cyan-800;
   }
 }

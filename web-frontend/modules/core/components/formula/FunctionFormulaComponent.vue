@@ -3,6 +3,12 @@
     as="span"
     class="function-formula-component"
     :data-no-args="hasNoArgs ? 'true' : undefined"
+    @click="
+      emitToEditor('formula-node-clicked', {
+        type: 'function',
+        name: functionName,
+      })
+    "
   >
     <span class="function-formula-component__name">{{ functionName }}(</span>
   </NodeViewWrapper>

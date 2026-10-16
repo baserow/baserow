@@ -9,6 +9,7 @@
   >
     <div
       class="node-explorer-content__content"
+      :data-node-path="path"
       @click="handleClick(node)"
       @mouseenter="onNodeHover($event, node)"
       @mouseleave="onNodeLeave"

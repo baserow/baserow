@@ -9,6 +9,7 @@
   >
     <NodeExplorer
       :node-selected="nodeSelected"
+      :reveal-node="revealNode"
       :mode="mode"
       :nodes-hierarchy="nodesHierarchy"
       :allow-node-selection="allowNodeSelection"
@@ -81,6 +82,15 @@ export default {
   props: {
     nodeSelected: {
       type: String,
+      required: false,
+      default: null,
+    },
+    /**
+     * The `{ type, name }` or `{ type: 'data', path }` of a formula node the
+     * explorer should reveal, see `NodeExplorer`.
+     */
+    revealNode: {
+      type: Object,
       required: false,
       default: null,
     },

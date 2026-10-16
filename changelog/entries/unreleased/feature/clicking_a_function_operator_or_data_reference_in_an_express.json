@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Clicking a function, operator or data reference in an expression now shows it in the data explorer",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-15"
+}

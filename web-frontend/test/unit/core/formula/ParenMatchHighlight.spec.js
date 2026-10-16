@@ -1,6 +1,7 @@
 import {
   getParenType,
   collectDOMParenPairs,
+  findFunctionOpener,
 } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 
 // ── DOM element helpers ─────────────────────────────────────────────
@@ -30,6 +31,13 @@ function createGroupCloser() {
   const el = document.createElement('span')
   el.dataset.groupClosingParen = 'true'
   el.textContent = ')'
+  return el
+}
+
+function createComma() {
+  const el = document.createElement('span')
+  el.dataset.formulaComma = 'true'
+  el.textContent = ','
   return el
 }
 
@@ -236,5 +244,89 @@ describe('collectDOMParenPairs', () => {
     // group closers can't match because if( is blocking the stack
     expect(pairs.has(g1)).toBe(false)
     expect(pairs.has(g2)).toBe(false)
+  })
+})
+
+// ── findFunctionOpener ──────────────────────────────────────────────
+
+describe('findFunctionOpener', () => {
+  it('returns the function of a closing parenthesis', () => {
+    const opener = createFuncOpener('upper(')
+    const closer = createFuncCloser()
+    const root = createContainer(opener, closer)
+
+    expect(findFunctionOpener(root, closer)).toBe(opener)
+  })
+
+  it('returns the function of an argument comma', () => {
+    const opener = createFuncOpener('concat(')
+    const comma = createComma()
+    const root = createContainer(opener, comma, createFuncCloser())
+
+    expect(findFunctionOpener(root, comma)).toBe(opener)
+  })
+
+  it('returns the outer function after a nested call', () => {
+    // concat(upper(), | ) → both the comma and the last closer belong to concat
+    const concatOpen = createFuncOpener('concat(')
+    const upperOpen = createFuncOpener('upper(')
+    const upperClose = createFuncCloser()
+    const comma = createComma()
+    const concatClose = createFuncCloser()
+    const root = createContainer(
+      concatOpen,
+      upperOpen,
+      upperClose,
+      comma,
+      concatClose
+    )
+
+    expect(findFunctionOpener(root, upperClose)).toBe(upperOpen)
+    expect(findFunctionOpener(root, comma)).toBe(concatOpen)
+    expect(findFunctionOpener(root, concatClose)).toBe(concatOpen)
+  })
+
+  it('skips grouping parentheses inside a function call', () => {
+    // round((1), |)
+    const opener = createFuncOpener('round(')
+    const comma = createComma()
+    const root = createContainer(
+      opener,
+      createGroupOpener(),
+      createGroupCloser(),
+      comma,
+      createFuncCloser()
+    )
+
+    expect(findFunctionOpener(root, comma)).toBe(opener)
+  })
+
+  it('returns null for a comma directly inside a group', () => {
+    const comma = createComma()
+    const root = createContainer(
+      createFuncOpener('concat('),
+      createGroupOpener(),
+      comma,
+      createGroupCloser(),
+      createFuncCloser()
+    )
+
+    expect(findFunctionOpener(root, comma)).toBe(null)
+  })
+
+  it('returns null for a closer without an opener', () => {
+    const closer = createFuncCloser()
+    const root = createContainer(closer)
+
+    expect(findFunctionOpener(root, closer)).toBe(null)
+  })
+
+  it('returns null for an element that is not a closer or comma', () => {
+    const opener = createFuncOpener()
+    const groupCloser = createGroupCloser()
+    const root = createContainer(createGroupOpener(), groupCloser, opener)
+
+    expect(findFunctionOpener(root, groupCloser)).toBe(null)
+    expect(findFunctionOpener(root, opener)).toBe(null)
   })
 })

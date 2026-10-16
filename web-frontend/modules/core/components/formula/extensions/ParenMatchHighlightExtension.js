@@ -8,6 +8,7 @@ const FUNC_OPENER = '.function-formula-component'
 const GROUP_OPENER = '[data-group-opening-paren]'
 const FUNC_CLOSER = '[data-formula-closing-paren]'
 const GROUP_CLOSER = '[data-group-closing-paren]'
+const FUNC_COMMA = '[data-formula-comma]'
 const OPENER_SELECTOR = `${FUNC_OPENER}, ${GROUP_OPENER}`
 const CLOSER_SELECTOR = `${FUNC_CLOSER}, ${GROUP_CLOSER}`
 const ALL_SELECTOR = `${OPENER_SELECTOR}, ${CLOSER_SELECTOR}`
@@ -43,6 +44,40 @@ export function collectDOMParenPairs(root) {
   }
 
   return pairs
+}
+
+/**
+ * Returns the function opener (e.g. `upper(`) that a function closing
+ * parenthesis or argument comma belongs to, using the same stack pairing as
+ * `collectDOMParenPairs`.
+ * @param {HTMLElement} root the editor DOM.
+ * @param {HTMLElement} target the clicked closing parenthesis or comma.
+ * @returns {HTMLElement|null} the function opener, or null when the target
+ *   isn't part of a function call.
+ */
+export function findFunctionOpener(root, target) {
+  if (!target.matches(`${FUNC_CLOSER}, ${FUNC_COMMA}`)) return null
+
+  const elements = root.querySelectorAll(`${ALL_SELECTOR}, ${FUNC_COMMA}`)
+  const stack = []
+
+  for (const el of elements) {
+    const top = stack[stack.length - 1]
+    if (el === target) {
+      return top && getParenType(top) === 'function' ? top : null
+    }
+    if (el.matches(OPENER_SELECTOR)) {
+      stack.push(el)
+    } else if (
+      el.matches(CLOSER_SELECTOR) &&
+      top &&
+      getParenType(top) === getParenType(el)
+    ) {
+      stack.pop()
+    }
+  }
+
+  return null
 }
 
 export const ParenMatchHighlightExtension = Extension.create({
