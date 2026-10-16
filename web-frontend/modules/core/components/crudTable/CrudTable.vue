@@ -1,144 +1,169 @@
 <template>
   <div class="data-table">
-    <div v-if="showEmptyState">
-      <slot name="empty"></slot>
-    </div>
-    <template v-else>
-      <header class="data-table__header">
-        <h1 class="data-table__title">
-          <slot name="title"></slot>
-        </h1>
-        <div class="data-table__actions">
-          <CrudTableSearch
-            v-if="enableSearch"
-            ref="crudTableSearch"
-            :loading="loading && loaded"
-            :initial-search-term="defaultSearch || ''"
-            @search-changed="doSearch"
-          />
-          <slot name="header-right-side"></slot>
-        </div>
-      </header>
-      <slot name="header-filters"></slot>
-      <div class="data-table__body">
-        <table class="data-table__table">
-          <thead>
-            <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
-              <th
-                class="data-table__table-cell data-table__table-cell--header"
-                :colspan="columns.length"
-              >
-                <div class="data-table__table-cell-head skeleton">
-                  <SkeletonBlock width="200px"></SkeletonBlock>
-                </div>
-              </th>
-            </tr>
-            <tr v-else class="data-table__table-row">
-              <th
-                v-for="col in columns"
-                :key="'head-' + col.key"
-                :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
-                class="data-table__table-cell data-table__table-cell--header"
-                :class="{
-                  'data-table__table-cell--sticky-left': col.stickyLeft,
-                  'data-table__table-cell--sticky-right': col.stickyRight,
-                }"
-              >
-                <div class="data-table__table-cell-head">
-                  <template v-if="col.sortable">
-                    <div>
-                      <a
-                        class="data-table__table-cell-head-link"
-                        @click="toggleSort(col)"
-                        >{{ col.header }}</a
-                      >
-                      <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
-                    </div>
-                    <div class="data-table__table-cell-head-sort-icon">
-                      <template v-if="sorted(col)">
-                        <i :class="sortIcon(col)"></i>
-                        {{ sortIndex(col) }}
-                      </template>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div>
-                      {{ col.header }}
-                      <HelpIcon
-                        v-if="col.helpText"
-                        :tooltip="col.helpText"
-                      /></div
-                  ></template>
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <CrudTableSkeletonRows
-              v-if="loading"
-              :columns="columns"
-              :count="skeletonRowCount"
-            ></CrudTableSkeletonRows>
-            <slot
-              v-else
-              name="rows"
-              :rows="rows"
-              :columns="columns"
-              :update-row="updateRow"
-              :delete-row="deleteRow"
-              :refresh="refresh"
+    <header class="data-table__header">
+      <h1 class="data-table__title">
+        <slot name="title" :count="totalCount" :loading="initialLoading"></slot>
+      </h1>
+      <div class="data-table__actions">
+        <CrudTableSearch
+          v-if="enableSearch"
+          ref="crudTableSearch"
+          :loading="loading && loaded"
+          :initial-search-term="defaultSearch || ''"
+          @search-changed="doSearch"
+        />
+        <slot name="header-right-side"></slot>
+        <slot name="primary-action"></slot>
+      </div>
+    </header>
+    <slot name="header-filters"></slot>
+    <div
+      class="data-table__body"
+      :class="{ 'data-table__body--empty': showEmptyState }"
+    >
+      <table class="data-table__table" :aria-busy="loading">
+        <thead v-if="!showEmptyState">
+          <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
+            <th
+              class="data-table__table-cell data-table__table-cell--header"
+              :colspan="columns.length"
             >
-              <tr
-                v-for="row in rows"
-                :key="'row-' + row.id"
-                class="data-table__table-row"
-              >
-                <td
-                  v-for="col in columns"
-                  :key="'col-' + col.key"
-                  class="data-table__table-cell"
-                  :class="{
-                    'data-table__table-cell--sticky-left': col.stickyLeft,
-                    'data-table__table-cell--sticky-right': col.stickyRight,
-                    [`data-table__table-cell--${col.key}`]: true,
-                  }"
-                  @contextmenu="
-                    $emit('row-context', { col, row, event: $event })
-                  "
-                >
-                  <div class="data-table__table-cell-content">
-                    <component
-                      :is="col.cellComponent"
-                      :row="row"
-                      :column="col"
-                      v-bind="$attrs"
-                      @row-context="(payload) => $emit('row-context', payload)"
-                      @row-update="updateRow"
-                      @row-delete="deleteRow"
-                      @refresh="refresh"
-                    />
+              <div class="data-table__table-cell-head skeleton">
+                <SkeletonBlock width="200px"></SkeletonBlock>
+              </div>
+            </th>
+          </tr>
+          <tr v-else class="data-table__table-row">
+            <th
+              v-for="col in columns"
+              :key="'head-' + col.key"
+              :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
+              class="data-table__table-cell data-table__table-cell--header"
+              :class="{
+                'data-table__table-cell--sticky-left': col.stickyLeft,
+                'data-table__table-cell--sticky-right': col.stickyRight,
+              }"
+            >
+              <div class="data-table__table-cell-head">
+                <template v-if="col.sortable">
+                  <div>
+                    <button
+                      type="button"
+                      class="data-table__table-cell-head-link"
+                      @click="toggleSort(col)"
+                    >
+                      {{ col.header }}
+                    </button>
+                    <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
                   </div>
-                </td>
-              </tr>
-            </slot>
-          </tbody>
-        </table>
-      </div>
-      <div v-if="service.options.isPaginated" class="data-table__footer">
-        <Paginator
-          v-skeleton="{ loading: initialLoading, height: '20px' }"
-          :page="page"
-          :total-pages="totalPages"
-          @change-page="fetch"
-        ></Paginator>
-      </div>
-      <slot name="menus" :update-row="updateRow" :delete-row="deleteRow"></slot>
-    </template>
+                  <div class="data-table__table-cell-head-sort-icon">
+                    <template v-if="sorted(col)">
+                      <i :class="sortIcon(col)"></i>
+                      {{ sortIndex(col) }}
+                    </template>
+                  </div>
+                </template>
+                <template v-else>
+                  <div>
+                    {{ col.header }}
+                    <HelpIcon
+                      v-if="col.helpText"
+                      :tooltip="col.helpText"
+                    /></div
+                ></template>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody v-if="loading">
+          <CrudTableSkeletonRows :columns="columns" :count="skeletonRowCount" />
+        </tbody>
+        <tbody v-else-if="showEmptyState">
+          <tr>
+            <td :colspan="columns.length || 1" class="data-table__empty-cell">
+              <div class="data-table__empty">
+                <slot v-if="showEmptyCollectionState" name="empty">
+                  <p>{{ $t('crudTable.empty') }}</p>
+                </slot>
+                <p v-else-if="totalCount > 0">
+                  {{ $t('crudTable.emptyPage') }}
+                </p>
+                <p v-else>{{ $t('crudTable.noResults') }}</p>
+                <div
+                  v-if="showEmptyCollectionState && $slots['primary-action']"
+                  class="data-table__empty-action"
+                >
+                  <slot name="primary-action"></slot>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tbody v-else-if="$slots.rows">
+          <slot
+            name="rows"
+            :rows="rows"
+            :columns="columns"
+            :update-row="updateRow"
+            :delete-row="deleteRow"
+            :refresh="refresh"
+          />
+        </tbody>
+        <template v-else>
+          <CrudTableRow
+            v-for="row in rows"
+            :key="row[rowIdKey]"
+            :row="row"
+            :columns="columns"
+            :expandable="canExpandRow(row)"
+            :expanded="canExpandRow(row) && expandedRows.has(row[rowIdKey])"
+            :expand-column-key="expandColumnKey"
+            :cell-attrs="$attrs"
+            @toggle="toggleRow(row)"
+            @row-context="$emit('row-context', $event)"
+            @row-update="updateRow"
+            @row-delete="deleteRow"
+            @refresh="refresh"
+          >
+            <template #expanded-row="slotProps">
+              <slot
+                name="expanded-row"
+                v-bind="slotProps"
+                :update-row="updateRow"
+                :delete-row="deleteRow"
+                :refresh="refresh"
+              />
+            </template>
+            <template #row-expansion-toggle="slotProps">
+              <slot name="row-expansion-toggle" v-bind="slotProps" />
+            </template>
+          </CrudTableRow>
+        </template>
+      </table>
+    </div>
+    <div
+      v-if="service.options.isPaginated && (!showEmptyState || page > 1)"
+      class="data-table__footer"
+    >
+      <Paginator
+        v-skeleton="{ loading: initialLoading, height: '20px' }"
+        :page="page"
+        :total-pages="totalPages"
+        @change-page="fetch"
+      ></Paginator>
+    </div>
+    <slot
+      name="menus"
+      :update-row="updateRow"
+      :delete-row="deleteRow"
+      :refresh="refresh"
+    ></slot>
   </div>
 </template>
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import CrudTableRow from '@baserow/modules/core/components/crudTable/CrudTableRow'
 import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import CrudTableSkeletonRows from '@baserow/modules/core/components/crudTable/CrudTableSkeletonRows'
 import Paginator from '@baserow/modules/core/components/Paginator'
@@ -155,19 +180,40 @@ import isObject from 'lodash/isObject'
  * instance of the provided columns cellComponent. This allows components using
  * CrudTable to easily communicate with their specific cellComponents.
  *
- * Provides two slots:
- *  #header: Placed within the header of the CrudTable.
+ * Slots:
+ *  #title: Header title, with the result count and initial loading state.
+ *  #header-right-side: Additional controls beside the search.
+ *  #primary-action: Main action, also shown in the unfiltered empty state.
+ *  #empty: Empty state when no search or filters are active.
  *  #menus: Placed in the footer and expected to only contain Contexts and Modals.
- *          Two slot props are provided `updateRow` and `deleteRow` which are functions
- *          called when your menu has changed the row state which trigger the CrudTable
- *          to rerender the rows with the new data.
- *  #rows: Can optionally replace the rows in the table.
+ *          Receives updateRow, deleteRow and refresh to synchronize table data.
+ *  #rows: Can optionally replace the rows in the table (including expansion).
+ *  #expanded-row: One or more <tr> elements, with row, columns, updateRow,
+ *                 deleteRow and refresh slot props. Use <td :colspan="columns.length">
+ *                 for full-width content, or cells aligned to the existing columns.
+ *  #row-expansion-toggle: Optional content beside the disclosure chevron.
+ *                         Receives row and expanded; CrudTable owns the button.
  */
 export default {
   name: 'CrudTable',
-  components: { Paginator, CrudTableSearch, CrudTableSkeletonRows },
+  components: {
+    Paginator,
+    CrudTableSearch,
+    CrudTableSkeletonRows,
+    CrudTableRow,
+  },
   inheritAttrs: false,
   props: {
+    /** With an expanded-row slot, optionally restrict expansion to eligible rows. */
+    rowExpandable: {
+      type: Function,
+      default: null,
+    },
+    /** Column containing the disclosure control; defaults to the first column. */
+    expandColumnKey: {
+      type: String,
+      default: null,
+    },
     /**
      * A service which provides a fetch(pageNumber, searchParam, columnSortsList)
      * method which returns an object in the form of:
@@ -254,22 +300,24 @@ export default {
       default: null,
     },
   },
-  emits: ['row-context', 'rows-update', 'total-count-update'],
+  emits: ['row-context', 'rows-update', 'total-count-update', 'row-toggle'],
   data() {
     return {
       loading: true,
       loaded: false,
       page: 1,
       totalPages: 0,
+      totalCount: 0,
       lastFetchId: 0,
       searchQuery: this.defaultSearch || false,
       rows: [],
+      expandedRows: new Set(),
       columnSorts: this.defaultColumnSorts,
     }
   },
   computed: {
-    hasEmptySlot() {
-      return !!this.$slots.empty
+    hasActiveFilters() {
+      return !!this.searchQuery || Object.keys(this.filters).length > 0
     },
     initialLoading() {
       return this.loading && !this.loaded
@@ -282,13 +330,11 @@ export default {
       return this.rows.length || 10
     },
     showEmptyState() {
+      return !this.loading && this.rows.length === 0
+    },
+    showEmptyCollectionState() {
       return (
-        this.hasEmptySlot &&
-        !this.loading &&
-        this.rows.length === 0 &&
-        this.page === 1 &&
-        this.searchQuery === false &&
-        Object.keys(this.filters).length === 0
+        this.showEmptyState && this.totalCount === 0 && !this.hasActiveFilters
       )
     },
   },
@@ -297,6 +343,7 @@ export default {
       this.$emit('rows-update', this.rows)
     },
     filters() {
+      this.expandedRows.clear()
       this.fetch()
     },
   },
@@ -304,6 +351,23 @@ export default {
     await this.fetch()
   },
   methods: {
+    canExpandRow(row) {
+      return (
+        !!this.$slots['expanded-row'] &&
+        (!this.rowExpandable || this.rowExpandable(row))
+      )
+    },
+    toggleRow(row) {
+      if (!this.canExpandRow(row)) return
+      const key = row[this.rowIdKey]
+      const expanded = !this.expandedRows.has(key)
+      if (expanded) {
+        this.expandedRows.add(key)
+      } else {
+        this.expandedRows.delete(key)
+      }
+      this.$emit('row-toggle', { row, expanded })
+    },
     /**
      * If the column is sortable cycles through applying descending, then ascending and
      * then no sort to this column.
@@ -341,6 +405,7 @@ export default {
       return this.columnSorts.findIndex((c) => c.key === column.key)
     },
     async doSearch(searchQuery) {
+      this.expandedRows.clear()
       this.totalPages = 0
       this.searchQuery = searchQuery
       await this.fetch(1)
@@ -358,6 +423,10 @@ export default {
     async fetch(page = null) {
       if (page == null && this.service.options.isPaginated) {
         page = 1
+      }
+
+      if (page !== null && page !== this.page) {
+        this.expandedRows.clear()
       }
 
       // A newer request can resolve before an older one, so the response of an
@@ -385,6 +454,13 @@ export default {
         }
 
         this.rows = _.isArray(data) ? data : data.results
+        this.totalCount = data.count ?? this.rows.length
+        const visibleKeys = new Set(
+          this.rows.filter(this.canExpandRow).map((row) => row[this.rowIdKey])
+        )
+        this.expandedRows = new Set(
+          [...this.expandedRows].filter((key) => visibleKeys.has(key))
+        )
       } catch (error) {
         if (fetchId !== this.lastFetchId) {
           return
@@ -409,14 +485,19 @@ export default {
         Object.assign(this.rows[i], row)
       } else {
         this.rows.unshift(row)
+        this.totalCount += 1
       }
     },
     deleteRow(rowId) {
+      this.expandedRows.delete(rowId)
       const i = this.rows.findIndex((u) => u[this.rowIdKey] === rowId)
-      this.rows.splice(i, 1)
+      if (i !== -1) {
+        this.rows.splice(i, 1)
+        this.totalCount = Math.max(0, this.totalCount - 1)
+      }
     },
     refresh() {
-      this.fetch(this.page)
+      return this.fetch(this.page)
     },
   },
 }

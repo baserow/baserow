@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Refreshes management tables and adds support for expandable row details",
+    "issue_origin": "github",
+    "issue_number": 6219,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-05"
+}

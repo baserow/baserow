@@ -86,6 +86,8 @@
   "teamsTable": {
     "title": "{teamCount} teams in {workspaceName}",
     "createNew": "Create team",
+    "emptyTitle": "No teams yet",
+    "emptyDescription": "Group people and agents into teams to manage their access together. Create a team for a department or project, then assign its role.",
     "nameColumn": "Name",
     "createdColumn": "Created on",
     "subjectsColumn": "Members",

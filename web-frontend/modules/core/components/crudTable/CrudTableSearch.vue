@@ -1,9 +1,11 @@
 <template>
-  <form @submit.prevent="doSearch(headerSearchTerm, true)">
+  <form
+    class="data-table__search"
+    @submit.prevent="doSearch(headerSearchTerm, true)"
+  >
     <FormInput
       ref="searchInput"
       v-model="headerSearchTerm"
-      size="large"
       :placeholder="$t('crudTableSearch.search')"
       icon-left="iconoir-search"
       :loading="loading"
