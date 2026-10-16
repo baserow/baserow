@@ -1,8 +1,7 @@
 from django.db import transaction
 
-from baserow.contrib.agent.constants import FF_AGENT_BUILDER
 from baserow.contrib.agent.models import AgentApplication
-from baserow.core.feature_flags import feature_flag_is_enabled
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.registries import ApplicationType
 
 
