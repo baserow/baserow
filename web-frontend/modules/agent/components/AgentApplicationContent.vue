@@ -14,9 +14,63 @@
       />
     </header>
     <div class="layout__col-2-2 agent-application__content">
+      <AgentConversationList
+        v-if="state.canReadConversations"
+        :items="state.conversationItems"
+        :selected="state.selectedUuid"
+        :loading="state.conversationsLoading"
+        :error="state.conversationsError"
+        :has-more="state.conversationsNext"
+        :can-create="state.canCreateConversation"
+        :ready="state.isReady"
+        @select="state.selectConversation"
+        @create="state.newConversation"
+        @retry="state.retryConversations"
+        @load-more="state.fetchConversations(state.conversationsPage + 1, true)"
+      />
       <main class="agent-chat">
-        <div class="agent-chat__history">
-          <div class="agent-chat__intro">
+        <div ref="historyElement" class="agent-chat__history">
+          <div
+            v-if="
+              state.currentHistory?.loading &&
+              !state.currentHistory.items.length
+            "
+            class="agent-chat__loading loading"
+          />
+          <Alert v-if="state.currentHistory?.error" type="error">
+            {{ $t('agent.messagesLoadError') }}
+            <template #actions
+              ><Button type="secondary" size="small" @click="retryMessages">{{
+                $t('action.retry')
+              }}</Button></template
+            >
+          </Alert>
+          <template v-if="state.currentHistory?.items.length">
+            <Button
+              v-if="state.currentHistory.next"
+              type="secondary"
+              size="small"
+              :loading="state.currentHistory.loading"
+              class="agent-chat__older"
+              @click="loadOlderMessages"
+              >{{ $t('agent.olderMessages') }}</Button
+            >
+            <div
+              v-for="message in state.currentHistory.items"
+              :key="message.uuid"
+              class="agent-chat__message"
+            >
+              <div class="agent-chat__message-content">
+                {{ message.content }}
+              </div>
+            </div>
+          </template>
+          <div
+            v-else-if="
+              !state.currentHistory?.loading && !state.currentHistory?.error
+            "
+            class="agent-chat__intro"
+          >
             <div class="agent-chat__avatar">
               <img :src="agentOrb" alt="" />
             </div>
@@ -69,6 +123,51 @@
               >
             </template>
           </Alert>
+          <Alert
+            v-if="state.currentDraft?.error"
+            type="error"
+            class="margin-bottom-2"
+          >
+            {{
+              $t(
+                state.currentDraft.error === 'conflict'
+                  ? 'agent.messageConflict'
+                  : 'agent.messageSaveError'
+              )
+            }}
+          </Alert>
+          <form
+            v-if="showComposer"
+            class="agent-chat__composer"
+            @submit.prevent="state.sendMessage"
+          >
+            <FormTextarea
+              ref="messageInput"
+              :model-value="state.currentDraft?.content || ''"
+              :disabled="state.composerDisabled"
+              :placeholder="$t('agent.messagePlaceholder')"
+              :aria-label="$t('agent.messagePlaceholder')"
+              auto-expandable
+              :min-rows="1"
+              :max-rows="6"
+              :maxlength="100000"
+              @update:model-value="state.updateMessage"
+              @keydown="handleEnter"
+            />
+            <Button
+              button-type="submit"
+              class="agent-chat__send"
+              icon="iconoir-arrow-up"
+              :aria-label="
+                $t(state.currentDraft?.error ? 'action.retry' : 'agent.send')
+              "
+              :title="
+                $t(state.currentDraft?.error ? 'action.retry' : 'agent.send')
+              "
+              :loading="Boolean(state.currentDraft?.sending)"
+              :disabled="!state.canSend || !state.currentDraft?.content.trim()"
+            />
+          </form>
         </div>
       </main>
       <AgentConfigurationSidebar
@@ -93,15 +192,33 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref, toRef } from 'vue'
+import { computed, nextTick, reactive, ref, toRef, watch } from 'vue'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
+import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
+import { useAgentConversations } from '@baserow/modules/agent/composables/useAgentConversations'
 
 const props = defineProps({ agent: { type: Object, required: true } })
-const state = reactive(useAgentConfiguration(toRef(props, 'agent')))
+const agent = toRef(props, 'agent')
+const configuration = useAgentConfiguration(agent)
+const state = reactive({
+  ...configuration,
+  ...useAgentConversations(agent, configuration),
+})
 const configurationOpen = ref(true)
 const configurationSidebar = ref(null)
+const messageInput = ref(null)
+const historyElement = ref(null)
+// Any selection change, even away and back, invalidates a pending scroll anchor.
+let historySelectionRevision = 0
+watch(
+  [() => props.agent.id, () => state.selectedUuid],
+  () => {
+    ++historySelectionRevision
+  },
+  { flush: 'sync' }
+)
 const fieldLabels = {
   name: 'agent.name',
   instructions: 'agent.instructions',
@@ -123,6 +240,16 @@ const showConfigurationWarning = computed(() =>
         (!state.configurationLoading && warningFields.value.length))) ||
     ['incomplete', 'unavailable'].includes(state.readiness)
   )
+)
+// Transient requests only disable the composer, so saving never moves the chat.
+const showComposer = computed(
+  () =>
+    state.readiness === 'ready' &&
+    !showConfigurationWarning.value &&
+    state.canReadConversations &&
+    state.canCreateMessage &&
+    Boolean(state.selectedConversation) &&
+    (!state.selectedConversation.local || state.canCreateConversation)
 )
 const warningTitle = computed(() =>
   hasLoadError.value
@@ -146,4 +273,44 @@ async function focusConfiguration(field) {
   await nextTick()
   await configurationSidebar.value?.focusField(field)
 }
+function handleEnter(event) {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault()
+    state.sendMessage()
+  }
+}
+function retryMessages() {
+  state.fetchMessages(
+    state.selectedUuid,
+    state.currentHistory?.requestedPage || 1,
+    Boolean(state.currentHistory?.prepend)
+  )
+}
+async function loadOlderMessages() {
+  const container = historyElement.value
+  const selectionRevision = historySelectionRevision
+  const previousHeight = container.scrollHeight
+  const previousTop = container.scrollTop
+  await state.fetchMessages(
+    state.selectedUuid,
+    state.currentHistory.page + 1,
+    true
+  )
+  await nextTick()
+  if (
+    selectionRevision !== historySelectionRevision ||
+    historyElement.value !== container
+  ) {
+    return
+  }
+  container.scrollTop = previousTop + container.scrollHeight - previousHeight
+}
+watch(
+  () => state.currentHistory?.items.at(-1)?.uuid,
+  async () => {
+    await nextTick()
+    if (historyElement.value)
+      historyElement.value.scrollTop = historyElement.value.scrollHeight
+  }
+)
 </script>

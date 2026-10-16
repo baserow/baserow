@@ -3,6 +3,15 @@ from rest_framework.exceptions import ValidationError
 AGENT_TEXT_MAX_LENGTH = 100000
 
 
+def validate_message_content(content: str) -> None:
+    """Keep direct service/action calls subject to the same plain-text limits."""
+
+    if not isinstance(content, str) or not content.strip():
+        raise ValidationError({"content": "This field may not be blank."})
+    if len(content) > AGENT_TEXT_MAX_LENGTH:
+        raise ValidationError({"content": "The message is too long."})
+
+
 def validate_configuration_values(values: dict) -> None:
     """Allow incomplete drafts while rejecting invalid types or oversized fields."""
 

@@ -18,11 +18,29 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/contrib/agent/actions.py:21
+#: src/baserow/contrib/agent/actions.py:23
+msgid "Create agent conversation"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:24
+#, python-format
+msgid "Conversation (%(conversation_id)s) created in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:66
+msgid "Create agent message"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:67
+#, python-format
+msgid "Message (%(message_id)s) created in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:109
 msgid "Update agent configuration"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:22
+#: src/baserow/contrib/agent/actions.py:110
 #, python-format
 msgid "Configuration updated for agent (%(agent_id)s)."
 msgstr ""

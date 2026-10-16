@@ -102,6 +102,21 @@ export function useAgentConfiguration(agent) {
     }
     return errors
   })
+  const isReady = computed(
+    () =>
+      readiness.value === 'ready' &&
+      !readinessLoading.value &&
+      !readinessError.value &&
+      !availabilityLoading.value &&
+      !availabilityError.value &&
+      !savingSettings.value &&
+      (!canReadSettings.value ||
+        (!configurationLoading.value &&
+          !configurationLoadError.value &&
+          !hasPendingSettings.value &&
+          !settingsSaveError.value &&
+          !Object.keys(fieldErrors.value).length))
+  )
   const scopeIsCurrent = (currentScope) => scope === currentScope
 
   async function fetchReadiness() {
@@ -305,6 +320,11 @@ export function useAgentConfiguration(agent) {
     ])
   }
 
+  async function recheckReadiness() {
+    readiness.value = null
+    await refreshConfiguration()
+  }
+
   const unsubscribe = store.subscribe((mutation) => {
     if (
       mutation.type === 'application/UPDATE_ITEM' &&
@@ -387,8 +407,10 @@ export function useAgentConfiguration(agent) {
     hasPendingSettings,
     savingSettings,
     settingsSaveError,
+    isReady,
     updateConfiguration,
     saveSettings,
     refreshConfiguration,
+    recheckReadiness,
   }
 }
