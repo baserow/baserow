@@ -1,6 +1,8 @@
 from baserow_enterprise.assistant.deps import EventBus
 from baserow_enterprise.assistant.types import AiNavigationMessage, AnyNavigationType
 
+NAVIGATED = "Navigated successfully."
+
 
 def unsafe_navigate_to(location: AnyNavigationType, event_bus: EventBus) -> str:
     """
@@ -13,4 +15,4 @@ def unsafe_navigate_to(location: AnyNavigationType, event_bus: EventBus) -> str:
     """
 
     event_bus.emit(AiNavigationMessage(location=location))
-    return "Navigated successfully."
+    return NAVIGATED

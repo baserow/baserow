@@ -9,7 +9,7 @@
           {{ message.content }}
         </div>
         <div
-          v-else
+          v-else-if="showsBubble(message)"
           class="chat-message__bubble"
           :class="{
             'chat-message__bubble--error': message.error,
@@ -71,6 +71,9 @@
             />
           </template>
         </div>
+        <div v-if="outcomeKey(message)" class="assistant__message-run-outcome">
+          {{ $t(outcomeKey(message)) }}
+        </div>
         <template
           v-if="
             message.content && !message.reasoning && !isBusy(message, index)
@@ -106,6 +109,7 @@ import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
+import { runOutcomeKey } from '@baserow_enterprise/utils/assistant'
 
 export default {
   name: 'AssistantMessageList',
@@ -135,6 +139,16 @@ export default {
         !message.cancelled &&
         (message.loading || (this.running && this.isLastMessage(index)))
       )
+    },
+    outcomeKey(message) {
+      return message.role === 'ai' ? runOutcomeKey(message) : null
+    },
+    /**
+     * An answer without text whose run failed, such as the empty answer of a
+     * run no worker picked up, shows only its note.
+     */
+    showsBubble(message) {
+      return Boolean(message.content) || !this.outcomeKey(message)
     },
     copyFailed() {
       this.$store.dispatch('toast/error', {

@@ -25,6 +25,8 @@ mail_image := "mailhog/mailhog:v1.0.1"
 slack_stub_image := "wiremock/wiremock:3.13.1"
 # Holds a button's request open until a test releases it, from e2e-tests/stubs/barrier.
 barrier_stub_image := "node:24.22.1-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d"
+# Answers Kuma's model requests, from e2e-tests/stubs/kuma-model.
+kuma_model_stub_image := barrier_stub_image
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
 # Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
@@ -143,7 +145,7 @@ up: _ensure-images
     fi
 
     # Clean up any stopped containers from previous runs
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-slack-stub e2e-barrier e2e-kuma-model e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
 
     # Create network if it doesn't exist
@@ -190,6 +192,14 @@ up: _ensure-images
             -p {{ barrier_control_port }}:8080 \
             -v "$(pwd)/e2e-tests/stubs/barrier:/stub:ro" \
             {{ barrier_stub_image }} node /stub/server.mjs
+    fi
+
+    # Start the model stub Kuma's runs talk to instead of a real model
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-kuma-model$"; then
+        echo "Starting Kuma model stub..."
+        docker run -d --network={{ network }} --name e2e-kuma-model \
+            -v "$(pwd)/e2e-tests/stubs/kuma-model:/stub:ro" \
+            {{ kuma_model_stub_image }} node /stub/server.mjs
     fi
 
     # Start MailHog, which catches what the email action sends
@@ -256,6 +266,9 @@ up: _ensure-images
             -e FEATURE_FLAGS="*" \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
+            -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
+            -e OPENAI_BASE_URL=http://e2e-kuma-model:8080/v1 \
+            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=e2e-mail \
             -e EMAIL_SMTP_PORT=1025 \
@@ -286,6 +299,9 @@ up: _ensure-images
             -e FEATURE_FLAGS="*" \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
+            -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
+            -e OPENAI_BASE_URL=http://e2e-kuma-model:8080/v1 \
+            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=e2e-mail \
             -e EMAIL_SMTP_PORT=1025 \
@@ -326,7 +342,7 @@ up: _ensure-images
 down:
     #!/usr/bin/env bash
     echo "Stopping E2E containers..."
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-slack-stub e2e-barrier e2e-kuma-model e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
     docker network rm {{ network }} 2>/dev/null || true
     echo "E2E environment stopped."
@@ -377,6 +393,7 @@ test *ARGS:
     # as the tests reach it, from the host.
     export E2E_HTTP_STUB_URL=http://e2e-httpbin:80
     export E2E_SLACK_STUB=yes
+    export E2E_KUMA_MODEL_STUB=yes
     export E2E_MAIL_API_URL=http://localhost:{{ mail_api_port }}
     export E2E_BARRIER_STUB_URL=http://e2e-barrier:8080
     export E2E_BARRIER_CONTROL_URL=http://localhost:{{ barrier_control_port }}

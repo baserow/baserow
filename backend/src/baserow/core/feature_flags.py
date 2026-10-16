@@ -7,6 +7,7 @@ FF_AGENTS = "agents"
 FF_AGENT_BUILDER = "agent-builder"
 FF_USER_TEMPLATES = "user_templates"
 FF_RBAC_IMPROVEMENTS = "rbac_improvements"
+FF_ASSISTANT_BACKGROUND_RUNS = "assistant_background_runs"
 
 
 def feature_flag_is_enabled(feature_flag: str, raise_if_disabled=False) -> bool:

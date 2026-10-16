@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
@@ -95,23 +96,51 @@ class UIContextSerializer(serializers.Serializer):
 
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
-    content = serializers.CharField(help_text="The content of the message.")
-    ui_context = UIContextSerializer(
-        help_text=(
-            "The UI context related to what the user was looking at when the message was sent."
-        )
+    content = serializers.CharField(required=False, max_length=100_000)
+    ui_context = UIContextSerializer(required=False)
+    tab_id = serializers.CharField(
+        required=False, default="", allow_blank=True, max_length=64
     )
+    run_id = serializers.UUIDField(required=False)
+    cursor = serializers.CharField(required=False, allow_blank=True, max_length=128)
+
+    def validate(self, attrs):
+        if "run_id" in attrs:
+            if "content" in attrs or "ui_context" in attrs:
+                raise serializers.ValidationError(
+                    "Resume attaches existing work and cannot contain a new message."
+                )
+        elif "content" not in attrs or "ui_context" not in attrs:
+            raise serializers.ValidationError(
+                "A new message requires content and ui_context."
+            )
+        elif "cursor" in attrs:
+            raise serializers.ValidationError("A cursor requires run_id.")
+        if attrs.get("cursor"):
+            from baserow.core.chat_runs.buffer import parse_cursor
+
+            try:
+                parse_cursor(attrs["cursor"])
+            except ValueError as exc:
+                raise serializers.ValidationError({"cursor": str(exc)}) from exc
+        return attrs
 
 
 class AssistantChatSerializer(serializers.ModelSerializer):
+    chat_id = serializers.IntegerField(
+        source="id",
+        read_only=True,
+        help_text="The id of the chat, the `chat_id` of its `chat_runs` page.",
+    )
+
     class Meta:
         model = AssistantChat
         fields = (
             "uuid",
+            "chat_id",
             "user_id",
             "workspace_id",
             "title",
-            "status",
             "created_on",
             "updated_on",
         )
@@ -138,6 +167,7 @@ class AiMessageSerializer(serializers.Serializer):
             "The list of relevant source URLs referenced in the knowledge. Can be empty or null."
         ),
     )
+    onboarding_target = serializers.JSONField(required=False, allow_null=True)
     can_submit_feedback = serializers.BooleanField(
         default=False,
         help_text=(
@@ -150,6 +180,23 @@ class AiMessageSerializer(serializers.Serializer):
         allow_null=True,
         choices=["LIKE", "DISLIKE"],
         help_text="The sentiment for the message, if it has been rated.",
+    )
+    run_status = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "How the run that wrote this message ended when it didn't complete: "
+            "`cancelled` or `failed`. Null for a complete answer."
+        ),
+    )
+    error_code = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text=(
+            "Why that run failed or stopped: `interrupted`, `not_started`, "
+            "`timeout`, `failed`, `persist_failed` or `model_unavailable`."
+        ),
     )
 
 
@@ -245,11 +292,19 @@ class AssistantMessageSerializer(serializers.Serializer):
             else:
                 data = instance
 
+        if isinstance(data, dict) and data.get("onboarding_target") is None:
+            data = {
+                key: value for key, value in data.items() if key != "onboarding_target"
+            }
+
         # Get the appropriate serializer for this message type
         serializer_class = TYPE_SERIALIZER_MAP.get(msg_type)
         if serializer_class:
             # Use the type-specific serializer to represent the data
-            return serializer_class(data).data
+            result = serializer_class(data).data
+            if result.get("onboarding_target") is None:
+                result.pop("onboarding_target", None)
+            return result
 
         # Fallback for unknown types
         return {"type": msg_type}
@@ -273,28 +328,44 @@ class AssistantMessageSerializer(serializers.Serializer):
         return serializer
 
 
+class ActiveChatRunSerializer(serializers.Serializer):
+    human_message_id = serializers.SerializerMethodField()
+
+    def get_human_message_id(self, instance):
+        return instance.context.get("human_message_id")
+
+    id = serializers.UUIDField(help_text="The id of the run.")
+    chat_id = serializers.IntegerField()
+    status = serializers.CharField()
+
+
 class AssistantChatMessagesSerializer(serializers.Serializer):
+    chat_title = serializers.CharField(required=False, allow_blank=True)
+    chat_id = serializers.IntegerField(help_text="The id of the chat.")
     messages = AssistantMessageSerializer(many=True)
+    active_run = ActiveChatRunSerializer(allow_null=True)
+    latest_run = serializers.JSONField(allow_null=True)
 
-    def to_representation(self, instance):
-        """Convert the instance to the proper representation."""
-
-        if isinstance(instance, dict) and "messages" in instance:
-            messages = instance["messages"]
-        else:
-            messages = getattr(instance, "messages", [])
-
-        # Filter out messages that can't be serialized
-        serializable_messages = [
-            msg
-            for msg in messages
-            if hasattr(msg, "type") and AssistantMessageSerializer.can_serialize(msg)
+    def to_representation(self, instance: dict[str, Any]) -> dict[str, Any]:
+        messages = [
+            message
+            for message in instance["messages"]
+            if hasattr(message, "type")
+            and AssistantMessageSerializer.can_serialize(message)
         ]
-
+        active_run = instance["active_run"]
         return {
-            "messages": AssistantMessageSerializer(
-                serializable_messages, many=True
-            ).data
+            "chat_id": instance["chat_id"],
+            **(
+                {"chat_title": instance["chat_title"]}
+                if "chat_title" in instance
+                else {}
+            ),
+            "messages": AssistantMessageSerializer(messages, many=True).data,
+            "active_run": ActiveChatRunSerializer(active_run).data
+            if active_run
+            else None,
+            "latest_run": instance.get("latest_run"),
         }
 
 
@@ -395,3 +466,11 @@ class OnboardingPromptSuggestionSerializer(serializers.Serializer):
 
 class OnboardingPromptSuggestionsSerializer(serializers.Serializer):
     suggestions = OnboardingPromptSuggestionSerializer(many=True)
+
+
+class ChatRunInProgressSerializer(serializers.Serializer):
+    error = serializers.CharField()
+    detail = serializers.CharField()
+    run_id = serializers.UUIDField(
+        help_text="The run still answering the chat's previous message."
+    )
