@@ -86,39 +86,28 @@ def test_settings_are_served_only_by_the_agent_endpoints(
     data_fixture,
     configured_agent,
     api_client,
+    api_user,
     mocker,
     django_capture_on_commit_callbacks,
 ):
-    user, token = data_fixture.create_user_and_token()
-    agent = configured_agent(user=user)
+    agent = configured_agent(user=api_user)
     database = data_fixture.create_database_application(workspace=agent.workspace)
     broadcast = mocker.patch("baserow.ws.signals.broadcast_to_permitted_users.delay")
-    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
     application_url = reverse(
         "api:applications:item", kwargs={"application_id": agent.id}
     )
 
     with django_capture_on_commit_callbacks(execute=True):
         response = api_client.patch(
-            agent_url(agent, "configuration"),
-            {"instructions": "PRIVATE"},
-            format="json",
-            **headers,
+            agent_url(agent, "configuration"), {"instructions": "PRIVATE"}
         )
-    api_client.patch(
-        application_url, {"instructions": "Ignored"}, format="json", **headers
-    )
+    api_client.patch(application_url, {"instructions": "Ignored"})
 
     assert response.json()["instructions"] == "PRIVATE"
-    assert api_client.get(agent_url(agent, "readiness"), **headers).json() == {
-        "state": "ready"
-    }
+    assert api_client.get(agent_url(agent, "readiness")).json() == {"state": "ready"}
     assert broadcast.call_args.args[4]["type"] == "application_updated"
     assert "PRIVATE" not in str(broadcast.call_args)
-    assert "PRIVATE" not in api_client.get(application_url, **headers).content.decode()
+    assert "PRIVATE" not in api_client.get(application_url).content.decode()
     agent.refresh_from_db()
     assert agent.instructions == "PRIVATE"
-    assert (
-        api_client.get(agent_url(database, "configuration"), **headers).status_code
-        == 404
-    )
+    assert api_client.get(agent_url(database, "configuration")).status_code == 404

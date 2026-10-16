@@ -21,3 +21,11 @@ def configured_agent(data_fixture):
         return agent
 
     return create
+
+
+@pytest.fixture
+def api_user(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+    api_client.default_format = "json"
+    return user
