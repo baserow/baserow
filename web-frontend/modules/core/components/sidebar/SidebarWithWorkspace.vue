@@ -167,6 +167,10 @@ export default {
               .sort((a, b) => a.order - b.order),
           }
         })
+        .filter(
+          ({ applicationType, applications }) =>
+            applications.length > 0 || applicationType.canBeCreated()
+        )
       return applicationTypes
     },
     pendingJobs() {
