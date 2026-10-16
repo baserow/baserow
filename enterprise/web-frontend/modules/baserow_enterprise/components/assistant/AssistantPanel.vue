@@ -71,6 +71,15 @@ import AssistantMessageList from '@baserow_enterprise/components/assistant/Assis
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import ApplicationService from '@baserow/modules/core/services/application'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
+import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
+import { usesBackgroundRuns } from '@baserow_enterprise/utils/assistant'
+
+const WAITING_FOR_WORKER_AFTER_MS = 3000
+const BROADCAST_WAIT_MS = 3000
+const READY_WAIT_MS = 10000
 
 export default {
   name: 'AssistantPanel',
@@ -87,6 +96,9 @@ export default {
       required: true,
     },
   },
+  setup() {
+    return { now: provideNow(1000) }
+  },
   data() {
     return {
       loading: false,
@@ -97,6 +109,7 @@ export default {
       user: 'auth/getUserObject',
       messages: 'assistant/messages',
       currentChat: 'assistant/currentChat',
+      activeFollower: 'assistant/activeFollower',
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
       pendingPrompt: 'assistant/pendingPrompt',
@@ -110,20 +123,39 @@ export default {
       return this.currentChat?.title
     },
     isAssistantRunning() {
-      return Boolean(this.currentChat?.running)
+      return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
       return Boolean(this.currentChat?.cancelling)
     },
     assistantRunningMessage() {
-      return this.currentChat?.runningMessage || ''
+      const follower = this.activeFollower
+      if (!follower) {
+        return this.currentChat?.runningMessage || ''
+      }
+      if (follower.replayUnavailable || !follower.streaming) {
+        return this.$t('assistant.statusWaitingForOutput')
+      }
+      // Unknown before the first catch-up, and every run queues for a moment.
+      if (
+        follower.cursor &&
+        follower.view.status === RUN_STATUS.QUEUED &&
+        this.now - follower.followedAt >= WAITING_FOR_WORKER_AFTER_MS
+      ) {
+        return this.$t('assistant.statusWaitingForWorker')
+      }
+      return follower.view.progress || this.$t('assistant.statusThinking')
     },
   },
   watch: {
     workspace: {
-      handler(newWorkspace) {
+      async handler(newWorkspace) {
         this.resetStore()
-        this.fetchChats(newWorkspace.id)
+        await this.fetchChats(newWorkspace.id)
+        // The user can have switched workspaces again while the chats loaded.
+        if (this.workspace.id === newWorkspace.id) {
+          await this.restoreOpenChat()
+        }
       },
       immediate: true,
     },
@@ -158,32 +190,31 @@ export default {
           }
         }
 
-        const router = this.$router
         const store = this.$store
         if (
           newLocation.type === 'database-table' ||
           newLocation.type === 'database-view'
         ) {
-          waitFor(() => {
-            const database = store.getters['application/get'](
-              newLocation.database_id
-            )
-
-            const isCurrentlyOnTable =
-              this.$route.name === 'database-table' &&
-              parseInt(this.$route.params.tableId) ===
-                parseInt(newLocation.table_id)
-
-            const tableLoaded =
-              database &&
-              database.tables.find((table) => table.id === newLocation.table_id)
-            const viewLoaded = store.getters['view/get'](newLocation.view_id)
-            return (
-              tableLoaded &&
-              (!isCurrentlyOnTable || !newLocation.view_id || viewLoaded)
-            )
-          }).then(() => {
-            router.push({
+          this.navigateOnceLoaded({
+            applicationId: newLocation.database_id,
+            findTarget: (database) =>
+              database.tables.find(
+                (table) => table.id === newLocation.table_id
+              ),
+            addTarget: (database, table) =>
+              store.dispatch('table/forceUpsert', { database, data: table }),
+            isReady: () => {
+              const isCurrentlyOnTable =
+                this.$route.name === 'database-table' &&
+                parseInt(this.$route.params.tableId) ===
+                  parseInt(newLocation.table_id)
+              return (
+                !isCurrentlyOnTable ||
+                !newLocation.view_id ||
+                store.getters['view/get'](newLocation.view_id)
+              )
+            },
+            route: {
               name: 'database-table',
               params: {
                 workspaceId: this.workspace.id,
@@ -191,7 +222,7 @@ export default {
                 tableId: newLocation.table_id,
                 viewId: newLocation.view_id,
               },
-            })
+            },
           })
         } else if (newLocation.type === 'workspace') {
           this.$router.push({
@@ -201,49 +232,46 @@ export default {
             },
           })
         } else if (newLocation.type === 'builder-page') {
-          waitFor(() => {
-            const builder = store.getters['application/get'](
-              newLocation.application_id
-            )
-            return (
-              builder &&
-              builder.pages.find((page) => page.id === newLocation.page_id)
-            )
-          }).then(() => {
-            router.push({
+          this.navigateOnceLoaded({
+            applicationId: newLocation.application_id,
+            findTarget: (builder) =>
+              builder.pages.find((page) => page.id === newLocation.page_id),
+            addTarget: (builder, page) =>
+              store.dispatch('page/forceCreate', { builder, page }),
+            route: {
               name: 'builder-page',
               params: {
                 builderId: newLocation.application_id,
                 pageId: newLocation.page_id,
               },
-            })
+            },
           })
         } else if (newLocation.type === 'automation-workflow') {
-          waitFor(() => {
-            const automation = store.getters['application/get'](
-              newLocation.automation_id
-            )
-
-            return (
-              automation &&
+          this.navigateOnceLoaded({
+            applicationId: newLocation.automation_id,
+            findTarget: (automation) =>
               automation.workflows.find(
                 (workflow) => workflow.id === newLocation.workflow_id
-              )
-            )
-          }).then(() => {
-            this.$router.push({
+              ),
+            addTarget: (automation, workflow) =>
+              store.dispatch('automationWorkflow/forceCreate', {
+                automation,
+                workflow,
+              }),
+            route: {
               name: 'automation-workflow',
               params: {
                 automationId: newLocation.automation_id,
                 workflowId: newLocation.workflow_id,
               },
-            })
+            },
           })
         }
       },
     },
   },
   mounted() {
+    this.setPanelOpen(true)
     const container = this.$refs.scrollContainer
     let isUserScrolling = false
 
@@ -272,11 +300,75 @@ export default {
   },
 
   beforeUnmount() {
+    this.setPanelOpen(false)
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
     }
   },
   methods: {
+    /**
+     * Opens what Kuma just created once the store has it. The realtime
+     * broadcast usually adds it within a moment; when it is late, for example
+     * because a single Celery process is busy running Kuma, the application is
+     * fetched instead.
+     *
+     * @param {object} target
+     * @param {number} target.applicationId The application holding the target.
+     * @param {function(object): object|undefined} target.findTarget Finds the
+     *   table, page or workflow in an application, in the store or as fetched.
+     * @param {function(object, object): Promise} target.addTarget Adds the
+     *   fetched target to the application in the store.
+     * @param {function(): boolean} [target.isReady] Any other condition the
+     *   route needs.
+     * @param {object} target.route Where to navigate.
+     */
+    async navigateOnceLoaded({
+      applicationId,
+      findTarget,
+      addTarget,
+      isReady = () => true,
+      route,
+    }) {
+      const findStoredTarget = () => {
+        const application =
+          this.$store.getters['application/get'](applicationId)
+        return application && findTarget(application)
+      }
+      try {
+        await waitFor(findStoredTarget, 5, BROADCAST_WAIT_MS)
+      } catch {
+        try {
+          await this.loadNavigationTarget(applicationId, findTarget, addTarget)
+        } catch {
+          return
+        }
+        if (!findStoredTarget()) {
+          return
+        }
+      }
+      try {
+        // A new view only arrives through its broadcast, so it keeps the longer wait.
+        await waitFor(isReady, 5, READY_WAIT_MS)
+      } catch {
+        return
+      }
+      this.$router.push(route)
+    },
+    /**
+     * Adds only the missing target so the application keeps its selected state.
+     */
+    async loadNavigationTarget(applicationId, findTarget, addTarget) {
+      const { data } = await ApplicationService(this.$client).get(applicationId)
+      const application = this.$store.getters['application/get'](applicationId)
+      if (!application) {
+        await this.$store.dispatch('application/forceCreate', data)
+        return
+      }
+      const target = findTarget(data)
+      if (target && !findTarget(application)) {
+        await addTarget(application, target)
+      }
+    },
     ...mapActions({
       sendMessage: 'assistant/sendMessage',
       cancelMessage: 'assistant/cancelMessage',
@@ -286,20 +378,23 @@ export default {
       fetchChats: 'assistant/fetchChats',
       resetStore: 'assistant/reset',
       setPendingPrompt: 'assistant/setPendingPrompt',
+      setPanelOpen: 'assistant/setPanelOpen',
+      restoreOpenChat: 'assistant/restoreOpenChat',
     }),
 
     /**
      * Sends a message that was typed somewhere else, always in a conversation of
-     * its own so it doesn't continue whatever was on screen before.
+     * its own so it doesn't continue whatever was on screen before. With
+     * background runs the running answer keeps going in its own chat.
      */
     async sendPendingPrompt(prompt) {
       const workspace = this.workspace
       await this.setPendingPrompt(null)
-      // A reply that is still streaming would otherwise keep applying its
-      // updates to the conversation this prompt starts.
-      await this.cancelMessage()
-      // The prompt was meant for the workspace it was typed in, which the user
-      // can have left while the cancellation was in flight.
+      if (!usesBackgroundRuns(this)) {
+        // A streamed reply would keep updating the conversation this prompt starts.
+        await this.cancelMessage()
+      }
+      // The user can have left the prompt's workspace while the steps above ran.
       if (this.workspace.id !== workspace.id) {
         return
       }
@@ -309,13 +404,15 @@ export default {
     },
 
     async handleSendMessage(text) {
-      const message = text
-      if (!message || this.loading) return
+      if (!text || this.loading) return
 
-      await this.sendMessage({
-        message,
+      const outcome = await this.sendMessage({
+        message: text,
         workspace: this.workspace,
       })
+      if (outcome === SEND_OUTCOME.BUSY) {
+        this.$refs.message?.setCurrentMessage(text)
+      }
     },
 
     async handleCancelMessage() {

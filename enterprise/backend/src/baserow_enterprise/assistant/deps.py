@@ -1,5 +1,8 @@
 import asyncio
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, Callable
@@ -102,6 +105,41 @@ class ToolHelpers:
         """Signal cancellation to running tools. Thread-safe."""
 
         self._cancel_event.set()
+
+
+_agent_tool_helpers: ContextVar[ToolHelpers | None] = ContextVar(
+    "assistant_agent_tool_helpers", default=None
+)
+
+
+@contextmanager
+def bind_tool_helpers(tool_helpers: ToolHelpers) -> Iterator[None]:
+    """
+    Makes an agent's tool helpers visible to every model call made for it,
+    including the calls of sub-agents that its tools start in other threads,
+    which inherit its context.
+
+    :param tool_helpers: The tool helpers of the agent.
+    """
+
+    token = _agent_tool_helpers.set(tool_helpers)
+    try:
+        yield
+    finally:
+        _agent_tool_helpers.reset(token)
+
+
+def raise_if_agent_cancelled() -> None:
+    """
+    Stops a model call before it starts when the agent it is made for was
+    cancelled, so sub-agents of a stopped agent make no new requests.
+
+    :raises asyncio.CancelledError: When the agent was cancelled.
+    """
+
+    tool_helpers = _agent_tool_helpers.get()
+    if tool_helpers is not None:
+        tool_helpers.raise_if_cancelled()
 
 
 @dataclass

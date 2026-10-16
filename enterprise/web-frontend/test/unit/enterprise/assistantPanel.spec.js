@@ -8,6 +8,10 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 vi.mock('@baserow_enterprise/services/assistant', () => ({
   default: vi.fn(),
 }))
+vi.mock('@baserow_enterprise/utils/assistant', async (importOriginal) => ({
+  ...(await importOriginal()),
+  usesBackgroundRuns: () => false,
+}))
 
 const workspace = { id: 1, name: 'Test workspace' }
 const otherWorkspace = { id: 2, name: 'Other workspace' }
@@ -46,6 +50,8 @@ describe('AssistantPanel', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -88,5 +94,91 @@ describe('AssistantPanel', () => {
     await flushPromises()
 
     expect(service.sendMessage).not.toHaveBeenCalled()
+  })
+
+  describe('when Kuma creates a table the store never hears about', () => {
+    const database = {
+      id: 10,
+      type: 'database',
+      name: 'CRM',
+      order: 1,
+      workspace,
+      tables: [],
+    }
+    const newTable = { id: 20, name: 'Leads', order: 1, database_id: 10 }
+    let push = null
+
+    beforeEach(async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+      await store.dispatch('application/forceCreate', database)
+      await testApp.mount(AssistantPanel, { props: { workspace } })
+      push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
+    })
+
+    async function kumaNavigatesToTheNewTable() {
+      store.commit('assistant/SET_UI_LOCATION', {
+        type: 'database-table',
+        database_id: database.id,
+        table_id: newTable.id,
+      })
+      await vi.advanceTimersByTimeAsync(11000)
+      await flushPromises()
+    }
+
+    test('fetches the database and opens the table', async () => {
+      testApp.mock
+        .onGet(`/applications/${database.id}/`)
+        .reply(200, { ...database, tables: [newTable] })
+
+      await kumaNavigatesToTheNewTable()
+
+      expect(push).toHaveBeenCalledWith({
+        name: 'database-table',
+        params: expect.objectContaining({
+          databaseId: database.id,
+          tableId: newTable.id,
+        }),
+      })
+    })
+
+    test('adds a database the store lacks and opens the table', async () => {
+      store.commit('application/DELETE_ITEM', database.id)
+      testApp.mock
+        .onGet(`/applications/${database.id}/`)
+        .reply(200, { ...database, tables: [newTable] })
+
+      await kumaNavigatesToTheNewTable()
+
+      expect(push).toHaveBeenCalledOnce()
+    })
+
+    test('opens the table once when its broadcast lands during the fetch', async () => {
+      testApp.mock.onGet(`/applications/${database.id}/`).reply(() => {
+        store.dispatch('table/forceUpsert', {
+          database: store.getters['application/get'](database.id),
+          data: newTable,
+        })
+        return [200, { ...database, tables: [newTable] }]
+      })
+
+      await kumaNavigatesToTheNewTable()
+
+      expect(push).toHaveBeenCalledOnce()
+    })
+
+    test('stays put without an unhandled rejection when the table is missing', async () => {
+      const unhandled = vi.fn()
+      testApp.mock.onGet(`/applications/${database.id}/`).reply(200, database)
+      process.on('unhandledRejection', unhandled)
+
+      try {
+        await kumaNavigatesToTheNewTable()
+      } finally {
+        process.off('unhandledRejection', unhandled)
+      }
+
+      expect(push).not.toHaveBeenCalled()
+      expect(unhandled).not.toHaveBeenCalled()
+    })
   })
 })

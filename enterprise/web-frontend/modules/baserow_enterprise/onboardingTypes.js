@@ -7,6 +7,11 @@ import { waitFor } from '@baserow/modules/core/utils/queue.js'
 import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep'
 import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import { usesBackgroundRuns } from '@baserow_enterprise/utils/assistant'
+import {
+  storeOnboardingRunId,
+  storePanelOpen,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 
 export class AIPromptOnboardingType extends OnboardingType {
   static getType() {
@@ -49,6 +54,9 @@ export class AIPromptOnboardingType extends OnboardingType {
     ].join(' ')
 
     callback(null, AssistantOnboardingMessage)
+    if (usesBackgroundRuns(this.app)) {
+      return await this.handOff(message, workspace)
+    }
     await this.app.$store.dispatch('assistant/sendMessage', {
       message,
       workspace,
@@ -67,8 +75,50 @@ export class AIPromptOnboardingType extends OnboardingType {
     return { tableLocation, chat }
   }
 
+  /**
+   * Starts the run that builds the database and returns at once, so the user
+   * waits in the workspace with Kuma's panel showing the run, which opens the
+   * first table it created when it's done, also after a reload.
+   */
+  async handOff(message, workspace) {
+    const { runId, outcome } = await this.app.$store.dispatch(
+      'assistant/startRun',
+      {
+        message,
+        workspace,
+      }
+    )
+    if (!runId) {
+      if (outcome === 'accepted') {
+        const tableLocation = this.app.$store.getters[
+          'assistant/uiLocationHistory'
+        ].find((location) => location.type === 'database-table')
+        if (tableLocation) {
+          return {
+            tableLocation,
+            chat: this.app.$store.getters['assistant/currentChat'],
+          }
+        }
+      }
+      throw new Error('Kuma could not start building the database.')
+    }
+    storePanelOpen(true)
+    storeOnboardingRunId(runId)
+    return { workspace, runId }
+  }
+
   getCompletedRoute(data, responses) {
     const response = responses[this.getType()]
+    if (response.runId) {
+      nextTick(async () => {
+        await pageFinished(this.app)
+        await this.app.$bus.$emit('toggle-right-sidebar', true)
+      })
+      return {
+        name: 'workspace',
+        params: { workspaceId: response.workspace.id },
+      }
+    }
     nextTick(async () => {
       await pageFinished(this.app)
       await nextTick()

@@ -18,7 +18,14 @@
 </template>
 
 <script>
-import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
+import {
+  isAssistantAvailable,
+  usesBackgroundRuns,
+} from '@baserow_enterprise/utils/assistant'
+import {
+  getStoredPanelOpen,
+  storePanelOpen,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 
 export default {
   name: 'AssistantSidebarItem',
@@ -45,18 +52,33 @@ export default {
         this.toggleRightSidebar(false)
       }
     },
+    rightSidebarOpen(open) {
+      if (usesBackgroundRuns(this)) {
+        storePanelOpen(open)
+      }
+    },
   },
   mounted() {
-    if (
-      this.isAvailable &&
-      localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
-    ) {
+    if (this.isAvailable && this.opensOnLoad()) {
       this.$nextTick(() => this.toggleRightSidebar(true))
     }
   },
   methods: {
     toggleRightSidebar(value) {
       this.$bus.$emit('toggle-right-sidebar', value)
+    },
+    /**
+     * The tab's own state wins, so a reload reopens what this tab showed even
+     * when another tab closed the assistant since.
+     */
+    opensOnLoad() {
+      const openInThisTab = usesBackgroundRuns(this)
+        ? getStoredPanelOpen()
+        : null
+      return (
+        openInThisTab ??
+        localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
+      )
     },
   },
 }

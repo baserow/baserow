@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Add reusable background chat runs with HTTP streaming and replay.",
+    "message": "Kuma keeps replying when you refresh or leave the chat.",
     "issue_origin": "github",
     "issue_number": 6346,
     "domain": "core",
