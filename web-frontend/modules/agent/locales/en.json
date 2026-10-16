@@ -13,8 +13,17 @@
     "name": "Name",
     "provider": "AI provider",
     "model": "Model",
+    "recent": "Recent",
+    "newConversation": "New conversation",
+    "noConversations": "No conversations yet.",
+    "loadingConversations": "Loading conversations…",
+    "draft": "Draft",
+    "loadMore": "Load more",
+    "olderMessages": "Load older messages",
     "talkTo": "Talk to {name}",
     "chatDescription": "Start a conversation with your agent.",
+    "send": "Send",
+    "messagePlaceholder": "Write a message…",
     "configurationRequired": "Complete the agent configuration",
     "completeConfiguration": "Save the required settings before writing a message.",
     "configurationPermissionRequired": "You don’t have permission to edit this agent’s configuration. Ask your workspace administrator to give you permission or complete the configuration for you.",
@@ -23,6 +32,10 @@
     "configurationLoadError": "The agent configuration could not be loaded.",
     "configurationSaveError": "Changes could not be saved.",
     "readinessLoadError": "The agent’s availability could not be checked.",
-    "readinessRetry": "Try again before writing a message."
+    "readinessRetry": "Try again before writing a message.",
+    "conversationsLoadError": "Conversations could not be loaded.",
+    "messagesLoadError": "Messages could not be loaded.",
+    "messageSaveError": "Your message could not be confirmed. Retry sends the same message safely; its text is kept until it is saved.",
+    "messageConflict": "This request conflicts with a previously saved message. Open the conversation again to check its history."
   }
 }

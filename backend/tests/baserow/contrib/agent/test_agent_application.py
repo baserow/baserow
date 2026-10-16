@@ -56,13 +56,15 @@ def test_agent_creation_requires_feature_flag(data_fixture, settings):
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "copy_agent", [duplicate, restore_snapshot, import_workspace_archive]
+    "copy_agent,keeps_history",
+    [(duplicate, True), (restore_snapshot, True), (import_workspace_archive, False)],
 )
-def test_agent_copy_is_a_new_agent_with_the_same_configuration(
-    data_fixture, use_tmp_media_root, configured_agent, copy_agent
+def test_agent_copy_keeps_configuration_and_only_internal_copies_keep_history(
+    data_fixture, use_tmp_media_root, configured_agent, copy_agent, keeps_history
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
+    data_fixture.create_agent_message(user=user, agent=agent)
 
     copied = copy_agent(data_fixture, user, agent).specific
 
@@ -74,6 +76,7 @@ def test_agent_copy_is_a_new_agent_with_the_same_configuration(
         agent.provider_type,
         agent.model_identifier,
     )
+    assert copied.conversations.count() == int(keeps_history)
 
 
 @pytest.mark.django_db

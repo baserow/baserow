@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
+import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 
-describe('AgentApplicationSidebar', () => {
+describe('Agent components', () => {
   let testApp
 
   beforeEach(() => {
@@ -12,6 +13,54 @@ describe('AgentApplicationSidebar', () => {
 
   afterEach(async () => {
     await testApp.afterEach()
+  })
+
+  test('uses idle status dots for saved conversations and local drafts', async () => {
+    const items = [
+      { uuid: 'saved-thread', title: 'Saved conversation' },
+      { uuid: 'draft-thread', title: 'Local conversation', local: true },
+    ]
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: { items, selected: 'saved-thread' },
+    })
+    const rows = wrapper.findAll('.agent-conversations__item')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      const status = row.get('.agent-conversations__status--idle')
+      expect(status.attributes('aria-hidden')).toBe('true')
+      expect(row.find('.iconoir-chat-bubble').exists()).toBe(false)
+    }
+    expect(rows[0].attributes('aria-current')).toBe('true')
+    expect(rows[0].text()).toBe('Saved conversation')
+    expect(rows[1].text()).toContain('Local conversation')
+    await rows[1].trigger('click')
+    expect(wrapper.emitted('select')[0]).toEqual([items[1]])
+  })
+
+  test('shows loading, empty and error states without hiding loaded rows', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: { items: [], loading: true },
+    })
+    const hint = wrapper.get('[role="status"]')
+    expect(hint.text()).toBe('agent.loadingConversations')
+
+    await wrapper.setProps({ loading: false })
+    expect(wrapper.get('[role="status"]').element).toBe(hint.element)
+    expect(hint.text()).toBe('agent.noConversations')
+    await wrapper.setProps({ error: true })
+    await wrapper.get('.alert button').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+    await wrapper.setProps({
+      error: false,
+      loading: true,
+      items: [{ uuid: 'thread', title: 'My conversation' }],
+    })
+
+    expect(wrapper.get('.agent-conversations__item').text()).toBe(
+      'My conversation'
+    )
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(wrapper.find('.loading').exists()).toBe(false)
   })
 
   test('renames the agent through the standard application context', async () => {

@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentSettingsOperationType
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
@@ -22,8 +23,20 @@ class AgentApplicationType(ApplicationType):
     allowed_fields = []
     serializer_field_names = ["name"]
 
+    @staticmethod
+    def _includes_private_activity(import_export_config: ImportExportConfig) -> bool:
+        """Private history can travel only through an internal full-data copy."""
+
+        return (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and not import_export_config.is_publishing
+            and not import_export_config.only_structure
+            and not import_export_config.exclude_sensitive_data
+        )
+
     def get_api_urls(self):
-        """Keep private settings separate from generic application APIs."""
+        """Keep private settings and activity separate from generic application APIs."""
 
         from .api import urls
 
@@ -44,6 +57,7 @@ class AgentApplicationType(ApplicationType):
             user, workspace, init_with_data=init_with_data, **kwargs
         )
 
+    @transaction.atomic
     def export_serialized(
         self,
         application: AgentApplication,
@@ -52,7 +66,7 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> dict:
-        """Package the settings, which only settings readers may export."""
+        """Package settings, adding private activity only for internal copies."""
 
         if import_export_config.exported_by is not None:
             CoreHandler().check_permissions(
@@ -61,6 +75,14 @@ class AgentApplicationType(ApplicationType):
                 workspace=application.workspace,
                 context=application,
             )
+        includes_activity = self._includes_private_activity(import_export_config)
+        if includes_activity:
+            # Lock like writers do; keep the temporary workspace of a snapshot restore.
+            workspace = application.workspace
+            application = AgentApplication.objects_and_trash.select_for_update(
+                of=("self", "application_ptr")
+            ).get(id=application.id)
+            application.workspace = workspace
         serialized = super().export_serialized(
             application, import_export_config, files_zip, storage, progress_builder
         )
@@ -69,8 +91,13 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
         )
+        if includes_activity:
+            serialized["conversations"] = AgentHandler().export_conversations(
+                application
+            )
         return serialized
 
+    @transaction.atomic
     def import_serialized(
         self,
         workspace: Workspace | None,
@@ -81,7 +108,7 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> AgentApplication:
-        """Import the settings as an independent copy."""
+        """Import settings and permitted internal history as one independent copy."""
 
         application = super().import_serialized(
             workspace,
@@ -96,4 +123,8 @@ class AgentApplicationType(ApplicationType):
         application.provider_type = serialized_values.get("provider_type") or None
         application.model_identifier = serialized_values.get("model_identifier") or None
         application.save()
+        if self._includes_private_activity(import_export_config):
+            AgentHandler().import_conversations(
+                application, serialized_values.get("conversations", [])
+            )
         return application
