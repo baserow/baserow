@@ -459,3 +459,32 @@ def test_dashboard_permanently_delete(data_fixture, settings):
     TrashHandler.permanently_delete_marked_trash()
 
     assert Dashboard.objects_and_trash.count() == 0
+
+
+@pytest.mark.django_db
+def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=workspace, name="Dashboard 1", public=True, show_logo=False
+    )
+    dashboard.set_password("secret-password")
+    dashboard.save()
+    config = ImportExportConfig(include_permission_data=True)
+
+    serialized = DashboardApplicationType().export_serialized(dashboard, config)
+    serialized = json.loads(json.dumps(serialized))
+
+    for key in ("public", "slug", "public_password", "show_logo"):
+        assert key not in serialized
+
+    imported = DashboardApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    imported = Dashboard.objects.get(id=imported.id)
+    assert imported.public is False
+    assert imported.slug
+    assert imported.slug != dashboard.slug
+    assert imported.public_password == ""
+    assert imported.show_logo is True

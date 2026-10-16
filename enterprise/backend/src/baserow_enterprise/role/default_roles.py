@@ -84,6 +84,7 @@ from baserow.contrib.dashboard.data_sources.operations import (
     ReadDashboardDataSourceOperationType,
     UpdateDashboardDataSourceOperationType,
 )
+from baserow.contrib.dashboard.operations import UpdateDashboardSlugOperationType
 from baserow.contrib.dashboard.widgets.operations import (
     CreateWidgetOperationType,
     DeleteWidgetOperationType,
@@ -607,6 +608,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        UpdateDashboardSlugOperationType,
         ListAutomationWorkflowsOperationType,
         OrderAutomationWorkflowsOperationType,
         CreateAutomationWorkflowOperationType,

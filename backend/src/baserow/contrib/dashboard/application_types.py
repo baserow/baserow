@@ -5,6 +5,13 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from rest_framework import serializers
+
+from baserow.contrib.dashboard.api.serializers import (
+    MAX_PUBLIC_PASSWORD_LENGTH,
+    MIN_PUBLIC_PASSWORD_LENGTH,
+    HashPublicPasswordSerializerMixin,
+)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
@@ -25,8 +32,39 @@ from baserow.core.utils import ChildProgressBuilder
 class DashboardApplicationType(ApplicationType):
     type = "dashboard"
     model_class = Dashboard
-    serializer_field_names = ["name", "description"]
-    allowed_fields = ["description"]
+    serializer_field_names = [
+        "name",
+        "description",
+        "public",
+        "slug",
+        "public_has_password",
+        "show_logo",
+    ]
+    # `show_logo` is left out on purpose: hiding the Baserow logo on the shared
+    # dashboard is a premium feature, so only the premium dashboard attributes
+    # endpoint may change it.
+    request_serializer_field_names = ["description", "public", "public_password"]
+    serializer_field_overrides = {
+        "public_has_password": serializers.BooleanField(
+            read_only=True,
+            help_text="Indicates whether the public dashboard is password protected.",
+        ),
+    }
+    request_serializer_field_overrides = {
+        "public_password": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            write_only=True,
+            min_length=MIN_PUBLIC_PASSWORD_LENGTH,
+            max_length=MAX_PUBLIC_PASSWORD_LENGTH,
+            help_text="The new password or an empty string to remove any previous "
+            "password from the dashboard and make it publicly accessible again.",
+        ),
+    }
+    request_serializer_mixins = [HashPublicPasswordSerializerMixin]
+    # `public_password` must already be hashed with `Dashboard.make_password`. The
+    # request serializer mixin takes care of that for API callers.
+    allowed_fields = ["description", "public", "public_password", "show_logo"]
     supports_integrations = True
     # Dashboard supports runtime functions, but no data provider references.
     data_provider_type_registry = DataProviderTypeRegistry()
