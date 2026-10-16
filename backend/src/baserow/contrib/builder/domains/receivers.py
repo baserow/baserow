@@ -9,7 +9,9 @@ def before_domain_permanently_deleted(sender, instance, **kwargs):
     """
 
     if instance.published_to:
-        instance.published_to.delete()
+        from baserow.contrib.builder.domains.handler import DomainHandler
+
+        DomainHandler().delete_published_builder(instance.published_to)
 
 
 def connect_to_domain_pre_delete_signal():

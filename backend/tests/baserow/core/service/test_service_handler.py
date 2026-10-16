@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.database.table.handler import TableHandler
@@ -235,6 +237,36 @@ def test_delete_service(data_fixture):
     ServiceHandler().delete_service(service_type, service)
 
     assert Service.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_delete_services_calls_before_delete_of_overriding_types(data_fixture):
+    get_row_service = data_fixture.create_local_baserow_get_row_service()
+    trashed_get_row_service = data_fixture.create_local_baserow_get_row_service()
+    trashed_get_row_service.trashed = True
+    trashed_get_row_service.save()
+    list_rows_service = data_fixture.create_local_baserow_list_rows_service()
+    get_row_service_type = service_type_registry.get("local_baserow_get_row")
+
+    with patch.object(
+        type(get_row_service_type), "before_delete", autospec=True
+    ) as before_delete:
+        ServiceHandler().delete_services(Service.objects_and_trash.all())
+
+    # Only the type that overrides the hook is called, once per service of that
+    # type, trashed ones included, with the specific instance.
+    called_with = {call.args[1] for call in before_delete.call_args_list}
+    assert {service.id for service in called_with} == {
+        get_row_service.id,
+        trashed_get_row_service.id,
+    }
+    assert all(isinstance(service, LocalBaserowGetRow) for service in called_with)
+    assert all(
+        call.args[0] is get_row_service_type for call in before_delete.call_args_list
+    )
+    assert not Service.objects_and_trash.filter(
+        id__in=[get_row_service.id, trashed_get_row_service.id, list_rows_service.id]
+    ).exists()
 
 
 @pytest.mark.django_db

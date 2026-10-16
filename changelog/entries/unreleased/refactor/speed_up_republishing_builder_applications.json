@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Speed up republishing Application Builder applications with many data sources and workflow actions.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-16"
+}

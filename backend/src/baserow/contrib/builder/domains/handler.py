@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from typing import Iterable, List, Optional, cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.db.utils import IntegrityError
 
 from opentelemetry import trace
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.domains.exceptions import (
     DomainDoesNotExist,
     DomainNameNotUniqueError,
@@ -15,12 +16,20 @@ from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.workflow_actions.registries import (
+    builder_workflow_action_type_registry,
+)
+from baserow.contrib.builder.workflow_actions.workflow_action_types import (
+    BuilderWorkflowServiceActionType,
+)
 from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.storage import get_default_storage
 from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.trash.handler import TrashHandler
@@ -235,6 +244,47 @@ class DomainHandler:
             else applications
         )
 
+    def delete_published_builder(self, builder: Builder):
+        """
+        Permanently deletes a published copy of a builder. All the services of its
+        data sources and workflow actions are deleted first in one batched pass.
+        Otherwise each data source and workflow action deletes its own service,
+        and each of those deletes runs the deletion collector over every service
+        and workflow action table.
+
+        A published copy is never trashed, so permanently deleting its services is
+        always correct. A builder that belongs to a workspace can be trashed and
+        restored, so it is refused here.
+
+        :param builder: The published builder to delete.
+        :raises ValueError: If the builder belongs to a workspace.
+        """
+
+        if builder.workspace_id is not None:
+            raise ValueError("Only a published builder can be deleted this way.")
+
+        # The default managers exclude trashed rows, and the services of those
+        # must be deleted too.
+        services_filter = Q(
+            id__in=DataSource.objects_and_trash.filter(page__builder=builder).values(
+                "service_id"
+            )
+        )
+        # The `service` foreign key is declared on an abstract model, so each
+        # service-backed action type stores it in its own table.
+        for action_type in builder_workflow_action_type_registry.get_all():
+            if isinstance(action_type, BuilderWorkflowServiceActionType):
+                services_filter |= Q(
+                    id__in=action_type.model_class._base_manager.filter(
+                        page__builder=builder
+                    ).values("service_id")
+                )
+
+        ServiceHandler().delete_services(
+            Service.objects_and_trash.filter(services_filter)
+        )
+        builder.delete()
+
     @baserow_trace(tracer)
     def publish(self, domain: Domain, progress: Progress | None = None):
         """
@@ -256,7 +306,7 @@ class DomainHandler:
 
         # Delete previously existing builder publication
         if domain.published_to:
-            domain.published_to.delete()
+            self.delete_published_builder(domain.published_to)
 
         builder_application_type = application_type_registry.get("builder")
 

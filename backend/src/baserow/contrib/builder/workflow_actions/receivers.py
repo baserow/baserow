@@ -14,20 +14,20 @@ def before_permanently_deleted(sender, instance, **kwargs):
     Delete the service related to the action.
     """
 
-    if isinstance(instance.specific, BuilderWorkflowServiceAction):
-        service = instance.specific.service
+    if not issubclass(instance.specific_class, BuilderWorkflowServiceAction):
+        return
 
-        def delete_service_after_commit():
-            try:
-                ServiceHandler().delete_service(service.get_type(), service)
-            except Service.DoesNotExist:
-                # Although cascade deletion should safely handle related models, it may
-                # occasionally raise a DoesNotExist error.
-                #
-                # If the service does not exist, there is nothing to delete.
-                pass
+    service_id = instance.specific.service_id
 
-        transaction.on_commit(delete_service_after_commit)
+    def delete_service_after_commit():
+        # The action is also deleted by cascade when its service is deleted, for
+        # example by `DomainHandler.delete_published_builder`. The service is
+        # already gone then, and this costs a single empty query.
+        ServiceHandler().delete_services(
+            Service.objects_and_trash.filter(id=service_id)
+        )
+
+    transaction.on_commit(delete_service_after_commit)
 
 
 def connect_to_builder_workflow_action_pre_delete_signal():
