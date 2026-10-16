@@ -15,6 +15,10 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -2352,7 +2356,7 @@ def test_get_record_names_published_builder(
         table=data_source_fixture["table"],
     )
     url = reverse(
-        "api:builder:data_source:record-names",
+        "api:builder:domains:public_record_names",
         kwargs={"data_source_id": data_source.id},
     )
     token = data_source_fixture["user_source_user_token"]
@@ -2514,6 +2518,52 @@ def test_get_record_names_anonymous_unpublished_builder_is_denied(
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+def test_get_record_names_uses_preview_scoped_session(
+    api_client, data_fixture, data_source_fixture
+):
+    """A preview session can resolve names only through its scoped API route."""
+
+    primary_field = data_source_fixture["fields"][0]
+    primary_field.primary = True
+    primary_field.save()
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=data_source_fixture["page"],
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+    builder = data_source.page.builder
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(
+        BuilderPreviewGrantHandler().create_grant(builder, data_source_fixture["user"])
+    )
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
+
+    generic_url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    generic_response = api_client.get(
+        generic_url,
+        {"record_ids": data_source_fixture["rows"][0].id},
+    )
+
+    assert generic_response.status_code == HTTP_401_UNAUTHORIZED
+    assert generic_response.json()["error"] == "PERMISSION_DENIED"
+
+    preview_url = reverse(
+        "api:builder:preview:record_names",
+        kwargs={"builder_id": builder.id, "data_source_id": data_source.id},
+    )
+    preview_response = api_client.get(
+        preview_url,
+        {"record_ids": data_source_fixture["rows"][0].id},
+    )
+
+    assert preview_response.status_code == HTTP_200_OK
+    assert preview_response.json() == {str(data_source_fixture["rows"][0].id): "Apple"}
 
 
 @pytest.mark.django_db

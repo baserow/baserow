@@ -1,5 +1,6 @@
 import { callGrouper } from '@baserow/modules/core/utils/function'
 import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
+import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
 
 const GRACE_DELAY = 50 // ms before querying the backend with a get query
 
@@ -69,23 +70,34 @@ export default (client) => {
      * Group multiple calls in one query to optimize perfs
      */
     getRecordNames: groupGetNameCalls(async (argList) => {
-      // [[dataSourceId, recordIds], ...]
-      //    ->{ <dataSourceId>: Array<with all record ids> }
-      const dataSourceMap = argList.reduce((acc, [dataSourceId, recordIds]) => {
-        if (!acc[`${dataSourceId}`]) {
-          acc[`${dataSourceId}`] = new Set()
-        }
-        recordIds.forEach(acc[`${dataSourceId}`].add, acc[`${dataSourceId}`])
-        return acc
-      }, {})
+      // [[dataSourceId, recordIds, mode, builderId], ...]
+      //    ->{ <mode>:<builderId>:<dataSourceId>: Array<with all record ids> }
+      const dataSourceMap = argList.reduce(
+        (acc, [dataSourceId, recordIds, mode, builderId]) => {
+          const key = `${mode}:${builderId || ''}:${dataSourceId}`
+          if (!acc[key]) {
+            acc[key] = { mode, builderId, dataSourceId, recordIds: new Set() }
+          }
+          recordIds.forEach(acc[key].recordIds.add, acc[key].recordIds)
+          return acc
+        },
+        {}
+      )
 
       const data = Object.fromEntries(
         await Promise.all(
           Object.entries(dataSourceMap).map(
-            async ([dataSourceId, recordIds]) => {
+            async ([key, { mode, builderId, dataSourceId, recordIds }]) => {
               try {
                 const { data } = await client.get(
-                  `builder/data-source/${dataSourceId}/record-names/`,
+                  mode === 'preview'
+                    ? getBuilderPreviewApiPath(
+                        builderId,
+                        `data-sources/${dataSourceId}/record-names/`
+                      )
+                    : mode === 'public'
+                      ? `builder/domains/published/data-source/${dataSourceId}/record-names/`
+                      : `builder/data-source/${dataSourceId}/record-names/`,
                   {
                     params: {
                       record_ids: Array.from(recordIds)
@@ -94,24 +106,25 @@ export default (client) => {
                     },
                   }
                 )
-                return [dataSourceId, data]
+                return [key, data]
               } catch (e) {
-                return [dataSourceId, e]
+                return [key, e]
               }
             }
           )
         )
       )
 
-      return (dataSourceId, recordIds) => {
-        if (!data[dataSourceId]) {
+      return (dataSourceId, recordIds, mode, builderId) => {
+        const key = `${mode}:${builderId || ''}:${dataSourceId}`
+        if (!data[key]) {
           return null
         }
-        if (data[dataSourceId] instanceof Error) {
-          throw data[dataSourceId]
+        if (data[key] instanceof Error) {
+          throw data[key]
         }
         return Object.fromEntries(
-          Object.entries(data[dataSourceId]).filter(([key]) =>
+          Object.entries(data[key]).filter(([key]) =>
             Array.from(recordIds)
               .map((id) => `${id}`)
               .includes(key)

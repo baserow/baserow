@@ -675,7 +675,7 @@ class GetRecordNamesView(APIView):
             ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
         }
     )
-    def get(self, request, data_source_id: int):
+    def get(self, request, data_source_id: int, builder_id: int | None = None):
         # Find the data source corresponding to the given id
         data_source = DataSourceHandler().get_data_source(data_source_id)
 
