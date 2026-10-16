@@ -1329,3 +1329,26 @@ def test_migrate_graph_preserves_outputs_when_they_have_no_id_mapping():
         "41": {"next": {"0": [42]}},
         "42": {},
     }
+
+
+def test_build_point_map_is_reused_for_the_same_points_object():
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+    graph = model.get_graph()
+    points = [model.points[1], model.points[2]]
+
+    point_map = graph.build_point_map(points)
+
+    assert point_map == {1: model.points[1], 2: model.points[2]}
+    assert graph.build_point_map(points) is point_map
+
+
+def test_build_point_map_is_rebuilt_for_a_new_points_object():
+    model = make_graph_model({"0": 1, "1": {}})
+    graph = model.get_graph()
+    point_map = graph.build_point_map([model.points[1]])
+
+    new_point = make_point(2, model)
+    rebuilt = graph.build_point_map([model.points[1], new_point])
+
+    assert rebuilt is not point_map
+    assert rebuilt == {1: model.points[1], 2: new_point}
