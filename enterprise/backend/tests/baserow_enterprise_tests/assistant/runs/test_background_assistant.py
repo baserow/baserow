@@ -8,7 +8,7 @@ import pytest
 from asgiref.sync import async_to_sync
 from loguru import logger
 
-from baserow.core.chat_runs.constants import PROGRESS
+from baserow.core.chat_runs.constants import ChatRunEventKind
 from baserow_enterprise.assistant.assistant import BackgroundAssistant
 from baserow_enterprise.assistant.runs import NAVIGATION_EVENT
 from baserow_enterprise.assistant.tools.navigation.utils import NAVIGATED
@@ -31,7 +31,7 @@ def test_tool_status_and_navigation_go_to_the_journal(
 
     assert confirmation == NAVIGATED
     assert journal.emit.call_args_list == [
-        call(PROGRESS, {"text": "Listing tables..."}),
+        call(ChatRunEventKind.PROGRESS, {"text": "Listing tables..."}),
         call(
             NAVIGATION_EVENT,
             {

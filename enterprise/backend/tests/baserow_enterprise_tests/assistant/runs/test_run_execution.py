@@ -20,11 +20,9 @@ from baserow.core.action.models import Action
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.chat_runs import runner as runner_module
 from baserow.core.chat_runs.constants import (
-    ERROR_FAILED,
-    ERROR_MODEL_UNAVAILABLE,
-    ERROR_TIMEOUT,
-    RUN_FINISHED,
-    STOP_TIMEOUT,
+    ChatRunErrorCode,
+    ChatRunEventKind,
+    ChatRunStopReason,
 )
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
@@ -35,7 +33,7 @@ from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.history import unfinished_answer
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.runs import CHAT_TITLE_EVENT
+from baserow_enterprise.assistant.runs import CHAT_TITLE_EVENT, ERROR_MODEL_UNAVAILABLE
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
 from baserow_enterprise.assistant.tools.core import helpers as core_helpers
 from baserow_enterprise_tests.assistant.runs.fixtures import (
@@ -51,7 +49,7 @@ async def _cancel(run: ChatRun, journal: ChatRunJournal) -> None:
 
 
 async def _time_out(run: ChatRun, journal: ChatRunJournal) -> None:
-    journal.request_stop(STOP_TIMEOUT)
+    journal.request_stop(ChatRunStopReason.TIMEOUT)
     await asyncio.sleep(10)
 
 
@@ -80,7 +78,7 @@ def test_a_run_streams_its_answer_and_saves_it_with_a_title(
     assert run.status == ChatRunStatus.COMPLETED
     assert run.outcome["content"] == "Hello world"
     kinds = [event["kind"] for event in output_events]
-    assert kinds.index(CHAT_TITLE_EVENT) < kinds.index(RUN_FINISHED)
+    assert kinds.index(CHAT_TITLE_EVENT) < kinds.index(ChatRunEventKind.RUN_FINISHED)
     assert output_events[-1]["data"]["message"]["content"] == "Hello world"
     assert AssistantChat.objects.get(id=run.chat_id).title == "Greeting"
     assert history_texts(run) == ["Say hello", "Hello world"]
@@ -93,8 +91,13 @@ def test_a_run_streams_its_answer_and_saves_it_with_a_title(
     "interrupt, status, error_code, trace_outcome",
     [
         (_cancel, "cancelled", "", AssistantTraceOutcome.CANCELLED),
-        (_time_out, "failed", ERROR_TIMEOUT, AssistantTraceOutcome.INTERRUPTED),
-        (_crash, "failed", ERROR_FAILED, AssistantTraceOutcome.ERROR),
+        (
+            _time_out,
+            "failed",
+            ChatRunErrorCode.TIMEOUT,
+            AssistantTraceOutcome.INTERRUPTED,
+        ),
+        (_crash, "failed", ChatRunErrorCode.FAILED, AssistantTraceOutcome.ERROR),
     ],
     ids=["stop", "deadline", "model_error"],
 )
