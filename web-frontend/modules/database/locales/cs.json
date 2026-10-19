@@ -916,7 +916,8 @@
         "restored": "obnovil(a) tento řádek",
         "createdUndo": "vrátil(a) zpět vytvoření řádku",
         "updatedUndo": "vrátil(a) zpět aktualizaci řádku",
-        "deletedUndo": "vrátil(a) zpět odstranění řádku"
+        "deletedUndo": "vrátil(a) zpět odstranění řádku",
+        "anonymousUser": "Anonymní uživatel"
     },
     "apiDocsFiltersBuilderModal": {
         "title": "Nástroj pro sestavení parametru filtrů",
