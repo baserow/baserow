@@ -283,7 +283,7 @@ class AssistantChatRunType(ChatRunType):
             run.error_code,
         )
 
-    def ensure_interruption_warning(self, run: ChatRun) -> bool:
+    def ensure_interruption_warning(self, run: ChatRun) -> None:
         """Keep a failed persistence warning after generic run metadata is pruned.
 
         The marker lives on the original prompt. It makes repair idempotent even
@@ -291,22 +291,20 @@ class AssistantChatRunType(ChatRunType):
         """
 
         if run.started_on is None or run.outcome is not None:
-            return True
+            return
         with transaction.atomic():
             chat = (
                 AssistantChat.objects.select_for_update().filter(id=run.chat_id).first()
             )
             if chat is None:
-                return True
+                return
             human = (
                 chat.messages.select_for_update()
                 .filter(id=run.context.get("human_message_id"))
                 .first()
             )
-            if human is None:
-                return False
-            if human.artifacts.get("run_warning"):
-                return True
+            if human is None or human.artifacts.get("run_warning"):
+                return
             # A successfully persisted incomplete outcome already closed its turn.
             if not AssistantChatPrediction.objects.filter(human_message=human).exists():
                 chat.message_history = append_turn(
@@ -318,7 +316,6 @@ class AssistantChatRunType(ChatRunType):
                 "run_warning": {"run_id": str(run.id), "error_code": run.error_code},
             }
             human.save(update_fields=["artifacts", "updated_on"])
-        return True
 
     def _repair_interrupted_turns(self, run: ChatRun) -> None:
         """Repair missing prior turns before a new model reads the conversation."""
