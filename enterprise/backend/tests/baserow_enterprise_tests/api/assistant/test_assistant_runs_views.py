@@ -265,7 +265,7 @@ def test_get_remains_json_with_durable_active_and_latest_metadata(api_client, me
 
 
 def test_the_original_post_uses_separate_async_follower_admission():
-    from baserow.core.chat_runs.stream import _paths
+    from baserow.config.streaming import _paths
 
     path = _url(uuid4())
     assert path.startswith("/assistant/chat/")
