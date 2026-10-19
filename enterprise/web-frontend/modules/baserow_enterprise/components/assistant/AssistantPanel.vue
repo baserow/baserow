@@ -76,7 +76,6 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
-import { usesBackgroundRuns } from '@baserow_enterprise/utils/assistant'
 
 const WAITING_FOR_WORKER_AFTER_MS = 3000
 const BROADCAST_WAIT_MS = 3000
@@ -400,16 +399,12 @@ export default {
 
     /**
      * Sends a message that was typed somewhere else, always in a conversation of
-     * its own so it doesn't continue whatever was on screen before. With
-     * background runs the running answer keeps going in its own chat.
+     * its own so it doesn't continue whatever was on screen before. The running
+     * answer keeps going in its own chat.
      */
     async sendPendingPrompt(prompt) {
       const workspace = this.workspace
       await this.setPendingPrompt(null)
-      if (!usesBackgroundRuns(this)) {
-        // A streamed reply would keep updating the conversation this prompt starts.
-        await this.cancelMessage()
-      }
       // The user can have left the prompt's workspace while the steps above ran.
       if (this.workspace.id !== workspace.id) {
         return

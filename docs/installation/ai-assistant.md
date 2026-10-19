@@ -269,10 +269,12 @@ variables are unchanged or bridged for backward compatibility.
 
 ## 8) Background runs
 
-With the `assistant_background_runs` feature flag on (`FEATURE_FLAGS=assistant_background_runs`), Kuma answers each message in a background task, so a reply keeps going when the browser is closed and a reloaded page picks up where it left off. Without it, Kuma answers inside the web request as before, and closing or reloading the tab can lose the reply. The flag is off by default until a later release switches it on.
+Kuma answers every message in a background task, so a reply keeps going when the
+browser is closed and a reloaded page picks up where it left off. Background
+execution is always used and does not require a feature flag.
 
-Kuma keeps its message endpoint and HTTP 200 streaming response. With background
-runs enabled, that response follows the worker's output in Redis Streams. A
+Kuma keeps its message endpoint and HTTP 200 streaming response. That response
+follows the worker's output in Redis Streams. A
 refresh attaches to the existing run without repeating its prompt or tools.
 
 Redis holds temporary replay output, bounded to 8 MiB or 10,000 events per run.
@@ -293,7 +295,7 @@ concurrency slots.
 For adapter and protocol details, see
 [Background chat runs](../development/background-chat-runs.md).
 
-When background runs are enabled:
+Background runs use the existing worker infrastructure:
 
 - **Worker.** The tasks run on the `chat_run` queue, which the existing export worker (`celery-exportworker`) consumes, so no new service is needed. On single-process installs (`BASEROW_RUN_MINIMAL` with one worker) the one Celery process also runs Kuma's answers, so realtime updates, emails, webhooks, automations, imports and exports wait; to keep them responsive, run the normal worker setup. A custom worker command must include `chat_run` in its `-Q` list, or Kuma messages wait and fail after an hour.
 - **Sharing.** Kuma shares the export worker with exports, imports, webhooks and notification emails. When they delay each other, isolate Kuma without code changes: start the export worker with `-X chat_run` and add a container that runs `celery-exportworker -Q chat_run`.
