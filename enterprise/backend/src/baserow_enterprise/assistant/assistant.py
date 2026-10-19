@@ -39,7 +39,6 @@ from baserow.core.chat_runs.constants import (
     ChatRunStopReason,
 )
 from baserow.core.chat_runs.models import ChatRunStatus
-from baserow.core.chat_runs.tool_executor import ShieldedToolset, ToolExecutor
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.models import Workspace
 from baserow.core.utils import exception_capturer
@@ -77,6 +76,7 @@ from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
 )
+from baserow_enterprise.assistant.tool_executor import ShieldedToolset, ToolExecutor
 from baserow_enterprise.assistant.tools.navigation.utils import (
     NAVIGATED,
     unsafe_navigate_to,
