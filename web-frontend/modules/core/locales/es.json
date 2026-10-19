@@ -150,7 +150,9 @@
     },
     "templateCategories": {
         "search": "Buscar plantillas",
-        "title": "Plantillas"
+        "title": "Plantillas",
+        "noResults": "No se encontraron plantillas",
+        "allTemplates": "Todas las plantillas"
     },
     "templateHeader": {
         "use": "Usar esta plantilla",
@@ -744,7 +746,10 @@
         "invalidSyntax": "No es una fórmula experta válida, por favor verifica la sintaxis.",
         "invalidFormulaTitle": "Fórmula inválida",
         "useRawMode": "Usar modo raw",
-        "useFormulaMode": "Usar modo fórmula"
+        "useFormulaMode": "Usar modo fórmula",
+        "formatBadgeTitle": "Formato: {format}. Haz clic para cambiarlo.",
+        "formatPlain": "Texto plano",
+        "formatMarkdown": "Markdown"
     },
     "integrationDropdown": {
         "noIntegrations": "No se han encontrado integraciones.",
@@ -1268,7 +1273,9 @@
         "createEndpoint": "Crear punto final (endpoint)",
         "createNewTitle": "Crear punto final (endpoint) del servidor MCP",
         "backToOverview": "Atrás",
-        "noEndpointsMessage": "No se han añadido puntos finales (endpoints) de servidor MCP (Model Context Protocol). Estos pueden usarse para integrarse directamente con un LLM como Claude y permitir que el LLM realice acciones directamente en Baserow. Crea un endpoint de servidor para comenzar."
+        "noEndpointsMessage": "No se han añadido puntos finales (endpoints) de servidor MCP (Model Context Protocol). Estos pueden usarse para integrarse directamente con un LLM como Claude y permitir que el LLM realice acciones directamente en Baserow. Crea un endpoint de servidor para comenzar.",
+        "endpointTab": "Punto de conexión",
+        "oauthTab": "OAuth"
     },
     "mcpEndpointForm": {
         "nameLabel": "Nombre",
@@ -1362,7 +1369,8 @@
         "variables": "Variables",
         "functions": "Funciones",
         "operators": "Operadores",
-        "search": "Buscar"
+        "search": "Buscar",
+        "formatLabel": "Formato"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "La función '{funcType}' espera un mínimo de {minArgs} argumentos.",
@@ -1577,7 +1585,8 @@
         "agent": "Agente",
         "agents": "Agentes",
         "user": "Usuario",
-        "users": "Usuarios"
+        "users": "Usuarios",
+        "anonymousUser": "Usuario anónimo"
     },
     "abuseReportCreatedNotification": {
         "title": "{resourceName} ha sido reportado por abuso por {reporterEmail}",
@@ -1644,5 +1653,71 @@
         "core": "Núcleo (core)",
         "files": "Archivos",
         "workflow": "Flujo de trabajo"
+    },
+    "mcpOAuthConnections": {
+        "chatGptInstructions": "En ChatGPT, abre **Plugins**, haz clic en **+** en la parte superior derecha y elige **Agregar servidor MCP personalizado**. Pega la URL anterior como URL del servidor y selecciona **OAuth** como autenticación.",
+        "claudeInstructions": "En claude.ai o Claude Desktop, abre **Configuración → Conectores**, haz clic en **Agregar conector personalizado** y pega la URL anterior.",
+        "description": "Una URL para cada herramienta. Tú inicias sesión y eliges el espacio de trabajo y las herramientas cuando te conectas.",
+        "claudeCodeInstructions": "Ejecuta esto en tu terminal, luego ejecuta `/mcp` en Claude Code para iniciar sesión.",
+        "expiredTooltip": "El inicio de sesión de esta aplicación ha terminado. Inicia sesión de nuevo desde la aplicación para usarla.",
+        "cursorInstructions": "Añade esto a `~/.cursor/mcp.json`. Cursor te pide que inicies sesión cuando se conecta.",
+        "tools": "{count} herramienta | {count} herramientas",
+        "noConnections": "Aún no hay aplicaciones conectadas.",
+        "confirmDisconnect": "Haz clic de nuevo para desconectar",
+        "title": "Conectar una herramienta de IA",
+        "publishedBy": "{host}",
+        "copyURL": "Copiar URL",
+        "connectedApps": "Aplicaciones conectadas",
+        "expired": "Sesión cerrada",
+        "connectedOn": "Conectado el {date}",
+        "disconnect": "Desconectar"
+    },
+    "mcpAuthorize": {
+        "loopbackWarning": "Esta aplicación inicia sesión a través de tu propia computadora. Cualquier programa en ella podría usar este nombre, así que solo continúa si tú acabas de iniciar el inicio de sesión.",
+        "invalidMessage": "Intenta conectar de nuevo desde la aplicación. Si sigue ocurriendo, elimina el servidor de Baserow de la aplicación y añádelo otra vez.",
+        "clientRejected": "Esta aplicación no puede iniciar sesión en este servidor de Baserow. Un administrador de Baserow puede encontrar el motivo en el registro del servidor.",
+        "unknownClient": "El registro de inicio de sesión de esta aplicación es desconocido o ha expirado. Elimina el servidor de Baserow de la aplicación y añádelo otra vez.",
+        "framed": "Por tu seguridad, esta página no puede mostrarse dentro de otro sitio. Ábrela en su propia ventana del navegador para continuar.",
+        "noWorkspaces": "No puedes conectar aplicaciones en ninguno de tus espacios de trabajo. Pide acceso a un administrador del espacio de trabajo.",
+        "loadFailedMessage": "Verifica tu conexión y recarga la página para intentar de nuevo.",
+        "subtitle": "Actuará como tú en el espacio de trabajo que elijas.",
+        "unverified": "No verificado · te envía de vuelta a {host}",
+        "invalid": "Esta solicitud de autorización no es válida.",
+        "databases": "{count} base de datos | {count} bases de datos",
+        "noTools": "No hay herramientas disponibles.",
+        "loadFailed": "No se pudo cargar esta solicitud de inicio de sesión.",
+        "failed": "No se pudo completar la conexión.",
+        "titleFrom": "Conectar {client} desde {host}",
+        "signedIn": "Sesión iniciada como {email}",
+        "tools": "Qué puede hacer",
+        "returns": "Regresa a {host}",
+        "title": "Conectar {client}",
+        "selectAll": "Seleccionar todo",
+        "workspace": "Espacio de trabajo",
+        "deny": "Denegar",
+        "allow": "Permitir",
+        "overwrites": "Sobrescribe",
+        "deletes": "Eliminaciones",
+        "toolsChange": "Cambiar",
+        "toolsRead": "Leer",
+        "selectNone": "Ninguno"
+    },
+    "inviteModal": {
+        "linkEmptyDescription": "Puedes crear múltiples enlaces con diferentes roles.",
+        "linkEmptyTitle": "Todavía no has creado un enlace de invitación",
+        "linkTitle": "Invita miembros con un enlace",
+        "emailTitle": "Invitar a los miembros por correo electrónico",
+        "emailRoute": "Invitación por correo electrónico",
+        "linkRoute": "Crear enlace"
+    },
+    "templateInstall": {
+        "copyLink": "Copiar enlace para compartir",
+        "use": "Usar esta plantilla",
+        "selectWorkspace": "Elegir espacio de trabajo",
+        "more": "Más"
+    },
+    "templateDetails": {
+        "back": "Volver a Plantillas",
+        "contents": "Qué hay dentro"
     }
 }
