@@ -19,7 +19,6 @@ from pydantic_ai.models import Model
 from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.usage import UsageLimits
 
-from baserow.core.chat_runs.tool_executor import ShieldedToolset, ToolExecutor
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
@@ -36,6 +35,7 @@ from baserow_enterprise.assistant.model_profiles import (
     resolve_assistant_model,
 )
 from baserow_enterprise.assistant.onboarding import onboarding_suggestions_agent
+from baserow_enterprise.assistant.tool_executor import ShieldedToolset, ToolExecutor
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
 from baserow_enterprise.assistant.tools.database import agents as database_agents
