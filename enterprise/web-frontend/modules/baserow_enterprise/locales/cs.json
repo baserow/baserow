@@ -73,7 +73,7 @@
         "workspaceTitle": "Protokol o auditu - {workspaceName}",
         "filterToTimestampTitle": "Do",
         "filterToTimestamp": "Do",
-        "user": "Uživatel",
+        "user": "Aktér",
         "timestamp": "Časové razítko",
         "actionType": "Typ události",
         "description": "Popis",
@@ -83,7 +83,13 @@
         "clearFilters": "Vymazat",
         "allUsers": "Všichni uživatelé",
         "allActionTypes": "Všechny typy událostí",
-        "filterFromTimestamp": "Od"
+        "filterFromTimestamp": "Od",
+        "filterActorTitle": "Aktér",
+        "actorType": "Typ aktéra",
+        "allActors": "Všichni aktéři",
+        "usersSection": "Uživatelé",
+        "agentsSection": "Agenti",
+        "actorDisplay": "{name} ({id})"
     },
     "subjectSampleField": {
         "titleAttr": "Počet členů v tomto týmu je {subjectCount}."
