@@ -743,7 +743,8 @@
         "fromJsonDescription": "Parsuje řetězec kódovaný jako JSON na hodnotu, například objekt, pole nebo číslo. Pokud řetězec není platný JSON, vrátí null.",
         "encodeUriDescription": "Zakóduje procenty znaky, které nejsou v adrese URL povoleny, a zachová strukturu adresy URL",
         "encodeUriComponentDescription": "Zakóduje argument procenty, aby jej bylo možné bezpečně použít jako jednu část adresy URL, například segment cesty nebo parametr dotazu",
-        "nowDescription": "Vrací aktuální datum a čas."
+        "nowDescription": "Vrací aktuální datum a čas.",
+        "markdownToHtmlDescription": "Převede Markdown, například hodnotu formátovaného textového pole, do HTML. Hodí se pro těla e-mailů HTML a datové části požadavků HTTP."
     },
     "nodeExplorer": {
         "noResults": "Nebyly nalezeny žádné výsledky",
