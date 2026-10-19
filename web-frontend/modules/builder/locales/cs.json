@@ -122,7 +122,8 @@
         "errorNoMenuItem": "Není nakonfigurována žádná položka nabídky",
         "errorMenuItemInError": "Alespoň jedna položka nabídky je chybně nakonfigurovaná",
         "errorSubMenuItemInError": "Alespoň jedna podnabídka je chybně nakonfigurovaná",
-        "errorOptionNameMissing": "Možnosti chybí název"
+        "errorOptionNameMissing": "Možnosti chybí název",
+        "errorInvalidVisibilityCondition": "Podmínka viditelnosti je neplatná"
     },
     "addElementButton": {
         "label": "Prvek"
@@ -151,7 +152,8 @@
         "visibility": "Viditelnost",
         "events": "Události",
         "eventsTabDeactivatedNoEvents": "Tento prvek nepodporuje žádné události",
-        "eventsTabInError": "Jedna nebo více akcí je chybně nakonfigurováno."
+        "eventsTabInError": "Jedna nebo více akcí je chybně nakonfigurováno.",
+        "visibilityTabInError": "Podmínka viditelnosti obsahuje neplatný vzorec."
     },
     "emptySidePanelState": {
         "message": "Kliknutím na jeden z prvků zobrazíte další podrobnosti"
