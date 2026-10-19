@@ -751,7 +751,8 @@
         "categoryUtility": "Utilidad",
         "encodeUriComponentDescription": "Codifica el argumento en porcentaje para que pueda usarse de forma segura como una sola parte de una URL, como un segmento de ruta o un parámetro de consulta",
         "encodeUriDescription": "Codifica en porcentaje los caracteres que no están permitidos en una URL, dejando intacta la estructura de la URL",
-        "nowDescription": "Devuelve la fecha y hora actuales."
+        "nowDescription": "Devuelve la fecha y hora actuales.",
+        "markdownToHtmlDescription": "Convierte markdown, como el valor de un campo de texto enriquecido, a HTML. Útil para cuerpos de correo electrónico HTML y cargas útiles de solicitudes HTTP."
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
