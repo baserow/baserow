@@ -920,7 +920,8 @@
         "restored": "restauró esta fila",
         "createdUndo": "deshizo la creación de la fila",
         "updatedUndo": "deshizo la actualización de la fila",
-        "deletedUndo": "deshizo la eliminación de la fila"
+        "deletedUndo": "deshizo la eliminación de la fila",
+        "anonymousUser": "Usuario anónimo"
     },
     "viewGroupByContext": {
         "groupBy": "Agrupar por",
