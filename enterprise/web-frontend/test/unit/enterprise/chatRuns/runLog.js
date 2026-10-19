@@ -6,6 +6,10 @@ export function createRunsTestApp() {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   sessionStorage.clear()
   const testApp = new TestApp()
+  // Kuma execution and recovery do not depend on any feature flag.
+  testApp.store.app = Object.create(testApp.getApp(), {
+    $featureFlagIsEnabled: { value: () => false },
+  })
   testApp.authenticate({ id: 1, first_name: 'Test' })
   const realtime = testApp.getApp().$realtime
   for (const method of ['subscribe', 'unsubscribe', 'subscribeToPage']) {
@@ -16,6 +20,7 @@ export function createRunsTestApp() {
 export async function destroyRunsTestApp(testApp) {
   await testApp.store.dispatch('chatRuns/disconnect')
   await testApp.afterEach()
+  testApp.store.app = testApp.getApp()
   vi.restoreAllMocks()
   vi.useRealTimers()
 }

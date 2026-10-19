@@ -8,10 +8,6 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 vi.mock('@baserow_enterprise/services/assistant', () => ({
   default: vi.fn(),
 }))
-vi.mock('@baserow_enterprise/utils/assistant', async (importOriginal) => ({
-  ...(await importOriginal()),
-  usesBackgroundRuns: () => false,
-}))
 
 const workspace = { id: 1, name: 'Test workspace' }
 const otherWorkspace = { id: 2, name: 'Other workspace' }
@@ -20,7 +16,6 @@ describe('AssistantPanel', () => {
   let testApp = null
   let store = null
   let service = null
-  let resolveCancel = null
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -28,13 +23,7 @@ describe('AssistantPanel', () => {
       fetchChats: vi.fn().mockResolvedValue({ results: [] }),
       fetchChatMessages: vi.fn().mockResolvedValue({ messages: [] }),
       sendMessage: vi.fn().mockResolvedValue(undefined),
-      // Resolved by the test, so a prompt can arrive while cancelling.
-      cancelMessage: vi.fn(
-        () =>
-          new Promise((resolve) => {
-            resolveCancel = resolve
-          })
-      ),
+      cancelMessage: vi.fn().mockResolvedValue(undefined),
     }
     assistantService.mockReturnValue(service)
 
@@ -74,10 +63,8 @@ describe('AssistantPanel', () => {
 
     await store.dispatch('assistant/setPendingPrompt', 'Build a tracker')
     await flushPromises()
-    resolveCancel()
-    await flushPromises()
 
-    expect(service.cancelMessage).toHaveBeenCalledWith(runningChatId)
+    expect(service.cancelMessage).not.toHaveBeenCalled()
     expect(service.sendMessage).toHaveBeenCalledOnce()
     expect(service.sendMessage.mock.calls[0][0]).not.toBe(runningChatId)
     expect(service.sendMessage.mock.calls[0][1]).toBe('Build a tracker')
@@ -85,13 +72,25 @@ describe('AssistantPanel', () => {
     expect(document.activeElement.className).toBe('assistant__input-textarea')
   })
 
-  test('drops a pending prompt when the workspace changes while cancelling', async () => {
+  test('drops a pending prompt when the workspace changes before it starts', async () => {
     const { wrapper } = await mountWithRunningChat()
+    const dispatch = store.dispatch.bind(store)
+    let releasePrompt
+    vi.spyOn(store, 'dispatch').mockImplementation(
+      (action, payload, ...rest) => {
+        const result = dispatch(action, payload, ...rest)
+        if (action === 'assistant/setPendingPrompt' && payload === null) {
+          return new Promise((resolve) => {
+            releasePrompt = () => resolve(result)
+          })
+        }
+        return result
+      }
+    )
 
     await store.dispatch('assistant/setPendingPrompt', 'Build a tracker')
-    await flushPromises()
     await wrapper.setProps({ workspace: otherWorkspace })
-    resolveCancel()
+    releasePrompt()
     await flushPromises()
 
     expect(service.sendMessage).not.toHaveBeenCalled()

@@ -12,11 +12,9 @@ const data = { ai_prompt: { prompt: 'A CRM', industry: 'Sales', team: 'Ops' } }
 const tableLocation = { type: 'database-table', database_id: 1, table_id: 2 }
 
 function onboardingStep({
-  backgroundRuns = true,
   start = { outcome: 'accepted', runId: 'run-1' },
 } = {}) {
   const app = {
-    $featureFlagIsEnabled: () => backgroundRuns,
     $i18n: { t: (key) => key },
     $store: {
       dispatch: vi.fn(async (action) =>
@@ -41,7 +39,7 @@ describe('AIPromptOnboardingType', () => {
     sessionStorage.clear()
   })
 
-  test('with background runs, hands off to the workspace and opens the panel once Kuma accepted the message', async () => {
+  test('hands off to the workspace and opens the panel once Kuma accepted the message', async () => {
     const { app, step } = onboardingStep()
 
     const response = await complete(step)
@@ -55,24 +53,13 @@ describe('AIPromptOnboardingType', () => {
     expect(app.$bus.$emit).toHaveBeenCalledWith('toggle-right-sidebar', true)
   })
 
-  test('with background runs, fails when Kuma did not accept the message', async () => {
+  test('fails when Kuma did not accept the message', async () => {
     const { step } = onboardingStep({
       start: { outcome: 'failed', runId: null },
     })
 
     await expect(complete(step)).rejects.toThrow()
     expect(getStoredOnboardingRunId()).toBe(null)
-  })
-
-  test('without background runs, opens the first table of the streamed answer', async () => {
-    const { step } = onboardingStep({ backgroundRuns: false })
-
-    const response = await complete(step)
-
-    expect(step.getCompletedRoute(data, { ai_prompt: response })).toEqual({
-      name: 'database-table',
-      params: { databaseId: 1, tableId: 2 },
-    })
   })
 
   test('a backend without optional run metadata completes from the same streamed answer', async () => {

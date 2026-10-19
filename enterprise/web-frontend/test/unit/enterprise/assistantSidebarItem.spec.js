@@ -10,11 +10,7 @@ describe('AssistantSidebarItem', () => {
     sessionStorage.clear()
   })
 
-  function mountItem({
-    rightSidebarOpen = false,
-    emit = vi.fn(),
-    backgroundRuns = true,
-  } = {}) {
+  function mountItem({ rightSidebarOpen = false, emit = vi.fn() } = {}) {
     return mountSuspended(AssistantSidebarItem, {
       props: {
         workspace: { id: 1, ai_features: { kuma: { is_enabled: true } } },
@@ -24,7 +20,6 @@ describe('AssistantSidebarItem', () => {
         mocks: {
           $bus: { $emit: emit },
           $config: { public: { baserowEnterpriseAssistantLlmModel: '' } },
-          $featureFlagIsEnabled: () => backgroundRuns,
           $hasPermission: () => true,
           $t: (key) => key,
         },
@@ -48,22 +43,16 @@ describe('AssistantSidebarItem', () => {
     expect(emit).toHaveBeenCalledWith('toggle-right-sidebar', false)
   })
 
-  test.each([
-    [true, [['toggle-right-sidebar', true]]],
-    [false, []],
-  ])(
-    'the tab where the assistant was open reopens it only with background runs (%s)',
-    async (backgroundRuns, toggles) => {
-      localStorage.setItem('baserow.rightSidebarOpen', 'false')
-      sessionStorage.setItem('baserow.assistant.panelOpen', 'true')
-      const emit = vi.fn()
+  test('the tab where the assistant was open reopens it after reloading', async () => {
+    localStorage.setItem('baserow.rightSidebarOpen', 'false')
+    sessionStorage.setItem('baserow.assistant.panelOpen', 'true')
+    const emit = vi.fn()
 
-      await mountItem({ emit, backgroundRuns })
-      await nextTick()
+    await mountItem({ emit })
+    await nextTick()
 
-      expect(emit.mock.calls).toEqual(toggles)
-    }
-  )
+    expect(emit).toHaveBeenCalledWith('toggle-right-sidebar', true)
+  })
 
   test('remembers in the tab whether the assistant is open', async () => {
     const wrapper = await mountItem()
