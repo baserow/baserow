@@ -99,7 +99,7 @@
         "coreRouterDescription": "Dirige el flujo de trabajo a la siguiente rama basándote en una condición.",
         "coreSMTPEmailDescription": "Envía un correo electrónico usando la configuración SMTP.",
         "coreIteration": "Iterador",
-        "coreIterationDescription": "Itera sobre los elementos.",
+        "coreIterationDescription": "Itera sobre cada elemento de una lista y ejecuta sus nodos secundarios una vez por elemento.",
         "errorFromEmailMissing": "No se ha especificado la dirección del Remitente del correo",
         "errorToEmailsMissing": "No se ha especificado la dirección del Destinatario del correo",
         "misconfigured": "Configurado incorrectamente",
@@ -143,7 +143,7 @@
         "errorNoRowsSelected": "No se seleccionaron filas",
         "coreManualTrigger": "Disparador manual",
         "coreStartWorkflow": "Iniciar flujo de trabajo",
-        "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera.",
+        "coreGotoDescription": "Salta hacia atrás a un nodo anterior mientras una condición sea verdadera, para repetir o reintentar pasos.",
         "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada.",
         "inboundEmailTriggerDescription": "Se desencadena cuando se recibe un correo electrónico en la dirección de correo generada.",
         "errorAIModelUnavailable": "El modelo de IA seleccionado está deshabilitado o ya no está disponible",
@@ -160,12 +160,17 @@
     },
     "localBaserowForm": {
         "user": "Usuario",
-        "userMessage": "Al crear esta conexión, estás autorizando a la aplicación a usar tu cuenta para realizar cambios en tu espacio de trabajo local de Baserow."
+        "userMessage": "Al crear esta conexión, estás autorizando a la aplicación a usar tu cuenta para realizar cambios en tu espacio de trabajo local de Baserow.",
+        "subjectMessage": "Las acciones usan los permisos del usuario o agente seleccionado. Las acciones del agente se identifican como tales en el registro de auditoría.",
+        "currentUser": "Mi cuenta de usuario",
+        "subject": "Autenticar como"
     },
     "localBaserowIntegrationType": {
         "localBaserowNoUser": "Baserow local - No configurado",
         "localBaserowSummary": "Baserow local - {name}, {username}",
-        "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario."
+        "localBaserowWarning": "Al autorizar tu cuenta, cualquier persona con permisos de edición en la aplicación tendrá acceso total a los datos a los que tú tienes acceso. Puedes crear un segundo usuario, asignarle los permisos adecuados y utilizar ese usuario.",
+        "errorTrashedAgent": "El agente autorizado ha sido eliminado a la papelera",
+        "localBaserowSubjectSummary": "Baserow Local - {type}: {name}"
     },
     "integrationsCommon": {
         "singleRow": "una sola fila",
