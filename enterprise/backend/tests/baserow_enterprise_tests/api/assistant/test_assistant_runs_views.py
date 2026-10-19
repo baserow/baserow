@@ -61,6 +61,10 @@ async def _initial_record(response):
         await iterator.aclose()
 
 
+def _run_id(response):
+    return async_to_sync(_initial_record)(response)["_run"]["id"]
+
+
 @pytest.mark.django_db
 def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
     api_client, member
@@ -71,9 +75,9 @@ def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
 
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
-    run = ChatRun.objects.get(id=response["X-Chat-Run-ID"])
-    message = AssistantChatMessage.objects.get(chat__uuid=chat_uuid)
     record = async_to_sync(_initial_record)(response)
+    run = ChatRun.objects.get(id=record["_run"]["id"])
+    message = AssistantChatMessage.objects.get(chat__uuid=chat_uuid)
     assert record == {
         "type": "human",
         "id": message.id,
@@ -115,8 +119,7 @@ def test_a_new_chat_gets_a_provisional_title(
     chat.refresh_from_db()
     assert chat.title == expected
     assert (
-        ChatRun.objects.get(id=response["X-Chat-Run-ID"]).context["generate_title"]
-        is generate
+        ChatRun.objects.get(id=_run_id(response)).context["generate_title"] is generate
     )
 
 
@@ -129,7 +132,7 @@ def test_a_second_message_preserves_the_draft_and_returns_existing_work(
     first = _send(api_client, token, workspace, chat_uuid)
     second = _send(api_client, token, workspace, chat_uuid, "And another")
     assert second.status_code == 409
-    assert second.json()["run_id"] == first["X-Chat-Run-ID"]
+    assert second.json()["run_id"] == _run_id(first)
     assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
 
 
@@ -175,18 +178,19 @@ def test_resume_only_attaches_without_message_or_task(api_client, member, mocker
     _, token, workspace = member
     chat_uuid = uuid4()
     first = _send(api_client, token, workspace, chat_uuid)
+    run_id = _run_id(first)
     enqueue = mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
     model = mocker.patch(
         "baserow_enterprise.api.assistant.views.resolve_assistant_model"
     )
     response = api_client.post(
         _url(chat_uuid),
-        {"run_id": first["X-Chat-Run-ID"], "tab_id": "tab-1"},
+        {"run_id": run_id, "tab_id": "tab-1"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == 200
-    assert response["X-Chat-Run-ID"] == first["X-Chat-Run-ID"]
+    assert _run_id(response) == run_id
     assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
     assert ChatRun.objects.count() == 1
     enqueue.assert_not_called()
@@ -205,7 +209,7 @@ def test_resume_rejects_new_work_or_invalid_cursor_before_200(
     first = _send(api_client, token, workspace, chat_uuid)
     response = api_client.post(
         _url(chat_uuid),
-        {"run_id": first["X-Chat-Run-ID"], **extra},
+        {"run_id": _run_id(first), **extra},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -220,7 +224,7 @@ def test_resume_cannot_follow_a_different_chat(api_client, member):
     other = AssistantChat.objects.create(user=user, workspace=workspace)
     response = api_client.post(
         _url(other.uuid),
-        {"run_id": first["X-Chat-Run-ID"]},
+        {"run_id": _run_id(first)},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

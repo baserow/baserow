@@ -374,7 +374,6 @@ class AssistantChatView(APIView):
         )
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
-        response["X-Chat-Run-ID"] = str(run.id)
         return response
 
     def _stream_assistant_message(self, message: AssistantMessageUnion) -> str:
