@@ -53,7 +53,7 @@
         "coreHTTPTrigger": "Přijmout požadavek HTTP",
         "coreHTTPTriggerDescription": "Spustí se po přijetí požadavku HTTP.",
         "coreIteration": "Iterátor",
-        "coreIterationDescription": "Iteruje položky.",
+        "coreIterationDescription": "Prochází jednotlivé položky seznamu a pro každou z nich jednou spustí podřízené uzly.",
         "errorIterationSourceMissing": "Chybí vlastnost zdroje",
         "aiAgent": "Výzva AI",
         "aiAgentDescription": "Spouští prompty AI pomocí nakonfigurovaných generativních modelů AI.",
@@ -85,7 +85,7 @@
         "errorNoWorkflowSelected": "Není vybrán žádný pracovní postup",
         "errorWorkflowNotImmediateDispatch": "Vybraný pracovní postup musí používat spouštěč, který se může spustit okamžitě.",
         "coreGoto": "Přejít na",
-        "coreGotoDescription": "Přeskočí na jiné místo pracovního postupu, když je podmínka pravdivá.",
+        "coreGotoDescription": "Přeskočí zpět na dřívější uzel, dokud je podmínka pravdivá, aby kroky zopakoval nebo se o ně pokusil znovu.",
         "coreGotoDestinationRequired": "Cíl je povinný.",
         "inboundEmailTrigger": "E-mailový spouštěč",
         "inboundEmailTriggerDescription": "Spustí se po přijetí e-mailu na vygenerovanou e-mailovou adresu.",
@@ -101,7 +101,10 @@
     },
     "localBaserowForm": {
         "userMessage": "Vytvořením tohoto připojení opravňujete aplikaci používat váš účet k provádění změn v místním pracovním prostoru Baserow.",
-        "user": "Uživatel"
+        "user": "Uživatel",
+        "subject": "Autorizovat jako",
+        "currentUser": "Můj uživatelský účet",
+        "subjectMessage": "Akce používají oprávnění vybraného uživatele nebo agenta. Akce agentů jsou jako takové označeny v protokolu auditu."
     },
     "localBaserowGetRowForm": {
         "rowFieldLabel": "ID řádku",
@@ -154,7 +157,9 @@
     "localBaserowIntegrationType": {
         "localBaserowSummary": "Místní Baserow – {name}, {username}",
         "localBaserowNoUser": "Místní Baserow – nenakonfigurováno",
-        "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej."
+        "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej.",
+        "localBaserowSubjectSummary": "Místní Baserow - {type}: {name}",
+        "errorTrashedAgent": "Autorizovaný agent byl přesunut do koše"
     },
     "integrationsCommon": {
         "singleRow": "jeden řádek",
