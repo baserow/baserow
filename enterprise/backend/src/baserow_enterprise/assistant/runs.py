@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 ASSISTANT_RUN_TYPE = "assistant"
 NAVIGATION_EVENT = "navigation"
 CHAT_TITLE_EVENT = "chat.title"
+ERROR_MODEL_UNAVAILABLE = "model_unavailable"
 
 
 @dataclass(frozen=True)

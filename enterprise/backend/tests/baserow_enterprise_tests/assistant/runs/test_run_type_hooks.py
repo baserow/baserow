@@ -7,13 +7,7 @@ from django.utils import timezone
 import pytest
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, TextPart
 
-from baserow.core.chat_runs.constants import (
-    ERROR_INTERRUPTED,
-    ERROR_MODEL_UNAVAILABLE,
-    ERROR_NOT_STARTED,
-    ERROR_TIMEOUT,
-    TEXT_DELTA,
-)
+from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.types import ChatRunOutcome
@@ -23,7 +17,10 @@ from baserow_enterprise.assistant.chat_run_type import (
 )
 from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER, unfinished_answer
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.runs import AssistantRunResult
+from baserow_enterprise.assistant.runs import (
+    ERROR_MODEL_UNAVAILABLE,
+    AssistantRunResult,
+)
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
 from baserow_enterprise_tests.assistant.runs.fixtures import (
     ai_message,
@@ -41,9 +38,21 @@ def _chat(run: ChatRun) -> AssistantChat:
     [
         (ChatRunStatus.COMPLETED, "", AssistantTraceOutcome.ANSWERED),
         (ChatRunStatus.CANCELLED, "", AssistantTraceOutcome.CANCELLED),
-        (ChatRunStatus.FAILED, ERROR_TIMEOUT, AssistantTraceOutcome.INTERRUPTED),
-        (ChatRunStatus.CANCELLED, ERROR_INTERRUPTED, AssistantTraceOutcome.INTERRUPTED),
-        (ChatRunStatus.FAILED, ERROR_NOT_STARTED, AssistantTraceOutcome.NOT_STARTED),
+        (
+            ChatRunStatus.FAILED,
+            ChatRunErrorCode.TIMEOUT,
+            AssistantTraceOutcome.INTERRUPTED,
+        ),
+        (
+            ChatRunStatus.CANCELLED,
+            ChatRunErrorCode.INTERRUPTED,
+            AssistantTraceOutcome.INTERRUPTED,
+        ),
+        (
+            ChatRunStatus.FAILED,
+            ChatRunErrorCode.NOT_STARTED,
+            AssistantTraceOutcome.NOT_STARTED,
+        ),
         (ChatRunStatus.FAILED, ERROR_MODEL_UNAVAILABLE, AssistantTraceOutcome.ERROR),
     ],
 )
@@ -142,7 +151,10 @@ def test_a_lost_run_saves_what_the_user_saw(
     mocker.patch(
         "baserow.core.chat_runs.handler.ChatRunHandler._recover_output",
         return_value=[
-            {"kind": TEXT_DELTA, "data": {"segment": 0, "text": "Adding rows"}},
+            {
+                "kind": ChatRunEventKind.TEXT_DELTA,
+                "data": {"segment": 0, "text": "Adding rows"},
+            },
         ],
     )
 
@@ -155,7 +167,7 @@ def test_a_lost_run_saves_what_the_user_saw(
     assert (message["content"], message["run_status"], message["error_code"]) == (
         "Adding rows",
         "failed",
-        ERROR_INTERRUPTED,
+        ChatRunErrorCode.INTERRUPTED,
     )
     assert history_texts(run) == ["Add rows", unfinished_answer("Adding rows")]
     assert [trace["assistant_outcome"] for trace in traces(posthog_client)] == [
@@ -190,7 +202,7 @@ def _stop_while_queued(run: ChatRun) -> None:
         (
             _sweep_as_not_started,
             "failed",
-            ERROR_NOT_STARTED,
+            ChatRunErrorCode.NOT_STARTED,
             AssistantTraceOutcome.NOT_STARTED,
         ),
         (_stop_while_queued, "cancelled", "", AssistantTraceOutcome.CANCELLED),
