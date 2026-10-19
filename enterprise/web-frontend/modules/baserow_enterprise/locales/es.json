@@ -71,7 +71,7 @@
         "filterFromTimestamp": "De fecha",
         "filterToTimestampTitle": "Hasta la fecha",
         "filterToTimestamp": "Hasta la fecha",
-        "user": "Usuario",
+        "user": "Actor",
         "workspace": "Grupo",
         "actionType": "Tipo de evento",
         "description": "Descripción",
@@ -84,7 +84,13 @@
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
         "workspaceTitle": "Registro de auditoría - {workspaceName}",
-        "adminTitle": "Registro de auditoría"
+        "adminTitle": "Registro de auditoría",
+        "actorDisplay": "{name} ({id})",
+        "actorType": "Tipo de actor",
+        "allActors": "Todos los actores",
+        "agentsSection": "Agentes",
+        "usersSection": "Usuarios",
+        "filterActorTitle": "Actor"
     },
     "auditLogExportModal": {
         "title": "Exportar a CSV",
