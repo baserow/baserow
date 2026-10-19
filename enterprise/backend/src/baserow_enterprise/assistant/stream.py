@@ -4,14 +4,7 @@ import json
 from collections.abc import AsyncIterator
 from uuid import uuid4
 
-from baserow.core.chat_runs.constants import (
-    PROGRESS,
-    RUN_CANCEL_REQUESTED,
-    RUN_CREATED,
-    RUN_FINISHED,
-    RUN_STARTED,
-    TEXT_DELTA,
-)
+from baserow.core.chat_runs.constants import ChatRunEventKind
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.stream import follow_run
 
@@ -53,7 +46,7 @@ async def stream_run_messages(
         if replayed:
             metadata["replay"] = True
         record = {"type": "chat-run-state"}
-        if kind == TEXT_DELTA:
+        if kind == ChatRunEventKind.TEXT_DELTA:
             if data.get("segment") != segment:
                 text, segment = "", data.get("segment")
             text += data.get("text", "")
@@ -76,7 +69,7 @@ async def stream_run_messages(
             }
         elif kind == "run.replay_unavailable":
             metadata["replay_unavailable"] = True
-        elif kind == PROGRESS:
+        elif kind == ChatRunEventKind.PROGRESS:
             record = {"type": "ai/thinking", "content": data.get("text", "")}
         elif kind == CHAT_TITLE_EVENT:
             record = {"type": "chat/title", "content": data.get("title", "")}
@@ -87,15 +80,15 @@ async def stream_run_messages(
                     "location": data["location"],
                     "origin_tab_id": data.get("origin_tab_id", ""),
                 }
-        elif kind == RUN_CREATED:
+        elif kind == ChatRunEventKind.RUN_CREATED:
             metadata["status"] = "queued"
             if human_message is None and data.get("human_message"):
                 record = data["human_message"]
-        elif kind == RUN_STARTED:
+        elif kind == ChatRunEventKind.RUN_STARTED:
             metadata["status"] = "running"
-        elif kind == RUN_CANCEL_REQUESTED:
+        elif kind == ChatRunEventKind.RUN_CANCEL_REQUESTED:
             metadata["cancel_requested"] = True
-        elif kind == RUN_FINISHED:
+        elif kind == ChatRunEventKind.RUN_FINISHED:
             metadata.update(
                 status=data["status"], error_code=data.get("error_code", "")
             )
@@ -104,14 +97,14 @@ async def stream_run_messages(
         # Existing JSON-record clients use these variants to display Stop/errors.
         # The shared follower has already accepted the authoritative terminal
         # message and ignores this cursor-less compatibility record.
-        if kind == RUN_FINISHED and data["status"] == "cancelled":
+        if kind == ChatRunEventKind.RUN_FINISHED and data["status"] == "cancelled":
             yield (
                 json.dumps(
                     {"type": "ai/cancelled", "message_id": message_id, "_run": identity}
                 )
                 + "\n\n"
             )
-        elif kind == RUN_FINISHED and data["status"] == "failed":
+        elif kind == ChatRunEventKind.RUN_FINISHED and data["status"] == "failed":
             yield (
                 json.dumps(
                     {

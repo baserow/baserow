@@ -34,13 +34,9 @@ from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow.core.chat_runs.constants import (
-    ERROR_FAILED,
-    ERROR_INTERRUPTED,
-    ERROR_TIMEOUT,
-    PROGRESS,
-    STOP_CANCELLED,
-    STOP_LOST,
-    STOP_TIMEOUT,
+    ChatRunErrorCode,
+    ChatRunEventKind,
+    ChatRunStopReason,
 )
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.tool_executor import ShieldedToolset, ToolExecutor
@@ -987,9 +983,9 @@ class Assistant:
 
 
 _STOPPED_RUN_OUTCOMES = {
-    STOP_CANCELLED: (ChatRunStatus.CANCELLED, ""),
-    STOP_TIMEOUT: (ChatRunStatus.FAILED, ERROR_TIMEOUT),
-    STOP_LOST: (ChatRunStatus.FAILED, ERROR_INTERRUPTED),
+    ChatRunStopReason.CANCELLED: (ChatRunStatus.CANCELLED, ""),
+    ChatRunStopReason.TIMEOUT: (ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT),
+    ChatRunStopReason.LOST: (ChatRunStatus.FAILED, ChatRunErrorCode.INTERRUPTED),
 }
 
 
@@ -1043,7 +1039,7 @@ class BackgroundAssistant(Assistant):
             of its deadline or a lost lease.
         """
 
-        return self._journal.stop_reason == STOP_CANCELLED
+        return self._journal.stop_reason == ChatRunStopReason.CANCELLED
 
     async def _stream_agent_run(
         self,
@@ -1186,7 +1182,7 @@ class BackgroundAssistant(Assistant):
         """
 
         # str() resolves a lazy translation here, where the run's language is active.
-        self._journal.emit(PROGRESS, {"text": str(progress)})
+        self._journal.emit(ChatRunEventKind.PROGRESS, {"text": str(progress)})
 
     def _report_navigation(self, location: AnyNavigationType) -> str:
         """
@@ -1244,7 +1240,7 @@ class BackgroundAssistant(Assistant):
                 result=self._result(self._answer, self._answer_history),
             )
         status, error_code = _STOPPED_RUN_OUTCOMES.get(
-            self._journal.stop_reason, (ChatRunStatus.FAILED, ERROR_FAILED)
+            self._journal.stop_reason, (ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
         )
         return ChatRunOutcome(
             status=status,

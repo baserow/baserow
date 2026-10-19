@@ -12,12 +12,7 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
-from baserow.core.chat_runs.constants import (
-    ERROR_INTERRUPTED,
-    ERROR_MODEL_UNAVAILABLE,
-    ERROR_NOT_STARTED,
-    ERROR_TIMEOUT,
-)
+from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
 from baserow.core.chat_runs.types import ChatRunOutcome
@@ -33,7 +28,7 @@ from .model_profiles import (
 )
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .operations import ChatAssistantChatOperationType
-from .runs import ASSISTANT_RUN_TYPE, AssistantRunResult
+from .runs import ASSISTANT_RUN_TYPE, ERROR_MODEL_UNAVAILABLE, AssistantRunResult
 from .telemetry import AssistantTraceOutcome, PosthogTracingCallback
 from .types import UIContext
 
@@ -51,9 +46,9 @@ def trace_outcome_for(status: str, error_code: str) -> AssistantTraceOutcome:
     :return: The trace outcome.
     """
 
-    if error_code in (ERROR_INTERRUPTED, ERROR_TIMEOUT):
+    if error_code in (ChatRunErrorCode.INTERRUPTED, ChatRunErrorCode.TIMEOUT):
         return AssistantTraceOutcome.INTERRUPTED
-    if error_code == ERROR_NOT_STARTED:
+    if error_code == ChatRunErrorCode.NOT_STARTED:
         return AssistantTraceOutcome.NOT_STARTED
     if error_code:
         return AssistantTraceOutcome.ERROR
