@@ -206,7 +206,8 @@
         "errorNoMenuItem": "No se ha configurado ningún elemento de menú",
         "errorMenuItemInError": "Al menos un elemento del menú está mal configurado",
         "errorSubMenuItemInError": "Al menos un submenú está mal configurado",
-        "errorOptionNameMissing": "A una opción le falta un nombre"
+        "errorOptionNameMissing": "A una opción le falta un nombre",
+        "errorInvalidVisibilityCondition": "La condición de visibilidad es inválida"
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
@@ -454,7 +455,8 @@
         "events": "Eventos",
         "style": "Estilo",
         "eventsTabDeactivatedNoEvents": "Este elemento no admite eventos",
-        "eventsTabInError": "Una o más acciones están mal configuradas."
+        "eventsTabInError": "Una o más acciones están mal configuradas.",
+        "visibilityTabInError": "La condición de visibilidad contiene una fórmula inválida."
     },
     "addElementModal": {
         "title": "Añadir nuevo elemento",
