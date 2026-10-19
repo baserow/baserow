@@ -147,7 +147,9 @@
     },
     "templateCategories": {
         "search": "Hledat šablony",
-        "title": "Šablony"
+        "title": "Šablony",
+        "allTemplates": "Všechny šablony",
+        "noResults": "Nebyly nalezeny žádné šablony"
     },
     "templateHeader": {
         "use": "Použít tuto šablonu",
@@ -672,7 +674,10 @@
         "invalidFormulaTitle": "Neplatný vzorec",
         "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi.",
         "useFormulaMode": "Použít režim vzorce",
-        "useRawMode": "Použít režim raw"
+        "useRawMode": "Použít režim raw",
+        "formatPlain": "Prostý text",
+        "formatMarkdown": "Markdown",
+        "formatBadgeTitle": "Formát: {format}. Kliknutím jej změňte."
     },
     "userPasswordChangedToast": {
         "title": "Heslo změněno",
@@ -1088,7 +1093,9 @@
         "createEndpoint": "Vytvořit koncový bod",
         "createNewTitle": "Vytvořit koncový bod serveru MCP",
         "backToOverview": "Zpět na přehled",
-        "noEndpointsMessage": "Dosud nebyly přidány žádné koncové body serveru MCP (Model Context Protocol). Lze je použít k přímé integraci s LLM, jako je Claude, a umožnit LLM provádět akce přímo v Baserow. Chcete-li začít, vytvořte koncový bod serveru."
+        "noEndpointsMessage": "Dosud nebyly přidány žádné koncové body serveru MCP (Model Context Protocol). Lze je použít k přímé integraci s LLM, jako je Claude, a umožnit LLM provádět akce přímo v Baserow. Chcete-li začít, vytvořte koncový bod serveru.",
+        "oauthTab": "OAuth",
+        "endpointTab": "Koncový bod"
     },
     "mcpEndpointForm": {
         "nameLabel": "Název",
@@ -1274,7 +1281,8 @@
         "useSimpleInputModalTitle": "Přepnout do základního režimu?",
         "useAdvancedInput": "Přepnout do expertního režimu",
         "useAdvancedInputModalTitle": "Přepnout do expertního režimu?",
-        "modalMessage": "Přepnutím do jiného režimu se vymaže aktuální vzorec. Opravdu chcete pokračovat?"
+        "modalMessage": "Přepnutím do jiného režimu se vymaže aktuální vzorec. Opravdu chcete pokračovat?",
+        "formatLabel": "Formát"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "Funkce „{funcType}“ očekává nejméně {minArgs} argumentů.",
@@ -1537,7 +1545,8 @@
         "user": "Uživatel",
         "users": "Uživatelé",
         "agent": "Agent",
-        "agents": "Agenti"
+        "agents": "Agenti",
+        "anonymousUser": "Anonymní uživatel"
     },
     "agents": {
         "saved": "Změny uloženy",
@@ -1555,5 +1564,71 @@
         "invalidNameTitle": "Název agenta není povolen",
         "lastActive": "Naposledy aktivní",
         "workspaceRole": "Role v pracovním prostoru"
+    },
+    "mcpAuthorize": {
+        "title": "Připojit {client}",
+        "titleFrom": "Připojit {client} z {host}",
+        "subtitle": "V pracovním prostoru, který zvolíte, bude jednat vaším jménem.",
+        "unverified": "Neověřeno · vrací vás zpět na {host}",
+        "returns": "Návrat na {host}",
+        "workspace": "Pracovní prostor",
+        "databases": "{count} databáze | {count} databází",
+        "noWorkspaces": "V žádném ze svých pracovních prostorů nemůžete připojit aplikace. Požádejte správce pracovního prostoru o přístup.",
+        "loopbackWarning": "Tato aplikace se přihlašuje prostřednictvím vašeho vlastního počítače. Jakýkoli program v něm by mohl použít tento název, pokračujte proto pouze tehdy, pokud jste přihlášení právě sami zahájili.",
+        "tools": "Co může provádět",
+        "selectAll": "Vybrat vše",
+        "selectNone": "Žádné",
+        "toolsRead": "Čtení",
+        "toolsChange": "Změny",
+        "deletes": "Odstraňuje",
+        "overwrites": "Přepisuje",
+        "noTools": "Nejsou k dispozici žádné nástroje.",
+        "signedIn": "Přihlášeni jako {email}",
+        "allow": "Povolit",
+        "deny": "Zamítnout",
+        "invalid": "Tento požadavek na autorizaci není platný.",
+        "invalidMessage": "Zkuste se z aplikace připojit znovu. Pokud se to bude opakovat, odeberte z aplikace server Baserow a přidejte jej znovu.",
+        "unknownClient": "Registrace přihlášení této aplikace není známa nebo její platnost vypršela. Odeberte z aplikace server Baserow a přidejte jej znovu.",
+        "clientRejected": "Tato aplikace se nemůže přihlásit k tomuto serveru Baserow. Důvod může správce Baserow najít v protokolu serveru.",
+        "loadFailed": "Tento požadavek na přihlášení se nepodařilo načíst.",
+        "loadFailedMessage": "Zkontrolujte připojení a znovu načtěte stránku, abyste to zkusili znovu.",
+        "failed": "Připojení se nepodařilo dokončit.",
+        "framed": "Tato stránka se z bezpečnostních důvodů nemůže zobrazit uvnitř jiného webu. Chcete-li pokračovat, otevřete ji v samostatném okně prohlížeče."
+    },
+    "inviteModal": {
+        "emailRoute": "Pozvání e-mailem",
+        "linkRoute": "Vytvořit odkaz",
+        "emailTitle": "Pozvat členy e-mailem",
+        "linkTitle": "Pozvat členy pomocí odkazu",
+        "linkEmptyTitle": "Odkaz s pozvánkou jste dosud nevytvořili",
+        "linkEmptyDescription": "Můžete vytvořit více odkazů s různými rolemi."
+    },
+    "templateInstall": {
+        "use": "Použít tuto šablonu",
+        "selectWorkspace": "Vyberte pracovní prostor",
+        "more": "Více",
+        "copyLink": "Kopírovat odkaz ke sdílení"
+    },
+    "templateDetails": {
+        "back": "Zpět na šablony",
+        "contents": "Co obsahuje"
+    },
+    "mcpOAuthConnections": {
+        "title": "Připojit nástroj AI",
+        "description": "Jedna adresa URL pro všechny nástroje. Při připojení se přihlásíte a zvolíte pracovní prostor a nástroje.",
+        "copyURL": "Kopírovat adresu URL",
+        "claudeInstructions": "V claude.ai nebo Claude Desktop otevřete **Settings → Connectors**, klikněte na **Add custom connector** a vložte výše uvedenou adresu URL.",
+        "claudeCodeInstructions": "Spusťte toto v terminálu, potom v Claude Code spusťte `/mcp` a přihlaste se.",
+        "chatGptInstructions": "V ChatGPT otevřete **Plugins**, klikněte na **+** vpravo nahoře a vyberte **Add custom MCP server**. Výše uvedenou adresu URL vložte jako adresu serveru a jako ověřování vyberte **OAuth**.",
+        "cursorInstructions": "Přidejte toto do souboru `~/.cursor/mcp.json`. Cursor vás při připojení vyzve k přihlášení.",
+        "connectedApps": "Připojené aplikace",
+        "noConnections": "Zatím nejsou připojeny žádné aplikace.",
+        "publishedBy": "{host}",
+        "expired": "Odhlášeno",
+        "expiredTooltip": "Přihlášení této aplikace skončilo. Chcete-li ji používat, přihlaste se znovu z aplikace.",
+        "tools": "{count} nástroj | {count} nástroje",
+        "connectedOn": "Připojeno {date}",
+        "disconnect": "Odpojit",
+        "confirmDisconnect": "Kliknutím znovu odpojíte"
     }
 }
