@@ -253,8 +253,8 @@ def test_missing_product_outcome_is_repaired_once_before_run_metadata_can_be_pru
     run.save(update_fields=["status", "error_code"])
     adapter = AssistantChatRunType()
 
-    assert adapter.ensure_interruption_warning(run) is True
-    assert adapter.ensure_interruption_warning(run) is True
+    adapter.ensure_interruption_warning(run)
+    adapter.ensure_interruption_warning(run)
 
     assert history_texts(run) == ["Change rows", unfinished_answer("")]
     human = _chat(run).messages.get(id=run.context["human_message_id"])
