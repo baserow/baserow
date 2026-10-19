@@ -1,6 +1,5 @@
 import assistant from '@baserow_enterprise/services/assistant'
 import { ASSISTANT_RUN_TYPE } from '@baserow_enterprise/chatRunTypes'
-import { usesBackgroundRuns } from '@baserow_enterprise/utils/assistant'
 import {
   getStoredChatUuid,
   getTabId,
@@ -46,7 +45,7 @@ function inFlightMessage(follower) {
 }
 
 const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
-// The backend has its flag off, or predates the send endpoint.
+// Older backends may not provide background runs yet.
 const RUNS_UNAVAILABLE_CODES = ['ERROR_FEATURE_DISABLED', 'URL_NOT_FOUND']
 
 /**
@@ -293,9 +292,7 @@ export const actions = {
       const snapshot = await assistant($client).fetchChatMessages(chat.id)
       commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', snapshot.messages.map(parseMessage))
-      if (usesBackgroundRuns(this.app)) {
-        await dispatch('followChatRuns', { chat, snapshot })
-      }
+      await dispatch('followChatRuns', { chat, snapshot })
     } finally {
       commit('SET_CHAT_LOADING', { chat, value: false })
     }
@@ -383,7 +380,7 @@ export const actions = {
 
   async refreshCurrentChat({ state, commit, dispatch }) {
     const chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat || !usesBackgroundRuns(this.app)) return
+    if (!chat) return
     try {
       const snapshot = await assistant(this.$client).fetchChatMessages(chat.id)
       if (state.currentChatId !== chat.id) return
@@ -401,7 +398,7 @@ export const actions = {
    * @throws Anything but a failed request, such as a run type's bug.
    */
   async restoreOpenChat({ state, dispatch }) {
-    if (!usesBackgroundRuns(this.app) || state.currentChatId) {
+    if (state.currentChatId) {
       return
     }
     const chat = state.chats.find((c) => c.id === getStoredChatUuid())
@@ -422,9 +419,7 @@ export const actions = {
     commit('CLEAR_MESSAGES')
     commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', null)
-    if (usesBackgroundRuns(this.app)) {
-      storeChatUuid(null)
-    }
+    storeChatUuid(null)
   },
 
   async fetchChats({ commit }, workspaceId) {
@@ -741,124 +736,19 @@ export const actions = {
     }
   },
 
-  async sendMessage(
-    { commit, state, dispatch, getters },
-    { message, workspace }
-  ) {
-    const { $client, $i18n } = this
-    if (usesBackgroundRuns(this.app)) {
-      const { outcome, runId } = await dispatch('startRun', {
-        message,
-        workspace,
-      })
-      if (outcome === SEND_OUTCOME.ACCEPTED && runId) {
-        await dispatch('chatRuns/waitUntilFinished', runId, { root: true })
-      }
-      return outcome
-    }
-    let chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat) {
-      await dispatch('createChat', workspace.id)
-      chat = state.chats.find((c) => c.id === state.currentChatId)
-    }
-
-    const timestamp = new Date().toISOString()
-    const userMessage = {
-      id: uuidv4(),
-      role: 'human',
-      content: message,
-      timestamp,
-      loading: false,
-    }
-    commit('ADD_MESSAGE', userMessage)
-    const aiMessageId = uuidv4()
-    const aiMessage = {
-      _uuid: aiMessageId,
-      id: aiMessageId, // Temporary ID, will be updated when the final message arrives
-      role: 'ai',
-      content: '',
-      timestamp,
-      loading: true,
-      reasoning: false,
-    }
-    commit('ADD_MESSAGE', aiMessage)
-    commit('SET_ASSISTANT_RUNNING', { chat, value: true })
-    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-      chat,
-      message: $i18n.t('assistant.statusThinking'),
+  async sendMessage({ dispatch }, { message, workspace }) {
+    const { outcome, runId } = await dispatch('startRun', {
+      message,
+      workspace,
     })
-    const uiContext = getters.uiContext
-
-    try {
-      await assistant($client).sendMessage(
-        state.currentChatId,
-        message,
-        uiContext,
-        async (progressEvent) => {
-          await dispatch('handleStreamingResponse', {
-            chat,
-            id: aiMessageId,
-            update: progressEvent,
-          })
-        }
-      )
-      // If the AI message was never updated but the request finished, set a generic error message.
-      if (
-        state.messages.find((m) => m.id === aiMessageId && m.content === '')
-      ) {
-        throw new Error('The assistant did not provide a response.')
-      }
-    } catch (error) {
-      // Don't show error if the request was cancelled by user
-      if (error.cancelled) {
-        return
-      }
-      commit('UPDATE_MESSAGE', {
-        id: aiMessageId,
-        updates: {
-          content:
-            error.data?.detail ||
-            error.message ||
-            'Oops! Something went wrong on the server. Please try again.',
-          loading: false,
-          error: true,
-          reasoning: false,
-        },
-      })
-    } finally {
-      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
-      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
+    if (outcome === SEND_OUTCOME.ACCEPTED && runId) {
+      await dispatch('chatRuns/waitUntilFinished', runId, { root: true })
     }
+    return outcome
   },
 
-  async cancelMessage({ commit, state }) {
-    const { $client, $i18n } = this
-    if (usesBackgroundRuns(this.app)) {
-      // Background execution stays independent of this HTTP connection.
-      return
-    }
-    if (!state.currentChatId) {
-      return
-    }
-
-    const chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat || !chat.running) {
-      return
-    }
-
-    commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
-    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-      chat,
-      message: $i18n.t('assistant.statusCancelling'),
-    })
-
-    try {
-      await assistant($client).cancelMessage(state.currentChatId)
-    } catch (error) {
-      commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
-      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
-      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
-    }
+  cancelMessage() {
+    // Background execution stays independent of this HTTP connection.
   },
 
   async submitFeedback({ commit, state }, { messageId, sentiment, feedback }) {

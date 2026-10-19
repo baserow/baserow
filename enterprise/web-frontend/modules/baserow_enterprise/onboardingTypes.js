@@ -3,11 +3,9 @@ import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
-import { waitFor } from '@baserow/modules/core/utils/queue.js'
 import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep'
 import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
-import { usesBackgroundRuns } from '@baserow_enterprise/utils/assistant'
 import {
   storeOnboardingRunId,
   storePanelOpen,
@@ -54,25 +52,7 @@ export class AIPromptOnboardingType extends OnboardingType {
     ].join(' ')
 
     callback(null, AssistantOnboardingMessage)
-    if (usesBackgroundRuns(this.app)) {
-      return await this.handOff(message, workspace)
-    }
-    await this.app.$store.dispatch('assistant/sendMessage', {
-      message,
-      workspace,
-    })
-    const chat = this.app.$store.getters['assistant/currentChat']
-    await waitFor(() => {
-      const currentChat = this.app.$store.getters['assistant/currentChat']
-      return !currentChat?.running
-    }, 50)
-    const tableLocation = this.app.$store.getters[
-      'assistant/uiLocationHistory'
-    ].filter((location) => location.type === 'database-table')[0]
-    if (!tableLocation) {
-      throw new Error('The assistant did not create a table.')
-    }
-    return { tableLocation, chat }
+    return await this.handOff(message, workspace)
   }
 
   /**

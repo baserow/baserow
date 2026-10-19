@@ -1,4 +1,3 @@
-import { FF_ASSISTANT_BACKGROUND_RUNS } from '@baserow/modules/core/plugins/featureFlags'
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
 /**
@@ -17,12 +16,6 @@ export const isAssistantConfigured = (app, workspace) =>
 export const isAssistantAvailable = (app, workspace) =>
   app.$hasPermission('assistant.chat', workspace, workspace.id) &&
   isAssistantConfigured(app, workspace)
-
-/**
- * Whether Kuma executes its streamed requests in durable background runs.
- */
-export const usesBackgroundRuns = (app) =>
-  app.$featureFlagIsEnabled(FF_ASSISTANT_BACKGROUND_RUNS)
 
 const RUN_ERROR_KEYS = {
   interrupted: 'assistant.runErrorInterrupted',

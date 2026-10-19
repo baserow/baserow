@@ -18,10 +18,7 @@
 </template>
 
 <script>
-import {
-  isAssistantAvailable,
-  usesBackgroundRuns,
-} from '@baserow_enterprise/utils/assistant'
+import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 import {
   getStoredPanelOpen,
   storePanelOpen,
@@ -53,9 +50,7 @@ export default {
       }
     },
     rightSidebarOpen(open) {
-      if (usesBackgroundRuns(this)) {
-        storePanelOpen(open)
-      }
+      storePanelOpen(open)
     },
   },
   mounted() {
@@ -72,9 +67,7 @@ export default {
      * when another tab closed the assistant since.
      */
     opensOnLoad() {
-      const openInThisTab = usesBackgroundRuns(this)
-        ? getStoredPanelOpen()
-        : null
+      const openInThisTab = getStoredPanelOpen()
       return (
         openInThisTab ??
         localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
