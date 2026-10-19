@@ -1,0 +1,16 @@
+{
+    "type": "feature",
+    "message": "Kuma keeps replying after you refresh or leave",
+    "issue_origin": "github",
+    "issue_number": 6346,
+    "domain": "core",
+    "bullet_points": [
+        "The export worker also consumes chat_run",
+        "Custom worker commands must add chat_run to -Q",
+        "Export worker gets 120s to stop in Compose/Helm",
+        "New Helm value for that grace period",
+        "New BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS",
+        "Stop waits for tools and keeps their changes"
+    ],
+    "created_at": "2026-10-19"
+}
