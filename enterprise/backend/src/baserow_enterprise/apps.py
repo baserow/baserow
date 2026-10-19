@@ -561,9 +561,9 @@ class BaserowEnterpriseConfig(AppConfig):
 
         chat_run_type_registry.register(AssistantChatRunType())
 
-        from baserow.core.chat_runs.stream import register_stream_path
+        from baserow.config.streaming import register_async_stream_path
 
-        register_stream_path(r"^/assistant/chat/[0-9a-fA-F-]+/messages/$")
+        register_async_stream_path(r"^/assistant/chat/[0-9a-fA-F-]+/messages/$")
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
