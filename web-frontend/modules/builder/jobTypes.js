@@ -1,5 +1,9 @@
-import SidebarItemPendingJob from '@baserow/modules/core/components/sidebar/SidebarItemPendingJob'
 import { JobType } from '@baserow/modules/core/jobTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const SidebarItemPendingJob = lazyComponent(
+  () => import('@baserow/modules/core/components/sidebar/SidebarItemPendingJob')
+)
 
 export class DuplicatePageJobType extends JobType {
   static getType() {

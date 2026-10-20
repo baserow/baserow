@@ -130,15 +130,21 @@
 </template>
 
 <script>
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AddElementZone = lazyComponent(
+  () => import('@baserow/modules/builder/components/elements/AddElementZone')
+)
+const ElementPreview = lazyComponent(
+  () => import('@baserow/modules/builder/components/elements/ElementPreview')
+)
 
 export default {
   name: 'RepeatElement',

@@ -1,5 +1,6 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 describe('Test enterprise Baserow plugin', () => {
   const app = {
@@ -17,9 +18,11 @@ describe('Test enterprise Baserow plugin', () => {
     const plugin = new EnterprisePlugin({ app })
 
     expect(
-      plugin.getRightSidebarWorkspaceComponents({
-        ai_features: { kuma: { is_enabled: true } },
-      })
+      plugin
+        .getRightSidebarWorkspaceComponents({
+          ai_features: { kuma: { is_enabled: true } },
+        })
+        .map(unwrapLazyComponent)
     ).toEqual([AssistantPanel])
     expect(
       plugin.getRightSidebarWorkspaceComponents({

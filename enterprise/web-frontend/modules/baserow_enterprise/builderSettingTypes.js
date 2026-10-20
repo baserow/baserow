@@ -1,9 +1,13 @@
 import { markRaw } from 'vue'
 import { BuilderSettingType } from '@baserow/modules/builder/builderSettingTypes'
-import CustomCodeSettingComponent from '@baserow_enterprise/components/builder/CustomCodeSetting'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { BuilderCustomCodePaidFeature } from '@baserow_enterprise/paidFeatures'
 import PaidFeaturesModalComponent from '@baserow_premium/components/PaidFeaturesModal'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const CustomCodeSettingComponent = lazyComponent(
+  () => import('@baserow_enterprise/components/builder/CustomCodeSetting')
+)
 
 const CustomCodeSetting = markRaw(CustomCodeSettingComponent)
 const PaidFeaturesModal = markRaw(PaidFeaturesModalComponent)

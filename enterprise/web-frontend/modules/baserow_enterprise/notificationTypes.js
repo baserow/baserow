@@ -1,15 +1,35 @@
 import { NotificationType } from '@baserow/modules/core/notificationTypes'
-import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
-import ApplicationUserLimitNotification from '@baserow_enterprise/components/notifications/ApplicationUserLimitNotification'
-import DataScanNewResultsNotification from '@baserow_enterprise/components/notifications/DataScanNewResultsNotification'
-import PeriodicDataSyncDeactivatedNotification from '@baserow_enterprise/components/notifications/PeriodicDataSyncDeactivatedNotification'
-import TwoWaySyncUpdateFailedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncUpdateFailedNotification'
-import TwoWaySyncDeactivatedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncDeactivatedNotification'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import { SyncedFieldsConfigureDataSyncType } from '@baserow/modules/database/configureDataSyncTypes'
 import { tableRouteResetViewIfNeeded } from '@baserow/modules/database/utils/routing'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const NotificationImgIcon = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/NotificationImgIcon')
+)
+const ApplicationUserLimitNotification = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/notifications/ApplicationUserLimitNotification')
+)
+const DataScanNewResultsNotification = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/notifications/DataScanNewResultsNotification')
+)
+const PeriodicDataSyncDeactivatedNotification = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/notifications/PeriodicDataSyncDeactivatedNotification')
+)
+const TwoWaySyncUpdateFailedNotification = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/notifications/TwoWaySyncUpdateFailedNotification')
+)
+const TwoWaySyncDeactivatedNotification = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/notifications/TwoWaySyncDeactivatedNotification')
+)
 
 export class PeriodicDataSyncDeactivatedNotificationType extends NotificationType {
   static getType() {

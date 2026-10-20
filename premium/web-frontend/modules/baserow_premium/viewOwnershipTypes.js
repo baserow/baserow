@@ -1,8 +1,12 @@
 import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import PremiumFeatures from '@baserow_premium/features'
-import ViewOwnershipMenuLink from '@baserow_premium/components/views/ViewOwnershipMenuLink'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { PersonalViewsPaidFeature } from '@baserow_premium/paidFeatures'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ViewOwnershipMenuLink = lazyComponent(
+  () => import('@baserow_premium/components/views/ViewOwnershipMenuLink')
+)
 
 export class PersonalViewOwnershipType extends ViewOwnershipType {
   static getType() {

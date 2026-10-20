@@ -1,12 +1,35 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import NotificationSenderInitialsIcon from '@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon'
-import WorkspaceInvitationCreatedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationCreatedNotification'
-import WorkspaceInvitationAcceptedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationAcceptedNotification'
-import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification'
-import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
-import AbuseReportCreatedNotification from '@baserow/modules/core/components/notifications/AbuseReportCreatedNotification'
-import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const NotificationSenderInitialsIcon = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/NotificationSenderInitialsIcon')
+)
+const WorkspaceInvitationCreatedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/WorkspaceInvitationCreatedNotification')
+)
+const WorkspaceInvitationAcceptedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/WorkspaceInvitationAcceptedNotification')
+)
+const WorkspaceInvitationRejectedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification')
+)
+const BaserowVersionUpgradeNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification')
+)
+const AbuseReportCreatedNotification = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/AbuseReportCreatedNotification')
+)
+const NotificationImgIcon = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/notifications/NotificationImgIcon')
+)
 
 export class NotificationType extends Registerable {
   getIconComponent() {

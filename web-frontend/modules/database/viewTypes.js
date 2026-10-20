@@ -1,11 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import ViewForm from '@baserow/modules/database/components/view/ViewForm'
-import GridView from '@baserow/modules/database/components/view/grid/GridView'
-import GridViewHeader from '@baserow/modules/database/components/view/grid/GridViewHeader'
-import GalleryView from '@baserow/modules/database/components/view/gallery/GalleryView'
-import GalleryViewHeader from '@baserow/modules/database/components/view/gallery/GalleryViewHeader'
-import FormView from '@baserow/modules/database/components/view/form/FormView'
-import FormViewHeader from '@baserow/modules/database/components/view/form/FormViewHeader'
 import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   filterVisibleFieldsFunction,
@@ -31,6 +24,30 @@ import {
   SortsCopyOptionType,
   ViewSettingsCopyOptionType,
 } from '@baserow/modules/database/copyViewConfigurationOptionTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ViewForm = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewForm')
+)
+const GridView = lazyComponent(
+  () => import('@baserow/modules/database/components/view/grid/GridView')
+)
+const GridViewHeader = lazyComponent(
+  () => import('@baserow/modules/database/components/view/grid/GridViewHeader')
+)
+const GalleryView = lazyComponent(
+  () => import('@baserow/modules/database/components/view/gallery/GalleryView')
+)
+const GalleryViewHeader = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/gallery/GalleryViewHeader')
+)
+const FormView = lazyComponent(
+  () => import('@baserow/modules/database/components/view/form/FormView')
+)
+const FormViewHeader = lazyComponent(
+  () => import('@baserow/modules/database/components/view/form/FormViewHeader')
+)
 
 export class ViewType extends Registerable {
   /**

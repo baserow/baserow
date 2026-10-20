@@ -1,7 +1,15 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
-import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AgentInstructionsSection = lazyComponent(
+  () =>
+    import('@baserow/modules/agent/components/configuration/AgentInstructionsSection')
+)
+const AgentSettingsSection = lazyComponent(
+  () =>
+    import('@baserow/modules/agent/components/configuration/AgentSettingsSection')
+)
 
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)

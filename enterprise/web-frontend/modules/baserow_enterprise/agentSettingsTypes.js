@@ -1,7 +1,11 @@
 import { markRaw } from 'vue'
 import { AgentSettingsType } from '@baserow/modules/core/agentSettingsTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import AgentTeamsFormFieldComponent from '@baserow_enterprise/components/agents/AgentTeamsFormField'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AgentTeamsFormFieldComponent = lazyComponent(
+  () => import('@baserow_enterprise/components/agents/AgentTeamsFormField')
+)
 
 const AgentTeamsFormField = markRaw(AgentTeamsFormFieldComponent)
 

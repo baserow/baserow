@@ -1,13 +1,26 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/automation/components/application/ApplicationContext'
-import AutomationForm from '@baserow/modules/automation/components/form/AutomationForm'
-import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
 import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
-import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
-import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AutomationForm = lazyComponent(
+  () => import('@baserow/modules/automation/components/form/AutomationForm')
+)
+const SidebarComponentAutomation = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/sidebar/SidebarComponentAutomation')
+)
+const WorkflowTemplate = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/workflow/WorkflowTemplate.vue')
+)
+const WorkflowTemplateSideBar = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue')
+)
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {

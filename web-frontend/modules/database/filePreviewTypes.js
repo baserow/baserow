@@ -1,9 +1,21 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import PreviewImage from '@baserow/modules/database/components/preview/PreviewImage'
-import PreviewVideo from '@baserow/modules/database/components/preview/PreviewVideo'
-import PreviewAudio from '@baserow/modules/database/components/preview/PreviewAudio'
-import PreviewPDFBrowser from '@baserow/modules/database/components/preview/PreviewPDFBrowser'
-import PreviewGoogleDocs from '@baserow/modules/database/components/preview/PreviewGoogleDocs'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const PreviewImage = lazyComponent(
+  () => import('@baserow/modules/database/components/preview/PreviewImage')
+)
+const PreviewVideo = lazyComponent(
+  () => import('@baserow/modules/database/components/preview/PreviewVideo')
+)
+const PreviewAudio = lazyComponent(
+  () => import('@baserow/modules/database/components/preview/PreviewAudio')
+)
+const PreviewPDFBrowser = lazyComponent(
+  () => import('@baserow/modules/database/components/preview/PreviewPDFBrowser')
+)
+const PreviewGoogleDocs = lazyComponent(
+  () => import('@baserow/modules/database/components/preview/PreviewGoogleDocs')
+)
 
 export class FilePreviewType extends Registerable {
   /**

@@ -54,16 +54,22 @@
 <script>
 import _ from 'lodash'
 
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import {
   COLUMN_STACKING,
   VERTICAL_ALIGNMENTS,
 } from '@baserow/modules/builder/enums'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AddElementZone = lazyComponent(
+  () => import('@baserow/modules/builder/components/elements/AddElementZone')
+)
+const ElementPreview = lazyComponent(
+  () => import('@baserow/modules/builder/components/elements/ElementPreview')
+)
 
 export default {
   name: 'ColumnElement',

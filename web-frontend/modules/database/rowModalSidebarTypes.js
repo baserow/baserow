@@ -1,5 +1,9 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import RowHistorySidebar from '@baserow/modules/database/components/row/RowHistorySidebar.vue'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const RowHistorySidebar = lazyComponent(
+  () => import('@baserow/modules/database/components/row/RowHistorySidebar.vue')
+)
 
 export class RowModalSidebarType extends Registerable {
   /**

@@ -9,36 +9,30 @@ export const GetFormulaComponentNode = Node.create({
   name: 'get-formula-component',
   group: 'inline',
   inline: true,
-  draggable: true,
-
+  selectable: false,
+  atom: true,
+  addNodeView() {
+    return VueNodeViewRenderer(GetFormulaComponent)
+  },
   addAttributes() {
     return {
       path: {
-        default: null,
+        default: '',
       },
       isSelected: {
         default: false,
       },
     }
   },
-
   parseHTML() {
     return [
       {
-        tag: 'span[data-formula-component="get-formula-component"]',
+        tag: 'get-formula-component',
       },
     ]
   },
-
   renderHTML({ HTMLAttributes }) {
-    return [
-      'span',
-      mergeAttributes(HTMLAttributes, { 'data-formula-component': this.name }),
-    ]
-  },
-
-  addNodeView() {
-    return VueNodeViewRenderer(GetFormulaComponent)
+    return ['get-formula-component', mergeAttributes(HTMLAttributes)]
   },
 })
 

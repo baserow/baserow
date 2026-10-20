@@ -1,7 +1,11 @@
 import { AgentExtensionType } from '@baserow/modules/core/agentExtensionTypes'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import AgentTeamsCell from '@baserow_enterprise/components/agents/AgentTeamsCell'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AgentTeamsCell = lazyComponent(
+  () => import('@baserow_enterprise/components/agents/AgentTeamsCell')
+)
 
 export class EnterpriseTeamsAgentExtensionType extends AgentExtensionType {
   static getType() {

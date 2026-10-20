@@ -22,7 +22,6 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
-import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
@@ -34,6 +33,12 @@ import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enu
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 import { useRoute, useRouter } from '#imports'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ApplicationBuilderFormulaInput = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/ApplicationBuilderFormulaInput')
+)
 
 defineOptions({
   name: 'PublicPageContent',
