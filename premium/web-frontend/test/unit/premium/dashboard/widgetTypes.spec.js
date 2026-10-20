@@ -5,6 +5,7 @@ import {
   ChartWidgetType,
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 const app = {
   $i18n: {
@@ -14,7 +15,11 @@ const app = {
 
 describe('premium dashboard widget types', () => {
   test('maps cartesian and pie widgets to the shared chart component', () => {
-    expect(new ChartWidgetType({ app }).component).toBe(ChartWidget)
-    expect(new PieChartWidgetType({ app }).component).toBe(ChartWidget)
+    expect(unwrapLazyComponent(new ChartWidgetType({ app }).component)).toBe(
+      ChartWidget
+    )
+    expect(unwrapLazyComponent(new PieChartWidgetType({ app }).component)).toBe(
+      ChartWidget
+    )
   })
 })

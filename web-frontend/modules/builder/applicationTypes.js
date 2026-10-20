@@ -1,14 +1,25 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import BuilderForm from '@baserow/modules/builder/components/form/BuilderForm'
-import SidebarComponentBuilder from '@baserow/modules/builder/components/sidebar/SidebarComponentBuilder'
 import { populatePage } from '@baserow/modules/builder/store/page'
-import PageTemplate from '@baserow/modules/builder/components/page/PageTemplate'
-import PageTemplateSidebar from '@baserow/modules/builder/components/page/PageTemplateSidebar'
 import BuilderApplicationContext from '@baserow/modules/builder/components/application/BuilderApplicationContext'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const BuilderForm = lazyComponent(
+  () => import('@baserow/modules/builder/components/form/BuilderForm')
+)
+const SidebarComponentBuilder = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/sidebar/SidebarComponentBuilder')
+)
+const PageTemplate = lazyComponent(
+  () => import('@baserow/modules/builder/components/page/PageTemplate')
+)
+const PageTemplateSidebar = lazyComponent(
+  () => import('@baserow/modules/builder/components/page/PageTemplateSidebar')
+)
 
 export class BuilderApplicationType extends ApplicationType {
   static getType() {

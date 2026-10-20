@@ -1,19 +1,31 @@
 import moment from '@baserow/modules/core/moment'
-import ViewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText'
-import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   ViewFilterType,
   BaseDateMultiStepViewFilterType,
 } from '@baserow/modules/database/viewFilters'
-import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
-import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import {
   BaserowFormulaDurationType,
   BaserowFormulaNumberType,
 } from '@baserow/modules/database/formula/formulaTypes'
 import { ComparisonOperator } from '@baserow/modules/database//utils/fieldFilters'
 import { mix } from '@baserow/modules/core/mixins'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ViewFilterTypeText = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewFilterTypeText')
+)
+const ViewFilterTypeNumber = lazyComponent(
+  () => import('@baserow/modules/database/components/view/ViewFilterTypeNumber')
+)
+const viewFilterTypeText = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeText.vue')
+)
+const ViewFilterTypeMultipleSelectOptions = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions')
+)
 
 const HasEmptyValueViewFilterTypeMixin = {
   getCompatibleFieldTypes() {

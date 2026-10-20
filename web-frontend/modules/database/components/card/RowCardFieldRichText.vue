@@ -28,7 +28,6 @@ export default {
       default: true,
     },
   },
-  height: 32,
   computed: {
     formattedValue() {
       const workspace = this.$store.getters['workspace/get'](this.workspaceId)

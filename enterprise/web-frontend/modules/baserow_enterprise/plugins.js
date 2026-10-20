@@ -1,23 +1,62 @@
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
-import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/ChatwootSupportSidebarWorkspace'
-import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
-import MemberRolesApplicationContextItem from '@baserow_enterprise/components/member-roles/MemberRolesApplicationContextItem'
-import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
-import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import SnapshotModalWarning from '@baserow_enterprise/components/SnapshotModalWarning'
-import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSettings'
-import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
-import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
-import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
-import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
 import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
-import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
-import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
-import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const ChatwootSupportSidebarWorkspace = lazyComponent(
+  () => import('@baserow_enterprise/components/ChatwootSupportSidebarWorkspace')
+)
+const AuditLogSidebarWorkspace = lazyComponent(
+  () => import('@baserow_enterprise/components/AuditLogSidebarWorkspace')
+)
+const MemberRolesApplicationContextItem = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/member-roles/MemberRolesApplicationContextItem')
+)
+const MemberRolesTableContextItem = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/member-roles/MemberRolesTableContextItem')
+)
+const MemberRolesViewContextItem = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/member-roles/MemberRolesViewContextItem')
+)
+const SnapshotModalWarning = lazyComponent(
+  () => import('@baserow_enterprise/components/SnapshotModalWarning')
+)
+const EnterpriseSettings = lazyComponent(
+  () => import('@baserow_enterprise/components/EnterpriseSettings')
+)
+const EnterpriseSettingsOverrideDashboardHelp = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp')
+)
+const EnterpriseLogo = lazyComponent(
+  () => import('@baserow_enterprise/components/EnterpriseLogo')
+)
+const AssistantSidebarItem = lazyComponent(
+  () => import('@baserow_enterprise/components/assistant/AssistantSidebarItem')
+)
+const AssistantPanel = lazyComponent(
+  () => import('@baserow_enterprise/components/assistant/AssistantPanel')
+)
+const AssistantDashboardPrompt = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/assistant/AssistantDashboardPrompt')
+)
+const DateDependencyMenuItem = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/dateDependency/DateDependencyMenuItem')
+)
+const DateDependencyFieldTypeIcon = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon')
+)
+const ExportWorkspaceModalWarning = lazyComponent(
+  () => import('@baserow_enterprise/components/ExportWorkspaceModalWarning')
+)
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {

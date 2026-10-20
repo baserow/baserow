@@ -1,7 +1,15 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import AgentGeneralSettingsFormComponent from '@baserow/modules/core/components/settings/agents/AgentGeneralSettingsForm'
-import AgentMcpServerSettingsComponent from '@baserow/modules/core/components/settings/agents/AgentMcpServerSettings'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AgentGeneralSettingsFormComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/settings/agents/AgentGeneralSettingsForm')
+)
+const AgentMcpServerSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/settings/agents/AgentMcpServerSettings')
+)
 
 const AgentGeneralSettingsForm = markRaw(AgentGeneralSettingsFormComponent)
 const AgentMcpServerSettings = markRaw(AgentMcpServerSettingsComponent)

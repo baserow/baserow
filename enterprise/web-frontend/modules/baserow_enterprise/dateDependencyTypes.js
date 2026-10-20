@@ -1,8 +1,16 @@
 import _ from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
-import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import TimelineFieldRuleType from '@baserow_premium/timelineFieldRuleType'
-import DateDependencyConnection from '@baserow_enterprise/components/dateDependency/DateDependencyConnection'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const DateDependencyMenuItem = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/dateDependency/DateDependencyMenuItem')
+)
+const DateDependencyConnection = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/dateDependency/DateDependencyConnection')
+)
 
 // Date dependency on timeline views
 // seconds for a full day

@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { MultipleCollaboratorsFieldType } from '@baserow/modules/database/fieldTypes'
 import GridViewGroupValueMultipleCollaborators from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleCollaborators'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 describe('GridViewGroupValueMultipleCollaborators component', () => {
   let testApp = null
@@ -49,8 +50,10 @@ describe('GridViewGroupValueMultipleCollaborators component', () => {
   })
 
   test('is used by collaborator group-by values', () => {
-    expect(new MultipleCollaboratorsFieldType().getGroupByComponent()).toBe(
-      GridViewGroupValueMultipleCollaborators
-    )
+    expect(
+      unwrapLazyComponent(
+        new MultipleCollaboratorsFieldType().getGroupByComponent()
+      )
+    ).toBe(GridViewGroupValueMultipleCollaborators)
   })
 })

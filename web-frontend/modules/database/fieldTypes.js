@@ -123,17 +123,12 @@ import RowCardFieldEmail from '@baserow/modules/database/components/card/RowCard
 import RowCardFieldFile from '@baserow/modules/database/components/card/RowCardFieldFile'
 import RowCardFieldFormula from '@baserow/modules/database/components/card/RowCardFieldFormula'
 import RowCardFieldLinkRow from '@baserow/modules/database/components/card/RowCardFieldLinkRow'
-import GridViewGroupValueBoolean from '@baserow/modules/database/components/view/grid/GridViewGroupValueBoolean'
-import GridViewGroupValueLinkRow from '@baserow/modules/database/components/view/grid/GridViewGroupValueLinkRow'
-import GridViewGroupValueMultipleCollaborators from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleCollaborators'
-import GridViewGroupValueMultipleSelect from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleSelect'
 import RowCardFieldMultipleSelect from '@baserow/modules/database/components/card/RowCardFieldMultipleSelect'
 import RowCardFieldNumber from '@baserow/modules/database/components/card/RowCardFieldNumber'
 import RowCardFieldRating from '@baserow/modules/database/components/card/RowCardFieldRating'
 import RowCardFieldPhoneNumber from '@baserow/modules/database/components/card/RowCardFieldPhoneNumber'
 import RowCardFieldSingleSelect from '@baserow/modules/database/components/card/RowCardFieldSingleSelect'
 import RowCardFieldText from '@baserow/modules/database/components/card/RowCardFieldText'
-import RowCardFieldRichText from '@baserow/modules/database/components/card/RowCardFieldRichText'
 import RowCardFieldURL from '@baserow/modules/database/components/card/RowCardFieldURL'
 import RowCardFieldMultipleCollaborators from '@baserow/modules/database/components/card/RowCardFieldMultipleCollaborators'
 import RowCardFieldUUID from '@baserow/modules/database/components/card/RowCardFieldUUID'
@@ -141,19 +136,6 @@ import RowCardFieldAutonumber from '@baserow/modules/database/components/card/Ro
 import RowCardFieldLastModifiedBy from '@baserow/modules/database/components/card/RowCardFieldLastModifiedBy'
 import RowCardFieldPassword from '@baserow/modules/database/components/card/RowCardFieldPassword'
 import RowCardFieldFormViewEditRow from '@baserow/modules/database/components/card/RowCardFieldFormViewEditRow'
-
-import RowHistoryFieldText from '@baserow/modules/database/components/row/RowHistoryFieldText'
-import RowHistoryFieldRichText from '@baserow/modules/database/components/row/RowHistoryFieldRichText'
-import RowHistoryFieldDate from '@baserow/modules/database/components/row/RowHistoryFieldDate'
-import RowHistoryFieldNumber from '@baserow/modules/database/components/row/RowHistoryFieldNumber'
-import RowHistoryFieldDuration from '@baserow/modules/database/components/row/RowHistoryFieldDuration'
-import RowHistoryFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowHistoryFieldMultipleCollaborators'
-import RowHistoryFieldFile from '@baserow/modules/database/components/row/RowHistoryFieldFile'
-import RowHistoryFieldMultipleSelect from '@baserow/modules/database/components/row/RowHistoryFieldMultipleSelect'
-import RowHistoryFieldSingleSelect from '@baserow/modules/database/components/row/RowHistoryFieldSingleSelect'
-import RowHistoryFieldBoolean from '@baserow/modules/database/components/row/RowHistoryFieldBoolean'
-import RowHistoryFieldLinkRow from '@baserow/modules/database/components/row/RowHistoryFieldLinkRow'
-import RowHistoryFieldPassword from '@baserow/modules/database/components/row/RowHistoryFieldPassword'
 
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
@@ -189,15 +171,91 @@ import FormService from '@baserow/modules/database/services/view/form'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import _ from 'lodash'
 import { trueValues } from '@baserow/modules/core/utils/constants'
-import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
-import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
-import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
 import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
 import FunctionalGridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldButtonField'
 import RowEditFieldButtonField from '@baserow/modules/database/components/row/RowEditFieldButtonField'
 import RowCardFieldButtonField from '@baserow/modules/database/components/card/RowCardFieldButtonField'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const RowCardFieldRichText = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/card/RowCardFieldRichText'),
+  { height: 32 }
+)
+const GridViewGroupValueBoolean = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/grid/GridViewGroupValueBoolean')
+)
+const GridViewGroupValueLinkRow = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/grid/GridViewGroupValueLinkRow')
+)
+const GridViewGroupValueMultipleCollaborators = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleCollaborators')
+)
+const GridViewGroupValueMultipleSelect = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleSelect')
+)
+const RowHistoryFieldText = lazyComponent(
+  () => import('@baserow/modules/database/components/row/RowHistoryFieldText')
+)
+const RowHistoryFieldRichText = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldRichText')
+)
+const RowHistoryFieldDate = lazyComponent(
+  () => import('@baserow/modules/database/components/row/RowHistoryFieldDate')
+)
+const RowHistoryFieldNumber = lazyComponent(
+  () => import('@baserow/modules/database/components/row/RowHistoryFieldNumber')
+)
+const RowHistoryFieldDuration = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldDuration')
+)
+const RowHistoryFieldMultipleCollaborators = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldMultipleCollaborators')
+)
+const RowHistoryFieldFile = lazyComponent(
+  () => import('@baserow/modules/database/components/row/RowHistoryFieldFile')
+)
+const RowHistoryFieldMultipleSelect = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldMultipleSelect')
+)
+const RowHistoryFieldSingleSelect = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldSingleSelect')
+)
+const RowHistoryFieldBoolean = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldBoolean')
+)
+const RowHistoryFieldLinkRow = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldLinkRow')
+)
+const RowHistoryFieldPassword = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldPassword')
+)
+const ViewFilterTypeNumber = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeNumber.vue')
+)
+const ViewFilterTypeDuration = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/ViewFilterTypeDuration.vue')
+)
+const FormViewFieldOptionsAllowedSelectOptions = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions')
+)
 
 export class FieldType extends Registerable {
   /**

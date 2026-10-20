@@ -1,8 +1,16 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
-import GeneralSettingsComponent from '@baserow/modules/automation/components/settings/GeneralSettings'
-import IntegrationSettingsComponent from '@baserow/modules/automation/components/settings/IntegrationSettings'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const GeneralSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/settings/GeneralSettings')
+)
+const IntegrationSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/automation/components/settings/IntegrationSettings')
+)
 
 const GeneralSettings = markRaw(GeneralSettingsComponent)
 const IntegrationSettings = markRaw(IntegrationSettingsComponent)

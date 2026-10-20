@@ -1,7 +1,14 @@
 import { RowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
-import RowCommentsSidebar from '@baserow_premium/components/row_comments/RowCommentsSidebar'
-import RowEditModalCommentNotificationMode from '@baserow_premium/components/row_comments/RowEditModalCommentNotificationMode'
 import PremiumFeatures from '@baserow_premium/features'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const RowCommentsSidebar = lazyComponent(
+  () => import('@baserow_premium/components/row_comments/RowCommentsSidebar')
+)
+const RowEditModalCommentNotificationMode = lazyComponent(
+  () =>
+    import('@baserow_premium/components/row_comments/RowEditModalCommentNotificationMode')
+)
 
 export class CommentsRowModalSidebarType extends RowModalSidebarType {
   static getType() {

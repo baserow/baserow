@@ -1,12 +1,24 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/dashboard/components/application/ApplicationContext'
-import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardForm'
-import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
-import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
-import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const DashboardForm = lazyComponent(
+  () => import('@baserow/modules/dashboard/components/form/DashboardForm')
+)
+const SidebarComponentDashboard = lazyComponent(
+  () =>
+    import('@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard')
+)
+const DashboardTemplateSidebar = lazyComponent(
+  () =>
+    import('@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar')
+)
+const DashboardTemplate = lazyComponent(
+  () => import('@baserow/modules/dashboard/components/DashboardTemplate')
+)
 
 export class DashboardApplicationType extends ApplicationType {
   static getType() {

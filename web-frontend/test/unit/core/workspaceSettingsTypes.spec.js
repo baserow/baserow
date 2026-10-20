@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 describe('GenerativeAIWorkspaceSettingsType', () => {
   test('opens AI provider management', () => {
@@ -11,6 +12,8 @@ describe('GenerativeAIWorkspaceSettingsType', () => {
 
     expect(settingsType.getName()).toBe('workspaceSettingType.aiProviders')
     expect(settingsType.getIconClass()).toBe('iconoir-sparks')
-    expect(settingsType.getComponent()).toBe(AIProviderWorkspaceSettings)
+    expect(unwrapLazyComponent(settingsType.getComponent())).toBe(
+      AIProviderWorkspaceSettings
+    )
   })
 })

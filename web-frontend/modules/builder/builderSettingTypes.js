@@ -1,12 +1,29 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
 import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
-import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
-import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
-import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
-import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
-import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
-import BreakpointsSettingsComponent from '@baserow/modules/builder/components/settings/BreakpointsSettings'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const GeneralSettingsComponent = lazyComponent(
+  () => import('@baserow/modules/builder/components/settings/GeneralSettings')
+)
+const IntegrationSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/settings/IntegrationSettings')
+)
+const ThemeSettingsComponent = lazyComponent(
+  () => import('@baserow/modules/builder/components/settings/ThemeSettings')
+)
+const DomainsSettingsComponent = lazyComponent(
+  () => import('@baserow/modules/builder/components/settings/DomainsSettings')
+)
+const UserSourcesSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/settings/UserSourcesSettings')
+)
+const BreakpointsSettingsComponent = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/settings/BreakpointsSettings')
+)
 
 const GeneralSettings = markRaw(GeneralSettingsComponent)
 const IntegrationSettings = markRaw(IntegrationSettingsComponent)
