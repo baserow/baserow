@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Callable, Optional
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -58,9 +58,6 @@ def output_events(mocker, request):
         return appended
 
     mocker.patch("baserow.core.chat_runs.buffer.ChatRunBuffer.append", append)
-    mocker.patch(
-        "baserow.core.chat_runs.buffer.ChatRunBuffer.finish", new_callable=AsyncMock
-    )
     mocker.patch("baserow.core.chat_runs.handler.notify_run_on_commit")
     mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
     return events
