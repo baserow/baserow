@@ -24,7 +24,14 @@
         "saturday": "토요일",
         "sunday": "일요일",
         "value": "값",
-        "workspace": "작업공간"
+        "workspace": "작업공간",
+        "created": "생성일",
+        "lastViewed": "마지막 조회",
+        "nameAsc": "이름 (A-Z)",
+        "nameDesc": "이름 (Z-A)",
+        "neverViewed": "조회 기록 없음",
+        "createdAgo": "{ago}에 생성됨",
+        "viewedAgo": "{ago}에 조회함"
     },
     "action": {
         "close": "닫기",
@@ -127,7 +134,8 @@
         "alreadyInUse": "이 필드 이름은 이미 사용 중입니다.",
         "copyFailed": "클립보드에 복사하지 못했습니다. 다시 시도해 주세요.",
         "nameContainsUrl": "이름에는 링크, 도메인 또는 웹 주소가 포함될 수 없습니다.",
-        "nameCantBeEmail": "이메일 주소가 아닌 이름을 입력해 주세요."
+        "nameCantBeEmail": "이메일 주소가 아닌 이름을 입력해 주세요.",
+        "nameContainsSpam": "이름에는 장식용 문자나 긴 숫자를 사용할 수 없습니다."
     },
     "permission": {
         "admin": "관리자",
@@ -189,7 +197,8 @@
         "maxChars": "최대 {max}자.",
         "minChars": "최소 {min}자.",
         "higherThan": "값이 {max}보다 높습니다.",
-        "maxCharsExceeded": "최대 문자 수 {max}개(-{over})."
+        "maxCharsExceeded": "최대 문자 수 {max}개(-{over}).",
+        "maxImagesExceeded": "이미지는 최대 {max}개입니다({over}개를 제거하세요)."
     },
     "fieldDocs": {
         "readOnly": "이 필드는 읽기 전용 필드입니다.",
@@ -226,7 +235,8 @@
         "autonumber": "각 새 행에 대해 자동으로 번호를 증가시키는 읽기 전용 필드입니다.",
         "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다.",
         "formViewEditRow": "읽기 전용 필드로, 연결된 양식 보기를 통해 행을 편집할 수 있도록 고유하고 서명된 URL을 생성합니다.",
-        "button": "버튼 필드입니다. 버튼을 클릭하면 해당 행의 값으로 구성된 URL이 열립니다. 셀에는 데이터가 저장되지 않으며 쓰기 작업은 허용되지 않습니다."
+        "button": "버튼 필드입니다. 버튼을 클릭하면 해당 행의 값으로 구성된 URL이 열립니다. 셀에는 데이터가 저장되지 않으며 쓰기 작업은 허용되지 않습니다.",
+        "longTextRichText": "마크다운 형식의 여러 줄 텍스트를 허용합니다. 이미지를 삽입하려면 파일 업로드 엔드포인트로 업로드한 후 반환된 이름을 ![alt][name] 형식으로 참조하세요. 응답에는 임시 URL이 추가되어 ![alt][name](url) 형식이 되며, 값을 다시 보낼 때 이 URL은 무시됩니다. 값 하나에서 최대 100개의 이미지를 참조할 수 있으며, 모든 이름은 업로드된 이미지의 이름이어야 합니다."
     },
     "viewFilter": {
         "hasEmptyValue": "값이 비어 있음",
@@ -343,7 +353,9 @@
         "automation_workflow": "자동화 워크플로",
         "automation_node": "자동화 노드",
         "builder_page": "빌더 페이지",
-        "builder_element": "빌더 요소"
+        "builder_element": "빌더 요소",
+        "agent": "에이전트",
+        "database_workflow_action": "버튼 작업"
     },
     "webhook": {
         "request": "요청",
@@ -465,7 +477,9 @@
         "fieldConstraintTitle": "필드 제약 조건 위반",
         "fieldConstraintDescription": "제약조건을 적용할 수 없습니다.",
         "fieldDataConstraintTitle": "필드 데이터 제약 조건 위반",
-        "fieldDataConstraintDescription": "기존 제약 조건 위반으로 인해 작업을 완료할 수 없습니다."
+        "fieldDataConstraintDescription": "기존 제약 조건 위반으로 인해 작업을 완료할 수 없습니다.",
+        "userFileDoesNotExistTitle": "이미지가 존재하지 않습니다",
+        "userFileDoesNotExistDescription": "값이 더 이상 존재하지 않는 이미지를 참조합니다. 해당 참조를 제거하고 다시 시도하세요."
     },
     "importerType": {
         "csv": "CSV 파일 가져오기",
@@ -729,7 +743,9 @@
         "durationFormatDescription": "'d'(일), 'h'(시간), 'm'(분), 's'(초) 토큰을 사용하는 형식 문자열을 이용하여 기간을 텍스트 형식으로 지정합니다. 예: 'h:mm', 'd h:mm:ss'.",
         "categoryUtility": "유틸리티",
         "encodeUriDescription": "퍼센트(%)는 URL에서 허용되지 않는 문자를 인코딩하여 URL 구조는 그대로 유지합니다",
-        "encodeUriComponentDescription": "퍼센트 부호는 인수를 URL의 한 부분(예: 경로 세그먼트 또는 쿼리 매개변수)으로 안전하게 사용할 수 있도록 인코딩합니다"
+        "encodeUriComponentDescription": "퍼센트 부호는 인수를 URL의 한 부분(예: 경로 세그먼트 또는 쿼리 매개변수)으로 안전하게 사용할 수 있도록 인코딩합니다",
+        "nowDescription": "현재 날짜와 시간을 반환합니다.",
+        "markdownToHtmlDescription": "서식 있는 텍스트 필드의 값과 같은 마크다운을 HTML로 변환합니다. HTML 이메일 본문과 HTTP 요청 페이로드에 유용합니다."
     },
     "formulaInputContext": {
         "useRegularInput": "일반적인 입력을 사용",
