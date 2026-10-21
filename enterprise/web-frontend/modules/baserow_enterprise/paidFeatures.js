@@ -364,6 +364,32 @@ export class XLSFileReaderPaidFeature extends PaidFeature {
   }
 }
 
+export class SemanticSearchPaidFeature extends PaidFeature {
+  static getType() {
+    return 'semantic_search'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-search'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.semanticSearch')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.semanticSearchContent')
+  }
+}
+
 export class DataScannerPaidFeature extends PaidFeature {
   static getType() {
     return 'data_scanner'

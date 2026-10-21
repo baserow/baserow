@@ -21,3 +21,4 @@ XLS_FILE_READER = "xls_file_reader"
 
 DATE_DEPENDENCY = "date_dependency"
 DATA_SCANNER = "data_scanner"
+SEMANTIC_SEARCH = "semantic_search"
