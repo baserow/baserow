@@ -281,8 +281,8 @@
     },
     "errorLayout": {
         "notFound": "Strona, której szukasz, nie została znaleziona. Może to być spowodowane tym, że adres URL jest nieprawidłowy lub że nie masz uprawnień dostępu do tej strony.",
-        "error": "Podczas otwierania strony wystąpił błąd. Nasi programiści zostali powiadomieni o problemie. Proszę spróbować odświeżyć stronę lub powrócić do pulpitu.",
-        "backDashboard": "Powrót do pulpitu",
+        "error": "Podczas otwierania strony wystąpił błąd. Nasi programiści zostali powiadomieni o problemie. Proszę spróbować odświeżyć stronę lub powrócić na stronę główną.",
+        "backDashboard": "Powrót na stronę główną",
         "backLogin": "Powrót do logowania",
         "wrong": "Wystąpił błąd",
         "refresh": "Odśwież stronę",
@@ -1332,8 +1332,9 @@
         "notAllowedDescription": "2FA jest dostępne tylko dla kont z hasłem."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Przykład",
-        "result": "Wynik: {result}"
+        "exampleLabel": "Przykład | Przykłady",
+        "result": "Wynik: {result}",
+        "clickToInsert": "Kliknij przykład, aby go wstawić"
     },
     "enableWithQRCode": {
         "scanQRCode": "Zeskanuj kod QR",
@@ -1426,12 +1427,12 @@
         "removeModel": "Usuń model",
         "editModel": "Edytuj model",
         "modelIdentifier": "Identyfikator modelu",
-        "modelDiscoveryHelp": "Wybierz model z listy Pydantic AI lub wprowadź dowolny własny identyfikator.",
+        "modelDiscoveryHelp": "Wybierz model z listy lub wprowadź dowolny własny identyfikator.",
         "modelDiscoveryUnavailable": "Lista modeli jest niedostępna. Wprowadź identyfikator ręcznie.",
-        "modelDiscoveryEmpty": "Na liście Pydantic AI nie ma modeli tego dostawcy. Wprowadź identyfikator ręcznie.",
+        "modelDiscoveryEmpty": "Na liście nie ma modeli tego dostawcy. Wprowadź identyfikator ręcznie.",
         "modelDiscoveryNoMatch": "Nie znaleziono pasujących modeli. Możesz użyć identyfikatora, który wprowadziłeś.",
         "noProviders": "W tej instancji nie skonfigurowano jeszcze dostawców AI",
-        "noProvidersDescription": "Dodaj dostawcę ręcznie lub wyświetl podgląd i uruchom polecenie importu środowiska przed włączeniem tej funkcji dla użytkowników.",
+        "noProvidersDescription": "Dodaj dostawcę, aby skonfigurować modele, które mają być dostępne w twoim obszarze roboczym.",
         "noModels": "Dla tego dostawcy nie skonfigurowano jeszcze żadnych modeli.",
         "active": "Aktywny",
         "inactive": "Nieaktywny",
@@ -1598,6 +1599,41 @@
         "addressVersionTest": "Test",
         "addressVersionPublished": "Opublikowany",
         "copyAddress": "Skopiuj adres e-mail",
-        "description": "Każda wiadomość e-mail wysłana na ten adres uruchomi proces, a jako payload zostaną użyte: nadawca, temat, treść oraz załączniki tej wiadomości."
+        "description": "Każda wiadomość e-mail wysłana na ten adres uruchomi proces, a jako payload zostaną użyte: nadawca, temat, treść oraz załączniki tej wiadomości.",
+        "limits": "Akceptowane są wiadomości e-mail o rozmiarze do {size} MB, a treść tekstowa do 1 MB oraz treść HTML również do 1 MB. Załączniki nie są przechowywane: w treści wiadomości uwzględniane są jedynie ich nazwa, rodzaj i rozmiar.",
+        "autoForwardTip": "Wskazówka: możesz również dodać ten adres w ustawieniach przekierowania w swojej skrzynce odbiorczej. Dzięki temu proces zostanie uruchomiony za każdym razem, gdy otrzymasz e-mail.",
+        "secretWarning": "Traktuj ten adres jako sekret: ktokolwiek go zna, może uruchomić ten proces.",
+        "regenerate": "Wygeneruj adres ponownie",
+        "infoDescription": "W zależności od dostawcy usług e-mailowych, dostarczenie wiadomości może potrwać do kilku minut."
+    },
+    "mcpOAuthConnections": {
+        "tools": "{count} narzędzie | liczba narzędzi: {count}",
+        "connectedOn": "Podłączono {date}",
+        "disconnect": "Rozłącz",
+        "confirmDisconnect": "Kliknij ponownie aby rozłączyć"
+    },
+    "subjectType": {
+        "user": "Użytkownik",
+        "users": "Użytkownicy",
+        "anonymousUser": "Użytkownik anonimowy",
+        "agent": "Agent",
+        "agents": "Agenci"
+    },
+    "agents": {
+        "saved": "Zmiany zostały zapisane",
+        "tabTitle": "Agenci",
+        "title": "{count} agentów w {workspace}",
+        "create": "Utwórz agenta",
+        "createTitle": "Utwórz agenta",
+        "updateTitle": "Edytuj agenta",
+        "save": "Zapisz agenta",
+        "edit": "Edytuj agenta",
+        "delete": "Usuń agenta",
+        "general": "Ogólnie",
+        "mcpServerPlaceholder": "Tutaj znajdziesz ustawienia serwera MCP.",
+        "name": "Nazwa",
+        "invalidNameTitle": "Ta nazwa agenta nie jest dozwolona",
+        "lastActive": "Ostatnia aktywność",
+        "workspaceRole": "Rola w obszarze roboczym"
     }
 }
