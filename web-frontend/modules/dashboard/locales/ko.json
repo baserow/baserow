@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "설명"
+        "descriptionPlaceholder": "설명",
+        "addWidget": "위젯 추가",
+        "widgetsLoading": "대시보드를 불러오는 중..."
     },
     "dashboardHeader": {
         "doneEditing": "편집 완료"
@@ -43,5 +45,8 @@
     },
     "trashType": {
         "widget": "위젯"
+    },
+    "lastViewedItemType": {
+        "dashboard": "대시보드"
     }
 }
