@@ -918,7 +918,8 @@
         "restored": ": użytkownik, który przywrócił ten wiersz",
         "createdUndo": "cofnij utworzenie wiersza",
         "updatedUndo": "cofnij aktualizację wiersza",
-        "deletedUndo": "cofnij usunięcie wiersza"
+        "deletedUndo": "cofnij usunięcie wiersza",
+        "anonymousUser": "Użytkownik anonimowy"
     },
     "formSubmittedNotification": {
         "title": "{formName} został przesłany do tabeli {tableName}:",
