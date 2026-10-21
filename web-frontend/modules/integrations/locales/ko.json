@@ -12,7 +12,9 @@
     "localBaserowIntegrationType": {
         "localBaserowSummary": "로컬 Baserow - {name}, {username}",
         "localBaserowNoUser": "로컬 Baserow - 구성되지 않음",
-        "localBaserowWarning": "계정을 승인하면 애플리케이션 편집 권한이 있는 모든 사용자에게 귀하가 접근하는 데이터에 대한 전체 접근 권한이 부여됩니다. 두 번째 사용자를 생성하고 적절한 권한을 부여하여 해당 사용자를 사용할 수 있습니다."
+        "localBaserowWarning": "계정을 승인하면 애플리케이션 편집 권한이 있는 모든 사용자에게 귀하가 접근하는 데이터에 대한 전체 접근 권한이 부여됩니다. 두 번째 사용자를 생성하고 적절한 권한을 부여하여 해당 사용자를 사용할 수 있습니다.",
+        "localBaserowSubjectSummary": "로컬 Baserow - {type}: {name}",
+        "errorTrashedAgent": "인증된 에이전트가 휴지통으로 이동되었습니다"
     },
     "serviceType": {
         "localBaserowGetRow": "단일 행 가져오기",
@@ -58,7 +60,7 @@
         "coreHTTPTrigger": "HTTP 요청을 수신합니다",
         "coreHTTPTriggerDescription": "HTTP 요청이 수신될 때 발생합니다.",
         "coreIteration": "반복자",
-        "coreIterationDescription": "항목을 반복합니다.",
+        "coreIterationDescription": "목록의 각 항목을 순회하며 항목마다 하위 노드를 한 번씩 실행합니다.",
         "errorIterationSourceMissing": "소스 속성이 누락되었습니다",
         "aiAgent": "AI 프롬프트",
         "aiAgentDescription": "구성된 생성 AI 모델을 사용하여 AI 프롬프트를 실행합니다.",
@@ -79,7 +81,7 @@
         "localBaserowUpdateRowsDescription": "Baserow 테이블의 기존 행 여러 개를 업데이트합니다.",
         "localBaserowFieldsUpdated": "특정 필드 값이 업데이트됩니다",
         "localBaserowFieldsUpdatedDescription": "Baserow 테이블의 특정 필드에서 행이 업데이트될 때 트리거됩니다.",
-        "coreManualTriggerDescription": "이 워크플로는 다른 워크플로 작업이 시작될 때만 시작됩니다.",
+        "coreManualTriggerDescription": "다른 워크플로 작업이 이 워크플로를 시작할 때만 실행됩니다.",
         "coreCSVFileReader": "CSV 파일을 읽습니다",
         "coreCSVFileReaderDescription": "CSV 파일에서 행을 읽습니다.",
         "coreStartWorkflow": "워크플로 시작",
@@ -90,15 +92,26 @@
         "errorNoWorkflowSelected": "선택된 워크플로 없음",
         "errorWorkflowNotImmediateDispatch": "선택한 워크플로는 즉시 시작될 수 있는 트리거를 사용해야 합니다.",
         "coreGoto": "이동",
-        "coreGotoDescription": "조건이 참일 때 워크플로의 다른 지점으로 이동합니다.",
-        "coreGotoDestinationRequired": "대상이 필요합니다."
+        "coreGotoDescription": "조건이 참인 동안 이전 노드로 돌아가 단계를 반복하거나 다시 시도합니다.",
+        "coreGotoDestinationRequired": "대상이 필요합니다.",
+        "inboundEmailTrigger": "이메일 트리거",
+        "inboundEmailTriggerDescription": "생성된 이메일 주소로 이메일을 수신하면 실행됩니다.",
+        "coreResponse": "응답",
+        "coreResponseDescription": "트리거가 응답 대기를 지원하고 대기 기능이 활성화된 경우에만 워크플로 응답을 반환합니다.",
+        "errorResponseBodyMissing": "JSON 응답 본문은 비워 둘 수 없습니다.",
+        "errorMisconfiguredIntegration": "통합이 없거나 휴지통으로 이동되었습니다",
+        "errorNoRowIdSelected": "선택된 행 ID가 없습니다",
+        "errorAIModelUnavailable": "선택한 AI 모델이 비활성화되었거나 더 이상 사용할 수 없습니다"
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
     },
     "localBaserowForm": {
         "user": "사용자",
-        "userMessage": "이 연결을 생성하면 애플리케이션이 귀하의 계정을 사용하여 로컬 Baserow 작업 공간에서 변경 작업을 수행할 수 있도록 승인하게 됩니다."
+        "userMessage": "이 연결을 생성하면 애플리케이션이 귀하의 계정을 사용하여 로컬 Baserow 작업 공간에서 변경 작업을 수행할 수 있도록 승인하게 됩니다.",
+        "subject": "인증에 사용할 계정",
+        "currentUser": "내 사용자 계정",
+        "subjectMessage": "작업은 선택한 사용자 또는 에이전트의 권한으로 실행됩니다. 에이전트가 수행한 작업은 감사 로그에 에이전트 작업으로 표시됩니다."
     },
     "localBaserowGetRowForm": {
         "rowFieldLabel": "행 ID",
@@ -204,7 +217,13 @@
         "username": "사용자 이름",
         "usernamePlaceholder": "your-email{'@'}example.com",
         "password": "비밀번호",
-        "passwordPlaceholder": "당신의 비밀번호"
+        "passwordPlaceholder": "당신의 비밀번호",
+        "security": "보안",
+        "securityStartTls": "STARTTLS (일반적으로 포트 587)",
+        "securitySsl": "SSL/TLS (일반적으로 포트 465)",
+        "securityNone": "없음",
+        "passwordConfigured": "비밀번호가 저장되어 있습니다. 유지하려면 비워 두세요.",
+        "passwordKeepPlaceholder": "저장된 비밀번호를 유지하려면 비워 두세요"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "통합",
@@ -235,7 +254,9 @@
         "searchFieldPlaceHolder": "검색어를 입력하세요...",
         "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요.",
         "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요.",
-        "refinements": "개선 사항"
+        "refinements": "개선 사항",
+        "groupTabTitle": "그룹화 기준 | 그룹 1개 | 그룹 {count}개",
+        "noTableChosenForGrouping": "데이터 소스 그룹을 사용하려면 테이블을 선택하세요."
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "기본 브랜치 레이블",
@@ -270,13 +291,15 @@
         "minuteHelper": "이 워크플로는 지정된 분마다 실행됩니다",
         "hourHelper": "이 워크플로는 매시간 지정된 분에 실행됩니다",
         "dayHelper": "이 워크플로는 매일 지정된 시간에 실행됩니다",
-        "weekHelper": "이 워크플로는 매주 지정된 날짜와 시간에 실행됩니다",
+        "weekHelper": "이 워크플로는 매주 지정된 요일과 시간에 실행됩니다",
         "monthHelper": "이 워크플로는 매월 지정된 날짜와 시간에 실행됩니다",
         "deactivatedTitle": "주기적 트리거 비활성화됨",
         "deactivatedText": "연속적인 실패로 인해 이 주기적 트리거가 자동으로 비활성화되었습니다.",
         "everyMinuteDefault": "지정된 분마다",
         "minuteFrequency": "매 분마다",
-        "minuteFrequencyPlaceholder": "15"
+        "minuteFrequencyPlaceholder": "15",
+        "timezone": "시간대",
+        "timezoneHelper": "시계가 변경되어도 일정은 이 현지 시간을 유지합니다"
     },
     "aiIntegrationType": {
         "inheritingWorkspace": "작업 공간 AI 설정 상속",
@@ -284,12 +307,13 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "슬랙 봇",
-        "slackBotNoToken": "슬랙 봇 - 구성되지 않음"
+        "slackBotNoToken": "슬랙 봇 - 구성되지 않음",
+        "slackBotWarning": "이 애플리케이션에서 빌드할 수 있는 사람은 누구나 이 봇으로 메시지를 보내거나 토큰을 교체할 수 있습니다. 접근 권한을 공유해도 괜찮은 봇을 사용하세요."
     },
     "aiForm": {
         "description": "이 통합에 대한 AI 공급자 설정을 구성하세요. 기본적으로 Workspace AI 설정은 상속됩니다.",
         "workspaceSettingsTitle": "Workspace AI 설정",
-        "workspaceSettingsDescription": "이 통합은 기본적으로 작업 공간의 AI 공급자 설정을 상속합니다. 아래에서 특정 공급자를 재정의할 수 있습니다.",
+        "workspaceSettingsDescription": "이 통합은 기본적으로 작업공간의 AI 공급자 설정을 상속합니다. 공급자 재정의 설정은 독립적으로 적용되므로 자체 인증 정보 또는 호스트를 포함해야 합니다. 연결 필드는 상속된 인증 정보와 결합되지 않습니다.",
         "overrideWorkspaceSettings": "이 공급자에 대한 작업 공간 설정을 재정의합니다",
         "inherited": "상속받음",
         "overridden": "재정의됨"
@@ -330,7 +354,9 @@
         "supportPairingStep1": "앱이 새로 설치된 경우 '설정' > '앱 설치'로 이동하세요. 녹색 버튼을 클릭하여 앱을 작업 공간에 설치합니다.",
         "supportPairingStep2": "'봇 사용자 OAuth 토큰'을 복사하여 이 양식의 '봇 사용자 토큰' 필드에 저장하세요.",
         "supportPairingStep3": "마지막으로, 앱이 새로 개발된 경우 Slack에서 {command} 명령어를 사용하여 원하는 채널에 앱을 초대하세요",
-        "supportSetupStep1Link": "앱 페이지"
+        "supportSetupStep1Link": "앱 페이지",
+        "tokenKeepPlaceholder": "저장된 토큰을 유지하려면 비워 두세요",
+        "tokenConfigured": "토큰이 저장되어 있습니다. 유지하려면 비워 두세요."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "이 작업은 Slack 앱과 연동되어야 합니다. 시작하려면 통합 팝업의 가이드를 따르세요.",
@@ -354,7 +380,8 @@
         "fieldMappingPlaceholderString": "문자열 값을 선택하세요. 예: 'baserow'",
         "fieldMappingPlaceholderNumber": "예를 들어 42와 같이 숫자 값을 선택하세요",
         "fieldMappingPlaceholderBoolean": "true와 같은 부울 값을 선택하세요",
-        "fieldMappingPlaceholderDate": "날짜 값을 선택하세요. 예: 2025-07-25"
+        "fieldMappingPlaceholderDate": "날짜 값을 선택하세요. 예: 2025-07-25",
+        "noTableAccess": "이 테이블에 접근할 수 없어 여기에 필드를 표시할 수 없습니다."
     },
     "localBaserowServiceForm": {
         "integrationDropdownLabel": "통합",
@@ -387,7 +414,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "자동",
         "workflow": "워크플로",
-        "workflowHelperText": "수동 트리거가 있는 게시된 워크플로만 시작할 수 있습니다. 이 워크플로에 게시되지 않은 변경 사항이 있는 경우 가장 최근에 게시된 버전이 실행됩니다."
+        "workflowHelperText": "수동 또는 주기적 트리거처럼 필요할 때 시작할 수 있는 트리거를 사용하는 게시된 워크플로만 시작할 수 있습니다. 이 워크플로에 게시되지 않은 변경 사항이 있으면 가장 최근에 게시된 버전이 실행됩니다."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "행 ID",
@@ -411,5 +438,9 @@
         "destinationLabel": "대상 노드",
         "destinationDescription": "조건이 참일 때 이동할 노드입니다.",
         "destinationPlaceholder": "대상 노드 선택..."
+    },
+    "aiProviderModelFeature": {
+        "aiAgent": "AI 에이전트",
+        "aiAgentDescription": "자동화 및 애플리케이션 빌더 워크플로에서 AI 에이전트 작업을 실행합니다."
     }
 }
