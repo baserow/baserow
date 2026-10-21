@@ -182,7 +182,8 @@
         "errorNoMenuItem": "Nie skonfigurowano elementu menu",
         "errorMenuItemInError": "Co najmniej jeden element menu jest nieprawidłowo skonfigurowany",
         "errorSubMenuItemInError": "Co najmniej jedno podmenu jest nieprawidłowo skonfigurowane",
-        "errorOptionNameMissing": "Opcja nie ma nazwy"
+        "errorOptionNameMissing": "Opcja nie ma nazwy",
+        "errorInvalidVisibilityCondition": "Warunek wyświetlenia jest nieprawidłowy"
     },
     "addElementButton": {
         "label": "Element"
@@ -205,7 +206,8 @@
         "events": "Zdarzenia",
         "style": "Styl",
         "eventsTabDeactivatedNoEvents": "Ten element nie obsługuje żadnych zdarzeń",
-        "eventsTabInError": "Co najmniej jedna z operacji jest nieprawidłowo skonfigurowana."
+        "eventsTabInError": "Co najmniej jedna z operacji jest nieprawidłowo skonfigurowana.",
+        "visibilityTabInError": "Warunek wyświetlenia zawiera niepoprawną formułę."
     },
     "emptySidePanelState": {
         "message": "Kliknij element, aby zobaczyć więcej szczegółów"
