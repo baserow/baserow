@@ -73,7 +73,7 @@
         "coreRouterDescription": "Na podstawie warunku kieruje proces do kolejnego rozgałęzienia.",
         "coreSMTPEmailDescription": "Wysyła e-mail za pomocą konfiguracji SMTP.",
         "coreIteration": "Iterator",
-        "coreIterationDescription": "Iteruje po elementach.",
+        "coreIterationDescription": "Iteruje po elementach listy i jednorazowo uruchamia węzły podrzędne.",
         "errorFromEmailMissing": "Brak adresu nadawcy e-mail",
         "errorToEmailsMissing": "Brak adresów odbiorców e-mail",
         "errorUrlMissing": "Brak adresu URL",
@@ -116,7 +116,7 @@
         "errorNoWorkflowSelected": "Nie wybrano żadnego procesu",
         "errorWorkflowNotImmediateDispatch": "Wybrany proces musi zostać uruchomiony przez trigger, który wyzwala się w sposób natychmiastowy.",
         "coreGoto": "Przejdź do",
-        "coreGotoDescription": "Jeśli warunek jest spełniony, przechodzi do innego punktu procesu.",
+        "coreGotoDescription": "O ile warunek ma wartość prawda, aby powtórzyć lub spróbować ponownie wykonać kroki procesu, przeskakuje do wcześniejszego węzła.",
         "coreGotoDestinationRequired": "Punkt docelowy jest wymagany.",
         "inboundEmailTrigger": "Trigger e-mail",
         "inboundEmailTriggerDescription": "Uruchamia się po otrzymaniu wiadomości na wygenerowanym adresie e-mail.",
@@ -132,7 +132,10 @@
     },
     "localBaserowForm": {
         "user": "Użytkownik",
-        "userMessage": "Tworząc to połączenie, upoważniasz aplikację do korzystania z Twojego konta w celu wprowadzania zmian w lokalnym obszarze roboczym Baserow."
+        "userMessage": "Tworząc to połączenie, upoważniasz aplikację do korzystania z Twojego konta w celu wprowadzania zmian w lokalnym obszarze roboczym Baserow.",
+        "subject": "Uwierzytelnij jako",
+        "currentUser": "Moje konto użytkownika",
+        "subjectMessage": "Operacje korzystają z uprawnień wybranych użytkowników lub agenta. Operacje wykonywane przez agenta będą wyróżnione w logu audytu."
     },
     "localBaserowTableSelector": {
         "databaseFieldLabel": "Baza danych",
@@ -169,7 +172,9 @@
     "localBaserowIntegrationType": {
         "localBaserowWarning": "Autoryzacja konta daje każdemu użytkownikowi, który ma uprawnienia do edycji aplikacji pełny dostęp do Twoich danych. Możesz utworzyć drugiego użytkownika, nadać mu odpowiednich uprawnienia i w ten sposób korzystać z tego konta.",
         "localBaserowSummary": "Lokalna instalacja Baserow - {name}, {username}",
-        "localBaserowNoUser": "Lokalna instalacja Baserow - nie skonfigurowano"
+        "localBaserowNoUser": "Lokalna instalacja Baserow - nie skonfigurowano",
+        "localBaserowSubjectSummary": "Lokalna instalacja Baserow - {type}: {name}",
+        "errorTrashedAgent": "Agent posiadający autoryzację został usunięty"
     },
     "localBaserowAggregateRowsForm": {
         "filterTabTitle": "Filtry",
