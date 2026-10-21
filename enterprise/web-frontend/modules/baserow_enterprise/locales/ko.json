@@ -33,10 +33,13 @@
         "submit": "저장",
         "nameTitle": "이름",
         "roleTitle": "기본 역할",
-        "inviteMembers": "멤버 추가",
-        "membersTitle": "멤버",
-        "noSubjectsSelected": "아직 이 팀을 통해 액세스할 수 있는 사용자가 없습니다.",
-        "roleHelpText": "사용자별 역할은 항상 팀 역할보다 우선합니다."
+        "inviteMembers": "접근 권한 관리",
+        "membersTitle": "팀 멤버",
+        "noSubjectsSelected": "아직 이 팀을 통해 접근 권한을 부여받은 사람이 없습니다.",
+        "roleHelpText": "사용자별 역할은 항상 팀 역할보다 우선합니다.",
+        "agentLabel": "에이전트",
+        "accessModalTitle": "팀 접근 권한 관리",
+        "accessModalDescription": "이 팀에 속할 사람과 에이전트를 선택하세요."
     },
     "editTeamContext": {
         "edit": "팀 편집",
@@ -72,7 +75,7 @@
         "filterFromTimestamp": "시작 날짜",
         "filterToTimestampTitle": "종료 날짜",
         "filterToTimestamp": "종료 날짜",
-        "user": "사용자",
+        "user": "작업 수행자",
         "workspace": "작업공간",
         "actionType": "이벤트 유형",
         "description": "설명",
@@ -83,7 +86,13 @@
         "clearFilters": "지우기",
         "allUsers": "모든 사용자",
         "allWorkspaces": "모든 작업공간",
-        "allActionTypes": "모든 이벤트 유형"
+        "allActionTypes": "모든 이벤트 유형",
+        "filterActorTitle": "작업 수행자",
+        "actorType": "작업 수행자 유형",
+        "allActors": "모든 작업 수행자",
+        "usersSection": "사용자",
+        "agentsSection": "에이전트",
+        "actorDisplay": "{name} ({id})"
     },
     "auditLogExportModal": {
         "title": "CSV로 내보내기",
@@ -127,7 +136,8 @@
         "firstNameAttrKey": "이름",
         "firstNameAttrKeyHelper": "'성'이 제공되지 않은 경우 사용자의 이름 또는 전체 이름입니다.",
         "lastNameAttrKey": "성",
-        "lastNameAttrKeyHelper": "사용자의 성 (선택 사항). 이 값을 지우면 '이름'을 통해 전체 이름을 제공합니다."
+        "lastNameAttrKeyHelper": "사용자의 성 (선택 사항). 이 값을 지우면 '이름'을 통해 전체 이름을 제공합니다.",
+        "emailVerificationNotice": "사용자를 인증하기 전에 ID 공급자가 이메일 주소 확인을 요구하는지 확인하세요. SAML 서명은 공급자를 인증하며, 이메일 주소의 소유권을 확인하지는 않습니다."
     },
     "createSettingsAuthProviderModal": {
         "title": "새로운 {type} 추가"
@@ -159,7 +169,9 @@
         "errorAuthFlowError": "선택한 제공자와의 인증 흐름 중 오류가 발생했습니다.",
         "errorDifferentProvider": "처음 가입한 제공자를 사용하세요.",
         "errorWorkspaceInvitationEmailMismatch": "이메일 주소가 초대와 일치하지 않습니다.",
-        "errorSignupDisabled": "관리자가 회원 가입을 비활성화했습니다."
+        "errorSignupDisabled": "관리자가 회원 가입을 비활성화했습니다.",
+        "errorUnverifiedEmail": "ID 공급자가 이메일 주소를 확인하지 않았습니다. 공급자를 통해 이메일 주소를 확인한 후 다시 시도하세요.",
+        "errorApplicationUserLimitReached": "일시적으로 로그인할 수 없습니다. 웹사이트 소유자에게 문의하거나 나중에 다시 시도하세요."
     },
     "roles": {
         "admin": {
@@ -258,7 +270,8 @@
         "membersTab": "멤버",
         "teamsTab": "팀",
         "subjectTypeNameMembers": "멤버",
-        "subjectTypeNameTeams": "팀"
+        "subjectTypeNameTeams": "팀",
+        "agentsTab": "에이전트"
     },
     "selectMembersList": {
         "searchPlaceholder": "멤버 찾기...",
@@ -272,9 +285,10 @@
         "invite": "{count} {type} 초대",
         "types": {
             "members": "멤버",
-            "teams": "팀"
+            "teams": "팀",
+            "agents": "에이전트"
         },
-        "helpTooltip": "멤버 역할 할당은 팀 역할 할당보다 우선합니다."
+        "helpTooltip": "멤버 및 에이전트에 할당된 역할은 팀에 할당된 역할보다 우선합니다."
     },
     "membersRoleField": {
         "noAccessHelpText": "이 사용자는 리소스에 대한 명시적 액세스가 필요합니다.",
@@ -304,7 +318,8 @@
         "lastNameAttrKey": "성",
         "useIdToken": "ID 토큰을 사용하여 사용자 정보를 가져옵니다",
         "firstNameAttrKeyHelper": "'성'이 제공되지 않은 경우 사용자의 이름 또는 전체 이름을 입력합니다.",
-        "lastNameAttrKeyHelper": "사용자의 성(선택 사항). '이름'을 통해 전체 이름을 제공하려면 이 값을 지우세요."
+        "lastNameAttrKeyHelper": "사용자의 성(선택 사항). '이름'을 통해 전체 이름을 제공하려면 이 값을 지우세요.",
+        "emailVerificationNotice": "사용자를 인증하기 전에 ID 공급자가 이메일 주소 확인을 요구하는지 확인하세요. Baserow는 공급자가 제공한 이메일 주소를 신뢰합니다."
     },
     "loginButton": {
         "continueWith": "계속"
@@ -342,7 +357,9 @@
         "codeRunner": "코드 실행기",
         "codeRunnerContent": "자동화 노드 및 애플리케이션 빌더 워크플로 작업에서 JavaScript 코드를 실행합니다.",
         "xlsFileReader": "XLS 파일 리더",
-        "xlsFileReaderContent": "자동화 노드 및 애플리케이션 빌더 워크플로 작업에서 XLS 및 XLSX 파일의 행을 읽습니다."
+        "xlsFileReaderContent": "자동화 노드 및 애플리케이션 빌더 워크플로 작업에서 XLS 및 XLSX 파일의 행을 읽습니다.",
+        "builderGraphElement": "그래프 요소",
+        "builderGraphElementContent": "애플리케이션 페이지에서 수식으로 계산한 데이터를 그래프로 표시합니다."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "직접지원"
@@ -510,11 +527,11 @@
         "periodicInterval": "주기적 설정"
     },
     "groupedAggregateRowsDataSourceForm": {
-        "sourceFieldLabel": "소스",
-        "series": "시리즈",
-        "addSeries": "시리즈 추가",
+        "sourceFieldLabel": "원본",
+        "series": "데이터 계열",
+        "addSeries": "데이터 계열 추가",
         "data": "데이터",
-        "viewFieldLabel": "뷰",
+        "viewFieldLabel": "보기",
         "notSelected": "선택되지 않음"
     },
     "periodicDataSyncDeactivatedNotification": {
@@ -534,16 +551,16 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "필드",
         "aggregationTypeLabel": "요약",
-        "deleteSeries": "시리즈 삭제",
+        "deleteSeries": "데이터 계열 삭제",
         "lineChart": "선",
         "barChart": "막대",
         "chartType": "차트 유형",
-        "pieChart": "파이",
+        "pieChart": "원형",
         "doughnutChart": "도넛",
-        "polarAreaChart": "극영역"
+        "polarAreaChart": "극좌표 영역"
     },
     "aggregationGroupByForm": {
-        "groupByFieldLabel": "그룹별로",
+        "groupByFieldLabel": "그룹화 기준",
         "groupByNone": "없음",
         "groupByRowId": "행 ID"
     },
@@ -569,13 +586,15 @@
         "adminTitle": "관리자만",
         "adminDescription": "관리자 역할이 있는 사용자",
         "nobodyTitle": "아무도",
-        "nobodyDescription": "사용자 없음"
+        "nobodyDescription": "사용자 없음",
+        "customTitle": "특정 사용자, 에이전트 또는 팀",
+        "customDescription": "이미 편집자, 빌더 또는 관리자 역할이 있는 선택된 사용자, 에이전트 및 팀 멤버만"
     },
     "fileInputElementForm": {
         "required": "필수",
         "multiple": "여러 파일?",
         "fileTypes": "파일 유형",
-        "fileTypesHelper": "파일 입력 시 허용되는 파일 확장자를 한 줄에 하나씩 선택하세요(예: jpg, png, svg, pdf). image/*, video/* 또는 audio/*를 지정하여 이러한 유형의 모든 파일을 허용할 수 있습니다. 모든 파일 유형을 허용하려면 비워 두세요.",
+        "fileTypesHelper": "허용할 파일 유형을 한 줄에 하나씩 입력하세요. 파일 확장자(예: jpg, .png, pdf), 전체 MIME 유형(예: image/jpeg, application/pdf)을 입력하거나 MIME 와일드카드(예: image/*, text/*, application/*)를 입력하여 해당 유형의 모든 파일을 허용할 수 있습니다. 모든 파일 유형을 허용하려면 비워 두세요.",
         "helpTextTitle": "도움말",
         "defaultNameTitle": "초기 파일 이름|초기 파일 이름",
         "defaultNamePlaceholder": "파일 이름을 입력하세요...|파일 이름을 입력하세요...",
@@ -631,7 +650,9 @@
     },
     "elementType": {
         "errorUserSourceHasNoLoginOption": "선택된 사용자 소스에 로그인 옵션이 없습니다",
-        "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다"
+        "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다",
+        "graph": "그래프",
+        "graphDescription": "수식으로 계산한 데이터를 그래프로 표시합니다."
     },
     "pieChartWidget": {
         "name": "파이 차트",
@@ -928,5 +949,67 @@
         "prompt": "다음 설명에 맞는 테이블, 필드, 예시 행 및 예시 뷰가 포함된 데이터베이스를 만드세요: {prompt}",
         "context": "요청자는 {industry} 업종의 {team} 팀에서 근무합니다. 이를 바탕으로 현실적인 테이블, 필드 및 예시 행을 선택하세요.",
         "language": "ISO 639-1 코드가 \"{language}\"인 언어로 생성하는 모든 내용을 작성하세요."
+    },
+    "enterpriseAgents": {
+        "noTeams": "팀 없음",
+        "teamsLoadError": "팀을 불러올 수 없습니다.",
+        "teamsLoadErrorDescription": "연결을 확인하고 다시 시도하세요.",
+        "retry": "다시 시도",
+        "teams": "팀"
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName}에서 사용 가능한 애플리케이션 사용자 {limit}명 중 {usage}명을 사용했습니다.",
+        "titleReached": "{workspaceName}의 애플리케이션 사용자 수가 한도인 {limit}명에 도달했습니다. 한도를 초과하면 업그레이드할 때까지 게시된 앱에 아무도 로그인할 수 없습니다.",
+        "titleWarningInstance": "이 인스턴스에서 사용 가능한 애플리케이션 사용자 {limit}명 중 {usage}명을 사용했습니다. 이 한도는 {workspaceName}을(를) 포함한 모든 작업공간이 공유합니다.",
+        "titleReachedInstance": "이 인스턴스의 애플리케이션 사용자 수가 한도인 {limit}명에 도달했습니다. 한도를 초과하면 라이선스를 업그레이드할 때까지 {workspaceName}을(를) 포함한 모든 작업공간의 게시된 앱에 아무도 로그인할 수 없습니다."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "에이전트 찾기...",
+        "selectedAmountLabel": "에이전트 {count}개 선택됨"
+    },
+    "subjectType": {
+        "team": "팀",
+        "teams": "팀"
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "선택해도 테이블 접근 권한이 부여되지는 않습니다. 선택된 사용자, 에이전트 또는 선택된 팀의 멤버는 이 테이블이 있는 위치에서 편집자, 빌더 또는 관리자 역할도 가지고 있어야 합니다.",
+        "canEdit": "선택된 사용자, 에이전트 및 팀",
+        "noSelectedSubjects": "아직 선택된 대상이 없습니다. 위 검색창에서 사용자, 에이전트 또는 팀을 추가하세요.",
+        "addPeopleOrTeams": "사용자, 에이전트 또는 팀 추가",
+        "searchPlaceholder": "사용자, 에이전트 또는 팀 검색",
+        "searchHint": "이름으로 검색",
+        "teamDescription": "팀",
+        "teamSearchDescription": "팀 · 멤버 {count}명 | 팀 · 멤버 {count}명",
+        "remove": "{subject} 제거"
+    },
+    "graphElementForm": {
+        "labels": "레이블",
+        "labelsHelper": "수식의 결과는 배열이어야 합니다. 각 항목은 그래프의 레이블 하나가 됩니다.",
+        "labelsPlaceholder": "to_array('1월,2월,3월')",
+        "seriesList": "데이터 계열",
+        "series": "데이터 계열 {number}",
+        "addSeries": "데이터 계열 추가",
+        "seriesLabel": "데이터 계열 레이블",
+        "seriesLabelPlaceholder": "'매출'",
+        "seriesValues": "값",
+        "seriesValuesHelper": "수식의 결과는 레이블마다 하나의 숫자 값이어야 합니다.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "차트 유형",
+        "seriesColor": "색상",
+        "barChart": "막대",
+        "lineChart": "선"
+    },
+    "graphElement": {
+        "series": "데이터 계열 {number}",
+        "noData": "그래프 데이터 없음"
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Kuma AI 어시스턴트를 구동합니다."
+    },
+    "assistantDashboardPrompt": {
+        "title": "만들고 싶은 것을 알려주세요",
+        "placeholder": "회사 자산 관리 도구 만들기",
+        "build": "만들기"
     }
 }
