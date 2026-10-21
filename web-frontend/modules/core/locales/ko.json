@@ -38,7 +38,12 @@
         "general": "일반",
         "people": "사람들",
         "licenses": "라이선스",
-        "replayGuidedTour": "안내 투어 다시 보기"
+        "replayGuidedTour": "안내 투어 다시 보기",
+        "recents": "최근 항목",
+        "allWorkspaces": "모든 작업공간",
+        "recentlyViewed": "최근 조회",
+        "backToHome": "홈으로 돌아가기",
+        "templates": "템플릿"
     },
     "accountForm": {
         "nameLabel": "이름",
@@ -232,7 +237,8 @@
         "title": "작업공간 설정"
     },
     "workspaceSettingType": {
-        "generativeAI": "생성형 AI"
+        "generativeAI": "생성형 AI",
+        "aiProviders": "AI 공급자"
     },
     "generativeAIModelType": {
         "openai": "OpenAI",
@@ -268,7 +274,43 @@
         "anthropicModelIdentifierDescription": "[Anthropic 모델 식별자](https://platform.claude.com/docs/en/about-claude/models/overview)를 입력하세요. 예: `claude-sonnet-5`, `claude-opus-4-8` 또는 `claude-haiku-4-5`.",
         "openaiModelIdentifierDescription": "[OpenAI 모델 식별자](https://developers.openai.com/api/docs/models)를 입력하세요. 예: `gpt-5.6`, `gpt-5.6-terra` 또는 `gpt-5.6-luna`.",
         "ollamaModelIdentifierDescription": "[Ollama에 설치된 모델](https://ollama.com/library)의 식별자를 입력하세요. 예: `gemma3`, `qwen3` 또는 `llama3.3`.",
-        "mistralModelIdentifierDescription": "[Mistral 모델 식별자](https://docs.mistral.ai/models/)를 입력하세요. 예: `mistral-large-latest`, `mistral-medium-latest` 또는 `mistral-small-latest`."
+        "mistralModelIdentifierDescription": "[Mistral 모델 식별자](https://docs.mistral.ai/models/)를 입력하세요. 예: `mistral-large-latest`, `mistral-medium-latest` 또는 `mistral-small-latest`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "API 키 또는 보안 액세스 키",
+        "bedrockSecretDescription": "[Amazon Bedrock API 키](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) 또는 액세스 키 ID에 해당하는 보안 액세스 키를 입력하세요.",
+        "bedrockChangeSecret": "API 키 또는 보안 액세스 키 변경",
+        "bedrockSecretUpdateHint": "새 API 키 또는 보안 액세스 키를 입력하세요. 액세스 키 ID를 추가하거나 제거할 때마다 다시 입력해야 합니다.",
+        "bedrockAccessKeyIdLabel": "액세스 키 ID",
+        "bedrockAccessKeyIdDescription": "보안 액세스 키에 해당하는 [IAM 액세스 키 ID](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html)입니다. Bedrock API 키를 사용하려면 비워 두세요.",
+        "bedrockModelsDescription": "Baserow에서 사용할 수 있는 [Bedrock 추론 프로파일 또는 모델 ID](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)를 쉼표로 구분하여 입력하세요. 예: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+        "bedrockRegionDescription": "Bedrock을 호출할 AWS 리전입니다. 예: `eu-central-1`.",
+        "bedrockModelsLabel": "활성화된 모델",
+        "bedrockRegionLabel": "리전",
+        "bedrockModelIdentifierDescription": "`eu.anthropic.claude-sonnet-4-5-20250929-v1:0`과 같은 [Bedrock 추론 프로파일 ID](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)를 입력하세요. 최신 모델은 기본 모델 ID를 허용하지 않습니다.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "API 키",
+        "googleApiKeyDescription": "Google AI Studio API 키를 입력하세요. [API 키 생성 또는 보기](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "활성화된 모델",
+        "googleModelsDescription": "Baserow에서 사용할 수 있는 [Gemini 모델 식별자](https://ai.google.dev/gemini-api/docs/models)를 쉼표로 구분하여 입력하세요. 예: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "[Gemini 모델 식별자](https://ai.google.dev/gemini-api/docs/models)를 입력하세요. 예: `gemini-3.6-flash` 또는 `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "API 키",
+        "groqApiKeyDescription": "Groq API 키를 입력하세요. [API 키 생성 또는 보기](https://console.groq.com/keys).",
+        "groqModelsLabel": "활성화된 모델",
+        "groqModelsDescription": "Baserow에서 사용할 수 있는 [Groq 모델 식별자](https://console.groq.com/docs/models)를 쉼표로 구분하여 입력하세요. 예: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "[Groq 모델 식별자](https://console.groq.com/docs/models)를 입력하세요. 예: `openai/gpt-oss-120b` 또는 `openai/gpt-oss-20b`.",
+        "xai": "xAI",
+        "xaiApiKeyLabel": "API 키",
+        "xaiApiKeyDescription": "xAI API 키를 입력하세요. [API 키 생성 또는 보기](https://console.x.ai).",
+        "xaiModelIdentifierDescription": "[xAI 모델 식별자](https://docs.x.ai/developers/models)를 입력하세요. 예: `grok-4.3` 또는 `grok-4.20-non-reasoning`.",
+        "zai": "Z.ai",
+        "xaiModelsLabel": "활성화된 모델",
+        "xaiModelsDescription": "Baserow에서 사용할 수 있는 [xAI 모델 식별자](https://docs.x.ai/developers/models)를 쉼표로 구분하여 입력하세요. 예: `grok-4.3,grok-4.20-non-reasoning`.",
+        "zaiApiKeyLabel": "API 키",
+        "zaiApiKeyDescription": "Z.ai API 키를 입력하세요. [API 키 생성 또는 보기](https://z.ai/manage-apikey/apikey-list).",
+        "zaiModelsLabel": "활성화된 모델",
+        "zaiModelsDescription": "Baserow에서 사용할 수 있는 [Z.ai 모델 식별자](https://docs.z.ai/guides/overview/pricing)를 쉼표로 구분하여 입력하세요. 예: `glm-5.2,glm-4.6v`.",
+        "zaiModelIdentifierDescription": "[Z.ai 모델 식별자](https://docs.z.ai/guides/overview/pricing)를 입력하세요. 예: `glm-5.2` 또는 `glm-4.6v`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -277,7 +319,16 @@
         "changedDescription": "설정이 업데이트되었으며 이제 이 작업공간에서 사용됩니다.",
         "submitButton": "설정 업데이트",
         "openSettings": "설정 열기",
-        "hideSettings": "설정 숨기기"
+        "hideSettings": "설정 숨기기",
+        "providerTitle": "AI 공급자",
+        "providerDescription": "이 작업공간의 공급자를 관리하거나 인스턴스에서 상속받은 공급자를 활성화 또는 비활성화합니다.",
+        "sharedModelsTitle": "작업공간 간 공유",
+        "addWorkspaceConfiguration": "작업공간 설정 추가",
+        "overridden": "재정의됨",
+        "overriddenByWorkspace": "작업공간 설정으로 재정의됨",
+        "disabledInWorkspace": "작업공간에서 비활성화됨",
+        "noProviders": "사용 가능한 AI 공급자가 없습니다",
+        "noProvidersDescription": "이 작업공간에 공급자를 추가하거나 인스턴스 관리자에게 공급자 설정을 요청하세요."
     },
     "createWorkspaceModal": {
         "createNew": "새 작업공간 생성",
@@ -288,10 +339,13 @@
     },
     "templateCategories": {
         "search": "템플릿 검색",
-        "title": "템플릿"
+        "title": "템플릿",
+        "noResults": "템플릿을 찾을 수 없습니다",
+        "allTemplates": "모든 템플릿"
     },
     "templateHeader": {
-        "use": "이 템플릿 사용"
+        "use": "이 템플릿 사용",
+        "selectWorkspace": "작업공간 선택"
     },
     "trashSidebar": {
         "title": "휴지통",
@@ -419,11 +473,12 @@
     },
     "errorLayout": {
         "notFound": "찾고 있는 페이지를 찾을 수 없습니다. 이는 URL이 잘못되었거나 이 페이지를 볼 수 있는 권한이 없기 때문일 수 있습니다.",
-        "error": "페이지를 로드하는 동안 문제가 발생했습니다. 개발자에게 이 문제가 통지되었습니다. 새로고침하거나 대시보드로 돌아가세요.",
-        "backDashboard": "대시보드로 돌아가기",
+        "error": "페이지를 불러오는 중 문제가 발생했습니다. 개발자에게 문제가 전달되었습니다. 새로고침하거나 홈으로 돌아가세요.",
+        "backDashboard": "홈으로 돌아가기",
         "backLogin": "로그인으로 돌아가기",
         "wrong": "문제가 발생했습니다",
-        "refresh": "페이지 새로고침"
+        "refresh": "페이지 새로고침",
+        "pageNotFoundTitle": "페이지를 찾을 수 없습니다"
     },
     "dashboard": {
         "title": "대시보드",
@@ -452,7 +507,9 @@
         "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요",
         "starOnGitHub": "GitHub에서 우리를 별표로 표시하세요",
         "academy": "Baserow 아카데미",
-        "academyMessage": "강좌를 수강하고 전문가가 되어 보세요"
+        "academyMessage": "강좌를 수강하고 전문가가 되어 보세요",
+        "templates": "템플릿",
+        "templatesMessage": "미리 만들어진 솔루션으로 시작하세요"
     },
     "dashboardApplication": {
         "createdAt": "생성됨"
@@ -717,7 +774,9 @@
     "integrationCreateEditModal": {
         "createTitle": "새로운 통합",
         "editTitle": "통합 편집",
-        "warningTitle": "경고"
+        "warningTitle": "경고",
+        "credentialRequiredTitle": "인증 정보가 필요합니다",
+        "credentialRequiredMessage": "이 통합의 연결 대상을 변경하려면 인증 정보를 다시 입력하세요."
     },
     "integrationEditForm": {
         "name": "이름",
@@ -727,7 +786,8 @@
         "addIntegration": "새 통합 추가",
         "noIntegrations": "통합을 찾을 수 없습니다.",
         "selectTypeFirst": "먼저 유형을 선택하세요",
-        "integrationPlaceholder": "통합 선택"
+        "integrationPlaceholder": "통합 선택",
+        "editIntegration": "통합 편집"
     },
     "dropdown": {
         "empty": "사용 가능한 항목이 없습니다",
@@ -765,7 +825,12 @@
         "errorInvalidFormula": "공식이 유효하지 않습니다.",
         "advancedFormulaMode": "고급 수식 모드",
         "invalidFormulaTitle": "잘못된 수식입니다",
-        "invalidSyntax": "유효한 전문가용 공식이 아닙니다. 구문을 확인하십시오."
+        "invalidSyntax": "유효한 전문가용 공식이 아닙니다. 구문을 확인하십시오.",
+        "useFormulaMode": "수식 모드 사용",
+        "useRawMode": "원시 모드 사용",
+        "formatPlain": "일반 텍스트",
+        "formatMarkdown": "마크다운",
+        "formatBadgeTitle": "형식: {format}. 변경하려면 클릭하세요."
     },
     "dataExplorer": {
         "noMatchingNodesText": "일치하는 결과가 없습니다.",
@@ -1009,7 +1074,9 @@
         "title": "MCP 서버",
         "createEndpoint": "엔드포인트 생성",
         "createNewTitle": "MCP 서버 엔드포인트 생성",
-        "backToOverview": "뒤로"
+        "backToOverview": "뒤로",
+        "oauthTab": "OAuth",
+        "endpointTab": "엔드포인트"
     },
     "mcpEndpoint": {
         "endpointURLIntro": "MCP(Model Context Protocol) 서버 URL은 MCP 서버를 지원하는 모든 클라이언트에 추가할 수 있습니다. 이는 LLM이 사용자를 대신하여 작업 공간에서 작업을 수행할 수 있도록 직접 액세스하는 고유한 엔드포인트입니다.",
@@ -1061,7 +1128,12 @@
         "methodsOptionLabel": "허용된 HTTP 메서드",
         "methodsOptionDescription": "이 웹훅에 허용되는 HTTP 메서드를 제어합니다. GET을 제외하면 웹훅이 실수로 트리거될 가능성이 줄어듭니다.",
         "methodsOptionAll": "전체",
-        "methodsOptionExcludeGet": "GET 제외"
+        "methodsOptionExcludeGet": "GET 제외",
+        "responseOptionsLabel": "응답",
+        "waitForResponse": "워크플로 응답 대기",
+        "waitForResponseDescription": "응답 노드에 도달할 때까지 기다립니다. 응답 노드에 도달하지 않으면 워크플로가 완료될 때까지 기다린 후 기본 응답을 반환합니다.",
+        "responseTimeout": "응답 제한 시간",
+        "seconds": "초"
     },
     "twoFactorAuthSettings": {
         "title": "2단계 인증",
@@ -1138,8 +1210,9 @@
         "notAllowedDescription": "2FA 추가는 비밀번호 기반 계정에만 가능합니다."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "예시",
-        "result": "결과: {result}"
+        "exampleLabel": "예시 | 예시",
+        "result": "결과: {result}",
+        "clickToInsert": "예시를 클릭하여 삽입하세요"
     },
     "enableWithQRCode": {
         "scanQRCode": "QR코드 스캔",
@@ -1202,7 +1275,8 @@
         "useSimpleInputModalTitle": "기본 모드로 전환하시겠습니까?",
         "useAdvancedInput": "전문가 모드로 전환",
         "useAdvancedInputModalTitle": "전문가 모드로 전환하시겠습니까?",
-        "modalMessage": "다른 모드로 전환하면 현재 수식이 삭제됩니다. 계속하시겠습니까?"
+        "modalMessage": "다른 모드로 전환하면 현재 수식이 삭제됩니다. 계속하시겠습니까?",
+        "formatLabel": "형식"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "'{funcType}' 함수는 최소 {minArgs}개의 인수를 필요로 합니다.",
@@ -1217,7 +1291,8 @@
         "showErrorLabel": "오류 표시",
         "downloadFullPayload": "전체 페이로드 다운로드",
         "truncatedLabel": "[출력 내용 일부 생략]",
-        "truncatedPayloadWarning": "처음 {size}개의 문자만 표시됩니다. 전체 페이로드를 다운로드하여 컴퓨터에서 확인하세요."
+        "truncatedPayloadWarning": "처음 {size}개의 문자만 표시됩니다. 전체 페이로드를 다운로드하여 컴퓨터에서 확인하세요.",
+        "noHtmlContent": "이 이메일에는 HTML 본문이 없습니다."
     },
     "editWorkspace": {
         "invalidNameTitle": "워크스페이스 이름은 허용되지 않습니다"
@@ -1281,12 +1356,12 @@
         "removeModel": "모델 제거",
         "editModel": "모델 수정",
         "modelIdentifier": "모델 식별자",
-        "modelDiscoveryHelp": "Pydantic AI에서 알려진 모델을 선택하거나 사용자 지정 식별자를 입력하세요.",
+        "modelDiscoveryHelp": "목록에서 모델을 선택하거나 사용자 지정 식별자를 입력하세요.",
         "modelDiscoveryUnavailable": "알려진 모델 제안을 사용할 수 없습니다. 식별자를 직접 입력하세요.",
-        "modelDiscoveryEmpty": "Pydantic AI에 이 제공업체의 알려진 모델이 없습니다. 식별자를 직접 입력하세요.",
+        "modelDiscoveryEmpty": "이 공급자에 대해 알려진 모델이 없습니다. 식별자를 직접 입력하세요.",
         "modelDiscoveryNoMatch": "일치하는 알려진 모델이 없습니다. 입력한 식별자를 사용할 수 있습니다.",
         "noProviders": "구성된 인스턴스 AI 제공업체가 없습니다",
-        "noProvidersDescription": "제공업체를 수동으로 추가하거나, 사용자에게 기능을 활성화하기 전에 환경 가져오기 명령을 미리 보고 실행하세요.",
+        "noProvidersDescription": "공급자를 추가하여 작업공간에서 사용할 수 있는 모델을 설정하세요.",
         "noModels": "이 제공업체에 구성된 모델이 없습니다.",
         "active": "활성",
         "inactive": "비활성",
@@ -1308,7 +1383,48 @@
         "retry": "다시 시도",
         "saveError": "AI 제공업체를 저장할 수 없습니다.",
         "saveModelError": "AI 제공업체 모델을 저장할 수 없습니다.",
-        "actionError": "AI 제공업체 변경을 완료할 수 없습니다."
+        "actionError": "AI 제공업체 변경을 완료할 수 없습니다.",
+        "extraField_region": "리전",
+        "extraField_access_key_id": "액세스 키 ID",
+        "availableFor": "사용 가능한 기능",
+        "availableForDescription": "목록에 있는 AI 기능 중 이 모델을 사용할 수 있는 기능을 선택하세요.",
+        "availableForList": "사용 가능한 기능: {features}",
+        "availableForNone": "목록에 있는 어떤 기능에서도 사용할 수 없음",
+        "featureSettingsTitle": "AI 기능",
+        "featureSettingsDescription": "각 기능에 사용할 공급자 모델을 선택하세요. 환경 설정 모델은 더 이상 권장되지 않습니다.",
+        "kumaDisabled": "비활성화됨",
+        "kumaInvalidFallback": "선택한 모델을 사용할 수 없어 더 이상 권장되지 않는 환경 설정 모델을 사용합니다: {model}",
+        "kumaInvalidNoFallback": "선택한 모델을 사용할 수 없으며 환경 설정 모델도 구성되지 않았습니다",
+        "kumaDisabledInWorkspace": "이 작업공간에서 비활성화됨",
+        "kumaUseInstance": "인스턴스 설정 사용 — {model}",
+        "kumaInheritedUnavailable": "선택한 인스턴스 모델을 사용할 수 없음",
+        "featureModelLabel": "{feature}에 사용할 모델",
+        "kumaNotConfigured": "설정되지 않음",
+        "kumaUseLegacy": "환경 설정 모델 사용(더 이상 권장되지 않음): {model}",
+        "kumaLegacyFallback": "환경 설정 모델(더 이상 권장되지 않음): {model}",
+        "kumaLegacyEmpty": "비어 있음",
+        "modelScopeInstance": "인스턴스",
+        "modelScopeWorkspace": "작업공간",
+        "noFeatureModels": "사용 조건을 충족하는 모델이 없습니다. 모델을 편집하여 해당 모델을 사용할 수 있는 기능을 선택하세요.",
+        "featureSettingError": "AI 기능 설정을 저장할 수 없습니다.",
+        "featureSettingErrorDescription": "페이지를 새로고침하고 사용 가능한 모델을 선택하세요.",
+        "inherited": "상속됨",
+        "moreActions": "추가 작업",
+        "testAllModels": "모든 모델 테스트",
+        "testModel": "모델 테스트",
+        "someTestsFailed": "일부 테스트가 실패했습니다",
+        "featureTestPassed": "{feature}: 통과",
+        "featureTestFailed": "{feature}: {error}",
+        "disableModelDescription": "설정된 위치에서 이 모델의 선택 상태는 유지되지만, 다시 활성화할 때까지 사용할 수 없습니다.",
+        "modelFeaturesRemovedTitle": "{name}을(를) 사용할 수 있는 기능을 변경할까요?",
+        "disableModelTitle": "{name}을(를) 비활성화할까요?",
+        "testing": "테스트 중…",
+        "modelFeaturesRemovedDescription": "선택을 해제한 기능은 더 이상 이 모델을 사용할 수 없습니다.",
+        "modelInUse": "{features}에서 이 모델을 사용합니다. | {features}에서 이 모델을 사용합니다.",
+        "modelUsageUnknown": "Baserow가 이 모델을 계속 사용 중인 항목을 확인하지 못했습니다.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "{name}의 이름을 변경할까요?",
+        "modelIdentifierRenamedDescription": "해당 항목은 이전 식별자를 계속 참조하며, 참조 대상을 다시 지정할 때까지 작동하지 않습니다."
     },
     "academy": {
         "learnMore": "Baserow 아카데미에서 자세히 알아보기"
@@ -1317,5 +1433,196 @@
         "previous": "이전 동영상",
         "next": "다음 동영상",
         "close": "닫기"
+    },
+    "mcpAuthorize": {
+        "title": "{client} 연결",
+        "titleFrom": "{host}의 {client} 연결",
+        "subtitle": "선택한 작업공간에서 사용자 권한으로 작업합니다.",
+        "unverified": "확인되지 않음 · {host}(으)로 돌아갑니다",
+        "returns": "{host}(으)로 돌아갑니다",
+        "workspace": "작업공간",
+        "databases": "데이터베이스 {count}개 | 데이터베이스 {count}개",
+        "noWorkspaces": "어느 작업공간에서도 앱을 연결할 수 없습니다. 작업공간 관리자에게 접근 권한을 요청하세요.",
+        "loopbackWarning": "이 앱은 사용자의 컴퓨터를 통해 로그인합니다. 컴퓨터의 어떤 프로그램이든 이 이름을 사용할 수 있으므로, 방금 직접 로그인을 시작한 경우에만 계속하세요.",
+        "tools": "수행할 수 있는 작업",
+        "selectAll": "모두 선택",
+        "selectNone": "없음",
+        "toolsRead": "읽기",
+        "toolsChange": "변경",
+        "deletes": "삭제",
+        "overwrites": "덮어쓰기",
+        "noTools": "사용 가능한 도구가 없습니다.",
+        "signedIn": "{email}(으)로 로그인됨",
+        "allow": "허용",
+        "deny": "거부",
+        "invalid": "이 권한 부여 요청은 유효하지 않습니다.",
+        "invalidMessage": "앱에서 다시 연결해 보세요. 문제가 계속되면 앱에서 Baserow 서버를 제거한 후 다시 추가하세요.",
+        "unknownClient": "이 앱의 로그인 등록 정보를 찾을 수 없거나 등록이 만료되었습니다. 앱에서 Baserow 서버를 제거한 후 다시 추가하세요.",
+        "clientRejected": "이 앱은 이 Baserow 서버에 로그인할 수 없습니다. Baserow 관리자는 서버 로그에서 원인을 확인할 수 있습니다.",
+        "loadFailed": "이 로그인 요청을 불러올 수 없습니다.",
+        "loadFailedMessage": "연결을 확인하고 페이지를 새로고침하여 다시 시도하세요.",
+        "failed": "연결을 완료할 수 없습니다.",
+        "framed": "보안을 위해 이 페이지는 다른 사이트 안에 표시할 수 없습니다. 계속하려면 별도의 브라우저 창에서 여세요."
+    },
+    "allWorkspaces": {
+        "title": "내 작업공간",
+        "allItems": "모든 항목",
+        "itemsSelected": "항목 유형 {count}개 | 항목 유형 {count}개",
+        "searchPlaceholder": "검색",
+        "searchResults": "검색 결과",
+        "createWorkspace": "작업공간 생성",
+        "expandedView": "확장 보기",
+        "compactView": "간략히 보기",
+        "collapseAll": "모두 접기",
+        "expandAll": "모두 펼치기",
+        "workspacesSection": "작업공간",
+        "itemsSection": "항목",
+        "noResultsTitle": "검색 결과가 없습니다",
+        "noResultsDescription": "\"{search}\"에 대한 결과를 찾을 수 없습니다. 철자를 확인하거나 다른 검색어를 사용하세요.",
+        "clearSearch": "검색 지우기",
+        "membersCount": "멤버 0명 | 멤버 1명 | 멤버 {count}명",
+        "itemsCount": "항목 0개 | 항목 1개 | 항목 {count}개",
+        "moreElements": "요소 {count}개 더 보기 | 요소 {count}개 더 보기",
+        "noApplications": "아직 빌더가 없습니다",
+        "noFilterMatches": "선택한 유형에 맞는 항목이 없습니다.",
+        "settings": "설정",
+        "members": "멤버",
+        "create": "생성"
+    },
+    "recentlyViewed": {
+        "title": "최근 조회",
+        "yourItems": "내 항목",
+        "name": "이름",
+        "lastViewed": "마지막 조회",
+        "workspace": "작업공간",
+        "allWorkspaces": "모든 작업공간",
+        "workspacesSelected": "작업공간 {count}개 | 작업공간 {count}개",
+        "allItems": "모든 항목",
+        "itemTypesSelected": "항목 유형 {count}개 | 항목 유형 {count}개",
+        "tableView": "테이블",
+        "cardsView": "카드",
+        "loadMore": "더 불러오기",
+        "emptyTitle": "최근 조회한 항목이 없습니다",
+        "emptyDescription": "열어 본 보기, 페이지, 대시보드, 워크플로가 여기에 표시됩니다.",
+        "noFilterMatchesTitle": "선택한 필터에 맞는 항목이 없습니다",
+        "noFilterMatchesDescription": "다른 작업공간이나 항목 유형을 선택해 보세요.",
+        "clearFilters": "필터 지우기",
+        "goToWorkspaces": "내 작업공간으로 이동"
+    },
+    "inviteModal": {
+        "emailRoute": "이메일 초대",
+        "linkRoute": "링크 생성",
+        "emailTitle": "이메일로 멤버 초대",
+        "linkTitle": "링크로 멤버 초대",
+        "linkEmptyTitle": "아직 초대 링크를 만들지 않았습니다",
+        "linkEmptyDescription": "서로 다른 역할의 링크를 여러 개 만들 수 있습니다."
+    },
+    "templateInstall": {
+        "selectWorkspace": "작업공간 선택",
+        "use": "이 템플릿 사용",
+        "more": "더 보기",
+        "copyLink": "공유 링크 복사"
+    },
+    "templateDetails": {
+        "back": "템플릿으로 돌아가기",
+        "contents": "포함된 내용"
+    },
+    "trashType": {
+        "integration": "통합",
+        "user_source": "사용자 소스"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "이미지를 삽입할 수 없습니다",
+        "errorUnsupportedImageMessage": "{name}은(는) 지원되는 이미지가 아니므로 추가되지 않았습니다."
+    },
+    "mcpOAuthConnections": {
+        "title": "AI 도구 연결",
+        "description": "모든 도구에 하나의 URL을 사용합니다. 연결할 때 로그인하고 작업공간과 도구를 선택하세요.",
+        "copyURL": "URL 복사",
+        "claudeInstructions": "claude.ai 또는 Claude Desktop에서 **설정 → 커넥터**를 열고 **사용자 지정 커넥터 추가**를 클릭한 후 위 URL을 붙여넣으세요.",
+        "claudeCodeInstructions": "터미널에서 이 명령을 실행한 다음, Claude Code에서 `/mcp`를 실행하여 로그인하세요.",
+        "chatGptInstructions": "ChatGPT에서 **플러그인**을 열고 오른쪽 위의 **+**를 클릭한 후 **사용자 지정 MCP 서버 추가**를 선택하세요. 위 URL을 서버 URL로 붙여넣고 인증 방식으로 **OAuth**를 선택하세요.",
+        "cursorInstructions": "`~/.cursor/mcp.json`에 이 내용을 추가하세요. 연결할 때 Cursor에서 로그인을 요청합니다.",
+        "connectedApps": "연결된 앱",
+        "expired": "로그아웃됨",
+        "noConnections": "아직 연결된 앱이 없습니다.",
+        "expiredTooltip": "이 앱의 로그인 세션이 종료되었습니다. 사용하려면 앱에서 다시 로그인하세요.",
+        "publishedBy": "{host}",
+        "tools": "도구 {count}개 | 도구 {count}개",
+        "connectedOn": "{date}에 연결됨",
+        "disconnect": "연결 해제",
+        "confirmDisconnect": "연결을 해제하려면 다시 클릭하세요"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "응답",
+        "waitForResponse": "워크플로 응답 대기",
+        "waitForResponseDescription": "응답 노드에 도달할 때까지 기다립니다. 응답 노드에 도달하지 않으면 워크플로가 완료될 때까지 기다린 후 기본 응답을 반환합니다.",
+        "responseTimeout": "응답 제한 시간",
+        "seconds": "초"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "상태 코드",
+        "statusCode200": "200 - 성공",
+        "statusCode201": "201 - 생성됨",
+        "statusCode400": "400 - 잘못된 요청",
+        "statusCode204": "204 - 콘텐츠 없음",
+        "statusCode202": "202 - 수락됨",
+        "statusCode401": "401 - 인증 필요",
+        "statusCode403": "403 - 접근 금지",
+        "statusCode404": "404 - 찾을 수 없음",
+        "statusCode405": "405 - 허용되지 않는 메서드",
+        "statusCode409": "409 - 충돌",
+        "statusCode422": "422 - 처리할 수 없는 콘텐츠",
+        "statusCode429": "429 - 요청이 너무 많음",
+        "bodyType": "본문 유형",
+        "bodyTypeEmpty": "비어 있음",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "텍스트",
+        "body": "본문",
+        "bodyPlaceholder": "응답 본문",
+        "headers": "헤더",
+        "name": "이름",
+        "value": "값",
+        "namePlaceholder": "헤더 이름",
+        "valuePlaceholder": "헤더 값",
+        "addHeader": "헤더 추가",
+        "nameFieldRequired": "헤더 이름이 필요합니다.",
+        "nameFieldInvalid": "헤더 이름에는 영문자, 숫자, 하이픈, 밑줄만 사용할 수 있으며, 하이픈이나 밑줄로 시작할 수 없습니다."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "addressVersionTest": "테스트",
+        "title": "이메일 주소",
+        "addressVersionPublished": "게시됨",
+        "copyAddress": "이메일 주소 복사",
+        "description": "이 주소로 이메일을 보내면 발신자, 제목, 본문, 첨부파일 정보를 페이로드로 사용하여 워크플로가 시작됩니다.",
+        "limits": "최대 {size}MB의 이메일을 수신할 수 있으며, 텍스트 본문과 HTML 본문은 각각 최대 1MB까지 전달됩니다. 첨부파일은 저장되지 않으며 이름, 유형, 크기만 페이로드에 포함됩니다.",
+        "autoForwardTip": "팁: 메일함의 자동 전달 규칙에 이 주소를 추가하면 이메일을 받을 때마다 워크플로가 실행되도록 할 수도 있습니다.",
+        "secretWarning": "이 주소를 비밀로 유지하세요. 주소를 아는 사람은 누구나 이 워크플로를 시작할 수 있습니다.",
+        "regenerate": "주소 재생성",
+        "infoDescription": "이메일을 보낸 후 수신되기까지 공급자에 따라 몇 분 정도 걸릴 수 있습니다."
+    },
+    "subjectType": {
+        "user": "사용자",
+        "users": "사용자",
+        "anonymousUser": "익명 사용자",
+        "agent": "에이전트",
+        "agents": "에이전트"
+    },
+    "agents": {
+        "tabTitle": "에이전트",
+        "saved": "변경 사항이 저장되었습니다",
+        "title": "{workspace}의 에이전트 {count}개",
+        "create": "에이전트 생성",
+        "createTitle": "에이전트 생성",
+        "updateTitle": "에이전트 편집",
+        "save": "에이전트 저장",
+        "edit": "에이전트 편집",
+        "delete": "에이전트 삭제",
+        "general": "일반",
+        "mcpServerPlaceholder": "MCP 서버 설정이 여기에 표시됩니다.",
+        "name": "이름",
+        "invalidNameTitle": "사용할 수 없는 에이전트 이름입니다",
+        "lastActive": "마지막 활동",
+        "workspaceRole": "작업공간 역할"
     }
 }
