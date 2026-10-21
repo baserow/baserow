@@ -746,7 +746,8 @@
         "fromJsonDescription": "Przetwarza ciąg znaków zakodowany w formacie JSON na wartość, taką jak obiekt, tablica lub liczba. Zwraca null, jeśli ciąg nie jest poprawnie sformatowany jako JSON.",
         "encodeUriDescription": "Symbol procentu umożliwia zakodowanie znaków, które nie są dozwolone w adresie URL, zachowując przy tym strukturę adresu URL",
         "encodeUriComponentDescription": "Symbol procentu umożliwia zakodowanie argumentu w taki sposób, aby można go było użyć jako pojedynczy element adresu URL, np. jako segment ścieżki lub parametr zapytania",
-        "nowDescription": "Podaje aktualną datę i godzinę."
+        "nowDescription": "Podaje aktualną datę i godzinę.",
+        "markdownToHtmlDescription": "Konwertuje np. wartość pola tekstowego z formatowaniem na kod HTML. Funkcja przydatna w przypadku wiadomości e-mail wysyłanych w formacie HTML oraz żądań HTTP."
     },
     "runtimeGetErrors": {
         "invalidPath": "Argument 'get' '{path}' musi być zapisany jako ścieżka rozdzielona kropkami (np. 'dostawca.atrybut').",
