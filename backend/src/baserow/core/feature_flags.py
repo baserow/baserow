@@ -6,6 +6,7 @@ FF_ENABLE_ALL = "*"
 FF_AGENTS = "agents"
 FF_AGENT_BUILDER = "agent-builder"
 FF_USER_TEMPLATES = "user_templates"
+FF_SEMANTIC_SEARCH = "semantic_search"
 
 
 def feature_flag_is_enabled(feature_flag: str, raise_if_disabled=False) -> bool:

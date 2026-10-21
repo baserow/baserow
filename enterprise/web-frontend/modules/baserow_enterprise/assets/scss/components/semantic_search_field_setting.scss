@@ -1,0 +1,11 @@
+.semantic-search-field-setting__updating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.semantic-search-field-setting__spinner {
+  @include loading(12px, $palette-blue-500);
+}

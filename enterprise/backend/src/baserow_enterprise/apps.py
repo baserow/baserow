@@ -55,6 +55,51 @@ def register_xls_file_reader_features():
     automation_node_type_registry.register(CoreXLSFileReaderActionNodeType())
 
 
+def register_semantic_search_features():
+    from baserow.api.settings.registries import settings_data_registry
+    from baserow.contrib.database.fields.registries import field_extension_registry
+    from baserow.contrib.database.search.registries import search_data_updater_registry
+    from baserow_enterprise.api.semantic_search.settings_data_types import (
+        SemanticSearchSettingsDataType,
+    )
+    from baserow_enterprise.semantic_search.field_extension_types import (
+        SemanticSearchFieldExtensionType,
+    )
+    from baserow_enterprise.semantic_search.registries import (
+        semantic_search_field_type_registry,
+    )
+    from baserow_enterprise.semantic_search.search_data_updater_types import (
+        SemanticSearchDataUpdaterType,
+    )
+    from baserow_enterprise.semantic_search.semantic_search_field_types import (
+        AISemanticSearchFieldType,
+        EmailSemanticSearchFieldType,
+        FormulaSemanticSearchFieldType,
+        LongTextSemanticSearchFieldType,
+        LookupSemanticSearchFieldType,
+        PhoneNumberSemanticSearchFieldType,
+        RollupSemanticSearchFieldType,
+        TextSemanticSearchFieldType,
+        URLSemanticSearchFieldType,
+    )
+
+    semantic_search_field_type_registry.register(TextSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(LongTextSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(URLSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(EmailSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(PhoneNumberSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(FormulaSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(LookupSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(RollupSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(AISemanticSearchFieldType())
+
+    field_extension_registry.register(SemanticSearchFieldExtensionType())
+    search_data_updater_registry.register(SemanticSearchDataUpdaterType())
+    settings_data_registry.register(SemanticSearchSettingsDataType())
+
+    import baserow_enterprise.semantic_search.receivers  # noqa: F401
+
+
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
@@ -291,6 +336,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         register_code_runner_features()
         register_xls_file_reader_features()
+        register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (

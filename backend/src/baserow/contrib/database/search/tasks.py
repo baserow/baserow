@@ -163,13 +163,14 @@ def periodic_check_pending_search_data():
     from baserow.contrib.database.search.handler import SearchHandler
     from baserow.contrib.database.search.registries import search_data_updater_registry
 
-    if SearchHandler.full_text_enabled():
-        # Remove pending update entries for data that's already been deleted. Since
-        # those records have been permanently deleted from the database, nothing
-        # should try to update their search vectors, so this call won’t interfere
-        # with any running tasks.
-        SearchHandler.process_search_data_marked_for_deletion()
+    # Remove pending update entries for data that's already been deleted. Since
+    # those records have been permanently deleted from the database, nothing
+    # should try to update their search data, so this call won’t interfere with
+    # any running tasks.
+    for search_data_updater_type in search_data_updater_registry.get_all():
+        search_data_updater_type.delete_data_marked_for_deletion()
 
+    if SearchHandler.full_text_enabled():
         # Delete any stale pending update that is waiting for too long.
         cutoff_time = datetime.now(tz=timezone.utc) - timedelta(
             hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED

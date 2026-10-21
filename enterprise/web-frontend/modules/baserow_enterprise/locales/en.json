@@ -54,6 +54,16 @@
     "codeLabel": "Execute code",
     "xlsFileReaderLabel": "Read an XLS file"
   },
+  "semanticSearchFieldSetting": {
+    "label": "Semantic search",
+    "description": "Makes it possible to find rows by the meaning of this field's values, also when they don't contain the exact words. Can be used in the semantic search action.",
+    "unavailable": "Semantic search requires pgvector and an embeddings service to be configured on this instance.",
+    "incompatible": "Semantic search isn't supported for this field type.",
+    "indexing": "Indexing values for semantic search...",
+    "statusError": "The values couldn't be indexed because the embeddings service failed. It's retried automatically.",
+    "statusPaused": "Indexing is paused because the workspace doesn't have the advanced plan anymore.",
+    "statusUnavailable": "Indexing is paused because semantic search isn't configured on this instance anymore."
+  },
   "createTeamModal": {
     "title": "Create team",
     "invalidNameTitle": "Please use a different name",
@@ -476,7 +486,9 @@
     "dateDependency": "Date dependency",
     "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly.",
     "dataScanner": "Data scanner",
-    "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results."
+    "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
+    "semanticSearch": "Semantic search",
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"
