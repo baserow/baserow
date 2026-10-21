@@ -73,7 +73,7 @@
     "fieldsPlaceholder": "All fields with semantic search",
     "fieldsHelper": "Leave empty to search in all fields with semantic search. Each row is returned once, with the field of which the value matches best.",
     "searchFieldsGone": "None of the chosen fields can be searched anymore. Pick the fields to search in.",
-    "noFields": "This table has no fields with semantic search. To enable it, open the settings of a text field in the table, go to the Advanced tab and switch on Semantic search.",
+    "noFields": "This table has no fields with semantic search. To enable it, open the settings of a text or file field in the table, go to the Advanced tab and switch on Semantic search.",
     "searchQuery": "Search query",
     "searchQueryHelper": "The text of which the meaning is searched for.",
     "searchQueryPlaceholder": "Enter a search query...",
@@ -509,7 +509,7 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications."
+    "semanticSearchContent": "Find rows by the meaning of their text and documents instead of exact words, and use the results in automations and applications."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"

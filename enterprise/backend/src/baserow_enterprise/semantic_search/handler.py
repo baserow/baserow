@@ -584,6 +584,7 @@ class _FieldIndexer:
                 settings.BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE,
                 settings.BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP,
                 settings.BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL,
+                semantic_search_field_type.get_index_settings(),
             ]
         )
 
@@ -696,7 +697,11 @@ class _FieldIndexer:
                 batch.save()
                 return processed
             texts = self.semantic_search_field_type.get_texts(self.field, value)
-            batch.add(row_id, content_hashes[row_id], self._split(texts))
+            content_hash = content_hashes[row_id]
+            if not texts.complete:
+                # Doesn't match the value anymore, so that it's read again.
+                content_hash = self._get_content_hash([value, "incomplete"])
+            batch.add(row_id, content_hash, self._split(texts.texts))
         batch.save()
         return len(values)
 

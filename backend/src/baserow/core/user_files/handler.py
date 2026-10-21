@@ -22,6 +22,7 @@ from requests.exceptions import RequestException
 import advocate
 from advocate.exceptions import UnacceptableAddressException
 from baserow.core.import_export.utils import file_chunk_generator
+from baserow.core.limited_process import run_in_limited_process
 from baserow.core.models import UserFile
 from baserow.core.storage import (
     ExportZipFile,
@@ -39,6 +40,7 @@ from .exceptions import (
     MaximumUniqueTriesError,
 )
 from .models import deconstruct_user_file_regex
+from .registries import file_text_extractor_registry
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -52,6 +54,8 @@ ACTIVE_CONTENT_MIME_TYPES = {
     "text/html",
     "text/xml",
 }
+TEXT_EXTRACTION_TIMEOUT_SECONDS = 30
+TEXT_EXTRACTION_MAX_MEMORY_BYTES = 512 * 1024 * 1024
 
 
 class UserFileHandler:
@@ -153,6 +157,45 @@ class UserFileHandler:
             user_file_name = user_file_name.name
 
         return join(settings.USER_FILES_DIRECTORY, user_file_name)
+
+    def extract_text(
+        self,
+        user_file_name: str,
+        mime_type: str,
+        max_characters: int,
+        timeout_seconds: float = TEXT_EXTRACTION_TIMEOUT_SECONDS,
+        storage: Storage | None = None,
+    ) -> str | None:
+        """
+        :param user_file_name: The name of the user file.
+        :param mime_type: The mime type of the user file.
+        :param max_characters: The maximum length of the text.
+        :param timeout_seconds: The seconds after which extracting is stopped.
+        :param storage: The storage of the file, the default storage if not set.
+        :return: The text content of the user file, or None if no registered
+            extractor supports its type.
+        :raises LimitedProcessFailed: If the file is corrupt, unsupported, or takes
+            too much time or memory to read.
+        """
+
+        extractor = file_text_extractor_registry.get_for_file(mime_type, user_file_name)
+        if extractor is None:
+            return None
+
+        storage = storage or get_default_storage()
+        with storage.open(self.user_file_path(user_file_name)) as file:
+            content = file.read()
+
+        def extract() -> bytes:
+            text = extractor.extract(BytesIO(content), max_characters)
+            # Lone surrogates of broken files can't be encoded.
+            return text.encode(errors="replace")
+
+        # A small hostile file can take endless time or memory to parse, which only
+        # a separate process can be stopped from.
+        return run_in_limited_process(
+            extract, timeout_seconds, TEXT_EXTRACTION_MAX_MEMORY_BYTES
+        ).decode()
 
     def user_file_sha256(self, user_file_name: str) -> str:
         """

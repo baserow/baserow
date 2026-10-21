@@ -1,3 +1,4 @@
+from io import BytesIO
 from unittest.mock import patch
 
 from django.db import connection
@@ -6,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
@@ -16,6 +18,14 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.tasks import periodic_check_pending_search_data
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_files.handler import UserFileHandler
+from baserow.test_utils.helpers import (
+    PEOPLE_XLS,
+    build_deeply_nested_docx,
+    build_docx,
+    build_pdf,
+    build_slow_pdf,
+)
 from baserow_enterprise.semantic_search.handler import SemanticSearchHandler
 from baserow_enterprise.semantic_search.models import (
     SemanticSearchField,
@@ -383,6 +393,110 @@ def test_long_cells_are_limited_to_the_maximum_chunks(data_fixture, semantic_sea
     assert len(semantic_search.embedded_texts) == 90
 
 
+@pytest.mark.django_db
+def test_index_files(data_fixture, semantic_search, tmpdir):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    handler = UserFileHandler()
+    with override_settings(MEDIA_ROOT=str(tmpdir)):
+        text_file = handler.upload_user_file(
+            user, "notes.txt", BytesIO(b"Meeting about the budget")
+        )
+        pdf_file = handler.upload_user_file(
+            user, "report.pdf", BytesIO(build_pdf("Quarterly revenue"))
+        )
+        word_file = handler.upload_user_file(
+            user,
+            "minutes.docx",
+            BytesIO(build_docx("<w:p><w:r><w:t>Hiring plan</w:t></w:r></w:p>")),
+        )
+        excel_file = handler.upload_user_file(user, "people.xls", BytesIO(PEOPLE_XLS))
+        image_file = handler.upload_user_file(user, "holiday.png", BytesIO(b"png"))
+        RowHandler().create_rows(
+            user,
+            table,
+            [
+                {
+                    field.db_column: [
+                        {"name": text_file.name, "visible_name": "notes.txt"},
+                        {"name": pdf_file.name, "visible_name": "report.pdf"},
+                        {"name": word_file.name, "visible_name": "minutes.docx"},
+                        {"name": excel_file.name, "visible_name": "people.xls"},
+                        {"name": image_file.name, "visible_name": "holiday.png"},
+                    ]
+                }
+            ],
+        )
+        FieldHandler().update_field(user, field, semantic_search_enabled=True)
+
+        assert index(table) is True
+
+    assert semantic_search.embedded_texts == [
+        "notes.txt\n\nMeeting about the budget",
+        "report.pdf\n\nQuarterly revenue",
+        "minutes.docx\n\nHiring plan",
+        "people.xls\n\nPeople\nName\tAge\nAda\t36\nBob\t40",
+        "holiday.png",
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE=100,
+    BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL=1,
+)
+def test_files_beyond_the_text_limit_of_a_cell_arent_read(
+    data_fixture, semantic_search, tmpdir
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    with override_settings(MEDIA_ROOT=str(tmpdir)):
+        files = [
+            UserFileHandler().upload_user_file(
+                user, f"{number}.txt", BytesIO(b"text " * 100)
+            )
+            for number in range(3)
+        ]
+        RowHandler().create_rows(
+            user, table, [{field.db_column: [{"name": file.name} for file in files]}]
+        )
+        FieldHandler().update_field(user, field, semantic_search_enabled=True)
+
+        with patch.object(
+            UserFileHandler,
+            "extract_text",
+            autospec=True,
+            side_effect=UserFileHandler.extract_text,
+        ) as extract_text:
+            index(table)
+
+    assert extract_text.call_count == 1
+
+
+@pytest.mark.django_db
+def test_soft_time_limit_isnt_swallowed_when_reading_files(
+    data_fixture, semantic_search, tmpdir
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    with override_settings(MEDIA_ROOT=str(tmpdir)):
+        file = UserFileHandler().upload_user_file(user, "a.txt", BytesIO(b"text"))
+        RowHandler().create_rows(
+            user, table, [{field.db_column: [{"name": file.name}]}]
+        )
+    FieldHandler().update_field(user, field, semantic_search_enabled=True)
+
+    # Celery raises this in whatever the task is doing when its time is up.
+    with patch.object(
+        UserFileHandler, "extract_text", side_effect=SoftTimeLimitExceeded()
+    ):
+        with pytest.raises(SoftTimeLimitExceeded):
+            index(table)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_index_formula_and_lookup_fields(api_client, data_fixture, semantic_search):
     user, token = data_fixture.create_user_and_token()
@@ -573,6 +687,147 @@ def test_formula_that_stops_being_text_disables_semantic_search(
     assert not SemanticSearchField.objects.exists()
     periodic_check_pending_search_data()
     assert get_chunk_counts(formula) == {}
+
+
+@pytest.mark.django_db
+def test_files_that_couldnt_be_read_are_read_again(
+    data_fixture, semantic_search, tmpdir
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    handler = UserFileHandler()
+    with override_settings(MEDIA_ROOT=str(tmpdir)):
+        user_file = handler.upload_user_file(
+            user, "notes.txt", BytesIO(b"Meeting about the budget")
+        )
+        path = tmpdir.join(handler.user_file_path(user_file.name))
+        content = path.read_binary()
+        RowHandler().create_rows(
+            user,
+            table,
+            [
+                {
+                    field.db_column: [
+                        {"name": user_file.name, "visible_name": "notes.txt"}
+                    ]
+                }
+            ],
+        )
+        FieldHandler().update_field(user, field, semantic_search_enabled=True)
+
+        # The storage is unavailable while the field is indexed.
+        path.remove()
+        index(table)
+        assert semantic_search.embedded_texts == ["notes.txt"]
+
+        path.write_binary(content)
+        semantic_search.embedded_texts.clear()
+        SemanticSearchHandler().queue_full_updates(
+            table, [SemanticSearchField.objects.get()]
+        )
+        index(table)
+
+    assert semantic_search.embedded_texts == ["notes.txt\n\nMeeting about the budget"]
+
+
+@pytest.mark.django_db
+def test_hostile_files_are_only_searchable_by_their_name(
+    data_fixture, semantic_search, tmpdir
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    handler = UserFileHandler()
+    with (
+        override_settings(MEDIA_ROOT=str(tmpdir)),
+        # Shorter than reading the slow PDF takes, which then also leaves no time
+        # for the next file of the cell.
+        patch(
+            "baserow_enterprise.semantic_search.semantic_search_field_types."
+            "FILE_EXTRACTION_SECONDS_PER_CELL",
+            2,
+        ),
+    ):
+        nested_docx = handler.upload_user_file(
+            user, "nested.docx", BytesIO(build_deeply_nested_docx())
+        )
+        slow_pdf = handler.upload_user_file(user, "slow.pdf", BytesIO(build_slow_pdf()))
+        text_file = handler.upload_user_file(
+            user, "notes.txt", BytesIO(b"Meeting about the budget")
+        )
+        RowHandler().create_rows(
+            user,
+            table,
+            [
+                {
+                    field.db_column: [
+                        {"name": nested_docx.name, "visible_name": "nested.docx"}
+                    ]
+                },
+                {
+                    field.db_column: [
+                        {"name": slow_pdf.name, "visible_name": "slow.pdf"},
+                        {"name": text_file.name, "visible_name": "notes.txt"},
+                    ]
+                },
+                {
+                    field.db_column: [
+                        {"name": text_file.name, "visible_name": "notes.txt"}
+                    ]
+                },
+            ],
+        )
+        FieldHandler().update_field(user, field, semantic_search_enabled=True)
+
+        assert index(table) is True
+
+    assert semantic_search.embedded_texts == [
+        "nested.docx",
+        "slow.pdf",
+        "notes.txt",
+        "notes.txt\n\nMeeting about the budget",
+    ]
+    assert SemanticSearchField.objects.get().status == "ready"
+
+
+@pytest.mark.django_db
+def test_changed_file_settings_index_files_again(data_fixture, semantic_search, tmpdir):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    handler = UserFileHandler()
+    with override_settings(MEDIA_ROOT=str(tmpdir)):
+        user_file = handler.upload_user_file(
+            user, "notes.txt", BytesIO(b"Meeting about the budget")
+        )
+        RowHandler().create_rows(
+            user,
+            table,
+            [
+                {
+                    field.db_column: [
+                        {
+                            "name": user_file.name,
+                            "visible_name": "notes.txt",
+                            "size": user_file.size,
+                        }
+                    ]
+                }
+            ],
+        )
+        with override_settings(BASEROW_SEMANTIC_SEARCH_MAX_FILE_SIZE_MB=0):
+            FieldHandler().update_field(user, field, semantic_search_enabled=True)
+            index(table)
+        assert semantic_search.embedded_texts == ["notes.txt"]
+
+        semantic_search.embedded_texts.clear()
+        SemanticSearchHandler().queue_full_updates(
+            table, [SemanticSearchField.objects.get()]
+        )
+        index(table)
+
+    assert semantic_search.embedded_texts == ["notes.txt\n\nMeeting about the budget"]
 
 
 @pytest.mark.django_db
