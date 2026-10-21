@@ -24,6 +24,12 @@ def setup(settings):
     settings.BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL = int(
         os.getenv("BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL", "") or 30
     )
+    settings.BASEROW_SEMANTIC_SEARCH_MAX_FILES_PER_CELL = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_MAX_FILES_PER_CELL", "") or 10
+    )
+    settings.BASEROW_SEMANTIC_SEARCH_MAX_FILE_SIZE_MB = int(
+        os.getenv("BASEROW_SEMANTIC_SEARCH_MAX_FILE_SIZE_MB", "") or 5
+    )
     settings.BASEROW_SEMANTIC_SEARCH_TASK_TIME_BUDGET_SECONDS = int(
         os.getenv("BASEROW_SEMANTIC_SEARCH_TASK_TIME_BUDGET_SECONDS", "") or 240
     )
