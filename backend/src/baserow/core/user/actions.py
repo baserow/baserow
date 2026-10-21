@@ -347,7 +347,10 @@ class SendResetUserPasswordActionType(ActionType):
         :param user: The user that will be updated.
         """
 
-        UserHandler().send_reset_password_email(user, base_url)
+        # Requests dropped by the rate limit aren't logged, so that flooding the
+        # endpoint can't flood the audit log as well.
+        if not UserHandler().send_reset_password_email(user, base_url):
+            return
 
         cls.register_action(
             user=user, params=cls.Params(user.id, user.email), scope=cls.scope()
@@ -456,7 +459,8 @@ class SendVerifyEmailAddressActionType(ActionType):
         Sends an email verification email to the user.
         """
 
-        UserHandler().send_email_pending_verification(user)
+        if not UserHandler().send_email_pending_verification(user):
+            return user
 
         cls.register_action(
             user=user, params=cls.Params(user.id, user.email), scope=cls.scope()

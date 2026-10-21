@@ -37,6 +37,7 @@ from baserow.core.user.exceptions import (
     UserNotFound,
 )
 from baserow.core.user.handler import UserHandler
+from baserow.throttling.types import RateLimit
 
 User = get_user_model()
 invalid_passwords = [
@@ -318,6 +319,33 @@ def test_send_reset_password_email_in_different_language(data_fixture, mailoutbo
 
     assert len(mailoutbox) == 1
     assert mailoutbox[0].subject == "Réinitialiser le mot de passe - Baserow"
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT=RateLimit.from_string("2/h"),
+    BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT=RateLimit.from_string("2/h"),
+)
+def test_send_reset_password_email_is_rate_limited_per_user(data_fixture, mailoutbox):
+    user = data_fixture.create_user(email="test@localhost")
+    other_user = data_fixture.create_user(email="other@localhost")
+    handler = UserHandler()
+    base_url = "http://localhost:3000/reset-password"
+
+    assert handler.send_reset_password_email(user, base_url) is True
+    assert handler.send_reset_password_email(user, base_url) is True
+    assert handler.send_reset_password_email(user, base_url) is False
+    assert handler.send_reset_password_email(other_user, base_url) is True
+
+    assert [email.to for email in mailoutbox] == [
+        ["test@localhost"],
+        ["test@localhost"],
+        ["other@localhost"],
+    ]
+
+    # The reset limit doesn't use up the verification email limit.
+    with transaction.atomic():
+        assert handler.send_email_pending_verification(user) is True
 
 
 @pytest.mark.django_db(transaction=True)

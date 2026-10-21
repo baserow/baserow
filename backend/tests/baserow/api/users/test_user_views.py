@@ -23,7 +23,9 @@ from baserow.api.user.registries import UserDataType, user_data_registry
 from baserow.contrib.database.models import Database, Table
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.user.actions import SendResetUserPasswordActionType
 from baserow.core.user.handler import UserHandler
+from baserow.throttling.types import RateLimit
 
 User = get_user_model()
 
@@ -1355,6 +1357,102 @@ def test_send_verify_email_address(client, data_fixture, mailoutbox):
 
     assert response.status_code == HTTP_204_NO_CONTENT
     assert len(mailoutbox) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=True,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("2/m"),),
+)
+@pytest.mark.parametrize(
+    "url_name,body",
+    [
+        ("api:user:send_reset_password_email", {"base_url": "http://localhost:3000"}),
+        ("api:user:send_verify_email", {}),
+    ],
+)
+def test_anonymous_email_endpoints_are_rate_limited_per_ip(
+    client, data_fixture, mailoutbox, url_name, body
+):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user()
+
+    def send(email, ip):
+        return client.post(
+            reverse(url_name),
+            {"email": email, **body},
+            format="json",
+            HTTP_X_FORWARDED_FOR=ip,
+        )
+
+    # Unknown addresses count as well, so the limit doesn't reveal accounts.
+    assert send("unknown@example.com", "1.1.1.1").status_code == HTTP_204_NO_CONTENT
+    assert send(user.email, "1.1.1.1").status_code == HTTP_204_NO_CONTENT
+    assert send(user.email, "1.1.1.1").status_code == 429
+    assert send(user.email, "2.2.2.2").status_code == HTTP_204_NO_CONTENT
+
+    assert len(mailoutbox) == 2
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=True,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("1/m"),),
+)
+def test_anonymous_email_ip_rate_limit_only_counts_post(client):
+    url = reverse("api:user:send_reset_password_email")
+
+    assert client.get(url).status_code == 405
+    assert client.get(url).status_code == 405
+    response = client.post(
+        url,
+        {"email": "unknown@example.com", "base_url": "http://localhost:3000"},
+        format="json",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=False,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("1/m"),),
+)
+def test_anonymous_email_ip_rate_limit_needs_ip_throttling_enabled(client):
+    # Without it, the client IP may be shared by every caller, or picked by them.
+    for _ in range(2):
+        response = client.post(
+            reverse("api:user:send_verify_email"),
+            {"email": "unknown@example.com"},
+            format="json",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT=RateLimit.from_string("2/h"),
+)
+def test_send_reset_password_email_rate_limited_per_recipient(
+    client, data_fixture, mailoutbox
+):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user()
+
+    with patch.object(
+        SendResetUserPasswordActionType, "register_action"
+    ) as register_action:
+        for _ in range(3):
+            response = client.post(
+                reverse("api:user:send_reset_password_email"),
+                {"email": user.email, "base_url": "http://localhost:3000"},
+                format="json",
+            )
+            # Dropped requests look the same, so they don't reveal the account.
+            assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert len(mailoutbox) == 2
+    # The dropped request isn't written to the audit log either.
+    assert register_action.call_count == 2
 
 
 @pytest.mark.django_db(transaction=True)

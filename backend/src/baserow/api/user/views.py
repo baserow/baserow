@@ -90,6 +90,7 @@ from baserow.core.user.exceptions import (
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import generate_session_tokens_for_user
 from baserow.core.utils import get_user_remote_ip_address_from_request
+from baserow.throttling.handler import AnonymousEmailRateThrottle
 
 from .errors import (
     ERROR_ALREADY_EXISTS,
@@ -366,6 +367,14 @@ class UserView(APIView):
 class SendResetPasswordEmailView(APIView):
     permission_classes = (AllowAny,)
 
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        # Every call counts per IP, also for unknown addresses, on top of the
+        # per recipient limit applied when the email is sent.
+        if self.request.method == "POST":
+            throttles.append(AnonymousEmailRateThrottle())
+        return throttles
+
     @extend_schema(
         tags=["User"],
         request=SendResetPasswordEmailBodyValidationSerializer,
@@ -383,6 +392,7 @@ class SendResetPasswordEmailView(APIView):
             400: get_error_schema(
                 ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_HOSTNAME_IS_NOT_ALLOWED"]
             ),
+            429: None,
         },
         auth=[],
     )
@@ -661,6 +671,14 @@ class UserPreferencesView(APIView):
 class SendVerifyEmailView(APIView):
     permission_classes = (AllowAny,)
 
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        # Every call counts per IP, also for unknown addresses, on top of the
+        # per recipient limit applied when the email is sent.
+        if self.request.method == "POST":
+            throttles.append(AnonymousEmailRateThrottle())
+        return throttles
+
     @extend_schema(
         tags=["User"],
         operation_id="send_verify_email",
@@ -671,6 +689,7 @@ class SendVerifyEmailView(APIView):
         ),
         responses={
             204: None,
+            429: None,
         },
     )
     @transaction.atomic

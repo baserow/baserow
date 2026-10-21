@@ -1252,9 +1252,39 @@ CELERY_EMAIL_TASK_CONFIG = {
     "rate_limit": f"{int(MAX_EMAILS_PER_MINUTE / CELERY_EMAIL_CHUNK_SIZE)}/m",
 }
 
-BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
-    os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT", "5/h")
-)
+try:
+    BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
+        os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT") or "5/h"
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT is invalid. It must be a rate "
+        f"limit, for example '5/h'. {exc}"
+    ) from exc
+try:
+    BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT = RateLimit.from_string(
+        os.getenv("BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT") or "5/h"
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT is invalid. It must be a "
+        f"rate limit, for example '5/h'. {exc}"
+    ) from exc
+# Only applies when BASEROW_THROTTLE_IP_ENABLED is set. Leaving it empty keeps the
+# default; a single comma switches the limits off.
+try:
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS") or "5/m,30/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '5/m,30/h'. {exc}"
+    ) from exc
 
 login_action_limit_from_env = os.getenv("BASEROW_LOGIN_ACTION_LOG_LIMIT")
 BASEROW_LOGIN_ACTION_LOG_LIMIT = (

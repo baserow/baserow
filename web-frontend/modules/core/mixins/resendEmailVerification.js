@@ -26,7 +26,18 @@ export default {
           ),
         })
       } catch (error) {
-        notifyIf(error, 'emailVerification')
+        // The backend responds with a generic throttled error, which notifyIf
+        // ignores because it has no error code.
+        if (error.handler?.isTooManyRequests()) {
+          const message = error.handler.getMessage()
+          this.$store.dispatch('toast/error', {
+            title: message.title,
+            message: message.message,
+          })
+          error.handler.handled()
+        } else {
+          notifyIf(error, 'emailVerification')
+        }
       }
 
       this.resendLoading = false

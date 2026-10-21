@@ -1,4 +1,3 @@
-from django.core.cache import cache
 from django.db import transaction
 
 import pytest
@@ -91,8 +90,6 @@ def test_sign_in_user_action_type(data_fixture):
 def test_sign_in_user_action_type_action_log_limit(settings, data_fixture):
     settings.BASEROW_LOGIN_ACTION_LOG_LIMIT = RateLimit.from_string("2/h")
     user = data_fixture.create_user()
-    cache_key = f"log_signin_action:{user.username}:PasswordAuthProviderModel"
-    cache.delete(cache_key)
 
     # sign ins are logged
     with freeze_time("2020-01-01 12:00:10"), transaction.atomic():
