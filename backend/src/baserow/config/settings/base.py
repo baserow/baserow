@@ -1978,6 +1978,10 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = int(
+    os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE", "") or 5
+)
+
 # Deprecated provider connection/model environment variables. Manage providers and
 # models under AI providers instead. Keep these settings for compatibility and the
 # migrate_ai_provider_settings import command; runtime fallback remains supported.

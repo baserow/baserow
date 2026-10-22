@@ -110,9 +110,9 @@ class AgentService:
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
-    ) -> QuerySet[AgentMessage]:
+    ) -> tuple[AgentConversation, QuerySet[AgentMessage]]:
         """
-        Return the messages of one of the user's conversations.
+        Return one of the user's conversations with its messages.
 
         :param user: The user reading the conversation.
         :param agent_id: The id of the agent.
@@ -121,15 +121,15 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The messages, newest first.
+        :return: The conversation, and its messages newest first with their turns
+            and authors.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.get_conversation(
-            agent, user, conversation_uuid
-        ).messages.all()
+        conversation = self.handler.get_conversation(agent, user, conversation_uuid)
+        return conversation, conversation.messages.select_related("turn", "author_user")
 
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
@@ -162,6 +162,8 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
         :return: The conversation and its first message, and whether they are new.
         """
 
@@ -211,6 +213,10 @@ class AgentService:
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentNotReady: When the agent isn't ready for a new message.
+        :raises ChatRunAlreadyActive: When the agent is still replying in this
+            conversation.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
         :return: The conversation and the message, and whether the message is new.
         """
 
@@ -227,9 +233,10 @@ class AgentService:
         # Configuration may have changed while waiting for the conversation lock.
         agent = self.handler.get_agent(agent_id)
         self._require_ready(agent)
-        result = self.handler.create_message(conversation, uuid, content)
+        result = self.handler.create_message(conversation, uuid, content, user)
         if result.created:
             agent_conversation_updated.send(
                 self, conversation=result.conversation, user=user
             )
         return result
+

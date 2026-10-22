@@ -41,6 +41,35 @@ class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Mode
         ]
 
 
+class AgentTurn(BigAutoFieldMixin, models.Model):
+    """The agent's answer to one prompt, from sending it to the final outcome."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+        FAILED = "failed", "Failed"
+
+    conversation = models.ForeignKey(
+        AgentConversation, on_delete=models.CASCADE, related_name="turns"
+    )
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.RUNNING
+    )
+    error_code = models.CharField(max_length=64, blank=True, default="")
+    provider_type = models.CharField(max_length=255, null=True, blank=True)
+    model_identifier = models.CharField(max_length=255, null=True, blank=True)
+    # Kept as pydantic-ai dumped them, so they load back into its message types.
+    model_messages = models.JSONField(null=True)
+    usage = models.JSONField(null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    finished_on = models.DateTimeField(null=True)
+
+    class Meta:
+        ordering = ("id",)
+
+
 class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     """A message as shown in a conversation, not as sent to the AI model."""
 
@@ -57,6 +86,15 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         max_length=16, choices=Role.choices, default=Role.USER, db_default=Role.USER
     )
     content = models.TextField()
+    turn = models.ForeignKey(
+        AgentTurn, null=True, on_delete=models.CASCADE, related_name="messages"
+    )
+    author_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         ordering = ("-id",)
