@@ -47,7 +47,14 @@ def _read_state(run_id: UUID, reader: AbstractUser | None) -> dict:
         connections.close_all()
 
 
-def _fold(events: list[dict]) -> dict:
+def fold_output(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Fold buffered output into its latest text segment and progress.
+
+    :param events: Buffered events in order, each with a ``kind`` and ``data``.
+    :return: The latest segment's text, number and variant, and the latest
+        progress data.
+    """
+
     text, segment, progress, variant = "", None, None, None
     for event in events:
         data = event["data"]
@@ -105,7 +112,7 @@ class _OutputReader:
         if prefix is None:
             raise ReplayUnavailable("prefix")
         self.baseline_needed = False
-        return _record("run.baseline", _fold(prefix), self.cursor, replayed=True)
+        return _record("run.baseline", fold_output(prefix), self.cursor, replayed=True)
 
     def unavailable(self, error: Exception) -> dict[str, Any] | None:
         """Retry an outage or a buffer not started yet, else stop with a notice."""
