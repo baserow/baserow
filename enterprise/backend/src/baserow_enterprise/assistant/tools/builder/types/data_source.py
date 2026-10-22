@@ -328,17 +328,15 @@ class DataSourceUpdate(BaseModel):
                 raise ToolInputError(f"Table with id {self.table_id} not found.")
             kwargs["table"] = table
 
-        if self.row_id is not None:
-            kwargs["row_id"] = formula_object(
-                literal_or_placeholder(self.row_id),
-                mode=BASEROW_FORMULA_MODE_ADVANCED,
-            )
-
-        if self.search_query is not None:
-            kwargs["search_query"] = formula_object(
-                literal_or_placeholder(self.search_query),
-                mode=BASEROW_FORMULA_MODE_ADVANCED,
-            )
+        # A value that needs a formula is written once it's generated, so the
+        # previous one stays if generation fails.
+        for name in ("row_id", "search_query"):
+            value = getattr(self, name)
+            if value is not None and not needs_formula(value):
+                kwargs[name] = formula_object(
+                    literal_or_placeholder(value),
+                    mode=BASEROW_FORMULA_MODE_ADVANCED,
+                )
 
         if self.view_id is not None:
             from baserow_enterprise.assistant.tools.database.helpers import get_view

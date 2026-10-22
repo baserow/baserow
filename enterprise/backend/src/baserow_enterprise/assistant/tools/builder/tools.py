@@ -437,19 +437,22 @@ def update_data_source(
         orm_ds, ds_type = helpers.update_data_source(user, page, data_source)
 
     # Handle formula generation for $formula: fields (separate transaction)
+    errors: list[str] = []
     formulas = data_source.get_formulas_to_update(orm_ds, None)
     if formulas:
-        agents.update_single_data_source_formulas(
+        errors = agents.update_single_data_source_formulas(
             user, page, orm_ds, data_source, tool_helpers
         )
 
-    updated_fields = data_source.get_updated_field_names()
-    return {
-        "status": "ok",
+    result: dict[str, Any] = {
+        "status": "partial" if errors else "ok",
         "data_source_id": data_source.data_source_id,
         "service_type": ds_type,
-        "updated_fields": updated_fields,
+        "updated_fields": data_source.get_updated_field_names(),
     }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------
