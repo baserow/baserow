@@ -549,7 +549,8 @@
     "runErrorTimeout": "Kuma ran out of time before finishing. Some changes may already have been made.",
     "runErrorFailed": "Something went wrong while Kuma was working. Some changes may already have been made.",
     "runErrorPersistFailed": "Kuma finished, but its answer couldn't be saved. The changes it made are kept.",
-    "runErrorModelUnavailable": "Kuma's AI model isn't available right now, so nothing was changed."
+    "runErrorModelUnavailable": "Kuma's AI model isn't available right now, so nothing was changed.",
+    "runErrorAccessLost": "You lost access to Kuma before it started on this message, so nothing was changed."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

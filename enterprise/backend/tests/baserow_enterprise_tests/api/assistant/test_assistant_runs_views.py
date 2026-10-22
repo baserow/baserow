@@ -136,20 +136,27 @@ def test_sending_saves_the_message_and_enqueues_its_run(
     assert run.context["ui_context"]["timezone"] == "Europe/Rome"
 
 
+TRUNCATED_TITLE = "Plan my week " + "x" * 47
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "title,content,expected,generate",
+    "title,first,content,expected,generate",
     [
-        ("", "Plan my\n  week", "Plan my week", True),
-        ("", "x" * 100, "x" * 60, True),
-        ("Tables", "Add a table", "Tables", False),
+        ("", None, "Plan my\n  week", "Plan my week", True),
+        ("", None, "x" * 100, "x" * 60, True),
+        ("Tables", "Plan my week", "Add a table", "Tables", False),
+        (TRUNCATED_TITLE, "Plan my\n  week " + "x" * 60, "Hi", TRUNCATED_TITLE, True),
     ],
+    ids=["untitled", "long", "generated", "still_provisional"],
 )
-def test_only_an_untitled_chat_gets_a_provisional_title(
-    api_client, member, title, content, expected, generate
+def test_runs_generate_a_title_until_the_chat_has_one(
+    api_client, member, title, first, content, expected, generate
 ):
     user, token, workspace = member
     chat = AssistantChat.objects.create(user=user, workspace=workspace, title=title)
+    if first:
+        chat.messages.create(role=AssistantChatMessage.Role.HUMAN, content=first)
     response = _send(api_client, token, workspace, chat.uuid, content)
     chat.refresh_from_db()
     assert chat.title == expected
