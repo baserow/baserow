@@ -30,6 +30,9 @@
         @load-more="state.loadMoreConversations"
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
+        <div class="agent-chat__announcement" role="status">
+          {{ announcement ? $t(announcement) : '' }}
+        </div>
         <div ref="historyElement" class="agent-chat__history">
           <div
             v-if="
@@ -73,14 +76,52 @@
               >{{ $t('agent.olderMessages') }}</Button
             >
             <div
-              v-for="message in state.currentHistory.items"
+              v-for="(message, index) in state.currentHistory.items"
               :key="message.uuid"
               class="agent-chat__message"
+              :class="{
+                'agent-chat__message--reply': message.role === 'assistant',
+              }"
             >
+              <div
+                v-if="messageAuthor(message)"
+                class="agent-chat__message-author"
+              >
+                {{ messageAuthor(message) }}
+              </div>
               <div class="agent-chat__message-content">
                 {{ message.content }}
               </div>
+              <div v-if="messageNotices[index]" class="agent-chat__notice">
+                {{ $t(messageNotices[index]) }}
+              </div>
             </div>
+            <div
+              v-if="showReply"
+              class="agent-chat__message agent-chat__message--reply"
+              aria-live="polite"
+              :aria-busy="replyRunning"
+            >
+              <div class="agent-chat__message-author">{{ agent.name }}</div>
+              <div
+                v-if="state.replyFollower.view.text"
+                class="agent-chat__message-content"
+              >
+                {{ state.replyFollower.view.text }}
+              </div>
+              <div v-else class="loading" aria-hidden="true" />
+            </div>
+            <Alert v-if="state.refreshError" type="error">
+              {{ $t('agent.messagesLoadError') }}
+              <template #actions
+                ><Button
+                  type="secondary"
+                  size="small"
+                  @click="state.retryReply"
+                  >{{ $t('action.retry') }}</Button
+                ></template
+              >
+            </Alert>
           </template>
           <div v-else-if="showChatIntro" class="agent-chat__intro">
             <div class="agent-chat__avatar">
@@ -133,19 +174,13 @@
             </template>
           </Alert>
           <Alert
-            v-if="state.currentDraft?.error"
+            v-if="state.sendError"
             id="agent-chat-send-error"
             type="error"
             role="alert"
             class="margin-bottom-2"
           >
-            {{
-              $t(
-                state.currentDraft.error === 'conflict'
-                  ? 'agent.messageConflict'
-                  : 'agent.messageSaveError'
-              )
-            }}
+            {{ $t(SEND_ERROR_MESSAGES[state.sendError]) }}
           </Alert>
           <form
             v-if="showComposer"
@@ -159,7 +194,7 @@
               :placeholder="$t('agent.messagePlaceholder')"
               :aria-label="$t('agent.messagePlaceholder')"
               :aria-describedby="
-                state.currentDraft?.error ? 'agent-chat-send-error' : undefined
+                state.sendError ? 'agent-chat-send-error' : undefined
               "
               auto-expandable
               :min-rows="1"
@@ -169,15 +204,23 @@
               @keydown="handleEnter"
             />
             <Button
+              v-if="replyRunning"
+              type="secondary"
+              button-type="button"
+              class="agent-chat__stop"
+              icon="iconoir-square"
+              :aria-label="$t('agent.stop')"
+              :title="$t('agent.stop')"
+              :loading="state.replyFollower.stopRequested"
+              @click="stopReply"
+            />
+            <Button
+              v-else
               button-type="submit"
               class="agent-chat__send"
               icon="iconoir-arrow-up"
-              :aria-label="
-                $t(state.currentDraft?.error ? 'action.retry' : 'agent.send')
-              "
-              :title="
-                $t(state.currentDraft?.error ? 'action.retry' : 'agent.send')
-              "
+              :aria-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
+              :title="$t(state.sendError ? 'action.retry' : 'agent.send')"
               :loading="Boolean(state.currentDraft?.sending)"
               :disabled="!state.canSend || !state.currentDraft?.content.trim()"
             />
@@ -245,6 +288,59 @@ const fieldLabels = {
   provider_type: 'agent.provider',
   model_identifier: 'agent.model',
 }
+const SEND_ERROR_MESSAGES = {
+  conflict: 'agent.messageConflict',
+  inProgress: 'agent.replyInProgress',
+  busy: 'agent.agentsBusy',
+  failed: 'agent.messageSaveError',
+}
+const FAILED_REPLY_NOTICES = {
+  timeout: 'agent.replyTimedOut',
+  interrupted: 'agent.replyInterrupted',
+  not_started: 'agent.replyNotStarted',
+  not_ready: 'agent.replyNotReady',
+  not_allowed: 'agent.replyNotAllowed',
+}
+/** The notice of a turn whose reply didn't complete, or null. */
+function turnNotice(turn) {
+  if (turn?.status === 'cancelled') return 'agent.replyStopped'
+  if (turn?.status === 'failed') {
+    return FAILED_REPLY_NOTICES[turn.error_code] || 'agent.replyFailed'
+  }
+  if (turn?.status === 'running' && !turn.run_id) {
+    return 'agent.replyInterrupted'
+  }
+  return null
+}
+const replyRunning = computed(() =>
+  Boolean(state.replyFollower && !state.replyFollower.finished)
+)
+const showReply = computed(
+  () => replyRunning.value || Boolean(state.replyFollower?.view.text)
+)
+const announcement = ref('')
+watch(
+  () => {
+    const follower = state.replyFollower
+    if (!follower) return null
+    if (!follower.finished) return 'agent.replying'
+    const { status, errorCode } = follower.view
+    return turnNotice({ status, error_code: errorCode }) || ''
+  },
+  (key) => {
+    if (key !== null) announcement.value = key
+  }
+)
+const isLastOfTurn = (items, index) =>
+  items[index + 1]?.turn?.id !== items[index].turn?.id
+const messageNotices = computed(() => {
+  const items = state.currentHistory?.items || []
+  return items.map((message, index) =>
+    isLastOfTurn(items, index) ? turnNotice(message.turn) : null
+  )
+})
+const messageAuthor = (message) =>
+  message.role === 'assistant' ? props.agent.name : message.author?.name
 const warningFields = computed(() => Object.keys(state.fieldErrors))
 const hasLoadError = computed(
   () =>
@@ -344,6 +440,21 @@ watch(
     }
   }
 )
+const NEAR_BOTTOM_PX = 48
+watch(
+  () => state.replyFollower?.view.text,
+  async () => {
+    const container = historyElement.value
+    if (!container) return
+    const nearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <=
+      NEAR_BOTTOM_PX
+    await nextTick()
+    if (nearBottom && historyElement.value === container) {
+      container.scrollTop = container.scrollHeight
+    }
+  }
+)
 const messageInput = ref(null)
 async function submitMessage() {
   if (!state.canSend || !state.currentDraft?.content.trim()) return
@@ -361,6 +472,10 @@ async function submitMessage() {
   ) {
     historyElement.value.scrollTop = historyElement.value.scrollHeight
   }
+}
+function stopReply() {
+  messageInput.value?.focus()
+  state.stopReply()
 }
 async function startConversation() {
   state.newConversation()

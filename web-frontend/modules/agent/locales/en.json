@@ -36,6 +36,17 @@
     "conversationsLoadError": "Conversations could not be loaded.",
     "messagesLoadError": "Messages could not be loaded.",
     "messageSaveError": "Your message could not be confirmed. Retry sends the same message safely; its text is kept until it is saved.",
-    "messageConflict": "This request conflicts with a previously saved message. Open the conversation again to check its history."
+    "messageConflict": "This request conflicts with a previously saved message. Open the conversation again to check its history.",
+    "replying": "Replying…",
+    "stop": "Stop",
+    "replyStopped": "Stopped.",
+    "replyTimedOut": "This reply took too long and was stopped.",
+    "replyInterrupted": "This reply was interrupted.",
+    "replyNotStarted": "The agent couldn’t start replying. Send your message again.",
+    "replyNotReady": "The agent wasn’t ready to reply. Check its configuration and send your message again.",
+    "replyNotAllowed": "You no longer have permission to send messages to this agent.",
+    "replyFailed": "The agent couldn’t reply. Send your message again.",
+    "replyInProgress": "The agent is still replying in this conversation.",
+    "agentsBusy": "Agents in this workspace are busy. Try again shortly."
   }
 }

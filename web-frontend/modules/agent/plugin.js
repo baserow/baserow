@@ -1,4 +1,5 @@
 import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
+import { AgentChatRunType } from '@baserow/modules/agent/chatRunTypes'
 import { AgentLastViewedItemType } from '@baserow/modules/agent/lastViewedItemTypes'
 import { AgentApplicationSearchType } from '@baserow/modules/agent/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
@@ -23,6 +24,7 @@ export default defineNuxtPlugin({
       new SettingsAgentConfigurationSectionType(context)
     )
     nuxtApp.$registry.register('application', new AgentApplicationType(context))
+    nuxtApp.$registry.register('chatRunType', new AgentChatRunType(context))
     nuxtApp.$registry.register(
       'lastViewedItem',
       new AgentLastViewedItemType(context)
