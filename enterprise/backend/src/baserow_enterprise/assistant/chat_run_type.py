@@ -16,6 +16,7 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 
 from .assistant import BackgroundAssistant, assistant_message_payload
@@ -28,7 +29,13 @@ from .model_profiles import (
 )
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .operations import ChatAssistantChatOperationType
-from .runs import ASSISTANT_RUN_TYPE, ERROR_MODEL_UNAVAILABLE, AssistantRunResult
+from .runs import (
+    ASSISTANT_RUN_TYPE,
+    ERROR_ACCESS_LOST,
+    ERROR_MODEL_UNAVAILABLE,
+    NOTHING_RAN_ERROR_CODES,
+    AssistantRunResult,
+)
 from .telemetry import AssistantTraceOutcome, PosthogTracingCallback
 from .types import UIContext
 
@@ -142,6 +149,10 @@ class AssistantChatRunType(ChatRunType):
             return ChatRunOutcome(
                 status=ChatRunStatus.FAILED, error_code=ERROR_MODEL_UNAVAILABLE
             )
+        except PermissionDenied:
+            return ChatRunOutcome(
+                status=ChatRunStatus.FAILED, error_code=ERROR_ACCESS_LOST
+            )
 
         with translation.override(restored.chat.user.profile.language):
             assistant = await sync_to_async(BackgroundAssistant)(
@@ -165,12 +176,15 @@ class AssistantChatRunType(ChatRunType):
 
         :param run: The claimed run.
         :return: The chat, the message, the UI context and a ready model profile.
+        :raises PermissionDenied: When the sender can no longer use Kuma here.
         """
 
         self._repair_interrupted_turns(run)
         chat = AssistantChat.objects.select_related("workspace", "user__profile").get(
             id=run.chat_id
         )
+        if not self.can_read(chat.user, run):
+            raise PermissionDenied()
         human_message = chat.messages.get(id=run.context["human_message_id"])
         ui_context = UIContext.model_validate(run.context["ui_context"])
 
@@ -194,8 +208,8 @@ class AssistantChatRunType(ChatRunType):
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict[str, Any]:
         """
         Saves the final answer and model history. Without a result the turn
-        closes as unfinished, since execution may have changed data, unless the
-        model was unavailable and nothing ran.
+        closes as unfinished, since execution may have changed data, unless
+        nothing ran.
 
         :param run: The run.
         :param outcome: How the run ended, with an `AssistantRunResult` if any.
@@ -209,7 +223,7 @@ class AssistantChatRunType(ChatRunType):
                 chat.message_history,
                 human_message.content,
                 NOT_STARTED_ANSWER
-                if outcome.error_code == ERROR_MODEL_UNAVAILABLE
+                if outcome.error_code in NOTHING_RAN_ERROR_CODES
                 else unfinished_answer(""),
             ),
         )

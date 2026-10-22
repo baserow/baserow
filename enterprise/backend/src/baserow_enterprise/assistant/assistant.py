@@ -979,7 +979,7 @@ class BackgroundAssistant(Assistant):
         Generates the chat's title and reports it. On failure the provisional
         title stays.
 
-        :param prompt: The chat's first message.
+        :param prompt: The message to summarize, normally the chat's first.
         """
 
         try:

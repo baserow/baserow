@@ -14,6 +14,11 @@ from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls
 
 from baserow.core.chat_runs.models import ChatRun
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.types import TableNavigationType
+
+ORDERS_TABLE = TableNavigationType(
+    type="database-table", database_id=1, table_id=2, table_name="Orders"
+)
 
 
 def ai_message(run: ChatRun) -> AssistantChatMessage:

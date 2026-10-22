@@ -8,6 +8,7 @@ from django.utils import translation
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from pydantic_ai.messages import ModelResponse, TextPart
+from pytest_mock import MockerFixture
 
 from baserow.config.db_routers import get_db_alias
 from baserow.core.action.models import Action
@@ -23,11 +24,16 @@ from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.tasks import execute_chat_run
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.models import WorkspaceUser
 from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.history import unfinished_answer
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.runs import CHAT_TITLE_EVENT, ERROR_MODEL_UNAVAILABLE
+from baserow_enterprise.assistant.runs import (
+    CHAT_TITLE_EVENT,
+    ERROR_ACCESS_LOST,
+    ERROR_MODEL_UNAVAILABLE,
+)
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
 from baserow_enterprise.assistant.tools.core import helpers as core_helpers
 from baserow_enterprise_tests.assistant.runs.utils import (
@@ -132,25 +138,38 @@ def test_an_unfinished_run_keeps_what_the_user_saw_and_closes_the_turn(
     ]
 
 
-@pytest.mark.django_db(transaction=True)
-def test_a_run_without_a_usable_model_fails_before_the_agent_starts(
-    assistant_run, mocker
-):
+def _break_the_model(run: ChatRun, mocker: MockerFixture) -> None:
     mocker.patch(
         "baserow_enterprise.assistant.chat_run_type.check_lm_ready_or_raise",
         side_effect=AssistantModelNotSupportedError("down"),
     )
+
+
+def _remove_the_sender(run: ChatRun, mocker: MockerFixture) -> None:
+    WorkspaceUser.objects.filter(workspace_id=run.workspace_id).delete()
+
+
+@pytest.mark.parametrize(
+    "cut_off, error_code",
+    [
+        (_break_the_model, ERROR_MODEL_UNAVAILABLE),
+        (_remove_the_sender, ERROR_ACCESS_LOST),
+    ],
+    ids=["no_model", "no_access"],
+)
+@pytest.mark.django_db(transaction=True)
+def test_a_run_that_cannot_use_kuma_fails_before_the_agent_starts(
+    assistant_run, mocker, cut_off, error_code
+):
+    run = assistant_run()
+    cut_off(run, mocker)
     assistant = mocker.patch(
         "baserow_enterprise.assistant.chat_run_type.BackgroundAssistant"
     )
 
-    outcome = async_to_sync(AssistantChatRunType().execute)(
-        assistant_run(), MagicMock()
-    )
+    outcome = async_to_sync(AssistantChatRunType().execute)(run, MagicMock())
 
-    assert outcome == ChatRunOutcome(
-        status=ChatRunStatus.FAILED, error_code=ERROR_MODEL_UNAVAILABLE
-    )
+    assert outcome == ChatRunOutcome(status=ChatRunStatus.FAILED, error_code=error_code)
     assistant.assert_not_called()
 
 

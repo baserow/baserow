@@ -215,12 +215,8 @@ def test_the_message_shows_once_and_a_started_run_is_running(
         ),
         (
             "failed",
-            "model_unavailable",
-            {
-                "type": "ai/error",
-                "code": "model_unavailable",
-                "content": NOT_STARTED_ANSWER,
-            },
+            "access_lost",
+            {"type": "ai/error", "code": "access_lost", "content": NOT_STARTED_ANSWER},
         ),
     ],
 )
