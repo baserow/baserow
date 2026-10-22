@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
@@ -12,7 +12,7 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id,
 )
-from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType
 from baserow.core.chat_runs.types import ChatRunOutcome
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 def trace_outcome_for(status: str, error_code: str) -> AssistantTraceOutcome:
     """
     Maps how a run ended to the outcome of its `$ai_trace`, so Kuma's outcome
-    rates stay comparable with streamed messages.
+    rates stay comparable with runs whose agent traced itself.
 
     :param status: The run's final status.
     :param error_code: Why the run failed or stopped, if it did.
@@ -63,15 +63,15 @@ class RestoredRun:
 
     chat: AssistantChat
     human_message: AssistantChatMessage
-    ui_context: Optional[UIContext]
+    ui_context: UIContext
     model_profile: ResolvedAssistantModelProfile
 
 
 class AssistantChatRunType(ChatRunType):
     """
     Kuma's messages, answered in the background. The send endpoint saves the
-    human message; a run saves nothing until it ends, when one of these hooks
-    saves the AI message, its prediction and the chat's history.
+    human message. A run first closes its chat's earlier interrupted turns, then
+    saves its own answer, prediction and history when it ends.
     """
 
     type = ASSISTANT_RUN_TYPE
@@ -128,8 +128,7 @@ class AssistantChatRunType(ChatRunType):
     async def execute(self, run: ChatRun, journal: "ChatRunJournal") -> ChatRunOutcome:
         """
         Restores the sending request's context and answers the message while
-        reporting to the journal. Nothing is saved here: `persist_outcome` saves
-        the outcome when the run ends.
+        reporting to the journal.
 
         :param run: The claimed run.
         :param journal: The run's journal.
@@ -149,18 +148,20 @@ class AssistantChatRunType(ChatRunType):
                 restored.chat,
                 restored.model_profile,
                 journal,
-                run.context.get("origin_tab_id", ""),
+                run.context["origin_tab_id"],
             )
             return await assistant.answer(
                 restored.human_message.content,
                 restored.ui_context,
-                run.context.get("generate_title", False),
+                run.context["generate_title"],
             )
 
     def _restore(self, run: ChatRun) -> RestoredRun:
         """
         Loads what the run answers and puts the sending request's context back on
-        the chat's user, so tools act as they would have during the request.
+        the chat's user, so tools act as they would have during the request. It
+        first closes the chat's earlier interrupted turns, so the model reads a
+        complete history.
 
         :param run: The claimed run.
         :return: The chat, the message, the UI context and a ready model profile.
@@ -171,19 +172,15 @@ class AssistantChatRunType(ChatRunType):
             id=run.chat_id
         )
         human_message = chat.messages.get(id=run.context["human_message_id"])
-        ui_context_data = run.context.get("ui_context")
-        ui_context = (
-            UIContext.model_validate(ui_context_data) if ui_context_data else None
-        )
+        ui_context = UIContext.model_validate(run.context["ui_context"])
 
         user = chat.user
-        if session_id := run.context.get("client_session_id"):
+        if session_id := run.context["client_session_id"]:
             set_untrusted_client_session_id(user, session_id)
-        set_client_undo_redo_action_group_id(user, run.context.get("action_group_id"))
+        set_client_undo_redo_action_group_id(user, run.context["action_group_id"])
         # Without a websocket id, the sending tab also gets the realtime events.
         user.web_socket_id = None
-        if ui_context is not None:
-            user.profile.timezone = ui_context.timezone
+        user.profile.timezone = ui_context.timezone
 
         model_profile = resolve_assistant_model(workspace=chat.workspace)
         check_lm_ready_or_raise(model_profile=model_profile)
@@ -196,8 +193,9 @@ class AssistantChatRunType(ChatRunType):
 
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict[str, Any]:
         """
-        Saves the final answer and model history. An absent result does not prove
-        that execution made no changes.
+        Saves the final answer and model history. Without a result the turn
+        closes as unfinished, since execution may have changed data, unless the
+        model was unavailable and nothing ran.
 
         :param run: The run.
         :param outcome: How the run ended, with an `AssistantRunResult` if any.
@@ -210,7 +208,9 @@ class AssistantChatRunType(ChatRunType):
             message_history=append_turn(
                 chat.message_history,
                 human_message.content,
-                (unfinished_answer("") if run.started_on else NOT_STARTED_ANSWER),
+                NOT_STARTED_ANSWER
+                if outcome.error_code == ERROR_MODEL_UNAVAILABLE
+                else unfinished_answer(""),
             ),
         )
         return self._save_answer(
@@ -218,56 +218,50 @@ class AssistantChatRunType(ChatRunType):
         )
 
     def serialize_outcome(self, run: ChatRun) -> dict[str, Any] | None:
-        """Recover the associated answer with its current rating and chat title.
+        """
+        Returns the run's saved answer with its current rating and chat title,
+        which can both change after the run ends.
 
-        The durable payload identifies the saved message even after another turn
-        finishes. Feedback and titles remain product state and can change later.
+        :param run: The run.
+        :return: The saved answer, the run's own outcome once its chat is
+            deleted, or None when the run saved no answer.
         """
 
         if run.outcome is None:
             return None
-        message_id = run.outcome.get("id")
-        message = None
-        if isinstance(message_id, int) and not isinstance(message_id, bool):
-            message = (
-                AssistantChatMessage.objects.using(DEFAULT_DB_ALIAS)
-                .select_related("prediction", "chat")
-                .filter(
-                    id=message_id,
-                    chat_id=run.chat_id,
-                    role=AssistantChatMessage.Role.AI,
-                )
-                .first()
+        message = (
+            AssistantChatMessage.objects.using(DEFAULT_DB_ALIAS)
+            .select_related("prediction", "chat")
+            .filter(
+                id=run.outcome["id"],
+                chat_id=run.chat_id,
+                role=AssistantChatMessage.Role.AI,
             )
-        if message is not None:
-            return {
-                **assistant_message_payload(message),
-                "chat_title": message.chat.title,
-            }
-        # A product message can have been removed; the terminal run still keeps
-        # the original result. Never substitute a later conversation message.
-        title = (
-            AssistantChat.objects.using(DEFAULT_DB_ALIAS)
-            .filter(id=run.chat_id)
-            .values_list("title", flat=True)
             .first()
         )
-        return {**run.outcome, **({"chat_title": title} if title is not None else {})}
+        if message is None:
+            return run.outcome
+        return {**assistant_message_payload(message), "chat_title": message.chat.title}
 
     def on_run_lost(
         self, run: ChatRun, events: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
-        """Save only a complete, retained Redis reconstruction, never a tail."""
+        """
+        Saves what the user saw of a run whose worker died, closing its turn as
+        unfinished.
+
+        :param run: The run.
+        :param events: The run's output, or None when it was missing or
+            incomplete, which keeps no text.
+        :return: The saved AI message.
+        """
 
         chat, human_message = self._load_turn(run)
         text = ""
         segment = None
         for event in events or []:
-            kind = event.get("kind")
             data = event.get("data") or {}
-            if kind == "run.baseline":
-                text, segment = data.get("text", ""), data.get("segment")
-            elif kind == "text.delta":
+            if event.get("kind") == ChatRunEventKind.TEXT_DELTA:
                 if data.get("segment") != segment:
                     text, segment = "", data.get("segment")
                 text += data.get("text", "")
@@ -284,10 +278,11 @@ class AssistantChatRunType(ChatRunType):
         )
 
     def ensure_interruption_warning(self, run: ChatRun) -> None:
-        """Keep a failed persistence warning after generic run metadata is pruned.
+        """
+        Closes, once, the turn of a started run that saved no answer, so the model
+        knows changes may exist.
 
-        The marker lives on the original prompt. It makes repair idempotent even
-        when the normal prediction/outcome hook failed after tools ran.
+        :param run: The run.
         """
 
         if run.started_on is None or run.outcome is not None:
@@ -300,7 +295,7 @@ class AssistantChatRunType(ChatRunType):
                 return
             human = (
                 chat.messages.select_for_update()
-                .filter(id=run.context.get("human_message_id"))
+                .filter(id=run.context["human_message_id"])
                 .first()
             )
             if human is None or human.artifacts.get("run_warning"):
@@ -318,7 +313,11 @@ class AssistantChatRunType(ChatRunType):
             human.save(update_fields=["artifacts", "updated_on"])
 
     def _repair_interrupted_turns(self, run: ChatRun) -> None:
-        """Repair missing prior turns before a new model reads the conversation."""
+        """
+        Closes the chat's earlier turns whose run started but saved no answer.
+
+        :param run: The run about to answer the chat's next message.
+        """
 
         for previous in ChatRun.objects.filter(
             run_type=self.type,
@@ -401,7 +400,7 @@ class AssistantChatRunType(ChatRunType):
             role=AssistantChatMessage.Role.AI,
             content=result.text,
             artifacts=artifacts,
-            action_group_id=run.context.get("action_group_id"),
+            action_group_id=run.context["action_group_id"],
         )
         AssistantChatPrediction.objects.create(
             human_message=human_message,

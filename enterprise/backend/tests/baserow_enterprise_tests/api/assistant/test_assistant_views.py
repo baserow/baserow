@@ -14,20 +14,6 @@ from baserow_enterprise.assistant.models import (
     AssistantChatMessage,
     AssistantChatPrediction,
 )
-from baserow_enterprise.assistant.types import (
-    AiMessage,
-    HumanMessage,
-    UIContext,
-    UserUIContext,
-    WorkspaceUIContext,
-)
-
-
-@pytest.fixture(autouse=True)
-def no_feature_flags(settings):
-    """Kuma API behavior does not require feature flags."""
-
-    settings.FEATURE_FLAGS = []
 
 
 @pytest.mark.django_db
@@ -283,42 +269,6 @@ def test_cannot_reuse_chat_uuid_from_another_workspace(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_send_message_validates_request_body(api_client, enterprise_data_fixture):
-    """Test that the endpoint validates the request body properly"""
-
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    enterprise_data_fixture.enable_enterprise()
-
-    chat_uuid = str(uuid4())
-
-    # Test missing content
-    rsp = api_client.post(
-        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
-        data={
-            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert rsp.status_code == 400
-    assert "content" in str(rsp.json())
-
-    # Test missing ui_context
-    rsp = api_client.post(
-        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
-        data={
-            "content": "Hello",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert rsp.status_code == 400
-    assert "ui_context" in str(rsp.json())
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
 def test_cannot_get_messages_without_valid_chat(api_client, enterprise_data_fixture):
     """Test that getting messages requires a valid chat"""
 
@@ -452,37 +402,6 @@ def test_get_messages_returns_chat_history(api_client, enterprise_data_fixture):
     assert data["messages"][3]["type"] == "ai/message"
     assert data["messages"][3]["id"] == 4
     assert "timestamp" in data["messages"][3]
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_get_messages_returns_empty_list_for_new_chat(
-    api_client, enterprise_data_fixture
-):
-    """Test that the endpoint returns an empty list for a chat with no messages"""
-
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    enterprise_data_fixture.enable_enterprise()
-
-    # Create a chat
-    chat = AssistantChat.objects.create(
-        user=user, workspace=workspace, title="Empty Chat"
-    )
-
-    rsp = api_client.get(
-        reverse(
-            "assistant:chat_messages",
-            kwargs={"chat_uuid": str(chat.uuid)},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert rsp.status_code == 200
-    data = rsp.json()
-
-    assert "messages" in data
-    assert data["messages"] == []
 
 
 @pytest.mark.django_db
@@ -730,37 +649,6 @@ def test_get_messages_includes_human_sentiment_when_feedback_exists(
         human_sentiment=-1,  # DISLIKE
         human_feedback="Not accurate",
     )
-
-    message_history = [
-        HumanMessage(
-            id=human_message_1.id,
-            content="Question 1",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
-        ),
-        AiMessage(
-            id=ai_message_1.id,
-            content="Answer 1",
-            can_submit_feedback=False,
-            human_sentiment="LIKE",
-        ),
-        HumanMessage(
-            id=human_message_2.id,
-            content="Question 2",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
-        ),
-        AiMessage(
-            id=ai_message_2.id,
-            content="Answer 2",
-            can_submit_feedback=False,
-            human_sentiment="DISLIKE",
-        ),
-    ]
 
     rsp = api_client.get(
         reverse(

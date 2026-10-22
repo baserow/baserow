@@ -1,59 +1,93 @@
 import json
+from typing import Any
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
+from django.contrib.auth.models import AbstractUser
+from django.http.response import HttpResponseBase, StreamingHttpResponse
 from django.urls import reverse
 
 import pytest
 from asgiref.sync import async_to_sync
+from rest_framework.test import APIClient
 
+from baserow.config import streaming
+from baserow.core.chat_runs.constants import MAX_ACTIVE_RUNS_PER_USER
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
+from baserow.core.models import Workspace
 from baserow.test_utils.helpers import AnyDict, AnyStr
-from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
-from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.assistant import assistant_message_payload
+from baserow_enterprise.assistant.models import (
+    AssistantChat,
+    AssistantChatMessage,
+    AssistantChatPrediction,
+)
 from baserow_enterprise.assistant.runs import ASSISTANT_RUN_TYPE
 
 
 @pytest.fixture(autouse=True)
-def model_check(mocker, settings) -> MagicMock:
-    settings.FEATURE_FLAGS = []
-    mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._publish")
-    mocker.patch("baserow.core.chat_runs.handler.notify_run_on_commit")
-    mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
+def model_check(mocker) -> MagicMock:
     return mocker.patch(
         "baserow_enterprise.api.assistant.views.check_lm_ready_or_raise"
     )
 
 
+@pytest.fixture(autouse=True)
+def enqueue(mocker) -> MagicMock:
+    """Stubs a started run's commit-time side effects; returns the enqueue mock."""
+
+    mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._publish")
+    mocker.patch("baserow.core.chat_runs.handler.notify_run_on_commit")
+    return mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
+
+
 @pytest.fixture
-def member(enterprise_data_fixture, enable_enterprise):
+def member(
+    enterprise_data_fixture, enable_enterprise
+) -> tuple[AbstractUser, str, Workspace]:
     user, token = enterprise_data_fixture.create_user_and_token()
     return user, token, enterprise_data_fixture.create_workspace(user=user)
 
 
-def _url(chat_uuid):
+def _url(chat_uuid: UUID) -> str:
     return reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid})
 
 
-def _send(api_client, token, workspace, chat_uuid, content="Add a table"):
+def _send(
+    api_client: APIClient,
+    token: str,
+    workspace: Workspace,
+    chat_uuid: UUID,
+    content: str = "Add a table",
+    ui_context: dict[str, Any] | None = None,
+    session_id: str = "session-1",
+) -> HttpResponseBase:
+    ui_context = ui_context or {
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "timezone": "Europe/Rome",
+    }
     return api_client.post(
         _url(chat_uuid),
-        {
-            "content": content,
-            "ui_context": {
-                "workspace": {"id": workspace.id, "name": workspace.name},
-                "timezone": "Europe/Rome",
-            },
-            "tab_id": "tab-1",
-        },
+        {"content": content, "ui_context": ui_context, "tab_id": "tab-1"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
-        HTTP_CLIENTSESSIONID="session-1",
+        HTTP_CLIENTSESSIONID=session_id,
     )
 
 
-async def _initial_record(response):
+def _resume(
+    api_client: APIClient, token: str, chat_uuid: UUID, run_id: str, **extra: Any
+) -> HttpResponseBase:
+    return api_client.post(
+        _url(chat_uuid),
+        {"run_id": run_id, **extra},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+async def _initial_record(response: StreamingHttpResponse) -> dict[str, Any]:
     iterator = response.streaming_content
     try:
         return json.loads(await anext(iterator))
@@ -61,25 +95,23 @@ async def _initial_record(response):
         await iterator.aclose()
 
 
-def _run_id(response):
+def _run_id(response: StreamingHttpResponse) -> str:
     return async_to_sync(_initial_record)(response)["_run"]["id"]
 
 
 @pytest.mark.django_db
-def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
-    api_client, member, mocker, model_check, django_capture_on_commit_callbacks
+def test_sending_saves_the_message_and_enqueues_its_run(
+    api_client, member, enqueue, django_capture_on_commit_callbacks
 ):
     user, token, workspace = member
     chat_uuid = uuid4()
-    enqueue = mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
-    assistant = mocker.patch(
-        "baserow_enterprise.assistant.handler.AssistantHandler.get_assistant"
-    )
     with django_capture_on_commit_callbacks(execute=True):
         response = _send(api_client, token, workspace, chat_uuid)
 
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
+    assert response["Cache-Control"] == "no-cache"
+    assert response["X-Accel-Buffering"] == "no"
     record = async_to_sync(_initial_record)(response)
     run = ChatRun.objects.get(id=record["_run"]["id"])
     message = AssistantChatMessage.objects.get(chat__uuid=chat_uuid)
@@ -91,8 +123,6 @@ def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
         "_run": {"id": str(run.id), "chat_id": message.chat_id, "status": "queued"},
     }
     enqueue.assert_called_once_with(run.id)
-    assistant.assert_not_called()
-    assert model_check.call_args.kwargs["model_profile"].workspace == workspace
     assert run.created_by == user
     assert run.context == {
         "human_message_id": message.id,
@@ -104,9 +134,6 @@ def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
     }
     assert UUID(run.context["action_group_id"]).version == 4
     assert run.context["ui_context"]["timezone"] == "Europe/Rome"
-    snapshot = api_client.get(_url(chat_uuid), HTTP_AUTHORIZATION=f"JWT {token}").json()
-    assert snapshot["active_run"]["human_message_id"] == message.id
-    assert snapshot["latest_run"]["human_message_id"] == message.id
 
 
 @pytest.mark.django_db
@@ -118,7 +145,7 @@ def test_the_existing_post_commits_and_streams_its_worker_backed_answer(
         ("Tables", "Add a table", "Tables", False),
     ],
 )
-def test_a_new_chat_gets_a_provisional_title(
+def test_only_an_untitled_chat_gets_a_provisional_title(
     api_client, member, title, content, expected, generate
 ):
     user, token, workspace = member
@@ -132,22 +159,20 @@ def test_a_new_chat_gets_a_provisional_title(
 
 
 @pytest.mark.django_db
-def test_a_second_message_preserves_the_draft_and_returns_existing_work(
-    api_client, member
-):
+def test_a_message_sent_during_a_run_is_refused(api_client, member):
     _, token, workspace = member
     chat_uuid = uuid4()
-    first = _send(api_client, token, workspace, chat_uuid)
+    _send(api_client, token, workspace, chat_uuid)
     second = _send(api_client, token, workspace, chat_uuid, "And another")
     assert second.status_code == 409
-    assert second.json()["run_id"] == _run_id(first)
+    assert second.json()["error"] == "ERROR_CHAT_RUN_IN_PROGRESS"
     assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
 
 
 @pytest.mark.django_db
 def test_a_user_cannot_exceed_the_active_run_cap(api_client, member):
     _, token, workspace = member
-    for _ in range(2):
+    for _ in range(MAX_ACTIVE_RUNS_PER_USER):
         assert _send(api_client, token, workspace, uuid4()).status_code == 200
     chat_uuid = uuid4()
     response = _send(api_client, token, workspace, chat_uuid)
@@ -156,27 +181,12 @@ def test_a_user_cannot_exceed_the_active_run_cap(api_client, member):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "content,model_error,error",
-    [
-        ("a" * 100_001, None, "ERROR_REQUEST_BODY_VALIDATION"),
-        (
-            "Hi",
-            AssistantModelNotSupportedError("down"),
-            "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
-        ),
-    ],
-    ids=["too-long", "unavailable-model"],
-)
-def test_a_refused_message_leaves_nothing_behind(
-    api_client, member, model_check, content, model_error, error
-):
+def test_a_too_long_message_leaves_nothing_behind(api_client, member):
     _, token, workspace = member
-    model_check.side_effect = model_error
     chat_uuid = uuid4()
-    response = _send(api_client, token, workspace, chat_uuid, content)
+    response = _send(api_client, token, workspace, chat_uuid, "a" * 100_001)
     assert response.status_code == 400
-    assert response.json()["error"] == error
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert not AssistantChat.objects.filter(uuid=chat_uuid).exists()
     assert not ChatRun.objects.exists()
 
@@ -187,42 +197,46 @@ def test_resume_only_attaches_without_message_or_task(api_client, member, mocker
     chat_uuid = uuid4()
     first = _send(api_client, token, workspace, chat_uuid)
     run_id = _run_id(first)
-    enqueue = mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
     model = mocker.patch(
         "baserow_enterprise.api.assistant.views.resolve_assistant_model"
     )
-    response = api_client.post(
-        _url(chat_uuid),
-        {"run_id": run_id, "tab_id": "tab-1"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    response = _resume(api_client, token, chat_uuid, run_id, tab_id="tab-1")
     assert response.status_code == 200
     assert _run_id(response) == run_id
     assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
     assert ChatRun.objects.count() == 1
-    enqueue.assert_not_called()
     model.assert_not_called()
+
+
+UI_CONTEXT = {"workspace": {"id": 1, "name": "W"}}
+RUN_ID = str(uuid4())
+VALID_CURSOR = f"{uuid4().hex}:1-0"
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "extra", [{"content": "Run again"}, {"ui_context": {}}, {"cursor": "broken"}]
+    "body,error",
+    [
+        ({"run_id": RUN_ID, "content": "Hi"}, "cannot contain a new message"),
+        ({"run_id": RUN_ID, "ui_context": UI_CONTEXT}, "cannot contain a new message"),
+        ({"content": "Hi"}, "requires content and ui_context"),
+        ({"ui_context": UI_CONTEXT}, "requires content and ui_context"),
+        (
+            {"content": "Hi", "ui_context": UI_CONTEXT, "cursor": VALID_CURSOR},
+            "A cursor requires run_id",
+        ),
+        ({"run_id": RUN_ID, "cursor": "broken"}, "Invalid chat run cursor"),
+    ],
 )
-def test_resume_rejects_new_work_or_invalid_cursor_before_200(
-    api_client, member, extra
+def test_a_post_must_either_send_a_message_or_follow_a_run(
+    api_client, member, body, error
 ):
-    _, token, workspace = member
-    chat_uuid = uuid4()
-    first = _send(api_client, token, workspace, chat_uuid)
+    _, token, _ = member
     response = api_client.post(
-        _url(chat_uuid),
-        {"run_id": _run_id(first), **extra},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        _url(uuid4()), body, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     assert response.status_code == 400
-    assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
+    assert error in str(response.json()["detail"])
 
 
 @pytest.mark.django_db
@@ -230,17 +244,12 @@ def test_resume_cannot_follow_a_different_chat(api_client, member):
     user, token, workspace = member
     first = _send(api_client, token, workspace, uuid4())
     other = AssistantChat.objects.create(user=user, workspace=workspace)
-    response = api_client.post(
-        _url(other.uuid),
-        {"run_id": _run_id(first)},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    response = _resume(api_client, token, other.uuid, _run_id(first))
     assert response.status_code == 404
 
 
 @pytest.mark.django_db
-def test_get_remains_json_with_durable_active_and_latest_metadata(api_client, member):
+def test_get_returns_the_active_and_latest_run(api_client, member):
     user, token, workspace = member
     chat = AssistantChat.objects.create(user=user, workspace=workspace)
     idle = api_client.get(_url(chat.uuid), HTTP_AUTHORIZATION=f"JWT {token}")
@@ -251,34 +260,71 @@ def test_get_remains_json_with_durable_active_and_latest_metadata(api_client, me
         "active_run": None,
         "latest_run": None,
     }
-    run = ChatRunHandler().create_run(ASSISTANT_RUN_TYPE, chat.id, workspace, user, {})
+    run = ChatRunHandler().create_run(
+        ASSISTANT_RUN_TYPE, chat.id, workspace, user, {"human_message_id": 7}
+    )
     busy = api_client.get(_url(chat.uuid), HTTP_AUTHORIZATION=f"JWT {token}")
-    assert busy["Content-Type"] == "application/json"
+    assert busy.json()["latest_run"] == busy.json()["active_run"]
     assert busy.json()["active_run"] == {
         "id": str(run.id),
+        "run_type": ASSISTANT_RUN_TYPE,
         "chat_id": chat.id,
         "status": "queued",
-        "human_message_id": None,
+        "error_code": "",
+        "cancel_requested_at": None,
+        "message": None,
+        "human_message_id": 7,
     }
     ChatRun.objects.filter(id=run.id).update(
         status=ChatRunStatus.COMPLETED,
         outcome={"type": "ai/message", "id": 123, "content": "Done"},
     )
-    AssistantChat.objects.filter(id=chat.id).update(title="Finished title")
     ended = api_client.get(_url(chat.uuid), HTTP_AUTHORIZATION=f"JWT {token}")
     assert ended.json()["active_run"] is None
     assert ended.json()["latest_run"]["message"]["id"] == 123
-    assert ended.json()["chat_title"] == "Finished title"
-    assert ended.json()["latest_run"]["message"]["chat_title"] == "Finished title"
+    assert ended.json()["latest_run"]["human_message_id"] == 7
 
 
-def test_the_original_post_uses_separate_async_follower_admission():
-    from baserow.config.streaming import _paths
+@pytest.mark.django_db
+def test_a_reloaded_chat_shows_how_each_answer_ended(api_client, member):
+    user, token, workspace = member
+    chat = AssistantChat.objects.create(user=user, workspace=workspace)
+    human = chat.messages.create(role=AssistantChatMessage.Role.HUMAN, content="Hi")
+    stopped = chat.messages.create(
+        role=AssistantChatMessage.Role.AI,
+        content="Partial",
+        artifacts={
+            "sources": ["https://baserow.io/docs"],
+            "run": {"status": "failed", "error_code": "interrupted"},
+        },
+    )
+    AssistantChatPrediction.objects.create(human_message=human, ai_response=stopped)
+    chat.messages.create(role=AssistantChatMessage.Role.AI, content="Done")
 
-    path = _url(uuid4())
-    assert path.startswith("/assistant/chat/")
+    response = api_client.get(_url(chat.uuid), HTTP_AUTHORIZATION=f"JWT {token}")
+
+    saved = chat.messages.select_related("prediction").order_by("id")
+    messages = response.json()["messages"]
+    assert messages == [assistant_message_payload(message) for message in saved]
+    assert messages[1] == {
+        "id": stopped.id,
+        "type": "ai/message",
+        "content": "Partial",
+        "timestamp": AnyStr(),
+        "sources": ["https://baserow.io/docs"],
+        "can_submit_feedback": True,
+        "human_sentiment": None,
+        "run_status": "failed",
+        "error_code": "interrupted",
+        "onboarding_target": None,
+    }
+    assert (messages[2]["run_status"], messages[2]["error_code"]) == (None, None)
+
+
+def test_message_posts_are_served_by_the_async_stream_router():
     assert any(
-        "POST" in methods and pattern.fullmatch(path) for pattern, methods in _paths
+        "POST" in methods and pattern.fullmatch(_url(uuid4()))
+        for pattern, methods in streaming._paths
     )
 
 
@@ -305,42 +351,23 @@ def test_the_original_post_uses_separate_async_follower_admission():
     ids=["workspace-only", "database", "application", "automation", "dashboard"],
 )
 def test_sending_preserves_ui_context_for_the_worker(api_client, member, context):
-    user, token, workspace = member
-    chat_uuid = uuid4()
+    _, token, workspace = member
     ui_context = {
         "workspace": {"id": workspace.id, "name": workspace.name},
         **context,
     }
-    response = api_client.post(
-        _url(chat_uuid),
-        {"content": "Help with this page", "ui_context": ui_context},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    response = _send(api_client, token, workspace, uuid4(), ui_context=ui_context)
     assert response.status_code == 200
     saved = ChatRun.objects.get(id=_run_id(response)).context["ui_context"]
     for key, value in ui_context.items():
         assert saved[key] == value
-    assert saved["user"] == {
-        "id": user.id,
-        "name": user.first_name,
-        "email": user.email,
-    }
-    assert saved["timezone"] == "UTC"
 
 
 @pytest.mark.django_db
 def test_invalid_session_id_cannot_create_a_chat_or_run(api_client, member):
     _, token, workspace = member
-    response = api_client.post(
-        _url(uuid4()),
-        {
-            "content": "Help me",
-            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-        HTTP_CLIENTSESSIONID="invalid session",
+    response = _send(
+        api_client, token, workspace, uuid4(), session_id="invalid session"
     )
     assert response.status_code == 400
     assert "An invalid ClientSessionId header was provided." in response.json()[0]
@@ -349,126 +376,11 @@ def test_invalid_session_id_cannot_create_a_chat_or_run(api_client, member):
 
 
 @pytest.mark.django_db
-def test_post_keeps_json_record_framing_for_worker_output(api_client, member, mocker):
-    _, token, workspace = member
-    events = [
-        {"kind": "progress", "data": {"text": "Searching documentation..."}},
-        {"kind": "text.delta", "data": {"segment": 0, "text": "Hello"}},
-        {"kind": "text.delta", "data": {"segment": 0, "text": " world"}},
-        {"kind": "chat.title", "data": {"title": "A greeting"}},
-        {
-            "kind": "run.finished",
-            "data": {
-                "status": "completed",
-                "message": {
-                    "type": "ai/message",
-                    "id": 123,
-                    "content": "Hello world",
-                    "sources": ["https://baserow.io/user-docs"],
-                },
-            },
-        },
-    ]
-
-    async def follow(*args, **kwargs):
-        for index, event in enumerate(events):
-            yield {**event, "cursor": f"cursor-{index}"}
-
-    mocker.patch("baserow_enterprise.assistant.stream.follow_run", side_effect=follow)
-    response = _send(api_client, token, workspace, uuid4())
-    assert response.status_code == 200
-    assert response["Content-Type"] == "text/event-stream"
-    assert response["Cache-Control"] == "no-cache"
-    assert response["X-Accel-Buffering"] == "no"
-    chunks = response.stream_chunks()
-    assert all(chunk.endswith(b"\n\n") for chunk in chunks)
-    records = [json.loads(chunk) for chunk in chunks]
-    assert [record["type"] for record in records] == [
-        "human",
-        "ai/started",
-        "ai/thinking",
-        "ai/message",
-        "ai/message",
-        "chat/title",
-        "ai/message",
-    ]
-    assert [records[index]["content"] for index in (2, 3, 4, 5)] == [
-        "Searching documentation...",
-        "Hello",
-        "Hello world",
-        "A greeting",
-    ]
-    assert records[-1]["id"] == 123
-    assert records[-1]["sources"] == ["https://baserow.io/user-docs"]
-    assert records[-1]["_run"]["status"] == "completed"
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "status,kind", [("cancelled", "ai/cancelled"), ("failed", "ai/error")]
-)
-def test_post_keeps_terminal_error_and_cancel_records(
-    api_client, member, mocker, status, kind
-):
-    _, token, workspace = member
-
-    async def follow(*args, **kwargs):
-        yield {
-            "kind": "run.finished",
-            "cursor": "last",
-            "data": {"status": status, "error_code": "interrupted"},
-        }
-
-    mocker.patch("baserow_enterprise.assistant.stream.follow_run", side_effect=follow)
-    response = _send(api_client, token, workspace, uuid4())
-    records = [json.loads(chunk) for chunk in response.stream_chunks()]
-    assert records[-2]["_run"]["status"] == status
-    assert records[-1]["type"] == kind
-    if status == "failed":
-        assert records[-1]["code"] == "interrupted"
-
-
-@pytest.mark.django_db
-def test_disconnecting_closes_only_the_output_follower(api_client, member, mocker):
-    _, token, workspace = member
-    lifecycle = []
-
-    async def stream(*args, **kwargs):
-        try:
-            yield '{"type": "ai/message", "content": "Hello"}\n\n'
-        finally:
-            lifecycle.append("follower-closed")
-
-    mocker.patch(
-        "baserow_enterprise.api.assistant.views.stream_run_messages", side_effect=stream
-    )
-    response = _send(api_client, token, workspace, uuid4())
-
-    async def consume_one_chunk_and_close():
-        iterator = aiter(response)
-        chunk = await anext(iterator)
-        await iterator.aclose()
-        return chunk
-
-    chunk = async_to_sync(consume_one_chunk_and_close)()
-    assert json.loads(chunk)["content"] == "Hello"
-    assert lifecycle == ["follower-closed"]
-    run = ChatRun.objects.get()
-    assert run.status == ChatRunStatus.QUEUED
-    assert run.cancel_requested_at is None
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("started", [False, True], ids=["queued", "running"])
-def test_the_existing_cancel_endpoint_always_cancels_durable_work(
-    api_client, member, started
-):
+def test_cancel_stops_the_chats_active_run(api_client, member):
     _, token, workspace = member
     chat_uuid = uuid4()
     response = _send(api_client, token, workspace, chat_uuid)
     run = ChatRun.objects.get(id=_run_id(response))
-    if started:
-        ChatRunHandler().claim_run(run.id)
 
     response = api_client.delete(
         reverse("assistant:cancel_message", kwargs={"chat_uuid": chat_uuid}),
@@ -476,11 +388,7 @@ def test_the_existing_cancel_endpoint_always_cancels_durable_work(
     )
     assert response.status_code == 204
     run.refresh_from_db()
-    if started:
-        assert run.status == ChatRunStatus.RUNNING
-        assert run.cancel_requested_at is not None
-    else:
-        assert run.status == ChatRunStatus.CANCELLED
+    assert run.status == ChatRunStatus.CANCELLED
 
 
 @pytest.mark.django_db

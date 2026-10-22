@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
@@ -37,7 +38,7 @@ from baserow_enterprise.assistant.retrying_model import (
 
 
 @pytest.fixture
-def retry_logs():
+def retry_logs() -> Iterator[list[str]]:
     written = []
     sink = logger.add(written.append, format="{message}")
     try:

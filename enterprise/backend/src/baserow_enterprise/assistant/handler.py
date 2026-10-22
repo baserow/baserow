@@ -1,7 +1,7 @@
-from contextlib import AbstractContextManager, aclosing, nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -16,7 +16,6 @@ from baserow.core.models import Workspace
 
 from .assistant import Assistant, assistant_message_payload
 from .exceptions import AssistantChatDoesNotExist
-from .model_profiles import ResolvedAssistantModelProfile
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .runs import ASSISTANT_RUN_TYPE
 from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
@@ -36,7 +35,9 @@ def _provisional_title(content: str) -> str:
 
 @dataclass(frozen=True)
 class ChatSnapshot:
-    """A chat's messages and its active run, read at one point in time."""
+    """
+    A chat's title, messages, active run and latest run, read at one point in time.
+    """
 
     messages: list[AssistantMessageUnion]
     active_run: Optional[ChatRun]
@@ -184,18 +185,17 @@ class AssistantHandler:
 
     def get_chat_snapshot(self, chat: AssistantChat) -> ChatSnapshot:
         """
-        Reads the chat's messages and its active run in one repeatable-read
-        transaction, so a run can't start or end unseen between the two reads.
+        Reads the chat's title, messages, active run and latest run in one
+        repeatable-read transaction, so a run can't start or end unseen between
+        the reads.
 
         :param chat: The chat.
-        :return: The messages, active run and latest run, from the same snapshot.
+        :return: The chat's snapshot.
         """
 
         with _snapshot_transaction():
-            chat_title = (
-                AssistantChat.objects.using(DEFAULT_DB_ALIAS)
-                .values_list("title", flat=True)
-                .get(id=chat.id)
+            chat_title = AssistantChat.objects.values_list("title", flat=True).get(
+                id=chat.id
             )
             messages = self.list_chat_messages(chat)
             active_run = ChatRunHandler().get_active_run(ASSISTANT_RUN_TYPE, chat.id)
@@ -210,21 +210,6 @@ class AssistantHandler:
             latest_run=latest_run,
             chat_title=chat_title,
         )
-
-    def get_assistant(
-        self,
-        chat: AssistantChat,
-        model_profile: ResolvedAssistantModelProfile | None = None,
-    ) -> Assistant:
-        """
-        Get the assistant for the given chat.
-
-        :param chat: The AI assistant chat to get the assistant for.
-        :param model_profile: The model resolution already checked for this request.
-        :return: The assistant for the given chat.
-        """
-
-        return Assistant(chat, model_profile=model_profile)
 
     def send_message(
         self,
@@ -246,7 +231,7 @@ class AssistantHandler:
             chat.
         :param content: The message.
         :param ui_context: What the user was looking at when sending it.
-        :param tab_id: The sending tab, the only one that follows Kuma's
+        :param tab_id: The sending tab, the only one that receives Kuma's
             navigation.
         :return: The run, and the saved message as clients show it.
         """
@@ -298,24 +283,3 @@ class AssistantHandler:
             queryset = queryset.filter(human_sentiment__isnull=True)
 
         return queryset.delete()
-
-    async def astream_assistant_messages(
-        self,
-        chat: AssistantChat,
-        human_message: str,
-        ui_context: UIContext | None = None,
-    ) -> AsyncGenerator[AssistantMessageUnion, None]:
-        """
-        Stream messages from the assistant for the given chat and new message.
-
-        :param chat: The AI assistant chat to get the assistant for.
-        :param human_message: The new message from the user.
-        :param ui_context: The UI context where the message was sent.
-        :return: An async generator yielding messages from the assistant.
-        """
-
-        assistant = self.get_assistant(chat)
-        message = HumanMessage(content=human_message, ui_context=ui_context)
-        async with aclosing(assistant.astream_messages(message)) as messages:
-            async for msg in messages:
-                yield msg

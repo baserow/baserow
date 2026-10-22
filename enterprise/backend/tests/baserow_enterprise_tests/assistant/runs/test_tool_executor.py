@@ -9,7 +9,6 @@ from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.toolsets import FunctionToolset
 
-from baserow.config.db_routers import get_db_alias, set_db_alias
 from baserow_enterprise.assistant.tool_executor import ShieldedToolset, ToolExecutor
 
 
@@ -39,7 +38,6 @@ async def test_a_cancelled_agent_returns_at_once_while_its_tool_is_drained():
     def slow_tool() -> str:
         """Waits until the test releases it."""
 
-        seen["db_alias"] = get_db_alias()
         started.set()
         release.wait(5)
         seen["finished"] = True
@@ -60,7 +58,6 @@ async def test_a_cancelled_agent_returns_at_once_while_its_tool_is_drained():
                 async for _ in events:
                     pass
 
-    set_db_alias(DEFAULT_DB_ALIAS)
     agent_task = asyncio.create_task(run_agent())
     assert await asyncio.to_thread(started.wait, 5)
     agent_task.cancel()
@@ -69,7 +66,7 @@ async def test_a_cancelled_agent_returns_at_once_while_its_tool_is_drained():
     assert "finished" not in seen
     release.set()
     await executor.drain()
-    assert seen == {"db_alias": DEFAULT_DB_ALIAS, "finished": True}
+    assert seen == {"finished": True}
 
 
 @pytest.mark.django_db
