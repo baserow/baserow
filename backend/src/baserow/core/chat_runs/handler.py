@@ -16,13 +16,13 @@ from baserow.core.models import Workspace
 
 from .constants import (
     LEASE_DURATION,
-    MAX_ACTIVE_RUNS_PER_USER,
     NOT_STARTED_AFTER,
     RUN_RETENTION,
     SWEEP_BATCH_SIZE,
     SWEEP_INTERVAL,
     USER_RUNS_LOCK_NAMESPACE,
     WAITING_WARNING_AFTER,
+    WORKSPACE_RUNS_LOCK_NAMESPACE,
     ChatRunErrorCode,
     ChatRunEventKind,
 )
@@ -65,20 +65,41 @@ class ChatRunHandler:
         created_by: AbstractUser | None,
         context: dict[str, Any],
     ) -> ChatRun:
-        """Call inside the transaction saving the triggering product message."""
+        """Call inside the transaction saving the triggering product message.
 
+        :param run_type: The registered type of the run.
+        :param chat_id: The product chat the run answers.
+        :param workspace: The workspace the run belongs to.
+        :param created_by: The user who sent the message, or None for a system run:
+            no per-user limit applies, the workspace limit still does.
+        :param context: The product data the run needs.
+        :raises ChatRunAlreadyActive: When the chat already has an active run.
+        :raises ChatRunLimitReached: When the user or the workspace already has the
+            maximum number of active runs of this type.
+        :return: The new queued run.
+        """
+
+        kind = chat_run_type_registry.get(run_type)
+        user_limit = kind.get_max_active_runs_per_user() if created_by else None
+        workspace_limit = kind.get_max_active_runs_per_workspace()
         with transaction.atomic():
-            if created_by is not None:
-                self._lock_user_runs(created_by.id)
+            # A fixed lock order keeps concurrent sends from deadlocking.
+            if workspace_limit is not None:
+                self._lock_runs(WORKSPACE_RUNS_LOCK_NAMESPACE, workspace.id)
+            if user_limit is not None:
+                self._lock_runs(USER_RUNS_LOCK_NAMESPACE, created_by.id)
             active_id = self._active_run_id(run_type, chat_id)
             if active_id:
                 raise ChatRunAlreadyActive(active_id)
-            if (
-                created_by is not None
-                and self.runs.filter(
-                    created_by=created_by, status__in=ACTIVE_CHAT_RUN_STATUSES
-                ).count()
-                >= MAX_ACTIVE_RUNS_PER_USER
+            active_runs = self.runs.filter(
+                run_type=run_type, status__in=ACTIVE_CHAT_RUN_STATUSES
+            )
+            limits = [
+                (user_limit, active_runs.filter(created_by=created_by)),
+                (workspace_limit, active_runs.filter(workspace=workspace)),
+            ]
+            if any(
+                limit is not None and runs.count() >= limit for limit, runs in limits
             ):
                 raise ChatRunLimitReached()
             run = ChatRun(
@@ -169,12 +190,9 @@ class ChatRunHandler:
             )
             self.fail_not_started_run(run_id)
 
-    def _lock_user_runs(self, user_id: int) -> None:
+    def _lock_runs(self, namespace: int, key: int) -> None:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT pg_advisory_xact_lock(%s, %s)",
-                [USER_RUNS_LOCK_NAMESPACE, user_id],
-            )
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", [namespace, key])
 
     def _active_run_id(self, run_type: str, chat_id: int) -> UUID | None:
         return (

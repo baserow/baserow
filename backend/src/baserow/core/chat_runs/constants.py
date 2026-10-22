@@ -52,8 +52,9 @@ RUN_RETENTION = timedelta(days=7)
 
 # Run creation.
 MAX_ACTIVE_RUNS_PER_USER = 2
-# Keys pg_advisory_xact_lock(namespace, user_id); the two-key form has its own space.
+# Keys pg_advisory_xact_lock(namespace, id); the two-key form has its own space.
 USER_RUNS_LOCK_NAMESPACE = 6346
+WORKSPACE_RUNS_LOCK_NAMESPACE = 6347
 
 # Consumed by the export worker: keep in sync with docker-entrypoint.sh.
 CHAT_RUN_QUEUE = "chat_run"

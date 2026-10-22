@@ -15,6 +15,7 @@ from baserow.core.chat_runs.constants import (
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
+from baserow.core.chat_runs.registries import ChatRunType, chat_run_type_registry
 from baserow.core.chat_runs.tasks import prune_chat_runs
 from baserow.core.models import Workspace
 
@@ -63,18 +64,57 @@ def test_one_active_run_per_conversation_in_database(create_run, mocker):
     assert ChatRun.objects.filter(run_type="fake", status="queued").count() == 1
 
 
-def test_per_user_limit_and_userless_runs(create_run):
+class OtherChatRunType(ChatRunType):
+    type = "other"
+
+
+@pytest.fixture
+def other_run_type(fake_run_type):
+    """Depends on fake_run_type, whose teardown restores the registry."""
+
+    chat_run_type_registry.register(OtherChatRunType())
+
+
+@pytest.fixture
+def workspace_limited(fake_run_type, mocker):
+    mocker.patch.object(
+        fake_run_type, "get_max_active_runs_per_user", return_value=None
+    )
+    mocker.patch.object(
+        fake_run_type, "get_max_active_runs_per_workspace", return_value=2
+    )
+
+
+def test_per_user_limit_and_userless_runs(create_run, other_run_type):
     first = create_run()
     for n in range(1, MAX_ACTIVE_RUNS_PER_USER):
         create_run(chat_id=n + 1, user=first.created_by, workspace=first.workspace)
     with pytest.raises(ChatRunLimitReached):
         create_run(chat_id=99, user=first.created_by, workspace=first.workspace)
     ChatRunHandler().create_run("fake", 100, first.workspace, None, {})
+    ChatRunHandler().create_run("other", 1, first.workspace, first.created_by, {})
+
+
+def test_per_workspace_limit_counts_every_user(create_run, workspace_limited):
+    first = create_run()
+    create_run(chat_id=2, workspace=first.workspace)
+    with pytest.raises(ChatRunLimitReached):
+        create_run(chat_id=3, workspace=first.workspace)
+    with pytest.raises(ChatRunLimitReached):
+        ChatRunHandler().create_run("fake", 4, first.workspace, None, {})
+    create_run(chat_id=5)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_parallel_sends_cannot_bypass_user_limit(create_run):
+@pytest.mark.parametrize("scope", ["user", "workspace"])
+def test_parallel_sends_cannot_bypass_a_limit(create_run, data_fixture, request, scope):
+    if scope == "workspace":
+        request.getfixturevalue("workspace_limited")
     first = create_run()
+    senders = {
+        chat_id: first.created_by if scope == "user" else data_fixture.create_user()
+        for chat_id in (2, 3)
+    }
     entered = threading.Event()
     release = threading.Event()
     results = []
@@ -83,7 +123,7 @@ def test_parallel_sends_cannot_bypass_user_limit(create_run):
         try:
             with transaction.atomic():
                 create_run(
-                    chat_id=chat_id, user=first.created_by, workspace=first.workspace
+                    chat_id=chat_id, user=senders[chat_id], workspace=first.workspace
                 )
                 if hold:
                     entered.set()

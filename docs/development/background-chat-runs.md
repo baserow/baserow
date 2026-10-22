@@ -137,6 +137,11 @@ The three access checks are separate on purpose: someone may be allowed to see
 a run but not stop it. `can_follow_chat` checks websocket subscriptions; HTTP
 output followers use `can_read`.
 
+Each run type limits only its own active runs. By default a user can have two
+at once; override `get_max_active_runs_per_user` (None for no limit) or
+`get_max_active_runs_per_workspace` to change that. At a limit, `create_run`
+raises `ChatRunLimitReached`, which the product turns into its own error.
+
 For streaming, register the view's path with `register_async_stream_path` from
 `baserow.config.streaming`. The view returns an async `StreamingHttpResponse` over
 `follow_run(run, user, cursor)`. Check authentication, permissions and the cursor

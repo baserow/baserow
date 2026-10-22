@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.core.registry import Instance, Registry
 
+from .constants import MAX_ACTIVE_RUNS_PER_USER
 from .models import ChatRun
 from .types import ChatRunOutcome
 
@@ -17,6 +18,22 @@ class ChatRunType(Instance):
     Only ``execute`` runs on the worker's event loop. Every other hook is
     synchronous and may run in an HTTP request, the worker or a maintenance task.
     """
+
+    def get_max_active_runs_per_user(self) -> int | None:
+        """Limit how many runs of this type one user may have queued or running.
+
+        :return: The limit, or None for no per-user limit.
+        """
+
+        return MAX_ACTIVE_RUNS_PER_USER
+
+    def get_max_active_runs_per_workspace(self) -> int | None:
+        """Limit how many runs of this type one workspace may have queued or running.
+
+        :return: The limit, or None for no per-workspace limit.
+        """
+
+        return None
 
     def can_read(self, user: AbstractUser, run: ChatRun) -> bool:
         """Check whether the user may read the run and follow its output.
