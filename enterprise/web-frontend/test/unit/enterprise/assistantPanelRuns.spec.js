@@ -8,7 +8,8 @@ import {
   destroyRunsTestApp,
   cursor,
   runRecord,
-} from './chatRuns/runLog'
+  applySnapshot,
+} from './assistantRunHelpers'
 
 vi.mock('@baserow_enterprise/services/assistant', () => ({ default: vi.fn() }))
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
@@ -24,6 +25,7 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     store = testApp.store
     api = {
       get: vi.fn().mockResolvedValue({ status: 'running' }),
+      cancel: vi.fn().mockResolvedValue({ status: 'running' }),
     }
     coreService.mockReturnValue(api)
     assistantService.mockReturnValue({
@@ -71,24 +73,29 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(status()).toBe('Creating rows')
   })
 
+  test('Stop asks the run to stop and stays disabled meanwhile', async () => {
+    const stop = wrapper.find('.assistant__send-button')
+    await stop.trigger('click')
+    await flushPromises()
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+    expect(stop.element.disabled).toBe(true)
+  })
+
   test('live output loss shows a waiting state for the saved response', async () => {
     await receive(runRecord('chat-run-state', {}, { replay_unavailable: true }))
     expect(status()).toBe('assistant.statusWaitingForOutput')
   })
 
   test('a durable interrupted outcome removes Stop and shows why the answer ended', async () => {
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: {
-        status: 'failed',
+    await applySnapshot(store, {
+      status: 'failed',
+      error_code: 'interrupted',
+      message: {
+        id: 502,
+        type: 'ai/message',
+        content: 'Partly done',
+        run_status: 'failed',
         error_code: 'interrupted',
-        message: {
-          id: 502,
-          type: 'ai/message',
-          content: 'Partly done',
-          run_status: 'failed',
-          error_code: 'interrupted',
-        },
       },
     })
     await flushPromises()
@@ -97,7 +104,7 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(wrapper.find('.iconoir-square').exists()).toBe(false)
   })
 
-  test('closing the panel leaves its stream and status recovery active', async () => {
+  test('closing the panel keeps following the run', async () => {
     wrapper.unmount()
     expect(store.getters['chatRuns/getFollower']('run-1').finished).toBe(false)
     await receive(

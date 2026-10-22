@@ -27,11 +27,13 @@ class FakeXHR {
 
   setRequestHeader() {}
 
-  send() {}
+  send() {
+    this.sent = true
+  }
 
   abort() {
     this.aborted = true
-    this.onabort()
+    if (this.sent) this.onabort()
   }
 
   receive(text) {
@@ -267,24 +269,30 @@ describe('assistant service streaming adapter', () => {
     expect(error.mock.calls[0][0]).toContain('record handler failed')
   })
 
-  test('rejects without delivering records on a non 2xx response', async () => {
-    const received = []
-    const request = AssistantService(makeClient()).sendMessage(
-      CHAT_UUID,
-      'hello',
-      {},
-      (update) => received.push(update)
-    )
-    const xhr = FakeXHR.instances[0]
+  test.each([
+    [400, '{"error": "ERROR_X"}', { error: 'ERROR_X' }],
+    [502, '<html>Bad Gateway</html>', '<html>Bad Gateway</html>'],
+  ])(
+    'rejects a %i response with its body without delivering records',
+    async (status, body, data) => {
+      const received = []
+      const request = AssistantService(makeClient()).sendMessage(
+        CHAT_UUID,
+        'hello',
+        {},
+        (update) => received.push(update)
+      )
+      const xhr = FakeXHR.instances[0]
 
-    xhr.responseText = JSON.stringify({ detail: 'nope', error: 'ERROR_X' })
-    xhr.complete(400)
+      xhr.responseText = body
+      xhr.complete(status)
 
-    await expect(request).rejects.toMatchObject({
-      response: { status: 400, data: { error: 'ERROR_X' } },
-    })
-    expect(received).toEqual([])
-  })
+      await expect(request).rejects.toMatchObject({
+        response: { status, data },
+      })
+      expect(received).toEqual([])
+    }
+  )
 
   test('resume uses the same message POST with only existing run identity and cursor', async () => {
     const client = makeClient()
@@ -313,19 +321,23 @@ describe('assistant service streaming adapter', () => {
     expect(received).toEqual(EVENTS)
   })
 
-  test('aborting a follower closes only its HTTP request', async () => {
-    const client = makeClient()
-    const controller = new AbortController()
-    const request = AssistantService(client).resumeMessage(
-      CHAT_UUID,
-      'run-id',
-      null,
-      () => {},
-      { signal: controller.signal }
-    )
-    controller.abort()
-    await expect(request).rejects.toMatchObject({ cancelled: true })
-    expect(FakeXHR.instances[0].aborted).toBe(true)
-    expect(client.post).toHaveBeenCalledTimes(1)
-  })
+  test.each(['before', 'after'])(
+    'aborting a follower %s it starts closes only its HTTP request',
+    async (when) => {
+      const client = makeClient()
+      const controller = new AbortController()
+      if (when === 'before') controller.abort()
+      const request = AssistantService(client).resumeMessage(
+        CHAT_UUID,
+        'run-id',
+        null,
+        () => {},
+        { signal: controller.signal }
+      )
+      controller.abort()
+      await expect(request).rejects.toMatchObject({ cancelled: true })
+      expect(FakeXHR.instances.every((xhr) => xhr.aborted)).toBe(true)
+      expect(client.post).toHaveBeenCalledTimes(1)
+    }
+  )
 })

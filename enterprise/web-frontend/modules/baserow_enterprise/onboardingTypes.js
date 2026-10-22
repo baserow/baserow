@@ -61,27 +61,11 @@ export class AIPromptOnboardingType extends OnboardingType {
    * first table it created when it's done, also after a reload.
    */
   async handOff(message, workspace) {
-    const { runId, outcome } = await this.app.$store.dispatch(
-      'assistant/startRun',
-      {
-        message,
-        workspace,
-      }
-    )
-    if (!runId) {
-      if (outcome === 'accepted') {
-        const tableLocation = this.app.$store.getters[
-          'assistant/uiLocationHistory'
-        ].find((location) => location.type === 'database-table')
-        if (tableLocation) {
-          return {
-            tableLocation,
-            chat: this.app.$store.getters['assistant/currentChat'],
-          }
-        }
-      }
-      throw new Error('Kuma could not start building the database.')
-    }
+    const { runId } = await this.app.$store.dispatch('assistant/startRun', {
+      message,
+      workspace,
+    })
+    if (!runId) throw new Error('Kuma could not start building the database.')
     storePanelOpen(true)
     storeOnboardingRunId(runId)
     return { workspace, runId }
@@ -89,28 +73,13 @@ export class AIPromptOnboardingType extends OnboardingType {
 
   getCompletedRoute(data, responses) {
     const response = responses[this.getType()]
-    if (response.runId) {
-      nextTick(async () => {
-        await pageFinished(this.app)
-        await this.app.$bus.$emit('toggle-right-sidebar', true)
-      })
-      return {
-        name: 'workspace',
-        params: { workspaceId: response.workspace.id },
-      }
-    }
     nextTick(async () => {
       await pageFinished(this.app)
-      await nextTick()
       await this.app.$bus.$emit('toggle-right-sidebar', true)
-      await this.app.$store.dispatch('assistant/selectChat', response.chat)
     })
     return {
-      name: 'database-table',
-      params: {
-        databaseId: response.tableLocation.database_id,
-        tableId: response.tableLocation.table_id,
-      },
+      name: 'workspace',
+      params: { workspaceId: response.workspace.id },
     }
   }
 }

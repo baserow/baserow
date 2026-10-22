@@ -3,8 +3,8 @@ import {
   RUN_CREATED,
   RUN_FINISHED,
   RUN_STARTED,
+  RUN_STATUS,
   PROGRESS,
-  RUN_CANCEL_REQUESTED,
   isTerminalStatus,
 } from '@baserow/modules/core/chatRuns/constants'
 import assistantService from '@baserow_enterprise/services/assistant'
@@ -19,7 +19,7 @@ const NAVIGATION = 'navigation'
 const CHAT_TITLE = 'chat.title'
 const DATABASE_TABLE = 'database-table'
 
-/** Kuma preserves its existing cumulative JSON record protocol over HTTP. */
+/** Turns Kuma's JSON records into run events and applies their effects. */
 export class AssistantChatRunType extends ChatRunType {
   static getType() {
     return ASSISTANT_RUN_TYPE
@@ -62,9 +62,7 @@ export class AssistantChatRunType extends ChatRunType {
 
   getRecordEvent(record) {
     const metadata = record._run || {}
-    // A resume header can describe a run that finished before attachment. Only
-    // a saved message is an outcome; metadata-only status is checked against the
-    // primary by the shared follower, including failures without a saved message.
+    // Only a saved answer is an outcome; the follower re-checks bare statuses.
     if (
       isTerminalStatus(metadata.status) &&
       record.type === 'ai/message' &&
@@ -79,14 +77,13 @@ export class AssistantChatRunType extends ChatRunType {
         },
       }
     }
-    if (metadata.cancel_requested) {
-      return { kind: RUN_CANCEL_REQUESTED, data: {} }
-    }
     switch (record.type) {
       case 'human':
         return { kind: RUN_CREATED, data: { human_message: record } }
-      case 'ai/started':
-        return { kind: RUN_STARTED, data: {} }
+      case 'chat-run-state':
+        return metadata.status === RUN_STATUS.RUNNING
+          ? { kind: RUN_STARTED, data: {} }
+          : null
       case 'ai/message':
       case 'ai/reasoning':
         return {
@@ -101,13 +98,7 @@ export class AssistantChatRunType extends ChatRunType {
       case 'chat/title':
         return { kind: CHAT_TITLE, data: { title: record.content } }
       case 'ai/navigation':
-        return {
-          kind: NAVIGATION,
-          data: {
-            location: record.location,
-            origin_tab_id: record.origin_tab_id,
-          },
-        }
+        return { kind: NAVIGATION, data: { location: record.location } }
       default:
         return null
     }
@@ -148,7 +139,7 @@ export class AssistantChatRunType extends ChatRunType {
         })
         break
       case NAVIGATION:
-        if (this.isNavigationForThisTab(event, live)) {
+        if (live && store.getters['assistant/isPanelOpen']) {
           store.dispatch('assistant/forceNavigate', event.data.location)
         }
         break
@@ -163,8 +154,7 @@ export class AssistantChatRunType extends ChatRunType {
             })
           }
         }
-        // Onboarding's completion target is durable and deliberately recoverable.
-        // Ordinary navigation remains restricted to new live records above.
+        // Unlike live navigation, the onboarding table also opens on replay.
         if (follower.runId === getStoredOnboardingRunId()) {
           this.openOnboardingTable(follower)
         }
@@ -173,17 +163,9 @@ export class AssistantChatRunType extends ChatRunType {
     }
   }
 
-  isNavigationForThisTab(event, live) {
-    return (
-      live &&
-      (!event.data.origin_tab_id || event.data.origin_tab_id === getTabId()) &&
-      this.app.$store.getters['assistant/isPanelOpen']
-    )
-  }
-
   unsavedAnswer(follower) {
     const { text, status, errorCode } = follower.view
-    // An unavailable result must still show why work ended, even without tokens.
+    // A run that saved no answer still shows how it ended, even without text.
     return {
       id: `run-${follower.runId}`,
       type: 'ai/message',
@@ -198,7 +180,6 @@ export class AssistantChatRunType extends ChatRunType {
     const message = follower.view.message
     const table =
       message?.onboarding_target ||
-      message?.artifacts?.onboarding_target ||
       follower.view.navigations.find(
         (location) => location.type === DATABASE_TABLE
       )

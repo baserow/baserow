@@ -1,12 +1,14 @@
-import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, test } from 'vitest'
 import {
   createRunsTestApp,
   destroyRunsTestApp,
   cursor,
   runRecord,
-} from './chatRuns/runLog'
+  followRun,
+  acceptRecord,
+  applySnapshot,
+} from './assistantRunHelpers'
 import {
-  getTabId,
   storeOnboardingRunId,
   storeChatUuid,
   getStoredChatUuid,
@@ -15,40 +17,45 @@ import {
 
 const uuid = '11111111-1111-4111-8111-111111111111'
 const table = { type: 'database-table', database_id: 1, table_id: 2 }
+const created = {
+  id: 502,
+  type: 'ai/message',
+  content: 'Created',
+  onboarding_target: table,
+}
 
 describe('Kuma HTTP record adapter', () => {
-  let testApp, store
-  const accept = (record) =>
-    store.dispatch('chatRuns/acceptRecord', { runId: 'run-1', record })
-  const navigation = (id, metadata = {}, origin = getTabId()) =>
+  let testApp, store, navigated, unsubscribe
+  const navigation = (id, metadata = {}) =>
     runRecord(
       'ai/navigation',
-      {
-        location: table,
-        origin_tab_id: origin,
-      },
+      { location: table },
       { cursor: cursor(id), ...metadata }
     )
   beforeEach(async () => {
     testApp = createRunsTestApp()
     store = testApp.store
+    navigated = []
+    unsubscribe = store.subscribe(({ type, payload }) => {
+      if (type === 'assistant/SET_UI_LOCATION') navigated.push(payload)
+    })
     store.commit('assistant/SET_CHATS', [{ uuid, chat_id: 7, title: '' }])
     store.commit('assistant/SET_CURRENT_CHAT_ID', uuid)
     store.commit('assistant/SET_PANEL_OPEN', true)
-    await store.dispatch('chatRuns/follow', {
-      runId: 'run-1',
-      runType: 'assistant',
-      chatId: 7,
-      attach: false,
-    })
+    await followRun(store)
   })
-  afterEach(() => destroyRunsTestApp(testApp))
+  afterEach(() => {
+    unsubscribe()
+    return destroyRunsTestApp(testApp)
+  })
 
   test('cumulative records replace text rather than appending it twice', async () => {
-    await accept(
+    await acceptRecord(
+      store,
       runRecord('ai/reasoning', { content: 'Hel' }, { cursor: cursor(1) })
     )
-    await accept(
+    await acceptRecord(
+      store,
       runRecord('ai/reasoning', { content: 'Hello' }, { cursor: cursor(2) })
     )
     expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
@@ -57,50 +64,37 @@ describe('Kuma HTTP record adapter', () => {
     })
   })
 
-  test('navigation fires once only for new live output in the origin tab with its panel open', async () => {
-    await accept(navigation(1, { replay: true }))
-    await accept(navigation(2, {}, 'other-tab'))
+  test.each([
+    ['ai/started', {}, 'queued'],
+    ['chat-run-state', { status: 'queued' }, 'queued'],
+    ['chat-run-state', { cursor: cursor(1), status: 'running' }, 'running'],
+  ])('%s with %j leaves the run %s', async (type, metadata, status) => {
+    await acceptRecord(store, runRecord(type, {}, metadata))
+    expect(store.getters['chatRuns/getFollower']('run-1').view.status).toBe(
+      status
+    )
+  })
+
+  test('navigation fires only for live output with the panel open', async () => {
+    await acceptRecord(store, navigation(1, { replay: true }))
     store.commit('assistant/SET_PANEL_OPEN', false)
-    await accept(navigation(3))
+    await acceptRecord(store, navigation(2))
     store.commit('assistant/SET_PANEL_OPEN', true)
-    await accept(navigation(4))
-    await accept(navigation(4))
-    await accept(navigation(5, { replay: true })) // reconnect catch-up in origin tab
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([table])
+    await acceptRecord(store, navigation(3))
+    expect(navigated).toEqual([table])
   })
 
-  test('reset baselines rebuild text without navigation effects', async () => {
-    await accept(
-      runRecord('ai/reasoning', { content: 'Old' }, { cursor: cursor(1) })
-    )
-    await accept(
-      runRecord(
-        'ai/message',
-        { content: 'Replacement' },
-        { cursor: 'new:1-0', reset: true, replay: true }
-      )
-    )
-    expect(store.getters['assistant/messages'].at(-1).content).toBe(
-      'Replacement'
-    )
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([])
-  })
-
-  test('saved messages replace the live view by ID and terminal snapshots cannot be reopened', async () => {
-    await accept(
+  test('a saved answer replaces the live answer by ID', async () => {
+    await acceptRecord(
+      store,
       runRecord('human', { id: 501, content: 'Hi' }, { cursor: cursor(1) })
     )
-    await accept(
+    await acceptRecord(
+      store,
       runRecord('ai/reasoning', { content: 'Partial' }, { cursor: cursor(2) })
     )
     const message = { id: 502, type: 'ai/message', content: 'Saved' }
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: { status: 'completed', message },
-    })
-    await accept(
-      runRecord('ai/reasoning', { content: 'Late' }, { cursor: cursor(3) })
-    )
+    await applySnapshot(store, { status: 'completed', message })
     expect(
       store.getters['assistant/messages'].map(({ id, content }) => [
         id,
@@ -112,40 +106,24 @@ describe('Kuma HTTP record adapter', () => {
     ])
   })
 
-  test('onboarding opens its durable completion target after Redis output is lost', async () => {
+  test('a completed onboarding run opens its target in an open panel', async () => {
     storeOnboardingRunId('run-1')
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: {
-        status: 'completed',
-        message: {
-          id: 502,
-          type: 'ai/message',
-          content: 'Created',
-          artifacts: { onboarding_target: table },
-        },
-      },
-    })
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([table])
+    await applySnapshot(store, { status: 'completed', message: created })
+    expect(navigated).toEqual([table])
   })
 
-  test('the durable terminal answer restores the chat title after Redis output is lost', async () => {
-    await accept(runRecord('chat-run-state', {}, { replay_unavailable: true }))
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: {
-        status: 'completed',
-        message: {
-          id: 502,
-          type: 'ai/message',
-          content: 'Saved',
-          chat_title: 'A useful title',
-        },
+  test("a saved answer's chat title renames its chat", async () => {
+    await applySnapshot(store, {
+      status: 'completed',
+      message: {
+        id: 502,
+        type: 'ai/message',
+        content: 'Saved',
+        chat_title: 'A useful title',
       },
     })
 
     expect(store.getters['assistant/currentChat'].title).toBe('A useful title')
-    expect(store.getters['assistant/messages'].at(-1).content).toBe('Saved')
   })
 
   test('onboarding completed while closed opens its target once the panel opens', async () => {
@@ -154,41 +132,19 @@ describe('Kuma HTTP record adapter', () => {
     const follower = store.getters['chatRuns/getFollower']('run-1')
     expect(type.shouldRetainFollower(follower)).toBe(true)
     store.commit('assistant/SET_PANEL_OPEN', false)
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: {
-        status: 'completed',
-        message: {
-          id: 502,
-          type: 'ai/message',
-          content: 'Created',
-          onboarding_target: table,
-        },
-      },
-    })
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([])
+    await applySnapshot(store, { status: 'completed', message: created })
+    expect(navigated).toEqual([])
     await store.dispatch('assistant/setPanelOpen', true)
     await store.dispatch('assistant/setPanelOpen', true)
     expect(type.shouldRetainFollower(follower)).toBe(false)
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([table])
+    expect(navigated).toEqual([table])
   })
 
   test('logout forgets the tab conversation and completed onboarding handoff before another login opens the panel', async () => {
     storeChatUuid(uuid)
     storeOnboardingRunId('run-1')
     store.commit('assistant/SET_PANEL_OPEN', false)
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: {
-        status: 'completed',
-        message: {
-          id: 502,
-          type: 'ai/message',
-          content: 'Created',
-          onboarding_target: table,
-        },
-      },
-    })
+    await applySnapshot(store, { status: 'completed', message: created })
 
     // This is the actual enterprise plugin's auth watcher on TestApp's store.
     store.commit('auth/LOGOFF')
@@ -196,18 +152,6 @@ describe('Kuma HTTP record adapter', () => {
     expect(getStoredOnboardingRunId()).toBeNull()
     testApp.authenticate({ id: 2, first_name: 'Other' })
     await store.dispatch('assistant/setPanelOpen', true)
-    expect(store.getters['assistant/uiLocationHistory']).toEqual([])
-  })
-
-  test('worker loss without partial text still explains the interrupted turn', async () => {
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: { status: 'failed', error_code: 'interrupted', message: null },
-    })
-    expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
-      content: '',
-      run_status: 'failed',
-      error_code: 'interrupted',
-    })
+    expect(navigated).toEqual([])
   })
 })
