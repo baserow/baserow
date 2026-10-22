@@ -197,12 +197,25 @@ flowchart TD
     D --> E{Stream slot available?}
     E -->|No| F[Return HTTP 503]
     E -->|Yes| G[Django checks permissions and runs the view]
-    G --> H[Deliver output asynchronously]
+    G --> J{User within their stream limit?}
+    J -->|No| K[Return HTTP 429]
+    J -->|Yes| H[Deliver output asynchronously]
     H --> I[Finished or disconnected: clean up]
 ```
 
 - The body is read using Django's normal upload handling before a slot is taken.
   A slow upload never holds a slot.
+- `ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER` defaults to `None`: users have no
+  individual cap within the process's available slots. Plugins can override
+  `get_max_concurrent_streams_per_user(user, default_limit)` to select a limit
+  from the user's plan. The hook runs synchronously on every authenticated stream
+  request, so it can query the database and plan changes affect new connections.
+  Return `None` for unlimited or `0` to refuse new streams. This counts HTTP
+  connections per user per process, independently of the run type's active-run
+  limits. Existing connections stay open when the limit changes.
+- Exceeding the user limit returns HTTP 429 `ERROR_CHAT_STREAM_USER_LIMIT` with
+  `Retry-After: 1`. The view has already run, so a refused streaming send has
+  still started its run; the shared run stream endpoint only follows a run.
 - `BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS` sets the slots per backend process.
   Each follower uses one Redis connection while it waits, so the Redis read pool
   has the same size. For example, 4 processes with 100 slots each can open 400
