@@ -17,6 +17,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
     create_data_sources,
     create_display_elements,
+    create_layout_elements,
     create_pages,
     setup_page,
     update_page,
@@ -26,6 +27,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     DataSourceCreate,
     DisplayElementCreate,
     ElementItemCreate,
+    LayoutElementCreate,
     PageCreate,
     PageUpdate,
 )
@@ -252,3 +254,54 @@ def test_field_mapping_on_a_notification_is_a_readable_error(data_fixture, site)
             value_formula="'x'",
             thought="test",
         )
+
+
+@pytest.mark.django_db
+def test_shared_page_element_after_a_failed_one_is_saved(site, monkeypatch):
+    post_create = ElementItemCreate.post_create
+
+    def fail_for_bad(self, user, orm_element, page):
+        if self.ref == "bad":
+            raise ValueError("post create failed")
+        return post_create(self, user, orm_element, page)
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", fail_for_bad)
+
+    result = create_layout_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            LayoutElementCreate(ref="bad", type="header"),
+            LayoutElementCreate(ref="good", type="footer"),
+        ],
+        thought="test",
+    )
+
+    assert result["errors"] == ["bad: post create failed"]
+    assert [e["ref"] for e in result["created_elements"]] == ["good"]
+    shared_page = site["builder"].shared_page
+    assert [e.get_type().type for e in Element.objects.filter(page=shared_page)] == [
+        "footer"
+    ]
+
+
+@pytest.mark.django_db
+def test_update_page_keeps_the_type_of_a_path_param_it_keeps(data_fixture, site):
+    page = data_fixture.create_builder_page(
+        builder=site["builder"],
+        path="/product/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+
+    result = update_page(
+        site["ctx"],
+        page=PageUpdate(page_id=page.id, path="/item/:id/:slug"),
+        thought="test",
+    )
+
+    assert result["updated_fields"] == ["path"]
+    page.refresh_from_db()
+    assert page.path_params == [
+        {"name": "id", "type": "numeric"},
+        {"name": "slug", "type": "text"},
+    ]

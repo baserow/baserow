@@ -115,8 +115,10 @@ class PageUpdate(BaseModel):
 
     @model_validator(mode="after")
     def _default_path_parameters(self):
-        if self.path is not None:
-            self.path_params = with_path_parameters(self.path, self.path_params or [])
+        # Without path_params, the page's own parameters are kept for the new path
+        # when the page is updated.
+        if self.path is not None and self.path_params is not None:
+            self.path_params = with_path_parameters(self.path, self.path_params)
         return self
 
     def to_update_kwargs(self) -> dict:

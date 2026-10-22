@@ -34,6 +34,10 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
+from baserow.contrib.builder.pages.constants import (
+    PAGE_PATH_PARAM_PREFIX,
+    PATH_PARAM_REGEX,
+)
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
@@ -50,6 +54,7 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.contrib.database.fields.models import Field
+from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -78,6 +83,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.page import PagePathParam, with_path_parameters
 
 if TYPE_CHECKING:
     pass
@@ -135,6 +141,24 @@ def on_page(page: Page) -> Q:
     """
 
     return Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
+
+
+def forget_page_graphs(page: Page) -> None:
+    """
+    Drop the request's cached graphs of ``page`` and of its builder's shared page,
+    and reload ``page``'s graph. Called after an element's savepoint rolled back:
+    the cached graphs still hold the rolled back element, and their row locks were
+    released with the savepoint.
+    """
+
+    for graph_page in (page, page.builder.shared_page):
+        handler_class = graph_page.get_graph_handler()
+        local_cache.delete(f"cached_graph_{graph_page._meta.label}_{graph_page.id}")
+        local_cache.delete(handler_class.generate_point_map_cache_key(graph_page))
+        local_cache.delete(
+            handler_class.generate_previous_position_map_cache_key(graph_page)
+        )
+    page.refresh_from_db(fields=["graph"])
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -320,6 +344,24 @@ def update_page(
 
     page = get_page(user, workspace, page_update.page_id)
     kwargs = page_update.to_update_kwargs()
+    if "path" in kwargs and "path_params" not in kwargs:
+        # Parameters the new path keeps keep their type; new ones are text.
+        names = {
+            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            for token in PATH_PARAM_REGEX.findall(kwargs["path"])
+        }
+        try:
+            path_params = with_path_parameters(
+                kwargs["path"],
+                [
+                    PagePathParam(**param)
+                    for param in page.path_params
+                    if param["name"] in names
+                ],
+            )
+        except ValueError as exc:
+            raise ToolInputError(f"{exc} No changes were applied.") from exc
+        kwargs["path_params"] = [param.model_dump() for param in path_params]
     if kwargs:
         PageService().update_page(user, page, **kwargs)
         page.refresh_from_db()

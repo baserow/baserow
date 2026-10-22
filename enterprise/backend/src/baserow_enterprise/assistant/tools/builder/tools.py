@@ -562,8 +562,7 @@ def _create_elements_internal(
                     )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                # The rolled back element is still in the loaded page graph.
-                page.refresh_from_db()
+                helpers.forget_page_graphs(page)
                 errors.append(f"{el_create.ref}: {item_error(exc)}")
                 continue
             ref_to_id[el_create.ref] = el_id
@@ -1381,8 +1380,7 @@ def _setup_elements(
                 )
             except Exception as exc:
                 raise_if_permission_denied(exc)
-                # The rolled back element is still in the loaded page graph.
-                page.refresh_from_db()
+                helpers.forget_page_graphs(page)
                 errors.append(f"element {el_create.ref}: {item_error(exc)}")
     errors.extend(
         agents.update_element_formulas(
