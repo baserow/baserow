@@ -46,6 +46,7 @@ describe('core HTTP run follower without a product adapter', () => {
     api = {
       get: vi.fn().mockResolvedValue({ status: 'running' }),
       cancel: vi.fn().mockResolvedValue({ status: 'running' }),
+      stream: vi.fn().mockResolvedValue(),
     }
     service.mockReturnValue(api)
   })
@@ -132,14 +133,32 @@ describe('core HTTP run follower without a product adapter', () => {
     await accept(
       record(
         '10',
-        'text.delta',
+        'run.baseline',
         { segment: 1, text: 'Baseline' },
-        { reset: true, replay: true }
+        { replayed: true }
       )
     )
     expect(current().view.text).toBe('Baseline')
     expect(current().replayUnavailable).toBe(false)
     expect(type.onEvent.mock.calls.at(-1)[2]).toBe(false)
+  })
+
+  test('the default follower reads the run after its cursor', async () => {
+    await follow()
+    await accept(record('10', 'text.delta', { segment: 0, text: 'Hi' }))
+    const onRecord = vi.fn()
+    const { signal } = new AbortController()
+    new ChatRunType({ app: testApp.getApp() }).openStream(
+      current(),
+      onRecord,
+      signal
+    )
+    expect(api.stream).toHaveBeenCalledWith(
+      'run',
+      'generation:10-0',
+      onRecord,
+      signal
+    )
   })
 
   test('adopting the original response closes a racing discovery follower without reconnecting it', async () => {

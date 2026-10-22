@@ -7,6 +7,7 @@ export const TEXT_DELTA = 'text.delta'
 export const PROGRESS = 'progress'
 export const RUN_CANCEL_REQUESTED = 'run.cancel_requested'
 export const RUN_FINISHED = 'run.finished'
+export const RUN_BASELINE = 'run.baseline'
 
 export const RUN_STATUS = {
   QUEUED: 'queued',
