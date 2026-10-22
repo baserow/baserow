@@ -13,3 +13,8 @@ ERROR_AGENT_NOT_READY = (
     400,
     "The agent must have an available saved configuration before accepting messages.",
 )
+ERROR_AGENT_BUSY = (
+    "ERROR_AGENT_BUSY",
+    429,
+    "Agents in this workspace are busy. Try again shortly.",
+)

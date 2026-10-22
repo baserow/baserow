@@ -1,4 +1,5 @@
 from typing import get_args
+from uuid import UUID
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -10,9 +11,11 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentTurn,
 )
 from baserow.contrib.agent.types import AgentReadinessState
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+
 
 READINESS_CHOICES = get_args(AgentReadinessState)
 
@@ -73,14 +76,39 @@ class AgentConfigurationUpdateSerializer(
 class AgentConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentConversation
-        fields = ("uuid", "title", "created_on", "updated_on")
+        fields = ("id", "uuid", "title", "created_on", "updated_on")
+
+
+class AgentMessageAuthorSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(source="first_name")
+
+
+class AgentTurnStateSerializer(serializers.ModelSerializer):
+    run_id = serializers.SerializerMethodField(
+        help_text="The run still answering this turn, to follow its output."
+    )
+
+    class Meta:
+        model = AgentTurn
+        fields = ("id", "status", "error_code", "run_id")
+
+    @extend_schema_field(serializers.UUIDField(allow_null=True))
+    def get_run_id(self, turn: AgentTurn) -> UUID | None:
+        return self.context.get("active_runs", {}).get(turn.id)
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
+    author = AgentMessageAuthorSerializer(
+        source="author_user", allow_null=True, read_only=True
+    )
+    turn = AgentTurnStateSerializer(allow_null=True, read_only=True)
+
     class Meta:
         model = AgentMessage
-        fields = ("id", "uuid", "role", "content", "created_on")
+        fields = ("id", "uuid", "role", "content", "created_on", "author", "turn")
         read_only_fields = ("id",)
+
 
 
 class AgentMessageContentSerializer(

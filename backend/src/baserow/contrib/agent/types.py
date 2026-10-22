@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal, TypedDict
 
+from baserow.core.models import Workspace
+
 from .models import AgentApplication, AgentConversation, AgentMessage
 
 AgentReadinessState = Literal["ready", "incomplete", "unavailable"]
@@ -26,3 +28,23 @@ class AgentConfigurationUpdated:
     agent: AgentApplication
     changed_fields: list[str]
     configuration: AgentConfiguration
+
+
+@dataclass(frozen=True)
+class AgentReplyRequest:
+    turn_id: int
+    workspace: Workspace | None
+    instructions: str
+    provider_type: str
+    model_identifier: str
+    prompt: str
+    history: list[AgentMessage]
+
+
+@dataclass(frozen=True)
+class AgentReply:
+    text: str
+    provider_type: str | None = None
+    model_identifier: str | None = None
+    model_messages: list[dict] | None = None
+    usage: dict | None = None

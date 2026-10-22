@@ -3,17 +3,37 @@ from uuid import UUID, uuid4
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch, QuerySet
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
+from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.models import ChatRun
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.utils import extract_allowed
+from baserow.core.utils import extract_allowed, remove_null_characters
 
-from .exceptions import AgentConversationDoesNotExist, AgentMessageConflict
-from .models import AgentApplication, AgentConversation, AgentMessage
-from .types import AgentConfiguration, AgentConfigurationUpdated, AgentMessageCreated
+from .constants import AGENT_RUN_TYPE, HISTORY_MESSAGE_LIMIT
+from .exceptions import (
+    AgentConversationDoesNotExist,
+    AgentMessageConflict,
+    AgentNotReady,
+)
+from .models import AgentApplication, AgentConversation, AgentMessage, AgentTurn
+from .operations import (
+    CreateAgentMessageOperationType,
+    ReadAgentConversationsOperationType,
+)
+from .types import (
+    AgentConfiguration,
+    AgentConfigurationUpdated,
+    AgentMessageCreated,
+    AgentReply,
+    AgentReplyRequest,
+)
 
 
 class AgentHandler:
@@ -227,6 +247,8 @@ class AgentHandler:
             conversation with this uuid for another owner or agent.
         :raises AgentMessageConflict: When a concurrent request created it with
             another first message.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
         :return: The conversation and its first message, and whether they are new.
         """
 
@@ -243,7 +265,7 @@ class AgentHandler:
             return self._get_first_message_retry(
                 conversation, agent, user, message_uuid, content
             )
-        return self.create_message(conversation, message_uuid, content)
+        return self.create_message(conversation, message_uuid, content, user)
 
     def get_message_retry(
         self, conversation: AgentConversation, uuid: UUID, content: str
@@ -267,79 +289,349 @@ class AgentHandler:
         return AgentMessageCreated(conversation, message, False)
 
     def create_message(
-        self, conversation: AgentConversation, uuid: UUID, content: str
+        self,
+        conversation: AgentConversation,
+        uuid: UUID,
+        content: str,
+        author: AbstractUser,
     ) -> AgentMessageCreated:
         """
-        Add a user message and mark the conversation as updated.
+        Add a user message in a new turn and start the agent's reply to it.
+
+        Call it in the transaction that checked the message, so a refused reply
+        saves nothing.
 
         :param conversation: The conversation to add the message to.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
+        :param author: The user who sent the message.
+        :raises ChatRunAlreadyActive: When the agent is still replying in this
+            conversation.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
         :return: The conversation and the new message.
         """
 
+        turn = AgentTurn.objects.create(conversation=conversation)
         message = AgentMessage.objects.create(
-            conversation=conversation, uuid=uuid, content=content
+            conversation=conversation,
+            uuid=uuid,
+            content=content,
+            turn=turn,
+            author_user=author,
         )
         conversation.save(update_fields=["updated_on"])
+        ChatRunHandler().start_run(
+            AGENT_RUN_TYPE,
+            conversation.id,
+            conversation.agent.workspace,
+            author,
+            context={"turn_id": turn.id},
+            created_event_data={},
+        )
         return AgentMessageCreated(conversation, message, True)
+
+    def get_active_turn_runs(self, conversation: AgentConversation) -> dict[int, UUID]:
+        """
+        Return the run still answering a turn of the conversation, if any.
+
+        :param conversation: The conversation to look at.
+        :return: The id of the active run by the id of the turn it answers, empty
+            when the agent isn't replying.
+        """
+
+        run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
+        return {run.context["turn_id"]: run.id} if run else {}
+
+    def get_accessible_conversations(
+        self, owner: AbstractUser
+    ) -> QuerySet[AgentConversation]:
+        """
+        Return the owner's conversations in untrashed Agents and workspaces, while
+        the owner is still a member of the workspace.
+
+        :param owner: The user who owns the conversations.
+        :return: The conversations.
+        """
+
+        return AgentConversation.objects.filter(
+            owner_user_id=owner.id,
+            agent__trashed=False,
+            agent__workspace__trashed=False,
+            agent__workspace__workspaceuser__user_id=owner.id,
+        )
+
+    def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
+        """
+        Check that the user owns the conversation in an untrashed Agent and may
+        still read the agent's conversations.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may read the conversation.
+        """
+
+        conversation = (
+            self.get_accessible_conversations(user)
+            .select_related("agent__workspace")
+            .filter(id=conversation_id)
+            .first()
+        )
+        if conversation is None:
+            return False
+        return CoreHandler().check_permissions(
+            user,
+            ReadAgentConversationsOperationType.type,
+            workspace=conversation.agent.workspace,
+            context=conversation.agent,
+            raise_permission_exceptions=False,
+        )
+
+    def prepare_reply(self, run: ChatRun) -> AgentReplyRequest:
+        """
+        Load what a run answers, checking again that its author may still send it.
+
+        :param run: The run answering a turn.
+        :raises AgentConversationDoesNotExist: When the turn no longer exists.
+        :raises PermissionException: When the author doesn't own the conversation,
+            the agent or its workspace is trashed, or the author may no longer send
+            messages to the agent.
+        :raises AgentNotReady: When the agent's configuration is no longer ready.
+        :return: The instructions, the model, the prompt and the earlier messages.
+        """
+
+        turn = (
+            AgentTurn.objects.select_related(
+                "conversation__agent__workspace", "conversation__owner_user"
+            )
+            .filter(id=run.context["turn_id"])
+            .first()
+        )
+        if turn is None:
+            raise AgentConversationDoesNotExist
+        conversation = turn.conversation
+        agent = conversation.agent
+        if (
+            run.created_by_id != conversation.owner_user_id
+            or not self.get_accessible_conversations(conversation.owner_user)
+            .filter(id=conversation.id)
+            .exists()
+        ):
+            raise PermissionDenied
+        CoreHandler().check_permissions(
+            conversation.owner_user,
+            CreateAgentMessageOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
+        )
+        if self.get_configuration(agent)["readiness"] != "ready":
+            raise AgentNotReady
+        prompt = turn.messages.get(role=AgentMessage.Role.USER)
+        history = (
+            conversation.messages.filter(id__lt=prompt.id)
+            .select_related("turn")
+            .order_by("-id")[:HISTORY_MESSAGE_LIMIT]
+        )
+        return AgentReplyRequest(
+            turn_id=turn.id,
+            workspace=agent.workspace,
+            instructions=agent.instructions,
+            provider_type=agent.provider_type,
+            model_identifier=agent.model_identifier,
+            prompt=prompt.content,
+            history=list(reversed(history)),
+        )
+
+    def finish_turn(
+        self,
+        turn_id: int,
+        status: str,
+        error_code: str,
+        reply: AgentReply | None,
+    ) -> dict | None:
+        """
+        End a turn with how its reply ended, saving the reply's text as a message.
+        NUL characters are dropped from the text and model messages, as
+        PostgreSQL can't store them.
+
+        :param turn_id: The id of the turn.
+        :param status: The final status: completed, cancelled or failed.
+        :param error_code: Why the reply failed, or an empty string.
+        :param reply: What the reply produced, or None when it never started.
+        :return: The ids of the turn and of the saved reply, or None when the turn
+            no longer exists.
+        """
+
+        turn = (
+            AgentTurn.objects.select_for_update(of=("self",))
+            .select_related("conversation")
+            .filter(id=turn_id)
+            .first()
+        )
+        if turn is None:
+            return None
+        turn.status = AgentTurn.Status(status)
+        turn.error_code = error_code
+        turn.finished_on = timezone.now()
+        message = None
+        if reply is not None:
+            text = remove_null_characters(reply.text)
+            turn.provider_type = reply.provider_type
+            turn.model_identifier = reply.model_identifier
+            turn.model_messages = remove_null_characters(reply.model_messages)
+            turn.usage = reply.usage
+            if text.strip():
+                message = AgentMessage.objects.create(
+                    conversation=turn.conversation,
+                    uuid=uuid4(),
+                    role=AgentMessage.Role.ASSISTANT,
+                    content=text,
+                    turn=turn,
+                )
+        turn.save()
+        turn.conversation.save(update_fields=["updated_on"])
+        return {"turn_id": turn.id, "message_id": message.id if message else None}
+
+    def mark_turn_interrupted(self, turn_id: int) -> None:
+        """
+        Show that a started reply did not complete, unless its turn already ended.
+
+        :param turn_id: The id of the turn.
+        """
+
+        AgentTurn.objects.filter(
+            id=turn_id,
+            status__in=[AgentTurn.Status.QUEUED, AgentTurn.Status.RUNNING],
+        ).update(
+            status=AgentTurn.Status.FAILED,
+            error_code=ChatRunErrorCode.INTERRUPTED,
+            finished_on=timezone.now(),
+        )
 
     def export_conversations(self, agent: AgentApplication) -> list[dict]:
         """
-        Serialize the agent's conversations and messages for an internal copy.
+        Serialize the agent's conversations, turns and messages for an internal
+        copy.
 
         :param agent: The agent whose conversations are exported.
-        :return: The conversations, oldest first, each with its messages in the order
-            they were sent.
+        :return: The conversations, oldest first, each with its turns and its
+            messages in the order they were sent, every message with the position of
+            its turn and its author.
         """
 
         conversations = (
             AgentConversation.objects.filter(agent=agent)
             .order_by("id")
             .prefetch_related(
-                Prefetch("messages", queryset=AgentMessage.objects.order_by("id"))
+                Prefetch("messages", queryset=AgentMessage.objects.order_by("id")),
+                Prefetch("turns", queryset=AgentTurn.objects.order_by("id")),
             )
         )
         return [
-            {
-                "title": conversation.title,
-                "owner_user_id": conversation.owner_user_id,
-                "created_on": conversation.created_on.isoformat(),
-                "updated_on": conversation.updated_on.isoformat(),
-                "messages": [
-                    {
-                        "role": message.role,
-                        "content": message.content,
-                        "created_on": message.created_on.isoformat(),
-                        "updated_on": message.updated_on.isoformat(),
-                    }
-                    for message in conversation.messages.all()
-                ],
-            }
-            for conversation in conversations
+            self._export_conversation(conversation) for conversation in conversations
         ]
+
+    @staticmethod
+    def _export_conversation(conversation: AgentConversation) -> dict:
+        """
+        Serialize one conversation with its turns and messages.
+
+        :param conversation: The conversation, with turns and messages prefetched.
+        :return: The serialized conversation.
+        """
+
+        turns = list(conversation.turns.all())
+        positions = {turn.id: index for index, turn in enumerate(turns)}
+        return {
+            "title": conversation.title,
+            "owner_user_id": conversation.owner_user_id,
+            "created_on": conversation.created_on.isoformat(),
+            "updated_on": conversation.updated_on.isoformat(),
+            "turns": [
+                {
+                    "status": turn.status,
+                    "error_code": turn.error_code,
+                    "provider_type": turn.provider_type,
+                    "model_identifier": turn.model_identifier,
+                    "model_messages": turn.model_messages,
+                    "usage": turn.usage,
+                    "created_on": turn.created_on.isoformat(),
+                    "finished_on": (
+                        turn.finished_on.isoformat() if turn.finished_on else None
+                    ),
+                }
+                for turn in turns
+            ],
+            "messages": [
+                {
+                    "role": message.role,
+                    "content": message.content,
+                    "turn_position": positions.get(message.turn_id),
+                    "author_user_id": message.author_user_id,
+                    "created_on": message.created_on.isoformat(),
+                    "updated_on": message.updated_on.isoformat(),
+                }
+                for message in conversation.messages.all()
+            ],
+        }
+
+    @staticmethod
+    def _import_turn(conversation: AgentConversation, data: dict) -> AgentTurn:
+        """
+        Copy a turn, ending any reply in progress: a copy never carries one.
+
+        :param conversation: The copied conversation the turn belongs to.
+        :param data: The serialized turn.
+        :return: The unsaved turn.
+        """
+
+        live = data["status"] in (AgentTurn.Status.QUEUED, AgentTurn.Status.RUNNING)
+        if live:
+            finished_on = timezone.now()
+        elif data["finished_on"]:
+            finished_on = parse_datetime(data["finished_on"])
+        else:
+            finished_on = None
+        return AgentTurn(
+            conversation=conversation,
+            status=AgentTurn.Status.FAILED if live else data["status"],
+            error_code=ChatRunErrorCode.INTERRUPTED if live else data["error_code"],
+            provider_type=data["provider_type"],
+            model_identifier=data["model_identifier"],
+            model_messages=data["model_messages"],
+            usage=data["usage"],
+            finished_on=finished_on,
+        )
 
     def import_conversations(
         self, agent: AgentApplication, serialized_conversations: list[dict]
     ) -> None:
         """
-        Copy conversations into the agent with new uuids, skipping deleted owners.
+        Copy conversations with their turns and messages into the agent with new
+        uuids. Conversations of deleted owners are skipped, authors who were deleted
+        are dropped, and a turn still replying is ended as interrupted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
         """
 
-        existing_owner_ids = set(
+        referenced_user_ids = {
+            data["owner_user_id"] for data in serialized_conversations
+        } | {
+            message["author_user_id"]
+            for data in serialized_conversations
+            for message in data["messages"]
+            if message.get("author_user_id") is not None
+        }
+        existing_user_ids = set(
             get_user_model()
-            .objects.filter(
-                id__in=[data["owner_user_id"] for data in serialized_conversations]
-            )
+            .objects.filter(id__in=referenced_user_ids)
             .values_list("id", flat=True)
         )
         retained_data = [
             data
             for data in serialized_conversations
-            if data["owner_user_id"] in existing_owner_ids
+            if data["owner_user_id"] in existing_user_ids
         ]
         conversations = [
             AgentConversation(
@@ -352,26 +644,51 @@ class AgentHandler:
         ]
 
         AgentConversation.objects.bulk_create(conversations, batch_size=1000)
-        messages = []
-        message_data = []
+        turns_by_conversation = []
+        turns = []
+        turn_data = []
         for conversation, data in zip(conversations, retained_data):
             conversation.created_on = parse_datetime(data["created_on"])
             conversation.updated_on = parse_datetime(data["updated_on"])
+            conversation_turns = [
+                self._import_turn(conversation, serialized_turn)
+                for serialized_turn in data.get("turns", [])
+            ]
+            turns_by_conversation.append(conversation_turns)
+            turns.extend(conversation_turns)
+            turn_data.extend(data.get("turns", []))
+
+        # auto_now overrides timestamps in bulk_create, so restore the captured ones.
+        AgentConversation.objects.bulk_update(
+            conversations, ["created_on", "updated_on"], batch_size=1000
+        )
+        AgentTurn.objects.bulk_create(turns, batch_size=1000)
+        for turn, serialized_turn in zip(turns, turn_data):
+            turn.created_on = parse_datetime(serialized_turn["created_on"])
+        AgentTurn.objects.bulk_update(turns, ["created_on"], batch_size=1000)
+
+        messages = []
+        message_data = []
+        for conversation, conversation_turns, data in zip(
+            conversations, turns_by_conversation, retained_data
+        ):
             for serialized_message in data["messages"]:
+                position = serialized_message.get("turn_position")
+                author_user_id = serialized_message.get("author_user_id")
                 messages.append(
                     AgentMessage(
                         conversation=conversation,
                         uuid=uuid4(),
                         role=serialized_message["role"],
                         content=serialized_message["content"],
+                        turn=None if position is None else conversation_turns[position],
+                        author_user_id=author_user_id
+                        if author_user_id in existing_user_ids
+                        else None,
                     )
                 )
                 message_data.append(serialized_message)
 
-        # auto_now overrides timestamps in bulk_create, so restore the captured ones.
-        AgentConversation.objects.bulk_update(
-            conversations, ["created_on", "updated_on"], batch_size=1000
-        )
         AgentMessage.objects.bulk_create(messages, batch_size=1000)
         for message, data in zip(messages, message_data):
             message.created_on = parse_datetime(data["created_on"])

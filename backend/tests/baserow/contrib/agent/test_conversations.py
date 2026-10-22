@@ -24,12 +24,9 @@ from baserow.contrib.agent.models import AgentConversation, AgentMessage
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_updated
 from baserow.core.action.models import Action
+from baserow.core.chat_runs.models import ChatRun
 
-from .utils import agent_url
-
-
-def new_conversation(content="Hello\nworld"):
-    return {"uuid": str(uuid4()), "message_uuid": str(uuid4()), "content": content}
+from .utils import agent_url, new_conversation, run_reply
 
 
 def message_request(agent, view, conversation):
@@ -55,6 +52,7 @@ def test_first_message_creates_a_private_conversation(
 
     assert response.json() == {
         "conversation": {
+            "id": AgentConversation.objects.get().id,
             "uuid": payload["uuid"],
             "title": "Hello world " + "x" * 238,
             "created_on": ANY,
@@ -66,6 +64,13 @@ def test_first_message_creates_a_private_conversation(
             "role": "user",
             "content": payload["content"],
             "created_on": ANY,
+            "author": {"id": api_user.id, "name": api_user.first_name},
+            "turn": {
+                "id": AgentMessage.objects.get().turn_id,
+                "status": "running",
+                "error_code": "",
+                "run_id": ANY,
+            },
         },
     }
     assert conversation.owner_user == api_user
@@ -105,6 +110,7 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     payload = new_conversation()
     url = agent_url(agent, "conversations")
     first = api_client.post(url, payload)
+    run_reply(ChatRun.objects.get())
     messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
     append = {"uuid": str(uuid4()), "content": "Next"}
     second = api_client.post(messages_url, append)
@@ -117,7 +123,12 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
         (messages_url, append, second),
     ]:
         retried = api_client.post(target, body)
-        assert retried.json()["message"] == accepted.json()["message"]
+        message = accepted.json()["message"]
+        # The turn is live state: the reply finished since the first response.
+        assert retried.json()["message"] == {
+            **message,
+            "turn": {**message["turn"], "status": ANY, "run_id": ANY},
+        }
     for target, body in [
         (url, {**payload, "content": "Different"}),
         (url, {**payload, "message_uuid": str(uuid4())}),
@@ -126,7 +137,7 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
         response = api_client.post(target, body)
         assert response.status_code == 409
         assert response.json()["error"] == "ERROR_AGENT_MESSAGE_CONFLICT"
-    assert AgentMessage.objects.count() == 2
+    assert AgentMessage.objects.filter(role="user").count() == 2
     created.assert_called_once()
     appended.assert_called_once()
 
@@ -309,7 +320,11 @@ def test_concurrent_creation_with_one_uuid_in_two_agents_creates_one_conversatio
         results = list(pool.map(create, [first.id, second.id]))
 
     assert sorted(results) == ["created", "missing"]
-    assert AgentConversation.objects.count() == AgentMessage.objects.count() == 1
+    assert (
+        AgentConversation.objects.count()
+        == AgentMessage.objects.filter(role="user").count()
+        == 1
+    )
 
 
 @pytest.mark.django_db
