@@ -2,6 +2,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 
 const uniqueBy = (items, key) => [
@@ -17,13 +19,22 @@ const mergeMessages = (...pages) =>
 const REJECTED_MESSAGE_ERRORS = [
   'ERROR_AGENT_NOT_READY',
   'ERROR_REQUEST_BODY_VALIDATION',
+  'ERROR_CHAT_RUN_IN_PROGRESS',
+  'ERROR_AGENT_BUSY',
 ]
+
+const SEND_ERRORS = {
+  ERROR_AGENT_MESSAGE_CONFLICT: 'conflict',
+  ERROR_CHAT_RUN_IN_PROGRESS: 'inProgress',
+  ERROR_AGENT_BUSY: 'busy',
+}
 
 /** Page-local private conversations, gated by the Agent configuration. */
 export function useAgentConversations(agent, configuration) {
   const store = useStore()
-  const { $client, $hasPermission } = useNuxtApp()
+  const { $client, $hasPermission, $registry } = useNuxtApp()
   const service = AgentApplicationService($client)
+  const runType = $registry.get('chatRunType', AGENT_RUN_TYPE)
   const permission = (operation) =>
     Boolean(
       agent.value &&
@@ -72,6 +83,41 @@ export function useAgentConversations(agent, configuration) {
   )
   const currentHistory = computed(() => histories[selectedUuid.value] || null)
   const currentDraft = computed(() => drafts[selectedUuid.value] || null)
+  const findConversation = (conversationUuid) =>
+    conversations.value.find((item) => item.uuid === conversationUuid)
+
+  /** The running reply, or a finished one until a refresh merged its saved turn. */
+  function replyFollowerOf(conversationUuid) {
+    const id = findConversation(conversationUuid)?.id
+    if (!id) return null
+    const followers = store.getters['chatRuns/getFollowersOfChat'](
+      AGENT_RUN_TYPE,
+      id
+    )
+    const settlingRunId = histories[conversationUuid]?.settlingRunId
+    return (
+      followers.find((follower) => !follower.finished) ||
+      followers.find((follower) => follower.runId === settlingRunId) ||
+      null
+    )
+  }
+
+  /** The draft's send error; a refusal by a running reply lasts as long as it. */
+  function sendErrorOf(conversationUuid) {
+    const error = drafts[conversationUuid]?.error || null
+    return error === 'inProgress' && !replyFollowerOf(conversationUuid)
+      ? null
+      : error
+  }
+
+  const replyFollower = computed(() => replyFollowerOf(selectedUuid.value))
+  const sendError = computed(() => sendErrorOf(selectedUuid.value))
+  const refreshError = computed(() =>
+    Boolean(
+      currentHistory.value &&
+      currentHistory.value.failedRefresh > currentHistory.value.appliedRefresh
+    )
+  )
   const canWriteSelected = computed(
     () =>
       canReadConversations.value &&
@@ -85,9 +131,26 @@ export function useAgentConversations(agent, configuration) {
       canWriteSelected.value &&
       // Sending appends to the newest page, so only that page must be loaded.
       (!currentHistory.value || currentHistory.value.page > 0) &&
-      !currentDraft.value?.sending
+      !currentDraft.value?.sending &&
+      !replyFollower.value
   )
   const scopeIsCurrent = (currentScope) => scope === currentScope
+
+  const createHistory = (values = {}) => ({
+    items: [],
+    page: 0,
+    next: false,
+    loading: false,
+    error: false,
+    stale: false,
+    refreshError: false,
+    request: 0,
+    refreshRequest: 0,
+    appliedRefresh: 0,
+    failedRefresh: 0,
+    settlingRunId: null,
+    ...values,
+  })
 
   function ensureDraft(conversationUuid) {
     if (!drafts[conversationUuid]) {
@@ -173,6 +236,27 @@ export function useAgentConversations(agent, configuration) {
     return fetchConversations(1, true)
   }
 
+  /** Follow the newest turn's reply, and resume replies a logout suspended. */
+  function followReplies(conversation, newestMessage) {
+    if (!conversation?.id) return
+    const runIds = new Set(
+      store.getters['chatRuns/getFollowersOfChat'](
+        AGENT_RUN_TYPE,
+        conversation.id
+      )
+        .filter((follower) => !follower.finished)
+        .map((follower) => follower.runId)
+    )
+    if (newestMessage?.turn?.run_id) runIds.add(newestMessage.turn.run_id)
+    runIds.forEach((runId) =>
+      store.dispatch('chatRuns/follow', {
+        runId,
+        runType: AGENT_RUN_TYPE,
+        chatId: conversation.id,
+      })
+    )
+  }
+
   function loadMoreConversations() {
     return fetchConversations(conversationsPage.value + 1, true)
   }
@@ -186,16 +270,7 @@ export function useAgentConversations(agent, configuration) {
     const currentScope = scope
     const agentId = agent.value.id
     if (!histories[conversationUuid]) {
-      histories[conversationUuid] = {
-        items: [],
-        page: 0,
-        next: false,
-        loading: false,
-        error: false,
-        stale: false,
-        refreshError: false,
-        request: 0,
-      }
+      histories[conversationUuid] = createHistory()
     }
     const history = histories[conversationUuid]
     if (history.loading) return
@@ -217,6 +292,9 @@ export function useAgentConversations(agent, configuration) {
       history.items = mergeMessages(data.results, page > 1 ? history.items : [])
       history.page = page
       history.next = Boolean(data.next)
+      if (page === 1) {
+        followReplies(findConversation(conversationUuid), data.results.at(-1))
+      }
     } catch {
       if (scopeIsCurrent(currentScope) && history.request === request) {
         history.error = true
@@ -286,6 +364,44 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  async function refreshNewestPage(conversationUuid) {
+    const history = histories[conversationUuid]
+    if (!canReadConversations.value || !history?.page) return
+    const currentScope = scope
+    const agentId = agent.value.id
+    const settlingRunId = history.settlingRunId
+    const request = ++history.refreshRequest
+    // Not latest-wins: an older success still applies when a newer refresh fails.
+    const isNewerThanApplied = () =>
+      scopeIsCurrent(currentScope) && request > history.appliedRefresh
+    try {
+      // A lagging replica would miss the reply this refresh is for.
+      const { data } = await service.getMessages(
+        agentId,
+        conversationUuid,
+        1,
+        true
+      )
+      if (!isNewerThanApplied() || !canReadConversations.value) return
+      history.appliedRefresh = request
+      const newest = new Set(data.results.map((item) => item.uuid))
+      history.items = [
+        ...history.items.filter((item) => !newest.has(item.uuid)),
+        ...data.results,
+      ]
+      if (history.settlingRunId === settlingRunId) history.settlingRunId = null
+      followReplies(findConversation(conversationUuid), data.results.at(-1))
+    } catch {
+      if (isNewerThanApplied()) {
+        history.failedRefresh = Math.max(history.failedRefresh, request)
+      }
+    }
+  }
+
+  function retryReply() {
+    return refreshNewestPage(selectedUuid.value)
+  }
+
   // A failed page keeps the last loaded page number, so this also retries it.
   function loadMoreMessages() {
     if (currentHistory.value.refreshError) {
@@ -346,28 +462,25 @@ export function useAgentConversations(agent, configuration) {
       if (history) {
         history.items = mergeMessages(history.items, [data.message])
       } else {
-        histories[conversationUuid] = {
+        histories[conversationUuid] = createHistory({
           items: [data.message],
           page: 1,
-          next: false,
-          loading: false,
-          error: false,
-          stale: false,
-          refreshError: false,
-          request: 0,
-        }
+        })
       }
       draft.content = ''
       draft.submission = null
+      followReplies(data.conversation, data.message)
     } catch (error) {
       if (!scopeIsCurrent(currentScope)) return
       const code = error.response?.data?.error
-      draft.error =
-        code === 'ERROR_AGENT_MESSAGE_CONFLICT' ? 'conflict' : 'failed'
+      draft.error = SEND_ERRORS[code] || 'failed'
       // The server rejected the message outright, so it can be edited and resent.
       if (REJECTED_MESSAGE_ERRORS.includes(code)) draft.submission = null
       if (code === 'ERROR_AGENT_NOT_READY') {
         await configuration.refreshConfiguration()
+      }
+      if (code === 'ERROR_CHAT_RUN_IN_PROGRESS' && !conversation.local) {
+        await refreshNewestPage(conversationUuid)
       }
     } finally {
       if (scopeIsCurrent(currentScope)) {
@@ -375,6 +488,16 @@ export function useAgentConversations(agent, configuration) {
         if (histories[conversationUuid]?.stale)
           refreshMessages(conversationUuid)
       }
+    }
+  }
+
+  async function stopReply() {
+    const runId = replyFollower.value?.runId
+    if (!runId) return
+    try {
+      await store.dispatch('chatRuns/cancelRun', runId)
+    } catch (error) {
+      notifyIf(error)
     }
   }
 
@@ -423,7 +546,26 @@ export function useAgentConversations(agent, configuration) {
     // Each event marks its conversation, even if several arrive in one tick.
     { flush: 'sync' }
   )
+  watch(
+    () => selectedConversation.value?.id,
+    (id) => {
+      if (id) {
+        store.dispatch('chatRuns/subscribeToChat', {
+          runType: AGENT_RUN_TYPE,
+          chatId: id,
+        })
+      }
+    }
+  )
+  const removeRefreshListener = runType.onRefresh((chatId, finishedRunId) => {
+    const conversation = conversations.value.find((item) => item.id === chatId)
+    if (!conversation) return
+    const history = histories[conversation.uuid]
+    if (finishedRunId && history?.page) history.settlingRunId = finishedRunId
+    refreshNewestPage(conversation.uuid)
+  })
   onBeforeUnmount(reset)
+  onBeforeUnmount(removeRefreshListener)
 
   return {
     canReadConversations,
@@ -435,6 +577,9 @@ export function useAgentConversations(agent, configuration) {
     selectedUuid,
     currentHistory,
     currentDraft,
+    replyFollower,
+    sendError,
+    refreshError,
     canWriteSelected,
     canSend,
     newConversation,
@@ -442,7 +587,9 @@ export function useAgentConversations(agent, configuration) {
     loadMoreConversations,
     retryConversations,
     loadMoreMessages,
+    retryReply,
     updateMessage,
     sendMessage,
+    stopReply,
   }
 }

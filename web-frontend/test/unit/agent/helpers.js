@@ -209,22 +209,45 @@ export const page = (results, next = null) => ({
   results,
 })
 
+const conversationIds = new Map()
+const conversationId = (uuid) => {
+  if (!conversationIds.has(uuid)) {
+    conversationIds.set(uuid, conversationIds.size + 1)
+  }
+  return conversationIds.get(uuid)
+}
+
 export const conversation = (
   uuid,
   title,
-  updatedOn = '2026-10-14T10:00:00Z'
+  updatedOn = '2026-10-14T10:00:00Z',
+  id = conversationId(uuid)
 ) => ({
+  id,
   uuid,
   title,
   created_on: '2026-10-14T10:00:00Z',
   updated_on: updatedOn,
 })
 
-export const message = (uuid, content) => ({
+export const message = (
   uuid,
-  role: 'user',
+  content,
+  { role = 'user', author = null, turn = null } = {}
+) => ({
+  uuid,
+  role,
   content,
   created_on: '2026-10-14T10:00:00Z',
+  author,
+  turn,
+})
+
+export const runningTurn = (runId = 'run-1') => ({
+  id: 1,
+  status: 'running',
+  error_code: '',
+  run_id: runId,
 })
 
 export const acceptConversation = (config) => {
@@ -242,6 +265,8 @@ export const composer = (wrapper) =>
   wrapper.get('.agent-chat__composer textarea')
 
 export const send = (wrapper) => wrapper.get('.agent-chat__composer button')
+
+export const stop = (wrapper) => wrapper.get('.agent-chat__stop')
 
 export async function sendMessage(wrapper, content) {
   await composer(wrapper).setValue(content)

@@ -1,3 +1,5 @@
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
+
 const CONVERSATION_PAGE_SIZE = 20
 const MESSAGE_PAGE_SIZE = 50
 
@@ -22,10 +24,13 @@ export default (client) => ({
   createConversation(agentId, values) {
     return client.post(`/agent/${agentId}/conversations/`, values)
   },
-  getMessages(agentId, conversationUuid, page = 1) {
+  getMessages(agentId, conversationUuid, page = 1, realtimeRecovery = false) {
     return client.get(
       `/agent/${agentId}/conversations/${conversationUuid}/messages/`,
-      { params: { page, size: MESSAGE_PAGE_SIZE } }
+      {
+        params: { page, size: MESSAGE_PAGE_SIZE },
+        ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+      }
     )
   },
   createMessage(agentId, conversationUuid, values) {
