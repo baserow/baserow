@@ -46,7 +46,7 @@ from .constants import (
     READ_ONLY_ROLE_UID,
     ROLE_ASSIGNABLE_OBJECT_MAP,
 )
-from .types import NewRoleAssignment
+from .types import EffectiveAccess, NewRoleAssignment
 
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
 
@@ -1346,6 +1346,130 @@ class RoleAssignmentHandler:
                         )
                     )
         return role_assignments
+
+    def get_effective_access(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> List[EffectiveAccess]:
+        """
+        Resolves the role every user and agent of the workspace effectively holds on
+        the given scope, with the resolution the permission checks use, and where it
+        comes from.
+
+        The source of a role is the most specific scope, the given one or one above
+        it, that holds a role for the subject once the admin precedence is applied.
+        The subject holds that role themselves, by their stored workspace role or a
+        role assignment of their own, or otherwise through the teams they belong to
+        that hold a role there.
+
+        Subjects without access are left out: those resolving to no access, which
+        includes being blocked on a scope above, and those only reaching the scope
+        to navigate to something inside it that they hold a role on.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope to resolve the access on.
+        :return: The effective access of every subject with access, ordered by
+            subject type priority.
+        """
+
+        team_content_type = ContentType.objects.get_for_model(Team)
+
+        def get_scope_key(scope_object):
+            scope_type = object_scope_type_registry.get_by_model(scope_object)
+            return (
+                ContentType.objects.get_for_model(scope_type.model_class).id,
+                scope_object.id,
+            )
+
+        # Resolve the role of every subject, keeping the scope whose roles apply.
+        resolved = []
+        for subject_type_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY:
+            subject_type = subject_type_registry.get(subject_type_name)
+            if not subject_type.has_direct_workspace_roles:
+                continue
+            subjects = list(subject_type.get_workspace_subjects(workspace))
+            if not subjects:
+                continue
+            roles_per_scope_per_subject = self.get_roles_per_scope_for_actors(
+                workspace, subject_type, subjects
+            )
+            stored_role_uids = subject_type.get_workspace_role_uids(subjects, workspace)
+            for subject in subjects:
+                source = None
+                for source_scope, roles in roles_per_scope_per_subject[subject]:
+                    # Ordered from the workspace down, so the last match is the most
+                    # specific one.
+                    if object_scope_type_registry.scope_includes_context(
+                        source_scope, scope
+                    ):
+                        source = (source_scope, roles)
+                if source is None:
+                    continue
+                source_scope, roles = source
+                roles = [role for role in roles if role.uid != NO_ACCESS_ROLE_UID]
+                if not roles:
+                    continue
+                resolved.append(
+                    (
+                        subject_type,
+                        subject,
+                        # Roles held at the same level add up, so the one granting
+                        # the most operations is the effective one.
+                        max(roles, key=lambda role: len(role.operations.all())),
+                        source_scope,
+                        stored_role_uids.get(subject.id),
+                    )
+                )
+
+        # Fetch the role assignments of the source scopes to tell whether a role is
+        # held by the subject themselves or through their teams.
+        source_scopes_q = Q(pk__in=[])
+        for _, _, _, source_scope, _ in resolved:
+            scope_type_id, scope_id = get_scope_key(source_scope)
+            source_scopes_q |= Q(scope_type_id=scope_type_id, scope_id=scope_id)
+        own_keys = set()
+        team_ids_per_scope_key = defaultdict(set)
+        for subject_type_id, subject_id, scope_type_id, scope_id in (
+            RoleAssignment.objects.filter(workspace=workspace)
+            .filter(source_scopes_q)
+            .exclude(self._direct_workspace_roles_q())
+            .exclude(role__uid__in=[NO_ROLE_LOW_PRIORITY_ROLE_UID, *INTERNAL_ROLE_UIDS])
+            .values_list("subject_type_id", "subject_id", "scope_type_id", "scope_id")
+        ):
+            scope_key = (scope_type_id, scope_id)
+            if subject_type_id == team_content_type.id:
+                team_ids_per_scope_key[scope_key].add(subject_id)
+            else:
+                own_keys.add((subject_type_id, subject_id, scope_key))
+
+        team_ids = set().union(*team_ids_per_scope_key.values())
+        teams_by_id = Team.objects.filter(id__in=team_ids).in_bulk()
+        team_ids_per_subject_key = defaultdict(set)
+        for subject_type_id, subject_id, team_id in TeamSubject.objects.filter(
+            team_id__in=team_ids
+        ).values_list("subject_type_id", "subject_id", "team_id"):
+            team_ids_per_subject_key[(subject_type_id, subject_id)].add(team_id)
+
+        result = []
+        for subject_type, subject, role, source_scope, stored_role_uid in resolved:
+            subject_type_id = subject_type.get_content_type().id
+            scope_key = get_scope_key(source_scope)
+            if source_scope == workspace:
+                is_own = not subject_type.is_workspace_role_fallback(stored_role_uid)
+            else:
+                is_own = (subject_type_id, subject.id, scope_key) in own_keys
+            teams = []
+            if not is_own:
+                teams = sorted(
+                    (
+                        teams_by_id[team_id]
+                        for team_id in team_ids_per_scope_key[scope_key]
+                        & team_ids_per_subject_key[(subject_type_id, subject.id)]
+                    ),
+                    key=lambda team: (team.name, team.id),
+                )
+            result.append(EffectiveAccess(subject, role, source_scope, teams))
+
+        return result
 
     @classmethod
     def is_workspace_level_assignment(

@@ -325,3 +325,71 @@ class UpdateScopedInvitationSerializer(serializers.Serializer):
             return super().to_internal_value(data)
         except Role.DoesNotExist:
             raise RoleNotExist()
+
+
+class EffectiveAccessTeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = ("id", "name")
+
+
+class EffectiveAccessSerializer(serializers.Serializer):
+    """
+    Serializes an `EffectiveAccess`. The teams are limited to the ones whose
+    members the requesting user may list, given as `visible_team_ids` in the
+    context, while `through_teams` still tells that the role comes from a team.
+    """
+
+    subject_type = serializers.SerializerMethodField(
+        help_text="The type of the subject: a user or an agent."
+    )
+    subject_id = serializers.SerializerMethodField(help_text="The subject's id.")
+    role = serializers.SerializerMethodField(
+        help_text="The uid of the role the subject effectively holds on the scope."
+    )
+    source_scope_type = serializers.SerializerMethodField(
+        help_text="The type of the scope the role comes from: the requested scope "
+        "or one above it."
+    )
+    source_scope_id = serializers.SerializerMethodField(
+        help_text="The id of the scope the role comes from."
+    )
+    through_teams = serializers.SerializerMethodField(
+        help_text="Whether the subject holds the role through their teams rather "
+        "than themselves."
+    )
+    teams = serializers.SerializerMethodField(
+        help_text="The teams the subject holds the role through, limited to the "
+        "teams whose members the requesting user may list."
+    )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_subject_type(self, obj):
+        return subject_type_registry.get_by_model(obj.subject).type
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_subject_id(self, obj):
+        return obj.subject.id
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_role(self, obj):
+        return obj.role.uid
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_source_scope_type(self, obj):
+        return object_scope_type_registry.get_by_model(obj.source_scope).type
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_source_scope_id(self, obj):
+        return obj.source_scope.id
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_through_teams(self, obj):
+        return len(obj.teams) > 0
+
+    @extend_schema_field(EffectiveAccessTeamSerializer(many=True))
+    def get_teams(self, obj):
+        visible_team_ids = self.context.get("visible_team_ids", set())
+        return EffectiveAccessTeamSerializer(
+            [team for team in obj.teams if team.id in visible_team_ids], many=True
+        ).data

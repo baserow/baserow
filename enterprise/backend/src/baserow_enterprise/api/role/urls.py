@@ -2,6 +2,7 @@ from django.urls import re_path
 
 from .views import (
     BatchRoleAssignmentsView,
+    EffectiveAccessView,
     RoleAssignmentsView,
     ScopedInvitationsView,
     ScopedInvitationView,
@@ -19,6 +20,11 @@ urlpatterns = [
         r"^(?P<workspace_id>[0-9]+)/batch/$",
         BatchRoleAssignmentsView.as_view(),
         name="batch",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/effective-access/$",
+        EffectiveAccessView.as_view(),
+        name="effective_access",
     ),
     re_path(
         r"^(?P<workspace_id>[0-9]+)/invitations/$",

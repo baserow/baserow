@@ -46,12 +46,18 @@
           </span>
         </h3>
         <ScopeInheritedAccess
+          v-if="!loading && effectiveAccess !== null"
           :workspace="workspace"
-          :scope-type-name="scopeTypeName"
+          :target="target"
+          :target-type="targetType"
+          :effective-access="effectiveAccess"
+          :direct-keys="Object.keys(assignedRoles)"
+          @level-roles-managed="fetchEffectiveAccess"
           @close="$emit('close')"
         />
       </ShareScopeInput>
     </template>
+    <ScopeNoAccessModal ref="noAccessModal" />
   </div>
 </template>
 
@@ -64,6 +70,7 @@ import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ScopeInheritedAccess from '@baserow_enterprise/components/invitation/ScopeInheritedAccess'
+import ScopeNoAccessModal from '@baserow_enterprise/components/invitation/ScopeNoAccessModal'
 import ShareScopeInput from '@baserow_enterprise/components/invitation/ShareScopeInput'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
@@ -73,10 +80,11 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
  * members, teams and agents, with a role on the object, or invites a new person
  * by email with a role on the object only. Below it, everyone with a direct
  * role is listed, pending invitations included, followed by who else reaches
- * the object through the workspace. Subjects can be given no access on the
- * object, which takes it away from them below their workspace role; an
- * invitation can't, as there is no point in inviting someone to nothing. Only
- * assignable subject types take part; anonymous visitors are display-only.
+ * the object through a level above it, by their effective access. Subjects can
+ * be given no access on the object, which takes it away from them below their
+ * workspace role; an invitation can't, as there is no point in inviting someone
+ * to nothing. Only assignable subject types take part; anonymous visitors are
+ * display-only.
  *
  * A user or agent who is an admin of the workspace, or holds the admin role
  * themselves on the database or table the object is in, keeps full access to
@@ -94,6 +102,7 @@ export default {
     CaptchaWidget,
     ScopeAccessList,
     ScopeInheritedAccess,
+    ScopeNoAccessModal,
     ShareScopeInput,
   },
   mixins: [error, emailInvitations],
@@ -120,6 +129,9 @@ export default {
       roleAssignments: [],
       parentRoleAssignments: {},
       scopedInvitations: [],
+      effectiveAccess: null,
+      // Counts the effective access requests, so only the latest one applies.
+      effectiveAccessRequest: 0,
       subjects: {},
     }
   },
@@ -338,6 +350,7 @@ export default {
         this.fetchRoleAssignments(),
         this.fetchParentRoleAssignments(),
         this.fetchScopedInvitations(),
+        this.fetchEffectiveAccess(),
         ...this.subjectTypes.map((subjectType) =>
           this.fetchSubjects(subjectType)
         ),
@@ -363,6 +376,28 @@ export default {
       } catch (error) {
         this.roleAssignments = []
         this.showFetchError()
+      }
+    },
+    /**
+     * Fetches who has access to the object and where it comes from, for the
+     * summary of who reaches it through a level above. Without it the rest of
+     * the dialog still works, so a failure only notifies. Every change refetches
+     * it, so the response of an older request is ignored once a newer one was
+     * made, whichever arrives last.
+     */
+    async fetchEffectiveAccess() {
+      const request = ++this.effectiveAccessRequest
+      try {
+        const { data } = await RoleAssignmentsService(
+          this.$client
+        ).getEffectiveAccess(this.workspace.id, this.scope.id, this.scopeType)
+        if (request === this.effectiveAccessRequest) {
+          this.effectiveAccess = data
+        }
+      } catch (error) {
+        if (request === this.effectiveAccessRequest) {
+          notifyIf(error)
+        }
       }
     },
     /**
@@ -445,10 +480,24 @@ export default {
      * what wasn't added yet is still picked.
      */
     async add(selection, roleUid) {
-      this.adding = true
-      this.hideError()
       const subjects = selection.filter(({ type }) => type !== 'email')
       const emails = selection.filter(({ type }) => type === 'email')
+      if (
+        subjects.length > 0 &&
+        roleUid === 'NO_ACCESS' &&
+        !(await this.$refs.noAccessModal.ask(
+          this.$t(
+            'shareScope.noAccessSelectionDescription',
+            { count: subjects.length, type: this.scopeTypeName },
+            subjects.length
+          )
+        ))
+      ) {
+        return
+      }
+
+      this.adding = true
+      this.hideError()
 
       try {
         if (subjects.length > 0) {
@@ -466,6 +515,7 @@ export default {
             roleAssignments.filter(Boolean)
           )
           subjects.forEach((item) => this.$refs.input.remove(item))
+          this.fetchEffectiveAccess()
         }
         await this.sendInvitations(
           emails,
@@ -489,11 +539,24 @@ export default {
         this.adding = false
       }
     },
-    updateItemRole(item, roleUid) {
+    async updateItemRole(item, roleUid) {
       if (item.kind === 'invitation') {
         return this.updateScopedInvitationRole(item.scopedInvitation, roleUid)
       }
-      return this.updateRoleAssignment(item.roleAssignment, roleUid)
+      if (
+        roleUid === 'NO_ACCESS' &&
+        item.roleUid !== 'NO_ACCESS' &&
+        !(await this.$refs.noAccessModal.ask(
+          this.$t('shareScope.noAccessDescription', {
+            name: item.name,
+            type: this.scopeTypeName,
+          })
+        ))
+      ) {
+        return
+      }
+      await this.updateRoleAssignment(item.roleAssignment, roleUid)
+      this.fetchEffectiveAccess()
     },
     async updateRoleAssignment(roleAssignment, newRole) {
       const index = this.roleAssignments.findIndex(
