@@ -5,6 +5,7 @@ from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
+from baserow.core.chat_runs.buffer import parse_cursor
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
 from baserow_enterprise.assistant.types import (
     AssistantMessageType,
@@ -96,19 +97,63 @@ class UIContextSerializer(serializers.Serializer):
 
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
-    content = serializers.CharField(required=False, max_length=100_000)
-    ui_context = UIContextSerializer(required=False)
-    tab_id = serializers.CharField(
-        required=False, default="", allow_blank=True, max_length=64
+    content = serializers.CharField(
+        required=False,
+        max_length=100_000,
+        help_text="The content of the message. Required unless `run_id` is set.",
     )
-    run_id = serializers.UUIDField(required=False)
-    cursor = serializers.CharField(required=False, allow_blank=True, max_length=128)
+    ui_context = UIContextSerializer(
+        required=False,
+        help_text=(
+            "The UI context related to what the user was looking at when the "
+            "message was sent. Required unless `run_id` is set."
+        ),
+    )
+    tab_id = serializers.CharField(
+        default="",
+        allow_blank=True,
+        max_length=64,
+        help_text=(
+            "This tab's id; only the tab that sent the message receives Kuma's "
+            "navigation."
+        ),
+    )
+    run_id = serializers.UUIDField(
+        required=False,
+        help_text="Follow this run of the chat instead of sending a message.",
+    )
+    cursor = serializers.CharField(
+        required=False,
+        max_length=128,
+        help_text="With `run_id`, the last cursor received; only later output is sent.",
+    )
 
-    def validate(self, attrs):
+    def validate_cursor(self, cursor: str) -> str:
+        """
+        :param cursor: The cursor sent with `run_id`.
+        :return: The cursor.
+        :raises ValidationError: When it is not a chat run cursor.
+        """
+
+        try:
+            parse_cursor(cursor)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return cursor
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """
+        Accepts either a new message or a run to follow, never both.
+
+        :param attrs: The validated fields.
+        :return: The validated fields.
+        :raises ValidationError: When the request mixes both or lacks a field.
+        """
+
         if "run_id" in attrs:
             if "content" in attrs or "ui_context" in attrs:
                 raise serializers.ValidationError(
-                    "Resume attaches existing work and cannot contain a new message."
+                    "A request that follows a run cannot contain a new message."
                 )
         elif "content" not in attrs or "ui_context" not in attrs:
             raise serializers.ValidationError(
@@ -116,13 +161,6 @@ class AssistantMessageRequestSerializer(serializers.Serializer):
             )
         elif "cursor" in attrs:
             raise serializers.ValidationError("A cursor requires run_id.")
-        if attrs.get("cursor"):
-            from baserow.core.chat_runs.buffer import parse_cursor
-
-            try:
-                parse_cursor(attrs["cursor"])
-            except ValueError as exc:
-                raise serializers.ValidationError({"cursor": str(exc)}) from exc
         return attrs
 
 
@@ -167,7 +205,11 @@ class AiMessageSerializer(serializers.Serializer):
             "The list of relevant source URLs referenced in the knowledge. Can be empty or null."
         ),
     )
-    onboarding_target = serializers.JSONField(required=False, allow_null=True)
+    onboarding_target = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="The table created during onboarding, opened when the run ends.",
+    )
     can_submit_feedback = serializers.BooleanField(
         default=False,
         help_text=(
@@ -195,7 +237,7 @@ class AiMessageSerializer(serializers.Serializer):
         allow_blank=True,
         help_text=(
             "Why that run failed or stopped: `interrupted`, `not_started`, "
-            "`timeout`, `failed`, `persist_failed` or `model_unavailable`."
+            "`timeout`, `failed` or `model_unavailable`."
         ),
     )
 
@@ -292,19 +334,11 @@ class AssistantMessageSerializer(serializers.Serializer):
             else:
                 data = instance
 
-        if isinstance(data, dict) and data.get("onboarding_target") is None:
-            data = {
-                key: value for key, value in data.items() if key != "onboarding_target"
-            }
-
         # Get the appropriate serializer for this message type
         serializer_class = TYPE_SERIALIZER_MAP.get(msg_type)
         if serializer_class:
             # Use the type-specific serializer to represent the data
-            result = serializer_class(data).data
-            if result.get("onboarding_target") is None:
-                result.pop("onboarding_target", None)
-            return result
+            return serializer_class(data).data
 
         # Fallback for unknown types
         return {"type": msg_type}
@@ -328,22 +362,13 @@ class AssistantMessageSerializer(serializers.Serializer):
         return serializer
 
 
-class ActiveChatRunSerializer(serializers.Serializer):
-    human_message_id = serializers.SerializerMethodField()
-
-    def get_human_message_id(self, instance):
-        return instance.context.get("human_message_id")
-
-    id = serializers.UUIDField(help_text="The id of the run.")
-    chat_id = serializers.IntegerField()
-    status = serializers.CharField()
-
-
 class AssistantChatMessagesSerializer(serializers.Serializer):
-    chat_title = serializers.CharField(required=False, allow_blank=True)
+    chat_title = serializers.CharField(
+        allow_blank=True, help_text="The chat's current title."
+    )
     chat_id = serializers.IntegerField(help_text="The id of the chat.")
     messages = AssistantMessageSerializer(many=True)
-    active_run = ActiveChatRunSerializer(allow_null=True)
+    active_run = serializers.JSONField(allow_null=True)
     latest_run = serializers.JSONField(allow_null=True)
 
     def to_representation(self, instance: dict[str, Any]) -> dict[str, Any]:
@@ -353,19 +378,12 @@ class AssistantChatMessagesSerializer(serializers.Serializer):
             if hasattr(message, "type")
             and AssistantMessageSerializer.can_serialize(message)
         ]
-        active_run = instance["active_run"]
         return {
             "chat_id": instance["chat_id"],
-            **(
-                {"chat_title": instance["chat_title"]}
-                if "chat_title" in instance
-                else {}
-            ),
+            "chat_title": instance["chat_title"],
             "messages": AssistantMessageSerializer(messages, many=True).data,
-            "active_run": ActiveChatRunSerializer(active_run).data
-            if active_run
-            else None,
-            "latest_run": instance.get("latest_run"),
+            "active_run": instance["active_run"],
+            "latest_run": instance["latest_run"],
         }
 
 
@@ -466,11 +484,3 @@ class OnboardingPromptSuggestionSerializer(serializers.Serializer):
 
 class OnboardingPromptSuggestionsSerializer(serializers.Serializer):
     suggestions = OnboardingPromptSuggestionSerializer(many=True)
-
-
-class ChatRunInProgressSerializer(serializers.Serializer):
-    error = serializers.CharField()
-    detail = serializers.CharField()
-    run_id = serializers.UUIDField(
-        help_text="The run still answering the chat's previous message."
-    )

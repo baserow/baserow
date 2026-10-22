@@ -1093,7 +1093,6 @@ class TestCaseToolCleanup:
         assert model.closed
 
     def test_a_timed_out_case_starts_no_new_model_call(self, isolated_case):
-        release = threading.Event()
         requests: list[list] = []
 
         # Async on purpose: a sync one would be refused by the draining executor.
@@ -1102,8 +1101,10 @@ class TestCaseToolCleanup:
             return ModelResponse(parts=[TextPart(content="Done")])
 
         def tool_with_a_sub_agent(ctx: RunContext[AssistantDeps]) -> str:
-            timer.start()
-            release.wait(3)
+            helpers = ctx.deps.tool_helpers
+            deadline = time.monotonic() + 3
+            while not helpers.is_cancelled and time.monotonic() < deadline:
+                time.sleep(0.01)
             sub_agent_run = run_agent_sync_with_model(
                 Agent(output_type=str),
                 "Help the tool",
@@ -1112,13 +1113,8 @@ class TestCaseToolCleanup:
             return sub_agent_run.output
 
         case = isolated_case(tool_with_a_sub_agent)
-        timer = threading.Timer(0.4, release.set)
-        try:
-            with pytest.raises(EvalCaseTimeout):
-                run_case(case, TestModel())
-        finally:
-            release.set()
-            timer.cancel()
+        with pytest.raises(EvalCaseTimeout):
+            run_case(case, TestModel())
 
         assert requests == []
 

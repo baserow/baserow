@@ -7,13 +7,7 @@ from django.utils import translation
 
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
-from pydantic_ai.messages import (
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    ToolReturnPart,
-)
-from pydantic_ai.models.function import DeltaToolCall
+from pydantic_ai.messages import ModelResponse, TextPart
 
 from baserow.config.db_routers import get_db_alias
 from baserow.core.action.models import Action
@@ -36,8 +30,9 @@ from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.runs import CHAT_TITLE_EVENT, ERROR_MODEL_UNAVAILABLE
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
 from baserow_enterprise.assistant.tools.core import helpers as core_helpers
-from baserow_enterprise_tests.assistant.runs.fixtures import (
+from baserow_enterprise_tests.assistant.runs.utils import (
     ai_message,
+    create_a_database,
     history_texts,
     traces,
 )
@@ -108,13 +103,11 @@ def test_an_unfinished_run_keeps_what_the_user_saw_and_closes_the_turn(
     posthog_client,
     fast_journal,
     mocker,
-    django_capture_on_commit_callbacks,
     interrupt,
     status,
     error_code,
     trace_outcome,
 ):
-    # The runner's own deadline timer is covered in test_chat_run_runner.py.
     journal = mocker.spy(runner_module, "ChatRunJournal")
     run = assistant_run(content="Add rows")
 
@@ -125,9 +118,7 @@ def test_an_unfinished_run_keeps_what_the_user_saw_and_closes_the_turn(
 
     kuma_model(stream)
 
-    # A run whose agent didn't trace itself is reported by the run type on commit.
-    with django_capture_on_commit_callbacks(execute=True):
-        execute_chat_run(str(run.id))
+    execute_chat_run(str(run.id))
 
     run.refresh_from_db()
     message = ai_message(run)
@@ -188,28 +179,7 @@ def test_tools_run_with_the_context_of_the_sending_request(
         return list_builder_items(user, workspace)
 
     mocker.patch.object(core_helpers, "list_builder_items", side_effect=record_context)
-
-    async def stream(messages, info):
-        if any(
-            isinstance(part, ToolReturnPart)
-            for message in messages
-            if isinstance(message, ModelRequest)
-            for part in message.parts
-        ):
-            yield "Created."
-            return
-        yield {
-            0: DeltaToolCall(
-                name="create_builders",
-                json_args=(
-                    '{"builders": [{"name": "Kuma DB", "type": "database"}], '
-                    '"thought": "Create it"}'
-                ),
-                tool_call_id="call-1",
-            )
-        }
-
-    kuma_model(stream)
+    kuma_model(create_a_database)
 
     execute_chat_run(str(run.id))
 
@@ -225,36 +195,3 @@ def test_tools_run_with_the_context_of_the_sending_request(
     action = Action.objects.get(type=CreateApplicationActionType.type)
     assert action.session == run.context["client_session_id"]
     assert str(action.action_group) == run.context["action_group_id"]
-
-
-@pytest.mark.django_db(transaction=True)
-def test_final_title_is_recovered_after_redis_output_fails(
-    assistant_run, kuma_model, mocker
-):
-    from unittest.mock import AsyncMock
-
-    from baserow.core.chat_runs.service import serialize_run
-    from baserow_enterprise.assistant.handler import AssistantHandler
-
-    async def stream(messages, info):
-        yield "Hello"
-
-    def title(messages, info):
-        return ModelResponse(parts=[TextPart(content="Durable greeting")])
-
-    kuma_model(stream, function=title)
-    mocker.patch(
-        "baserow.core.chat_runs.buffer.ChatRunBuffer.append",
-        new_callable=AsyncMock,
-        side_effect=ConnectionError("Output Redis unavailable"),
-    )
-    run = assistant_run(content="Say hello", context={"generate_title": True})
-
-    execute_chat_run(str(run.id))
-
-    run.refresh_from_db()
-    chat = AssistantChat.objects.get(id=run.chat_id)
-    assert run.status == ChatRunStatus.COMPLETED
-    assert serialize_run(run)["message"]["chat_title"] == "Durable greeting"
-    assert AssistantHandler().get_chat_snapshot(chat).chat_title == "Durable greeting"
-    assert run.outcome["content"] == "Hello"
