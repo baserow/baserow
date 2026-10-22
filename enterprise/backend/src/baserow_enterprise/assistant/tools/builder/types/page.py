@@ -32,6 +32,28 @@ class PageQueryParam(BaseModel):
     type: Literal["text", "numeric"] = Field("text", description="Parameter type.")
 
 
+def with_path_parameters(
+    path: str, path_params: list[PagePathParam]
+) -> list[PagePathParam]:
+    """
+    Add the parameters of ``path`` missing from ``path_params``, as text.
+
+    :raises ValueError: When the parameters don't match the ones in the path.
+    """
+
+    path_params = list(path_params)
+    names = {parameter.name for parameter in path_params}
+    for token in dict.fromkeys(PATH_PARAM_REGEX.findall(path)):
+        name = token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+        if name not in names:
+            path_params.append(PagePathParam(name=name))
+    if not PageHandler().is_page_path_valid(
+        path, [parameter.model_dump() for parameter in path_params]
+    ):
+        raise ValueError("Path parameters must match unique parameters in the URL.")
+    return path_params
+
+
 class PageCreate(BaseModel):
     """Page creation payload."""
 
@@ -61,15 +83,7 @@ class PageCreate(BaseModel):
 
     @model_validator(mode="after")
     def _default_path_parameters(self):
-        names = {parameter.name for parameter in self.path_params}
-        for token in dict.fromkeys(PATH_PARAM_REGEX.findall(self.path)):
-            name = token.removeprefix(PAGE_PATH_PARAM_PREFIX)
-            if name not in names:
-                self.path_params.append(PagePathParam(name=name))
-        if not PageHandler().is_page_path_valid(
-            self.path, [parameter.model_dump() for parameter in self.path_params]
-        ):
-            raise ValueError("Path parameters must match unique parameters in the URL.")
+        self.path_params = with_path_parameters(self.path, self.path_params)
         return self
 
 
@@ -98,6 +112,12 @@ class PageUpdate(BaseModel):
     roles: list[str] | None = Field(
         default=None, description="Role names for the access strategy."
     )
+
+    @model_validator(mode="after")
+    def _default_path_parameters(self):
+        if self.path is not None:
+            self.path_params = with_path_parameters(self.path, self.path_params or [])
+        return self
 
     def to_update_kwargs(self) -> dict:
         """Return kwargs for ``PageService.update_page()``."""

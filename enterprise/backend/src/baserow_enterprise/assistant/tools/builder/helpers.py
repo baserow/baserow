@@ -554,7 +554,7 @@ def create_element(
         kwargs["parent_element_id"] = parent
     elif isinstance(parent, str):
         if parent not in ref_to_id_map:
-            raise ValueError(
+            raise ToolInputError(
                 f"Parent ref '{parent}' not found. "
                 "Define parent elements before children."
             )
@@ -1021,7 +1021,7 @@ def create_workflow_action(
         element_id = el
     elif isinstance(el, str):
         if el not in element_ref_to_id_map:
-            raise ValueError(f"Element ref '{el}' not found.")
+            raise ToolInputError(f"Element ref '{el}' not found.")
         element_id = element_ref_to_id_map[el]
     else:
         raise ValueError("element is required for workflow actions.")
@@ -1143,7 +1143,7 @@ def add_field_mapping_to_action(
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):
-        raise ValueError(
+        raise ToolInputError(
             f"Cannot add field mappings to '{action_type}'. "
             "Only create_row and update_row support field mappings."
         )
