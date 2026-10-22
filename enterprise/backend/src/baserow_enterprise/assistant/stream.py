@@ -7,12 +7,12 @@ from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
+from baserow.core.chat_runs.constants import ChatRunEventKind
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.stream import follow_run
 
 from .history import NOT_STARTED_ANSWER, UNFINISHED_ANSWER
-from .runs import CHAT_TITLE_EVENT, ERROR_MODEL_UNAVAILABLE, NAVIGATION_EVENT
+from .runs import CHAT_TITLE_EVENT, NAVIGATION_EVENT, NOTHING_RAN_ERROR_CODES
 from .types import AiCancelledMessage, AiErrorMessage, AiStartedMessage
 
 
@@ -105,10 +105,7 @@ async def stream_run_messages(
                 yield json.dumps({**cancelled.model_dump(), "_run": identity}) + "\n\n"
             elif data["status"] == ChatRunStatus.FAILED:
                 error_code = data.get("error_code") or "unknown"
-                nothing_ran = error_code in (
-                    ChatRunErrorCode.NOT_STARTED,
-                    ERROR_MODEL_UNAVAILABLE,
-                )
+                nothing_ran = error_code in NOTHING_RAN_ERROR_CODES
                 error = AiErrorMessage(
                     code=error_code,
                     content=NOT_STARTED_ANSWER if nothing_ran else UNFINISHED_ANSWER,

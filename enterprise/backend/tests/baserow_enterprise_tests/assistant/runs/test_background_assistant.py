@@ -16,11 +16,8 @@ from baserow_enterprise.assistant.assistant import BackgroundAssistant
 from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER
 from baserow_enterprise.assistant.runs import NAVIGATION_EVENT
 from baserow_enterprise.assistant.tools.navigation.utils import NAVIGATED
-from baserow_enterprise.assistant.types import TableNavigationType
-
-ORDERS_TABLE = TableNavigationType(
-    type="database-table", database_id=1, table_id=2, table_name="Orders"
-)
+from baserow_enterprise.assistant.types import WorkspaceNavigationType
+from baserow_enterprise_tests.assistant.runs.utils import ORDERS_TABLE
 
 
 @pytest.mark.django_db
@@ -55,6 +52,20 @@ def test_tool_status_and_navigation_go_to_the_journal(
 
 
 @pytest.mark.django_db
+def test_the_first_table_kuma_opens_is_the_onboarding_target(
+    background_assistant: BackgroundAssistant,
+):
+    customers = ORDERS_TABLE.model_copy(update={"table_id": 3})
+    home = WorkspaceNavigationType(type="workspace")
+    for location in (home, ORDERS_TABLE, customers):
+        background_assistant._tool_helpers.navigate_to(location)
+
+    outcome = background_assistant._outcome("Plan my week")
+
+    assert outcome.result.onboarding_target == ORDERS_TABLE.model_dump(mode="json")
+
+
+@pytest.mark.django_db
 def test_a_tool_that_ends_after_a_stop_does_not_navigate(
     background_assistant: BackgroundAssistant,
 ):
@@ -62,6 +73,7 @@ def test_a_tool_that_ends_after_a_stop_does_not_navigate(
 
     assert background_assistant._tool_helpers.navigate_to(ORDERS_TABLE) == NAVIGATED
     background_assistant._journal.emit.assert_not_called()
+    assert background_assistant._outcome("Add rows").result.onboarding_target is None
 
 
 @pytest.mark.django_db

@@ -237,7 +237,7 @@ class AiMessageSerializer(serializers.Serializer):
         allow_blank=True,
         help_text=(
             "Why that run failed or stopped: `interrupted`, `not_started`, "
-            "`timeout`, `failed` or `model_unavailable`."
+            "`timeout`, `failed`, `model_unavailable` or `access_lost`."
         ),
     )
 

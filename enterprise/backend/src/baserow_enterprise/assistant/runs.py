@@ -1,9 +1,15 @@
 from dataclasses import dataclass, field
 
+from baserow.core.chat_runs.constants import ChatRunErrorCode
+
 ASSISTANT_RUN_TYPE = "assistant"
 NAVIGATION_EVENT = "navigation"
 CHAT_TITLE_EVENT = "chat.title"
 ERROR_MODEL_UNAVAILABLE = "model_unavailable"
+ERROR_ACCESS_LOST = "access_lost"
+NOTHING_RAN_ERROR_CODES = frozenset(
+    {ChatRunErrorCode.NOT_STARTED, ERROR_MODEL_UNAVAILABLE, ERROR_ACCESS_LOST}
+)
 
 
 @dataclass(frozen=True)

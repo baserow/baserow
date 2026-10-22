@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 from unittest.mock import patch
 
@@ -19,11 +20,13 @@ from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER, unfinished_
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.runs import (
     ASSISTANT_RUN_TYPE,
+    ERROR_ACCESS_LOST,
     ERROR_MODEL_UNAVAILABLE,
     AssistantRunResult,
 )
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
 from baserow_enterprise_tests.assistant.runs.utils import (
+    ORDERS_TABLE,
     ai_message,
     history_texts,
     traces,
@@ -110,12 +113,14 @@ def test_persist_outcome_saves_a_completed_answer(assistant_run, posthog_client)
     history = ModelMessagesTypeAdapter.dump_json(
         [ModelResponse(parts=[TextPart(content="Done")])]
     )
+    target = ORDERS_TABLE.model_dump(mode="json")
     result = AssistantRunResult(
         text="Done",
         message_history=history,
         sources=["https://baserow.io/docs"],
         trace_id="trace-1",
         title="New tables",
+        onboarding_target=target,
     )
 
     message = AssistantChatRunType().persist_outcome(
@@ -124,12 +129,16 @@ def test_persist_outcome_saves_a_completed_answer(assistant_run, posthog_client)
 
     saved = ai_message(run)
     chat = _chat(run)
-    assert (message["id"], message["content"], message["run_status"]) == (
-        saved.id,
-        "Done",
-        None,
-    )
-    assert saved.artifacts == {"sources": ["https://baserow.io/docs"]}
+    assert (
+        message["id"],
+        message["content"],
+        message["run_status"],
+        message["onboarding_target"],
+    ) == (saved.id, "Done", None, target)
+    assert saved.artifacts == {
+        "sources": ["https://baserow.io/docs"],
+        "onboarding_target": target,
+    }
     assert str(saved.action_group_id) == run.context["action_group_id"]
     assert saved.prediction.human_message_id == run.context["human_message_id"]
     assert saved.prediction.prediction == {
@@ -177,11 +186,13 @@ def test_a_lost_run_saves_what_the_user_saw(
     ]
 
 
-def _fail_without_a_model(run: ChatRun) -> None:
-    outcome = ChatRunOutcome(
-        status=ChatRunStatus.FAILED, error_code=ERROR_MODEL_UNAVAILABLE
-    )
-    AssistantChatRunType().persist_outcome(ChatRunHandler().claim_run(run.id), outcome)
+def _fail_before_the_agent(error_code: str) -> Callable[[ChatRun], None]:
+    def end_run(run: ChatRun) -> None:
+        outcome = ChatRunOutcome(status=ChatRunStatus.FAILED, error_code=error_code)
+        run = ChatRunHandler().claim_run(run.id)
+        AssistantChatRunType().persist_outcome(run, outcome)
+
+    return end_run
 
 
 def _sweep_as_not_started(run: ChatRun) -> None:
@@ -196,9 +207,15 @@ def _stop_while_queued(run: ChatRun) -> None:
     "end_run, status, error_code, outcome",
     [
         (
-            _fail_without_a_model,
+            _fail_before_the_agent(ERROR_MODEL_UNAVAILABLE),
             "failed",
             ERROR_MODEL_UNAVAILABLE,
+            AssistantTraceOutcome.ERROR,
+        ),
+        (
+            _fail_before_the_agent(ERROR_ACCESS_LOST),
+            "failed",
+            ERROR_ACCESS_LOST,
             AssistantTraceOutcome.ERROR,
         ),
         (
@@ -209,7 +226,7 @@ def _stop_while_queued(run: ChatRun) -> None:
         ),
         (_stop_while_queued, "cancelled", "", AssistantTraceOutcome.CANCELLED),
     ],
-    ids=["no_model", "no_worker", "stopped"],
+    ids=["no_model", "no_access", "no_worker", "stopped"],
 )
 @pytest.mark.django_db
 def test_a_run_that_never_reached_the_agent_tells_the_model_nothing_changed(

@@ -24,6 +24,7 @@ const RUN_ERROR_KEYS = {
   failed: 'assistant.runErrorFailed',
   persist_failed: 'assistant.runErrorPersistFailed',
   model_unavailable: 'assistant.runErrorModelUnavailable',
+  access_lost: 'assistant.runErrorAccessLost',
 }
 
 /**

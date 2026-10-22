@@ -33,6 +33,23 @@ def _provisional_title(content: str) -> str:
     return " ".join(content.split())[:PROVISIONAL_TITLE_LENGTH]
 
 
+def _title_is_provisional(chat: AssistantChat) -> bool:
+    """
+    :param chat: A chat.
+    :return: Whether no run has generated the chat's title yet.
+    """
+
+    if not chat.title:
+        return True
+    first_message = (
+        chat.messages.filter(role=AssistantChatMessage.Role.HUMAN)
+        .order_by("id")
+        .values_list("content", flat=True)
+        .first()
+    )
+    return first_message is not None and chat.title == _provisional_title(first_message)
+
+
 @dataclass(frozen=True)
 class ChatSnapshot:
     """
@@ -223,7 +240,8 @@ class AssistantHandler:
         """
         Saves a human message and starts the background run that answers it, in
         one transaction, so a refused run leaves no message behind. A chat without
-        a title gets a provisional one, which the run replaces.
+        a title gets a provisional one, which runs replace once one generates a
+        title.
 
         :param user: The user sending the message.
         :param workspace: The workspace of the chat.
@@ -238,8 +256,8 @@ class AssistantHandler:
 
         with transaction.atomic():
             chat, _ = self.get_or_create_chat(user, workspace, chat_uuid)
-            generate_title = not chat.title
-            if generate_title:
+            generate_title = _title_is_provisional(chat)
+            if not chat.title:
                 chat.title = _provisional_title(content)
                 chat.save(update_fields=["title", "updated_on"])
             human_message = AssistantChatMessage.objects.create(
