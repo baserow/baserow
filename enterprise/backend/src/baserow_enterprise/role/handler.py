@@ -1372,6 +1372,12 @@ class RoleAssignmentHandler:
         """
 
         team_content_type = ContentType.objects.get_for_model(Team)
+        operation_counts = {}
+
+        def get_operation_count(role):
+            if role.id not in operation_counts:
+                operation_counts[role.id] = len(role.operations.all())
+            return operation_counts[role.id]
 
         def get_scope_key(scope_object):
             scope_type = object_scope_type_registry.get_by_model(scope_object)
@@ -1414,7 +1420,7 @@ class RoleAssignmentHandler:
                         subject,
                         # Roles held at the same level add up, so the one granting
                         # the most operations is the effective one.
-                        max(roles, key=lambda role: len(role.operations.all())),
+                        max(roles, key=get_operation_count),
                         source_scope,
                         stored_role_uids.get(subject.id),
                     )
@@ -1422,9 +1428,11 @@ class RoleAssignmentHandler:
 
         # Fetch the role assignments of the source scopes to tell whether a role is
         # held by the subject themselves or through their teams.
+        # The source scopes are the given one and the few above it.
         source_scopes_q = Q(pk__in=[])
-        for _, _, _, source_scope, _ in resolved:
-            scope_type_id, scope_id = get_scope_key(source_scope)
+        for scope_type_id, scope_id in {
+            get_scope_key(source_scope) for _, _, _, source_scope, _ in resolved
+        }:
             source_scopes_q |= Q(scope_type_id=scope_type_id, scope_id=scope_id)
         own_keys = set()
         team_ids_per_scope_key = defaultdict(set)
