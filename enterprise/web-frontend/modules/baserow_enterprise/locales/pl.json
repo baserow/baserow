@@ -71,12 +71,18 @@
         "filterFromTimestamp": "Od",
         "filterToTimestampTitle": "Do",
         "filterToTimestamp": "Do",
-        "user": "Użytkownik",
+        "user": "Aktor",
         "workspace": "Obszar roboczy",
         "timestamp": "Timestamp",
         "clearFilters": "Wyczyść",
         "workspaceTitle": "Log audytu obszaru {workspaceName}",
-        "adminTitle": "Log audytu"
+        "adminTitle": "Log audytu",
+        "filterActorTitle": "Aktor",
+        "actorType": "Rodzaj aktora",
+        "allActors": "Wszyscy aktorzy",
+        "usersSection": "Użytkownicy",
+        "agentsSection": "Agenci",
+        "actorDisplay": "{name} ({id})"
     },
     "manageTeamModals": {
         "subheading": "W ramach zespołów można zbiorczo nadawać lub ograniczać uprawnienia wielu użytkownikom równocześnie."
