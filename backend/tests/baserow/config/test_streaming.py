@@ -1,5 +1,7 @@
 import asyncio
 import json
+import threading
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -12,6 +14,7 @@ from asgiref.sync import SyncToAsync
 
 from baserow.config import streaming
 from baserow.config.streaming import AsyncStreamingHTTPRouter
+from baserow.core.registries import Plugin, plugin_registry
 
 
 def _scope(path=None, method="POST", origin=None):
@@ -31,10 +34,42 @@ def _scope(path=None, method="POST", origin=None):
     }
 
 
-def _router(monkeypatch, url_name="api:chat_runs:stream", methods=("POST",)):
+def _router(
+    monkeypatch, url_name="api:chat_runs:stream", methods=("POST",), max_streams=1
+):
     monkeypatch.setattr(streaming, "_url_names", {})
     streaming.register_async_stream_path(url_name, methods=methods)
-    return AsyncStreamingHTTPRouter(AsyncMock(), max_streams=1)
+    return AsyncStreamingHTTPRouter(AsyncMock(), max_streams=max_streams)
+
+
+class _SignedInStreams:
+    """Stands in for Django: signs in the X-User header's user and streams forever."""
+
+    def __init__(self):
+        self.started = asyncio.Queue()
+
+    def get_response(self, request):
+        request.user = SimpleNamespace(
+            id=int(request.headers["X-User"]), is_authenticated=True
+        )
+        return StreamingHttpResponse(self._hold(request.user.id))
+
+    async def _hold(self, user_id):
+        await self.started.put(user_id)
+        await asyncio.Event().wait()
+        yield b""
+
+
+async def _open_stream(router, user_id):
+    scope = _scope()
+    scope["headers"] = scope["headers"] + [(b"x-user", str(user_id).encode())]
+    incoming = asyncio.Queue()
+    await incoming.put({"type": "http.request", "body": b"{}"})
+    output = []
+    stream = asyncio.create_task(
+        router(scope, incoming.get, AsyncMock(side_effect=output.append))
+    )
+    return stream, incoming, output
 
 
 def test_url_regex_matches_only_the_named_url():
@@ -67,7 +102,9 @@ async def test_http_stream_admission_does_not_hold_rest_capacity_or_thread_conte
             closed.set()
 
     monkeypatch.setattr(
-        streaming, "_prepare", lambda scope, body: StreamingHttpResponse(chunks())
+        streaming,
+        "_prepare",
+        lambda scope, body: (StreamingHttpResponse(chunks()), None, None),
     )
     incoming = asyncio.Queue()
     await incoming.put({"type": "http.request", "body": b"{}"})
@@ -102,6 +139,99 @@ async def test_http_stream_admission_does_not_hold_rest_capacity_or_thread_conte
 
 
 @pytest.mark.asyncio
+async def test_one_user_cannot_hold_every_stream_slot(monkeypatch, settings):
+    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 1
+    router = _router(monkeypatch, max_streams=3)
+    handler = _SignedInStreams()
+    monkeypatch.setattr(streaming, "_handler", handler)
+
+    first, first_incoming, _ = await _open_stream(router, 1)
+    assert await asyncio.wait_for(handler.started.get(), 1) == 1
+    refused, _, refusal = await _open_stream(router, 1)
+    await asyncio.wait_for(refused, 1)
+    assert refusal[0]["status"] == 429
+    assert json.loads(refusal[-1]["body"])["error"] == "ERROR_CHAT_STREAM_USER_LIMIT"
+    other, other_incoming, _ = await _open_stream(router, 2)
+    assert await asyncio.wait_for(handler.started.get(), 1) == 2
+    assert router.active_by_user == {1: 1, 2: 1}
+
+    await first_incoming.put({"type": "http.disconnect"})
+    await asyncio.wait_for(first, 1)
+    assert router.active_by_user == {2: 1}
+    await other_incoming.put({"type": "http.disconnect"})
+    await asyncio.wait_for(other, 1)
+    assert router.active_by_user == {}
+    assert router.active == 0
+
+
+@pytest.mark.asyncio
+async def test_user_streams_are_unlimited_by_default(monkeypatch, settings):
+    assert settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER is None
+    router = _router(monkeypatch, max_streams=2)
+    handler = _SignedInStreams()
+    monkeypatch.setattr(streaming, "_handler", handler)
+    streams = []
+    try:
+        for _ in range(2):
+            streams.append(await _open_stream(router, 1))
+            assert await asyncio.wait_for(handler.started.get(), 1) == 1
+        assert router.active_by_user == {1: 2}
+        refused, _, refusal = await _open_stream(router, 1)
+        await asyncio.wait_for(refused, 1)
+        assert refusal[0]["status"] == 503
+        assert json.loads(refusal[-1]["body"])["error"] == "ERROR_CHAT_STREAM_CAPACITY"
+    finally:
+        for task, incoming, _ in streams:
+            await incoming.put({"type": "http.disconnect"})
+            await asyncio.wait_for(task, 1)
+    assert router.active_by_user == {}
+
+
+@pytest.mark.asyncio
+async def test_plugin_can_change_each_users_stream_limit(monkeypatch, settings):
+    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 1
+    limits = {1: None, 2: 2}
+    event_loop_thread = threading.get_ident()
+
+    class PlanPlugin(Plugin):
+        type = "stream_plan_test"
+
+        def get_max_concurrent_streams_per_user(self, user, default_limit):
+            assert threading.get_ident() != event_loop_thread
+            assert default_limit == 1
+            return limits.get(user.id, default_limit)
+
+    monkeypatch.setitem(plugin_registry.registry, PlanPlugin.type, PlanPlugin())
+    router = _router(monkeypatch, max_streams=10)
+    handler = _SignedInStreams()
+    monkeypatch.setattr(streaming, "_handler", handler)
+    streams = []
+    try:
+        for user_id in (1, 1, 2, 2, 3):
+            streams.append(await _open_stream(router, user_id))
+            assert await asyncio.wait_for(handler.started.get(), 1) == user_id
+        assert router.active_by_user == {1: 2, 2: 2, 3: 1}
+        # Existing unlimited streams count when a plan gains a limit.
+        limits[1] = 2
+        for user_id in (1, 2, 3):
+            refused, _, refusal = await _open_stream(router, user_id)
+            await asyncio.wait_for(refused, 1)
+            assert refusal[0]["status"] == 429
+            assert dict(refusal[0]["headers"])[b"retry-after"] == b"1"
+        assert router.active_by_user == {1: 2, 2: 2, 3: 1}
+        limits[1] = 3
+        streams.append(await _open_stream(router, 1))
+        assert await asyncio.wait_for(handler.started.get(), 1) == 1
+        assert router.active_by_user[1] == 3
+    finally:
+        for task, incoming, _ in streams:
+            await incoming.put({"type": "http.disconnect"})
+            await asyncio.wait_for(task, 1)
+    assert router.active_by_user == {}
+    assert router.active == 0
+
+
+@pytest.mark.asyncio
 async def test_failed_http_iterator_releases_admission_and_closes_response(monkeypatch):
     router = _router(monkeypatch)
     closed = []
@@ -112,7 +242,9 @@ async def test_failed_http_iterator_releases_admission_and_closes_response(monke
 
     response = StreamingHttpResponse(chunks())
     response._resource_closers.append(lambda: closed.append(True))
-    monkeypatch.setattr(streaming, "_prepare", lambda scope, body: response)
+    monkeypatch.setattr(
+        streaming, "_prepare", lambda scope, body: (response, None, None)
+    )
     incoming = asyncio.Queue()
     await incoming.put({"type": "http.request", "body": b"{}"})
     await asyncio.wait_for(router(_scope(), incoming.get, AsyncMock()), 1)
@@ -123,7 +255,9 @@ async def test_failed_http_iterator_releases_admission_and_closes_response(monke
 @pytest.mark.asyncio
 async def test_unfinished_body_does_not_hold_a_stream_slot(monkeypatch):
     router = _router(monkeypatch)
-    monkeypatch.setattr(streaming, "_prepare", lambda scope, body: JsonResponse({}))
+    monkeypatch.setattr(
+        streaming, "_prepare", lambda scope, body: (JsonResponse({}), None, None)
+    )
     uploading = asyncio.Queue()
     await uploading.put({"type": "http.request", "body": b"{", "more_body": True})
     slow = asyncio.create_task(router(_scope(), uploading.get, AsyncMock()))
@@ -162,10 +296,18 @@ async def test_request_body_size_limit_applies_to_stream_paths(monkeypatch, sett
 
 
 @pytest.mark.asyncio
-async def test_nonstream_validation_response_is_preserved(monkeypatch):
+async def test_nonstream_validation_response_is_preserved(monkeypatch, settings):
+    settings.ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 0
     router = _router(monkeypatch)
     response = JsonResponse({"error": "ERROR_REQUEST_BODY_VALIDATION"}, status=400)
-    monkeypatch.setattr(streaming, "_prepare", lambda scope, body: response)
+
+    def get_response(request):
+        request.user = SimpleNamespace(id=1, is_authenticated=True)
+        return response
+
+    monkeypatch.setattr(
+        streaming, "_handler", SimpleNamespace(get_response=get_response)
+    )
     incoming = asyncio.Queue()
     await incoming.put({"type": "http.request", "body": b"{}"})
     output = []

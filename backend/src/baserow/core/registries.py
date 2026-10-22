@@ -255,6 +255,24 @@ class Plugin(APIUrlsInstanceMixin, Instance):
         :type user: User
         """
 
+    def get_max_concurrent_streams_per_user(
+        self, user: "AbstractUser", default_limit: int | None
+    ) -> int | None:
+        """Customize how many HTTP streams a user may hold per backend process.
+
+        Called for each authenticated streaming response in the synchronous request
+        thread, so plugins can look up the user's plan. This limits connections,
+        independently of how many chat runs the user may execute.
+
+        :param user: The authenticated user opening the stream.
+        :param default_limit: The configured limit, including any earlier plugin's
+            override. None means unlimited.
+        :return: The limit to apply, or None for no per-user limit. Zero refuses all
+            new streams. Existing streams remain open when the limit changes.
+        """
+
+        return default_limit
+
     def enhance_workspace_queryset(
         self, queryset: QuerySet["Workspace"]
     ) -> QuerySet["Workspace"]:
