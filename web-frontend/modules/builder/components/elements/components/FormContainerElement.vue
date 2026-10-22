@@ -45,6 +45,7 @@
 </template>
 
 <script>
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone.vue'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
@@ -77,8 +78,12 @@ export default {
   computed: {
     submitButtonLabelResolved() {
       return (
-        ensureString(this.resolveFormula(this.element.submit_button_label)) ||
-        this.$t('formContainerElement.defaultSubmitButtonLabel')
+        ensureString(
+          this.resolveFormula(this.element.submit_button_label, (context) => ({
+            ...context,
+            dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+          }))
+        ) || this.$t('formContainerElement.defaultSubmitButtonLabel')
       )
     },
     getFormElementDescendants() {
