@@ -29,3 +29,10 @@ class TemplateHasNoContent(Exception):
     Raised when the details of a user template are updated, but its latest revision
     has no content left to copy.
     """
+
+
+class TemplateBlocked(Exception):
+    """
+    Raised when the owner of a user template that an admin blocked tries to install
+    it.
+    """

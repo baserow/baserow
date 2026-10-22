@@ -33,6 +33,11 @@ export class BuilderApplicationType extends ApplicationType {
     return i18n.t('applicationType.builders')
   }
 
+  getViewLabel() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('applicationType.viewBuilder')
+  }
+
   getDescription() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builderDesc')

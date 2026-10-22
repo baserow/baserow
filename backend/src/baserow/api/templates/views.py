@@ -27,6 +27,7 @@ from baserow.api.schemas import (
 )
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.templates.serializers import (
+    InstallTemplateQueryParamSerializer,
     ListTemplatesQueryParamSerializer,
     TemplateCategoriesSerializer,
     TemplateListItemSerializer,
@@ -47,8 +48,17 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
+from baserow.core.user_templates.exceptions import (
+    TemplateBlocked,
+    TemplateHasNoContent,
+)
 
-from .errors import ERROR_TEMPLATE_DOES_NOT_EXIST, ERROR_TEMPLATE_FILE_DOES_NOT_EXIST
+from .errors import (
+    ERROR_TEMPLATE_BLOCKED,
+    ERROR_TEMPLATE_DOES_NOT_EXIST,
+    ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
+    ERROR_TEMPLATE_HAS_NO_CONTENT,
+)
 
 
 class TemplatesView(APIView, SearchableViewMixin):
@@ -113,9 +123,9 @@ class TemplatesView(APIView, SearchableViewMixin):
             "- `view=flat`: a paginated list of the official templates and the user "
             "templates the caller can open, most recently updated first, filtered "
             "with `type`, `owned` and `search`. A user template shows its latest "
-            "revision. `state`, `reason`, `source_workspace_id` and "
-            "`source_application_ids` are only set for the owner of a user "
-            "template.\n"
+            "revision. `state`, `reason`, `source_workspace_id`, "
+            "`source_application_ids` and `install_count` are only set for the "
+            "owner of a user template.\n"
             "- Any other or no `view` (deprecated): a list of the template "
             "categories, each with its official templates, ignoring the other query "
             "parameters. Categories holding only user templates are left out."
@@ -196,18 +206,15 @@ class TemplateView(APIView):
         the provided template slug.
         """
 
-        # A user template shows the latest revision the user can open.
-        try:
-            template = (
-                Template.objects.openable(request.user)
-                .filter_by_root(slug=slug)
-                .latest_revisions()
-                .get()
-            )
-        except Template.DoesNotExist as exc:
-            raise TemplateDoesNotExist(
-                f"The template with slug {slug} does not exist."
-            ) from exc
+        # A user template shows its public revision, the same for everyone, else
+        # the latest revision the user can open, which only its owner can. Install
+        # picks the same revision.
+        revisions = Template.objects.openable(request.user).filter_by_root(slug=slug)
+        template = (
+            revisions.public_revisions().first() or revisions.latest_revisions().first()
+        )
+        if template is None:
+            raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
 
         return Response(TemplateSerializer(template).data)
 
@@ -344,13 +351,25 @@ class AsyncInstallTemplateView(APIView):
                 type=OpenApiTypes.INT,
                 description="The id related to the template that must be installed.",
             ),
+            OpenApiParameter(
+                name="latest",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description="Installs the latest revision of a user template, "
+                "which only its owner may. Ignored for official templates.",
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         description=(
             "Start an async job to install the applications of the given template into "
             "the given workspace if the user has access to that workspace. The response "
-            "contains those newly created applications."
+            "contains those newly created applications.\n\n"
+            "A user template can be installed by its owner, unless it's blocked, "
+            "and by anyone signed in while it's public. Everyone installs its "
+            "public revision, and its owner the latest revision while it isn't "
+            "public, or with `latest`. The `template_id` is the id of the "
+            "template, not of one of its revisions."
         ),
         request=None,
         responses={
@@ -360,6 +379,9 @@ class AsyncInstallTemplateView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_TEMPLATE_FILE_DOES_NOT_EXIST",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                    "ERROR_TEMPLATE_BLOCKED",
+                    "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_QUERY_PARAMETER_VALIDATION",
                 ]
             ),
             404: get_error_schema(
@@ -374,10 +396,13 @@ class AsyncInstallTemplateView(APIView):
             TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
             TemplateFileDoesNotExist: ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
+            TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
+            TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
         }
     )
+    @validate_query_parameters(InstallTemplateQueryParamSerializer)
     @transaction.atomic
-    def post(self, request, workspace_id, template_id):
+    def post(self, request, workspace_id, template_id, query_params):
         """Start an async job to install a template into a workspace."""
 
         job = JobHandler().create_and_start_job(
@@ -385,6 +410,7 @@ class AsyncInstallTemplateView(APIView):
             InstallTemplateJobType.type,
             workspace_id=workspace_id,
             template_id=template_id,
+            latest=query_params["latest"],
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

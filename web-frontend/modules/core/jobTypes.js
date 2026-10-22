@@ -1,6 +1,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { Registerable } from '@baserow/modules/core/registry'
 import SidebarApplicationPendingJob from '@baserow/modules/core/components/sidebar/SidebarApplicationPendingJob'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -224,28 +225,88 @@ export class InstallTemplateJobType extends JobType {
       for (const application of installedApplications) {
         await store.dispatch('application/forceCreate', application)
       }
-      store.dispatch('toast/info', {
-        title: i18n.t('InstallTemplateJobType.installedTitle'),
-        message: installedApplications[0].name,
-      })
+      if (!this.showsInstallToast()) {
+        store.dispatch('toast/info', {
+          title: i18n.t('InstallTemplateJobType.installedTitle'),
+          message: installedApplications[0].name,
+        })
+      }
     } catch (error) {
       notifyIf(error, 'application')
     } finally {
+      // The template is installed even if adding the applications to the store
+      // failed, and the toast mustn't keep showing the progress.
+      if (this.showsInstallToast()) {
+        await this.updateInstallToast(job)
+      }
       await store.dispatch('job/forceDelete', job)
     }
   }
 
   async onJobFailed(job) {
     const { $i18n: i18n, $store: store } = this.app
-    await store.dispatch(
-      'toast/error',
-      {
-        title: i18n.t('clientHandler.notCompletedTitle'),
-        message: i18n.t('clientHandler.notCompletedDescription'),
-      },
-      { root: true }
-    )
+    if (this.showsInstallToast()) {
+      await this.updateInstallToast(job)
+    } else {
+      await store.dispatch(
+        'toast/error',
+        {
+          title: i18n.t('clientHandler.notCompletedTitle'),
+          message: i18n.t('clientHandler.notCompletedDescription'),
+        },
+        { root: true }
+      )
+    }
     await store.dispatch('job/forceDelete', job)
+  }
+
+  async onJobCancelled(job) {
+    if (this.showsInstallToast()) {
+      const toast = this.findInstallToast(job)
+      if (toast) {
+        await this.app.$store.dispatch('toast/remove', toast)
+      }
+    }
+    // A cancelled install mustn't stay in the sidebar as a pending one.
+    await this.app.$store.dispatch('job/forceDelete', job)
+  }
+
+  /**
+   * The template browser behind the flag shows the progress and the result of an
+   * install in an install toast. The legacy one shows a toast with the name of the
+   * first installed application.
+   */
+  showsInstallToast() {
+    return this.app.$featureFlagIsEnabled(FF_USER_TEMPLATES)
+  }
+
+  findInstallToast(job) {
+    return this.app.$store.state.toast.items.find(
+      (toast) =>
+        toast.type === 'installTemplate' && toast.data?.jobId === job.id
+    )
+  }
+
+  /**
+   * Writes the final fields of the job into its install toast, or shows one if there
+   * is none, because the progress was shown in the sidebar. The toast then shows the
+   * result after the job is removed from the store.
+   */
+  async updateInstallToast(job) {
+    const store = this.app.$store
+    const data = {
+      jobId: job.id,
+      state: job.state,
+      installed_applications: job.installed_applications,
+      human_readable_error: job.human_readable_error,
+      template_name: job.template?.name,
+    }
+    const toast = this.findInstallToast(job)
+    if (toast) {
+      await store.dispatch('toast/update', { toast, data })
+    } else {
+      await store.dispatch('toast/add', { type: 'installTemplate', data })
+    }
   }
 }
 

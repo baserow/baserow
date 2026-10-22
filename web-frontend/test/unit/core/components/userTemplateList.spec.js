@@ -132,6 +132,24 @@ describe('UserTemplateList', () => {
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
 
+  test('shows how many times each template was used', async () => {
+    mockPages(
+      page([
+        userTemplate(1, 'Sprint Tracker', 'public', { install_count: 0 }),
+        userTemplate(2, 'Launch Plan', 'public', { install_count: 1 }),
+        userTemplate(3, 'Growth Playbook', 'private', { install_count: 7 }),
+      ])
+    )
+    const wrapper = await mountComponent()
+
+    expect(
+      wrapper.findAll('.user-template-list__used-count').map((el) => el.text())
+    ).toStrictEqual(['0', '1', '7'])
+    expect(
+      wrapper.findAll('.user-template-list__used').map((el) => el.text())
+    ).toStrictEqual(['0 times', '1 time', '7 times'])
+  })
+
   test('shows the empty state when the user has no templates', async () => {
     mockPages(page([]))
     const wrapper = await mountComponent()

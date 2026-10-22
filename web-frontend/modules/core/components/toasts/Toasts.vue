@@ -12,6 +12,11 @@
       <ConnectingToast v-if="reconnecting" />
       <FailedConnectingToast v-if="failedConnecting"></FailedConnectingToast>
       <AuthorizationErrorToast v-if="unauthorized"></AuthorizationErrorToast>
+      <InstallTemplateToast
+        v-for="toast in installTemplateToasts"
+        :key="toast.id"
+        :toast="toast"
+      ></InstallTemplateToast>
       <Toast
         v-for="toast in normalToasts"
         :key="toast.id"
@@ -59,12 +64,14 @@ import UndoRedoToast from '@baserow/modules/core/components/toasts/UndoRedoToast
 import { UNDO_REDO_STATES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsUpdatedToast from '@baserow/modules/core/components/toasts/PermissionsUpdatedToast'
 import WorkspaceOutdatedToast from '@baserow/modules/core/components/toasts/WorkspaceOutdatedToast'
+import InstallTemplateToast from '@baserow/modules/core/components/toasts/InstallTemplateToast'
 
 export default {
   name: 'Toasts',
   components: {
     PermissionsUpdatedToast,
     WorkspaceOutdatedToast,
+    InstallTemplateToast,
     RestoreToast,
     Toast,
     ConnectingToast,
@@ -84,8 +91,13 @@ export default {
     restoreToasts() {
       return this.toasts.filter((n) => n.type === 'restore')
     },
+    installTemplateToasts() {
+      return this.toasts.filter((n) => n.type === 'installTemplate')
+    },
     normalToasts() {
-      return this.toasts.filter((n) => n.type !== 'restore')
+      return this.toasts.filter(
+        (n) => n.type !== 'restore' && n.type !== 'installTemplate'
+      )
     },
     ...mapState({
       unauthorized: (state) => state.toast.authorizationError,

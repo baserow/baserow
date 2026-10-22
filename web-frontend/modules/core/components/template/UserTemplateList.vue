@@ -82,6 +82,9 @@
             <div class="user-template-list__cell">
               {{ $t('userTemplateList.lastUpdated') }}
             </div>
+            <div class="user-template-list__cell">
+              {{ $t('userTemplateList.used') }}
+            </div>
             <div class="user-template-list__cell"></div>
           </div>
           <InfiniteScroll
@@ -133,6 +136,20 @@
               </div>
               <div class="user-template-list__cell user-template-list__updated">
                 {{ getHumanAgoLabel($i18n.t, template.updated_on) }}
+              </div>
+              <div class="user-template-list__cell user-template-list__used">
+                <i18n-t
+                  keypath="userTemplateList.usedTimes"
+                  :plural="template.install_count"
+                  scope="global"
+                  tag="span"
+                >
+                  <template #count>
+                    <span class="user-template-list__used-count">{{
+                      template.install_count
+                    }}</span>
+                  </template>
+                </i18n-t>
               </div>
               <div class="user-template-list__cell user-template-list__actions">
                 <ButtonIcon

@@ -104,6 +104,17 @@ def _get_id_field_overrides(response: bool) -> Dict[str, serializers.Field]:
     }
 
 
+class _TemplateAlreadyCommitted(Exception):
+    """
+    Raised at the commit point of a create user template job when another run of
+    the same job committed its revision first, so that this run is rolled back.
+    """
+
+    def __init__(self, committed_job: CreateUserTemplateJob):
+        super().__init__("The revision was already committed by another run.")
+        self.committed_job = committed_job
+
+
 class CreateUserTemplateJobType(JobType):
     """
     Creates a user template, or updates one when `template_id` is given. An update
@@ -309,6 +320,14 @@ class CreateUserTemplateJobType(JobType):
         }
 
     def run(self, job: CreateUserTemplateJob, progress: Progress):
+        # A redelivered job that already committed its revision isn't run again.
+        if job.revision_id is not None:
+            return job.revision
+        # What another run of the job tracked on its row isn't this run's to clean
+        # up, because that run can still be going on and commit it.
+        job.template_workspace_id = None
+        job.archive_name = ""
+
         is_update = job.template_id is not None
         # An update without applications only changes the details.
         copies_from_workspace = not is_update or bool(job.application_ids)
@@ -339,7 +358,12 @@ class CreateUserTemplateJobType(JobType):
                 job.application_ids,
                 **kwargs,
             )
-        except BaseException:
+        except _TemplateAlreadyCommitted as exc:
+            return self._keep_the_commit_of_another_run(
+                job, exc.committed_job, copies_from_workspace
+            )
+        except BaseException as exc:
+            own_revision_id = job.revision_id
             try:
                 # The revision is only set when its transaction committed, and so
                 # is the template of a created one. The template being updated and
@@ -348,7 +372,50 @@ class CreateUserTemplateJobType(JobType):
                 job.refresh_from_db(fields=["template", "revision", "base_revision"])
             except CreateUserTemplateJob.DoesNotExist:
                 self._delete_content_of_deleted_job(job)
+            else:
+                # Another run of the job may have committed its revision in the
+                # meantime, and this failure mustn't be saved over its result.
+                if isinstance(exc, Exception) and job.revision_id not in (
+                    None,
+                    own_revision_id,
+                ):
+                    logger.exception(
+                        f"The create user template job {job.id} failed, but another "
+                        "run of it committed the revision."
+                    )
+                    return self._keep_the_commit_of_another_run(
+                        job, job, copies_from_workspace
+                    )
             raise
+
+    def _keep_the_commit_of_another_run(
+        self,
+        job: CreateUserTemplateJob,
+        committed_job: CreateUserTemplateJob,
+        copies_from_workspace: bool,
+    ):
+        """
+        Another run of the job, like a redelivery of its task, committed its
+        revision first. The copy of this run is deleted, which skips the content of
+        the committed revision, and the job is saved with that revision instead.
+        """
+
+        try:
+            UserTemplateHandler().delete_content_without_template(
+                job.template_workspace_id, job.archive_name
+            )
+        except Exception:
+            logger.exception(
+                f"Deleting the content of create user template job {job.id} failed."
+            )
+        revision = committed_job.revision
+        job.template_id = committed_job.template_id
+        job.revision = revision
+        # Shared content isn't tracked, see `UpdateUserTemplateActionType.do`.
+        if copies_from_workspace:
+            job.template_workspace_id = revision.workspace_id
+            job.archive_name = revision.archive.name
+        return revision
 
     def _delete_content_of_deleted_job(self, job: CreateUserTemplateJob) -> None:
         """
@@ -374,10 +441,17 @@ class CreateUserTemplateJobType(JobType):
         here, or waits for the commit and is refused by `is_cancellable`. The state
         is read from the locked row, because a progress update of this job can
         overwrite the cancelled state in the cache.
+
+        :raises JobCancelled: If the job was cancelled in the meantime.
+        :raises _TemplateAlreadyCommitted: If another run of the job committed
+            first.
         """
 
-        if JobHandler.lock_job(job).state == JOB_CANCELLED:
+        locked_job = JobHandler.lock_job(job)
+        if locked_job.state == JOB_CANCELLED:
             raise JobCancelled()
+        if locked_job.revision_id is not None:
+            raise _TemplateAlreadyCommitted(locked_job)
         # The root is revision 1 of a created template.
         job.template_id = revision.root_id or revision.id
         job.revision = revision
@@ -391,7 +465,8 @@ class CreateUserTemplateJobType(JobType):
     def _track_content(self, job: CreateUserTemplateJob, **content) -> None:
         """
         Stores the workspace and the archive on the job as soon as they exist, so
-        that the cleanup finds them whatever happens next.
+        that the cleanup finds them whatever happens next. The job hooks clean up
+        what this run tracked on the instance, the sweep what's on the row.
         """
 
         for field_name, value in content.items():

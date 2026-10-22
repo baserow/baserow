@@ -29,6 +29,7 @@ from baserow.core.models import (
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -753,32 +754,47 @@ class InstallTemplateActionType(UndoableActionType):
         workspace: Workspace,
         template: Template,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        *,
+        resource: Optional[ImportExportResource] = None,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
-        baserow.core.handler.CoreHandler.install_template for further details.
+        baserow.core.handler.CoreHandler.install_template for further details, and
+        UserTemplateHandler.install_template_content for a user template.
         Undoing this action trash the installed applications and redoing
         restore them all.
 
         :param user: The user on whose behalf the template is installed.
         :param workspace: The workspace where the applications will be installed.
-        :param template: The template to install.
+        :param template: The template to install, a revision for a user template.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the installation.
+        :param resource: The export of a user template, see
+            UserTemplateHandler.export_template_content.
         :return: The list of installed applications.
         """
 
-        installed_applications, _ = CoreHandler().install_template(
-            user,
-            workspace,
-            template,
-            progress_builder=progress_builder,
-        )
+        if template.type == Template.Type.USER:
+            installed_applications = UserTemplateHandler().install_template_content(
+                user,
+                workspace,
+                template,
+                resource,
+                progress_builder=progress_builder,
+            )
+        else:
+            installed_applications, _ = CoreHandler().install_template(
+                user,
+                workspace,
+                template,
+                progress_builder=progress_builder,
+            )
 
         params = cls.Params(
             workspace.id,
             workspace.name,
-            template.id,
+            # The id of a template is its root, whichever revision is installed.
+            template.family_id,
             template.name,
             [app.id for app in installed_applications],
         )

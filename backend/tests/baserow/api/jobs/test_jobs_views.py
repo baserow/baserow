@@ -1,6 +1,8 @@
 import threading
 from unittest.mock import patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
@@ -12,6 +14,7 @@ from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.models import Job
 from baserow.core.jobs.registries import JobType
 from baserow.core.jobs.tasks import run_async_job
+from baserow.core.models import InstallTemplateJob
 from baserow.test_utils.helpers import is_dict_subset
 
 
@@ -645,3 +648,83 @@ def test_user_source_token_cannot_access_core_jobs(
             assert [item["id"] for item in response.json()["jobs"]] == [job.id]
     job.refresh_from_db()
     assert job.state == "cancelled"
+
+
+def _create_user_template_install_jobs(data_fixture, user, pinned_versions):
+    """
+    Creates a user template of the user with three revisions, and one pending
+    install job per given version, pinned to the revision with that version.
+    """
+
+    root = data_fixture.create_user_template(user=user)
+    revisions = [root] + [
+        data_fixture.create_user_template_revision(root, workspace=root.workspace)
+        for _ in range(2)
+    ]
+    workspace = data_fixture.create_workspace(user=user)
+    return [
+        InstallTemplateJob.objects.create(
+            user=user, workspace=workspace, template=revisions[version - 1]
+        )
+        for version in pinned_versions
+    ]
+
+
+@pytest.mark.django_db
+def test_get_install_template_job_query_count_is_constant(data_fixture, api_client):
+    """
+    Pins the per-request query shape for a single job only. The single GET goes
+    through `JobHandler.get_job` and `job.specific`, not `enhance_queryset`, and one
+    item costs at most one root fetch, so this can't catch a per-item cost. The job
+    list test below guards that.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    job_of_revision_2, job_of_revision_3 = _create_user_template_install_jobs(
+        data_fixture, user, [2, 3]
+    )
+
+    def get_job(job):
+        with CaptureQueriesContext(connection) as queries:
+            response = api_client.get(
+                reverse("api:jobs:item", kwargs={"job_id": job.id}),
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["template"]["id"] == job.template.root_id
+        return queries
+
+    # The first request fills the caches that the others find filled.
+    get_job(job_of_revision_2)
+
+    assert len(get_job(job_of_revision_3).captured_queries) == len(
+        get_job(job_of_revision_2).captured_queries
+    )
+
+
+@pytest.mark.django_db
+def test_list_install_template_jobs_query_count_is_constant(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    # One job pinned to the root, and jobs pinned to it and to two revisions.
+    (job_of_root,) = _create_user_template_install_jobs(data_fixture, user, [1])
+    jobs = _create_user_template_install_jobs(data_fixture, user, [1, 2, 3])
+
+    def list_jobs(jobs):
+        job_ids = ",".join(str(job.id) for job in jobs)
+        with CaptureQueriesContext(connection) as queries:
+            response = api_client.get(
+                f"{reverse('api:jobs:list')}?job_ids={job_ids}",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+        assert response.status_code == HTTP_200_OK
+        assert {
+            job["id"]: job["template"]["id"] for job in response.json()["jobs"]
+        } == {job.id: job.template.family_id for job in jobs}
+        return queries
+
+    # The first request fills the caches that the others find filled.
+    list_jobs([job_of_root])
+
+    assert len(list_jobs(jobs).captured_queries) == len(
+        list_jobs([job_of_root]).captured_queries
+    )

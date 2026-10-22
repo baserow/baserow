@@ -66,6 +66,18 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
+  test('shows the toasts, as it has no app layout', async () => {
+    const wrapper = await mountPage('project-tracker')
+
+    await testApp.store.dispatch('toast/add', {
+      type: 'installTemplate',
+      data: { jobId: 10, template_name: 'Project Tracker' },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.install-template-toast').exists()).toBe(true)
+  })
+
   test('goes back to the list and opens another template from it', async () => {
     const wrapper = await mountPage('project-tracker')
 

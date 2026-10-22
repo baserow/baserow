@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
 import {
   ClientErrorMap,
   ErrorHandler,
@@ -56,6 +59,34 @@ describe('ErrorHandler.getErrorMessage', () => {
     expect(handler.getErrorMessage()).toEqual({
       title: 'clientHandler.userFileDoesNotExistTitle',
       message: 'clientHandler.userFileDoesNotExistDescription',
+    })
+  })
+})
+
+describe('ErrorHandler.getErrorMessage with the English copy', () => {
+  // Read rather than imported: the i18n loader turns an imported locale file
+  // into compiled message ASTs, which the copy below can't be read off of.
+  const en = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'locales/en.json'), 'utf8')
+  )
+  const app = {
+    $i18n: { t: (key) => key.split('.').reduce((obj, part) => obj[part], en) },
+  }
+
+  test('explains a template without content in words that fit every flow', () => {
+    // Installing a template and updating its content both raise this code.
+    const handler = new ErrorHandler(
+      makeStore(null),
+      app,
+      new ClientErrorMap(app),
+      { status: 400 },
+      'ERROR_TEMPLATE_HAS_NO_CONTENT',
+      'The content of the template was removed.'
+    )
+
+    expect(handler.getErrorMessage()).toEqual({
+      title: 'Template has no content',
+      message: 'The template has no content.',
     })
   })
 })

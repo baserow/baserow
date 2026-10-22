@@ -109,7 +109,7 @@ class UserTemplateService:
         :return: The workspace and the name of the archive of the revision.
         """
 
-        if base_revision.workspace_id is None or base_revision.pruned_at:
+        if not base_revision.has_content:
             raise TemplateHasNoContent("The template has no content anymore.")
 
         return base_revision.workspace, base_revision.archive.name or None

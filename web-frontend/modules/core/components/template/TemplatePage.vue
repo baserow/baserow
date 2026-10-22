@@ -1,5 +1,8 @@
 <template>
   <div class="templates-page">
+    <!-- The page doesn't use the app layout, which renders the toasts, like the
+    progress and the result of an install. -->
+    <Toasts />
     <TemplateDetails
       v-if="selectedTemplate"
       :key="selectedTemplate.id"
@@ -24,6 +27,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
+import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import TemplateService from '@baserow/modules/core/services/template'
 import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'

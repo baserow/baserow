@@ -23,7 +23,16 @@ export const mutations = {
   },
   REMOVE(state, toast) {
     const index = state.items.indexOf(toast)
-    state.items.splice(index, 1)
+    // A toast can already be gone, for example removed by another handler.
+    if (index !== -1) {
+      state.items.splice(index, 1)
+    }
+  },
+  UPDATE(state, { toast, data }) {
+    const item = state.items.find((t) => t.id === toast.id)
+    if (item) {
+      item.data = { ...item.data, ...data }
+    }
   },
   SET_FAILED_CONNECTING(state, value) {
     state.failedConnecting = value
@@ -93,6 +102,12 @@ export const actions = {
   },
   remove({ commit }, toast) {
     commit('REMOVE', toast)
+  },
+  /**
+   * Merges the given values into the data of a shown toast.
+   */
+  update({ commit }, { toast, data }) {
+    commit('UPDATE', { toast, data })
   },
   setFailedConnecting({ commit }, value) {
     if (value) {

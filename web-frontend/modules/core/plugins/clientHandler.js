@@ -155,6 +155,14 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.maxLocksPerTransactionExceededTitle'),
         $i18n.t('clientHandler.maxLocksPerTransactionExceededDescription')
       ),
+      ERROR_TEMPLATE_BLOCKED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.templateBlockedTitle'),
+        $i18n.t('clientHandler.templateBlockedDescription')
+      ),
+      ERROR_TEMPLATE_HAS_NO_CONTENT: new ResponseErrorMessage(
+        $i18n.t('clientHandler.templateHasNoContentTitle'),
+        $i18n.t('clientHandler.templateHasNoContentDescription')
+      ),
       ERROR_LAST_ADMIN_OF_GROUP: new ResponseErrorMessage(
         $i18n.t('clientHandler.lastAdminTitle'),
         $i18n.t('clientHandler.lastAdminMessage')

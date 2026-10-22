@@ -1,7 +1,9 @@
+import dataclasses
 import secrets
 import string
+from contextlib import contextmanager
 from datetime import timedelta
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, Iterator, List, Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,7 +11,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.core.files import File
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
@@ -33,7 +35,8 @@ from baserow.core.models import (
     Workspace,
     template_archive_upload_to,
 )
-from baserow.core.registries import ImportExportConfig
+from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
@@ -47,7 +50,9 @@ from baserow.core.user_templates.constants import (
 from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
     InvalidTemplateIcon,
+    TemplateBlocked,
     TemplateChangedDuringUpdate,
+    TemplateHasNoContent,
     TemplateSlugGenerationFailed,
 )
 from baserow.core.user_templates.types import TemplateMetadata
@@ -90,6 +95,25 @@ def generate_template_slug(name: str) -> str:
 def _mark_resource_for_deletion(resource: ImportExportResource) -> None:
     resource.marked_for_deletion = True
     resource.save(update_fields=["marked_for_deletion"])
+
+
+def user_template_copy_config() -> ImportExportConfig:
+    """
+    Returns the configuration with which the content of a user template is
+    copied, both into the template and out of it when it's installed (the
+    install fills in the search data of the copy). The copy is made as if nobody
+    were a member of the target workspace, so it drops what belongs to the users
+    of the source: personal views, collaborators and sensitive data.
+    """
+
+    return ImportExportConfig(
+        include_permission_data=False,
+        reduce_disk_space_usage=True,
+        workspace_for_user_references=None,
+        is_duplicate=False,
+        is_user_template=True,
+        exclude_sensitive_data=True,
+    )
 
 
 def _is_unique_root_slug_violation(error: IntegrityError) -> bool:
@@ -370,14 +394,7 @@ class UserTemplateHandler:
         import_export_handler = ImportExportHandler()
         # Nobody is a member of the new workspace, so the import drops what
         # belongs to the users of the source: personal views and collaborators.
-        config = ImportExportConfig(
-            include_permission_data=False,
-            reduce_disk_space_usage=True,
-            workspace_for_user_references=None,
-            is_duplicate=False,
-            is_user_template=True,
-            exclude_sensitive_data=True,
-        )
+        config = user_template_copy_config()
 
         workspace = Workspace.objects.create(name=name)
         track_content(template_workspace=workspace)
@@ -412,6 +429,112 @@ class UserTemplateHandler:
             _mark_resource_for_deletion(archive_resource)
 
         return workspace, archive_name
+
+    @contextmanager
+    def export_template_content(
+        self,
+        revision: Template,
+        *,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> Iterator[ImportExportResource]:
+        """
+        Exports the applications of a revision of a user template, so that they can
+        be installed. The export runs its own transactions, so it must not be
+        called inside an atomic block. The resource is marked for deletion when
+        the context exits.
+
+        :param revision: The revision to export.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+            An install of nothing would leave no trace that it committed.
+        :return: The resource holding the export.
+        """
+
+        applications = (
+            list(
+                Application.objects.filter(workspace_id=revision.workspace_id).order_by(
+                    "order", "id"
+                )
+            )
+            if revision.has_content
+            else []
+        )
+        if not applications:
+            raise TemplateHasNoContent(
+                f"The template {revision.family_id} has no content."
+            )
+
+        resource = ImportExportHandler().export_workspace_applications(
+            applications,
+            user_template_copy_config(),
+            storage=get_default_storage(),
+            progress_builder=progress_builder,
+        )
+        try:
+            yield resource
+        finally:
+            _mark_resource_for_deletion(resource)
+
+    def install_template_content(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        revision: Template,
+        resource: ImportExportResource,
+        *,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> List[Application]:
+        """
+        Installs the export of a revision of a user template into a workspace and
+        counts the install on the root of the template. It must be called inside
+        an atomic block, so that a failure leaves nothing behind and the count is
+        bumped only with a successful install.
+
+        :param user: The user who installs the template.
+        :param workspace: The workspace the applications are installed into.
+        :param revision: The installed revision, see `export_template_content`.
+        :param resource: The export made by `export_template_content`.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        :return: The installed applications.
+        """
+
+        # Unlike the copy into the template, the installed tables are used right
+        # away, so their search data is filled in like with the official install.
+        config = dataclasses.replace(
+            user_template_copy_config(), reduce_disk_space_usage=False
+        )
+        applications = ImportExportHandler().import_applications_from_export(
+            user,
+            workspace,
+            resource,
+            config,
+            storage=get_default_storage(),
+            progress_builder=progress_builder,
+        )
+
+        # Like `CoreHandler.install_template`: the user created the applications,
+        # and the import hooks, like setting up the integrations, must run.
+        for application in applications:
+            application.installed_from_template = revision
+            application_type = application_type_registry.get_by_model(application)
+            for signal in [application_created, application_imported]:
+                signal.send(
+                    self,
+                    application=application,
+                    user=user,
+                    type_name=application_type.type,
+                )
+        Application.objects.bulk_update(applications, ["installed_from_template"])
+
+        # An update keeps the `updated_on` of the root, which orders the lists,
+        # and doesn't lose a concurrent install.
+        Template.objects.filter(pk=revision.family_id).update(
+            install_count=F("install_count") + 1
+        )
+
+        return applications
 
     def _store_archive(
         self,
@@ -550,6 +673,103 @@ class UserTemplateHandler:
             .order_by("-version")
             .first()
         )
+
+    def _is_public(self, root: Template) -> bool:
+        """Whether the template has a public revision and isn't blocked."""
+
+        return root.public_revision_id is not None and root.blocked_at is None
+
+    def _get_install_access(self, user: AbstractUser, root: Template) -> Optional[str]:
+        """
+        Why the user may install a user template: as its owner, even while it's
+        blocked, or as anyone signed in while it's public. Whether it's marked for deletion is checked by the caller.
+
+        :param user: The user who installs the template.
+        :param root: The root of the template.
+        :return: `"owner"`, `"public"`, or None without access.
+        """
+
+        if not user.is_active:
+            return None
+        if root.owner_id == user.id:
+            return "owner"
+        if self._is_public(root):
+            return "public"
+        return None
+
+    def _check_install_access(
+        self, user: AbstractUser, root: Template, latest: bool = False
+    ) -> str:
+        """
+        Raises if the user may not install the template, in the order of the error
+        codes: no access before a blocked owner. Only the owner has access to the
+        latest revision.
+
+        :return: The access of the user, see `_get_install_access`.
+        """
+
+        access = self._get_install_access(user, root)
+        if access is None or (latest and access != "owner"):
+            raise TemplateDoesNotExist(f"The template {root.id} does not exist.")
+        if access == "owner" and root.blocked_at is not None:
+            raise TemplateBlocked(f"The template {root.id} is blocked.")
+        return access
+
+    def get_installable_revision(
+        self, user: AbstractUser, root: Template, latest: bool = False
+    ) -> Template:
+        """
+        Returns the revision of a user template that the user installs: the
+        latest one when asked for, which only its owner may, as from "Your
+        templates". Otherwise the public revision, the same for everyone, or the
+        latest one for its owner while it isn't public. The installed revision is
+        pinned, so that an update of the template in the meantime doesn't change
+        what's installed.
+
+        :param user: The user who installs the template.
+        :param root: The root of a user template that isn't marked for deletion.
+        :param latest: Whether the latest revision is installed.
+        :raises TemplateDoesNotExist: If the user has no access to the template,
+            or asks for the latest revision without owning it.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateHasNoContent: If the revision has no application to copy.
+        :return: The revision to install, with its root selected.
+        """
+
+        self._check_install_access(user, root, latest)
+        if not latest and self._is_public(root):
+            # Fetched like the latest revision, even when it's the root, so that
+            # the request costs the same whichever revision is public.
+            revision = Template.objects.select_related("root").get(
+                id=root.public_revision_id
+            )
+        else:
+            revision = self.get_latest_revision(root)
+
+        if (
+            not revision.has_content
+            or not Application.objects.filter(
+                workspace_id=revision.workspace_id
+            ).exists()
+        ):
+            raise TemplateHasNoContent(f"The template {root.id} has no content.")
+
+        return revision
+
+    def check_install_access(self, user: AbstractUser, revision: Template) -> None:
+        """
+        Checks again, when the install runs, that the user may still install the
+        pinned revision of a user template. The revision is installed even if the
+        public revision changed since, and even if the template was marked for
+        deletion since, so that the installs already running finish.
+
+        :param user: The user who installs the template.
+        :param revision: The pinned revision, with its root selected.
+        :raises TemplateDoesNotExist: If the user lost access to the template.
+        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        """
+
+        self._check_install_access(user, revision.get_root())
 
     def _lock_user(self, user: AbstractUser) -> bool:
         """

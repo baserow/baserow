@@ -16,9 +16,12 @@ export default (client) => {
     install(workspaceId, templateId) {
       return client.post(`/templates/install/${workspaceId}/${templateId}/`)
     },
-    asyncInstall(workspaceId, templateId) {
+    asyncInstall(workspaceId, templateId, { latest = false } = {}) {
+      const params = latest ? { latest: true } : {}
       return client.post(
-        `/templates/install/${workspaceId}/${templateId}/async/`
+        `/templates/install/${workspaceId}/${templateId}/async/`,
+        null,
+        { params }
       )
     },
     delete(slug) {

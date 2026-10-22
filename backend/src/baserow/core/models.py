@@ -657,6 +657,16 @@ class TemplateQuerySet(QuerySet):
             .select_related("root")
         )
 
+    def public_revisions(self):
+        """
+        The public revision of every template in this queryset that isn't blocked.
+        The root is selected too, like in `latest_revisions`.
+        """
+
+        return self.filter(
+            _root_q(public_revision=F("id"), blocked_at__isnull=True)
+        ).select_related("root")
+
     def filter_by_root(self, **lookups):
         """
         The rows of the templates whose root matches the lookups: the root itself
@@ -1008,6 +1018,15 @@ class Template(models.Model):
     def get_root(self):
         return self.root if self.root_id is not None else self
 
+    @property
+    def has_content(self) -> bool:
+        """
+        Whether this revision still has the workspace holding its content, which
+        is removed when the revision is pruned. Doesn't query the database.
+        """
+
+        return self.workspace_id is not None and not self.pruned_at
+
     def is_openable_by(self, actor) -> bool:
         """
         Whether the actor can open this template: an official one or, while user
@@ -1072,7 +1091,7 @@ class Template(models.Model):
                 errors[field_name] = "The selected revision must belong to this root."
             elif revision.type != self.type:
                 errors[field_name] = "The selected revision must have the root's type."
-            elif revision.pruned_at or not revision.workspace_id:
+            elif not revision.has_content:
                 errors[field_name] = "The selected revision must have content."
             elif (
                 field_name == "public_revision"

@@ -1,5 +1,7 @@
 import json
 import zipfile
+from contextlib import contextmanager
+from unittest.mock import patch
 
 from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowFieldsUpdatedTriggerNodeType,
@@ -7,10 +9,14 @@ from baserow.contrib.automation.nodes.node_types import (
 from baserow.contrib.builder.elements.models import ChoiceElement
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
+from baserow.core.cache import local_cache
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import TemplateCategory
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
+from baserow.core.user_templates.models import CreateUserTemplateJob
+from baserow.core.user_templates.service import UserTemplateService
 
 ICON = "iconoir-view-grid"
 
@@ -171,3 +177,34 @@ def copied_applications(template):
         application.get_type().type: application.specific
         for application in template.workspace.application_set.all()
     }
+
+
+def run_again(job_id):
+    # A worker clears the local cache before each task, see `config/celery.py`.
+    local_cache.clear()
+    run_async_job(job_id)
+    return CreateUserTemplateJob.objects.get(id=job_id)
+
+
+@contextmanager
+def another_run_after_the_copy(error=None):
+    """
+    Runs the latest job again, like a redelivery of its task, right after the
+    first run copied its content, and then raises `error` in the first run if
+    given. Yields the list the other run is added to.
+    """
+
+    copy_applications = UserTemplateService.copy_applications
+    calls, other_runs = [], []
+
+    def copy_then_run_again(service, *args, **kwargs):
+        content = copy_applications(service, *args, **kwargs)
+        calls.append(content)
+        if len(calls) == 1:
+            other_runs.append(run_again(CreateUserTemplateJob.objects.latest("id").id))
+            if error is not None:
+                raise error
+        return content
+
+    with patch.object(UserTemplateService, "copy_applications", copy_then_run_again):
+        yield other_runs

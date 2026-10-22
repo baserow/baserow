@@ -99,6 +99,7 @@ def test_list_own_templates(api_client, data_fixture):
             "reason": "Not a template.",
             "source_workspace_id": source_workspace.id,
             "source_application_ids": [3, 1],
+            "install_count": 0,
             "created_on": "2026-10-01T10:00:00Z",
             "updated_on": "2026-10-01T10:00:00Z",
         }
@@ -173,25 +174,39 @@ def test_list_templates_shows_others_the_public_revision(api_client, data_fixtur
 def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
     _, stranger_token = data_fixture.create_user_and_token()
+    # Staff who don't own the template are others too.
+    _, staff_token = data_fixture.create_user_and_token(is_staff=True)
     template = publish(
         create_own_template(data_fixture, owner, metadata={"source_workspace_id": 1})
     )
-    data_fixture.create_template()
-    owner_only = ("state", "reason", "source_workspace_id", "source_application_ids")
+    data_fixture.create_user_template_revision(
+        template, metadata={"source_workspace_id": 1}
+    )
+    Template.objects.filter(id=template.id).update(install_count=3)
+    data_fixture.create_template(install_count=5)
+    owner_only = (
+        "state",
+        "reason",
+        "source_workspace_id",
+        "source_application_ids",
+        "install_count",
+    )
 
-    for token in [None, stranger_token]:
+    for token in [None, stranger_token, staff_token]:
         response = list_templates(api_client, token)
         assert response.status_code == HTTP_200_OK
         results = response.json()["results"]
         assert len(results) == 2
         assert {tuple(t[key] for key in owner_only) for t in results} == {
-            (None, None, None, None)
+            (None, None, None, None, None)
         }
 
     response = list_templates(api_client, owner_token, type="user")
     result = response.json()["results"][0]
     assert result["id"] == template.id
+    # The count is the root's, while the latest revision is listed.
     assert (result["state"], result["source_workspace_id"]) == ("public", 1)
+    assert result["install_count"] == 3
 
 
 def test_list_templates_filters_by_type(api_client, data_fixture):
@@ -292,22 +307,35 @@ def test_list_own_templates_search(api_client, data_fixture):
 def test_list_own_templates_query_count_is_constant(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     categories = [data_fixture.create_template_category() for _ in range(2)]
-    create_own_template(data_fixture, user, categories=list(categories))
+
+    def create_template_with_revisions(install_count):
+        template = create_own_template(data_fixture, user, categories=list(categories))
+        for _ in range(2):
+            data_fixture.create_user_template_revision(
+                template, categories=list(categories)
+            )
+        Template.objects.filter(id=template.id).update(install_count=install_count)
+        return template
+
+    first = create_template_with_revisions(1)
 
     with CaptureQueriesContext(connection) as one_template:
         response = list_own_templates(api_client, token)
         assert response.status_code == HTTP_200_OK
+        assert response.json()["results"][0]["install_count"] == 1
 
-    for _ in range(3):
-        template = create_own_template(data_fixture, user, categories=list(categories))
-        data_fixture.create_user_template_revision(
-            template, categories=list(categories)
-        )
+    others = [create_template_with_revisions(n) for n in (0, 2, 7)]
 
     with CaptureQueriesContext(connection) as four_templates:
         response = list_own_templates(api_client, token)
         assert response.status_code == HTTP_200_OK
         assert response.json()["count"] == 4
+        assert {t["id"]: t["install_count"] for t in response.json()["results"]} == {
+            first.id: 1,
+            others[0].id: 0,
+            others[1].id: 2,
+            others[2].id: 7,
+        }
 
     assert len(four_templates.captured_queries) == len(one_template.captured_queries)
 
@@ -344,9 +372,7 @@ def test_list_template_categories_ignores_the_parameters(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_get_user_template_shows_the_latest_revision_the_user_can_open(
-    api_client, data_fixture
-):
+def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, name="First", keywords="crm")
     public = data_fixture.create_user_template_revision(template, name="Second")
@@ -360,32 +386,38 @@ def test_get_user_template_shows_the_latest_revision_the_user_can_open(
     )
     url = reverse("api:templates:item", kwargs={"slug": template.slug})
 
-    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    def get_shown(headers):
+        response = api_client.get(url, **headers)
+        assert response.status_code == HTTP_200_OK
+        result = response.json()
+        return result["id"], result["name"], result["workspace_id"]
 
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "id": template.id,
-        "type": "user",
-        "name": "Third",
-        "slug": template.slug,
-        "description": "Latest",
-        "icon": "iconoir-coins",
-        "keywords": "crm",
-        "workspace_id": latest.workspace_id,
-        "is_default": False,
-        "open_application": 7,
-    }
+    # Everyone sees the public revision, the owner too.
+    for headers in [{}, {"HTTP_AUTHORIZATION": f"JWT {token}"}]:
+        assert get_shown(headers) == (template.id, "Second", public.workspace_id)
 
-    # Others only see the public revision.
-    response = api_client.get(url)
+    # The owner sees the latest revision while the template isn't public, or is
+    # blocked.
+    for changes in [{"public_revision": None}, {"blocked_at": django_timezone.now()}]:
+        Template.objects.filter(id=template.id).update(
+            public_revision=public, blocked_at=None
+        )
+        Template.objects.filter(id=template.id).update(**changes)
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
-    assert response.status_code == HTTP_200_OK
-    result = response.json()
-    assert (result["id"], result["name"], result["workspace_id"]) == (
-        template.id,
-        "Second",
-        public.workspace_id,
-    )
+        assert response.status_code == HTTP_200_OK
+        assert response.json() == {
+            "id": template.id,
+            "type": "user",
+            "name": "Third",
+            "slug": template.slug,
+            "description": "Latest",
+            "icon": "iconoir-coins",
+            "keywords": "crm",
+            "workspace_id": latest.workspace_id,
+            "is_default": False,
+            "open_application": 7,
+        }
 
 
 def create_job(api_client, token, workspace, applications, **overrides):

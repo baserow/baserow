@@ -2,6 +2,7 @@ import os
 import re
 import threading
 from datetime import timedelta
+from io import BytesIO
 from unittest.mock import patch
 
 from django.conf import settings
@@ -15,6 +16,8 @@ from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.handler import ImportExportHandler
@@ -23,7 +26,9 @@ from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED
 from baserow.core.models import Template, Workspace
+from baserow.core.subjects import UserSubjectType
 from baserow.core.user.exceptions import UserNotFound
+from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_ICON_MAX_LENGTH,
     UserTemplateState,
@@ -39,6 +44,7 @@ from baserow.core.user_templates.handler import (
     generate_template_slug,
 )
 from baserow.core.user_templates.models import CreateUserTemplateJob
+from tests.baserow.core.user_templates.utils import create_source, start_job
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
 SLUG_SUFFIX_PATH = "baserow.core.user_templates.handler.generate_slug_suffix"
@@ -704,3 +710,93 @@ def test_mark_template_for_deletion_ignores_an_update_that_ended_meanwhile(
     cancel_job.assert_called_once()
     assert Template.objects.get(id=root.id).marked_for_deletion_at is not None
     assert CreateUserTemplateJob.objects.get(id=job.id).state == JOB_STARTED
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_install_template_content_applies_the_content_rules(
+    data_fixture, use_tmp_media_root
+):
+    source = create_source(data_fixture)
+    owner = source["user"]
+    file_field = data_fixture.create_file_field(table=source["table"], name="File")
+    user_file = UserFileHandler().upload_user_file(
+        owner, "notes.txt", BytesIO(b"Notes")
+    )
+    RowHandler().create_row(
+        owner,
+        source["table"],
+        values={file_field.db_column: [{"name": user_file.name}]},
+    )
+    job = start_job(
+        owner,
+        source["workspace"],
+        [source["database"], source["builder"], source["dashboard"]],
+    )
+    revision = Template.objects.get(id=job.template_id)
+    installer = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=installer)
+    configs = []
+    export_workspace_applications = ImportExportHandler.export_workspace_applications
+    import_applications_from_export = (
+        ImportExportHandler.import_applications_from_export
+    )
+
+    def export_spy(self, applications, import_export_config, **kwargs):
+        configs.append(import_export_config)
+        return export_workspace_applications(
+            self, applications, import_export_config, **kwargs
+        )
+
+    def import_spy(self, user, workspace, resource, import_export_config, **kwargs):
+        configs.append(import_export_config)
+        return import_applications_from_export(
+            self, user, workspace, resource, import_export_config, **kwargs
+        )
+
+    with (
+        patch.object(ImportExportHandler, "export_workspace_applications", export_spy),
+        patch.object(
+            ImportExportHandler, "import_applications_from_export", import_spy
+        ),
+    ):
+        user_template_handler = UserTemplateHandler()
+        with user_template_handler.export_template_content(revision) as resource:
+            with transaction.atomic():
+                installed = user_template_handler.install_template_content(
+                    installer, target, revision, resource
+                )
+
+    assert len(configs) == 2
+    for config in configs:
+        assert config.is_user_template is True
+        assert config.is_duplicate is False
+        assert config.exclude_sensitive_data is True
+        assert config.include_permission_data is False
+
+    integrations = list(
+        LocalBaserowIntegration.objects.filter(
+            application__in=[app.id for app in installed]
+        )
+    )
+    assert integrations
+    for integration in integrations:
+        assert integration.authorized_subject_type == UserSubjectType.type
+        assert integration.authorized_subject_id == installer.id
+
+    database = next(app for app in installed if app.get_type().type == "database")
+    table = database.specific.table_set.get()
+    installed_file_field = table.field_set.get(name="File")
+    files = [
+        value
+        for value in table.get_model()
+        .objects.values_list(installed_file_field.db_column, flat=True)
+        .order_by("id")
+        if value
+    ]
+    assert len(files) == 1
+    installed_name = files[0][0]["name"]
+    assert not installed_name.startswith("tpl")
+    assert files[0][0]["visible_name"] == "notes.txt"
+    # The file of the copy is stored and served like any other one.
+    assert UserFileHandler().get_user_file_by_name(installed_name)

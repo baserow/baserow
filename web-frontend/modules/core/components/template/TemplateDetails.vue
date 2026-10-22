@@ -57,23 +57,19 @@
             ></component>
           </ul>
         </div>
-        <div
-          v-if="isOwn"
-          class="template-details__foot template-details__own-actions"
-        >
-          <ButtonIcon
-            ref="moreButton"
-            type="secondary"
-            icon="iconoir-more-vert"
-            :title="$t('templateDetails.actions')"
-            @click="contextRef.toggle(moreButton.$el, 'top', 'right', 4)"
-          ></ButtonIcon>
-          <Context ref="contextRef">
-            <ul class="context__menu">
+        <div class="template-details__foot">
+          <TemplateInstall
+            :template="template"
+            :workspace="workspace"
+            :show-copy-link="!isOwn"
+            :latest="isOwn"
+            @installed="emit('installed')"
+          >
+            <template v-if="isOwn" #menu-items="{ hide }">
               <li class="context__menu-item">
                 <a
                   class="context__menu-item-link"
-                  @click.prevent="edit('details')"
+                  @click.prevent="edit('details', hide)"
                 >
                   <i class="context__menu-item-icon iconoir-edit-pencil"></i>
                   {{ $t('templateDetails.editDetails') }}
@@ -82,7 +78,7 @@
               <li class="context__menu-item">
                 <a
                   class="context__menu-item-link"
-                  @click.prevent="edit('content')"
+                  @click.prevent="edit('content', hide)"
                 >
                   <i class="context__menu-item-icon iconoir-refresh-double"></i>
                   {{ $t('templateDetails.updateContent') }}
@@ -91,24 +87,14 @@
               <li class="context__menu-item context__menu-item--with-separator">
                 <a
                   class="context__menu-item-link context__menu-item-link--delete"
-                  @click.prevent="askToDelete()"
+                  @click.prevent="askToDelete(hide)"
                 >
                   <i class="context__menu-item-icon iconoir-bin"></i>
                   {{ $t('templateDetails.delete') }}
                 </a>
               </li>
-            </ul>
-          </Context>
-        </div>
-        <div
-          v-else-if="template.type !== 'user'"
-          class="template-details__foot"
-        >
-          <TemplateInstall
-            :template="template"
-            :workspace="workspace"
-            @installed="emit('installed')"
-          ></TemplateInstall>
+            </template>
+          </TemplateInstall>
         </div>
       </div>
     </template>
@@ -116,7 +102,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useNuxtApp } from '#app'
 
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
@@ -144,7 +129,8 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // Whether the template is one of the user's, who can then update it.
+  // Whether the template is one of the user's, opened from "Your templates". The
+  // user can then update it, and installs its latest revision.
   isOwn: {
     type: Boolean,
     required: false,
@@ -158,16 +144,13 @@ const emit = defineEmits(['back', 'installed', 'edit', 'delete'])
 
 const { $registry } = useNuxtApp()
 
-const moreButton = ref(null)
-const contextRef = ref(null)
-
-function edit(mode) {
-  contextRef.value.hide()
+function edit(mode, hideMenu) {
+  hideMenu()
   emit('edit', mode)
 }
 
-function askToDelete() {
-  contextRef.value.hide()
+function askToDelete(hideMenu) {
+  hideMenu()
   emit('delete', props.template)
 }
 
