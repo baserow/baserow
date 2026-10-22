@@ -94,7 +94,8 @@
     "dataProviderType": {
         "currentIteration": "Bieżąca iteracja",
         "item": "Element",
-        "previousNode": "Poprzedni węzeł"
+        "previousNode": "Poprzedni węzeł",
+        "currentNode": "Obecny węzeł"
     },
     "nodeSidePanel": {
         "labelTitle": "Nazwa"
@@ -126,7 +127,9 @@
         "cancelRun": "Anuluj ten przebieg",
         "cancelling": "Przebieg jest anulowany. Zatrzyma się, gdy obecny węzeł zakończy operację.",
         "cancellationAlreadyRequestedTitle": "Polecenie anulowanie zostało już wykonane",
-        "cancellationAlreadyRequested": "Ktoś inny wykonał już polecenie anulowania tego przebiegu. Przebieg zatrzyma się, gdy obecny węzeł zakończy operację."
+        "cancellationAlreadyRequested": "Ktoś inny wykonał już polecenie anulowania tego przebiegu. Przebieg zatrzyma się, gdy obecny węzeł zakończy operację.",
+        "statusRetriedBadge": "Ponowiono",
+        "retryNumber": "{n} ponowień"
     },
     "nodeType": {
         "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, nie można ich usunąć.",
@@ -163,7 +166,9 @@
         "gotoNodeLabel": "Przejdź do węzła",
         "gotoNodeLabelWithDestination": "Przejdź do węzła → {destination}",
         "gotoHistoryLabel": "{label} → {destination}",
-        "responseLabel": "Odpowiedź"
+        "responseLabel": "Odpowiedź",
+        "iteratorAliases": "pętla, pętla „for”, pętla „for each”, powtórzenie, iteracja",
+        "gotoAliases": "pętla „while”, powtarzaj do, pętla, ponów próbę, przeskocz, wstecz"
     },
     "workflowNode": {
         "actionDelete": "Usuń",
@@ -225,5 +230,29 @@
     },
     "lastViewedItemType": {
         "automationWorkflow": "Proces"
+    },
+    "nodeErrorHandlingForm": {
+        "title": "Obsługa błędów",
+        "onFailureLabel": "W przypadku błędu",
+        "stop": "Stop",
+        "retry": "Spróbuj ponownie",
+        "conditionLabel": "Warunek",
+        "conditionHelp": "Wynik węzła sprawdzono po każdej próbie. Jeśli wynik jest prawdziwy, to próba zostanie uznana za nieudaną i zostanie powtórzona — na przykład w przypadku, gdy żądanie HTTP zwróci określony kod statusu.",
+        "conditionPlaceholder": "get('current_node.status_code') = 429",
+        "retriesLabel": "Ponawia"
+    },
+    "nodeRecipe": {
+        "groupLabel": "Gotowe przepisy",
+        "forLoopName": "Pętla \"for”",
+        "forLoopDescription": "Dodaje iterator, który wykonuje operacje węzłów podrzędnych 5 razy. Zmień zakres, aby zwiększyć lub zmniejszyć liczbę powtórzeń.",
+        "forLoopAliases": "pętla, dla każdego, powtórz, iteracja",
+        "forLoopIteratorLabel": "Powtórz 5 razy",
+        "whileLoopName": "Pętla \"while”",
+        "whileLoopDescription": "Dodaje węzeł \"Wylistuj wiersze” oraz węzeł \"Przejdź do”, który cofa się do poprzedniego węzła, dopóki nie znajdzie jakichś wierszy. Pomiędzy tymi dwoma węzłami umieść węzły modyfikujące wiersze, w przeciwnym razie pętla będzie wykonywana w nieskończoność.",
+        "whileLoopAliases": "pętla, powtarzaj do, dopóki, ponów próbę",
+        "whileLoopListRowsLabel": "Znajdź wiersze do przetworzenia",
+        "whileLoopGotoLabel": "Powtarzaj dopóki zostaną znalezione wiersze",
+        "nodesLeftTitle": "Przepis częściowo dodany",
+        "nodesLeftMessage": "Gotowy przepis {recipe} nie został zakończony i nie można było usunąć węzłów, które już zostały dodane. Aby usunąć węzły, należy cofnąć operację. Można je też usunąć z procesu."
     }
 }
