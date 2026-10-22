@@ -50,39 +50,18 @@ class QueueEvent:
 
 
 @dataclass
-class EventBus:
-    """
-    Pushes streaming events into the queue consumed by
-    Assistant.astream_messages(). Events are silently dropped when no
-    queue is attached.
-    """
-
-    _queue: asyncio.Queue[QueueEvent] | None = None
-
-    def set_queue(self, queue: asyncio.Queue[QueueEvent] | None):
-        self._queue = queue
-
-    def emit(self, event):
-        if self._queue is not None:
-            self._queue.put_nowait(
-                QueueEvent(kind=QueueEventKind.STREAM, message=event)
-            )
-
-
-@dataclass
 class ToolHelpers:
     """
     Contextual helpers available to every tool via ``RunContext[AssistantDeps]``.
 
     Provides the request's resolved model profile, UI status and navigation
-    callbacks, cancellation support, and custom streaming events.
+    callbacks, and cancellation support.
     """
 
     update_status: Callable[[str], None]
     navigate_to: Callable[["AnyNavigationRequestType"], str]
     model_profile: "ResolvedAssistantModelProfile"
     request_context: dict = field(default_factory=dict)
-    event_bus: EventBus = field(default_factory=EventBus)
     _cancel_event: threading.Event = field(default_factory=threading.Event)
 
     def raise_if_cancelled(self) -> None:

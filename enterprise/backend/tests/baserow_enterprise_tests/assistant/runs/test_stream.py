@@ -1,14 +1,20 @@
 import json
 from types import SimpleNamespace
+from typing import Any
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
 from asgiref.sync import async_to_sync
+from pytest_mock import MockerFixture
 
+from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER, UNFINISHED_ANSWER
 from baserow_enterprise.assistant.stream import stream_run_messages
 
 
-def _collect(mocker, events, **kwargs):
+def _collect(
+    mocker: MockerFixture, events: list[dict[str, Any]], **kwargs: Any
+) -> tuple[list[dict[str, Any]], MagicMock]:
     async def follow(*args, **options):
         for event in events:
             yield event
@@ -19,12 +25,11 @@ def _collect(mocker, events, **kwargs):
 
     async def collect():
         run = SimpleNamespace(id=uuid4(), chat_id=10, status="running")
-        return [
-            json.loads(record)
-            async for record in stream_run_messages(run, object(), **kwargs)
-        ]
+        return [record async for record in stream_run_messages(run, object(), **kwargs)]
 
-    return async_to_sync(collect)(), follower
+    raw = async_to_sync(collect)()
+    assert all(record.endswith("\n\n") for record in raw)
+    return [json.loads(record) for record in raw], follower
 
 
 def test_deltas_remain_cumulative_and_rewrites_replace_text(mocker):
@@ -81,15 +86,17 @@ def test_navigation_is_live_and_origin_only_but_every_cursor_advances(mocker):
     ] == [{"table_id": 5}]
 
 
-def test_baseline_rebuilds_without_repeating_live_effects_and_unavailable_preserves_text(
-    mocker,
-):
+def test_a_baseline_restarts_the_text_and_missing_replay_is_a_state_record(mocker):
     records, _ = _collect(
         mocker,
         [
             {
                 "kind": "run.baseline",
-                "data": {"segment": 0, "text": "Known"},
+                "data": {
+                    "segment": 0,
+                    "text": "Known",
+                    "progress": {"text": "Creating rows"},
+                },
                 "cursor": "old",
                 "replayed": True,
             },
@@ -108,12 +115,17 @@ def test_baseline_rebuilds_without_repeating_live_effects_and_unavailable_preser
     assert records[2]["content"] == "Known"
     assert records[2]["_run"]["reset"] is True
     assert records[2]["_run"]["replay"] is True
-    assert records[3]["content"] == "Known answer"
-    assert records[4]["type"] == "chat-run-state"
-    assert records[4]["_run"]["replay_unavailable"] is True
+    assert (records[3]["type"], records[3]["content"]) == (
+        "ai/thinking",
+        "Creating rows",
+    )
+    assert records[3]["_run"].keys() == {"id", "chat_id", "replay"}
+    assert records[4]["content"] == "Known answer"
+    assert records[5]["type"] == "chat-run-state"
+    assert records[5]["_run"]["replay_unavailable"] is True
 
 
-def test_terminal_saved_message_is_authoritative_and_has_one_cursor(mocker):
+def test_terminal_saved_message_is_authoritative(mocker):
     message = {"type": "ai/message", "id": 7, "content": "Saved"}
     records, _ = _collect(
         mocker,
@@ -134,25 +146,86 @@ def test_terminal_saved_message_is_authoritative_and_has_one_cursor(mocker):
             "error_code": "",
         },
     }
-    assert len([r for r in records if r["_run"].get("cursor") == "last"]) == 1
 
 
 @pytest.mark.parametrize(
-    "human_message,replay",
-    [(None, True), ({"type": "human", "content": "Hi", "id": 1}, False)],
+    "event,expected",
+    [
+        (
+            {"kind": "progress", "data": {"text": "Searching..."}},
+            {"type": "ai/thinking", "content": "Searching..."},
+        ),
+        (
+            {"kind": "chat.title", "data": {"title": "A greeting"}},
+            {"type": "chat/title", "content": "A greeting"},
+        ),
+    ],
 )
-def test_only_a_new_send_can_receive_navigation_before_first_read(
+def test_progress_and_title_map_to_kuma_records_after_a_cursorless_start(
+    mocker, event, expected
+):
+    records, _ = _collect(mocker, [{**event, "cursor": "c1"}])
+
+    started, record = records[1:]
+    assert started["type"] == "ai/started"
+    assert "cursor" not in started["_run"]
+    assert record.items() >= expected.items()
+
+
+HUMAN = {"type": "human", "content": "Hi", "id": 1}
+
+
+@pytest.mark.parametrize(
+    "human_message,replay", [(None, True), (HUMAN, False)], ids=["follow", "send"]
+)
+def test_the_message_shows_once_and_a_started_run_is_running(
     mocker, human_message, replay
 ):
-    _, follower = _collect(mocker, [], human_message=human_message)
+    records, follower = _collect(
+        mocker,
+        [
+            {"kind": "run.created", "data": {"human_message": HUMAN}, "cursor": "c0"},
+            {"kind": "run.started", "data": {}, "cursor": "c1"},
+        ],
+        human_message=human_message,
+    )
+
+    assert [record["type"] for record in records].count("human") == 1
+    assert records[-1]["type"] == "chat-run-state"
+    assert (records[-1]["_run"]["cursor"], records[-1]["_run"]["status"]) == (
+        "c1",
+        "running",
+    )
     assert follower.call_args.kwargs["replay"] is replay
 
 
 @pytest.mark.parametrize(
-    "status,kind", [("cancelled", "ai/cancelled"), ("failed", "ai/error")]
+    "status,error_code,expected",
+    [
+        ("cancelled", "interrupted", {"type": "ai/cancelled"}),
+        (
+            "failed",
+            "interrupted",
+            {"type": "ai/error", "code": "interrupted", "content": UNFINISHED_ANSWER},
+        ),
+        (
+            "failed",
+            "not_started",
+            {"type": "ai/error", "code": "not_started", "content": NOT_STARTED_ANSWER},
+        ),
+        (
+            "failed",
+            "model_unavailable",
+            {
+                "type": "ai/error",
+                "code": "model_unavailable",
+                "content": NOT_STARTED_ANSWER,
+            },
+        ),
+    ],
 )
 def test_legacy_clients_keep_cancellation_and_error_variants_after_the_saved_result(
-    mocker, status, kind
+    mocker, status, error_code, expected
 ):
     records, _ = _collect(
         mocker,
@@ -161,7 +234,7 @@ def test_legacy_clients_keep_cancellation_and_error_variants_after_the_saved_res
                 "kind": "run.finished",
                 "data": {
                     "status": status,
-                    "error_code": "interrupted",
+                    "error_code": error_code,
                     "message": {"type": "ai/message", "id": 7, "content": "Partial"},
                 },
                 "cursor": "last",
@@ -170,6 +243,6 @@ def test_legacy_clients_keep_cancellation_and_error_variants_after_the_saved_res
     )
     assert records[-2]["_run"]["status"] == status
     assert records[-2]["content"] == "Partial"
-    assert records[-1]["type"] == kind
+    assert records[-1].items() >= expected.items()
     assert "cursor" not in records[-1]["_run"]
     assert "status" not in records[-1]["_run"]

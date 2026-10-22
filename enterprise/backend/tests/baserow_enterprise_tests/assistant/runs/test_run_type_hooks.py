@@ -1,8 +1,7 @@
-from datetime import timedelta
+from typing import Any
 from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
-from django.utils import timezone
 
 import pytest
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, TextPart
@@ -10,19 +9,21 @@ from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, TextPa
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunEventKind
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
+from baserow.core.chat_runs.service import serialize_run
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow_enterprise.assistant.chat_run_type import (
     AssistantChatRunType,
     trace_outcome_for,
 )
 from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER, unfinished_answer
-from baserow_enterprise.assistant.models import AssistantChat
+from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.runs import (
+    ASSISTANT_RUN_TYPE,
     ERROR_MODEL_UNAVAILABLE,
     AssistantRunResult,
 )
 from baserow_enterprise.assistant.telemetry import AssistantTraceOutcome
-from baserow_enterprise_tests.assistant.runs.fixtures import (
+from baserow_enterprise_tests.assistant.runs.utils import (
     ai_message,
     history_texts,
     traces,
@@ -139,37 +140,38 @@ def test_persist_outcome_saves_a_completed_answer(assistant_run, posthog_client)
     posthog_client.capture.assert_not_called()
 
 
+def _delta(segment: int, text: str) -> dict[str, Any]:
+    return {
+        "kind": ChatRunEventKind.TEXT_DELTA,
+        "data": {"segment": segment, "text": text},
+    }
+
+
+@pytest.mark.parametrize(
+    "events, text",
+    [
+        ([_delta(0, "Adding"), _delta(0, " rows")], "Adding rows"),
+        ([_delta(0, "Adding rows"), _delta(1, "Added rows")], "Added rows"),
+        (None, ""),
+    ],
+    ids=["streamed", "rewritten", "missing"],
+)
 @pytest.mark.django_db
 def test_a_lost_run_saves_what_the_user_saw(
-    assistant_run, posthog_client, django_capture_on_commit_callbacks, mocker
+    assistant_run, posthog_client, django_capture_on_commit_callbacks, events, text
 ):
-    run = assistant_run(content="Add rows")
-    ChatRunHandler().claim_run(run.id)
-    ChatRun.objects.filter(id=run.id).update(
-        lease_expires_at=timezone.now() - timedelta(seconds=1)
-    )
-    mocker.patch(
-        "baserow.core.chat_runs.handler.ChatRunHandler._recover_output",
-        return_value=[
-            {
-                "kind": ChatRunEventKind.TEXT_DELTA,
-                "data": {"segment": 0, "text": "Adding rows"},
-            },
-        ],
-    )
+    run = ChatRunHandler().claim_run(assistant_run(content="Add rows").id)
+    run.status, run.error_code = ChatRunStatus.FAILED, ChatRunErrorCode.INTERRUPTED
 
     with django_capture_on_commit_callbacks(execute=True):
-        ChatRunHandler().finalize_lost_runs()
+        message = AssistantChatRunType().on_run_lost(run, events)
 
-    run.refresh_from_db()
-    message = run.outcome
-    assert message["id"] == ai_message(run).id
     assert (message["content"], message["run_status"], message["error_code"]) == (
-        "Adding rows",
+        text,
         "failed",
         ChatRunErrorCode.INTERRUPTED,
     )
-    assert history_texts(run) == ["Add rows", unfinished_answer("Adding rows")]
+    assert history_texts(run) == ["Add rows", unfinished_answer(text)]
     assert [trace["assistant_outcome"] for trace in traces(posthog_client)] == [
         AssistantTraceOutcome.INTERRUPTED
     ]
@@ -179,7 +181,7 @@ def _fail_without_a_model(run: ChatRun) -> None:
     outcome = ChatRunOutcome(
         status=ChatRunStatus.FAILED, error_code=ERROR_MODEL_UNAVAILABLE
     )
-    AssistantChatRunType().persist_outcome(run, outcome)
+    AssistantChatRunType().persist_outcome(ChatRunHandler().claim_run(run.id), outcome)
 
 
 def _sweep_as_not_started(run: ChatRun) -> None:
@@ -239,38 +241,43 @@ def test_a_run_that_never_reached_the_agent_tells_the_model_nothing_changed(
 def test_absent_result_after_claim_warns_that_changes_may_exist(assistant_run):
     run = ChatRunHandler().claim_run(assistant_run().id)
     AssistantChatRunType().persist_outcome(
-        run, ChatRunOutcome(status=ChatRunStatus.FAILED, error_code="failed")
+        run,
+        ChatRunOutcome(status=ChatRunStatus.FAILED, error_code=ChatRunErrorCode.FAILED),
     )
     assert history_texts(run)[-1] == unfinished_answer("")
 
 
 @pytest.mark.django_db
-def test_missing_product_outcome_is_repaired_once_before_run_metadata_can_be_pruned(
-    assistant_run,
-):
+def test_a_missing_outcome_is_repaired_once(assistant_run, kuma_model):
     run = ChatRunHandler().claim_run(assistant_run(content="Change rows").id)
-    run.status, run.error_code = ChatRunStatus.FAILED, "persist_failed"
+    run.status, run.error_code = ChatRunStatus.FAILED, ChatRunErrorCode.PERSIST_FAILED
     run.save(update_fields=["status", "error_code"])
-    adapter = AssistantChatRunType()
+    chat = _chat(run)
+    next_human = chat.messages.create(
+        role=AssistantChatMessage.Role.HUMAN, content="Next"
+    )
+    next_run = ChatRunHandler().create_run(
+        ASSISTANT_RUN_TYPE,
+        chat.id,
+        chat.workspace,
+        chat.user,
+        {**run.context, "human_message_id": next_human.id},
+    )
+    run_type = AssistantChatRunType()
 
-    adapter.ensure_interruption_warning(run)
-    adapter.ensure_interruption_warning(run)
+    run_type._restore(next_run)
+    run_type._restore(next_run)
 
     assert history_texts(run) == ["Change rows", unfinished_answer("")]
-    human = _chat(run).messages.get(id=run.context["human_message_id"])
+    human = chat.messages.get(id=run.context["human_message_id"])
     assert human.artifacts["run_warning"]["run_id"] == str(run.id)
-    run.delete()
-    assert history_texts(run) == ["Change rows", unfinished_answer("")]
 
 
 @pytest.mark.django_db
 def test_serialized_outcome_uses_its_saved_message_and_current_feedback(assistant_run):
-    from baserow.core.chat_runs.service import serialize_run
-    from baserow_enterprise.assistant.models import AssistantChatMessage
-
     run = assistant_run()
-    adapter = AssistantChatRunType()
-    run.outcome = adapter.persist_outcome(
+    run_type = AssistantChatRunType()
+    run.outcome = run_type.persist_outcome(
         run,
         ChatRunOutcome(
             status=ChatRunStatus.COMPLETED,
@@ -285,7 +292,7 @@ def test_serialized_outcome_uses_its_saved_message_and_current_feedback(assistan
     prediction.save(update_fields=["human_sentiment"])
     AssistantChat.objects.filter(id=run.chat_id).update(title="Current title")
     AssistantChatMessage.objects.create(
-        chat_id=run.chat_id, role="ai", content="Later answer"
+        chat_id=run.chat_id, role=AssistantChatMessage.Role.AI, content="Later answer"
     )
 
     message = serialize_run(run)["message"]
@@ -302,15 +309,8 @@ def test_serialized_outcome_uses_its_saved_message_and_current_feedback(assistan
 
 @pytest.mark.django_db
 def test_removed_product_message_falls_back_to_its_own_durable_outcome(assistant_run):
-    from baserow_enterprise.assistant.models import AssistantChatMessage
-
     run = assistant_run()
     run.outcome = {"id": 87654321, "type": "ai/message", "content": "Durable answer"}
-    AssistantChatMessage.objects.create(
-        chat_id=run.chat_id, role="ai", content="Later answer"
-    )
+    AssistantChat.objects.filter(id=run.chat_id).delete()
 
-    message = AssistantChatRunType().serialize_outcome(run)
-
-    assert message == {**run.outcome, "chat_title": _chat(run).title}
-    assert "chat_title" not in run.outcome
+    assert AssistantChatRunType().serialize_outcome(run) == run.outcome

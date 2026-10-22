@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from django.utils.translation import gettext as _
 
@@ -116,9 +116,6 @@ class HumanMessage(BaseModel):
     type: Literal["human"] = AssistantMessageType.HUMAN.value
     timestamp: datetime | None = Field(default=None)
     content: str
-    ui_context: Optional[UIContext] = Field(
-        default=None, description="The UI context when the message was sent"
-    )
 
 
 class AiMessageChunk(BaseModel):
@@ -136,7 +133,10 @@ class AiReasoningChunk(BaseModel):
 
 
 class AiMessage(AiMessageChunk):
-    onboarding_target: dict | None = None
+    onboarding_target: dict[str, Any] | None = Field(
+        default=None,
+        description="The table created during onboarding, opened when the run ends.",
+    )
     id: int | None = Field(
         default=None,
         description="The unique UUID of the message",
@@ -192,16 +192,10 @@ class AiCancelledMessage(BaseModel):
     message_id: str = Field(description="The ID of the message that was cancelled")
 
 
-class AiErrorMessageCode(StrEnum):
-    RECURSION_LIMIT_EXCEEDED = "recursion_limit_exceeded"
-    TIMEOUT = "timeout"
-    UNKNOWN = "unknown"
-
-
 class AiErrorMessage(BaseModel):
     type: Literal["ai/error"] = AssistantMessageType.AI_ERROR.value
-    code: AiErrorMessageCode = Field(
-        AiErrorMessageCode.UNKNOWN, description="The type of error that occurred"
+    code: str = Field(
+        "unknown", description="Why the run failed: a run error code, or unknown."
     )
     content: str = Field(description="Error message content")
 

@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any, Callable, Optional
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -21,22 +20,9 @@ from baserow_enterprise.assistant.types import (
 SESSION_ID = "s" * 256
 
 
-def _is_assistant_run_test(request) -> bool:
-    # Pytest can give an external conftest an empty baseid when backend is the
-    # rootdir. Keep its autouse mocks local when core and enterprise are collected
-    # together, even in that layout.
-    return (
-        Path(request.node.path)
-        .resolve()
-        .is_relative_to(Path(__file__).resolve().parent)
-    )
-
-
-@pytest.fixture(autouse=True)
-def posthog_client(mocker, request) -> MagicMock:
+@pytest.fixture
+def posthog_client(mocker) -> MagicMock:
     client = MagicMock()
-    if not _is_assistant_run_test(request):
-        return client
     mocker.patch(
         "baserow_enterprise.assistant.telemetry.get_posthog_client",
         return_value=client,
@@ -44,13 +30,11 @@ def posthog_client(mocker, request) -> MagicMock:
     return client
 
 
-@pytest.fixture(autouse=True)
-def output_events(mocker, request):
+@pytest.fixture
+def output_events(mocker) -> list[dict[str, Any]]:
     """Observe the adapter's output without depending on a shared Redis server."""
 
     events = []
-    if not _is_assistant_run_test(request):
-        return events
 
     async def append(buffer, batch):
         appended = [{"kind": kind, "data": data} for kind, data in batch]
@@ -59,12 +43,11 @@ def output_events(mocker, request):
 
     mocker.patch("baserow.core.chat_runs.buffer.ChatRunBuffer.append", append)
     mocker.patch("baserow.core.chat_runs.handler.notify_run_on_commit")
-    mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler._enqueue")
     return events
 
 
 @pytest.fixture
-def fast_journal(monkeypatch):
+def fast_journal(monkeypatch) -> None:
     monkeypatch.setattr(
         "baserow.core.chat_runs.journal.LEASE_RENEW_INTERVAL_SECONDS", 0.01
     )
@@ -72,8 +55,13 @@ def fast_journal(monkeypatch):
 
 
 @pytest.fixture
-def assistant_run(enterprise_data_fixture) -> Callable[..., ChatRun]:
-    """Creates a chat, its human message and the queued run answering it."""
+def assistant_run(
+    enterprise_data_fixture, posthog_client, output_events, assistant_test_model
+) -> Callable[..., ChatRun]:
+    """
+    Creates a chat, its human message and the queued run answering it. Runs use
+    the test model, and report to a mock PostHog client and output buffer.
+    """
 
     def _assistant_run(
         content: str = "Add a table",
@@ -110,10 +98,8 @@ def assistant_run(enterprise_data_fixture) -> Callable[..., ChatRun]:
     return _assistant_run
 
 
-@pytest.fixture(autouse=True)
-def assistant_test_model(settings, request) -> None:
-    if not _is_assistant_run_test(request):
-        return
+@pytest.fixture
+def assistant_test_model(settings) -> None:
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq/test-model"
 
 
