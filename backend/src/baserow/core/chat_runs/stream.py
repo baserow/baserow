@@ -119,7 +119,7 @@ class _OutputReader:
         )
 
     def heartbeat(self) -> dict[str, Any]:
-        return _record("run.heartbeat", {}, self.cursor, replayed=False)
+        return _record(ChatRunEventKind.RUN_HEARTBEAT, {}, self.cursor, replayed=False)
 
     def relay(self, event: dict[str, Any]) -> dict[str, Any]:
         position = stream_id_key(parse_cursor(event["cursor"])[1])
@@ -137,10 +137,11 @@ async def follow_run(
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield ordered output, compatible heartbeats, and authoritative completion.
 
-    A product view wraps this iterator in its streaming HTTP response. Its body
-    runs when the HTTP server consumes that response on the web process's event
-    loop, not when the view creates the iterator and not in the Celery worker.
-    Closing the response closes this follower, leaving the worker running.
+    The core stream view, or a product view, wraps this iterator in its streaming
+    HTTP response. Its body runs when the HTTP server consumes that response on the
+    web process's event loop, not when the view creates the iterator and not in the
+    Celery worker. Closing the response closes this follower, leaving the worker
+    running.
 
     Read permission is checked once, when the stream opens; a reconnect checks it
     again. Afterwards the saved state is read only on ``run.finished`` or after

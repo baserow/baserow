@@ -11,6 +11,7 @@ class ChatRunEventKind(StrEnum):
     PROGRESS = "progress"
     RUN_CANCEL_REQUESTED = "run.cancel_requested"
     RUN_FINISHED = "run.finished"
+    RUN_HEARTBEAT = "run.heartbeat"
 
 
 class ChatRunErrorCode(StrEnum):

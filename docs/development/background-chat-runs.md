@@ -142,13 +142,17 @@ at once; override `get_max_active_runs_per_user` (None for no limit) or
 `get_max_active_runs_per_workspace` to change that. At a limit, `create_run`
 raises `ChatRunLimitReached`, which the product turns into its own error.
 
-For streaming, register the view's path with `register_async_stream_path` from
-`baserow.config.streaming`. The view returns an async `StreamingHttpResponse` over
-`follow_run(run, user, cursor)`. Check authentication, permissions and the cursor
-before returning HTTP 200. Once streaming starts, the status cannot change.
+Core serves `GET /api/chat-runs/<run_id>/stream/?cursor=` for every run type. Its
+path is registered with the stream router through `register_async_stream_path`
+from `baserow.config.streaming`, and deployments route `/api/chat-runs/` to the
+ASGI service. A product needs no stream path or view of its own. The endpoint
+relays every buffered event to anyone `can_read` admits, so a run type must only
+emit output that every reader of the run may see.
 
-On the frontend, register a `ChatRunType` from `chatRuns/chatRunType.js`. It
-opens the product's stream and turns its records into what the UI shows.
+On the frontend, register a `ChatRunType` from `chatRuns/chatRunType.js`. By
+default it reads that stream and handles the resume baseline: the record that
+rebuilds the output before the cursor a follower resumes from. The product only
+folds its own events into what the UI shows, in `foldEvent`.
 
 ## When things go wrong
 

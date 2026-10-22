@@ -1,9 +1,14 @@
+import json
+from collections.abc import Callable
 from uuid import uuid4
 
+from django.http import HttpResponseBase, StreamingHttpResponse
 from django.urls import reverse
 
 import pytest
+from asgiref.sync import async_to_sync
 
+from baserow.api.chat_runs.views import encode_records
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.service import ChatRunService
 
@@ -32,7 +37,9 @@ def test_durable_result_is_available_without_redis(
     assert response.json()["status"] == "completed"
 
 
-@pytest.mark.parametrize("method,name", [("get", "detail"), ("post", "cancel")])
+@pytest.mark.parametrize(
+    "method,name", [("get", "detail"), ("post", "cancel"), ("get", "stream")]
+)
 @pytest.mark.parametrize("unknown", [False, True])
 def test_run_identity_grants_no_access(
     api_client, data_fixture, create_run, method, name, unknown
@@ -107,3 +114,77 @@ def test_snapshot_and_cancel_pin_adapter_permission_queries_to_primary(
         assert ChatRunService().request_cancel(run.created_by, run.id) == "cancelled"
     finally:
         clear_db_state()
+
+
+CURSOR = f"{'a' * 32}:1-0"
+
+
+async def read_body(response: StreamingHttpResponse) -> str:
+    return "".join([part.decode() async for part in response.streaming_content])
+
+
+@pytest.fixture
+def request_stream(
+    api_client, data_fixture, create_run
+) -> Callable[..., HttpResponseBase]:
+    user, token = data_fixture.create_user_and_token()
+    run = create_run(user=user)
+
+    def request(query: str = "", method: str = "get") -> HttpResponseBase:
+        return getattr(api_client, method)(
+            url("stream", run.id) + query, HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+
+    return request
+
+
+def test_stream_encodes_records_from_the_given_cursor(request_stream, mocker):
+    delta = {
+        "kind": "text.delta",
+        "data": {"segment": 0, "text": "Hi"},
+        "cursor": f"{'a' * 32}:2-0",
+        "replayed": False,
+    }
+    cursors = []
+
+    async def follow_run(run, user, cursor=None):
+        cursors.append(cursor)
+        yield {"kind": "run.heartbeat", "data": {}, "cursor": cursor, "replayed": False}
+        yield delta
+
+    mocker.patch("baserow.api.chat_runs.views.follow_run", follow_run)
+    response = request_stream(f"?cursor={CURSOR}")
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/event-stream"
+    assert async_to_sync(read_body)(response) == "\n\n" + json.dumps(delta) + "\n\n"
+    assert cursors == [CURSOR]
+
+
+def test_closing_the_stream_closes_the_follower(mocker):
+    closed = []
+
+    async def follow_run(run, user, cursor=None):
+        try:
+            yield {"kind": "text.delta"}
+        finally:
+            closed.append(True)
+
+    mocker.patch("baserow.api.chat_runs.views.follow_run", follow_run)
+
+    async def close_after_first_record() -> list[bool]:
+        records = encode_records(None, None, None)
+        await anext(records)
+        await records.aclose()
+        return list(closed)
+
+    assert async_to_sync(close_after_first_record)() == [True]
+
+
+def test_stream_rejects_an_invalid_cursor(request_stream):
+    response = request_stream("?cursor=nope")
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+
+
+def test_stream_rejects_head_requests(request_stream):
+    assert request_stream(method="head").status_code == 405

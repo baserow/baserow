@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from baserow.core.chat_runs.buffer import parse_cursor
+
 
 class ChatRunSerializer(serializers.Serializer):
     id = serializers.UUIDField()
@@ -13,3 +15,17 @@ class ChatRunSerializer(serializers.Serializer):
 
 class ChatRunCancelSerializer(serializers.Serializer):
     status = serializers.CharField()
+
+
+class ChatRunStreamQuerySerializer(serializers.Serializer):
+    cursor = serializers.CharField(
+        required=False,
+        help_text="The cursor of the last record received, to resume after it.",
+    )
+
+    def validate_cursor(self, value: str) -> str:
+        try:
+            parse_cursor(value)
+        except ValueError:
+            raise serializers.ValidationError("Invalid cursor.") from None
+        return value
