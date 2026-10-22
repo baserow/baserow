@@ -908,3 +908,26 @@ test('keeps who else has access from the latest request only', async () => {
     wrapper.unmount()
   }
 })
+
+test('shows a loading state for who else has access until it is fetched', async () => {
+  const client = createClient()
+  let resolveEffectiveAccess
+  const get = client.get.getMockImplementation()
+  client.get.mockImplementation((url, config) =>
+    url === '/role/12/effective-access/'
+      ? new Promise((resolve) => (resolveEffectiveAccess = resolve))
+      : get(url, config)
+  )
+  const wrapper = await mountRoute(client, createTargetType())
+  try {
+    expect(wrapper.findAll('.loading')).toHaveLength(2)
+    expect(wrapper.find('.inherited').exists()).toBe(false)
+
+    resolveEffectiveAccess({ data: effectiveAccess })
+    await flushPromises()
+    expect(wrapper.find('.loading').exists()).toBe(false)
+    expect(wrapper.find('.inherited').exists()).toBe(true)
+  } finally {
+    wrapper.unmount()
+  }
+})

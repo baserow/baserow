@@ -45,8 +45,9 @@
             {{ $t('shareScope.inherited') }}
           </span>
         </h3>
+        <div v-if="loading" class="loading"></div>
         <ScopeInheritedAccess
-          v-if="!loading && effectiveAccess !== null"
+          v-else-if="effectiveAccess !== null"
           :workspace="workspace"
           :target="target"
           :target-type="targetType"
