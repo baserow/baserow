@@ -6,9 +6,21 @@
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('teamsTable.search')"
+      :row-expandable="rowExpansion.isExpandable"
+      :expand-column-key="rowExpansion.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
       <template #title="{ count }">
         {{
           $t('teamsTable.title', {
@@ -84,6 +96,7 @@ import ManagementNameField from '@baserow/modules/core/components/settings/Manag
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import EditTeamContext from '@baserow_enterprise/components/teams/EditTeamContext'
+import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
 
 export default {
   name: 'TeamsTable',
@@ -106,6 +119,12 @@ export default {
     }
   },
   computed: {
+    rowExpansion() {
+      return getSubjectRoleAssignmentsRowExpansion({
+        subjectType: 'baserow_enterprise.Team',
+        columnKey: 'default_role',
+      })
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     service() {
       const service = TeamService(this.$client)

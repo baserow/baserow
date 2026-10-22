@@ -5,8 +5,20 @@
     :columns="columns"
     row-id-key="id"
     :search-placeholder="$t('agents.search')"
+    :row-expandable="rowExpansion?.isExpandable"
+    :expand-column-key="rowExpansion?.columnKey"
     @row-context="openContext"
   >
+    <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
+      {{ rowExpansion.getToggleLabel(row) }}
+    </template>
+    <template v-if="rowExpansion" #expanded-row="slotProps">
+      <component
+        :is="rowExpansion.component"
+        v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+        :workspace="workspace"
+      />
+    </template>
     <template #title="{ count }">{{
       $t('agents.title', { count, workspace: workspace.name })
     }}</template>
@@ -69,6 +81,25 @@ export default {
     return { focusedAgentId: null }
   },
   computed: {
+    /**
+     * How an agent's row expands into more rows, as given by the first active
+     * extension offering it, or null.
+     */
+    rowExpansion() {
+      for (const extension of Object.values(
+        this.$registry.getAll('agentExtension')
+      )) {
+        if (extension.isActive(this.workspace)) {
+          const expansion = extension.getRowExpansion({
+            workspace: this.workspace,
+          })
+          if (expansion) {
+            return expansion
+          }
+        }
+      }
+      return null
+    },
     focusedAgent() {
       // Resolve the selection by ID so realtime updates reach the editor prop.
       return this.$store.getters['agent/get'](this.focusedAgentId) || null

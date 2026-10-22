@@ -405,6 +405,14 @@
     "label": "Manage members",
     "additionalRoles": "Additional roles"
   },
+  "subjectRoleAssignments": {
+    "location": "{type} in {path}",
+    "application": "Application",
+    "table": "Table",
+    "view": "View",
+    "remove": "Remove the role on {name}",
+    "showMore": "Show {count} more role | Show {count} more roles"
+  },
   "subjectType": {
     "team": "Team",
     "teams": "Teams",

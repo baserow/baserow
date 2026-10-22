@@ -6,9 +6,21 @@
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('membersSettings.membersTable.search')"
+      :row-expandable="rowExpansion?.isExpandable"
+      :expand-column-key="rowExpansion?.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template v-if="rowExpansion" #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
       <template #title>
         {{
           $t('membersSettings.membersTable.title', {
@@ -157,6 +169,23 @@ export default {
     },
     membersPagePlugins() {
       return Object.values(this.$registry.getAll('membersPagePlugins'))
+    },
+    /**
+     * How a member's row expands into more rows, as given by the first active
+     * plugin offering it, or null.
+     */
+    rowExpansion() {
+      for (const plugin of this.membersPagePlugins) {
+        if (!plugin.isDeactivated(this.workspace.id)) {
+          const expansion = plugin.getRowExpansion({
+            workspace: this.workspace,
+          })
+          if (expansion) {
+            return expansion
+          }
+        }
+      }
+      return null
     },
     columns() {
       let columns = [

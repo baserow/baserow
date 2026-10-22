@@ -30,6 +30,7 @@ from baserow_enterprise.api.errors import (
 )
 from baserow_enterprise.api.teams.serializers import (
     GetTeamsViewParamsSerializer,
+    TeamListResponseSerializer,
     TeamResponseSerializer,
     TeamSerializer,
     TeamSubjectResponseSerializer,
@@ -102,7 +103,7 @@ class TeamsView(APIView, SearchableViewMixin, SortableViewMixin):
         operation_id="workspace_list_teams",
         description=("Lists all teams in a given workspace."),
         responses={
-            200: TeamResponseSerializer(many=True),
+            200: TeamListResponseSerializer(many=True),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
@@ -123,10 +124,18 @@ class TeamsView(APIView, SearchableViewMixin, SortableViewMixin):
         )
 
         teams = TeamHandler().list_teams_in_workspace(request.user, workspace)
-        teams = self.apply_search(search, teams)
-        teams = self.apply_sorts_or_default_sort(sorts, teams)
+        teams = list(
+            self.apply_sorts_or_default_sort(sorts, self.apply_search(search, teams))
+        )
+        role_assignment_counts = RoleAssignmentHandler().count_subject_role_assignments(
+            request.user, workspace, teams
+        )
 
-        serializer = TeamResponseSerializer(teams, many=True)
+        serializer = TeamListResponseSerializer(
+            teams,
+            many=True,
+            context={"role_assignment_counts": role_assignment_counts},
+        )
         return Response(serializer.data)
 
     @extend_schema(

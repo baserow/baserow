@@ -7,13 +7,23 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
-from baserow.core.registries import object_scope_type_registry, subject_type_registry
+from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.registries import (
+    application_type_registry,
+    object_scope_type_registry,
+    subject_type_registry,
+)
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
 from baserow_enterprise.models import (
     Role,
     RoleAssignment,
     Team,
     WorkspaceScopedInvitation,
+)
+from baserow_enterprise.role.constants import ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+from baserow_enterprise.role.handler import (
+    RoleAssignmentHandler,
+    get_assignable_scope_type,
 )
 
 
@@ -393,3 +403,77 @@ class EffectiveAccessSerializer(serializers.Serializer):
         return EffectiveAccessTeamSerializer(
             [team for team in obj.teams if team.id in visible_team_ids], many=True
         ).data
+
+
+class SubjectRoleAssignmentScopeSerializer(serializers.Serializer):
+    scope_type = serializers.SerializerMethodField(
+        help_text="The type of the object: an application, a table or a view."
+    )
+    scope_id = serializers.IntegerField(source="id", help_text="The object's id.")
+    name = serializers.CharField(help_text="The object's name.")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_scope_type(self, obj):
+        return get_assignable_scope_type(obj).type
+
+
+class SubjectRoleAssignmentSerializer(serializers.Serializer):
+    """
+    Serializes a `SubjectRoleAssignment`: a role a subject holds on a database,
+    table or view, with where that object is and what makes the role inert.
+    """
+
+    scope_type = serializers.SerializerMethodField(
+        help_text="The type of the object: an application, a table or a view."
+    )
+    scope_id = serializers.IntegerField(source="scope.id", help_text="The object's id.")
+    name = serializers.CharField(source="scope.name", help_text="The object's name.")
+    type = serializers.SerializerMethodField(
+        help_text="The application type of an application or the view type of a "
+        "view, to tell what kind of object it is. Null for a table."
+    )
+    parents = SubjectRoleAssignmentScopeSerializer(
+        source="parent_scopes",
+        many=True,
+        help_text="The objects the object is in, from the outermost in, without the "
+        "workspace.",
+    )
+    role = serializers.SerializerMethodField(
+        help_text="The uid of the role held on the object."
+    )
+    locked_by = serializers.SerializerMethodField(
+        help_text="The workspace, or the application or table the object is in, on "
+        "which the subject holds the admin role themselves, which makes this role "
+        "have no effect. Null when the role applies."
+    )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_scope_type(self, obj):
+        return get_assignable_scope_type(obj.scope).type
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_role(self, obj):
+        return RoleAssignmentHandler().get_role_by_id(obj.role_assignment.role_id).uid
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_type(self, obj):
+        scope_type = get_assignable_scope_type(obj.scope).type
+        if scope_type == "application":
+            return application_type_registry.get_by_model(obj.scope.specific_class).type
+        if scope_type == "database_view":
+            return view_type_registry.get_by_model(obj.scope.specific_class).type
+        return None
+
+    @extend_schema_field(SubjectRoleAssignmentScopeSerializer(allow_null=True))
+    def get_locked_by(self, obj):
+        if obj.locked_by is None:
+            return None
+        return SubjectRoleAssignmentScopeSerializer(obj.locked_by).data
+
+
+class SubjectRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
+    subject_type = serializers.ChoiceField(
+        choices=lazy(lambda: ALLOWED_SUBJECT_TYPE_BY_PRIORITY, list)(),
+        help_text="The type of the subject: a user, an agent or a team.",
+    )
+    subject_id = serializers.IntegerField(min_value=1, help_text="The subject's id.")

@@ -133,7 +133,10 @@ class BaserowEnterpriseConfig(AppConfig):
             UpdateFieldPermissionsOperationType,
         )
         from .plugins import EnterprisePlugin
-        from .role.member_data_types import EnterpriseRolesDataType
+        from .role.member_data_types import (
+            EnterpriseRoleAssignmentCountDataType,
+            EnterpriseRolesDataType,
+        )
         from .role.operations import (
             AssignRoleWorkspaceOperationType,
             ReadRoleApplicationOperationType,
@@ -175,6 +178,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         member_data_registry.register(EnterpriseMemberTeamsDataType())
         member_data_registry.register(EnterpriseRolesDataType())
+        member_data_registry.register(EnterpriseRoleAssignmentCountDataType())
 
         object_scope_type_registry.register(TeamObjectScopeType())
         object_scope_type_registry.register(TeamSubjectObjectScopeType())
