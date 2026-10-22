@@ -331,6 +331,42 @@ def update_page(
 # ---------------------------------------------------------------------------
 
 
+def check_view_on_table(service_kwargs: dict, table: Any) -> None:
+    """
+    Check that the view in ``service_kwargs``, if any, is a view of ``table``, and
+    pass it on as ``view_id`` so the service type checks it again.
+
+    :raises ToolInputError: When the view belongs to another table.
+    """
+
+    view = service_kwargs.pop("view", None)
+    if view is None:
+        return
+    if table is None or view.table_id != table.id:
+        raise ToolInputError(
+            f"View with ID {view.id} is not a view of the data source's table. "
+            "Use list_views on that table to find valid view IDs. No changes were "
+            "applied."
+        )
+    service_kwargs["view_id"] = view.id
+
+
+def check_fields_in_table(table: Any, field_ids: list[int]) -> None:
+    """
+    :raises ToolInputError: When one of ``field_ids`` isn't a field of ``table``.
+    """
+
+    found = set(
+        Field.objects.filter(table=table, id__in=field_ids).values_list("id", flat=True)
+    )
+    missing = [field_id for field_id in field_ids if field_id not in found]
+    if missing:
+        raise ToolInputError(
+            f"Field with ID {missing[0]} not found in the data source's table. "
+            "Use get_table_schema to find valid field IDs. No changes were applied."
+        )
+
+
 def create_data_source(
     user: AbstractUser,
     page: Page,
@@ -342,6 +378,9 @@ def create_data_source(
     service_type = service_type_registry.get(ds_create.get_service_type())
     service_kwargs = ds_create.to_service_kwargs(user, page.builder.workspace)
     service_kwargs["integration"] = integration
+    check_view_on_table(service_kwargs, service_kwargs["table"])
+    sortings = ds_create.get_sortings()
+    check_fields_in_table(service_kwargs["table"], [s["field_id"] for s in sortings])
 
     data_source = DataSourceService().create_data_source(
         user=user,
@@ -351,8 +390,6 @@ def create_data_source(
         **service_kwargs,
     )
 
-    # Add sortings
-    sortings = ds_create.get_sortings()
     if sortings:
         from baserow.contrib.integrations.local_baserow.models import (
             LocalBaserowTableServiceSort,
@@ -411,6 +448,11 @@ def update_data_source(
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
+    if "view" in kwargs:
+        service = ds.service.specific if ds.service else None
+        check_view_on_table(
+            kwargs, kwargs.get("table", getattr(service, "table", None))
+        )
     if kwargs:
         ds = (
             DataSourceService()
@@ -492,7 +534,20 @@ def create_element(
         check_data_source_on_page(page, int(element_create.data_source))
 
     kwargs = element_create.to_orm_kwargs(user, target_page)
-    check_page_links(page.builder, kwargs)
+    # A header or footer names its pages and the pages of its menu items apart
+    # from the kwargs, so they are checked with them.
+    header_links = [
+        {"navigate_to_page_id": page_id}
+        for page_id in [
+            *(element_create.page_ids or []),
+            *(item.page_id for item in element_create.menu_items or []),
+        ]
+    ]
+    check_page_links(page.builder, [kwargs, header_links])
+    if element_create.page_ids:
+        kwargs["pages"] = list(
+            Page.objects.filter(builder=page.builder, id__in=element_create.page_ids)
+        )
 
     # Resolve parent
     if isinstance(parent, int):

@@ -515,10 +515,7 @@ def _choice_post_create(el: "ElementItemCreate", user, orm_element, page) -> Non
 def _header_footer_post_create(
     el: "ElementItemCreate", user, orm_element, page
 ) -> None:
-    """Set page associations and auto-create a child menu for header/footer elements."""
-
-    if el.page_ids:
-        orm_element.pages.set(el.page_ids)
+    """Auto-create a child menu for header/footer elements."""
 
     # If menu_items were provided on the header/footer itself, create a child
     # menu element — headers are containers, not menus.
