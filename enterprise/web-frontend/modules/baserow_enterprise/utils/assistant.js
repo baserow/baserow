@@ -27,12 +27,15 @@ const RUN_ERROR_KEYS = {
 }
 
 /**
- * The locale key that explains how the run that wrote an AI message failed,
- * or null when it didn't. An error code added later reads as a failure.
+ * The locale key that explains how the run that wrote an AI message ended,
+ * or null for a complete answer. An error code added later reads as a failure.
  */
 export function runOutcomeKey({ run_status: status, error_code: errorCode }) {
   if (RUN_ERROR_KEYS[errorCode]) {
     return RUN_ERROR_KEYS[errorCode]
+  }
+  if (status === RUN_STATUS.CANCELLED) {
+    return 'assistant.messageCancelled'
   }
   return status === RUN_STATUS.FAILED ? 'assistant.runErrorFailed' : null
 }

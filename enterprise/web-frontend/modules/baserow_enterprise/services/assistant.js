@@ -10,10 +10,13 @@ function getAssistantBaseURL(client) {
   return url.origin
 }
 
-export default (client) => {
-  // Store active XHR request by chat UUID for cancellation
-  const activeRequests = new Map()
+const cancelledError = () =>
+  Object.assign(new Error('Request cancelled'), {
+    isAxiosError: true,
+    cancelled: true,
+  })
 
+export default (client) => {
   return {
     async sendMessage(
       chatUuid,
@@ -34,20 +37,17 @@ export default (client) => {
           baseURL: getAssistantBaseURL(client),
           adapter: (config) => {
             return new Promise((resolve, reject) => {
+              if (options.signal?.aborted) return reject(cancelledError())
               const xhr = new XMLHttpRequest()
               const reader = createRecordReader(
                 () => xhr.responseText,
                 onDownloadProgress ?? (() => {})
               )
 
-              // Aborting a follower closes this response only. Stop is a separate
-              // durable, run-scoped request.
+              // Aborting closes only this response; the run keeps going.
               const abort = () => xhr.abort()
-              const cleanUp = () => {
-                activeRequests.delete(chatUuid)
+              const cleanUp = () =>
                 options.signal?.removeEventListener('abort', abort)
-              }
-              activeRequests.set(chatUuid, xhr)
               options.signal?.addEventListener('abort', abort, { once: true })
 
               xhr.open('POST', config.baseURL + config.url, true)
@@ -60,7 +60,6 @@ export default (client) => {
               }
 
               xhr.onload = () => {
-                // Clean up stored XHR reference
                 cleanUp()
 
                 // Check if the request was successful (2xx status codes)
@@ -73,10 +72,7 @@ export default (client) => {
                   try {
                     errorData = JSON.parse(xhr.responseText)
                   } catch {
-                    errorData = {
-                      error: 'REQUEST_FAILED',
-                      detail: xhr.responseText || xhr.statusText,
-                    }
+                    errorData = xhr.responseText
                   }
 
                   const error = new Error(
@@ -96,7 +92,6 @@ export default (client) => {
               }
 
               xhr.onerror = () => {
-                // Clean up stored XHR reference
                 cleanUp()
                 const error = new Error('Network error occurred')
                 error.isAxiosError = true
@@ -104,7 +99,6 @@ export default (client) => {
               }
 
               xhr.ontimeout = () => {
-                // Clean up stored XHR reference
                 cleanUp()
                 const error = new Error('Request timeout')
                 error.isAxiosError = true
@@ -112,19 +106,11 @@ export default (client) => {
               }
 
               xhr.onabort = () => {
-                // Clean up stored XHR reference
                 cleanUp()
-                const error = new Error('Request cancelled')
-                error.isAxiosError = true
-                error.cancelled = true
-                reject(error)
+                reject(cancelledError())
               }
 
-              if (options.signal?.aborted) {
-                abort()
-              } else {
-                xhr.send(config.data)
-              }
+              xhr.send(config.data)
             })
           },
         }
@@ -183,20 +169,6 @@ export default (client) => {
         }
       )
       return data.suggestions
-    },
-
-    async cancelMessage(chatUuid) {
-      await client.delete(`/assistant/chat/${chatUuid}/cancel/`, {
-        baseURL: getAssistantBaseURL(client),
-      })
-
-      // Abort the XHR request if it exists
-      const xhr = activeRequests.get(chatUuid)
-      if (xhr) {
-        // Optionally, set a custom property to indicate user-initiated abort
-        xhr._userCancelled = true
-        xhr.abort()
-      }
     },
   }
 }
