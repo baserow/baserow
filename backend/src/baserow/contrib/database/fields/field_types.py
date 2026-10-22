@@ -93,6 +93,7 @@ from baserow.contrib.database.api.fields.serializers import (
     IntegerOrStringField,
     LimitListSerializer,
     LinkRowFieldSerializerMixin,
+    LinkRowGroupByValueSerializer,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
     ListOrStringField,
@@ -2154,23 +2155,24 @@ class DateFieldType(FieldType):
             value = value.replace(second=0, microsecond=0)
         return value
 
+    def get_group_by_expression(self, field, field_name, base_queryset):
+        """Use the same minute precision for date-time groups on every surface."""
+        # Ignore seconds and microseconds so grouped-data keys match the per-row
+        # metadata and drilling into a group matches its rows. Gate on the field,
+        # not a concrete value: grouped-data queries build this expression without
+        # one. Date-only fields have no time component to truncate.
+        if field.date_include_time:
+            return DateTrunc(
+                "minute", field_name, output_field=models.DateTimeField(null=True)
+            )
+        return super().get_group_by_expression(field, field_name, base_queryset)
+
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows
     ):
-        filters = {field_name: value}
-        annotations = {}
-
-        # Shadow the column with a minute-truncated annotation so seconds and
-        # microseconds are ignored when grouping. Gate on the field, not the value,
-        # so the grouped-data query (which builds the shadow without a concrete
-        # value) truncates group keys the same way the per-row metadata query does;
-        # otherwise datetime groups key on the raw timestamp and drilling into them
-        # matches no rows. Date-only fields have no time component to truncate.
-        if field.date_include_time:
-            annotations[field_name] = DateTrunc(
-                "minute", field_name, output_field=models.DateTimeField(null=True)
-            )
-        return filters, annotations
+        return {field_name: value}, {
+            field_name: self.get_group_by_expression(field, field_name, base_queryset)
+        }
 
 
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
@@ -2299,6 +2301,10 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
             db_constraint=False,
             **kwargs,
         )
+
+    def get_group_by_label(self, value, field_object):
+        """Show the user's name rather than their email in group labels."""
+        return value.first_name if value is not None else ""
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
@@ -2525,6 +2531,10 @@ class CreatedByFieldType(ReadOnlyFieldType):
             db_constraint=False,
             **kwargs,
         )
+
+    def get_group_by_label(self, value, field_object):
+        """Show the user's name rather than their email in group labels."""
+        return value.first_name if value is not None else ""
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
@@ -3077,6 +3087,15 @@ class LinkRowFieldType(
             row, related_primary_field
         )
 
+    def get_individual_group_by_sort_expression(
+        self, field, field_name, sort_type, table_model=None
+    ):
+        """Use the linked primary field's sorting semantics for each linked row."""
+        primary = self._get_related_table_primary_field(field, table_model).specific
+        return primary.get_type().get_sortable_column_expression(
+            primary, f"{field_name}__{primary.db_column}", sort_type
+        )
+
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
@@ -3496,6 +3515,18 @@ class LinkRowFieldType(
             )
         )
 
+    def get_group_by_label(self, value, field_object):
+        """Delegate linked labels to the primary field's display-safe group hook."""
+
+        def map_to_group_label(inner_value, inner_field_object):
+            return inner_field_object["type"].get_group_by_label(
+                inner_value, inner_field_object
+            )
+
+        return ", ".join(
+            self._get_and_map_pk_values(field_object, value, map_to_group_label)
+        )
+
     def _get_related_model_and_primary_field(self, instance):
         """
         Returns related model and primary field.
@@ -3610,6 +3641,22 @@ class LinkRowFieldType(
 
         return LimitListSerializer(
             child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
+        )
+
+    def get_group_by_response_serializer_field(self, instance, **kwargs):
+        """
+        Grouped results render linked rows with the display-safe group label of
+        the related primary field instead of its human-readable value, so the
+        e-mail addresses of user-valued primaries do not leak through `str(row)`.
+        """
+
+        return LimitListSerializer(
+            child=LinkRowGroupByValueSerializer(),
             **{
                 "required": False,
                 "limit": kwargs.pop("limit_linked_items", None),
@@ -6015,6 +6062,13 @@ class MultipleSelectFieldType(
             for value in raw_values
         ]
 
+    def get_individual_group_by_sort_expression(
+        self, field, field_name, sort_type, table_model=None
+    ):
+        """Order individual select options by their requested option attribute."""
+        attribute = self._get_through_sort_expression(field, field_name, sort_type)
+        return F(f"{field_name}__{attribute}")
+
     def _get_through_sort_expression(self, field, field_name, sort_type):
         """
         Returns the expression to aggregate inside a through-table subquery,
@@ -7811,6 +7865,12 @@ class MultipleCollaboratorsFieldType(
         if len(export_value) == 0:
             return ""
         return ", ".join(export_value)
+
+    def get_group_by_label(self, value, field_object):
+        """Use collaborator names without exposing email addresses in group labels."""
+        if hasattr(value, "all"):
+            value = value.all()
+        return ", ".join(user.first_name for user in (value or []))
 
     def serialize_metadata_for_row_history(
         self,

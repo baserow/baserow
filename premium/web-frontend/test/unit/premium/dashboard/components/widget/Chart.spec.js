@@ -85,6 +85,129 @@ describe('Premium dashboard Chart component', () => {
     })
   }
 
+  test('truncates axis labels without changing full tooltip labels', async () => {
+    const label = 'Alice and Bob and Charlie with a very long name'
+    const data = {
+      labels: [label],
+      datasets: [{ type: 'bar', data: [12] }],
+    }
+    const wrapper = await mountComponent({ data })
+    const chart = wrapper.findComponent({ name: 'Bar' })
+    const callback = chart.props('options').scales.x.ticks.callback
+    const scale = {
+      getLabelForValue: () => label,
+      chart: { data: { labels: [label] }, chartArea: { width: 350 } },
+    }
+    expect(callback.call(scale, 0)).toBe(`${label.slice(0, 24)}…`)
+    expect(
+      callback.call({ ...scale, getLabelForValue: () => 'Alice' }, 0)
+    ).toBe('Alice')
+    scale.chart.chartArea.width = 70
+    expect(callback.call(scale, 0)).toBe(`${label.slice(0, 9)}…`)
+    scale.chart.data.labels = [label, label]
+    expect(callback.call(scale, 0)).toBe(`${label.slice(0, 4)}…`)
+    scale.chart.chartArea = undefined
+    scale.chart.width = 140
+    expect(callback.call(scale, 0)).toBe(`${label.slice(0, 9)}…`)
+    expect(chart.props('data').labels).toEqual([label])
+  })
+
+  test.each([
+    ['text', '', 'chart.empty'],
+    ['text', '   ', '   '],
+    ['number', 0, 0],
+    ['rating', 0, 0],
+    ['boolean', true, 'chart.true'],
+    ['boolean', false, 'chart.false'],
+    ['date', null, 'chart.empty'],
+    ['duration', null, 'chart.empty'],
+  ])('uses field emptiness for %s value %s', (type, value, expected) => {
+    const source = dataSource({
+      aggregation_group_bys: [{ field_id: 11 }],
+      context_data: { fields: { field_11: { type } } },
+    })
+    const fieldType = testApp.$registry.get('field', type)
+    const isEmpty = vi.spyOn(fieldType, 'isEmptyForGrouping')
+    try {
+      const data = chartData({
+        source,
+        data: { results: [{ field_11: value, 'Amount sum': 12 }] },
+      })
+      expect(data.labels).toEqual([expected])
+      if (value !== null) {
+        expect(isEmpty).toHaveBeenCalledWith(
+          source.context_data.fields.field_11,
+          value
+        )
+      }
+    } finally {
+      isEmpty.mockRestore()
+    }
+  })
+
+  test.each(['BAR', 'LINE', 'PIE', 'DOUGHNUT'])(
+    'uses saved series colors for %s charts',
+    (type) => {
+      const source = dataSource({
+        aggregation_group_bys: [{ field_id: 11 }],
+        context_data: { fields: { field_11: { type: 'text' } } },
+      })
+      const seriesConfig = [
+        { series_id: 1, series_chart_type: type, series_color: '#aabbcc' },
+      ]
+      const data = chartData({
+        source,
+        seriesConfig,
+        data: { results: [{ field_11: 'Alpha', 'Amount sum': 5 }] },
+      })
+      if (['PIE', 'DOUGHNUT'].includes(type)) {
+        expect(data.datasets[0].backgroundColor).toEqual(['#aabbcc'])
+      } else {
+        expect(data.datasets[0].backgroundColor).toBe('#aabbcc')
+        expect(data.datasets[0].borderColor).toBe('#aabbcc')
+      }
+      source.aggregation_group_bys = []
+      const ungrouped = chartData({
+        source,
+        seriesConfig,
+        data: { results: [{ 'Amount sum': 5 }] },
+      })
+      expect(ungrouped.datasets[0].backgroundColor).toEqual(
+        ['PIE', 'DOUGHNUT'].includes(type) ? ['#aabbcc'] : '#aabbcc'
+      )
+    }
+  )
+
+  test.each(['PIE', 'DOUGHNUT'])(
+    'generates a shade per slice from a custom %s series color',
+    (type) => {
+      const source = dataSource({
+        aggregation_group_bys: [{ field_id: 11 }],
+        context_data: { fields: { field_11: { type: 'text' } } },
+      })
+      const colors = chartData({
+        source,
+        seriesConfig: [
+          { series_id: 1, series_chart_type: type, series_color: '#808080' },
+        ],
+        data: {
+          results: Array.from({ length: 12 }, (_, index) => ({
+            field_11: `Group ${index}`,
+            'Amount sum': index + 1,
+          })),
+        },
+      }).datasets[0].backgroundColor
+      expect(colors).toHaveLength(12)
+      expect(colors[0]).toBe('#808080')
+      expect(new Set(colors).size).toBe(12)
+      expect(colors.every((color) => /^#[0-9a-f]{6,8}$/i.test(color))).toBe(
+        true
+      )
+      expect(parseInt(colors[1].slice(1, 3), 16)).toBeLessThan(128)
+      expect(parseInt(colors[2].slice(1, 3), 16)).toBeGreaterThan(128)
+    }
+  )
+
   test('builds chart data from grouped aggregation results', async () => {
     const data = chartData({
       data: {
@@ -452,4 +575,113 @@ describe('Premium dashboard Chart component', () => {
     expect(data.labels).toEqual(['Hardware'])
     expect(data.datasets[0].data).toEqual([20])
   })
+
+  test.each(['BAR', 'PIE'])(
+    'renders empty multiple selections in %s charts',
+    async (chartType) => {
+      const options = [
+        { id: 1, value: 'Alpha', color: 'red' },
+        { id: 2, value: 'Beta', color: 'blue' },
+      ]
+      const source = dataSource({
+        aggregation_group_bys: [{ field_id: 11 }],
+        context_data: {
+          fields: {
+            field_11: { type: 'multiple_select', select_options: options },
+          },
+        },
+      })
+      const data = chartData({
+        source,
+        seriesConfig: [{ series_id: 1, series_chart_type: chartType }],
+        data: {
+          results: [
+            { field_11: [], 'Amount sum': 12 },
+            { field_11: null, 'Amount sum': 8 },
+            { field_11: [options[0]], 'Amount sum': 3 },
+            { field_11: options, 'Amount sum': 5 },
+            { field_11: [1, 2], 'Amount sum': 6 },
+            { field_11: 'OTHER_VALUES', 'Amount sum': 7 },
+          ],
+        },
+      })
+      const wrapper = await mountComponent({ data })
+      const chartProps = wrapper
+        .findComponent({ name: chartType === 'BAR' ? 'Bar' : 'Pie' })
+        .props('data')
+      expect(chartProps.labels).toEqual([
+        'chart.empty',
+        'chart.empty',
+        'Alpha',
+        'Alpha, Beta',
+        'Alpha, Beta',
+        'chart.other',
+      ])
+      expect(chartProps.datasets[0].data).toEqual([12, 8, 3, 5, 6, 7])
+    }
+  )
+})
+
+describe('Grouped relation chart labels', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new PremiumTestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  test.each(['link_row', 'multiple_collaborators'])(
+    'uses the backend display value for %s group labels',
+    (type) => {
+      const source = {
+        type: 'local_baserow_grouped_aggregate_rows',
+        aggregation_series: [{ id: 1, field_id: 10, aggregation_type: 'sum' }],
+        aggregation_group_bys: [{ field_id: 11 }],
+        schema: {
+          items: {
+            properties: {
+              field_10_sum: {
+                title: 'Amount sum',
+                metadata: {
+                  display_name: 'Amount sum',
+                  source_field: { display_name: 'Amount' },
+                  aggregation: { type: 'sum' },
+                },
+              },
+            },
+          },
+        },
+        context_data: { fields: { field_11: { type } } },
+      }
+
+      const data = getDashboardChartData({
+        dataSource: source,
+        dataSourceData: {
+          results: [
+            {
+              id: 'Alpha',
+              field_11: [{ id: 1, value: 'Alpha' }],
+              'Amount sum': 12,
+            },
+            { id: '-', field_11: null, 'Amount sum': 5 },
+            { id: '-', field_11: [], 'Amount sum': 6 },
+            { id: 'OTHER_VALUES', field_11: 'OTHER_VALUES', 'Amount sum': 7 },
+          ],
+        },
+        seriesConfig: [{ series_id: 1, series_chart_type: 'BAR' }],
+        $registry: testApp.$registry,
+        $t: (key) => key,
+      })
+
+      expect(data.labels).toEqual([
+        'Alpha',
+        'chart.empty',
+        'chart.empty',
+        'chart.other',
+      ])
+    }
+  )
 })

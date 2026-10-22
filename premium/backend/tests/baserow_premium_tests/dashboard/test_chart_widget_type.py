@@ -60,3 +60,45 @@ def test_chart_widget_datasource_cannot_be_deleted(premium_data_fixture):
         DashboardDataSourceService().delete_data_source(
             user, chart_widget.data_source.id
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["chart", "pie_chart"])
+def test_chart_series_color_persistence(premium_data_fixture, kind):
+    """A series color survives updates and serialization and can be reset."""
+    from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+    from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+    from baserow_premium.api.dashboard.widgets.serializers import (
+        ChartSeriesConfigSerializer,
+        PieChartSeriesConfigSerializer,
+    )
+    from baserow_premium.integrations.local_baserow.models import (
+        LocalBaserowTableServiceAggregationSeries,
+    )
+
+    widget = getattr(premium_data_fixture, f"create_{kind}_widget")()
+    field = premium_data_fixture.create_number_field()
+    series = LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=widget.data_source.service, field=field, aggregation_type="sum", order=0
+    )
+    chart_type = "BAR" if kind == "chart" else "PIE"
+    serializer_class = (
+        ChartSeriesConfigSerializer
+        if kind == "chart"
+        else PieChartSeriesConfigSerializer
+    )
+    widget_type = widget_type_registry.get(kind)
+    for color in ["#aabbcc", "#12345678", None]:
+        config = {
+            "series_id": series.id,
+            "series_chart_type": chart_type,
+            "series_color": color,
+        }
+        serializer = serializer_class(data=config)
+        assert serializer.is_valid(), serializer.errors
+        widget_type.after_update(
+            UpdatedWidget(widget, {}, {}), series_config=[serializer.validated_data]
+        )
+        assert widget.series_config.get().series_color == color
+        exported = widget_type.serialize_property(widget, "series_config")
+        assert exported[0].get("series_color") == color

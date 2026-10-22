@@ -75,6 +75,36 @@
           </DropdownItem>
         </Dropdown>
       </FormGroup>
+      <FormGroup
+        v-if="showChartType"
+        small-label
+        horizontal
+        horizontal-narrow
+        class="margin-top-2"
+        :label="$t('aggregationSeriesForm.seriesColor')"
+      >
+        <a
+          ref="seriesColorSelect"
+          class="select-options__color"
+          :style="{
+            backgroundColor:
+              currentSeriesConfig.series_color || automaticSeriesColor,
+          }"
+          :aria-label="$t('aggregationSeriesForm.seriesColor')"
+          @click="openSeriesColor"
+        >
+          <i class="iconoir-nav-arrow-down"></i>
+        </a>
+        <ColorSelectContext
+          ref="seriesColorContext"
+          @selected="paletteColorChanged"
+        />
+        <ButtonText
+          v-if="currentSeriesConfig.series_color"
+          @click="seriesColorChanged(null)"
+          >{{ $t('aggregationSeriesForm.automaticColor') }}</ButtonText
+        >
+      </FormGroup>
     </FormSection>
     <FormSection v-if="aggregationSeries.length > 1">
       <ButtonText
@@ -92,6 +122,9 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
+import { getBaseColors } from '@baserow/modules/core/utils/colors'
+import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'
+import paletteColors from '@baserow/modules/core/assets/scss/colors.module.scss'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -99,6 +132,7 @@ const includes = (array) => (value) => {
 
 export default {
   name: 'AggregationSeriesForm',
+  components: { ColorSelectContext },
   emits: ['delete-series', 'series-config-changed'],
   mixins: [form],
   props: {
@@ -199,6 +233,10 @@ export default {
     compatibleTableFieldIds() {
       return this.compatibleFields.map((field) => field.id)
     },
+    automaticSeriesColor() {
+      const colors = getBaseColors()
+      return colors[this.seriesIndex % colors.length]
+    },
     currentSeriesConfig() {
       if (!this.widget) {
         return {}
@@ -266,8 +304,33 @@ export default {
       }
       this.v$.values.aggregation_type.$touch()
     },
+    openSeriesColor() {
+      if (this.disabled || this.loading) return
+      const color =
+        this.currentSeriesConfig.series_color || this.automaticSeriesColor
+      const name = Object.keys(paletteColors).find(
+        (key) => paletteColors[key].toLowerCase() === color.toLowerCase()
+      )
+      this.$refs.seriesColorContext.setActive(name || '')
+      this.$refs.seriesColorContext.toggle(this.$refs.seriesColorSelect)
+    },
+    paletteColorChanged(name) {
+      this.seriesColorChanged(paletteColors[name])
+    },
+    seriesColorChanged(color) {
+      if (this.disabled || this.loading) return
+      this.$emit('series-config-changed', {
+        ...this.currentSeriesConfig,
+        series_id: this.aggregationSeries[this.seriesIndex].id,
+        series_chart_type:
+          this.currentSeriesConfig.series_chart_type ||
+          this.widget.default_series_chart_type,
+        series_color: color,
+      })
+    },
     seriesChartTypeChanged(chartType) {
       const seriesConfig = {
+        ...this.currentSeriesConfig,
         series_id: this.aggregationSeries[this.seriesIndex].id,
         series_chart_type: chartType,
       }

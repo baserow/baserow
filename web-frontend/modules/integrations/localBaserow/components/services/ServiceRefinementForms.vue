@@ -16,15 +16,7 @@
         @click="openContextWithContent('group', $refs.groupContextLink)"
       >
         <i class="header__filter-icon iconoir-group"></i>
-        <span class="header__filter-name">{{
-          $t(
-            'serviceRefinementForms.groupTabTitle',
-            {
-              count: groupCount,
-            },
-            groupCount
-          )
-        }}</span>
+        <span class="header__filter-name">{{ groupTitle }}</span>
       </a>
 
       <!-- Filter Button -->
@@ -309,6 +301,11 @@ export default {
       required: false,
       default: null,
     },
+    groupTitleOverride: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   computed: {
     filterCount() {
@@ -319,6 +316,16 @@ export default {
         return this.sortCountOverride
       }
       return this.values.sortings ? this.values.sortings.length : 0
+    },
+    groupTitle() {
+      if (this.groupTitleOverride !== null) {
+        return this.groupTitleOverride
+      }
+      return this.$t(
+        'serviceRefinementForms.groupTabTitle',
+        { count: this.groupCount },
+        this.groupCount
+      )
     },
     groupCount() {
       if (this.groupCountOverride !== null) {

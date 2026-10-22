@@ -156,6 +156,7 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_sorts": [],
                     "service_aggregation_series": [
@@ -241,6 +242,7 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
                     "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [
                         {"aggregation_type": "sum", "field_id": 1, "id": 1},

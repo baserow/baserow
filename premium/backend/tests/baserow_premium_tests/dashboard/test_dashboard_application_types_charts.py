@@ -100,8 +100,9 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [
-                        {"field_id": None},
+                        {"field_id": None, "mode": "complete"},
                     ],
                     "service_aggregation_series": [
                         {
@@ -185,6 +186,7 @@ def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
                     "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [
                         {"field_id": None},
                     ],
@@ -360,6 +362,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_sorts": [],
                     "service_aggregation_series": [
@@ -445,6 +448,7 @@ def test_dashboard_import_serialized_with_widget_config(premium_data_fixture):
                     "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [
                         {"aggregation_type": "sum", "field_id": 1, "id": 1},
@@ -602,6 +606,7 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [],
                     "service_aggregation_sorts": [],
@@ -673,6 +678,7 @@ def test_dashboard_import_serialized_with_default_chart_type(premium_data_fixtur
                     "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [
                         {"aggregation_type": "sum", "field_id": 1, "id": 1},

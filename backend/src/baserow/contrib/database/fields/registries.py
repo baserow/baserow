@@ -1007,6 +1007,7 @@ class FieldType(
         order_direction: str,
         sort_type: str,
         table_model: Optional["GeneratedTableModel"] = None,
+        group_by_expression: Optional[Expression] = None,
     ) -> OptionallyAnnotatedOrderBy:
         """
         Returns the ordering used to sort the groups of a group-by data query. By
@@ -1022,11 +1023,48 @@ class FieldType(
         :param sort_type: The sort type that must be used.
         :param table_model: The table model instance that the field is part of,
             if available.
+        :param group_by_expression: The normalized grouping expression, when the
+            caller stores it separately from the field column. Direct references
+            to the original field in ordering expressions and annotations are
+            replaced with this value, preserving sorting wrappers and direction.
         :return: The ordering applied to the group-by data groups.
         """
 
-        return self.get_group_by_sort_order(
+        order = self.get_group_by_sort_order(
             field, field_name, order_direction, sort_type, table_model=table_model
+        )
+        if group_by_expression is None:
+            return order
+
+        def replace_field_reference(expression):
+            """Replace exact field references without rewriting relation lookups."""
+            if isinstance(expression, F):
+                return (
+                    group_by_expression if expression.name == field_name else expression
+                )
+            if expression is None:
+                return None
+            result = expression.copy()
+            result.set_source_expressions(
+                [
+                    replace_field_reference(source)
+                    for source in expression.get_source_expressions()
+                ]
+            )
+            return result
+
+        return OptionallyAnnotatedOrderBy(
+            order=[
+                replace_field_reference(expression) for expression in order.order_bys
+            ],
+            annotation=(
+                {
+                    alias: replace_field_reference(expression)
+                    for alias, expression in order.annotation.items()
+                }
+                if order.annotation is not None
+                else None
+            ),
         )
 
     def get_group_by_sort_order(
@@ -1468,6 +1506,34 @@ class FieldType(
             return ""
         else:
             return str(human_readable_value)
+
+    def get_group_by_label(self, value: Any, field_object: "FieldObject") -> str:
+        """
+        Return a display-safe label for a grouped field value.
+
+        Defaults to the human-readable value. Override when the export-oriented
+        representation contains information that should not appear in group labels.
+
+        :param value: The field value identifying the group.
+        :param field_object: The field object for the grouped field.
+        :return: A human-readable group label.
+        """
+
+        return self.get_human_readable_value(value, field_object)
+
+    def get_group_by_response_serializer_field(self, instance: Field, **kwargs):
+        """
+        Return the serializer used for this field's value in grouped results.
+
+        Defaults to the response serializer. Override when that representation
+        contains information that should not appear next to the display-safe
+        group labels of `get_group_by_label`.
+
+        :param instance: The field instance whose grouped value is serialized.
+        :return: The serializer field for the grouped value.
+        """
+
+        return self.get_response_serializer_field(instance, **kwargs)
 
     # noinspection PyMethodMayBeStatic
     def get_other_fields_to_trash_restore_always_together(
@@ -1979,6 +2045,23 @@ class FieldType(
 
         return F(field_name)
 
+    def get_individual_group_by_sort_expression(
+        self, field, field_name, sort_type, table_model=None
+    ):
+        """
+        Return the sort value for one member of an individual-value group.
+
+        Unlike complete-selection ordering, this must not aggregate all related
+        values in the cell. Relation types can delegate to their member's type.
+
+        :param field: The grouped field instance.
+        :param field_name: The field column or relation path.
+        :param sort_type: The requested sorting type.
+        :param table_model: The generated table model, when available.
+        :return: An expression identifying an individual member's sort value.
+        """
+        return self.get_sortable_column_expression(field, field_name, sort_type)
+
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
@@ -1995,6 +2078,10 @@ class FieldType(
         """
 
         return value
+
+    def get_group_by_expression(self, field, field_name, base_queryset):
+        """Return the per-row expression identifying a complete-selection group."""
+        return F(field_name)
 
     def get_group_by_field_filters_and_annotations(
         self,
@@ -2410,7 +2497,13 @@ class ManyToManyGroupByMixin:
         return (f"{related_field}_id",)
 
     def get_group_by_order(
-        self, field, field_name, order_direction, sort_type, table_model=None
+        self,
+        field,
+        field_name,
+        order_direction,
+        sort_type,
+        table_model=None,
+        group_by_expression=None,
     ):
         order = self.get_group_by_sort_order(
             field, field_name, order_direction, sort_type, table_model=table_model
@@ -2436,44 +2529,46 @@ class ManyToManyGroupByMixin:
             order=order.order, annotation=wrapped_annotation
         )
 
-    def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value, cte, rows
-    ):
+    def get_group_by_expression(self, field, field_name, base_queryset):
+        """Normalize a row's related IDs into one ordered, non-null array."""
         through_model = base_queryset.model._meta.get_field(
             field_name
         ).remote_field.through
         reversed_field = through_model._meta.get_fields()[1].name
         related_field = through_model._meta.get_fields()[2].name
 
-        filters = {field_name: value}
         # Use a correlated subquery instead of a CTE so that the database
         # computes each row's linked-ID array via an index lookup on the
         # through table, without materialising the entire relationship set
         # up-front. This is correct for all rows in the base_queryset
         # (including off-page ones) and avoids dragging enhance_by_fields()
         # joins into a CTE filter subquery.
-        annotations = {
-            field_name: Coalesce(
-                Subquery(
-                    through_model.objects.filter(
-                        **{
-                            f"{reversed_field}_id": OuterRef("id"),
-                            f"{related_field}_id__isnull": False,
-                        }
+        return Coalesce(
+            Subquery(
+                through_model.objects.filter(
+                    **{
+                        f"{reversed_field}_id": OuterRef("id"),
+                        f"{related_field}_id__isnull": False,
+                    }
+                )
+                .values(f"{reversed_field}_id")
+                .annotate(
+                    res=ArrayAgg(
+                        F(f"{related_field}_id"),
+                        order_by=self.get_group_by_aggregated_order(related_field),
                     )
-                    .values(f"{reversed_field}_id")
-                    .annotate(
-                        res=ArrayAgg(
-                            F(f"{related_field}_id"),
-                            order_by=self.get_group_by_aggregated_order(related_field),
-                        )
-                    )
-                    .values("res")[:1]
-                ),
-                Value([], output_field=ArrayField(IntegerField())),
-            )
+                )
+                .values("res")[:1]
+            ),
+            Value([], output_field=ArrayField(IntegerField())),
+        )
+
+    def get_group_by_field_filters_and_annotations(
+        self, field, field_name, base_queryset, value, cte, rows
+    ):
+        return {field_name: value}, {
+            field_name: self.get_group_by_expression(field, field_name, base_queryset)
         }
-        return filters, annotations
 
     def get_group_by_serializer_field(self, field, **kwargs):
         return serializers.ListSerializer(

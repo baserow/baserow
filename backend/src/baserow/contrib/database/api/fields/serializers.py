@@ -261,6 +261,30 @@ class LinkRowValueSerializer(serializers.Serializer):
     )
 
 
+class LinkRowGroupByValueSerializer(LinkRowValueSerializer):
+    """
+    Serializes a linked row inside grouped results. `LinkRowValueSerializer`
+    renders the related row's human-readable primary value, which can contain
+    data that must not reach group consumers, such as the e-mail addresses of a
+    collaborator primary field. This variant renders the primary field type's
+    display-safe group label instead.
+    """
+
+    value = serializers.SerializerMethodField(
+        help_text="The display-safe label of the primary field's value of the row "
+        "in the related table."
+    )
+
+    def get_value(self, row) -> str:
+        field_object = row._field_objects.get(row._primary_field_id)
+        if field_object is None:
+            return f"unnamed row {row.id}"
+        label = field_object["type"].get_group_by_label(
+            getattr(row, field_object["name"]), field_object
+        )
+        return "" if label is None else str(label)
+
+
 @extend_schema_field(OpenApiTypes.INT)
 class IntegerOrStringField(serializers.Field):
     """

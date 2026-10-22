@@ -511,3 +511,8 @@ domain than your Baserow, you need to make sure CORS is configured correctly.
 | -------------------------- | --------------------------------------------------------------- | -------- |
 | POSTHOG\_PROJECT\_API\_KEY | Set this to your Posthog project API key for product analytics. |          |
 | POSTHOG\_HOST              | Set this to your Posthog host for product analytics.            |          |
+
+Grouped aggregation data sources in Dashboard and Application Builder can save a bucket
+limit, including the Other bucket. `BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS`
+(default: `10`) caps this value and is used when no limit is saved. Saved limits are
+capped at execution time if the server maximum is reduced.

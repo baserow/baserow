@@ -118,6 +118,9 @@ class ChartWidgetType(WidgetType):
                         series_conf["series_id"]
                     )
                     to_update.series_chart_type = series_conf["series_chart_type"]
+                    to_update.series_color = series_conf.get(
+                        "series_color", to_update.series_color
+                    )
                     configs_to_update.append(to_update)
                     used_series_ids.add(series_conf["series_id"])
                 else:
@@ -126,11 +129,12 @@ class ChartWidgetType(WidgetType):
                             widget=updated_widget.widget,
                             series_id=series_conf["series_id"],
                             series_chart_type=series_conf["series_chart_type"],
+                            series_color=series_conf.get("series_color"),
                         )
                     )
 
             ChartSeriesConfig.objects.bulk_update(
-                configs_to_update, fields=["series_chart_type"]
+                configs_to_update, fields=["series_chart_type", "series_color"]
             )
             try:
                 ChartSeriesConfig.objects.bulk_create(configs_to_create)
@@ -237,6 +241,9 @@ class ChartWidgetType(WidgetType):
                 {
                     "series_id": conf.series_id,
                     "series_chart_type": conf.series_chart_type,
+                    **(
+                        {"series_color": conf.series_color} if conf.series_color else {}
+                    ),
                 }
                 for conf in instance.series_config.all()
             ]
@@ -337,6 +344,9 @@ class PieChartWidgetType(WidgetType):
                         series_conf["series_id"]
                     )
                     to_update.series_chart_type = series_conf["series_chart_type"]
+                    to_update.series_color = series_conf.get(
+                        "series_color", to_update.series_color
+                    )
                     configs_to_update.append(to_update)
                     used_series_ids.add(series_conf["series_id"])
                 else:
@@ -345,11 +355,12 @@ class PieChartWidgetType(WidgetType):
                             widget=updated_widget.widget,
                             series_id=series_conf["series_id"],
                             series_chart_type=series_conf["series_chart_type"],
+                            series_color=series_conf.get("series_color"),
                         )
                     )
 
             PieChartSeriesConfig.objects.bulk_update(
-                configs_to_update, fields=["series_chart_type"]
+                configs_to_update, fields=["series_chart_type", "series_color"]
             )
             try:
                 PieChartSeriesConfig.objects.bulk_create(configs_to_create)
@@ -456,6 +467,9 @@ class PieChartWidgetType(WidgetType):
                 {
                     "series_id": conf.series_id,
                     "series_chart_type": conf.series_chart_type,
+                    **(
+                        {"series_color": conf.series_color} if conf.series_color else {}
+                    ),
                 }
                 for conf in instance.series_config.all()
             ]

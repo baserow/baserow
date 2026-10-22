@@ -154,8 +154,9 @@ export default {
                         newLabel.text = dataset.label
                       }
                       newLabel.fillStyle =
-                        datasetColors[datasetIndex]?.[label.index % 10] ||
-                        label.fillStyle
+                        datasetColors[datasetIndex]?.[
+                          label.index % datasetColors[datasetIndex].length
+                        ] || label.fillStyle
                       newLabels.push(newLabel)
                     })
                     datasetIndex += 1
@@ -176,6 +177,34 @@ export default {
             },
           },
         },
+        ...(this.chartComponent === 'Bar'
+          ? {
+              scales: {
+                x: {
+                  ticks: {
+                    callback(value) {
+                      const label = String(this.getLabelForValue(value))
+                      const labelCount = Math.max(
+                        this.chart.data.labels.length,
+                        1
+                      )
+                      // Tick labels are measured before chartArea exists on mount.
+                      const chartWidth =
+                        this.chart.chartArea?.width ?? this.chart.width ?? 175
+                      const availableWidth = chartWidth / labelCount
+                      const maxCharacters = Math.max(
+                        4,
+                        Math.min(25, Math.floor(availableWidth / 7))
+                      )
+                      return label.length > maxCharacters
+                        ? `${label.slice(0, maxCharacters - 1)}…`
+                        : label
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
         elements: {
           bar: {
             borderRadius: {

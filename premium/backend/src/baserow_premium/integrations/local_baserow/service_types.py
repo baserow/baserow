@@ -3,14 +3,14 @@ from collections import Counter
 from typing import Any
 
 from django.conf import settings
-from django.db.models import F
+from django.db.models import F, Min, Q
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
-from baserow.contrib.database.fields.exceptions import FieldTypeDoesNotExist
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import AggregationTypeDoesNotExist
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.utils import AnnotatedAggregation
@@ -24,6 +24,7 @@ from baserow.contrib.integrations.local_baserow.models import Service
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
+from baserow.core.db import _PrefetchedManyToManyResult
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -41,15 +42,13 @@ from baserow_premium.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationSortBySerializer,
 )
 from baserow_premium.integrations.local_baserow.models import (
+    AggregationGroupByMode,
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
     LocalBaserowTableServiceAggregationSortBy,
 )
-from baserow_premium.integrations.registries import (
-    grouped_aggregation_group_by_registry,
-    grouped_aggregation_registry,
-)
+from baserow_premium.integrations.registries import grouped_aggregation_registry
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.services.types import (
     ServiceAggregationGroupByDict,
@@ -126,36 +125,72 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         return None
 
-    def _can_group_by_row_id(self, model) -> bool:
-        """Row grouping currently requires a scalar primary-field value."""
-        primary_field = model.get_primary_field()
-        serializer = primary_field.get_type().get_response_serializer_field(
-            primary_field
-        )
-        return not isinstance(
-            serializer, (serializers.ListField, serializers.ListSerializer)
-        )
+    def _get_related_result_values(self, field_object, model, results):
+        """Resolve related bucket values once for both labels and serialization."""
+        model_field = model._meta.get_field(field_object["name"])
+        if not model_field.is_relation:
+            return None
+
+        values = [
+            result[field_object["name"]]
+            for result in results
+            if result.get(field_object["name"]) not in (None, "OTHER_VALUES")
+        ]
+        related_ids = {
+            pk
+            for value in values
+            for pk in (value if isinstance(value, (list, tuple)) else [value])
+            if pk is not None
+        }
+        related_model = model_field.remote_field.model
+        if issubclass(related_model, GeneratedTableModel):
+            # A table model reached through a relation is generated without its
+            # `after_model_generation` hooks, so a linked primary that only exists
+            # through such a hook (e.g. Multiple collaborators) is not on the class
+            # yet and prefetching it raises. The standalone model of the linked
+            # table has every field attached.
+            related_model = related_model.baserow_table.get_model()
+        queryset = related_model.objects.filter(pk__in=related_ids)
+        if hasattr(queryset, "enhance_by_fields"):
+            queryset = queryset.enhance_by_fields(
+                only_field_ids=[related_model.get_primary_field().id]
+            )
+        objects_by_id = {obj.pk: obj for obj in queryset}
+
+        def resolve(value):
+            """Return a scalar or prefetched collection without querying per bucket."""
+            if model_field.many_to_many:
+                ids = (
+                    value
+                    if isinstance(value, (list, tuple))
+                    else []
+                    if value is None
+                    else [value]
+                )
+                return _PrefetchedManyToManyResult(
+                    related_model,
+                    ids,
+                    [objects_by_id[pk] for pk in ids if pk in objects_by_id],
+                )
+            return objects_by_id.get(value)
+
+        return resolve
 
     def _get_human_readable_result_value(
         self,
         value: Any,
         field_object: dict | None,
-        model,
+        resolve_related=None,
     ) -> str:
+        """Format a bucket label using the field's expected relation cardinality."""
         if field_object is None:
             return ""
         if value == "OTHER_VALUES":
             return value
+        if resolve_related is not None:
+            value = resolve_related(value)
 
-        model_field = model._meta.get_field(field_object["name"])
-        related_model = getattr(model_field.remote_field, "model", None)
-        if related_model is not None and value is not None:
-            try:
-                value = related_model.objects.get(pk=value)
-            except (TypeError, ValueError, related_model.DoesNotExist):
-                value = None
-
-        human_readable_value = field_object["type"].get_human_readable_value(
+        human_readable_value = field_object["type"].get_group_by_label(
             value, field_object
         )
         if human_readable_value is None:
@@ -403,6 +438,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         return (
             super().allowed_fields
             + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
+            + ["bucket_limit"]
         )
 
     @property
@@ -410,13 +446,24 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         return (
             super().serializer_field_names
             + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
-        ) + ["aggregation_series", "aggregation_group_bys", "aggregation_sorts"]
+        ) + [
+            "aggregation_series",
+            "aggregation_group_bys",
+            "aggregation_sorts",
+            "bucket_limit",
+        ]
 
     @property
     def serializer_field_overrides(self):
         return {
             **super().serializer_field_overrides,
             **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
+            "bucket_limit": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                min_value=1,
+                max_value=settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS,
+            ),
             "aggregation_series": LocalBaserowTableServiceAggregationSeriesSerializer(
                 many=True, source="service_aggregation_series", required=False
             ),
@@ -428,10 +475,19 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             ),
         }
 
+    def prepare_values(self, values, user, instance=None):
+        """Validate a configured bucket limit against the current server maximum."""
+        if "bucket_limit" in values:
+            values["bucket_limit"] = self.serializer_field_overrides[
+                "bucket_limit"
+            ].run_validation(values["bucket_limit"])
+        return super().prepare_values(values, user, instance)
+
     class SerializedDict(
         LocalBaserowViewServiceType.SerializedDict,
         LocalBaserowTableServiceFilterableMixin.SerializedDict,
     ):
+        bucket_limit: int | None
         service_aggregation_series: list[ServiceAggregationSeriesDict]
         service_aggregation_group_bys: list[ServiceAggregationGroupByDict]
         service_aggregation_sorts: list[ServiceAggregationSortByDict]
@@ -592,11 +648,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
 
                 if group_by["field_id"] is None:
-                    if not self._can_group_by_row_id(service.table.get_model()):
-                        raise DRFValidationError(
-                            detail="Row ID grouping is not supported for a multi-valued primary field.",
-                            code="invalid_field",
-                        )
                     return True
 
                 field = next(
@@ -607,9 +658,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
                 )
 
-                try:
-                    grouped_aggregation_group_by_registry.get_by_type(field.get_type())
-                except FieldTypeDoesNotExist:
+                if not field.get_type().check_can_group_by(
+                    field.specific, DEFAULT_SORT_TYPE_KEY
+                ):
                     raise DRFValidationError(
                         detail=f"The field with ID {group_by['field_id']} cannot "
                         "be used as a group by field.",
@@ -785,7 +836,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             for series in instance.service_aggregation_series.all()
         ]
         values["service_aggregation_group_bys"] = [
-            {"field_id": group_by.field_id}
+            {"field_id": group_by.field_id, "mode": group_by.mode}
             for group_by in instance.service_aggregation_group_bys.all()
         ]
         values["service_aggregation_sorts"] = [
@@ -823,6 +874,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             return [
                 {
                     "field_id": group_by.field_id,
+                    "mode": group_by.mode,
                 }
                 for group_by in service.service_aggregation_group_bys.all()
             ]
@@ -938,34 +990,77 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         :return: Aggregation results.
         """
 
+        bucket_limit = min(
+            service.bucket_limit
+            or settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS,
+            settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS,
+        )
         table = service.table
         model = self.get_table_model(service)
         queryset = self.build_queryset(service, table, dispatch_context, model=model)
         other_buckets_qs = queryset.all()
 
         group_by_values = []
+        collection_field = None
+        collection_mode = None
+        normalized_field = None
         for group_by in service.service_aggregation_group_bys.all():
             if group_by.field is None:
-                if not self._can_group_by_row_id(model):
-                    raise ServiceImproperlyConfiguredDispatchException(
-                        "Row ID grouping is not supported for a multi-valued primary field."
-                    )
                 group_by_values.append("id")
-                group_by_values.append(model.get_primary_field().db_column)
+                primary_field = model.get_primary_field()
+                group_by_values.append(primary_field.db_column)
+                if model._meta.get_field(primary_field.db_column).many_to_many:
+                    collection_field = primary_field
+                    collection_mode = AggregationGroupByMode.COMPLETE
                 break
             if group_by.field.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} is trashed."
                 )
-            try:
-                grouped_aggregation_group_by_registry.get_by_type(
-                    group_by.field.get_type()
-                )
-            except FieldTypeDoesNotExist:
+            if not group_by.field.get_type().check_can_group_by(
+                group_by.field.specific, DEFAULT_SORT_TYPE_KEY
+            ):
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} cannot be used for group by."
                 )
             group_by_values.append(group_by.field.db_column)
+            if model._meta.get_field(group_by.field.db_column).many_to_many:
+                collection_field = group_by.field
+                collection_mode = group_by.mode
+
+        if group_by_values:
+            group_by_field = (
+                model.get_primary_field() if group_by.field is None else group_by.field
+            )
+            if collection_field is None:
+                normalized_field = group_by_field
+                column = normalized_field.db_column
+                queryset = queryset.annotate(
+                    _grouped_value=normalized_field.get_type().get_group_by_expression(
+                        normalized_field.specific, column, queryset
+                    )
+                )
+                other_buckets_qs = queryset.all()
+                group_by_values = [
+                    "_grouped_value" if value == column else value
+                    for value in group_by_values
+                ]
+
+        if collection_field is not None:
+            normalized_field = collection_field
+            column = collection_field.db_column
+            if collection_mode == AggregationGroupByMode.INDIVIDUAL:
+                group_value = F(column)
+            else:
+                group_value = collection_field.get_type().get_group_by_expression(
+                    collection_field.specific, column, queryset
+                )
+            queryset = queryset.annotate(_grouped_value=group_value)
+            other_buckets_qs = queryset.all()
+            group_by_values = [
+                "_grouped_value" if value == column else value
+                for value in group_by_values
+            ]
 
         if len(group_by_values) > 0:
             queryset = queryset.values(*group_by_values)
@@ -1042,13 +1137,44 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             else:
                 field_obj = model.get_field_object(sort_by.reference)
                 field_type = field_obj["type"]
-                field_annotated_order_by = field_type.get_order(
-                    field=field_obj["field"],
+                if collection_field is not None:
+                    if collection_mode == AggregationGroupByMode.INDIVIDUAL:
+                        sort_annotations["_grouped_sort"] = Min(
+                            field_type.get_individual_group_by_sort_expression(
+                                field_obj["field"].specific,
+                                sort_by.reference,
+                                DEFAULT_SORT_TYPE_KEY,
+                                table_model=model,
+                            )
+                        )
+                        expression = F("_grouped_sort")
+                        sorts.append(
+                            expression.asc(nulls_first=True)
+                            if sort_by.direction == "ASC"
+                            else expression.desc(nulls_last=True)
+                        )
+                        continue
+                    field_order = field_type.get_group_by_order(
+                        field=field_obj["field"],
+                        field_name=sort_by.reference,
+                        order_direction=sort_by.direction,
+                        sort_type=DEFAULT_SORT_TYPE_KEY,
+                        table_model=model,
+                    )
+                    if field_order.annotation is not None:
+                        sort_annotations = {
+                            **sort_annotations,
+                            **field_order.annotation,
+                        }
+                    sorts.extend(field_order.order_bys)
+                    continue
+                field_annotated_order_by = field_type.get_group_by_order(
+                    field=field_obj["field"].specific,
                     field_name=sort_by.reference,
                     order_direction=sort_by.direction,
-                    # The application builder does not yet have compatibility with
-                    # different sort types, so it uses the default one instead.
                     sort_type=DEFAULT_SORT_TYPE_KEY,
+                    table_model=model,
+                    group_by_expression=F("_grouped_value"),
                 )
                 if field_annotated_order_by.annotation is not None:
                     sort_annotations = {
@@ -1064,20 +1190,44 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             model.get_primary_field() if group_by.field is None else group_by.field
             for group_by in service.service_aggregation_group_bys.all()
         ]
-        group_by_value_serializers_by_db_column = {
-            field.db_column: field.get_type().get_query_value_serializer(field.specific)
-            for field in group_by_fields
-        }
-
-        # Resolved once: both helpers query the group by relation and the name
-        # lookups below run for every result bucket.
-        name_property = self.get_name_property(service)
         name_field_object = self._get_name_field_object(service)
+        related_value_resolvers = {}
+        group_by_value_serializers_by_db_column = {}
+
+        def prepare_result_values(raw_results):
+            """Share batched relation lookups between result labels and field values."""
+            for field in group_by_fields:
+                field_object = model.get_field_object(field.db_column)
+                resolve_related = self._get_related_result_values(
+                    field_object, model, raw_results
+                )
+                if resolve_related is None:
+                    serialize = field_object["type"].get_query_value_serializer(
+                        field_object["field"]
+                    )
+                else:
+                    related_value_resolvers[field.db_column] = resolve_related
+                    field_type = field_object["type"]
+                    serializer = field_type.get_group_by_response_serializer_field(
+                        field_object["field"]
+                    )
+
+                    def serialize(
+                        value, resolve=resolve_related, serializer=serializer
+                    ):
+                        if value is None or value == "OTHER_VALUES":
+                            return value
+                        return serializer.to_representation(resolve(value))
+
+                group_by_value_serializers_by_db_column[field.db_column] = serialize
 
         def process_individual_result(result: dict, overflow=False):
             """Finalize aggregates and assign readable group labels before deduplication."""
 
             result = {**result}
+            result.pop("_grouped_value", None)
+            for sort_key in sort_annotations:
+                result.pop(sort_key, None)
             for agg_series in defined_agg_series:
                 key = f"{agg_series.field.db_column}_{agg_series.aggregation_type}"
                 raw_value = result.pop(f"{key}_raw")
@@ -1089,11 +1239,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 del result["total"]
             if overflow:
                 name = "OTHER_VALUES"
-            elif name_property:
+            elif name_field_object is not None:
+                name_property = name_field_object["name"]
                 name = self._get_human_readable_result_value(
                     result.get(name_property),
                     name_field_object,
-                    model,
+                    related_value_resolvers.get(name_property),
                 )
             else:
                 name = "Result"
@@ -1110,32 +1261,37 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if len(group_by_values) > 0:
             queryset = queryset.annotate(**combined_agg_dict)
             queryset = queryset.order_by(*sorts)
-            queryset = queryset[
-                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS + 1
-            ]
+            queryset = queryset[: bucket_limit + 1]
             raw_results = list(queryset)
+            if normalized_field is not None:
+                for result in raw_results:
+                    result[normalized_field.db_column] = result["_grouped_value"]
+            prepare_result_values(raw_results)
 
             results = [process_individual_result(result) for result in raw_results]
             buckets_count = len(raw_results)
-            if (
-                buckets_count
-                > settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
-            ):
+            if buckets_count > bucket_limit:
                 # The number of buckets don't fit in the limit
                 # so we will aggregate all the other buckets into one
                 bucket_db_column = group_by_values[0]
-                raw_results = raw_results[
-                    : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
-                    - 1
-                ]
-                results = results[
-                    : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
-                    - 1
-                ]
+                raw_results = raw_results[: bucket_limit - 1]
+                results = results[: bucket_limit - 1]
                 buckets_taken = [result[bucket_db_column] for result in raw_results]
-                other_buckets_qs = other_buckets_qs.exclude(
-                    **{f"{bucket_db_column}__in": buckets_taken}
+                # The bucket column is an annotation, so Django does not add the
+                # `IS NOT NULL` guard it adds to negated field lookups. Without it
+                # `NOT (value IN (...))` is NULL for an empty group and the group
+                # silently disappears from the overflow bucket.
+                taken_filter = Q(
+                    **{
+                        f"{bucket_db_column}__in": [
+                            value for value in buckets_taken if value is not None
+                        ],
+                        f"{bucket_db_column}__isnull": False,
+                    }
                 )
+                if None in buckets_taken:
+                    taken_filter |= Q(**{f"{bucket_db_column}__isnull": True})
+                other_buckets_qs = other_buckets_qs.exclude(taken_filter)
 
                 other_bucket_results = other_buckets_qs.aggregate(**combined_agg_dict)
                 other_bucket_primary_field = (
@@ -1146,6 +1302,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 other_bucket_results = process_individual_result(
                     {
                         bucket_db_column: "OTHER_VALUES",
+                        **(
+                            {normalized_field.db_column: "OTHER_VALUES"}
+                            if normalized_field is not None
+                            else {}
+                        ),
                         **other_bucket_primary_field,
                         **other_bucket_results,
                     },

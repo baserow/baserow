@@ -429,6 +429,19 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Group labels differ from required-input validation: false and zero identify
+   * real groups, while only missing values and empty selections have no label.
+   */
+  isEmptyForGrouping(field, value) {
+    return (
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      (Array.isArray(value) && value.length === 0)
+    )
+  }
+
+  /**
    * Returns true if the value is empty. Shared by the conditional-visibility
    * filters and required form validation so the two stay in sync.
    */

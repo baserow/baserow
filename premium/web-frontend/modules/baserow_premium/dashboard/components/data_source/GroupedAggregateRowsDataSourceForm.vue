@@ -109,6 +109,7 @@
       :values="values"
       :table-fields="tableFields"
       :group-count-override="values.aggregation_group_bys.length"
+      :group-title-override="groupTitleOverride"
       :sort-count-override="values.aggregation_sorts.length"
       show-filter
       show-group
@@ -117,8 +118,11 @@
       <template #group-form>
         <AggregationGroupByForm
           :aggregation-group-bys="values.aggregation_group_bys"
+          :bucket-limit="values.bucket_limit"
           :table-fields="tableFields"
           @value-changed="onGroupByUpdated($event)"
+          @mode-changed="onGroupByModeUpdated($event)"
+          @bucket-limit-changed="onBucketLimitUpdated($event)"
         >
         </AggregationGroupByForm>
       </template>
@@ -198,6 +202,7 @@ export default {
         'aggregation_series',
         'aggregation_group_bys',
         'aggregation_sorts',
+        'bucket_limit',
       ],
       values: {
         table_id: null,
@@ -207,12 +212,25 @@ export default {
         aggregation_series: [],
         aggregation_group_bys: [],
         aggregation_sorts: [],
+        bucket_limit: null,
       },
       tableLoading: false,
       skipFirstValuesEmit: true,
     }
   },
   computed: {
+    groupTitleOverride() {
+      const groupBy = this.values.aggregation_group_bys[0]
+      if (!groupBy) return null
+      const field = this.tableFields.find(
+        (field) => field.id === groupBy.field_id
+      )
+      const name = field
+        ? field.name
+        : this.$t('aggregationGroupByForm.groupByRowId')
+      return this.$t('aggregationGroupByForm.groupedByField', { field: name })
+    },
+
     computedTableId: {
       get() {
         return this.v$.values.table_id.$model
@@ -361,6 +379,10 @@ export default {
     }
   },
   methods: {
+    onBucketLimitUpdated(bucketLimit) {
+      this.$emit('values-changed', { bucket_limit: bucketLimit })
+    },
+
     /* Overrides the method in the tableFields mixin */
     getTableId() {
       return this.values.table_id
@@ -437,6 +459,13 @@ export default {
       updatedAggregationSeries[index] = aggregationSeriesValues
       this.$emit('values-changed', {
         aggregation_series: updatedAggregationSeries,
+      })
+    },
+    onGroupByModeUpdated(mode) {
+      this.$emit('values-changed', {
+        aggregation_group_bys: this.values.aggregation_group_bys.map(
+          (groupBy) => ({ ...groupBy, mode })
+        ),
       })
     },
     onGroupByUpdated(groupBy) {
