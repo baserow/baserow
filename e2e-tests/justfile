@@ -268,7 +268,6 @@ up: _ensure-images
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
             -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
             -e OPENAI_BASE_URL=http://e2e-kuma-model:8080/v1 \
-            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=e2e-mail \
             -e EMAIL_SMTP_PORT=1025 \
@@ -301,7 +300,6 @@ up: _ensure-images
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
             -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
             -e OPENAI_BASE_URL=http://e2e-kuma-model:8080/v1 \
-            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=e2e-mail \
             -e EMAIL_SMTP_PORT=1025 \

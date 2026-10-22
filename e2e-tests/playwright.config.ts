@@ -57,6 +57,16 @@ const config: PlaywrightTestConfig = {
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
     video: "on-first-retry",
+    // Kuma's panel would otherwise open over the pages under test.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
+          localStorage: [{ name: "baserow.rightSidebarOpen", value: "false" }],
+        },
+      ],
+    },
     nuxt: {
       host: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
       // Disable fixture loading - test against running server, not local Nuxt app

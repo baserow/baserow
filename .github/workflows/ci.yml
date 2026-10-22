@@ -703,7 +703,6 @@ jobs:
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
             -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
             -e OPENAI_BASE_URL=http://kuma-model-stub:8080/v1 \
-            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=mailhog \
             -e EMAIL_SMTP_PORT=1025 \
@@ -735,7 +734,6 @@ jobs:
             -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
             -e BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/kuma-e2e \
             -e OPENAI_BASE_URL=http://kuma-model-stub:8080/v1 \
-            -e OPENAI_API_KEY=e2e \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=mailhog \
             -e EMAIL_SMTP_PORT=1025 \
