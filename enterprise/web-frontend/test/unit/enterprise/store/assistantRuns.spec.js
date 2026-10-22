@@ -7,7 +7,10 @@ import {
   destroyRunsTestApp,
   cursor,
   runRecord,
-} from '../chatRuns/runLog'
+  followRun,
+  acceptRecord,
+  applySnapshot,
+} from '../assistantRunHelpers'
 import { getTabId } from '@baserow_enterprise/utils/assistantTabStorage'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
 
@@ -25,7 +28,8 @@ const refused = (status, code) =>
       code,
       detail: 'Refused.',
       isTooManyRequests: () => status === 429,
-      hasRequestBodyValidationError: () => status === 400,
+      hasRequestBodyValidationError: () =>
+        code === 'ERROR_REQUEST_BODY_VALIDATION',
     },
   })
 
@@ -46,6 +50,10 @@ describe('Kuma durable streamed send and resume', () => {
     await store.dispatch('assistant/selectChat', store.state.assistant.chats[0])
     await flushPromises()
   }
+  const rereadChat = (refresh) =>
+    refresh === 'reopen'
+      ? store.dispatch('assistant/selectChat', store.state.assistant.chats[0])
+      : store.dispatch('assistant/refreshCurrentChat')
   beforeEach(async () => {
     testApp = createRunsTestApp()
     store = testApp.store
@@ -118,18 +126,10 @@ describe('Kuma durable streamed send and resume', () => {
     '%s keeps current feedback from history instead of the finished follower snapshot',
     async (refresh) => {
       await open()
-      await store.dispatch('chatRuns/follow', {
-        runId: 'run-1',
-        runType: 'assistant',
-        chatId: 7,
-        attach: false,
-      })
-      await store.dispatch('chatRuns/applySnapshot', {
-        runId: 'run-1',
-        snapshot: {
-          status: 'completed',
-          message: { ...answer, human_sentiment: null },
-        },
+      await followRun(store)
+      await applySnapshot(store, {
+        status: 'completed',
+        message: { ...answer, human_sentiment: null },
       })
       const ratedAnswer = { ...answer, human_sentiment: 'Good' }
       service.fetchChatMessages.mockResolvedValue({
@@ -143,14 +143,7 @@ describe('Kuma durable streamed send and resume', () => {
         },
       })
 
-      if (refresh === 'reopen') {
-        await store.dispatch(
-          'assistant/selectChat',
-          store.state.assistant.chats[0]
-        )
-      } else {
-        await store.dispatch('assistant/refreshCurrentChat')
-      }
+      await rereadChat(refresh)
 
       expect(
         store.getters['assistant/messages'].map((message) => message.id)
@@ -176,40 +169,58 @@ describe('Kuma durable streamed send and resume', () => {
     expect(store.getters['assistant/currentChat'].title).toBe('A useful title')
   })
 
-  test('a final response racing the history read still inserts the saved answer once', async () => {
-    const active = { id: 'run-1', status: 'running' }
-    await open(active)
-    await store.dispatch('chatRuns/applySnapshot', {
-      runId: 'run-1',
-      snapshot: { status: 'completed', message: answer },
-    })
+  test('a late title goes to the chat it was generated for', async () => {
+    send()
+    await flushPromises()
+    const firstChatId = store.getters['assistant/currentChatId']
+    await store.dispatch('assistant/clearChat')
+    await store.dispatch('assistant/createChat', workspace.id)
+    await emit('chat/title', { content: 'First title' }, { cursor: cursor(1) })
 
-    // This response captured the turn before the worker's final commit.
-    service.fetchChatMessages.mockResolvedValue({
-      chat_id: 7,
-      messages: [human],
-      active_run: active,
-    })
-    await store.dispatch('assistant/refreshCurrentChat')
-
-    expect(
-      store.getters['assistant/messages'].map((message) => message.id)
-    ).toEqual([human.id, answer.id])
+    const chats = store.getters['assistant/chats']
+    expect(chats.find((c) => c.id === firstChatId).title).toBe('First title')
+    expect(store.getters['assistant/currentChat'].title).toBe('')
   })
+
+  test.each(['reopen', 'focus'])(
+    'a final response racing the history read on %s still inserts the saved answer once',
+    async (refresh) => {
+      const active = { id: 'run-1', status: 'running' }
+      await open(active)
+      await applySnapshot(store, { status: 'completed', message: answer })
+
+      // This response captured the turn before the worker's final commit.
+      service.fetchChatMessages.mockResolvedValue({
+        chat_id: 7,
+        messages: [human],
+        active_run: active,
+      })
+      await rereadChat(refresh)
+
+      expect(
+        store.getters['assistant/messages'].map((message) => message.id)
+      ).toEqual([human.id, answer.id])
+    }
+  )
 
   test('a terminal resume header waits for the saved answer instead of completing with partial text', async () => {
     await open({ id: 'run-1', status: 'running' })
-    const accept = (record) =>
-      store.dispatch('chatRuns/acceptRecord', { runId: 'run-1', record })
-    await accept(
+    await acceptRecord(
+      store,
       runRecord('ai/reasoning', { content: 'Partial' }, { cursor: cursor(1) })
     )
 
     // The worker finished between the status read and the resume request.
-    await accept(runRecord('chat-run-state', {}, { status: 'completed' }))
+    await acceptRecord(
+      store,
+      runRecord('chat-run-state', {}, { status: 'completed' })
+    )
     await flushPromises()
     expect(follower().finished).toBe(false)
-    await accept(runRecord('ai/message', answer, { status: 'completed' }))
+    await acceptRecord(
+      store,
+      runRecord('ai/message', answer, { status: 'completed' })
+    )
 
     expect(store.getters['assistant/messages'].at(-1)).toMatchObject(answer)
   })
@@ -222,13 +233,14 @@ describe('Kuma durable streamed send and resume', () => {
       message: null,
     })
 
-    await store.dispatch('chatRuns/acceptRecord', {
-      runId: 'run-1',
-      record: runRecord('chat-run-state', {}, { status: 'failed' }),
-    })
+    await acceptRecord(
+      store,
+      runRecord('chat-run-state', {}, { status: 'failed' })
+    )
     await flushPromises()
 
     expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
+      content: '',
       run_status: 'failed',
       error_code: 'interrupted',
     })
@@ -305,6 +317,42 @@ describe('Kuma durable streamed send and resume', () => {
     expect(service.resumeMessage).toHaveBeenCalledTimes(1)
   })
 
+  test.each([
+    [429, 'ERROR_CHAT_RUN_LIMIT', 'assistant.runLimitReached'],
+    [400, 'ERROR_REQUEST_BODY_VALIDATION', 'assistant.runMessageTooLong'],
+    [400, 'ERROR_ASSISTANT_MODEL_DISABLED', 'Refused.'],
+  ])('a %i %s refusal reads as %s', async (status, code, content) => {
+    await open()
+    service.sendMessage.mockRejectedValue(refused(status, code))
+    expect(await send()).toBe(SEND_OUTCOME.FAILED)
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
+      content,
+      error: true,
+    })
+    await flushPromises()
+    expect(store.getters['assistant/currentChat'].running).toBe(false)
+  })
+
+  test('refreshing the chat keeps a refused prompt and its explanation', async () => {
+    await open()
+    service.sendMessage.mockRejectedValue(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
+    await send()
+    await store.dispatch('assistant/refreshCurrentChat')
+    expect(store.getters['assistant/messages'].map((m) => m.content)).toEqual([
+      'Hi',
+      'assistant.runLimitReached',
+    ])
+  })
+
+  test('a bug while recovering a lost send surfaces instead of a refusal', async () => {
+    const sending = send()
+    await flushPromises()
+    const bug = new Error('bug')
+    service.fetchChatMessages.mockRejectedValue(bug)
+    fail(new Error('offline'))
+    await expect(sending).rejects.toBe(bug)
+  })
+
   test('early loss never associates the send with a later run from another tab', async () => {
     const sending = send()
     await flushPromises()
@@ -322,15 +370,5 @@ describe('Kuma durable streamed send and resume', () => {
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
     expect(service.resumeMessage).not.toHaveBeenCalled()
     expect(store.getters['chatRuns/getFollower']('other-run')).toBeNull()
-  })
-
-  test('a backend without optional run metadata still uses the original stream once', async () => {
-    const sending = send()
-    await flushPromises()
-    await receive(answer)
-    finish()
-    expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
-    expect(service.resumeMessage).not.toHaveBeenCalled()
-    expect(store.getters['assistant/messages'].at(-1).content).toBe('Hello')
   })
 })

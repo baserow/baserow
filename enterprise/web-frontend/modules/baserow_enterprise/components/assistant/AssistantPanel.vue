@@ -73,13 +73,14 @@ import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
 import ApplicationService from '@baserow/modules/core/services/application'
+import ViewService from '@baserow/modules/database/services/view'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
 
 const WAITING_FOR_WORKER_AFTER_MS = 3000
 const BROADCAST_WAIT_MS = 3000
-const READY_WAIT_MS = 10000
 
 export default {
   name: 'AssistantPanel',
@@ -126,12 +127,14 @@ export default {
       return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
-      return Boolean(this.currentChat?.cancelling)
+      return Boolean(
+        this.currentChat?.cancelling || this.activeFollower?.stopRequested
+      )
     },
     assistantRunningMessage() {
       const follower = this.activeFollower
       if (!follower) {
-        return this.currentChat?.runningMessage || ''
+        return ''
       }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')
@@ -197,6 +200,9 @@ export default {
           newLocation.type === 'database-table' ||
           newLocation.type === 'database-view'
         ) {
+          // Opening the table fetches its views unless the store has them.
+          const viewsLoaded = () =>
+            store.state.view.tableId === newLocation.table_id
           this.navigateOnceLoaded({
             applicationId: newLocation.database_id,
             findTarget: (database) =>
@@ -205,16 +211,22 @@ export default {
               ),
             addTarget: (database, table) =>
               store.dispatch('table/forceUpsert', { database, data: table }),
-            isReady: () => {
-              const isCurrentlyOnTable =
-                this.$route.name === 'database-table' &&
-                parseInt(this.$route.params.tableId) ===
-                  parseInt(newLocation.table_id)
-              return (
-                !isCurrentlyOnTable ||
-                !newLocation.view_id ||
-                store.getters['view/get'](newLocation.view_id)
+            isReady: () =>
+              !newLocation.view_id ||
+              !viewsLoaded() ||
+              store.getters['view/get'](newLocation.view_id),
+            loadReady: async () => {
+              const { data } = await ViewService(this.$client).get(
+                newLocation.view_id,
+                true,
+                true,
+                true,
+                true,
+                true
               )
+              if (viewsLoaded() && data.table_id === newLocation.table_id) {
+                await store.dispatch('view/forceCreate', { data })
+              }
             },
             route: {
               name: 'database-table',
@@ -324,24 +336,27 @@ export default {
     /**
      * Opens what Kuma just created once the store has it. The realtime
      * broadcast usually adds it within a moment; when it is late, for example
-     * because a single Celery process is busy running Kuma, the application is
-     * fetched instead.
+     * because a single Celery process is busy running Kuma, it is fetched
+     * instead.
      *
-     * @param {object} target
-     * @param {number} target.applicationId The application holding the target.
-     * @param {function(object): object|undefined} target.findTarget Finds the
+     * @param {object} options
+     * @param {number} options.applicationId The application holding the target.
+     * @param {function(object): object|undefined} options.findTarget Finds the
      *   table, page or workflow in an application, in the store or as fetched.
-     * @param {function(object, object): Promise} target.addTarget Adds the
+     * @param {function(object, object): Promise} options.addTarget Adds the
      *   fetched target to the application in the store.
-     * @param {function(): boolean} [target.isReady] Any other condition the
+     * @param {function(): boolean} [options.isReady] Any other condition the
      *   route needs.
-     * @param {object} target.route Where to navigate.
+     * @param {function(): Promise} [options.loadReady] Fetches what isReady
+     *   waits for.
+     * @param {object} options.route Where to navigate.
      */
     async navigateOnceLoaded({
       applicationId,
       findTarget,
       addTarget,
       isReady = () => true,
+      loadReady = async () => {},
       route,
     }) {
       const findStoredTarget = () => {
@@ -362,15 +377,22 @@ export default {
         }
       }
       try {
-        // A new view only arrives through its broadcast, so it keeps the longer wait.
-        await waitFor(isReady, 5, READY_WAIT_MS)
+        await waitFor(isReady, 5, BROADCAST_WAIT_MS)
       } catch {
-        return
+        try {
+          await loadReady()
+        } catch {
+          return
+        }
+        if (!isReady()) {
+          return
+        }
       }
       this.$router.push(route)
     },
     /**
-     * Adds only the missing target so the application keeps its selected state.
+     * Adds the fetched application when the store lacks it, otherwise only its
+     * missing target, so the application keeps its selected state.
      */
     async loadNavigationTarget(applicationId, findTarget, addTarget) {
       const { data } = await ApplicationService(this.$client).get(applicationId)
@@ -403,15 +425,10 @@ export default {
      * answer keeps going in its own chat.
      */
     async sendPendingPrompt(prompt) {
-      const workspace = this.workspace
       await this.setPendingPrompt(null)
-      // The user can have left the prompt's workspace while the steps above ran.
-      if (this.workspace.id !== workspace.id) {
-        return
-      }
       await this.clearChat()
       this.$refs.message.focus()
-      await this.sendMessage({ message: prompt, workspace })
+      await this.sendMessage({ message: prompt, workspace: this.workspace })
     },
 
     async handleSendMessage(text) {
@@ -427,7 +444,11 @@ export default {
     },
 
     async handleCancelMessage() {
-      await this.cancelMessage()
+      try {
+        await this.cancelMessage()
+      } catch (error) {
+        notifyIf(error)
+      }
     },
 
     toggleChatHistoryContext() {

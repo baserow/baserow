@@ -4,6 +4,7 @@ import { runOutcomeKey } from '@baserow_enterprise/utils/assistant'
 
 describe('runOutcomeKey', () => {
   test.each([
+    ['cancelled', '', 'assistant.messageCancelled'],
     ['cancelled', 'interrupted', 'assistant.runErrorInterrupted'],
     ['failed', 'not_started', 'assistant.runErrorNotStarted'],
     ['failed', 'added_later', 'assistant.runErrorFailed'],

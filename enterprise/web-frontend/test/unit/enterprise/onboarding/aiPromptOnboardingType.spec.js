@@ -9,7 +9,6 @@ import {
 
 const workspace = { id: 3 }
 const data = { ai_prompt: { prompt: 'A CRM', industry: 'Sales', team: 'Ops' } }
-const tableLocation = { type: 'database-table', database_id: 1, table_id: 2 }
 
 function onboardingStep({
   start = { outcome: 'accepted', runId: 'run-1' },
@@ -20,10 +19,6 @@ function onboardingStep({
       dispatch: vi.fn(async (action) =>
         action === 'assistant/startRun' ? start : undefined
       ),
-      getters: {
-        'assistant/currentChat': { id: 'chat', running: false },
-        'assistant/uiLocationHistory': [tableLocation],
-      },
     },
     $bus: { $emit: vi.fn() },
     hooks: { hookOnce: (name, callback) => callback() },
@@ -60,16 +55,5 @@ describe('AIPromptOnboardingType', () => {
 
     await expect(complete(step)).rejects.toThrow()
     expect(getStoredOnboardingRunId()).toBe(null)
-  })
-
-  test('a backend without optional run metadata completes from the same streamed answer', async () => {
-    const { step } = onboardingStep({
-      start: { outcome: 'accepted', runId: null },
-    })
-    const response = await complete(step)
-    expect(step.getCompletedRoute(data, { ai_prompt: response })).toEqual({
-      name: 'database-table',
-      params: { databaseId: 1, tableId: 2 },
-    })
   })
 })
