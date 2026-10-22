@@ -13,7 +13,7 @@ export class KumaPanel {
   /** A new tab on `url`, whose panel opens by itself because another tab left it open. */
   static async inNewTab(
     context: BrowserContext,
-    url: string,
+    url: string
   ): Promise<KumaPanel> {
     const kuma = new KumaPanel(await context.newPage());
     await kuma.page.goto(url);
@@ -21,7 +21,7 @@ export class KumaPanel {
     return kuma;
   }
 
-  /** Opens the panel of a page that starts with it closed, as `authenticate()` leaves it. */
+  /** Opens the panel of a page that starts with it closed, as the configured storage state leaves it. */
   async open(): Promise<void> {
     await expect(this.panel).toBeHidden();
     await this.page.locator(".tree__link", { hasText: "Kuma AI" }).click();
@@ -37,7 +37,7 @@ export class KumaPanel {
   /** The chat's AI messages, the answer still being written included. */
   answers(): Locator {
     return this.panel.locator(
-      ".assistant__message--ai .assistant__message-text",
+      ".assistant__message--ai .assistant__message-text"
     );
   }
 
@@ -47,7 +47,7 @@ export class KumaPanel {
 
   async expectIdle(): Promise<void> {
     await expect(
-      this.panel.locator(".assistant__input-status"),
+      this.panel.locator(".assistant__input-status")
     ).not.toHaveClass(/is-running/, { timeout: 60_000 });
   }
 

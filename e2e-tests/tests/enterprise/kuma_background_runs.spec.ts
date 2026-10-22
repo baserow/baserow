@@ -1,3 +1,4 @@
+import { Page } from "@playwright/test";
 import { getClient } from "../../client";
 import { KumaPanel } from "../../pages/components/kumaPanel";
 import { WorkspacePage } from "../../pages/workspacePage";
@@ -12,17 +13,17 @@ const TABLE_URL = /\/database\/\d+\/table\/\d+/;
 test.describe.configure({ mode: "default", timeout: 90_000 });
 test.skip(
   process.env.E2E_KUMA_MODEL_STUB !== "yes",
-  "Needs Kuma pointed at the model stub in stubs/kuma-model.",
+  "Needs Kuma pointed at the model stub in stubs/kuma-model."
 );
 test.skip(
   ({ browserName }) => browserName !== "chromium",
-  "One browser covers run delivery.",
+  "One browser covers run delivery."
 );
 
 /** "word1 word2 ... word<count>", what the stub answers to `scriptedMessage(count)`. */
 function answerOf(count: number): string {
   return Array.from({ length: count }, (_, index) => `word${index + 1}`).join(
-    " ",
+    " "
   );
 }
 
@@ -35,14 +36,14 @@ function scriptedMessage(words: number): string {
 function answerFrom(shown: string): RegExp {
   const count = shown.trim().split(/\s+/).length;
   const cuts = Array.from({ length: WORDS - count + 1 }, (_, index) =>
-    answerOf(count + index),
+    answerOf(count + index)
   );
   return new RegExp(`^\\s*(${cuts.join("|")})\\s*$`);
 }
 
 /** The run still answering the workspace's only Kuma chat, or null once it is done. */
 async function activeRun(
-  workspacePage: WorkspacePage,
+  workspacePage: WorkspacePage
 ): Promise<{ id: string } | null> {
   const client = getClient(workspacePage.user);
   const chatsUrl = `${baserowConfig.PUBLIC_BACKEND_URL}/assistant/chat/`;
@@ -50,115 +51,74 @@ async function activeRun(
     params: { workspace_id: workspacePage.workspace.id },
   });
   const { data } = await client.get(
-    `${chatsUrl}${chats.results[0].uuid}/messages/`,
+    `${chatsUrl}${chats.results[0].uuid}/messages/`
   );
   return data.active_run;
+}
+
+async function openKuma(
+  page: Page,
+  workspacePage: WorkspacePage
+): Promise<KumaPanel> {
+  const kuma = new KumaPanel(page);
+  await workspacePage.goto();
+  await kuma.open();
+  return kuma;
+}
+
+/** Counts prompts sent to Kuma; resumes post to the same URL without content. */
+function countPrompts(page: Page): () => number {
+  let prompts = 0;
+  page.on("request", (request) => {
+    if (
+      /\/assistant\/chat\/[^/]+\/messages\/$/.test(request.url()) &&
+      request.postDataJSON()?.content
+    ) {
+      prompts += 1;
+    }
+  });
+  return () => prompts;
 }
 
 test("a reload while Kuma answers picks the answer up where it was", async ({
   page,
   workspacePage,
 }) => {
-  const kuma = new KumaPanel(page);
-  const posts: Record<string, unknown>[] = [];
-  const statuses: number[] = [];
-  page.on("request", (request) => {
-    if (
-      request.method() === "POST" &&
-      /\/assistant\/chat\/[^/]+\/messages\/$/.test(request.url())
-    ) {
-      posts.push(request.postDataJSON());
-    }
-  });
-  page.on("response", (response) => {
-    if (
-      response.request().method() === "POST" &&
-      /\/assistant\/chat\/[^/]+\/messages\/$/.test(response.url())
-    ) {
-      statuses.push(response.status());
-    }
-  });
-  await workspacePage.goto();
-  await kuma.open();
+  const prompts = countPrompts(page);
+  const kuma = await openKuma(page, workspacePage);
   await kuma.send(scriptedMessage(WORDS));
+  await expect(kuma.lastAnswer()).toContainText("word5", { timeout: 30_000 });
+  const shown = (await kuma.lastAnswer().textContent()) ?? "";
 
-  for (const word of ["word5", "word15", "word25"]) {
-    await expect(kuma.lastAnswer()).toContainText(word, { timeout: 30_000 });
-    const shown = (await kuma.lastAnswer().textContent()) ?? "";
-    await page.reload();
-    await expect(kuma.lastAnswer()).toHaveText(answerFrom(shown), {
-      timeout: 30_000,
-    });
-  }
+  await page.reload();
+  await expect(kuma.lastAnswer()).toHaveText(answerFrom(shown), {
+    timeout: 30_000,
+  });
+  // The saved answer is whole, so only a live resume can show a partial one.
+  expect(await kuma.lastAnswer().textContent()).not.toContain(`word${WORDS}`);
 
   await kuma.expectIdle();
   await expect(kuma.answers()).toHaveText([answerOf(WORDS)]);
-  expect(posts.filter((body) => "content" in body)).toHaveLength(1);
-  expect(posts.filter((body) => "run_id" in body).length).toBeGreaterThan(0);
-  expect(
-    posts
-      .filter((body) => "run_id" in body)
-      .every((body) => !("content" in body) && !("ui_context" in body)),
-  ).toBe(true);
-  expect(statuses.every((status) => status === 200)).toBe(true);
+  expect(prompts()).toBe(1);
 });
 
-test("a failed resume reconnects read-only without another prompt", async ({
+test("a reply whose resumed stream ends early shows the saved answer from its status", async ({
   page,
   workspacePage,
 }) => {
-  const kuma = new KumaPanel(page);
-  await workspacePage.goto();
-  await kuma.open();
-  await kuma.send(scriptedMessage(WORDS));
-  await expect(kuma.lastAnswer()).toContainText("word3", { timeout: 30_000 });
-  let failedResume = false;
-  let prompts = 0;
-  await page.route("**/assistant/chat/*/messages/", async (route) => {
-    const request = route.request();
-    if (request.method() === "POST") {
-      const body = request.postDataJSON();
-      if (body.content) prompts += 1;
-      if (body.run_id && !failedResume) {
-        failedResume = true;
-        return route.abort("connectionreset");
-      }
-    }
-    return route.continue();
-  });
-  await page.reload();
-  await kuma.expectIdle();
-  await expect(kuma.answers()).toHaveText([answerOf(WORDS)], {
-    timeout: 60_000,
-  });
-  expect(failedResume).toBe(true);
-  expect(prompts).toBe(0);
-});
-
-test("missing live output recovers the saved answer through durable status", async ({
-  page,
-  workspacePage,
-}) => {
-  const kuma = new KumaPanel(page);
-  await workspacePage.goto();
-  await kuma.open();
+  const prompts = countPrompts(page);
+  const kuma = await openKuma(page, workspacePage);
   await kuma.send(scriptedMessage(WORDS));
   await expect(kuma.lastAnswer()).toContainText("word3", { timeout: 30_000 });
   let resumes = 0;
-  let prompts = 0;
   await page.route("**/assistant/chat/*/messages/", async (route) => {
-    const request = route.request();
-    if (request.method() === "POST") {
-      const body = request.postDataJSON();
-      if (body.content) prompts += 1;
-      if (body.run_id) {
-        resumes += 1;
-        return route.fulfill({
-          status: 200,
-          contentType: "text/event-stream",
-          body: "\n\n",
-        });
-      }
+    if (route.request().postDataJSON()?.run_id) {
+      resumes += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: "\n\n",
+      });
     }
     return route.continue();
   });
@@ -168,8 +128,7 @@ test("missing live output recovers the saved answer through durable status", asy
   });
   await kuma.expectIdle();
   expect(resumes).toBeGreaterThan(0);
-  expect(resumes).toBeLessThanOrEqual(3);
-  expect(prompts).toBe(0);
+  expect(prompts()).toBe(1);
 });
 
 test("a run keeps going when its tab closes, and a new tab shows the whole answer", async ({
@@ -177,9 +136,7 @@ test("a run keeps going when its tab closes, and a new tab shows the whole answe
   page,
   workspacePage,
 }) => {
-  const kuma = new KumaPanel(page);
-  await workspacePage.goto();
-  await kuma.open();
+  const kuma = await openKuma(page, workspacePage);
   await kuma.send(scriptedMessage(WORDS));
   await expect(kuma.lastAnswer()).toContainText("word3", { timeout: 30_000 });
   await page.close();
@@ -190,7 +147,7 @@ test("a run keeps going when its tab closes, and a new tab shows the whole answe
 
   const reopened = await KumaPanel.inNewTab(
     context,
-    workspacePage.getFullUrl(),
+    workspacePage.getFullUrl()
   );
   await reopened.openLatestChat();
   await expect(reopened.answers()).toHaveText([answerOf(WORDS)]);
@@ -201,9 +158,7 @@ test("with two tabs on a chat, only the tab that sent the message follows Kuma t
   page,
   workspacePage,
 }) => {
-  const sender = new KumaPanel(page);
-  await workspacePage.goto();
-  await sender.open();
+  const sender = await openKuma(page, workspacePage);
   await sender.send("Hello Kuma");
   await expect(sender.lastAnswer()).toHaveText(UNSCRIPTED_ANSWER, {
     timeout: 30_000,

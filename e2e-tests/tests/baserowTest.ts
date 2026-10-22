@@ -21,19 +21,6 @@ type BaserowFixtures = {
  * Fixture for all tests that need an authenticated user with an empty workspace.
  */
 export const test = base.extend<BaserowFixtures>({
-  context: async ({ context }, use) => {
-    // Kuma's panel would otherwise open over every page a browser visits first.
-    await context.addInitScript(() => {
-      try {
-        if (localStorage.getItem("baserow.rightSidebarOpen") === null) {
-          localStorage.setItem("baserow.rightSidebarOpen", "false");
-        }
-      } catch {
-        // about:blank and data: URLs have no storage, and specs count page errors.
-      }
-    });
-    await use(context);
-  },
   workspacePage: async ({ page, goto }, use) => {
     // Don't show the cookie notice
     await page.context().addCookies([
