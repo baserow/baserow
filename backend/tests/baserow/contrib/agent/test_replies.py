@@ -1,5 +1,4 @@
 import asyncio
-from dataclasses import replace
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -7,7 +6,6 @@ from django.db import DEFAULT_DB_ALIAS
 from django.test import override_settings
 
 import pytest
-from asgiref.sync import async_to_sync
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -16,7 +14,6 @@ from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
-from pydantic_ai.models.test import TestModel
 
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
@@ -30,10 +27,10 @@ from baserow.contrib.agent.models import (
     AgentTurn,
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
-from baserow.contrib.agent.replies import AgentResponder, create_reply_model
+from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.types import AgentMessageCreated, AgentReplyRequest
 from baserow.core.cache import local_cache
-from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
+from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
@@ -54,57 +51,35 @@ def run_of(conversation: AgentConversation) -> ChatRun:
     return ChatRun.objects.get(run_type="agent", chat_id=conversation.id)
 
 
-def reply_request() -> AgentReplyRequest:
-    return AgentReplyRequest(
-        turn_id=1,
-        workspace=None,
-        instructions="",
-        provider_type="openai",
-        model_identifier="m",
-        prompt="Hi",
-        history=[],
-    )
-
-
-class FakeJournal:
-    def __init__(self) -> None:
-        self.texts: list[str] = []
-        self.stop_reason: str | None = None
-        self._stopped = asyncio.Event()
-
-    def emit_text(self, text: str, variant: str | None = None) -> None:
-        self.texts.append(text)
-
-    async def wait_for_stop(self) -> None:
-        await self._stopped.wait()
-
-    def stop(self, reason: str) -> None:
-        self.stop_reason = reason
-        self._stopped.set()
+@pytest.fixture
+def reply_run(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    return run_of(start(user, configured_agent(user=user)).conversation)
 
 
 @pytest.mark.django_db
-def test_a_message_is_answered_by_its_own_run(data_fixture, configured_agent):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    result = start(user, agent)
-    run = run_of(result.conversation)
-    assert (run.created_by_id, run.context) == (
-        user.id,
-        {"turn_id": result.message.turn_id},
-    )
-
-    run_reply(run)
+def test_a_message_is_answered_privately_and_saved_without_null_characters(
+    reply_run, reply_model
+):
+    reply_model.custom_output_text = "Hello\x00 from the agent"
+    exporter = InMemorySpanExporter()
+    tracer_provider = TracerProvider()
+    tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
+    Agent.instrument_all(InstrumentationSettings(tracer_provider=tracer_provider))
+    try:
+        run_reply(reply_run)
+    finally:
+        Agent.instrument_all(False)
 
     turn = AgentTurn.objects.get()
     reply = turn.messages.get(role="assistant")
+    assert (reply_run.created_by_id, reply_run.context) == (
+        turn.conversation.owner_user_id,
+        {"turn_id": turn.id},
+    )
     assert reply.content == "Hello from the agent"
-    assert (result.message.author_user_id, reply.author_user_id) == (user.id, None)
     assert (turn.status, turn.error_code) == ("completed", "")
-    assert (turn.provider_type, turn.model_identifier) == ("openai", "test-model")
-    assert turn.usage["requests"] == 1
-    assert turn.model_messages[-1]["parts"][0]["content"] == "Hello from the agent"
-    assert turn.finished_on is not None
+    assert exporter.get_finished_spans() == ()
 
 
 @pytest.mark.django_db
@@ -152,43 +127,50 @@ def test_the_model_gets_the_instructions_and_recent_history(
     assert seen[-1].instructions == "Be brief."
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
-    "reason,status,error_code,error_logs",
+    "reason,status,error_code",
     [
-        ("cancelled", "cancelled", "", []),
-        ("timeout", "failed", "timeout", []),
-        (
-            None,
-            "failed",
-            "failed",
-            ["ERROR Agent turn 1 could not be answered (ModelHTTPError, status 429)"],
-        ),
+        ("cancelled", "cancelled", ""),
+        ("timeout", "failed", "timeout"),
+        (None, "failed", "failed"),
     ],
 )
-def test_an_unfinished_reply_keeps_its_partial_text(
-    reason, status, error_code, error_logs, logs
+def test_unfinished_replies_persist_partial_text_without_private_error_details(
+    reply_run, mocker, logs, reason, status, error_code
 ):
-    journal = FakeJournal()
+    emit_text = ChatRunJournal.emit_text
+
+    def emit_and_stop(journal, text):
+        emit_text(journal, text)
+        if reason:
+            journal.request_stop(reason)
+
+    mocker.patch.object(ChatRunJournal, "emit_text", emit_and_stop)
 
     async def stream(messages, info):
         yield "Hel"
         if reason is None:
             raise ModelHTTPError(429, "m", body="Private provider details")
-        journal.stop(reason)
         await asyncio.Event().wait()
 
-    responder = AgentResponder(
-        reply_request(), journal, FunctionModel(stream_function=stream), {}
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
     )
 
-    outcome = async_to_sync(responder.answer)()
+    run_reply(reply_run)
 
-    assert (outcome.status, outcome.error_code) == (status, error_code)
-    assert (outcome.result.text, outcome.result.model_messages) == ("Hel", None)
-    assert journal.texts == ["Hel"]
-    assert [
-        f"{log.record['level'].name} {log.record['message']}" for log in logs
-    ] == error_logs
+    turn = AgentTurn.objects.get()
+    reply_run.refresh_from_db()
+    assert (turn.status, turn.error_code) == (status, error_code)
+    assert (reply_run.status, reply_run.error_code) == (status, error_code)
+    assert turn.messages.get(role="assistant").content == "Hel"
+    assert [log.record["message"] for log in logs] == (
+        [f"Agent turn {turn.id} could not be answered (ModelHTTPError, status 429)"]
+        if reason is None
+        else []
+    )
 
 
 @pytest.mark.django_db
@@ -197,8 +179,14 @@ def test_the_reply_model_is_built_without_a_request(
 ):
     agent = configured_agent(user=data_fixture.create_user())
     send = mocker.patch("httpx2.AsyncClient.send")
-    request = replace(
-        reply_request(), workspace=agent.workspace, model_identifier="test-model"
+    request = AgentReplyRequest(
+        turn_id=1,
+        workspace=agent.workspace,
+        instructions="",
+        provider_type="openai",
+        model_identifier="test-model",
+        prompt="Hi",
+        history=[],
     )
 
     # The autouse fixture patches the name chat_run_type imported, not this one.
@@ -209,68 +197,22 @@ def test_the_reply_model_is_built_without_a_request(
 
 
 @pytest.mark.django_db
-def test_a_reply_drops_the_null_characters_postgres_cannot_store(
-    data_fixture, configured_agent, mocker
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+def test_a_reply_to_a_deleted_conversation_fails_without_an_error_log(reply_run, logs):
+    AgentConversation.objects.get(id=reply_run.chat_id).delete()
 
-    async def stream(messages, info):
-        yield "Hel\x00lo"
+    run_reply(reply_run)
 
-    mocker.patch(
-        "baserow.contrib.agent.chat_run_type.create_reply_model",
-        return_value=(FunctionModel(stream_function=stream), {}),
-    )
-    run = run_of(start(user, agent).conversation)
-
-    run_reply(run)
-
-    turn = AgentTurn.objects.get()
-    assert turn.messages.get(role="assistant").content == "Hello"
-    assert turn.model_messages[-1]["parts"][0]["content"] == "Hello"
-
-
-def test_a_reply_is_not_traced_by_the_global_agent_instrumentation():
-    exporter = InMemorySpanExporter()
-    tracer_provider = TracerProvider()
-    tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
-    Agent.instrument_all(InstrumentationSettings(tracer_provider=tracer_provider))
-    responder = AgentResponder(reply_request(), FakeJournal(), TestModel(), {})
-
-    try:
-        outcome = async_to_sync(responder.answer)()
-    finally:
-        Agent.instrument_all(False)
-
-    assert outcome.status == "completed"
-    assert exporter.get_finished_spans() == ()
-
-
-@pytest.mark.django_db
-def test_a_reply_to_a_deleted_conversation_fails_without_an_error_log(
-    data_fixture, configured_agent, logs
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    conversation = start(user, agent).conversation
-    run = run_of(conversation)
-    conversation.delete()
-
-    run_reply(run)
-
-    run.refresh_from_db()
-    assert (run.status, run.error_code) == ("failed", "failed")
+    reply_run.refresh_from_db()
+    assert (reply_run.status, reply_run.error_code) == ("failed", "failed")
     assert logs == []
 
 
 @pytest.mark.django_db
-def test_lost_and_unstarted_runs_end_their_turn(data_fixture, configured_agent):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+def test_lost_and_unstarted_runs_end_their_turn(reply_run):
+    conversation = AgentConversation.objects.get(id=reply_run.chat_id)
     run_type = AgentChatRunType()
-    lost = run_of(start(user, agent).conversation)
-    unstarted = run_of(start(user, agent).conversation)
+    lost = reply_run
+    unstarted = run_of(start(conversation.owner_user, conversation.agent).conversation)
     lost.status, lost.error_code = "failed", "interrupted"
     unstarted.status, unstarted.error_code = "failed", "not_started"
     events = [
@@ -293,22 +235,17 @@ def test_lost_and_unstarted_runs_end_their_turn(data_fixture, configured_agent):
 
 
 @pytest.mark.django_db
-def test_the_interruption_warning_only_ends_turns_still_running(
-    data_fixture, configured_agent
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    run = run_of(start(user, agent).conversation)
+def test_the_interruption_warning_only_ends_turns_still_running(reply_run):
     run_type = AgentChatRunType()
 
-    run_type.ensure_interruption_warning(run)
-    run_type.ensure_interruption_warning(run)
+    run_type.ensure_interruption_warning(reply_run)
+    run_type.ensure_interruption_warning(reply_run)
 
     turn = AgentTurn.objects.get()
     assert (turn.status, turn.error_code) == ("failed", "interrupted")
     turn.status, turn.error_code = "completed", ""
     turn.save()
-    run_type.ensure_interruption_warning(run)
+    run_type.ensure_interruption_warning(reply_run)
     turn.refresh_from_db()
     assert turn.status == "completed"
 
@@ -318,12 +255,9 @@ def test_the_interruption_warning_only_ends_turns_still_running(
     "change,error_code",
     [("unconfigure", "not_ready"), ("leave", "not_allowed"), ("trash", "not_allowed")],
 )
-def test_a_reply_rechecks_the_configuration_and_access(
-    data_fixture, configured_agent, change, error_code
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    run = run_of(start(user, agent).conversation)
+def test_a_reply_rechecks_the_configuration_and_access(reply_run, change, error_code):
+    user = reply_run.created_by
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
     if change == "unconfigure":
         agent.instructions = ""
         agent.save()
@@ -332,7 +266,7 @@ def test_a_reply_rechecks_the_configuration_and_access(
     else:
         TrashHandler.trash(user, agent.workspace, agent, agent)
 
-    run_reply(run)
+    run_reply(reply_run)
 
     turn = AgentTurn.objects.get()
     assert (turn.status, turn.error_code) == ("failed", error_code)
@@ -354,14 +288,13 @@ def test_a_reply_rechecks_the_configuration_and_access(
     ],
 )
 def test_only_the_owner_reads_follows_and_stops_a_reply(
-    data_fixture, configured_agent, mocker, change, can_follow
+    data_fixture, reply_run, mocker, change, can_follow
 ):
-    owner = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    run = run_of(start(owner, agent).conversation)
+    owner = reply_run.created_by
+    agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
     run_type = AgentChatRunType()
-    assert run_type.can_read(owner, run) and run_type.can_cancel(owner, run)
-    assert run_type.can_follow_chat(owner, run.chat_id)
+    assert run_type.can_read(owner, reply_run) and run_type.can_cancel(owner, reply_run)
+    assert run_type.can_follow_chat(owner, reply_run.chat_id)
     user = owner
     if change == "other_member":
         user = data_fixture.create_user(workspace=agent.workspace)
@@ -383,42 +316,13 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
         local_cache.clear()
         user = type(owner).objects.get(id=owner.id)
 
-    assert not run_type.can_read(user, run)
-    assert not run_type.can_cancel(user, run)
-    assert run_type.can_follow_chat(user, run.chat_id) is can_follow
+    assert not run_type.can_read(user, reply_run)
+    assert not run_type.can_cancel(user, reply_run)
+    assert run_type.can_follow_chat(user, reply_run.chat_id) is can_follow
 
 
 @pytest.mark.django_db
-def test_a_conversation_answers_one_message_at_a_time(data_fixture, configured_agent):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    conversation = start(user, agent).conversation
-
-    with pytest.raises(ChatRunAlreadyActive):
-        CreateAgentMessageActionType.do(
-            user, agent.id, conversation.uuid, uuid4(), "More"
-        )
-
-    assert conversation.messages.count() == 1
-
-
-@pytest.mark.django_db
-@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=1)
-def test_a_full_workspace_refuses_new_replies_without_saving(
-    data_fixture, configured_agent
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    start(user, agent)
-
-    with pytest.raises(ChatRunLimitReached):
-        start(user, agent)
-
-    assert AgentConversation.objects.count() == 1
-
-
-@pytest.mark.django_db
-def test_messages_show_their_author_and_the_reply_in_progress(
+def test_messages_show_completed_and_running_turns(
     api_client, api_user, configured_agent
 ):
     agent = configured_agent(user=api_user)
@@ -431,20 +335,12 @@ def test_messages_show_their_author_and_the_reply_in_progress(
 
     listed = api_client.get(messages_url).json()["results"]
 
-    author = {"id": api_user.id, "name": api_user.first_name}
-    assert [
-        (m["role"], m["author"], m["turn"]["status"], m["turn"]["run_id"])
-        for m in listed
-    ] == [
-        ("user", author, "completed", None),
-        ("assistant", None, "completed", None),
-        ("user", author, "running", str(running.id)),
+    assert [(m["role"], m["turn"]["status"], m["turn"]["run_id"]) for m in listed] == [
+        ("user", "completed", None),
+        ("assistant", "completed", None),
+        ("user", "running", str(running.id)),
     ]
     assert sent.json()["message"]["turn"]["run_id"] == str(running.id)
-    retried = api_client.post(
-        messages_url, {"uuid": sent.json()["message"]["uuid"], "content": "More"}
-    )
-    assert retried.json()["message"]["turn"]["run_id"] == str(running.id)
 
 
 @pytest.mark.django_db
@@ -490,3 +386,5 @@ def test_busy_conversations_and_workspaces_are_refused_with_their_errors(
         429,
         "ERROR_AGENT_BUSY",
     )
+    assert AgentConversation.objects.count() == AgentTurn.objects.count() == 1
+    assert AgentTurn.objects.get().messages.count() == ChatRun.objects.count() == 1

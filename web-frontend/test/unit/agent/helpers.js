@@ -233,13 +233,13 @@ export const conversation = (
 export const message = (
   uuid,
   content,
-  { role = 'user', author = null, turn = null } = {}
+  { id, role = 'user', turn = null } = {}
 ) => ({
+  id,
   uuid,
   role,
   content,
   created_on: '2026-10-14T10:00:00Z',
-  author,
   turn,
 })
 

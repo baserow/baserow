@@ -35,7 +35,6 @@ from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimit
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.service import CoreService
 
-
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,

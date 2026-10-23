@@ -64,7 +64,6 @@ def test_first_message_creates_a_private_conversation(
             "role": "user",
             "content": payload["content"],
             "created_on": ANY,
-            "author": {"id": api_user.id, "name": api_user.first_name},
             "turn": {
                 "id": AgentMessage.objects.get().turn_id,
                 "status": "running",
@@ -118,16 +117,22 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     agent.instructions = ""
     agent.save()
 
-    for target, body, accepted in [
-        (url, payload, first),
-        (messages_url, append, second),
+    for target, body, accepted, status, run_id in [
+        (url, payload, first, "completed", None),
+        (
+            messages_url,
+            append,
+            second,
+            "running",
+            second.json()["message"]["turn"]["run_id"],
+        ),
     ]:
         retried = api_client.post(target, body)
         message = accepted.json()["message"]
         # The turn is live state: the reply finished since the first response.
         assert retried.json()["message"] == {
             **message,
-            "turn": {**message["turn"], "status": ANY, "run_id": ANY},
+            "turn": {**message["turn"], "status": status, "run_id": run_id},
         }
     for target, body in [
         (url, {**payload, "content": "Different"}),
@@ -137,7 +142,9 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
         response = api_client.post(target, body)
         assert response.status_code == 409
         assert response.json()["error"] == "ERROR_AGENT_MESSAGE_CONFLICT"
-    assert AgentMessage.objects.filter(role="user").count() == 2
+    assert (
+        AgentMessage.objects.filter(role="user").count() == ChatRun.objects.count() == 2
+    )
     created.assert_called_once()
     appended.assert_called_once()
 
@@ -380,7 +387,9 @@ def test_independent_conversations_accept_messages_concurrently(
         message_ids = list(pool.map(send, range(2)))
 
     assert len(set(message_ids)) == 2
-    assert AgentMessage.objects.count() == 2
+    assert (
+        AgentMessage.objects.filter(role="user").count() == ChatRun.objects.count() == 2
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -434,7 +443,8 @@ def test_concurrent_retries_accept_one_message(
     assert sorted(results) == (
         ["conflict", "created"] if conflicting_content else ["created", "retried"]
     )
-    assert AgentConversation.objects.count() == AgentMessage.objects.count() == 1
+    assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
+    assert AgentMessage.objects.filter(role="user").count() == 1
     updated.assert_called_once()
 
 

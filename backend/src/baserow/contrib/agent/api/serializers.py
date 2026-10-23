@@ -16,7 +16,6 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.types import AgentReadinessState
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 
-
 READINESS_CHOICES = get_args(AgentReadinessState)
 
 
@@ -79,11 +78,6 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         fields = ("id", "uuid", "title", "created_on", "updated_on")
 
 
-class AgentMessageAuthorSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField(source="first_name")
-
-
 class AgentTurnStateSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
         help_text="The run still answering this turn, to follow its output."
@@ -99,16 +93,12 @@ class AgentTurnStateSerializer(serializers.ModelSerializer):
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
-    author = AgentMessageAuthorSerializer(
-        source="author_user", allow_null=True, read_only=True
-    )
     turn = AgentTurnStateSerializer(allow_null=True, read_only=True)
 
     class Meta:
         model = AgentMessage
-        fields = ("id", "uuid", "role", "content", "created_on", "author", "turn")
+        fields = ("id", "uuid", "role", "content", "created_on", "turn")
         read_only_fields = ("id",)
-
 
 
 class AgentMessageContentSerializer(

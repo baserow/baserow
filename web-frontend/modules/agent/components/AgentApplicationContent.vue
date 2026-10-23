@@ -83,11 +83,12 @@
                 'agent-chat__message--reply': message.role === 'assistant',
               }"
             >
-              <div
-                v-if="messageAuthor(message)"
-                class="agent-chat__message-author"
-              >
-                {{ messageAuthor(message) }}
+              <div class="agent-chat__message-author">
+                {{
+                  message.role === 'assistant'
+                    ? agent.name
+                    : $store.getters['auth/getName']
+                }}
               </div>
               <div class="agent-chat__message-content">
                 {{ message.content }}
@@ -111,17 +112,6 @@
               </div>
               <div v-else class="loading" aria-hidden="true" />
             </div>
-            <Alert v-if="state.refreshError" type="error">
-              {{ $t('agent.messagesLoadError') }}
-              <template #actions
-                ><Button
-                  type="secondary"
-                  size="small"
-                  @click="state.retryReply"
-                  >{{ $t('action.retry') }}</Button
-                ></template
-              >
-            </Alert>
           </template>
           <div v-else-if="showChatIntro" class="agent-chat__intro">
             <div class="agent-chat__avatar">
@@ -339,8 +329,6 @@ const messageNotices = computed(() => {
     isLastOfTurn(items, index) ? turnNotice(message.turn) : null
   )
 })
-const messageAuthor = (message) =>
-  message.role === 'assistant' ? props.agent.name : message.author?.name
 const warningFields = computed(() => Object.keys(state.fieldErrors))
 const hasLoadError = computed(
   () =>
@@ -421,7 +409,11 @@ async function loadMoreMessages() {
   container.scrollTop += anchor.offsetTop - previousOffset
 }
 watch(
-  () => [state.selectedUuid, state.currentHistory?.items.at(-1)?.uuid],
+  () => [
+    state.selectedUuid,
+    state.currentHistory?.items.at(-1)?.uuid,
+    state.replyFollower?.view.text,
+  ],
   async ([selection], [previousSelection, previousLast]) => {
     const container = historyElement.value
     if (!container) return
@@ -436,21 +428,6 @@ watch(
       revision === historySelectionRevision &&
       historyElement.value === container
     ) {
-      container.scrollTop = container.scrollHeight
-    }
-  }
-)
-const NEAR_BOTTOM_PX = 48
-watch(
-  () => state.replyFollower?.view.text,
-  async () => {
-    const container = historyElement.value
-    if (!container) return
-    const nearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <=
-      NEAR_BOTTOM_PX
-    await nextTick()
-    if (nearBottom && historyElement.value === container) {
       container.scrollTop = container.scrollHeight
     }
   }

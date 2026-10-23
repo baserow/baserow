@@ -121,15 +121,14 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The conversation, and its messages newest first with their turns
-            and authors.
+        :return: The conversation, and its messages newest first with their turns.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
-        return conversation, conversation.messages.select_related("turn", "author_user")
+        return conversation, conversation.messages.select_related("turn")
 
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
@@ -233,10 +232,9 @@ class AgentService:
         # Configuration may have changed while waiting for the conversation lock.
         agent = self.handler.get_agent(agent_id)
         self._require_ready(agent)
-        result = self.handler.create_message(conversation, uuid, content, user)
+        result = self.handler.create_message(conversation, uuid, content)
         if result.created:
             agent_conversation_updated.send(
                 self, conversation=result.conversation, user=user
             )
         return result
-

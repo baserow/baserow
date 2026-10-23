@@ -18,7 +18,7 @@ from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
 from .exceptions import AgentConversationDoesNotExist, AgentNotReady
 from .handler import AgentHandler
 from .replies import AgentResponder, create_reply_model
-from .types import AgentReply, AgentReplyRequest
+from .types import AgentReplyRequest
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -86,7 +86,7 @@ class AgentChatRunType(ChatRunType):
 
         text = fold_output(events)["text"] if events else ""
         return AgentHandler().finish_turn(
-            run.context["turn_id"], run.status, run.error_code, AgentReply(text=text)
+            run.context["turn_id"], run.status, run.error_code, text
         )
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:
