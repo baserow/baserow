@@ -480,7 +480,8 @@
         "errorJobAlreadyRunningDescription": "Jiná importní úloha již běží. Před spuštěním další počkejte, až skončí.",
         "errorJobCannotBeCancelledTitle": "Úlohu nelze zrušit",
         "errorJobCannotBeCancelledDescription": "Úlohu nelze zrušit, protože už byla dokončena.\nChcete-li ji odstranit, odstraňte první snímek ze seznamu níže.",
-        "stateCanceled": "Zrušeno"
+        "stateCanceled": "Zrušeno",
+        "errorJobCannotBeCancelledGenericDescription": "Úlohu nelze zrušit, protože již byla dokončena."
     },
     "crudTableSearch": {
         "search": "Hledat"
@@ -490,7 +491,7 @@
         "invitesTabTitle": "Pozvánky",
         "membersTable": {
             "title": "{userAmount} členů v pracovním prostoru {workspaceName}",
-            "inviteMember": "Pozvat člena",
+            "inviteMember": "Pozvat členy",
             "columns": {
                 "name": "Jméno",
                 "email": "E-mail",
@@ -504,7 +505,10 @@
             "actions": {
                 "copyEmail": "Kopírovat e-mail",
                 "remove": "Odebrat z pracovního prostoru"
-            }
+            },
+            "emptyTitle": "Zatím žádní členové",
+            "emptyDescription": "Pozvěte lidi ke spolupráci v tomto pracovním prostoru. Pro každou osobu zvolte roli, abyste určili, co může zobrazit a upravovat.",
+            "search": "Hledat členy"
         },
         "invitesTable": {
             "title": "{invitesAmount} čekajících pozvánek v pracovním prostoru {workspaceName}",
@@ -515,7 +519,10 @@
             "actions": {
                 "copyEmail": "Kopírovat e-mail",
                 "remove": "Zrušit pozvánku"
-            }
+            },
+            "emptyTitle": "Žádné čekající pozvánky",
+            "emptyDescription": "Pozvěte lidi do tohoto pracovního prostoru. Zde můžete sledovat a spravovat jejich pozvánky, dokud je nepřijmou.",
+            "search": "Hledat pozvánky"
         },
         "membersInviteModal": {
             "title": "Pozvat členy pracovního prostoru",
@@ -1546,7 +1553,8 @@
         "users": "Uživatelé",
         "agent": "Agent",
         "agents": "Agenti",
-        "anonymousUser": "Anonymní uživatel"
+        "anonymousUser": "Anonymní uživatel",
+        "members": "Členové"
     },
     "agents": {
         "saved": "Změny uloženy",
@@ -1555,7 +1563,7 @@
         "create": "Vytvořit agenta",
         "createTitle": "Vytvořit agenta",
         "updateTitle": "Upravit agenta",
-        "save": "Uložit agenta",
+        "save": "Uložit změny",
         "edit": "Upravit agenta",
         "delete": "Odstranit agenta",
         "general": "Obecné",
@@ -1563,7 +1571,12 @@
         "name": "Název",
         "invalidNameTitle": "Název agenta není povolen",
         "lastActive": "Naposledy aktivní",
-        "workspaceRole": "Role v pracovním prostoru"
+        "workspaceRole": "Role v pracovním prostoru",
+        "search": "Hledat agenty",
+        "emptyTitle": "Zatím žádní agenti",
+        "emptyDescription": "Vytvořte agenta, který připojí nástroje AI k vašemu pracovnímu prostoru. Zvolte jeho roli a týmy, abyste určili, k čemu má přístup.",
+        "new": "Nový",
+        "roleHelpText": "Začněte s možností Bez přístupu, potom podle potřeby udělte přístup ke konkrétním databázím, tabulkám nebo pohledům."
     },
     "mcpAuthorize": {
         "title": "Připojit {client}",
@@ -1601,7 +1614,10 @@
         "emailTitle": "Pozvat členy e-mailem",
         "linkTitle": "Pozvat členy pomocí odkazu",
         "linkEmptyTitle": "Odkaz s pozvánkou jste dosud nevytvořili",
-        "linkEmptyDescription": "Můžete vytvořit více odkazů s různými rolemi."
+        "linkEmptyDescription": "Můžete vytvořit více odkazů s různými rolemi.",
+        "pendingTitle": "Čekající pozvánky",
+        "pendingEmptyTitle": "Žádné pozvánky nečekají.",
+        "pendingEmptyDescription": "Pozvánky se zde zobrazují, dokud nejsou přijaty."
     },
     "templateInstall": {
         "use": "Použít tuto šablonu",
@@ -1611,7 +1627,10 @@
     },
     "templateDetails": {
         "back": "Zpět na šablony",
-        "contents": "Co obsahuje"
+        "contents": "Co obsahuje",
+        "actions": "Akce",
+        "editDetails": "Upravit podrobnosti",
+        "updateContent": "Aktualizovat obsah šablony"
     },
     "mcpOAuthConnections": {
         "title": "Připojit nástroj AI",
@@ -1629,6 +1648,132 @@
         "tools": "{count} nástroj | {count} nástroje",
         "connectedOn": "Připojeno {date}",
         "disconnect": "Odpojit",
-        "confirmDisconnect": "Kliknutím znovu odpojíte"
+        "confirmDisconnect": "Kliknutím znovu odpojíte",
+        "toolsOff": "{count} nástroj vypnut | {count} nástroje vypnuty | {count} nástrojů vypnuto",
+        "editTools": "Upravit nástroje",
+        "editToolsTitle": "Nástroje pro {client}",
+        "editToolsDescription": "Vyberte, co může dělat v pracovním prostoru {workspace}. Aplikace změnu převezme při dalším požadavku, aniž by se musela znovu přihlásit.",
+        "saveTools": "Uložit"
+    },
+    "mcpToolPicker": {
+        "tools": "Co může dělat",
+        "readOnly": "Pouze pro čtení",
+        "fullAccess": "Úplný přístup",
+        "none": "Žádné",
+        "noTools": "Nejsou k dispozici žádné nástroje.",
+        "deletes": "Odstraňuje",
+        "overwrites": "Přepisuje",
+        "areaDatabase": "Databáze",
+        "databaseRead": "Číst tabulky a řádky",
+        "databaseEdit": "Vytvářet a měnit",
+        "databaseDelete": "Odstranit"
+    },
+    "createUserTemplateJobType": {
+        "name": "Vytvořit šablonu"
+    },
+    "inviteInput": {
+        "batchLimitExceeded": "Najednou lze pozvat až {limit} e-mailových adres. Chcete-li pokračovat, odeberte nadbytečné adresy.",
+        "placeholder": "Zadejte nebo vložte e-mailové adresy",
+        "invite": "Pozvat",
+        "inviteAs": "Pozvat {count} jako {role}",
+        "tabAll": "Vše",
+        "inviteEmail": "Pozvat {email}",
+        "inviteEmailDescription": "Připojí se k pracovnímu prostoru jako {role}",
+        "alreadyInvited": "Pozvánka již čeká.\\nMísto dalšího pozvání můžete její roli změnit na stránce Pozvánky.",
+        "alreadyMember": "Již je členem tohoto pracovního prostoru",
+        "roleNotForEmails": "Novou osobu nelze pozvat s rolí {role}",
+        "noResults": "Chcete-li někoho pozvat, zadejte celou e-mailovou adresu."
+    },
+    "templateEmptyState": {
+        "noResultsTitle": "Nebyly nalezeny žádné šablony",
+        "noResultsDescription": "Žádné šablony neodpovídají „{query}“. Zkuste jiné vyhledávání."
+    },
+    "templateModal": {
+        "officialTemplates": "Oficiální šablony",
+        "yourTemplates": "Vaše šablony"
+    },
+    "createUserTemplateModal": {
+        "detailsTitle": "Nová šablona",
+        "detailsDescription": "Uložte opakovaně použitelnou kopii své práce jako soukromou šablonu.",
+        "continue": "Pokračovat",
+        "contentTitle": "Vyberte obsah šablony",
+        "contentDescription": "Vyberte pracovní prostor, ze kterého chcete převzít obsah, a poté zvolte, co má šablona obsahovat.",
+        "create": "Vytvořit šablonu",
+        "cannotBeCancelled": "Zrušení není možné, protože šablona již byla vytvořena.",
+        "failedAfterCreated": "Šablona byla vytvořena, ale poté došlo k chybě."
+    },
+    "updateUserTemplateModal": {
+        "detailsTitle": "Upravit šablonu",
+        "detailsDescription": "Změňte, jak je šablona prezentována. Obsah šablony zůstane nezměněn.",
+        "contentTitle": "Aktualizovat obsah",
+        "contentDescription": "Nahraďte obsah šablony aplikacemi z některého z vašich pracovních prostorů. Její podrobnosti, odkaz a přístup zůstanou stejné.",
+        "save": "Uložit změny",
+        "update": "Aktualizovat šablonu",
+        "updated": "Šablona aktualizována",
+        "failedAfterUpdated": "Šablona byla aktualizována, ale poté došlo k chybě.",
+        "cannotBeCancelled": "Zrušení není možné, protože šablona již byla aktualizována.",
+        "invalidKeptDetails": "Ikonu nebo kategorii šablony už nelze použít. Nejprve je změňte pomocí možnosti „Upravit podrobnosti“ a potom aktualizujte obsah."
+    },
+    "userTemplateDetailsForm": {
+        "name": "Název",
+        "namePlaceholder": "Název šablony",
+        "nameRequired": "Název je povinný.",
+        "chooseIcon": "Vyberte ikonu",
+        "description": "Popis",
+        "descriptionPlaceholder": "K čemu tato šablona slouží?",
+        "categories": "Kategorie",
+        "categoriesRequired": "Vyberte alespoň jednu kategorii."
+    },
+    "userTemplateContentForm": {
+        "workspace": "Pracovní prostor",
+        "workspaceEmpty": "V tomto pracovním prostoru není co kopírovat.",
+        "workspaceNoPermission": "Nemáte oprávnění tento pracovní prostor zkopírovat.",
+        "applications": "Obsah",
+        "noticeTitle": "Co se nekopíruje",
+        "noticeSecrets": "Většina hesel, tokenů a klíčů API integrací a synchronizací dat.",
+        "noticePeople": "Lidé: hodnoty polí spolupracovníků, přiřazení rolí a uživatel, za kterého se provádějí automatické aktualizace polí AI.",
+        "noticePersonalViews": "Osobní pohledy.",
+        "noticeReferences": "Připojení k databázím, které nejsou zahrnuty. Zdroje dat, filtry a spouštěče, které je používají, je třeba znovu nastavit.",
+        "noticeRest": "Vše ostatní je sdíleno beze změny.",
+        "selectedApplications": "0 vybraných aplikací | 1 vybraná aplikace | {count} vybraných aplikací"
+    },
+    "templateIconSelectContext": {
+        "search": "Hledat ikony",
+        "noResults": "Nebyly nalezeny žádné ikony"
+    },
+    "userTemplateList": {
+        "title": "Vaše šablony",
+        "count": "0 šablon | 1 šablona | {count} šablon",
+        "search": "Hledat šablony",
+        "newTemplate": "Nová šablona",
+        "name": "Název",
+        "visibility": "Viditelnost",
+        "lastUpdated": "Naposledy aktualizováno",
+        "emptyTitle": "Ještě jste nevytvořili žádnou šablonu",
+        "emptyDescription": "Proměňte svou práci v šablonu, kterou si můžete později zobrazit v náhledu a sdílet.",
+        "noWorkspace": "Šablona se vytváří z pracovního prostoru. Nejprve vytvořte pracovní prostor nebo se k němu připojte.",
+        "noContent": "Šablona se vytváří z obsahu pracovního prostoru. Nejprve přidejte databázi, aplikaci nebo automatizaci.",
+        "statePrivate": "Soukromá",
+        "stateInReview": "V posouzení",
+        "stateRejected": "Zamítnuta",
+        "stateBlocked": "Zablokována",
+        "statePublic": "Veřejná",
+        "errorTitle": "Vaše šablony se nepodařilo načíst",
+        "errorDescription": "Při načítání vašich šablon došlo k chybě.",
+        "retry": "Zkusit znovu",
+        "actions": "Akce",
+        "editDetails": "Upravit podrobnosti",
+        "updateContent": "Aktualizovat obsah šablony"
+    },
+    "crudTable": {
+        "empty": "Zatím žádné položky",
+        "emptyPage": "Na této stránce nejsou žádné výsledky.",
+        "noResults": "Nebyly nalezeny žádné výsledky. Zkuste upravit vyhledávání nebo filtry.",
+        "rowActions": "Akce řádku",
+        "expandRow": "Rozbalit podrobnosti řádku",
+        "collapseRow": "Sbalit podrobnosti řádku"
+    },
+    "managementPages": {
+        "you": "Vy"
     }
 }
