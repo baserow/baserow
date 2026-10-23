@@ -1,5 +1,4 @@
 import json
-from datetime import datetime, timezone
 
 import pytest
 from freezegun import freeze_time
@@ -37,19 +36,7 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                 conversation.owner_user_id,
                 conversation.created_on,
                 conversation.updated_on,
-                [
-                    (
-                        turn.status,
-                        turn.error_code,
-                        turn.provider_type,
-                        turn.model_identifier,
-                        turn.model_messages,
-                        turn.usage,
-                        turn.created_on,
-                        turn.finished_on,
-                    )
-                    for turn in turns
-                ],
+                [(turn.status, turn.error_code) for turn in turns],
                 [
                     (
                         message.role,
@@ -57,7 +44,6 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
                         message.created_on,
                         message.updated_on,
                         positions.get(message.turn_id),
-                        message.author_user_id,
                     )
                     for message in conversation.messages.order_by("id")
                 ],
@@ -91,20 +77,11 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             conversation=conversation,
             status=AgentTurn.Status.FAILED,
             error_code="timeout",
-            provider_type="openai",
-            model_identifier="gpt-test",
-            model_messages=[{"kind": "request"}],
-            usage={"requests": 1},
-            finished_on=datetime(2026, 1, 2, tzinfo=timezone.utc),
         )
-        data_fixture.create_agent_message(
-            conversation=conversation, turn=turn, author_user=owner
-        )
-        data_fixture.create_agent_message(
-            conversation=conversation,
-            turn=turn,
-            role=AgentMessage.Role.ASSISTANT,
-        )
+        for role in AgentMessage.Role.values:
+            data_fixture.create_agent_message(
+                conversation=conversation, turn=turn, role=role
+            )
 
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
@@ -165,27 +142,6 @@ def test_internal_copy_skips_conversations_of_deleted_owners(
 
 
 @pytest.mark.django_db
-def test_internal_copy_drops_authors_who_were_deleted(data_fixture, configured_agent):
-    owner = data_fixture.create_user()
-    author = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
-    data_fixture.create_agent_message(conversation=conversation, author_user=author)
-    serialized = export_internal(agent)
-    author.delete()
-
-    copied = AgentApplicationType().import_serialized(
-        agent.workspace, serialized, INTERNAL_CONFIG, {}
-    )
-
-    message = AgentMessage.objects.get(conversation__agent=copied)
-    assert (message.conversation.owner_user_id, message.author_user_id) == (
-        owner.id,
-        None,
-    )
-
-
-@pytest.mark.django_db
 def test_internal_copy_imports_conversations_copied_before_turns(
     data_fixture, configured_agent
 ):
@@ -194,24 +150,20 @@ def test_internal_copy_imports_conversations_copied_before_turns(
     conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
     turn = AgentTurn.objects.create(conversation=conversation)
     data_fixture.create_agent_message(
-        conversation=conversation, turn=turn, author_user=owner, content="Hi"
+        conversation=conversation, turn=turn, content="Hi"
     )
     serialized = export_internal(agent)
     for data in serialized["conversations"]:
         del data["turns"]
         for message in data["messages"]:
-            del message["turn_position"], message["author_user_id"]
+            del message["turn_position"]
 
     copied = AgentApplicationType().import_serialized(
         agent.workspace, serialized, INTERNAL_CONFIG, {}
     )
 
     message = AgentMessage.objects.get(conversation__agent=copied)
-    assert (message.content, message.turn_id, message.author_user_id) == (
-        "Hi",
-        None,
-        None,
-    )
+    assert (message.content, message.turn_id) == ("Hi", None)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -246,14 +198,10 @@ def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent
     agent = configured_agent(user=owner)
     conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
     turn = AgentTurn.objects.create(conversation=conversation)
-    data_fixture.create_agent_message(
-        conversation=conversation, turn=turn, author_user=owner
-    )
+    data_fixture.create_agent_message(conversation=conversation, turn=turn)
 
-    with freeze_time("2026-03-04"):
-        copied = CoreHandler().duplicate_application(owner, agent).specific
+    copied = CoreHandler().duplicate_application(owner, agent).specific
 
     copied_turn = copied.conversations.get().turns.get()
     assert (copied_turn.status, copied_turn.error_code) == ("failed", "interrupted")
-    assert copied_turn.finished_on == datetime(2026, 3, 4, tzinfo=timezone.utc)
     assert not ChatRun.objects.exists()

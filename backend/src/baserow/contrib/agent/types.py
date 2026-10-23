@@ -39,12 +39,3 @@ class AgentReplyRequest:
     model_identifier: str
     prompt: str
     history: list[AgentMessage]
-
-
-@dataclass(frozen=True)
-class AgentReply:
-    text: str
-    provider_type: str | None = None
-    model_identifier: str | None = None
-    model_messages: list[dict] | None = None
-    usage: dict | None = None

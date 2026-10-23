@@ -5,19 +5,13 @@ from loguru import logger
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelMessage,
-    ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
-    PartDeltaEvent,
-    PartStartEvent,
     TextPart,
-    TextPartDelta,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
-from pydantic_ai.run import AgentRunResult, AgentRunResultEvent
 from pydantic_ai.usage import UsageLimits
-from pydantic_core import to_jsonable_python
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
@@ -26,7 +20,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 
 from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
 from .models import AgentMessage, AgentTurn
-from .types import AgentReply, AgentReplyRequest
+from .types import AgentReplyRequest
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -80,14 +74,6 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     return model, model_settings
 
 
-def _text_of(event: object) -> str:
-    if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
-        return event.part.content
-    if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
-        return event.delta.content_delta
-    return ""
-
-
 def _describe_failure(error: BaseException) -> str:
     """
     Name a provider failure without its message, which can echo the request.
@@ -123,14 +109,13 @@ class AgentResponder:
         self._model = model
         self._model_settings = model_settings
         self._text = ""
-        self._result: AgentRunResult[str] | None = None
+        self._result: str | None = None
 
     async def answer(self) -> ChatRunOutcome:
         """
         Answer until the model finishes or the journal asks the run to stop.
 
-        :return: How the reply ended, with an `AgentReply` holding what was
-            produced.
+        :return: How the reply ended, with the complete or partial reply text.
         """
 
         work = asyncio.create_task(self._stream())
@@ -138,11 +123,9 @@ class AgentResponder:
         try:
             await asyncio.wait({work, stop}, return_when=asyncio.FIRST_COMPLETED)
         finally:
-            stop.cancel()
-            await asyncio.gather(stop, return_exceptions=True)
-        if not work.done():
             work.cancel()
-        await asyncio.gather(work, return_exceptions=True)
+            stop.cancel()
+            await asyncio.gather(work, stop, return_exceptions=True)
         return self._outcome(work)
 
     async def _stream(self) -> None:
@@ -150,43 +133,31 @@ class AgentResponder:
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
         async with self._model:
-            async with agent.run_stream_events(
+            async with agent.run_stream(
                 self._request.prompt,
                 message_history=build_history(self._request.history),
                 model=self._model,
                 model_settings=self._model_settings,
                 usage_limits=UsageLimits(request_limit=REPLY_REQUEST_LIMIT),
-            ) as events:
-                async for event in events:
-                    if isinstance(event, AgentRunResultEvent):
-                        self._result = event.result
-                    elif text := _text_of(event):
-                        self._text += text
-                        self._journal.emit_text(self._text)
+            ) as result:
+                async for text in result.stream_text(debounce_by=None):
+                    self._text = text
+                    self._journal.emit_text(text)
+                self._result = await result.get_output()
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
-        finished = self._result is not None
-        reply = AgentReply(
-            text=self._result.output if finished else self._text,
-            provider_type=self._request.provider_type,
-            model_identifier=self._request.model_identifier,
-            model_messages=ModelMessagesTypeAdapter.dump_python(
-                self._result.new_messages(), mode="json"
-            )
-            if finished
-            else None,
-            usage=to_jsonable_python(self._result.usage) if finished else None,
-        )
-        if finished:
-            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=reply)
+        if self._result is not None:
+            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=self._result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
-            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=reply)
+            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=self._text)
         if self._journal.stop_reason == ChatRunStopReason.TIMEOUT:
-            return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, reply)
+            return ChatRunOutcome(
+                ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, self._text
+            )
         if not work.cancelled() and work.exception() is not None:
             logger.error(
                 "Agent turn {} could not be answered ({})",
                 self._request.turn_id,
                 _describe_failure(work.exception()),
             )
-        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, reply)
+        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, self._text)
