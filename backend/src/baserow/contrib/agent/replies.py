@@ -5,13 +5,16 @@ from loguru import logger
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelMessage,
+    ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
     TextPart,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
+from pydantic_ai.run import AgentRunResult
 from pydantic_ai.usage import UsageLimits
+from pydantic_core import to_jsonable_python
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
@@ -21,7 +24,7 @@ from baserow.core.utils import remove_null_characters
 
 from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
 from .models import AgentMessage
-from .types import AgentReplyRequest
+from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -109,13 +112,13 @@ class AgentResponder:
         self._model = model
         self._model_settings = model_settings
         self._text = ""
-        self._result: str | None = None
+        self._result: AgentRunResult[str] | None = None
 
     async def answer(self) -> ChatRunOutcome:
         """
         Answer until the model finishes or the journal asks the run to stop.
 
-        :return: How the reply ended, with the complete or partial reply text.
+        :return: How the reply ended, with its text and the model's transcript.
         """
 
         work = asyncio.create_task(self._stream())
@@ -143,18 +146,18 @@ class AgentResponder:
                 async for text in result.stream_text(debounce_by=None):
                     self._text = text
                     self._journal.emit_text(text)
-                self._result = await result.get_output()
+                self._result = result.result
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
+        result = self._reply_result()
         # A blank answer is no reply, and some providers reject it in the history.
-        text = remove_null_characters(self._result or "")
-        if text.strip():
-            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=text)
+        if self._result is not None and result.text.strip():
+            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
-            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=self._text)
+            return ChatRunOutcome(ChatRunStatus.CANCELLED, result=result)
         if self._journal.stop_reason == ChatRunStopReason.TIMEOUT:
             return ChatRunOutcome(
-                ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, self._text
+                ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, result
             )
         if not work.cancelled() and work.exception() is not None:
             logger.error(
@@ -162,4 +165,28 @@ class AgentResponder:
                 self._request.reply_id,
                 _describe_failure(work.exception()),
             )
-        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, self._text)
+        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, result)
+
+    def _reply_result(self) -> AgentReplyResult:
+        """
+        Collect what the reply produced: its text, the provider and model, and once
+        the model finished, its messages and usage.
+
+        :return: The text and the execution details of the reply.
+        """
+
+        if self._result is None:
+            return AgentReplyResult(
+                text=self._text,
+                provider_type=self._request.provider_type,
+                model_identifier=self._request.model_identifier,
+            )
+        return AgentReplyResult(
+            text=remove_null_characters(self._result.output),
+            provider_type=self._request.provider_type,
+            model_identifier=self._request.model_identifier,
+            model_messages=ModelMessagesTypeAdapter.dump_python(
+                self._result.new_messages(), mode="json"
+            ),
+            usage=to_jsonable_python(self._result.usage),
+        )

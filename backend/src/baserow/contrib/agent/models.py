@@ -74,3 +74,16 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
                 fields=["conversation", "uuid"], name="unique_agent_message_uuid"
             ),
         ]
+
+
+class AgentReplyTranscript(BigAutoFieldMixin, models.Model):
+    """The model, new messages and usage of one reply, kept for diagnostics."""
+
+    reply = models.OneToOneField(
+        AgentMessage, on_delete=models.CASCADE, related_name="transcript"
+    )
+    provider_type = models.CharField(max_length=255, null=True, blank=True)
+    model_identifier = models.CharField(max_length=255, null=True, blank=True)
+    # Kept as pydantic-ai dumped them, so they load back into its message types.
+    model_messages = models.JSONField(null=True)
+    usage = models.JSONField(null=True)

@@ -22,7 +22,7 @@ from .handler import AgentHandler
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_updated
-from .types import AgentReplyRequest
+from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -91,7 +91,9 @@ class AgentChatRunType(ChatRunType):
         """Keep the text the user already saw."""
 
         text = fold_output(events)["text"] if events else ""
-        return self._finish_reply(run, run.status, run.error_code, text)
+        return self._finish_reply(
+            run, run.status, run.error_code, AgentReplyResult(text=text)
+        )
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:
         return self._finish_reply(run, run.status, run.error_code, None)
@@ -104,7 +106,11 @@ class AgentChatRunType(ChatRunType):
             agent_conversation_updated.send(self, conversation=conversation, user=None)
 
     def _finish_reply(
-        self, run: ChatRun, status: str, error_code: str, text: str | None
+        self,
+        run: ChatRun,
+        status: str,
+        error_code: str,
+        result: AgentReplyResult | None,
     ) -> dict | None:
         """
         Save how the reply ended and tell all the owner's sessions.
@@ -112,13 +118,13 @@ class AgentChatRunType(ChatRunType):
         :param run: The run that wrote the reply.
         :param status: The final status.
         :param error_code: Why the reply failed, or an empty string.
-        :param text: What the reply produced, or None when it never started.
+        :param result: What the reply produced, or None when it never started.
         :return: The saved reply as the messages list shows it, so followers don't
             read it again, or None when the reply no longer exists.
         """
 
         reply = AgentHandler().finish_reply(
-            run.context["reply_id"], status, error_code, text
+            run.context["reply_id"], status, error_code, result
         )
         if reply is None:
             return None
