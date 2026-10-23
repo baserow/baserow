@@ -364,7 +364,7 @@ class ViewType(
 
         if self.can_set_default_values and view.table_id is not None:
             default_row_values = self._export_default_row_values(
-                view, cache, files_zip, storage
+                view, cache, files_zip, storage, import_export_config
             )
             if default_row_values:
                 serialized["default_row_values"] = default_row_values
@@ -643,7 +643,9 @@ class ViewType(
             for field_id, field_object in table.get_model()._field_objects.items()
         }
 
-    def _export_default_row_values(self, view, cache, files_zip, storage):
+    def _export_default_row_values(
+        self, view, cache, files_zip, storage, import_export_config=None
+    ):
         """
         Exports the default row values for the given view as a serialized dict.
         Uses the prefetched ``view_default_values`` related manager when
@@ -652,6 +654,9 @@ class ViewType(
         ``specific_iterator`` if not already set by the caller. The value is
         passed through the field type's ``export_serialized_default_value``
         hook so that internal IDs can be converted to portable representations.
+        A user-template copy leaves out the default values of write-only fields,
+        including entries stored for a write-only field type and entries whose
+        field isn't exported.
         """
 
         from baserow.contrib.database.fields.models import Field
@@ -671,10 +676,29 @@ class ViewType(
             }
         fields_by_id = cache[cache_key]
 
+        is_user_template = (
+            import_export_config is not None and import_export_config.is_user_template
+        )
+        write_only_type_names = (
+            {
+                field_type.type
+                for field_type in field_type_registry.get_all()
+                if field_type.write_only
+            }
+            if is_user_template
+            else set()
+        )
+
         serialized_values = {}
         for default_value in default_values:
             value = default_value.value
             field = fields_by_id.get(default_value.field_id)
+            if is_user_template and (
+                field is None
+                or field_type_registry.get_by_model(field.specific_class).write_only
+                or default_value.field_type in write_only_type_names
+            ):
+                continue
             if field is not None and value is not None:
                 field_type = field_type_registry.get_by_model(field.specific_class)
                 value = field_type.export_serialized_default_value(

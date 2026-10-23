@@ -625,6 +625,7 @@
     "applications": "Content",
     "noticeTitle": "What is not copied",
     "noticeSecrets": "Most passwords, tokens and API keys of integrations and data syncs.",
+    "noticePasswords": "Values of password fields, including the passwords of your application users.",
     "noticePeople": "People: collaborator field values, role assignments and the user that automatic AI field updates run as.",
     "noticePersonalViews": "Personal views.",
     "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",

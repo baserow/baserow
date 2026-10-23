@@ -52,6 +52,8 @@ from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
     OTHER_ICON,
+    add_password_data,
+    assert_password_data_left_out,
     copied_applications,
     create_source,
     create_template,
@@ -271,6 +273,27 @@ def test_update_user_template_content_rules(data_fixture, use_tmp_media_root):
     assert content
     for key, value in find_values(content, CLEARED_KEYS):
         assert value in (None, ""), f"{key} = {value}"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_update_user_template_content_empties_password_fields(
+    data_fixture, use_tmp_media_root
+):
+    source = create_source(data_fixture)
+    user, workspace, table = source["user"], source["workspace"], source["table"]
+    root = start_job(user, workspace, [source["database"]]).template
+    # The passwords are set after the first revision, so only the update copies
+    # them.
+    add_password_data(data_fixture, table, table.view_set.get(name="Shared"))
+
+    job = update_content(user, root, workspace, [source["database"]])
+
+    assert job.state == JOB_FINISHED, job.error
+    revision = Template.objects.get(root=root)
+    assert_password_data_left_out(
+        copied_applications(revision)["database"].table_set.get()
+    )
 
 
 @pytest.mark.import_export_workspace

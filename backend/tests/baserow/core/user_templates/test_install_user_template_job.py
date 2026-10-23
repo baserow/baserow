@@ -33,6 +33,8 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
 from tests.baserow.core.user_templates.utils import (
+    add_password_data,
+    assert_password_data_left_out,
     cancel_in_another_connection,
     fail_on_import,
     install,
@@ -192,6 +194,33 @@ def test_install_user_template_job(data_fixture, queued_install):
     assert _installed_names(latest_target) == ["Latest"]
     assert Template.objects.get(id=root.id).install_count == 2
     assert Template.objects.get(id=revision.id).install_count == 0
+
+
+@install_marks
+def test_install_user_template_empties_password_fields(data_fixture):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = _create_template(data_fixture, owner, names=["First"])
+    template_table = root.workspace.application_set.get().specific.table_set.get()
+    # Set in the template workspace directly, like a template made before its
+    # passwords were left out.
+    password_field, password = add_password_data(
+        data_fixture,
+        template_table,
+        data_fixture.create_grid_view(table=template_table),
+    )
+
+    job = install(owner, target, root)
+
+    assert job.state == JOB_FINISHED
+    installed = Application.objects.get(workspace=target).specific
+    assert_password_data_left_out(installed.table_set.get())
+    # The template keeps what it holds.
+    assert list(
+        template_table.get_model().objects.values_list(
+            password_field.db_column, flat=True
+        )
+    ) == [password]
 
 
 @install_marks
