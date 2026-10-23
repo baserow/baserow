@@ -97,8 +97,8 @@ def mock_formula_generator(request, monkeypatch):
     if "real_formula_pass" in request.fixturenames:
         return
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.automation.agents.update_workflow_formulas",
-        lambda workflow, node_mapping, tool_helpers: [],
+        "baserow_enterprise.assistant.tools.automation.agents.repair_formula_errors",
+        lambda tool_context, tool_helpers, formula_errors, refs=None: [],
     )
 
 
@@ -286,7 +286,9 @@ def test_create_workflows_returns_formula_errors_without_losing_workflow(
     assert result["formula_errors"] == [
         {
             "node_id": action.id,
-            "label": "Send Email",
+            "node_label": "Send Email",
+            "field": "subject",
+            "formula": "$formula: the trigger name",
             "error": "Formula generation unavailable",
         }
     ]
@@ -297,7 +299,7 @@ def test_create_workflows_returns_formula_errors_without_losing_workflow(
         workflows=workflows,
         thought="retry after formula failure",
     )
-    assert action.service.specific.subject["formula"] == "''"
+    assert action.service.specific.subject["formula"] == ""
     assert repeated["created_workflows"] == []
     assert "do not claim the workflow is complete" in repeated["next_steps"]
 

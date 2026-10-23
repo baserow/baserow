@@ -1,29 +1,20 @@
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any
 
-from django.contrib.auth.models import AbstractUser
-from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
-from baserow.contrib.automation.models import Automation
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
-from baserow.core.exceptions import PermissionException
+from baserow.contrib.automation.tools import nodes as shared_nodes
+from baserow.contrib.automation.tools import workflows as shared_workflows
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.shared import (
-    raise_if_permission_denied,
-    require_payload,
-)
+from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
 from . import agents, helpers, reconciliation
 from .types import ActionNodeCreate, NodeUpdate, WorkflowCreate
-
-if TYPE_CHECKING:
-    from baserow_enterprise.assistant.deps import ToolHelpers
 
 
 def list_workflows(
@@ -44,18 +35,12 @@ def list_workflows(
     DO NOT USE when: You already have the workflow IDs you need.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
+    ctx.deps.tool_helpers.update_status(_("Listing workflows..."))
 
-    tool_helpers.update_status(_("Listing workflows..."))
-
-    automation = helpers.get_automation(automation_id, user, workspace)
-    workflows = AutomationWorkflowService().list_workflows(user, automation.id)
-
-    return {
-        "workflows": [{"id": w.id, "name": w.name, "state": w.state} for w in workflows]
-    }
+    (automation,) = shared_workflows.list_workflows(
+        ctx.deps.tool_context(), automation_id
+    )["automations"]
+    return {"workflows": automation["workflows"]}
 
 
 def list_nodes(
@@ -76,16 +61,24 @@ def list_nodes(
     DO NOT USE when: You already have the node IDs you need.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
+    ctx.deps.tool_helpers.update_status(_("Listing nodes..."))
 
-    tool_helpers.update_status(_("Listing nodes..."))
+    # No output schemas: they are long, and Kuma's formula generator reads them
+    # itself.
+    return {
+        "nodes": shared_nodes.describe_workflow_nodes(
+            ctx.deps.tool_context(), workflow_id, with_output_schema=False
+        )
+    }
 
-    workflow = helpers.get_workflow(workflow_id, user, workspace)
-    nodes = helpers.get_nodes_in_order(user, workflow)
 
-    return {"nodes": nodes}
+def _shared_call(function, *args):
+    """Call a shared tool, turning a request it rejects into a retry."""
+
+    try:
+        return function(*args)
+    except DjangoValidationError as exc:
+        raise ModelRetry(" ".join(exc.messages))
 
 
 def add_nodes(
@@ -114,97 +107,25 @@ def add_nodes(
     REQUIRED: `workflow_id` and `nodes` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
-
     require_payload("add_nodes", "nodes", nodes)
+    ctx.deps.tool_helpers.update_status(_("Adding nodes to workflow..."))
 
-    tool_helpers.update_status(_("Adding nodes to workflow..."))
-
-    workflow = helpers.get_workflow(workflow_id, user, workspace)
-
-    with transaction.atomic():
-        created_nodes, _node_mapping = helpers.add_nodes_to_workflow(
-            user, workflow, nodes, tool_helpers
-        )
-
-    formula_errors = []
-    for orm_node, node_create in zip(created_nodes, nodes):
-        node_create.apply_direct_values(orm_node.service)
-        formulas = node_create.get_formulas_to_create(orm_node)
-        if formulas:
-            tool_helpers.update_status(
-                _(
-                    "Generating formulas for node '%(label)s'..."
-                    % {"label": orm_node.label}
-                )
-            )
-            with transaction.atomic():
-                formula_errors.extend(
-                    agents.update_single_node_formulas(
-                        node_create, orm_node, tool_helpers
-                    )
-                )
-
-    result: dict[str, Any] = {
-        "created_nodes": [
-            {"id": n.id, "label": n.label, "type": n.get_type().type}
-            for n in created_nodes
-        ]
-    }
+    tool_context = ctx.deps.tool_context()
+    result = _shared_call(shared_nodes.add_nodes, tool_context, workflow_id, nodes)
+    # The nodes are committed now, so the formula generator runs outside them.
+    formula_errors = agents.repair_formula_errors(
+        tool_context,
+        ctx.deps.tool_helpers,
+        result.pop("formula_errors", []),
+        {node["id"]: node["ref"] for node in result["created_nodes"]},
+    )
+    result["created_nodes"] = [
+        {key: node[key] for key in ("id", "label", "type")}
+        for node in result["created_nodes"]
+    ]
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
-
-
-def _create_new_workflows(
-    user: AbstractUser,
-    automation: Automation,
-    workflows: list[WorkflowCreate],
-    tool_helpers: "ToolHelpers",
-) -> tuple[list[dict[str, Any]], AutomationWorkflow | None, list[dict[str, Any]]]:
-    """
-    Create the requested workflows and generate their formulas.
-
-    :return: The created workflow summaries, the last workflow created, and
-        the formula errors.
-    """
-
-    created_workflows: list[dict[str, Any]] = []
-    formula_errors: list[dict[str, Any]] = []
-    last_workflow = None
-    for workflow_spec in workflows:
-        tool_helpers.raise_if_cancelled()
-        with transaction.atomic():
-            workflow, node_mapping = helpers.create_workflow(
-                user, automation, workflow_spec, tool_helpers
-            )
-            created_workflows.append(
-                {
-                    "id": workflow.id,
-                    "name": workflow.name,
-                    "state": workflow.state,
-                }
-            )
-            last_workflow = workflow
-
-        workflow_errors = agents.update_workflow_formulas(
-            workflow_spec, node_mapping, tool_helpers
-        )
-        formula_errors.extend(workflow_errors)
-        if not workflow_errors:
-            run_created = tool_helpers.request_context.setdefault(
-                reconciliation.RUN_CREATED_WORKFLOWS, {}
-            )
-            run_created[workflow.id] = reconciliation.VerifiedWorkflowCreation(
-                request=workflow_spec.model_dump(),
-                configuration=reconciliation.workflow_configuration_fingerprint(
-                    user, workflow
-                ),
-            )
-
-    return created_workflows, last_workflow, formula_errors
 
 
 def create_workflows(
@@ -226,7 +147,7 @@ def create_workflows(
     Create workflows with triggers and action nodes.
 
     WHEN to use: User wants automated workflows with triggers and action nodes.
-    WHAT it does: Reuses exact-name matches and creates missing workflows with a trigger and action/router/iterator nodes. Reused workflows return actual nodes and next_steps when their node sequence differs.
+    WHAT it does: Reuses exact-name matches and creates missing workflows with a trigger and action/router nodes. Reused workflows return actual nodes and next_steps when their node sequence differs.
     RETURNS: Created and reused workflows, plus formula_errors if needed.
     HOW: Each workflow needs exactly one trigger and one or more actions/routers. Know the table_id and field_ids for row-based triggers and actions. Every update_row or delete_row action also requires row_id. To act on the triggering row, set row_id to "$formula: ID of the row that fired the trigger". Never omit it or use a made-up row ID.
 
@@ -239,7 +160,7 @@ def create_workflows(
 
     ## Dynamic Values with $formula:
 
-    Any string field marked "Supports $formula:" can use dynamic values.
+    Any string field marked "A literal or a formula" can use dynamic values.
     Prefix with '$formula:' + a natural-language description to auto-generate a formula
     from context data. Otherwise the value is used as a literal.
     - {"field_id": 123, "value": "$formula: the customer name from the trigger data"}
@@ -248,25 +169,47 @@ def create_workflows(
     """
 
     user = ctx.deps.user
-    workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
     require_payload("create_workflows", "workflows", workflows)
 
-    automation = helpers.get_automation(automation_id, user, workspace)
-    existing_workflows = AutomationWorkflowService().list_workflows(user, automation.id)
-    plan = reconciliation.plan_workflow_creation(workflows, existing_workflows)
-    if plan.conflicting_names:
-        names = ", ".join(plan.conflicting_names)
-        raise ModelRetry(
-            f"Conflicting workflow definitions use the same name: {names}. "
-            "Submit one definition per workflow name."
-        )
-    created_workflows, last_created_workflow, formula_errors = _create_new_workflows(
-        user, automation, plan.to_create, tool_helpers
+    tool_context = ctx.deps.tool_context()
+    automation = helpers.get_automation(automation_id, user, ctx.deps.workspace)
+    creation = _shared_call(
+        shared_workflows.create_workflows_in_automation,
+        tool_context,
+        automation,
+        workflows,
     )
+    plan = creation.plan
 
-    if last_created_workflow is not None:
+    run_created = tool_helpers.request_context.setdefault(
+        reconciliation.RUN_CREATED_WORKFLOWS, {}
+    )
+    created_workflows = []
+    formula_errors = []
+    errors = list(creation.failed)
+    for workflow_spec, workflow, node_creation in creation.created:
+        created_workflows.append(shared_workflows.describe_workflow(workflow))
+        errors.extend(node_creation.errors)
+        # The workflow is committed now, so the formula generator runs outside it.
+        workflow_errors = agents.repair_formula_errors(
+            tool_context,
+            tool_helpers,
+            node_creation.formula_errors,
+            {node.id: ref for ref, node in node_creation.nodes},
+        )
+        formula_errors.extend(workflow_errors)
+        if not workflow_errors and not node_creation.errors:
+            run_created[workflow.id] = reconciliation.VerifiedWorkflowCreation(
+                request=workflow_spec.model_dump(),
+                configuration=reconciliation.workflow_configuration_fingerprint(
+                    user, workflow
+                ),
+            )
+
+    if creation.created:
+        last_created_workflow = creation.created[-1][1]
         tool_helpers.navigate_to(
             WorkflowNavigationType(
                 type="automation-workflow",
@@ -276,9 +219,6 @@ def create_workflows(
             )
         )
 
-    run_created = tool_helpers.request_context.setdefault(
-        reconciliation.RUN_CREATED_WORKFLOWS, {}
-    )
     requested_by_name = {spec.name: spec for spec in plan.requested}
     verified_workflow_ids = {
         workflow.id
@@ -299,6 +239,8 @@ def create_workflows(
             plan.requested, reused_workflows, verified_workflow_ids
         )
     )
+    if errors:
+        result["errors"] = errors
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
@@ -320,60 +262,24 @@ def update_nodes(
     ],
 ) -> dict[str, Any]:
     """\
-    Update automation node labels and service configuration.
+    Update automation node labels, service configuration and router conditions.
 
-    WHEN to use: User wants to rename a node, change email subject/body, update slack channel, etc.
+    WHEN to use: User wants to rename a node, change email subject/body, update slack channel, change a router branch condition, etc.
     WHAT it does: Updates node label and/or service config. Supports $formula: prefix for dynamic values.
     RETURNS: Updated node IDs and any update or formula errors.
     DO NOT USE when: You need to change a node's type — delete and recreate it instead.
-    HOW: Use list_workflows first to find the workflow and node IDs.
+    HOW: Use list_nodes first to find the node IDs.
     """
-
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
 
     if not nodes:
         return {"updated_nodes": []}
 
-    # Verify workflow belongs to workspace
-    helpers.get_workflow(workflow_id, user, workspace)
-
-    updated = []
-    errors = []
-    formula_errors = []
-    updated_pairs = []
-
-    with transaction.atomic():
-        for node_update in nodes:
-            tool_helpers.raise_if_cancelled()
-            try:
-                orm_node = helpers.update_node(
-                    user, workspace, node_update, tool_helpers
-                )
-                updated.append({"node_id": orm_node.id, "label": orm_node.label})
-                updated_pairs.append((node_update, orm_node))
-            except Exception as error:
-                raise_if_permission_denied(error)
-                errors.append(f"Error updating node {node_update.node_id}: {error}")
-
-    # Apply direct values and generate formulas outside the main transaction
-    for node_update, orm_node in updated_pairs:
-        # Literal values must be applied whether or not any formula follows.
-        node_update.apply_direct_values(orm_node.service)
-        if not node_update.get_formulas_to_update(orm_node):
-            continue
-        tool_helpers.update_status(
-            _("Generating formulas for node '%(label)s'..." % {"label": orm_node.label})
-        )
-        with transaction.atomic():
-            formula_errors.extend(
-                agents.update_single_node_formulas(node_update, orm_node, tool_helpers)
-            )
-
-    result: dict[str, Any] = {"updated_nodes": updated}
-    if errors:
-        result["errors"] = errors
+    tool_context = ctx.deps.tool_context()
+    result = _shared_call(shared_nodes.update_nodes, tool_context, workflow_id, nodes)
+    # The updates are committed now, so the formula generator runs outside them.
+    formula_errors = agents.repair_formula_errors(
+        tool_context, ctx.deps.tool_helpers, result.pop("formula_errors", [])
+    )
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
@@ -398,33 +304,10 @@ def delete_nodes(
     DO NOT USE when: You want to modify a node — use update_nodes instead.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-    tool_helpers = ctx.deps.tool_helpers
-
     if not node_ids:
         return {"deleted_node_ids": []}
 
-    deleted = []
-    errors = []
-
-    for node_id in node_ids:
-        tool_helpers.raise_if_cancelled()
-        tool_helpers.update_status(
-            _("Deleting node %(node_id)s...") % {"node_id": node_id}
-        )
-        try:
-            helpers.delete_node(user, workspace, node_id)
-            deleted.append(node_id)
-        except PermissionException:
-            errors.append(f"Permission denied for node {node_id}; it was not deleted.")
-        except Exception as error:
-            errors.append(f"Error deleting node {node_id}: {error}")
-
-    result: dict[str, Any] = {"deleted_node_ids": deleted}
-    if errors:
-        result["errors"] = errors
-    return result
+    return shared_nodes.delete_nodes(ctx.deps.tool_context(), node_ids)
 
 
 TOOL_FUNCTIONS = [

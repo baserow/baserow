@@ -120,6 +120,60 @@ describe('McpToolPicker', () => {
     expect(group('database_edit').text()).not.toContain('Delete rows')
   })
 
+  test('labels the automation groups and area', async () => {
+    const automationGroups = [
+      {
+        type: 'automation_read',
+        title: 'Read automations',
+        area: 'automation',
+        read_only_preset: false,
+      },
+      {
+        type: 'automation_edit',
+        title: 'Edit automations',
+        area: 'automation',
+        read_only_preset: false,
+      },
+      {
+        type: 'automation_delete',
+        title: 'Delete in automations',
+        area: 'automation',
+        read_only_preset: false,
+      },
+    ]
+    const automationTools = [
+      ['list_workflows', 'automation_read'],
+      ['create_workflows', 'automation_edit'],
+      ['delete_nodes', 'automation_delete'],
+    ].map(([name, group]) => ({
+      name,
+      title: name,
+      read_only: group === 'automation_read',
+      destructive: group === 'automation_delete',
+      group,
+    }))
+    const { wrapper } = await mount({
+      groups: automationGroups,
+      tools: automationTools,
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-automation"]')
+    const group = (key) =>
+      wrapper.find(`[data-test="mcp-tool-picker-group-${key}"]`)
+    // The test app renders translation keys: the labels are translated, not
+    // the API's fallback titles.
+    expect(area.text()).toContain('mcpToolPicker.areaAutomation')
+    expect(group('automation_read').text()).toContain(
+      'mcpToolPicker.automationRead'
+    )
+    expect(group('automation_edit').text()).toContain(
+      'mcpToolPicker.automationEdit'
+    )
+    expect(group('automation_delete').text()).toContain(
+      'mcpToolPicker.automationDelete'
+    )
+    expect(area.text()).not.toContain('Read automations')
+  })
+
   test('shows the ticked tools from the model value', async () => {
     const { wrapper } = await mount({ modelValue: ['create_rows'] })
     expect(ticked(wrapper)).toEqual(['create_rows'])

@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
@@ -8,22 +8,15 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.tools.workflows import (  # noqa: F401
+    WorkflowCreationPlan,
+    plan_workflow_creation,
+)
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 from . import helpers
 from .types import WorkflowCreate
 from .types.node import CANONICAL_TO_SHORT_TYPE
-
-
-@dataclass(frozen=True)
-class WorkflowCreationPlan:
-    """Canonical workflow requests and their exact-name matches."""
-
-    requested: list[WorkflowCreate]
-    to_create: list[WorkflowCreate]
-    to_reuse: list[AutomationWorkflow]
-    conflicting_names: list[str]
-
 
 RUN_CREATED_WORKFLOWS = "run_created_workflows"
 
@@ -58,60 +51,6 @@ def workflow_configuration_fingerprint(
         {"graph": workflow.graph, "nodes": nodes}, sort_keys=True
     )
     return sha256(configuration.encode()).hexdigest()
-
-
-def _canonical_workflow_requests(
-    requested: Sequence[WorkflowCreate],
-) -> tuple[list[WorkflowCreate], list[str]]:
-    canonical: list[WorkflowCreate] = []
-    by_name: dict[str, WorkflowCreate] = {}
-    conflicting_names: list[str] = []
-
-    for workflow in requested:
-        first_request = by_name.get(workflow.name)
-        if first_request is None:
-            canonical.append(workflow)
-            by_name[workflow.name] = workflow
-        # model_dump ignores private attrs such as RouterEdgeCreate._uid.
-        elif (
-            workflow.model_dump() != first_request.model_dump()
-            and workflow.name not in conflicting_names
-        ):
-            conflicting_names.append(workflow.name)
-
-    return canonical, conflicting_names
-
-
-def plan_workflow_creation(
-    requested: Sequence[WorkflowCreate], existing: Iterable[AutomationWorkflow]
-) -> WorkflowCreationPlan:
-    """
-    Match requested workflows to exact-name workflows.
-
-    :param requested: The requested workflow definitions.
-    :param existing: The workflows already present in the automation.
-    :return: The canonical requests split into workflows to create and reuse.
-    """
-
-    canonical, conflicting_names = _canonical_workflow_requests(requested)
-    existing_by_name = {workflow.name: workflow for workflow in existing}
-    to_create: list[WorkflowCreate] = []
-    to_reuse: list[AutomationWorkflow] = []
-
-    for workflow in canonical:
-        existing_workflow = existing_by_name.get(workflow.name)
-        if existing_workflow is not None:
-            to_reuse.append(existing_workflow)
-            continue
-
-        to_create.append(workflow)
-
-    return WorkflowCreationPlan(
-        requested=canonical,
-        to_create=to_create,
-        to_reuse=to_reuse,
-        conflicting_names=conflicting_names,
-    )
 
 
 def _short_node_type(node_type: str) -> str:

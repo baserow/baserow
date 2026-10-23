@@ -32,7 +32,11 @@
     "areaDatabase": "Databases",
     "databaseRead": "Read tables and rows",
     "databaseEdit": "Create and change",
-    "databaseDelete": "Delete"
+    "databaseDelete": "Delete",
+    "areaAutomation": "Automations",
+    "automationRead": "Read workflows and nodes",
+    "automationEdit": "Create and change",
+    "automationDelete": "Delete"
   },
   "paginator": {
     "page": "Page",

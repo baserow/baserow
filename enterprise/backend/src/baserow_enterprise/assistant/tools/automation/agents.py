@@ -4,9 +4,11 @@ Sub-agents for the automation assistant tools.
 Contains:
 - ``AssistantFormulaContext``: Automation-specific formula context.
 - ``get_generate_formulas_tool()``: Gets the automation formula generator.
-- ``update_workflow_formulas()``: Generates formulas for workflow nodes.
+- ``repair_formula_errors()``: Generates the formulas the shared tools could not
+  store, after their transaction.
 """
 
+import re
 from typing import TYPE_CHECKING, Any, Callable
 
 from django.db import transaction
@@ -15,16 +17,21 @@ from django.utils.translation import gettext as _
 from loguru import logger
 
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.tools import nodes as shared_nodes
+from baserow.contrib.automation.tools.formulas import formula_error
+from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    FORMULA_PREFIX,
     BaseFormulaContext,
     create_example_from_json_schema,
+    formula_desc,
     minimize_json_schema,
 )
 
 from .prompts import GENERATE_FORMULA_PROMPT
-from .types import ActionNodeCreate, NodeUpdate, WorkflowCreate
+from .types.node import AutomationFieldValue, NodeUpdate, RouterEdgeUpdate
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
@@ -71,173 +78,255 @@ def get_generate_formulas_tool(
     return get_formula_generator(GENERATE_FORMULA_PROMPT, model_profile)
 
 
-def _formula_error(node: AutomationNode, error: Exception) -> dict[str, Any]:
-    """Return node-level formula error data."""
-
-    return {"node_id": node.id, "label": node.label, "error": str(error)}
-
-
-def _is_optional_formula(description: Any) -> bool:
-    """Return whether a formula request may be omitted."""
-
-    if isinstance(description, dict):
-        description = description.get("desc")
-    return isinstance(description, str) and description.startswith("[optional]")
-
-
-def _missing_required_formulas(
-    requested: dict[Any, Any], generated: dict[Any, str]
-) -> list[Any]:
-    """Return required keys absent from the generated formulas."""
-
-    return [
-        key
-        for key, description in requested.items()
-        if key not in generated and not _is_optional_formula(description)
-    ]
+# What each value is, for the generator, by the field a formula error names.
+_DESCRIPTIONS = {
+    "to_emails": "A comma separated list of email addresses to send the email to.",
+    "cc_emails": "A comma separated list of email addresses to CC the email to.",
+    "bcc_emails": "A comma separated list of email addresses to BCC the email to.",
+    "subject": "The subject of the email.",
+    "body": "The body content of the email.",
+    "text": "The message content.",
+    "prompt": "The AI prompt.",
+    "row_id": "The ID of the row to act on.",
+    "condition": "A boolean condition for the router branch.",
+}
 
 
-def _apply_generated_formulas(
-    node: "NodeUpdate | ActionNodeCreate",
-    orm_node: AutomationNode,
-    requested: dict[Any, Any],
-    generated: dict[Any, str],
-) -> None:
+# The refusal of a row value whose field is not in the table.
+_REFUSED_FIELD_RE = re.compile(r"Field (\d+) is not in table ")
+
+
+def _request_key(error: dict[str, Any]) -> Any:
+    """The key the generator answers a formula error under."""
+
+    if "field_id" in error:
+        return error["field_id"]
+    if "edge_label" in error:
+        return error["edge_label"]
+    return error["field"]
+
+
+def _describe(error: dict[str, Any], base: str) -> str:
+    formula = error["formula"]
+    description = f"{base} Value to resolve: {formula_desc(formula) if formula.strip() else 'not given'}"
+    if formula.strip() and FORMULA_PREFIX not in formula.lower():
+        description += f" It was written as an invalid formula: {error['error']}"
+    return description
+
+
+def formula_requests(
+    node: AutomationNode, errors: list[dict[str, Any]]
+) -> dict[Any, Any]:
     """
-    Apply available formulas and reject missing required ones.
-
-    :raises ValueError: When the generator omitted a required formula, after
-        the available ones were applied.
-    """
-
-    missing = _missing_required_formulas(requested, generated)
-    if generated:
-        node.update_service_with_formulas(orm_node.service, generated)
-    if missing:
-        names = ", ".join(str(key) for key in missing)
-        raise ValueError(f"Formula generator omitted required fields: {names}")
-
-
-def update_workflow_formulas(
-    workflow: "WorkflowCreate",
-    node_mapping: dict[int | str, Any],
-    tool_helpers: "ToolHelpers",
-) -> list[dict[str, Any]]:
-    """
-    Generate workflow formulas in order and return node-level failures.
-
-    :param workflow: The workflow definition the nodes were created from.
-    :param node_mapping: Mapping of node refs to (orm_node, create) pairs.
-    :param tool_helpers: Provides status updates.
-    :return: One error dict per node whose formulas could not be generated.
+    What to ask the generator for a node's formula errors, keyed as
+    ``_request_key``. A row value is described with its field.
     """
 
-    formula_errors: list[dict[str, Any]] = []
-    context = AssistantFormulaContext()
-    generate_formula = get_generate_formulas_tool(tool_helpers.model_profile)
+    fields = {}
+    if any("field_id" in error for error in errors):
+        service = node.service.specific
+        schema = service.get_type().generate_schema(service) or {}
+        fields = {
+            int(field["id"]): field
+            for field in minimize_json_schema(schema).values()
+            if "id" in field
+        }
 
-    def _build_node_context(orm_node: AutomationNode, node_create):
-        """Extract schema/example from a node and add it to the formula context."""
+    requests: dict[Any, Any] = {}
+    for error in errors:
+        key = _request_key(error)
+        if "field_id" in error:
+            field = fields.get(error["field_id"], {"desc": ""})
+            requests[key] = {**field, "desc": _describe(error, field["desc"])}
+        else:
+            requests[key] = _describe(error, _DESCRIPTIONS.get(error["field"], ""))
+    return requests
 
-        schema = orm_node.service.get_type().generate_schema(orm_node.service.specific)
-        example = create_example_from_json_schema(schema)
-        metadata = minimize_json_schema(schema)
-        metadata["node_id"] = orm_node.id
-        metadata["node_ref"] = node_create.ref
-        if getattr(node_create, "previous_node_ref", None):
-            metadata["previous_node_ref"] = node_create.previous_node_ref
-        context.add_node_context(orm_node.id, example, metadata)
 
-    def _generate_node_formulas(node: ActionNodeCreate, orm_node: AutomationNode):
-        """Generate formulas for a single node and write them to the service."""
+def _formula_update(
+    node_id: int, errors: list[dict[str, Any]], generated: dict[Any, str]
+) -> NodeUpdate:
+    """The update that writes the generated formulas of a node's errors."""
 
-        formulas_to_create = node.get_formulas_to_create(orm_node)
-        if formulas_to_create is None:
-            return
-        generated = generate_formula(formulas_to_create, context) or {}
-        _apply_generated_formulas(node, orm_node, formulas_to_create, generated)
-
-    orm_trigger, trigger_create = node_mapping[workflow.trigger.ref]
-
-    # Seed context with the trigger
-    _build_node_context(orm_trigger, trigger_create)
-
-    # Process action nodes in order
-    for node in workflow.nodes:
-        orm_node, _node_create = node_mapping[node.ref]
-        node.apply_direct_values(orm_node.service)
-
-        if node.get_formulas_to_create(orm_node) is not None:
-            tool_helpers.update_status(
-                _("Generating formulas for node '%(label)s'..." % {"label": node.label})
+    values: dict[str, Any] = {}
+    for error in errors:
+        formula = generated[_request_key(error)]
+        if "field_id" in error:
+            values.setdefault("values", []).append(
+                AutomationFieldValue(field_id=error["field_id"], value=formula)
             )
-            with transaction.atomic():
-                try:
-                    _generate_node_formulas(node, orm_node)
-                except Exception as exc:
-                    raise_if_permission_denied(exc)
-                    logger.exception(
-                        "Failed to generate formulas for node {}: {}", orm_node.id, exc
-                    )
-                    formula_errors.append(_formula_error(orm_node, exc))
-
-        _build_node_context(orm_node, node)
-
-    return formula_errors
+        elif "edge_label" in error:
+            values.setdefault("edges", []).append(
+                RouterEdgeUpdate(label=error["edge_label"], condition=formula)
+            )
+        else:
+            values[error["field"]] = formula
+    return NodeUpdate(node_id=node_id, **values)
 
 
-def update_single_node_formulas(
-    node: "NodeUpdate | ActionNodeCreate",
-    orm_node: AutomationNode,
+class WorkflowExamples:
+    """
+    The example data of a workflow's nodes for the generator, read once per
+    workflow however many of its nodes are repaired.
+    """
+
+    def __init__(self, user, refs: dict[int, str] | None = None):
+        self.user = user
+        self.refs = refs or {}
+        self._workflows: dict[int, tuple[dict, dict]] = {}
+
+    def _read(self, workflow) -> tuple[dict, dict]:
+        if workflow.id not in self._workflows:
+            previous_of = {}
+            examples = {}
+            for node, previous, _output in shared_nodes.nodes_in_order(
+                self.user, workflow
+            ):
+                previous_of[node.id] = previous.id if previous else None
+                service = node.service.specific
+                schema = service.get_type().generate_schema(service)
+                if not schema:
+                    continue
+                metadata = minimize_json_schema(schema)
+                metadata["node_id"] = node.id
+                metadata["label"] = node.label
+                if node.id in self.refs:
+                    metadata["node_ref"] = self.refs[node.id]
+                if previous is not None:
+                    metadata["previous_node_id"] = previous.id
+                examples[node.id] = (create_example_from_json_schema(schema), metadata)
+            self._workflows[workflow.id] = (previous_of, examples)
+        return self._workflows[workflow.id]
+
+    def context_for(self, node: AutomationNode) -> "AssistantFormulaContext":
+        """
+        The nodes that run before ``node`` on its path, the only ones its
+        formulas can read.
+        """
+
+        previous_of, examples = self._read(node.workflow)
+        context = AssistantFormulaContext()
+        ancestor = previous_of.get(node.id)
+        ancestors = []
+        while ancestor is not None:
+            ancestors.append(ancestor)
+            ancestor = previous_of.get(ancestor)
+        for node_id in reversed(ancestors):
+            if node_id in examples:
+                example, metadata = examples[node_id]
+                context.add_node_context(node_id, example, metadata)
+        return context
+
+
+def repair_formula_errors(
+    tool_context: ToolContext,
     tool_helpers: "ToolHelpers",
+    formula_errors: list[dict[str, Any]],
+    refs: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Generate one node's formulas and return any failure.
+    Generate the formulas the shared tools could not store, and write each node's
+    in its own transaction. Runs after the nodes are committed, so the model is
+    never called inside a transaction.
 
-    :param node: The node create or update definition.
-    :param orm_node: The ORM node to write formulas to.
-    :param tool_helpers: Provides status updates.
-    :return: A single-item error list on failure, otherwise an empty list.
+    :param refs: The ref each node was created under, to help the generator.
+    :return: The formula errors that remain.
     """
 
-    try:
-        _apply_single_node_formulas(node, orm_node, tool_helpers)
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        logger.exception(
-            "Failed to generate formulas for node {}: {}", orm_node.id, exc
-        )
-        return [_formula_error(orm_node, exc)]
-    return []
+    if not formula_errors:
+        return []
 
-
-def _apply_single_node_formulas(
-    node: "NodeUpdate | ActionNodeCreate",
-    orm_node: AutomationNode,
-    tool_helpers: "ToolHelpers",
-) -> None:
-    """Generate and apply a single node's formulas."""
-
-    context = AssistantFormulaContext()
     generate_formula = get_generate_formulas_tool(tool_helpers.model_profile)
+    raise_if_cancelled = tool_helpers.raise_if_cancelled
+    field_ids = shared_nodes.table_field_ids()
+    examples = WorkflowExamples(tool_context.user, refs)
+    remaining: list[dict[str, Any]] = []
+    by_node: dict[int, list[dict[str, Any]]] = {}
+    for error in formula_errors:
+        by_node.setdefault(error["node_id"], []).append(error)
+    for node_id, node_errors in by_node.items():
+        try:
+            remaining.extend(
+                _repair_node(
+                    tool_context,
+                    node_id,
+                    node_errors,
+                    raise_if_cancelled=raise_if_cancelled,
+                    generate_formula=generate_formula,
+                    field_ids=field_ids,
+                    examples=examples,
+                )
+            )
+        except Exception as exc:
+            # The nodes are committed, so a failed repair only leaves its errors.
+            raise_if_cancelled()
+            raise_if_permission_denied(exc)
+            logger.exception("Failed to repair formulas of node {}: {}", node_id, exc)
+            remaining.extend({**error, "error": str(exc)} for error in node_errors)
+    return remaining
 
-    # Build context from the workflow's existing nodes
-    workflow = orm_node.workflow
-    all_nodes = list(workflow.automation_workflow_nodes.all().order_by("id"))
-    for wf_node in all_nodes:
-        schema = wf_node.service.get_type().generate_schema(wf_node.service.specific)
-        example = create_example_from_json_schema(schema)
-        metadata = minimize_json_schema(schema)
-        metadata["node_id"] = wf_node.id
-        context.add_node_context(wf_node.id, example, metadata)
 
-    formulas_to_create = (
-        node.get_formulas_to_update(orm_node)
-        if isinstance(node, NodeUpdate)
-        else node.get_formulas_to_create(orm_node)
+def _refuses(message: str, error: dict[str, Any]) -> bool:
+    """
+    Whether an update refusal left the value of a formula error unset. A branch
+    label or a field the update couldn't match only leaves that condition or
+    field unset.
+    """
+
+    if "edge_label" in error:
+        return f"'{error['edge_label']}'" in message
+    field = _REFUSED_FIELD_RE.match(message)
+    if field is None:
+        return True
+    return int(field.group(1)) == error.get("field_id")
+
+
+def _repair_node(
+    tool_context: ToolContext,
+    node_id: int,
+    node_errors: list[dict[str, Any]],
+    *,
+    raise_if_cancelled: Callable[[], None],
+    generate_formula: Callable,
+    field_ids: Callable[[int], set[int]],
+    examples: WorkflowExamples,
+) -> list[dict[str, Any]]:
+    """
+    Generate one node's formulas and write them in their own transaction.
+
+    :param raise_if_cancelled: Raises when the user cancelled the request.
+    :return: The node's formula errors that remain.
+    """
+
+    node = shared_nodes.get_node_in_workspace(tool_context, node_id)
+    tool_context.update_status(
+        _("Generating formulas for node '%(label)s'...") % {"label": node.label}
     )
-    if formulas_to_create is None:
-        return
+    context = examples.context_for(node)
+    generated = generate_formula(formula_requests(node, node_errors), context) or {}
+    # The user may cancel while the model runs; nothing is written then.
+    raise_if_cancelled()
 
-    generated = generate_formula(formulas_to_create, context) or {}
-    _apply_generated_formulas(node, orm_node, formulas_to_create, generated)
+    repaired = [e for e in node_errors if _request_key(e) in generated]
+    remaining = [e for e in node_errors if _request_key(e) not in generated]
+    if repaired:
+        with transaction.atomic():
+            node, values = shared_nodes.update_node(
+                tool_context,
+                node.workflow,
+                _formula_update(node_id, repaired, generated),
+                field_ids,
+                as_formulas=True,
+                # The generator sees each node's ref and may name it by it.
+                refs={ref: node_id for node_id, ref in examples.refs.items()},
+            )
+        for error in repaired:
+            refusals = [
+                message for message in values.errors if _refuses(message, error)
+            ]
+            if refusals:
+                remaining.append({**error, "error": " ".join(refusals)})
+        remaining.extend(
+            formula_error(node, exc, **target) for exc, target in values.invalid
+        )
+    return remaining

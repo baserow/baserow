@@ -5,8 +5,12 @@ from baserow.core.registry import Instance, Registry
 GROUP_DATABASE_READ = "database_read"
 GROUP_DATABASE_EDIT = "database_edit"
 GROUP_DATABASE_DELETE = "database_delete"
+GROUP_AUTOMATION_READ = "automation_read"
+GROUP_AUTOMATION_EDIT = "automation_edit"
+GROUP_AUTOMATION_DELETE = "automation_delete"
 
 AREA_DATABASE = "database"
+AREA_AUTOMATION = "automation"
 
 
 class MCPToolGroup(Instance):
@@ -56,6 +60,27 @@ class DatabaseDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in databases"
     area = AREA_DATABASE
     order = 30
+
+
+class AutomationReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUTOMATION_READ
+    title = "Read automations"
+    area = AREA_AUTOMATION
+    order = 40
+
+
+class AutomationEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUTOMATION_EDIT
+    title = "Edit automations"
+    area = AREA_AUTOMATION
+    order = 50
+
+
+class AutomationDeleteMCPToolGroup(MCPToolGroup):
+    type = GROUP_AUTOMATION_DELETE
+    title = "Delete in automations"
+    area = AREA_AUTOMATION
+    order = 60
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()
