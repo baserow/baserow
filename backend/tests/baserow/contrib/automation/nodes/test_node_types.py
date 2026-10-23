@@ -17,6 +17,9 @@ from rest_framework.status import (
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -117,10 +120,17 @@ def test_automation_service_trigger_node_type_on_event(
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     original_workflow = data_fixture.create_automation_workflow(
-        user, trigger_service_kwargs={"table": table}
+        user,
+        automation=data_fixture.create_automation_application(
+            workspace=table.database.workspace
+        ),
+        trigger_service_kwargs={"table": table},
     )
     workflow = data_fixture.create_automation_workflow(
-        user, state=WorkflowState.LIVE, trigger_service_kwargs={"table": table}
+        user,
+        automation=data_fixture.create_automation_application(workspace=None),
+        state=WorkflowState.LIVE,
+        trigger_service_kwargs={"table": table},
     )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
@@ -188,7 +198,11 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
-    mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+    mock_dispatch.assert_called_once_with(
+        node.service.specific,
+        dispatch_context,
+        application_id=node.workflow.automation_id,
+    )
 
 
 @pytest.mark.django_db
@@ -254,7 +268,11 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
-    mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+    mock_dispatch.assert_called_once_with(
+        node.service.specific,
+        dispatch_context,
+        application_id=node.workflow.automation_id,
+    )
 
 
 @pytest.mark.django_db
@@ -292,7 +310,12 @@ def test_automation_node_type_update_row_dispatch_without_a_row_to_update(
         application=workflow.automation, user=user
     )
     table, fields, rows = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["Horse"]]
+        database=data_fixture.create_database_application(
+            workspace=workflow.automation.workspace
+        ),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Horse"]],
     )
     service = data_fixture.create_local_baserow_upsert_row_service(
         table=table, integration=integration, row_id=row_id
@@ -363,7 +386,11 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == mock_dispatch_result
-    mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+    mock_dispatch.assert_called_once_with(
+        node.service.specific,
+        dispatch_context,
+        application_id=node.workflow.automation_id,
+    )
 
 
 @pytest.mark.django_db
@@ -900,3 +927,102 @@ def test_create_inbound_email_trigger_blocked_when_unconfigured(data_fixture):
     node_type = automation_node_type_registry.get("email_trigger")
     with pytest.raises(PermissionDenied):
         AutomationNodeService().create_node(user, node_type, workflow)
+
+
+def _create_table_of_another_workspace(data_fixture, user):
+    """
+    Returns a table the user can read, in a workspace other than the one of the
+    automation, with an integration of that workspace authorized as the user.
+    """
+
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=user
+    )
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=builder.workspace)
+    )
+    field = data_fixture.create_text_field(table=table, primary=True, name="Name")
+    table.get_model().objects.create(**{field.db_column: "Secret"})
+    return table, integration
+
+
+@pytest.mark.django_db
+def test_automation_node_type_dispatch_refuses_integration_of_another_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    table, integration = _create_table_of_another_workspace(data_fixture, user)
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="local_baserow_list_rows",
+        reference_node_id=workflow.get_trigger().id,
+        service_kwargs={"integration": integration, "table": table},
+    )
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        node.get_type().dispatch(node, AutomationDispatchContext(workflow, None))
+
+    assert str(exc.value) == (
+        "The integration used by this service belongs to another application."
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("with_integration", [True, False])
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_automation_trigger_node_type_on_event_skips_service_of_another_workspace(
+    mock_async_start_workflow, data_fixture, with_integration
+):
+    user = data_fixture.create_user()
+    table, integration = _create_table_of_another_workspace(data_fixture, user)
+    workflow = data_fixture.create_automation_workflow(
+        user,
+        state=WorkflowState.LIVE,
+        trigger_type="local_baserow_rows_created",
+        trigger_service_kwargs={
+            "table": table,
+            "integration": integration if with_integration else None,
+        },
+    )
+    trigger = workflow.get_trigger()
+    service = trigger.service.specific
+
+    trigger.get_type().on_event(
+        service.get_type().model_class.objects.filter(table=table), [], user=user
+    )
+
+    mock_async_start_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_automation_trigger_node_type_rejects_table_of_another_workspace(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type="local_baserow_rows_created"
+    )
+    trigger = workflow.get_trigger()
+    table, _ = _create_table_of_another_workspace(data_fixture, user)
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+        AutomationNodeService().update_node(
+            user,
+            trigger.id,
+            service={
+                "type": "local_baserow_rows_created",
+                "integration_id": None,
+                "table_id": table.id,
+            },
+        )
+
+    assert str(exc.value) == (
+        f"The table with ID {table.id} is not related to the automation "
+        f"{workflow.automation_id}."
+    )
+    trigger.service.refresh_from_db()
+    assert trigger.service.specific.table_id != table.id

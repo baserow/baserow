@@ -59,6 +59,7 @@ def data_source_element_roles_fixture(data_fixture):
 
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(workspace=builder.workspace),
         columns=[
             ("Name", "text"),
             ("Color", "text"),
@@ -97,7 +98,9 @@ def data_source_fixture(data_fixture):
             ["Cherry", "Purple"],
         ],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -819,6 +822,7 @@ def test_preview_dispatch_data_source_keeps_user_source_as_secondary_actor(
         application=builder, user=user
     )
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=builder.workspace),
         user=user,
         columns=[("Name", "text")],
         rows=[["Ada"]],
@@ -1062,6 +1066,9 @@ def test_public_dispatch_data_source_view_returns_all_fields(
     user = user_source_user_fixture["user"]
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(
+            workspace=user_source_user_fixture["page"].builder.workspace
+        ),
         columns=[
             ("Food", "text"),
             ("Spiciness", "number"),
@@ -1097,9 +1104,15 @@ def test_public_dispatch_data_source_view_returns_all_fields(
     )
 
     builder = user_source_user_fixture["builder"]
+    published_from_workspace = builder.workspace
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=published_from_workspace
+        ),
+        published_to=builder,
+    )
 
     url = reverse(
         "api:builder:domains:public_dispatch",
@@ -1143,6 +1156,9 @@ def test_public_dispatch_data_source_view_returns_some_fields(
     user = user_source_user_fixture["user"]
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(
+            workspace=user_source_user_fixture["page"].builder.workspace
+        ),
         columns=[
             ("Food", "text"),
             ("Spiciness", "number"),
@@ -1165,9 +1181,15 @@ def test_public_dispatch_data_source_view_returns_some_fields(
     )
 
     builder = user_source_user_fixture["builder"]
+    published_from_workspace = builder.workspace
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=published_from_workspace
+        ),
+        published_to=builder,
+    )
 
     url = reverse(
         "api:builder:domains:public_dispatch",
@@ -2461,9 +2483,15 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
         page=page,
         value=f"get('data_source.{data_source.id}.field_{fields[0].id}')",
     )
+    published_from_workspace = builder.workspace
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=published_from_workspace
+        ),
+        published_to=builder,
+    )
 
     url = reverse(
         "api:builder:domains:public_dispatch",

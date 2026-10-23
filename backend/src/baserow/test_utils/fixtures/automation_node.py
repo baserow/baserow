@@ -64,6 +64,11 @@ class AutomationNodeFixtures:
 
         if "service" not in kwargs:
             service_kwargs = kwargs.pop("service_kwargs", {})
+            if "integration" not in service_kwargs:
+                # The service's integration belongs to the node's automation.
+                service_kwargs.setdefault(
+                    "integration_args", {"application": workflow.automation}
+                )
             service_type = service_type_registry.get(node_type.service_type)
             kwargs["service"] = self.create_service(
                 service_type.model_class, **service_kwargs
@@ -262,32 +267,42 @@ class AutomationNodeFixtures:
         """
 
         user = self.create_user()
+        workspace = self.create_workspace(user=user)
+        database = self.create_database_application(workspace=workspace)
+        automation = self.create_automation_application(workspace=workspace)
 
         trigger_table, trigger_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text"), ("Color", "text")],
             rows=[],
         )
         iterator_child_1_table, iterator_child_1_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text")],
             rows=[],
         )
         iterator_child_2_table, iterator_child_2_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text")],
             rows=[],
         )
         after_iteration_table, after_iteration_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text")],
             rows=[],
         )
 
-        integration = self.create_local_baserow_integration(user=user)
+        integration = self.create_local_baserow_integration(
+            user=user, application=automation
+        )
 
         workflow = self.create_automation_workflow(
             user=user,
+            automation=automation,
             state=WorkflowState.LIVE,
             trigger_type="local_baserow_rows_created",
             trigger_service_kwargs={
@@ -421,15 +436,20 @@ class AutomationNodeFixtures:
         """
 
         user = self.create_user()
+        workspace = self.create_workspace(user=user)
+        database = self.create_database_application(workspace=workspace)
+        automation = self.create_automation_application(workspace=workspace)
 
         trigger_table, trigger_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text"), ("Items", "text")],
             rows=[],
         )
         child_iterator_child_1_table, child_iterator_child_1_table_fields, _ = (
             self.build_table(
                 user=user,
+                database=database,
                 columns=[("Name", "text")],
                 rows=[],
             )
@@ -437,20 +457,25 @@ class AutomationNodeFixtures:
         child_iterator_child_2_table, child_iterator_child_2_table_fields, _ = (
             self.build_table(
                 user=user,
+                database=database,
                 columns=[("Color", "text")],
                 rows=[],
             )
         )
         after_iteration_table, after_iteration_table_fields, _ = self.build_table(
             user=user,
+            database=database,
             columns=[("Name", "text")],
             rows=[],
         )
 
-        integration = self.create_local_baserow_integration(user=user)
+        integration = self.create_local_baserow_integration(
+            user=user, application=automation
+        )
 
         workflow = self.create_automation_workflow(
             user=user,
+            automation=automation,
             state=WorkflowState.LIVE,
             trigger_type="local_baserow_rows_created",
             trigger_service_kwargs={

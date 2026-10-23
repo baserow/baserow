@@ -78,7 +78,7 @@ def test_automation_export_serialized(data_fixture):
     trigger = workflow.get_trigger()
     integration = trigger.service.specific.integration
     first_action = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow
+        workflow=workflow, service_kwargs={"integration": integration}
     )
     serialized = AutomationApplicationType().export_serialized(
         automation, ImportExportConfig(include_permission_data=True)

@@ -581,6 +581,17 @@ class Application(
             )
         return self.workspace
 
+    def get_workspace(self) -> Workspace | None:
+        """
+        Returns the workspace the application belongs to. A type with published
+        copies, which have no workspace of their own, returns the workspace of the
+        application it's published from.
+
+        :return: The workspace, if any.
+        """
+
+        return self.workspace
+
 
 class TemplateCategory(models.Model):
     name = models.CharField(max_length=32)

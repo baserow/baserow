@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -15,7 +15,7 @@ from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.types import DataSourceDict
 from baserow.core.cache import local_cache
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
@@ -563,7 +563,7 @@ class DataSourceHandler:
             service.get_type().raise_if_deactivated(dispatch_context.workspace)
 
             service_dispatch = self.service_handler.dispatch_service(
-                service, cloned_dispatch_context
+                service, cloned_dispatch_context, application_id=page.builder_id
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need
@@ -571,6 +571,28 @@ class DataSourceHandler:
             cache["data_source_contents"][data_source.id] = service_dispatch.data
 
         return cache["data_source_contents"][data_source.id]
+
+    def get_record_names(
+        self,
+        data_source: DataSource,
+        record_ids: List[int],
+        dispatch_context: BuilderDispatchContext,
+    ) -> Dict[int, str]:
+        """
+        Returns the name of each of the given records of the data source.
+
+        :param data_source: The data source the records are read through.
+        :param record_ids: The record identifiers.
+        :param dispatch_context: The context used for the dispatch.
+        :return: A dictionary mapping each record id to its name.
+        """
+
+        return self.service_handler.get_record_names(
+            data_source.service.specific,
+            record_ids,
+            dispatch_context,
+            application_id=data_source.page.builder_id,
+        )
 
     def move_data_source(
         self, data_source: DataSourceForUpdate, before: Optional[DataSource] = None
@@ -673,30 +695,11 @@ class DataSourceHandler:
         service = None
         serialized_service = serialized_data_source.get("service", None)
         if serialized_service:
-            # Get the integration if any
-            integration = None
-            integration_id = serialized_service.pop("integration_id", None)
-            if integration_id:
-                integration_id = id_mapping["integrations"].get(
-                    integration_id, integration_id
-                )
-                # Use the trash-inclusive manager: duplicating a page preserves the
-                # `integration_id` of a service pointing at a trashed integration (so
-                # the copy reconnects when it is restored), and the default manager
-                # would raise `DoesNotExist` on that trashed row.
-                try:
-                    integration = Integration.objects_and_trash.get(id=integration_id)
-                except Integration.DoesNotExist:
-                    integration = None
-                else:
-                    # Never reference an integration outside the target application.
-                    # On a cross-application import a trashed integration is not part
-                    # of the export (so it is absent from `id_mapping`), and the
-                    # unmapped id would otherwise resolve to an unrelated integration
-                    # in another application. Same-builder duplication is unaffected:
-                    # the integration lives in this builder.
-                    if integration.application_id != page.builder_id:
-                        integration = None
+            integration = IntegrationHandler().get_integration_for_import(
+                serialized_service.pop("integration_id", None),
+                id_mapping,
+                application_id=page.builder_id,
+            )
 
             service = ServiceHandler().import_service(
                 integration,

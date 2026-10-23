@@ -19,9 +19,7 @@ from baserow.core.formula.exceptions import (
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.validator import ensure_integer
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
-from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.mixins import IntegrationConsumerMixin
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
@@ -63,6 +61,7 @@ class DispatchTypes(str, Enum):
 
 
 class ServiceType(
+    IntegrationConsumerMixin,
     APIUrlsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
@@ -75,8 +74,6 @@ class ServiceType(
     """
     A service type describe a specific service of an external integration.
     """
-
-    integration_type = None
 
     SerializedDict: Type[ServiceDictSubClass]
     parent_property_name = "integration"
@@ -224,48 +221,7 @@ class ServiceType(
         :return: The updated values.
         """
 
-        # We load the actual integration object
-        if "integration_id" in values:
-            integration_id = values.pop("integration_id")
-            if integration_id is not None:
-                try:
-                    integration = IntegrationHandler().get_integration(integration_id)
-                except IntegrationDoesNotExist:
-                    # The integration may be trashed rather than truly gone: undoing
-                    # a data source update can restore an integration_id whose
-                    # integration is still trashed (a later undo step un-trashes it).
-                    # Resolve it from the full set so the FK can still be set; the
-                    # data source stays misconfigured until the integration is
-                    # restored. A genuinely non-existent id still raises.
-                    try:
-                        integration = IntegrationHandler().get_integration(
-                            integration_id,
-                            base_queryset=Integration.objects_and_trash.all(),
-                            specific=False,
-                        )
-                    except IntegrationDoesNotExist:
-                        raise DRFValidationError(
-                            f"The integration with ID {integration_id} does not exist."
-                        )
-
-                # `integration` cannot belong to a different application than the one
-                # that `instance.integration` points to. Skipped when the current
-                # integration has been trashed (it can no longer be resolved, so
-                # `instance.integration` is None).
-                if instance and instance.integration_id and instance.integration:
-                    current_integration_id = instance.integration.application_id
-                    if integration.application_id != current_integration_id:
-                        raise DRFValidationError(
-                            detail=f"The integration with ID {integration_id} is not "
-                            f"related to the given application {current_integration_id}.",
-                            code="invalid_integration",
-                        )
-
-                values["integration"] = integration
-            else:
-                values["integration"] = None
-
-        return values
+        return self.prepare_integration_values(values)
 
     def export_prepared_values(self, instance: Service):
         """

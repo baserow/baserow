@@ -792,10 +792,8 @@ class RecordSelectorElementType(
                 else ([] if value is None or value == "" else [value])
             )
             record_ids = set(service_type.prepare_record_ids(raw_record_ids))
-            record_names = service_type.get_record_names(
-                service.specific,
-                record_ids,
-                dispatch_context,
+            record_names = DataSourceHandler().get_record_names(
+                data_source, record_ids, dispatch_context
             )
             available_record_ids = set(record_names.keys())
         except (ValidationError, DRFValidationError) as err:

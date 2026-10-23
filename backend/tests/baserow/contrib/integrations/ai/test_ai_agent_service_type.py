@@ -9,6 +9,7 @@ import pytest
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -1303,7 +1304,7 @@ def test_prepare_values_rejects_nonexistent_integration(data_fixture):
     integration_id = integration.id
     integration.delete()
 
-    with pytest.raises(DRFValidationError, match="integration.*does not exist"):
+    with pytest.raises(RequestBodyValidationException) as exc:
         AIAgentServiceType().prepare_values(
             {
                 "integration_id": integration_id,
@@ -1312,6 +1313,9 @@ def test_prepare_values_rejects_nonexistent_integration(data_fixture):
             },
             user,
         )
+    assert exc.value.detail["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
 
 
 @pytest.mark.django_db

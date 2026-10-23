@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
@@ -221,6 +222,21 @@ class ServiceFixtures:
             integration_type = service_type.get_integration_type()
             if integration_type:
                 if integration_type.model_class is LocalBaserowIntegration:
+                    table = kwargs.get("table")
+                    if table is None and kwargs.get("table_id"):
+                        table = Table.objects.get(id=kwargs["table_id"])
+                    if (
+                        table is not None
+                        and "application" not in integrations_args
+                        and "application_args" not in integrations_args
+                    ):
+                        # The table is read through the integration, so they
+                        # share a workspace.
+                        integrations_args["application"] = (
+                            self.create_builder_application(
+                                workspace=table.database.workspace
+                            )
+                        )
                     integration = self.create_local_baserow_integration(
                         **integrations_args
                     )

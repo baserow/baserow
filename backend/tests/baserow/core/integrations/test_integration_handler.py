@@ -7,7 +7,12 @@ from baserow.core.exceptions import (
     ApplicationOperationNotSupported,
     CannotCalculateIntermediateOrder,
 )
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
+from baserow.core.integrations.exceptions import (
+    IntegrationDoesNotExist,
+    IntegrationNotInApplication,
+    IntegrationNotInWorkspace,
+    IntegrationTypeNotAllowed,
+)
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import (
@@ -15,6 +20,7 @@ from baserow.core.integrations.registries import (
     integration_type_registry,
 )
 from baserow.core.registries import application_type_registry
+from baserow.core.trash.handler import TrashHandler
 
 
 def pytest_generate_tests(metafunc):
@@ -252,3 +258,131 @@ def test_recalculate_full_orders(data_fixture):
 
     assert integrations[1].id == integrationB.id
     assert integrations[1].order == Decimal("2.00300000000000000000")
+
+
+@pytest.mark.django_db
+def test_check_integration_usable(data_fixture):
+    integration = data_fixture.create_local_baserow_integration()
+    application = integration.application
+    other_application = data_fixture.create_builder_application(
+        workspace=application.workspace
+    )
+    other_workspace = data_fixture.create_workspace()
+    handler = IntegrationHandler()
+
+    # Only the given constraints are checked.
+    handler.check_integration_usable(integration)
+    handler.check_integration_usable(
+        integration,
+        application_id=application.id,
+        workspace_id=application.workspace_id,
+        integration_types=["local_baserow"],
+    )
+
+    with pytest.raises(IntegrationNotInApplication):
+        handler.check_integration_usable(
+            integration, application_id=other_application.id
+        )
+    with pytest.raises(IntegrationNotInWorkspace):
+        handler.check_integration_usable(integration, workspace_id=other_workspace.id)
+    with pytest.raises(IntegrationTypeNotAllowed):
+        handler.check_integration_usable(integration, integration_types=["smtp"])
+
+    assert handler.is_integration_usable(integration, application_id=application.id)
+    assert not handler.is_integration_usable(
+        integration, application_id=other_application.id
+    )
+
+
+@pytest.mark.django_db
+def test_get_integration_including_trashed(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    application = integration.application
+    TrashHandler.trash(user, application.workspace, application, integration)
+
+    with pytest.raises(IntegrationDoesNotExist):
+        IntegrationHandler().get_integration(integration.id)
+    assert (
+        IntegrationHandler().get_integration_including_trashed(integration.id).id
+        == integration.id
+    )
+    with pytest.raises(IntegrationDoesNotExist):
+        IntegrationHandler().get_integration_including_trashed(0)
+
+
+@pytest.mark.django_db
+def test_get_integration_for_import(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    application = integration.application
+    imported = data_fixture.create_local_baserow_integration(application=application)
+    other_application = data_fixture.create_builder_application(user=user)
+    handler = IntegrationHandler()
+    id_mapping = {"integrations": {integration.id: imported.id}}
+
+    assert handler.get_integration_for_import(None, id_mapping) is None
+    assert handler.get_integration_for_import(0, id_mapping) is None
+    # A mapped ID resolves to the imported integration.
+    assert (
+        handler.get_integration_for_import(
+            integration.id, id_mapping, application_id=application.id
+        ).id
+        == imported.id
+    )
+    # An unmapped ID is kept when it belongs to the target application, trashed
+    # or not.
+    TrashHandler.trash(user, application.workspace, application, imported)
+    assert (
+        handler.get_integration_for_import(
+            imported.id, {"integrations": {}}, application_id=application.id
+        ).id
+        == imported.id
+    )
+    # Or dropped when unmapped IDs aren't kept.
+    assert (
+        handler.get_integration_for_import(
+            imported.id, {"integrations": {}}, keep_unmapped=False
+        )
+        is None
+    )
+    # It's dropped when it belongs to another application.
+    assert (
+        handler.get_integration_for_import(
+            imported.id, {"integrations": {}}, application_id=other_application.id
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
+def test_get_integration_workspace_id_of_published_copies(data_fixture):
+    workspace = data_fixture.create_workspace()
+    handler = IntegrationHandler()
+
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    workflow = data_fixture.create_automation_workflow(
+        automation=data_fixture.create_automation_application(workspace=workspace)
+    )
+    published_automation = data_fixture.create_automation_application(
+        workspace=None, published_from=workflow
+    )
+    unpublished_copy = data_fixture.create_builder_application(workspace=None)
+
+    for application in [builder, published_builder, published_automation]:
+        integration = data_fixture.create_local_baserow_integration(
+            application=application
+        )
+        assert handler.get_integration_workspace_id(integration) == workspace.id
+        assert handler.is_integration_usable(integration, workspace_id=workspace.id)
+
+    # A copy that can't be traced back to a workspace fits none.
+    integration = data_fixture.create_local_baserow_integration(
+        application=unpublished_copy
+    )
+    assert handler.get_integration_workspace_id(integration) is None
+    assert not handler.is_integration_usable(integration, workspace_id=workspace.id)

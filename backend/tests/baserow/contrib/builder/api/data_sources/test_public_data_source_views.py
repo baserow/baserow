@@ -34,8 +34,9 @@ def data_source_fixture(data_fixture):
     data_fixture.create_builder_custom_domain(builder=builder, published_to=builder_to)
     public_page = data_fixture.create_builder_page(builder=builder_to)
 
+    # Publishing copies the integrations into the published builder.
     integration = data_fixture.create_local_baserow_integration(
-        user=user, application=builder
+        user=user, application=builder_to
     )
 
     page = data_fixture.create_builder_page(user=user, builder=builder)
@@ -68,6 +69,7 @@ def data_source_element_roles_fixture(data_fixture):
 
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(workspace=builder.workspace),
         columns=[
             ("Name", "text"),
             ("Color", "text"),
@@ -312,6 +314,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     user = data_source_fixture["user"]
     table_1, fields_1, rows_1 = data_fixture.build_table(
         user=user,
+        database=data_source_fixture["table"].database,
         columns=[
             ("Food", "text"),
         ],
@@ -328,6 +331,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     )
 
     table_2, fields_2, rows_2 = data_fixture.build_table(
+        database=table_1.database,
         user=user,
         columns=[
             ("Fruits", "text"),

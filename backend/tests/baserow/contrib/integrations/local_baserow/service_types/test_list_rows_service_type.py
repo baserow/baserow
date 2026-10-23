@@ -38,7 +38,14 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_
 def test_create_local_baserow_list_rows_service(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    view = data_fixture.create_grid_view(user)
+    view = data_fixture.create_grid_view(
+        user,
+        table=data_fixture.create_database_table(
+            database=data_fixture.create_database_application(
+                workspace=page.builder.workspace
+            )
+        ),
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -253,6 +260,9 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -301,6 +311,9 @@ def test_local_baserow_list_rows_service_dispatch_transform_with_default(data_fi
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -350,6 +363,9 @@ def test_local_baserow_list_rows_service_dispatch_data_permission_denied(
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -980,6 +996,9 @@ def test_order_by_is_applied_depending_on_views_sorts(
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, _, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -1044,6 +1063,9 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -1096,6 +1118,9 @@ def test_can_dispatch_interesting_table(data_fixture):
     table, _, _, _, _ = setup_interesting_test_table(
         data_fixture,
         user,
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
     )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -1271,7 +1296,10 @@ def test_search_on_multiple_select_with_list(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     page = data_fixture.create_builder_page(
-        user=user, path="/page/", query_params=[{"name": "foobar", "type": "numeric"}]
+        user=user,
+        builder=data_fixture.create_builder_application(workspace=workspace),
+        path="/page/",
+        query_params=[{"name": "foobar", "type": "numeric"}],
     )
 
     service_type = service_type_registry.get("local_baserow_list_rows")

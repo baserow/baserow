@@ -734,6 +734,22 @@ class AutomationTriggerNodeType(AutomationNodeType):
     ):
         raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")
 
+    def _belongs_to_workflow(self, trigger, service: Service) -> bool:
+        """
+        Returns whether the trigger's service reads only through what its workflow's
+        automation may use.
+
+        :param trigger: The trigger node.
+        :param service: The trigger's service.
+        :return: True when the trigger may be started.
+        """
+
+        try:
+            self.check_service_belongs_to_workflow(trigger.workflow, service)
+        except AutomationNodeMisconfiguredService:
+            return False
+        return True
+
     def on_event(
         self,
         services: Iterable[Service],
@@ -761,6 +777,14 @@ class AutomationTriggerNodeType(AutomationNodeType):
 
         # For perf reasons, store the trigger<->service relationship.
         service_map = {service.id: service for service in services}
+
+        # A trigger whose service reads through what its automation may not use
+        # isn't started.
+        triggers = [
+            trigger
+            for trigger in triggers
+            if self._belongs_to_workflow(trigger, service_map[trigger.service_id])
+        ]
 
         histories = []
         for trigger in triggers:

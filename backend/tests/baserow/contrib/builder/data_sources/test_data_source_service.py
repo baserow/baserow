@@ -426,7 +426,9 @@ def test_dispatch_data_source(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -472,7 +474,9 @@ def test_dispatch_page_data_sources(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -625,7 +629,9 @@ def test_dispatch_data_sources_excludes_unused_fields_in_non_list_data_sources(
     )
 
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -714,7 +720,9 @@ def test_dispatch_data_sources_excludes_unused_fields_in_list_data_sources(
         ],
     )
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
