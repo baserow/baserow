@@ -79,9 +79,9 @@ describe('Agent conversations', () => {
     await sendMessage(wrapper, content)
 
     expect(sentBodies(testApp)[0].content).toBe(content)
-    expect(
-      wrapper.get('.agent-chat__message-content').element.textContent
-    ).toBe(content)
+    expect(wrapper.get('.chat-message__bubble').element.textContent).toBe(
+      content
+    )
     expect(composer(wrapper).element.value).toBe('')
     expect(selected(wrapper).text()).toContain('First message')
   })
@@ -408,7 +408,7 @@ describe('Agent conversations', () => {
       const wrapper = await mount()
       await selectConversation(wrapper, 'Conversation A')
       const history = wrapper.get('.agent-chat__history').element
-      const anchor = wrapper.get('.agent-chat__message').element
+      const anchor = wrapper.get('.chat-message').element
       let anchorOffset = 0
       vi.spyOn(anchor, 'offsetTop', 'get').mockImplementation(
         () => anchorOffset

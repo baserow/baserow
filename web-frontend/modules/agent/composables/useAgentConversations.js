@@ -3,6 +3,7 @@ import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 
@@ -86,7 +87,7 @@ export function useAgentConversations(agent, configuration) {
   const findConversation = (conversationUuid) =>
     conversations.value.find((item) => item.uuid === conversationUuid)
 
-  /** The running reply, or a finished one until a refresh merged its saved turn. */
+  /** The running reply, or a finished one until a refresh merged its saved outcome. */
   const replyFollower = computed(() => {
     const id = selectedConversation.value?.id
     if (!id) return null
@@ -101,6 +102,29 @@ export function useAgentConversations(agent, configuration) {
       null
     )
   })
+
+  /** The selected history, with unsaved replies read from the runs followed. */
+  const currentMessages = computed(() =>
+    (currentHistory.value?.items || []).map((message) => {
+      const follower =
+        message.run_id && store.getters['chatRuns/getFollower'](message.run_id)
+      // A follower that lost access can't say how the reply ended.
+      if (
+        !follower ||
+        isTerminalStatus(message.status) ||
+        (follower.finished && !isTerminalStatus(follower.view.status))
+      ) {
+        return { ...message, writing: false }
+      }
+      return {
+        ...message,
+        content: follower.view.text,
+        status: follower.view.status,
+        error_code: follower.view.errorCode,
+        writing: !follower.finished,
+      }
+    })
+  )
 
   // A refusal expires with the running reply, including in an inactive chat.
   const sendError = computed(() => {
@@ -222,7 +246,7 @@ export function useAgentConversations(agent, configuration) {
     return fetchConversations(1, true)
   }
 
-  /** Follow the newest turn's reply, and resume replies a logout suspended. */
+  /** Follow the newest reply, and resume replies a logout suspended. */
   function followReplies(conversation, newestMessage) {
     if (!conversation?.id) return
     const runIds = new Set(
@@ -233,7 +257,7 @@ export function useAgentConversations(agent, configuration) {
         .filter((follower) => !follower.finished)
         .map((follower) => follower.runId)
     )
-    if (newestMessage?.turn?.run_id) runIds.add(newestMessage.turn.run_id)
+    if (newestMessage?.run_id) runIds.add(newestMessage.run_id)
     runIds.forEach((runId) =>
       store.dispatch('chatRuns/follow', {
         runId,
@@ -330,7 +354,7 @@ export function useAgentConversations(agent, configuration) {
           !knownMessages.size ||
           data.results.some(({ uuid }) => knownMessages.has(uuid))
         ) {
-          // Refresh turn outcomes while retaining older pages and accepted sends.
+          // Refresh reply outcomes while retaining older pages and accepted sends.
           history.items = mergeMessages(history.items, latest)
           history.page = page
           history.next = Boolean(data.next)
@@ -414,18 +438,16 @@ export function useAgentConversations(agent, configuration) {
       localConversations.value = localConversations.value.filter(
         (item) => item.uuid !== conversationUuid
       )
+      const sent = [data.message, data.reply].filter(Boolean)
       const history = histories[conversationUuid]
       if (history) {
-        history.items = mergeMessages(history.items, [data.message])
+        history.items = mergeMessages(history.items, sent)
       } else {
-        histories[conversationUuid] = createHistory({
-          items: [data.message],
-          page: 1,
-        })
+        histories[conversationUuid] = createHistory({ items: sent, page: 1 })
       }
       draft.content = ''
       draft.submission = null
-      followReplies(data.conversation, data.message)
+      followReplies(data.conversation, data.reply)
     } catch (error) {
       if (!scopeIsCurrent(currentScope)) return
       const code = error.response?.data?.error
@@ -532,6 +554,7 @@ export function useAgentConversations(agent, configuration) {
     conversationsNext,
     selectedUuid,
     currentHistory,
+    currentMessages,
     currentDraft,
     replyFollower,
     sendError,
