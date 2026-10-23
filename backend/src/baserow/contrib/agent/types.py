@@ -84,5 +84,9 @@ class AgentReplyResult:
     """What a reply produced, complete or partial."""
 
     text: str
+    provider_type: str | None = None
+    model_identifier: str | None = None
+    model_messages: list[dict] | None = None
+    usage: dict | None = None
     steps: list[ChatRunStep] | None = None
     """Its tool calls in call order, or None when it made none."""

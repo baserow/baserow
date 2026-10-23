@@ -8,6 +8,7 @@ from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessage,
+    ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
     PartDeltaEvent,
@@ -18,8 +19,10 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model
+from pydantic_ai.run import AgentRunResult
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
+from pydantic_core import to_jsonable_python
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
@@ -162,7 +165,7 @@ class AgentResponder:
         self._model_settings = model_settings
         self._text = ""
         self._parts: dict[int, str] = {}
-        self._result: str | None = None
+        self._result: AgentRunResult[str] | None = None
         self._step_resources: StepResources = {}
         self._steps = ChatRunSteps(journal, self._describe_call)
 
@@ -242,7 +245,7 @@ class AgentResponder:
         """
         Answer until the model finishes or the journal asks the run to stop.
 
-        :return: How the reply ended, with the complete or partial reply text.
+        :return: How the reply ended, with its text and the model's transcript.
         """
 
         work = asyncio.create_task(self._stream())
@@ -316,7 +319,7 @@ class AgentResponder:
         self._steps.on_event(event)
         match event:
             case AgentRunResultEvent(result=result):
-                self._result = result.output
+                self._result = result
                 return
             case FunctionToolResultEvent(part=ToolReturnPart() as part):
                 self._remember_step_resources(part)
@@ -354,12 +357,27 @@ class AgentResponder:
 
     def _reply_result(self) -> AgentReplyResult:
         """
-        Collect what the reply produced: its text and its tool activity.
+        Collect what the reply produced: its text, the provider and model, and once
+        the model finished, its messages and usage.
 
-        :return: The final answer once the model finished, else the text so far.
+        :return: The text and the execution details of the reply.
         """
 
         steps = self._steps.finish() or None
         if self._result is None:
-            return AgentReplyResult(text=self._text, steps=steps)
-        return AgentReplyResult(text=remove_null_characters(self._result), steps=steps)
+            return AgentReplyResult(
+                text=self._text,
+                provider_type=self._request.provider_type,
+                model_identifier=self._request.model_identifier,
+                steps=steps,
+            )
+        return AgentReplyResult(
+            text=remove_null_characters(self._result.output),
+            provider_type=self._request.provider_type,
+            model_identifier=self._request.model_identifier,
+            model_messages=ModelMessagesTypeAdapter.dump_python(
+                self._result.new_messages(), mode="json"
+            ),
+            usage=to_jsonable_python(self._result.usage),
+            steps=steps,
+        )

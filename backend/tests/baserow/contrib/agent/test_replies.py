@@ -14,6 +14,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
@@ -33,6 +34,7 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentReplyTranscript,
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
@@ -157,6 +159,17 @@ def test_a_message_is_answered_privately_and_saved_clean(
 
     reply = AgentMessage.objects.get(role="assistant")
     assert reply_state(reply.id) == saved
+    transcript = reply.transcript
+    assert (transcript.provider_type, transcript.model_identifier) == (
+        "openai",
+        "test-model",
+    )
+    messages = ModelMessagesTypeAdapter.validate_python(transcript.model_messages)
+    assert [message.parts[0].content for message in messages] == [
+        "Hi",
+        output.replace("\x00", ""),
+    ]
+    assert transcript.usage["requests"] == 1
     assert exporter.get_finished_spans() == ()
 
 
@@ -415,6 +428,13 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
         "table_id": table.id,
         "rows": [{"Name": "Private row value"}],
     }
+    transcript = AgentReplyTranscript.objects.get(reply_id=reply_id)
+    assert (
+        transcript.provider_type,
+        transcript.model_identifier,
+        transcript.model_messages,
+        transcript.usage,
+    ) == ("openai", "test-model", None, None)
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
         if reason is None
@@ -512,6 +532,7 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
         (unstarted.context["reply_id"], ""),
     ]
     assert activity.call_count == 2
+    assert not AgentReplyTranscript.objects.exists()
     assert saved[0]["steps"] == [{**events[-1]["data"], "status": "stopped"}]
     assert saved[1]["steps"] is None
 
@@ -759,6 +780,7 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
         assert streamed[-1] == steps[0]
         run = run_of(created.conversation)
         assert run.outcome["steps"] == steps
+        assert AgentMessage.objects.get(id=created.reply.id).transcript.model_messages
         api_client.force_authenticate(user)
         response = api_client.get(
             agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
