@@ -120,6 +120,18 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         return True
 
+    def actor_can_dispatch_workflow_action(self, actor, workflow_action):
+        """
+        Return True if the actor is allowed to dispatch the workflow action. An
+        action bound to an element follows the element visibility, an action
+        bound to the page itself follows the page visibility.
+        """
+
+        if workflow_action.element_id is None:
+            return self.actor_can_view_page(actor, workflow_action.page)
+
+        return self.actor_can_view_element(actor, workflow_action.element)
+
     def check_multiple_permissions(
         self,
         checks,
@@ -135,7 +147,9 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         for check in checks:
             if check.operation_name == DispatchBuilderWorkflowActionOperationType.type:
-                if not self.actor_can_view_element(check.actor, check.context.element):
+                if not self.actor_can_dispatch_workflow_action(
+                    check.actor, check.context
+                ):
                     result[check] = False
             elif check.operation_name == ReadElementOperationType.type:
                 result[check] = self.actor_can_view_element(check.actor, check.context)

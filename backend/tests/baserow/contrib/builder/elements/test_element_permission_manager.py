@@ -1218,3 +1218,31 @@ def test_page_visibility_applied_to_workflow_actions_queryset(
         BuilderWorkflowAction.objects.all(),
     )
     assert len(actions) == expected_count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "page_visibility,expected",
+    [
+        (Page.VISIBILITY_TYPES.ALL, None),
+        (Page.VISIBILITY_TYPES.LOGGED_IN, False),
+    ],
+)
+def test_element_visibility_permission_manager_page_level_workflow_action(
+    data_fixture, page_visibility, expected
+):
+    """An action bound to the page itself follows the page visibility."""
+
+    page = data_fixture.create_builder_page(visibility=page_visibility)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=None
+    )
+    check = PermissionCheck(
+        AnonymousUser(),
+        DispatchBuilderWorkflowActionOperationType.type,
+        workflow_action,
+    )
+
+    result = ElementVisibilityPermissionManager().check_multiple_permissions([check])
+
+    assert result.get(check) is expected
