@@ -93,7 +93,7 @@
         </template>
       </ChatMessage>
       <div
-        v-if="message.can_submit_feedback && isLastMessage(index)"
+        v-if="showsBubble(message) && message.can_submit_feedback && isLastMessage(index)"
         class="assistant__disclaimer"
       >
         {{ $t('assistantMessageList.disclaimer') }}

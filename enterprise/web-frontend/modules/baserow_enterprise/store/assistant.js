@@ -34,6 +34,7 @@ function inFlightMessage(follower) {
 }
 
 const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
+const CHAT_STREAM_USER_LIMIT = 'ERROR_CHAT_STREAM_USER_LIMIT'
 
 /**
  * How Kuma took a message: a run answers it, the chat still answers another
@@ -69,6 +70,8 @@ export const state = () => ({
   chats: [],
   isLoadingChats: false,
   uiLocation: null,
+  // A chat whose read is in flight; choosing another chat meanwhile drops it.
+  openingChatId: null,
   // A message asked for from outside the panel, like the prompt on the workspace
   // homepage. The panel picks it up when it mounts, which is the only moment it
   // can send it, and it survives `reset` for that reason.
@@ -80,6 +83,11 @@ export const state = () => ({
 export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
+    state.openingChatId = null
+  },
+
+  SET_OPENING_CHAT_ID(state, id) {
+    state.openingChatId = id
   },
 
   SET_PENDING_PROMPT(state, prompt) {
@@ -249,12 +257,14 @@ export const actions = {
     return id
   },
 
-  async selectChat({ commit, dispatch }, chat) {
+  async selectChat({ state, commit, dispatch }, chat) {
     const { $client } = this
+    commit('SET_OPENING_CHAT_ID', chat.id)
     commit('SET_CHAT_LOADING', { chat, value: true })
 
     try {
       const snapshot = await assistant($client).fetchChatMessages(chat.id)
+      if (state.openingChatId !== chat.id) return
       commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', snapshot.messages.map(parseMessage))
       await dispatch('followChatRuns', { chat, snapshot })
@@ -330,14 +340,20 @@ export const actions = {
         { root: true }
       )
     }
-    // Add answers saved after this history read; history keeps newer feedback.
-    const saved = rootGetters['chatRuns/getFollowersOfChat'](
+    // Add outcomes this history read lacks; history keeps newer feedback.
+    const type = this.$registry.get('chatRunType', ASSISTANT_RUN_TYPE)
+    const ended = rootGetters['chatRuns/getFollowersOfChat'](
       ASSISTANT_RUN_TYPE,
       chatId
-    ).filter((follower) => follower.finished && follower.view.message)
-    for (const follower of saved) {
-      if (!historyMessages.has(follower.view.message.id)) {
-        commit('UPSERT_MESSAGE', parseMessage(follower.view.message))
+    ).filter(
+      (follower) => follower.finished && isTerminalStatus(follower.view.status)
+    )
+    for (const follower of ended) {
+      const message =
+        follower.view.message ||
+        (follower.runId === latest?.id ? type.unsavedAnswer(follower) : null)
+      if (message && !historyMessages.has(message.id)) {
+        commit('UPSERT_MESSAGE', parseMessage(message))
       }
     }
   },
@@ -360,7 +376,8 @@ export const actions = {
 
   /**
    * Reopens the chat this tab showed before a reload, unless a chat was
-   * chosen meanwhile. A chat that can't be read is forgotten.
+   * chosen meanwhile. A chat the API refuses is forgotten; one whose request
+   * failed is tried again on the next reload.
    *
    * @throws Anything but a failed request, such as a run type's bug.
    */
@@ -378,7 +395,10 @@ export const actions = {
       if (!error.handler) {
         throw error
       }
-      storeChatUuid(null)
+      const status = error.response?.status
+      if (status && status < 500 && status !== 429) {
+        storeChatUuid(null)
+      }
     }
   },
 
@@ -569,20 +589,22 @@ export const actions = {
    * Shows why Kuma refused a message, unless the user left its chat meanwhile.
    * A busy chat follows the message it is still answering instead, without
    * the draft, and is busy even when re-reading it failed, so the text can go
-   * back into the input.
+   * back into the input. A message whose stream alone was refused already has
+   * its run, so the chat is re-read the same way and the message is accepted.
    *
    * @returns {Promise<{outcome: string, runId: null}>}
    * @throws Anything but a failed request while re-reading a busy chat.
    */
   async handleRefusedMessage(
-    { state, commit, dispatch },
+    { state, commit, dispatch, getters },
     { chat, draftId, error }
   ) {
     const { $i18n } = this
     if (state.currentChatId !== chat.id) {
       return { outcome: SEND_OUTCOME.FAILED, runId: null }
     }
-    if (error.handler?.code === CHAT_RUN_IN_PROGRESS) {
+    const code = error.handler?.code
+    if (code === CHAT_RUN_IN_PROGRESS || code === CHAT_STREAM_USER_LIMIT) {
       commit('REMOVE_MESSAGE', draftId)
       try {
         await dispatch('selectChat', chat)
@@ -591,7 +613,12 @@ export const actions = {
           throw readError
         }
       }
-      return { outcome: SEND_OUTCOME.BUSY, runId: null }
+      return code === CHAT_RUN_IN_PROGRESS
+        ? { outcome: SEND_OUTCOME.BUSY, runId: null }
+        : {
+            outcome: SEND_OUTCOME.ACCEPTED,
+            runId: getters.activeFollower?.runId ?? null,
+          }
     }
     commit('ADD_MESSAGE', {
       id: uuidv4(),

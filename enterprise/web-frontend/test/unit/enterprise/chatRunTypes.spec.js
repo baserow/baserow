@@ -37,7 +37,8 @@ describe('Kuma HTTP record adapter', () => {
     store = testApp.store
     navigated = []
     unsubscribe = store.subscribe(({ type, payload }) => {
-      if (type === 'assistant/SET_UI_LOCATION') navigated.push(payload)
+      if (type === 'assistant/SET_UI_LOCATION' && payload)
+        navigated.push(payload)
     })
     store.commit('assistant/SET_CHATS', [{ uuid, chat_id: 7, title: '' }])
     store.commit('assistant/SET_CURRENT_CHAT_ID', uuid)
@@ -140,7 +141,7 @@ describe('Kuma HTTP record adapter', () => {
     expect(navigated).toEqual([table])
   })
 
-  test('logout forgets the tab conversation and completed onboarding handoff before another login opens the panel', async () => {
+  test('logout forgets the conversation and onboarding handoff before another login opens the panel', async () => {
     storeChatUuid(uuid)
     storeOnboardingRunId('run-1')
     store.commit('assistant/SET_PANEL_OPEN', false)
@@ -148,6 +149,7 @@ describe('Kuma HTTP record adapter', () => {
 
     // This is the actual enterprise plugin's auth watcher on TestApp's store.
     store.commit('auth/LOGOFF')
+    expect(store.getters['assistant/messages']).toEqual([])
     expect(getStoredChatUuid()).toBeNull()
     expect(getStoredOnboardingRunId()).toBeNull()
     testApp.authenticate({ id: 2, first_name: 'Other' })

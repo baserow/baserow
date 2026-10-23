@@ -11,7 +11,11 @@ import {
   acceptRecord,
   applySnapshot,
 } from '../assistantRunHelpers'
-import { getTabId } from '@baserow_enterprise/utils/assistantTabStorage'
+import {
+  getStoredChatUuid,
+  getTabId,
+  storeChatUuid,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
 
 vi.mock('@baserow_enterprise/services/assistant', () => ({ default: vi.fn() }))
@@ -49,6 +53,12 @@ describe('Kuma durable streamed send and resume', () => {
     })
     await store.dispatch('assistant/selectChat', store.state.assistant.chats[0])
     await flushPromises()
+  }
+  function restoreAfterReload(readChat) {
+    storeChatUuid(uuid)
+    store.commit('assistant/SET_CHATS', [{ uuid, chat_id: 7, title: '' }])
+    service.fetchChatMessages.mockImplementation(readChat)
+    return store.dispatch('assistant/restoreOpenChat')
   }
   const rereadChat = (refresh) =>
     refresh === 'reopen'
@@ -182,11 +192,21 @@ describe('Kuma durable streamed send and resume', () => {
     expect(store.getters['assistant/currentChat'].title).toBe('')
   })
 
-  test.each(['reopen', 'focus'])(
-    'a final response racing the history read on %s still inserts the saved answer once',
-    async (refresh) => {
+  test.each([
+    ['reopen', false],
+    ['focus', false],
+    ['reopen', true],
+  ])(
+    'a final response racing the history read on %s (live output lost: %s) still inserts the saved answer once',
+    async (refresh, outputLost) => {
       const active = { id: 'run-1', status: 'running' }
       await open(active)
+      if (outputLost) {
+        await acceptRecord(
+          store,
+          runRecord('chat-run-state', {}, { replay_unavailable: true })
+        )
+      }
       await applySnapshot(store, { status: 'completed', message: answer })
 
       // This response captured the turn before the worker's final commit.
@@ -225,7 +245,7 @@ describe('Kuma durable streamed send and resume', () => {
     expect(store.getters['assistant/messages'].at(-1)).toMatchObject(answer)
   })
 
-  test('a metadata-only terminal record recovers an outcome without a saved message from primary', async () => {
+  test('an outcome without a saved message is recovered and stays shown while its run is the latest', async () => {
     await open({ id: 'run-1', status: 'running' })
     api.get.mockResolvedValue({
       status: 'failed',
@@ -238,12 +258,31 @@ describe('Kuma durable streamed send and resume', () => {
       runRecord('chat-run-state', {}, { status: 'failed' })
     )
     await flushPromises()
-
-    expect(store.getters['assistant/messages'].at(-1)).toMatchObject({
+    const outcome = {
       content: '',
       run_status: 'failed',
       error_code: 'interrupted',
+    }
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject(outcome)
+
+    service.fetchChatMessages.mockResolvedValue({
+      chat_id: 7,
+      messages: [human],
+      latest_run: { id: 'run-1', status: 'failed', message: null },
     })
+    await rereadChat('reopen')
+    expect(store.getters['assistant/messages'].at(-1)).toMatchObject(outcome)
+
+    const later = { id: 504, type: 'ai/message', content: 'Done' }
+    service.fetchChatMessages.mockResolvedValue({
+      chat_id: 7,
+      messages: [human, { id: 503, type: 'human', content: 'Again' }, later],
+      latest_run: { id: 'run-2', status: 'completed', message: later },
+    })
+    await rereadChat('reopen')
+    expect(
+      store.getters['assistant/messages'].map((message) => message.id)
+    ).toEqual([501, 503, 504])
   })
 
   test('connection loss after metadata reconnects from the applied cursor and never resends the prompt', async () => {
@@ -301,20 +340,49 @@ describe('Kuma durable streamed send and resume', () => {
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
   })
 
-  test('409 preserves the draft outcome and follows the already active run', async () => {
-    await open()
-    service.sendMessage.mockRejectedValue(
-      refused(409, 'ERROR_CHAT_RUN_IN_PROGRESS')
+  test.each([
+    [409, 'ERROR_CHAT_RUN_IN_PROGRESS', SEND_OUTCOME.BUSY, null],
+    [429, 'ERROR_CHAT_STREAM_USER_LIMIT', SEND_OUTCOME.ACCEPTED, 'run-1'],
+  ])(
+    'a %i %s drops the draft and follows the run the chat already has',
+    async (status, code, outcome, runId) => {
+      await open()
+      service.sendMessage.mockRejectedValue(refused(status, code))
+      service.fetchChatMessages.mockResolvedValue({
+        chat_id: 7,
+        messages: [human],
+        active_run: { id: 'run-1', status: 'running' },
+      })
+      expect(
+        await store.dispatch('assistant/startRun', { message: 'Hi', workspace })
+      ).toEqual({ outcome, runId })
+      await flushPromises()
+      expect(store.state.assistant.messages.map((m) => m.id)).toEqual([501])
+      expect(service.resumeMessage).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  test.each([
+    [404, 'ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST', null],
+    [503, null, uuid],
+  ])(
+    'a reload whose chat read fails with %i %s keeps %s as the tab chat',
+    async (status, code, kept) => {
+      await restoreAfterReload(() => Promise.reject(refused(status, code)))
+      expect(getStoredChatUuid()).toBe(kept)
+    }
+  )
+
+  test('a reload read that ends after the user starts a new chat leaves it open', async () => {
+    let read
+    const restoring = restoreAfterReload(
+      () => new Promise((resolve) => (read = resolve))
     )
-    service.fetchChatMessages.mockResolvedValue({
-      chat_id: 7,
-      messages: [human],
-      active_run: { id: 'run-1', status: 'running' },
-    })
-    expect(await send()).toBe(SEND_OUTCOME.BUSY)
-    await flushPromises()
-    expect(store.state.assistant.messages.map((m) => m.id)).toEqual([501])
-    expect(service.resumeMessage).toHaveBeenCalledTimes(1)
+    const newChat = await store.dispatch('assistant/createChat')
+    read({ chat_id: 7, messages: [human] })
+    await restoring
+    expect(store.state.assistant.currentChatId).toBe(newChat)
+    expect(store.state.assistant.messages).toEqual([])
   })
 
   test.each([

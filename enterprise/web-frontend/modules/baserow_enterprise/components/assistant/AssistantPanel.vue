@@ -147,6 +147,9 @@ export default {
       ) {
         return this.$t('assistant.statusWaitingForWorker')
       }
+      if (follower.view.answering) {
+        return this.$t('assistant.statusAnswering')
+      }
       return follower.view.progress || this.$t('assistant.statusThinking')
     },
   },

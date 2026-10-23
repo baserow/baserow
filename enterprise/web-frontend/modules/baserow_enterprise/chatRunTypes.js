@@ -26,7 +26,7 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   getInitialView() {
-    return { navigations: [], reasoning: true }
+    return { navigations: [], reasoning: true, answering: false }
   }
 
   shouldRetainFollower(follower) {
@@ -111,6 +111,7 @@ export class AssistantChatRunType extends ChatRunType {
           ...view,
           text: event.data.text,
           reasoning: event.data.reasoning,
+          answering: !event.data.reasoning,
         }
       case NAVIGATION:
         return {
