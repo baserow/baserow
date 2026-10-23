@@ -1679,7 +1679,7 @@
         "tabAll": "Vše",
         "inviteEmail": "Pozvat {email}",
         "inviteEmailDescription": "Připojí se k pracovnímu prostoru jako {role}",
-        "alreadyInvited": "Pozvánka již čeká.\\nMísto dalšího pozvání můžete její roli změnit na stránce Pozvánky.",
+        "alreadyInvited": "Pozvánka již čeká.\nMísto dalšího pozvání můžete její roli změnit na stránce Pozvánky.",
         "alreadyMember": "Již je členem tohoto pracovního prostoru",
         "roleNotForEmails": "Novou osobu nelze pozvat s rolí {role}",
         "noResults": "Chcete-li někoho pozvat, zadejte celou e-mailovou adresu."
