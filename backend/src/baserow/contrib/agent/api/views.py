@@ -31,6 +31,7 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
+from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.service import CoreService
@@ -93,13 +94,25 @@ MESSAGE_WRITE_ERRORS = {
 
 def _active_runs_context(conversation: AgentConversation) -> dict[str, dict[int, UUID]]:
     """
-    Build the serializer context that pairs each live turn with its run.
+    Build the serializer context that pairs the reply being written with its run.
 
     :param conversation: The conversation whose messages are serialized.
-    :return: The context, with the run id by turn id under ``active_runs``.
+    :return: The context, with the run id by reply id under ``active_runs``.
     """
 
-    return {"active_runs": AgentHandler().get_active_turn_runs(conversation)}
+    return {"active_runs": AgentHandler().get_active_reply_runs(conversation)}
+
+
+def _accepted_context(result: AgentMessageCreated) -> dict[str, dict[int, UUID]]:
+    """
+    Build the serializer context of an accepted message from the run its send
+    started, because a fast reply can end before the response is built.
+
+    :param result: The accepted message with its reply and run.
+    :return: The context, with the run id by reply id under ``active_runs``.
+    """
+
+    return {"active_runs": {result.reply.id: result.run_id} if result.run_id else {}}
 
 
 class AgentApplicationView(APIView):
@@ -267,7 +280,7 @@ class AgentConversationsView(APIView):
         result = CreateAgentConversationActionType.do(request.user, agent_id, **data)
         return Response(
             AgentMessageCreatedSerializer(
-                result, context=_active_runs_context(result.conversation)
+                result, context=_accepted_context(result)
             ).data
         )
 
@@ -302,13 +315,15 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         conversation, messages = AgentService().list_messages(
             request.user, agent_id, conversation_uuid
         )
+        # Runs first, so a reply that ends between both reads is read as ended.
+        context = _active_runs_context(conversation)
         paginator = AgentMessagePagination(limit_page_size=100)
-        page = paginator.paginate_queryset(messages, request, self)
+        page = AgentHandler().refresh_unfinished_replies(
+            paginator.paginate_queryset(messages, request, self)
+        )
         return paginator.get_paginated_response(
             AgentMessageSerializer(
-                list(reversed(page)),
-                many=True,
-                context=_active_runs_context(conversation),
+                list(reversed(page)), many=True, context=context
             ).data
         )
 
@@ -335,6 +350,6 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         )
         return Response(
             AgentMessageCreatedSerializer(
-                result, context=_active_runs_context(result.conversation)
+                result, context=_accepted_context(result)
             ).data
         )

@@ -19,7 +19,7 @@ from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 
 from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
-from .models import AgentMessage, AgentTurn
+from .models import AgentMessage
 from .types import AgentReplyRequest
 
 if TYPE_CHECKING:
@@ -39,13 +39,13 @@ def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
     for message in messages:
         if message.role == AgentMessage.Role.USER:
             pairs.append([message, None])
-        elif pairs and pairs[-1][1] is None and pairs[-1][0].turn_id == message.turn_id:
+        elif pairs and pairs[-1][1] is None:
             pairs[-1][1] = message
     history: list[ModelMessage] = []
     for prompt, reply in pairs:
         history.append(ModelRequest(parts=[UserPromptPart(content=prompt.content)]))
         text = reply.content if reply else ""
-        if prompt.turn is not None and prompt.turn.status != AgentTurn.Status.COMPLETED:
+        if reply and reply.status != AgentMessage.Status.COMPLETED:
             text = f"{text}\n\n{INTERRUPTED_REPLY_NOTE}".strip()
         if text:
             history.append(ModelResponse(parts=[TextPart(content=text)]))
@@ -156,8 +156,8 @@ class AgentResponder:
             )
         if not work.cancelled() and work.exception() is not None:
             logger.error(
-                "Agent turn {} could not be answered ({})",
-                self._request.turn_id,
+                "Agent reply {} could not be written ({})",
+                self._request.reply_id,
                 _describe_failure(work.exception()),
             )
         return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, self._text)

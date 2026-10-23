@@ -121,14 +121,14 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
-        :return: The conversation, and its messages newest first with their turns.
+        :return: The conversation, and its messages newest first.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
-        return conversation, conversation.messages.select_related("turn")
+        return conversation, conversation.messages.all()
 
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
@@ -163,7 +163,8 @@ class AgentService:
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
-        :return: The conversation and its first message, and whether they are new.
+        :return: The conversation, its first message and its reply, and whether they
+            are new.
         """
 
         agent = self._get_authorized_agent(
@@ -216,7 +217,8 @@ class AgentService:
             conversation.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
-        :return: The conversation and the message, and whether the message is new.
+        :return: The conversation, the message and its reply, and whether the message
+            is new.
         """
 
         agent = self._get_authorized_agent(

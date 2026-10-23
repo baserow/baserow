@@ -11,7 +11,6 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
-    AgentTurn,
 )
 from baserow.contrib.agent.types import AgentReadinessState
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
@@ -78,27 +77,31 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         fields = ("id", "uuid", "title", "created_on", "updated_on")
 
 
-class AgentTurnStateSerializer(serializers.ModelSerializer):
+class AgentMessageSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
-        help_text="The run still answering this turn, to follow its output."
+        help_text=(
+            "The run writing this reply, to follow its output: set while it runs "
+            "and in the response that started it."
+        )
     )
 
     class Meta:
-        model = AgentTurn
-        fields = ("id", "status", "error_code", "run_id")
+        model = AgentMessage
+        fields = (
+            "id",
+            "uuid",
+            "role",
+            "content",
+            "created_on",
+            "status",
+            "error_code",
+            "run_id",
+        )
+        read_only_fields = ("id",)
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
-    def get_run_id(self, turn: AgentTurn) -> UUID | None:
-        return self.context.get("active_runs", {}).get(turn.id)
-
-
-class AgentMessageSerializer(serializers.ModelSerializer):
-    turn = AgentTurnStateSerializer(allow_null=True, read_only=True)
-
-    class Meta:
-        model = AgentMessage
-        fields = ("id", "uuid", "role", "content", "created_on", "turn")
-        read_only_fields = ("id",)
+    def get_run_id(self, message: AgentMessage) -> UUID | None:
+        return self.context.get("active_runs", {}).get(message.id)
 
 
 class AgentMessageContentSerializer(
@@ -128,6 +131,7 @@ class AgentMessageCreateSerializer(AgentMessageContentSerializer):
 class AgentMessageCreatedSerializer(serializers.Serializer):
     conversation = AgentConversationSerializer()
     message = AgentMessageSerializer()
+    reply = AgentMessageSerializer(allow_null=True)
 
 
 class AgentConversationPagination(PageNumberPagination):
