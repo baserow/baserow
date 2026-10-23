@@ -159,7 +159,8 @@
         "localBaserowNoUser": "Místní Baserow – nenakonfigurováno",
         "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej.",
         "localBaserowSubjectSummary": "Místní Baserow - {type}: {name}",
-        "errorTrashedAgent": "Autorizovaný agent byl přesunut do koše"
+        "errorTrashedAgent": "Autorizovaný agent byl přesunut do koše",
+        "errorNoUser": "|Ž|á|d|n|ý| |u|ž|i|v|a|t|e|l| |a|n|i| |a|g|e|n|t| |t|u|t|o| |i|n|t|e|g|r|a|c|i| |n|e|a|u|t|o|r|i|z|o|v|a|l|.|"
     },
     "integrationsCommon": {
         "singleRow": "jeden řádek",
@@ -195,7 +196,8 @@
         "timeout": "Časový limit"
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP – {host}:{port}"
+        "smtpSummary": "SMTP – {host}:{port}",
+        "errorNoHost": "|N|e|n|í| |n|a|s|t|a|v|e|n| |ž|á|d|n|ý| |h|o|s|t|i|t|e|l| |S|M|T|P|.|"
     },
     "smtpForm": {
         "host": "Hostitel SMTP",
@@ -329,7 +331,8 @@
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slacku",
         "slackBotNoToken": "Bot Slacku – nenakonfigurováno",
-        "slackBotWarning": "Kdokoli, kdo může v této aplikaci vytvářet, může prostřednictvím tohoto bota odesílat zprávy a nahradit jeho token. Použijte bota, k jehož sdílení přístupu jste ochotni."
+        "slackBotWarning": "Kdokoli, kdo může v této aplikaci vytvářet, může prostřednictvím tohoto bota odesílat zprávy a nahradit jeho token. Použijte bota, k jehož sdílení přístupu jste ochotni.",
+        "errorNoToken": "|N|e|n|í| |n|a|s|t|a|v|e|n| |ž|á|d|n|ý| |t|o|k|e|n| |b|o|t|a|.|"
     },
     "slackBotForm": {
         "tokenLabel": "Token uživatele bota",
