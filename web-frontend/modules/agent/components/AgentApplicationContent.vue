@@ -33,96 +33,108 @@
         <div class="agent-chat__announcement" role="status">
           {{ announcement ? $t(announcement) : '' }}
         </div>
-        <div ref="historyElement" class="agent-chat__history">
-          <div
-            v-if="
-              state.currentHistory?.loading &&
-              !state.currentHistory.items.length
-            "
-            class="agent-chat__loading skeleton"
-            role="status"
-            :aria-label="$t('agent.loadingMessages')"
-          >
+        <div
+          ref="historyElement"
+          class="agent-chat__history chat-thread"
+          :class="{ 'chat-thread--scrolled': historyScrolled }"
+          @scroll="historyScrolled = $event.target.scrollTop > 2"
+        >
+          <div class="chat-thread__column">
             <div
-              v-for="row in 3"
-              :key="row"
-              class="agent-chat__message"
-              aria-hidden="true"
+              v-if="
+                state.currentHistory?.loading &&
+                !state.currentHistory.items.length
+              "
+              class="agent-chat__loading skeleton"
+              role="status"
+              :aria-label="$t('agent.loadingMessages')"
             >
-              <SkeletonBlock :width="`${row % 2 ? 60 : 40}%`" height="44px" />
+              <div
+                v-for="row in 3"
+                :key="row"
+                class="agent-chat__skeleton-row"
+                aria-hidden="true"
+              >
+                <SkeletonBlock :width="`${row % 2 ? 60 : 40}%`" height="44px" />
+              </div>
             </div>
-          </div>
-          <Alert v-if="state.currentHistory?.error" type="error">
-            {{ $t('agent.messagesLoadError') }}
-            <template #actions
-              ><Button
+            <Alert v-if="state.currentHistory?.error" type="error">
+              {{ $t('agent.messagesLoadError') }}
+              <template #actions
+                ><Button
+                  type="secondary"
+                  size="small"
+                  button-type="button"
+                  @click="loadMoreMessages"
+                  >{{ $t('action.retry') }}</Button
+                ></template
+              >
+            </Alert>
+            <template v-if="threadItems.length">
+              <Button
+                v-if="state.currentHistory.next"
                 type="secondary"
                 size="small"
                 button-type="button"
+                :loading="state.currentHistory.loading"
+                class="agent-chat__older"
                 @click="loadMoreMessages"
-                >{{ $t('action.retry') }}</Button
-              ></template
-            >
-          </Alert>
-          <template v-if="state.currentHistory?.items.length">
-            <Button
-              v-if="state.currentHistory.next"
-              type="secondary"
-              size="small"
-              button-type="button"
-              :loading="state.currentHistory.loading"
-              class="agent-chat__older"
-              @click="loadMoreMessages"
-              >{{ $t('agent.olderMessages') }}</Button
-            >
-            <div
-              v-for="(message, index) in state.currentHistory.items"
-              :key="message.uuid"
-              class="agent-chat__message"
-              :class="{
-                'agent-chat__message--reply': message.role === 'assistant',
-              }"
-            >
-              <div class="agent-chat__message-author">
-                {{
-                  message.role === 'assistant'
-                    ? agent.name
-                    : $store.getters['auth/getName']
-                }}
-              </div>
-              <div class="agent-chat__message-content">
-                {{ message.content }}
-              </div>
-              <div v-if="messageNotices[index]" class="agent-chat__notice">
-                {{ $t(messageNotices[index]) }}
-              </div>
-            </div>
-            <div
-              v-if="showReply"
-              class="agent-chat__message agent-chat__message--reply"
-              aria-live="polite"
-              :aria-busy="replyRunning"
-            >
-              <div class="agent-chat__message-author">{{ agent.name }}</div>
-              <div
-                v-if="state.replyFollower.view.text"
-                class="agent-chat__message-content"
+                >{{ $t('agent.olderMessages') }}</Button
               >
-                {{ state.replyFollower.view.text }}
+              <ChatMessage
+                v-for="item in threadItems"
+                :key="item.message.uuid"
+                :own="item.own"
+                :author="item.own ? '' : agent.name"
+                :first="item.first"
+                :last="item.last"
+                :status="item.status ? $t(item.status) : ''"
+              >
+                <div v-if="item.own" class="chat-message__bubble">
+                  {{ item.message.content }}
+                </div>
+                <div
+                  v-else-if="item.message.content"
+                  class="chat-message__bubble"
+                  aria-live="polite"
+                  :aria-busy="item.message.writing"
+                >
+                  <ChatMarkdown :content="item.message.content" />
+                </div>
+                <div
+                  v-if="item.error"
+                  class="chat-message__bubble chat-message__bubble--error"
+                >
+                  {{ $t(item.error) }}
+                </div>
+                <div v-if="item.note" class="chat-message__note">
+                  {{ $t(item.note) }}
+                </div>
+                <template
+                  v-if="item.message.content && !item.message.writing"
+                  #actions
+                >
+                  <span v-if="item.own" class="chat-message__time">{{
+                    getHumanAgoLabel($t, item.message.created_on)
+                  }}</span>
+                  <ChatCopyButton :text="item.message.content" />
+                  <span v-if="!item.own" class="chat-message__time">{{
+                    getHumanAgoLabel($t, item.message.created_on)
+                  }}</span>
+                </template>
+              </ChatMessage>
+            </template>
+            <div v-else-if="showChatIntro" class="agent-chat__intro">
+              <div class="agent-chat__avatar">
+                <img :src="agentOrb" alt="" />
               </div>
-              <div v-else class="loading" aria-hidden="true" />
+              <i18n-t scope="global" keypath="agent.talkTo" tag="h1">
+                <template #name>
+                  <span class="agent-chat__intro-name">{{ agent.name }}</span>
+                </template>
+              </i18n-t>
+              <p>{{ $t('agent.chatDescription') }}</p>
             </div>
-          </template>
-          <div v-else-if="showChatIntro" class="agent-chat__intro">
-            <div class="agent-chat__avatar">
-              <img :src="agentOrb" alt="" />
-            </div>
-            <i18n-t scope="global" keypath="agent.talkTo" tag="h1">
-              <template #name>
-                <span class="agent-chat__intro-name">{{ agent.name }}</span>
-              </template>
-            </i18n-t>
-            <p>{{ $t('agent.chatDescription') }}</p>
           </div>
         </div>
         <div class="agent-chat__footer">
@@ -172,49 +184,30 @@
           >
             {{ $t(SEND_ERROR_MESSAGES[state.sendError]) }}
           </Alert>
-          <form
+          <ChatComposer
             v-if="showComposer"
+            ref="messageInput"
             class="agent-chat__composer"
-            @submit.prevent="submitMessage"
-          >
-            <FormTextarea
-              ref="messageInput"
-              :model-value="state.currentDraft?.content || ''"
-              :readonly="Boolean(state.currentDraft?.submission)"
-              :placeholder="$t('agent.messagePlaceholder')"
-              :aria-label="$t('agent.messagePlaceholder')"
-              :aria-describedby="
-                state.sendError ? 'agent-chat-send-error' : undefined
-              "
-              auto-expandable
-              :min-rows="1"
-              :max-rows="6"
-              :maxlength="100000"
-              @update:model-value="state.updateMessage"
-              @keydown="handleEnter"
-            />
-            <Button
-              v-if="replyRunning"
-              type="secondary"
-              button-type="button"
-              class="agent-chat__stop"
-              icon="iconoir-square"
-              :aria-label="$t('agent.stop')"
-              :title="$t('agent.stop')"
-              :loading="state.replyFollower.stopRequested"
-              @click="stopReply"
-            />
-            <Button
-              v-else
-              button-type="submit"
-              class="agent-chat__send"
-              icon="iconoir-arrow-up"
-              :aria-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
-              :title="$t(state.sendError ? 'action.retry' : 'agent.send')"
-              :loading="Boolean(state.currentDraft?.sending)"
-              :disabled="!state.canSend || !state.currentDraft?.content.trim()"
-            />
-          </form>
+            :model-value="state.currentDraft?.content || ''"
+            :readonly="Boolean(state.currentDraft?.submission)"
+            :placeholder="$t('agent.messagePlaceholder', { name: agent.name })"
+            :described-by="
+              state.sendError ? 'agent-chat-send-error' : undefined
+            "
+            :maxlength="100000"
+            :can-send="
+              state.canSend && Boolean(state.currentDraft?.content.trim())
+            "
+            :sending="Boolean(state.currentDraft?.sending)"
+            :running="replyRunning"
+            :stopping="Boolean(state.replyFollower?.stopRequested)"
+            :status="composerStatus ? $t(composerStatus) : ''"
+            :send-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
+            :stop-label="$t('agent.stop')"
+            @update:model-value="state.updateMessage"
+            @send="submitMessage"
+            @stop="stopReply"
+          />
         </div>
       </main>
       <AgentConfigurationSidebar
@@ -243,6 +236,12 @@
 <script setup>
 import { computed, nextTick, reactive, ref, toRef, watch } from 'vue'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
+import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
+import ChatCopyButton from '@baserow/modules/core/components/chat/ChatCopyButton'
+import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
+import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
+import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
@@ -264,12 +263,14 @@ const showChatIntro = computed(
 )
 const configurationSidebar = ref(null)
 const historyElement = ref(null)
+const historyScrolled = ref(false)
 // Any selection change, even away and back, invalidates a pending scroll anchor.
 let historySelectionRevision = 0
 watch(
   [() => props.agent.id, () => state.selectedUuid],
   () => {
     ++historySelectionRevision
+    historyScrolled.value = false
   },
   { flush: 'sync' }
 )
@@ -291,44 +292,60 @@ const FAILED_REPLY_NOTICES = {
   not_ready: 'agent.replyNotReady',
   not_allowed: 'agent.replyNotAllowed',
 }
-/** The notice of a turn whose reply didn't complete, or null. */
-function turnNotice(turn) {
-  if (turn?.status === 'cancelled') return 'agent.replyStopped'
-  if (turn?.status === 'failed') {
-    return FAILED_REPLY_NOTICES[turn.error_code] || 'agent.replyFailed'
+/**
+ * How a reply that isn't being written ended, when it didn't complete: a note
+ * when it was stopped, an error otherwise.
+ */
+function replyOutcome({ status, error_code: errorCode, writing }) {
+  if (writing || !status || status === RUN_STATUS.COMPLETED) return {}
+  if (status === RUN_STATUS.CANCELLED) return { note: 'agent.replyStopped' }
+  if (status === RUN_STATUS.FAILED) {
+    return { error: FAILED_REPLY_NOTICES[errorCode] || 'agent.replyFailed' }
   }
-  if (turn?.status === 'running' && !turn.run_id) {
-    return 'agent.replyInterrupted'
-  }
-  return null
+  return { error: 'agent.replyInterrupted' }
 }
+// A private conversation has one person and one agent, so the role is the author.
+const authorOf = (message) => message.role
+const threadItems = computed(() => {
+  const messages = state.currentMessages
+  const sameAuthor = (message, other) =>
+    Boolean(other) && authorOf(other) === authorOf(message)
+  return messages.map((message, index) => {
+    const own = message.role === 'user'
+    return {
+      message,
+      own,
+      first: !sameAuthor(message, messages[index - 1]),
+      last: !sameAuthor(message, messages[index + 1]),
+      status:
+        message.writing && !message.content ? 'agent.thinking' : undefined,
+      ...(own ? {} : replyOutcome(message)),
+    }
+  })
+})
 const replyRunning = computed(() =>
   Boolean(state.replyFollower && !state.replyFollower.finished)
 )
-const showReply = computed(
-  () => replyRunning.value || Boolean(state.replyFollower?.view.text)
-)
+const composerStatus = computed(() => {
+  if (!replyRunning.value) return null
+  return state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking'
+})
 const announcement = ref('')
 watch(
   () => {
     const follower = state.replyFollower
     if (!follower) return null
     if (!follower.finished) return 'agent.replying'
-    const { status, errorCode } = follower.view
-    return turnNotice({ status, error_code: errorCode }) || ''
+    const { note, error } = replyOutcome({
+      status: follower.view.status,
+      error_code: follower.view.errorCode,
+    })
+    return note || error || ''
   },
   (key) => {
     if (key !== null) announcement.value = key
   }
 )
-const isLastOfTurn = (items, index) =>
-  items[index + 1]?.turn?.id !== items[index].turn?.id
-const messageNotices = computed(() => {
-  const items = state.currentHistory?.items || []
-  return items.map((message, index) =>
-    isLastOfTurn(items, index) ? turnNotice(message.turn) : null
-  )
-})
 const warningFields = computed(() => Object.keys(state.fieldErrors))
 const hasLoadError = computed(
   () =>
@@ -352,12 +369,13 @@ const warningAction = computed(() => {
   return state.configurationSaveError ? 'save' : null
 })
 // Transient requests only block sending, so saving never moves the chat.
-const showComposer = computed(
+const canCompose = computed(
   () =>
     state.readiness === 'ready' &&
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
+const showComposer = computed(() => canCompose.value || replyRunning.value)
 const warningTitle = computed(() =>
   hasLoadError.value
     ? 'agent.readinessLoadError'
@@ -380,20 +398,12 @@ async function focusConfiguration(field) {
   await nextTick()
   await configurationSidebar.value?.focusField(field)
 }
-function handleEnter(event) {
-  // Safari sends the Enter that commits an IME composition with keyCode 229.
-  if (event.isComposing || event.keyCode === 229) return
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    submitMessage()
-  }
-}
 async function loadMoreMessages() {
   const container = historyElement.value
   const loadingOlder =
     state.currentHistory?.page > 0 && !state.currentHistory.refreshError
   const selectionRevision = historySelectionRevision
-  const anchor = container.querySelector('.agent-chat__message')
+  const anchor = container.querySelector('.chat-message')
   const previousOffset = anchor?.offsetTop
   await state.loadMoreMessages()
   await nextTick()

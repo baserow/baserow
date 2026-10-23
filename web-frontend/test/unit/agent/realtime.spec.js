@@ -277,7 +277,7 @@ describe('Agent conversation realtime updates', () => {
     const wrapper = await mount()
     await selectConversation(wrapper, first.title)
     const container = wrapper.get('.agent-chat__history').element
-    const anchor = wrapper.get('.agent-chat__message').element
+    const anchor = wrapper.get('.chat-message').element
     let scrollTop = 400
     let scrollHeight = 1000
     let anchorOffset = 0

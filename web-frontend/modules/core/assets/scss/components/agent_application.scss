@@ -139,16 +139,6 @@
   white-space: nowrap;
 }
 
-.agent-chat__history {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-
-  // Older messages are anchored by the component when they are prepended.
-  overflow-anchor: none;
-  padding: 24px;
-}
-
 .agent-chat--empty .agent-chat__history {
   background: radial-gradient(
     ellipse 75% 90% at 50% 0,
@@ -160,9 +150,9 @@
 .agent-chat__intro {
   display: flex;
   flex-direction: column;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  min-height: 100%;
   text-align: center;
 
   h1 {
@@ -200,55 +190,19 @@
   }
 }
 
-.agent-chat__message {
+.agent-chat__loading {
+  margin: 24px 0;
+}
+
+.agent-chat__skeleton-row {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  max-width: 712px;
-  margin: 0 auto 16px;
-}
+  margin-bottom: 16px;
 
-.agent-chat__message-author {
-  margin-bottom: 4px;
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 500;
-  color: $palette-neutral-1200;
-}
-
-.agent-chat__message-content {
-  max-width: 90%;
-  padding: 12px 16px;
-  border-radius: 12px 12px 6px;
-  background: $palette-neutral-50;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 13px;
-  line-height: 20px;
-  font-weight: 400;
-  letter-spacing: -0.08px;
-  color: $palette-neutral-1200;
-}
-
-.agent-chat__message--reply {
-  align-items: flex-start;
-
-  .agent-chat__message-content {
-    max-width: 100%;
-    padding: 0;
-    background: none;
+  &:nth-child(even) {
+    align-items: flex-start;
   }
-}
-
-.agent-chat__notice {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
-  color: $palette-neutral-900;
-}
-
-.agent-chat__loading {
-  margin: 24px auto;
 }
 
 .agent-chat__older {
@@ -259,76 +213,12 @@
 .agent-chat__footer {
   width: 100%;
   max-width: 760px;
-  padding: 8px 24px 24px;
+  padding: 0 24px 24px;
   margin: 0 auto;
 }
 
 .agent-chat__warning {
   margin-bottom: 16px;
-}
-
-.agent-chat__composer {
-  position: relative;
-  min-height: 84px;
-  border: 1px solid $palette-neutral-500;
-  background: $palette-neutral-0;
-  box-shadow: 0 1px 1px rgba($palette-neutral-1300, 0.1);
-
-  @include rounded($rounded-md);
-
-  &:focus-within {
-    border-color: $palette-blue-500;
-  }
-
-  .form-textarea {
-    display: block;
-    width: 100%;
-    margin: 0;
-    padding: 12px 16px 48px;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    outline: 0;
-    font-size: 13px;
-    line-height: 20px;
-    font-weight: 400;
-    color: $palette-neutral-1200;
-
-    &::placeholder {
-      color: $palette-neutral-700;
-      opacity: 1;
-    }
-
-    &[readonly] {
-      color: $palette-neutral-700;
-    }
-  }
-}
-
-.agent-chat__send.button,
-.agent-chat__stop.button {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 16px;
-}
-
-.agent-chat__send.button {
-  border: 0;
-  background: $palette-neutral-1200;
-  color: $palette-neutral-0;
-  box-shadow: none;
-
-  &[disabled]:not(.button--loading) {
-    background: $palette-neutral-600 !important;
-    color: $palette-neutral-0;
-  }
 }
 
 .agent-configuration {
@@ -492,8 +382,8 @@
     }
   }
 
-  .agent-chat__history {
-    padding: 16px;
+  .agent-chat .chat-thread__column {
+    padding: 16px 16px 40px;
   }
 
   .agent-chat__footer {
