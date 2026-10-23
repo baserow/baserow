@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 
 from django.shortcuts import reverse
+from django.test.utils import override_settings
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
@@ -8,6 +9,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormViewEditRowField
 from baserow.contrib.database.fields.utils.row_edit import (
+    build_row_edit_url,
     generate_row_edit_token,
     verify_and_decode_edit_token,
 )
@@ -33,6 +35,22 @@ def test_generate_row_edit_token_differs_by_input():
     t3 = generate_row_edit_token(view_slug="slug1", field_id=99, cell_uuid="uuid-a")
     t4 = generate_row_edit_token(view_slug="slug1", field_id=2, cell_uuid="uuid-b")
     assert len({t1, t2, t3, t4}) == 4
+
+
+@pytest.mark.django_db
+@override_settings(
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example",
+    BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow/",
+)
+def test_build_row_edit_url_uses_the_embedded_share_url(data_fixture):
+    form_view = data_fixture.create_form_view()
+
+    url = build_row_edit_url("cell-uuid", form_view, 1)
+
+    token = generate_row_edit_token(form_view.slug, 1, "cell-uuid")
+    assert url == (
+        f"https://embed.example/baserow/form/{form_view.slug}/?edit_token={token}"
+    )
 
 
 @pytest.mark.django_db

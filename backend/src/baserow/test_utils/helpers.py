@@ -7,7 +7,6 @@ from decimal import Decimal
 from typing import Any, Dict, Generator, List, Optional, Type, Union
 from unittest.mock import patch
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
@@ -21,7 +20,7 @@ from baserow.contrib.database.fields.field_helpers import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
-from baserow.contrib.database.fields.utils.row_edit import generate_row_edit_token
+from baserow.contrib.database.fields.utils.row_edit import build_row_edit_url
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
@@ -582,9 +581,7 @@ def get_form_view_edit_row_url(context: Dict[str, Any], row) -> str:
     name_to_field_id = context["name_to_field_id"]
     field_id = name_to_field_id["form_view_edit_row"]
     cell_uuid = str(getattr(row, f"field_{field_id}"))
-    base = getattr(settings, "PUBLIC_WEB_FRONTEND_URL", "").rstrip("/")
-    token = generate_row_edit_token(form_view.slug, field_id, cell_uuid)
-    return f"{base}/form/{form_view.slug}/?edit_token={token}"
+    return build_row_edit_url(cell_uuid, form_view, field_id)
 
 
 def assert_serialized_field_values_are_the_same(

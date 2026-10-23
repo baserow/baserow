@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
-from urllib.parse import urljoin, urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
@@ -36,7 +35,6 @@ from .emails import WorkspaceInvitationEmail
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
-    BaseURLHostnameNotAllowed,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
@@ -129,6 +127,7 @@ from .utils import (
     atomic_if_not_already,
     extract_allowed,
     find_unused_name,
+    get_embedded_share_url,
     set_allowed_attrs,
 )
 
@@ -1169,37 +1168,20 @@ class CoreHandler:
 
         return URLSafeSerializer(settings.SECRET_KEY, "workspace-invite")
 
-    def send_workspace_invitation_email(self, invitation, base_url):
+    def send_workspace_invitation_email(self, invitation):
         """
         Sends out a workspace invitation email to the user based on the provided
         invitation instance.
 
         :param invitation: The invitation instance for which the email must be send.
         :type invitation: WorkspaceInvitation
-        :param base_url: The base url of the frontend, where the user can accept his
-            invitation. The signed invitation id is appended to the URL (base_url +
-            '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
-        :type base_url: str
-        :raises BaseURLHostnameNotAllowed: When the host name of the base_url is not
-            allowed.
         """
-
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
-        ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
-            )
 
         signer = self.get_workspace_invitation_signer()
         signed_invitation_id = signer.dumps(invitation.id)
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        public_accept_url = urljoin(base_url, signed_invitation_id)
+        public_accept_url = get_embedded_share_url(
+            f"workspace-invitation/{signed_invitation_id}"
+        )
 
         # Send the email in the language of the user that has send the invitation.
         with translation.override(invitation.invited_by.profile.language):
@@ -1282,7 +1264,6 @@ class CoreHandler:
         workspace: Workspace,
         email: str,
         permissions: str,
-        base_url: str,
     ) -> WorkspaceInvitation:
         """
         Creates a new workspace invitation for the given email address and sends out an
@@ -1294,9 +1275,6 @@ class CoreHandler:
             Can be an existing or not existing user.
         :param permissions: The workspace permissions that the user will get once they
             have accepted the invitation.
-        :param base_url: The base url of the frontend, where the user can accept his
-            invitation. The signed invitation id is appended to the URL (base_url +
-            '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
         :raises ValueError: If the provided permissions are not allowed.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
@@ -1342,7 +1320,7 @@ class CoreHandler:
             created=created,
         )
 
-        self.send_workspace_invitation_email(invitation, base_url)
+        self.send_workspace_invitation_email(invitation)
 
         # Emit a sampling-independent metric observation without retaining another
         # application span in the trace. The Collector turns this short-lived span

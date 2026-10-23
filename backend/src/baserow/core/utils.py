@@ -1511,3 +1511,18 @@ def are_kwargs_default(func, **kwargs):
             return False
 
     return True
+
+
+def get_embedded_share_url(path: str) -> str:
+    """
+    Builds a URL that is shared outside of the app, for example a password reset
+    link in an email. It always starts with `BASEROW_EMBEDDED_SHARE_URL`, which
+    defaults to `PUBLIC_WEB_FRONTEND_URL` and is only different when Baserow is
+    embedded in another website. Redirects into the app itself, like SSO or OAuth
+    consent, must use `PUBLIC_WEB_FRONTEND_URL` instead.
+
+    :param path: The frontend path, without a leading slash.
+    :return: The frontend URL.
+    """
+
+    return f"{settings.BASEROW_EMBEDDED_SHARE_URL.rstrip('/')}/{path}"

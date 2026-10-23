@@ -32,8 +32,7 @@ export default (client) => {
       delete(id) {
         return client.delete(`/workspaces/${id}/`)
       },
-      sendInvitation(workspaceId, baseUrl, { captchaToken = '', ...values }) {
-        values.base_url = baseUrl
+      sendInvitation(workspaceId, { captchaToken = '', ...values }) {
         if (captchaToken) {
           values.captcha_token = captchaToken
         }

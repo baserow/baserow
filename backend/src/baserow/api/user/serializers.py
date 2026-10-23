@@ -280,11 +280,6 @@ class SendResetPasswordEmailBodyValidationSerializer(serializers.Serializer):
     email = serializers.EmailField(
         help_text="The email address of the user that has requested a password reset."
     )
-    base_url = serializers.URLField(
-        help_text="The base URL where the user can reset his password. The reset "
-        "token is going to be appended to the base_url (base_url "
-        "'/token')."
-    )
 
 
 class ResetPasswordBodyValidationSerializer(serializers.Serializer):
@@ -301,11 +296,6 @@ class SendChangeEmailConfirmationSerializer(serializers.Serializer):
     new_email = serializers.EmailField(help_text="The new email address to change to.")
     password = serializers.CharField(
         help_text="The current password of the user for verification."
-    )
-    base_url = serializers.URLField(
-        help_text="The base URL where the user can confirm the email change. The "
-        "confirmation token is going to be appended to the base_url "
-        "(base_url '/token')."
     )
 
 

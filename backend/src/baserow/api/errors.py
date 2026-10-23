@@ -25,11 +25,6 @@ ERROR_RESET_PASSWORD_TOKEN_USED = (
     HTTP_400_BAD_REQUEST,
     "The password reset link has already been used.",
 )
-ERROR_HOSTNAME_IS_NOT_ALLOWED = (
-    "ERROR_HOSTNAME_IS_NOT_ALLOWED",
-    HTTP_400_BAD_REQUEST,
-    "Only the hostname of the web frontend is allowed.",
-)
 ERROR_INVALID_SORT_DIRECTION = (
     "ERROR_INVALID_SORT_DIRECTION",
     HTTP_400_BAD_REQUEST,

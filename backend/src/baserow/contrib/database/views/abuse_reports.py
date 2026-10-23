@@ -1,7 +1,3 @@
-from urllib.parse import urljoin
-
-from django.conf import settings
-
 from rest_framework.request import Request
 
 from baserow.contrib.database.api.views.errors import (
@@ -20,6 +16,7 @@ from baserow.core.abuse_reports.registries import (
     AbuseReportResourceType,
     ReportedResource,
 )
+from baserow.core.utils import get_embedded_share_url
 
 
 class DatabaseViewAbuseReportResourceType(AbuseReportResourceType):
@@ -48,6 +45,4 @@ class DatabaseViewAbuseReportResourceType(AbuseReportResourceType):
 
     def _get_public_url(self, view: View) -> str:
         view_type = view_type_registry.get_by_model(view.specific_class)
-        return urljoin(
-            settings.BASEROW_EMBEDDED_SHARE_URL, view_type.get_public_url_path(view)
-        )
+        return get_embedded_share_url(view_type.get_public_url_path(view).lstrip("/"))

@@ -816,7 +816,6 @@ class CreateWorkspaceInvitationActionType(ActionType):
         workspace: Workspace,
         email: str,
         permissions: str,
-        base_url: str,
     ) -> WorkspaceInvitation:
         """
         Creates a new workspace invitation for the given email address and sends out an
@@ -828,7 +827,7 @@ class CreateWorkspaceInvitationActionType(ActionType):
         """
 
         workspace_invitation = CoreHandler().create_workspace_invitation(
-            user, workspace, email, permissions, base_url
+            user, workspace, email, permissions
         )
 
         cls.register_action(

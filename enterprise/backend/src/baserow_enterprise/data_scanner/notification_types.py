@@ -1,8 +1,7 @@
 from dataclasses import asdict, dataclass
 from typing import List, Optional
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.translation import ngettext
 
@@ -12,6 +11,7 @@ from baserow.core.notifications.registries import (
     EmailNotificationTypeMixin,
     NotificationType,
 )
+from baserow.core.utils import get_embedded_share_url
 
 from .models import DataScan
 
@@ -38,14 +38,13 @@ class DataScanNewResultsNotificationType(EmailNotificationTypeMixin, Notificatio
     has_web_frontend_route = True
 
     def get_web_frontend_url(self, notification: Notification) -> str:
-        base_url = settings.BASEROW_EMBEDDED_SHARE_URL
         query = urlencode(
             {
                 "scan_id": notification.data.get("scan_id", ""),
                 "scan_name": notification.data.get("scan_name", ""),
             }
         )
-        return urljoin(base_url, f"/admin/data-scanner/results?{query}")
+        return get_embedded_share_url(f"admin/data-scanner/results?{query}")
 
     @classmethod
     def notify_instance_admins(

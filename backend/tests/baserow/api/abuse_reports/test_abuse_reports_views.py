@@ -42,6 +42,7 @@ def submit_report(api_client, view, **kwargs):
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow/")
 def test_anonymous_user_can_report_public_grid_view(api_client, data_fixture):
     user = data_fixture.create_user()
     view = data_fixture.create_grid_view(user=user, public=True, name="Shared grid")
@@ -55,7 +56,9 @@ def test_anonymous_user_can_report_public_grid_view(api_client, data_fixture):
     assert report.resource_name == "Shared grid"
     assert report.workspace_id == view.table.database.workspace_id
     assert report.workspace_name == view.table.database.workspace.name
-    assert report.public_url.endswith(f"/public/grid/{view.slug}")
+    assert report.public_url == (
+        f"https://embed.example/baserow/public/grid/{view.slug}"
+    )
     assert report.reporter_name == "John Doe"
     assert report.reporter_email == "john@example.com"
     assert report.description == VALID_DESCRIPTION
@@ -63,6 +66,7 @@ def test_anonymous_user_can_report_public_grid_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow/")
 def test_anonymous_user_can_report_public_form_view(api_client, data_fixture):
     user = data_fixture.create_user()
     view = data_fixture.create_form_view(user=user, public=True)
@@ -71,7 +75,7 @@ def test_anonymous_user_can_report_public_form_view(api_client, data_fixture):
 
     assert response.status_code == HTTP_204_NO_CONTENT
     report = AbuseReport.objects.get()
-    assert report.public_url.endswith(f"/form/{view.slug}")
+    assert report.public_url == f"https://embed.example/baserow/form/{view.slug}"
 
 
 @pytest.mark.django_db

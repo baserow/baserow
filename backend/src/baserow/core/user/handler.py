@@ -2,7 +2,6 @@ import hashlib
 import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -26,7 +25,6 @@ from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.emails import EmailPendingVerificationEmail
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     WorkspaceInvitationEmailMismatch,
 )
 from baserow.core.handler import CoreHandler
@@ -48,7 +46,11 @@ from baserow.core.signals import (
     user_updated,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import generate_hash, get_baserow_saas_base_url
+from baserow.core.utils import (
+    generate_hash,
+    get_baserow_saas_base_url,
+    get_embedded_share_url,
+)
 from baserow.throttling.handler import consume_rate_limit
 
 from ..telemetry.utils import baserow_trace, baserow_trace_handler
@@ -468,38 +470,18 @@ class UserHandler:
 
         return URLSafeTimedSerializer(settings.SECRET_KEY, "user-change-email")
 
-    def send_reset_password_email(self, user: AbstractUser, base_url: str) -> bool:
+    def send_reset_password_email(self, user: AbstractUser) -> bool:
         """
         Sends an email containing a password reset url to the user, unless too many
         were sent to the user recently.
 
         :param user: The user instance.
-        :param base_url: The base url of the frontend, where the user can reset his
-            password. The reset token is appended to the URL (base_url + '/TOKEN').
-            Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
         :raises: ResetPasswordDisabledError: If the reset password is disabled.
         :return: Whether the email was sent.
         """
 
         if not CoreHandler().get_settings().allow_reset_password:
             raise ResetPasswordDisabledError("Reset password is disabled")
-
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
-        ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
-            )
-
-        signer = self.get_reset_password_signer()
-        signed_token = signer.dumps([user.id, self._get_password_state_hash(user)])
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        reset_url = urljoin(base_url, signed_token)
 
         if not consume_rate_limit(
             settings.BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT,
@@ -512,6 +494,10 @@ class UserHandler:
                 user_id=user.id,
             )
             return False
+
+        signer = self.get_reset_password_signer()
+        signed_token = signer.dumps([user.id, self._get_password_state_hash(user)])
+        reset_url = get_embedded_share_url(f"reset-password/{signed_token}")
 
         with translation.override(user.profile.language):
             email = ResetPasswordEmail(user, reset_url, to=[user.email])
@@ -628,7 +614,7 @@ class UserHandler:
         return user
 
     def send_change_email_confirmation(
-        self, user: AbstractUser, new_email: str, password: str, base_url: str
+        self, user: AbstractUser, new_email: str, password: str
     ):
         """
         Sends an email containing an email change confirmation url to the new email
@@ -637,14 +623,8 @@ class UserHandler:
         :param user: The user where to change the email for.
         :param new_email: The new email address to change to.
         :param password: The current password of the user for verification.
-        :param base_url: The base url of the frontend, where the user can confirm the
-            email change. The confirmation token is appended to the URL
-            (base_url + '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed
-            as domain name.
         :raises InvalidPassword: When the provided password is incorrect.
         :raises UserAlreadyExist: When a user with the new email already exists.
-        :raises BaseURLHostnameNotAllowed: When the provided base_url hostname is not
-            allowed.
         :raises AuthProviderDisabled: When the password provider is disabled and the
             user is not staff.
         :raises ChangeEmailNotAllowed: When the user does not have a password set.
@@ -667,22 +647,9 @@ class UserHandler:
         if User.objects.filter(Q(email=new_email) | Q(username=new_email)).exists():
             raise UserAlreadyExist(f"A user with email {new_email} already exists.")
 
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
-        ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
-            )
-
         signer = self.get_change_email_signer()
         signed_payload = signer.dumps({"user_id": user.id, "new_email": new_email})
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        confirmation_url = urljoin(base_url, signed_payload)
+        confirmation_url = get_embedded_share_url(f"change-email/{signed_payload}")
 
         with translation.override(user.profile.language):
             email = ChangeEmailConfirmationEmail(
@@ -1056,16 +1023,6 @@ class UserHandler:
         if user.profile.email_verified:
             raise EmailAlreadyVerified()
 
-        token = self.create_email_verification_token(user)
-
-        base_url = (
-            settings.BASEROW_EMBEDDED_SHARE_URL or settings.PUBLIC_WEB_FRONTEND_URL
-        )
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        confirm_url = urljoin(base_url, f"verify-email-address/{token}")
-
         if not consume_rate_limit(
             settings.BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT,
             "send_verify_email",
@@ -1077,6 +1034,9 @@ class UserHandler:
                 user_id=user.id,
             )
             return False
+
+        token = self.create_email_verification_token(user)
+        confirm_url = get_embedded_share_url(f"verify-email-address/{token}")
 
         with translation.override(user.profile.language):
             email = EmailPendingVerificationEmail(

@@ -16,7 +16,6 @@ from responses.matchers import json_params_matcher
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.models import Database, Table
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
 )
@@ -284,11 +283,8 @@ def test_send_reset_password_email(data_fixture, mailoutbox):
     user = data_fixture.create_user(email="test@localhost")
     handler = UserHandler()
 
-    with pytest.raises(BaseURLHostnameNotAllowed):
-        handler.send_reset_password_email(user, "http://test.nl/reset-password")
-
     signer = handler.get_reset_password_signer()
-    handler.send_reset_password_email(user, "http://localhost:3000/reset-password")
+    handler.send_reset_password_email(user)
 
     assert len(mailoutbox) == 1
     email = mailoutbox[0]
@@ -315,7 +311,7 @@ def test_send_reset_password_email_in_different_language(data_fixture, mailoutbo
     user = data_fixture.create_user(email="test@localhost", language="fr")
     handler = UserHandler()
 
-    handler.send_reset_password_email(user, "http://localhost:3000/reset-password")
+    handler.send_reset_password_email(user)
 
     assert len(mailoutbox) == 1
     assert mailoutbox[0].subject == "Réinitialiser le mot de passe - Baserow"
@@ -330,12 +326,10 @@ def test_send_reset_password_email_is_rate_limited_per_user(data_fixture, mailou
     user = data_fixture.create_user(email="test@localhost")
     other_user = data_fixture.create_user(email="other@localhost")
     handler = UserHandler()
-    base_url = "http://localhost:3000/reset-password"
-
-    assert handler.send_reset_password_email(user, base_url) is True
-    assert handler.send_reset_password_email(user, base_url) is True
-    assert handler.send_reset_password_email(user, base_url) is False
-    assert handler.send_reset_password_email(other_user, base_url) is True
+    assert handler.send_reset_password_email(user) is True
+    assert handler.send_reset_password_email(user) is True
+    assert handler.send_reset_password_email(user) is False
+    assert handler.send_reset_password_email(other_user) is True
 
     assert [email.to for email in mailoutbox] == [
         ["test@localhost"],
@@ -355,9 +349,7 @@ def test_send_reset_password_email_reset_password_disabled(data_fixture):
     CoreHandler().update_settings(user, allow_reset_password=False)
 
     with pytest.raises(ResetPasswordDisabledError):
-        UserHandler().send_reset_password_email(
-            user, "http://localhost:3000/reset-password"
-        )
+        UserHandler().send_reset_password_email(user)
 
 
 @pytest.mark.django_db
@@ -864,7 +856,7 @@ def test_verify_email_address_already_verified(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@override_settings(BASEROW_EMBEDDED_SHARE_HOSTNAME="http://test/")
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow")
 def test_send_email_pending_verification(data_fixture, mailoutbox):
     user = data_fixture.create_user()
 
@@ -878,7 +870,11 @@ def test_send_email_pending_verification(data_fixture, mailoutbox):
     assert user.email in email.to
 
     html_body = email.alternatives[0][0]
-    f"http://test/auth/verify-email/" in html_body
+    search_url = "https://embed.example/baserow/verify-email-address/"
+    assert search_url in html_body
+    start = html_body.index(search_url) + len(search_url)
+    token = html_body[start : html_body.index('"', start)]
+    assert UserHandler().verify_email_address(token).id == user.id
 
 
 @pytest.mark.django_db
@@ -949,17 +945,15 @@ def test_share_onboarding_details_with_baserow_valid_response(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@override_settings(
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example",
+    BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow",
+)
 def test_send_change_email_confirmation(data_fixture, mailoutbox):
     data_fixture.create_password_provider()
     valid_password = "thisIsAValidPassword"
     user = data_fixture.create_user(email="test@localhost", password=valid_password)
     handler = UserHandler()
-
-    # Test with invalid hostname
-    with pytest.raises(BaseURLHostnameNotAllowed):
-        handler.send_change_email_confirmation(
-            user, "newemail@localhost", valid_password, "http://test.nl/change-email"
-        )
 
     # Test with incorrect password
     with pytest.raises(InvalidPassword):
@@ -967,7 +961,6 @@ def test_send_change_email_confirmation(data_fixture, mailoutbox):
             user,
             "newemail@localhost",
             "wrongpassword",
-            "http://localhost:3000/change-email",
         )
 
     # Test with existing email
@@ -977,14 +970,11 @@ def test_send_change_email_confirmation(data_fixture, mailoutbox):
             user,
             "existing@localhost",
             valid_password,
-            "http://localhost:3000/change-email",
         )
 
     # Test successful email change confirmation
     signer = handler.get_change_email_signer()
-    handler.send_change_email_confirmation(
-        user, "newemail@localhost", valid_password, "http://localhost:3000/change-email"
-    )
+    handler.send_change_email_confirmation(user, "newemail@localhost", valid_password)
 
     assert len(mailoutbox) == 1
     email = mailoutbox[0]
@@ -994,7 +984,7 @@ def test_send_change_email_confirmation(data_fixture, mailoutbox):
     assert "newemail@localhost" in email.to
 
     html_body = email.alternatives[0][0]
-    search_url = "http://localhost:3000/change-email/"
+    search_url = "https://embed.example/baserow/change-email/"
     start_url_index = html_body.index(search_url)
 
     assert start_url_index != -1
@@ -1016,9 +1006,7 @@ def test_send_change_email_confirmation_in_different_language(data_fixture, mail
     )
     handler = UserHandler()
 
-    handler.send_change_email_confirmation(
-        user, "newemail@localhost", valid_password, "http://localhost:3000/change-email"
-    )
+    handler.send_change_email_confirmation(user, "newemail@localhost", valid_password)
 
     assert len(mailoutbox) == 1
     # The French translation for "Confirm email address change - Baserow"
@@ -1041,7 +1029,6 @@ def test_send_change_email_confirmation_auth_provider_disabled(data_fixture):
             user,
             "newemail@localhost",
             valid_password,
-            "http://localhost:3000/change-email",
         )
 
 
@@ -1060,7 +1047,6 @@ def test_send_change_email_confirmation_without_password(data_fixture):
             user,
             "newemail@localhost",
             "dummy_password",  # Provided but user has no password
-            "http://localhost:3000/change-email",
         )
 
 

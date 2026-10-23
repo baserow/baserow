@@ -29,7 +29,6 @@ from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import (
     BAD_TOKEN_SIGNATURE,
-    ERROR_HOSTNAME_IS_NOT_ALLOWED,
     ERROR_RESET_PASSWORD_TOKEN_USED,
     EXPIRED_TOKEN_SIGNATURE,
 )
@@ -53,7 +52,6 @@ from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     LockConflict,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
@@ -389,9 +387,7 @@ class SendResetPasswordEmailView(APIView):
         ),
         responses={
             204: None,
-            400: get_error_schema(
-                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_HOSTNAME_IS_NOT_ALLOWED"]
-            ),
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
             429: None,
         },
         auth=[],
@@ -400,7 +396,6 @@ class SendResetPasswordEmailView(APIView):
     @validate_body(SendResetPasswordEmailBodyValidationSerializer)
     @map_exceptions(
         {
-            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
             ResetPasswordDisabledError: ERROR_DISABLED_RESET_PASSWORD,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
         }
@@ -419,9 +414,7 @@ class SendResetPasswordEmailView(APIView):
                 raise AuthProviderDisabled()
 
             set_user_session_data_from_request(user, request)
-            action_type_registry.get(SendResetUserPasswordActionType.type).do(
-                user, data["base_url"]
-            )
+            action_type_registry.get(SendResetUserPasswordActionType.type).do(user)
         except UserNotFound:
             pass
 
@@ -536,7 +529,6 @@ class SendChangeEmailConfirmationView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_HOSTNAME_IS_NOT_ALLOWED",
                     "ERROR_INVALID_OLD_PASSWORD",
                     "ERROR_ALREADY_EXISTS",
                     "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
@@ -548,7 +540,6 @@ class SendChangeEmailConfirmationView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
             InvalidPassword: ERROR_INVALID_OLD_PASSWORD,
             UserAlreadyExist: ERROR_ALREADY_EXISTS,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
@@ -562,7 +553,7 @@ class SendChangeEmailConfirmationView(APIView):
         """
 
         action_type_registry.get(SendChangeEmailConfirmationActionType.type).do(
-            request.user, data["new_email"], data["password"], data["base_url"]
+            request.user, data["new_email"], data["password"]
         )
 
         return Response(status=204)

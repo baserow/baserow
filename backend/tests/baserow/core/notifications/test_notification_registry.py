@@ -1,3 +1,5 @@
+from django.test.utils import override_settings
+
 import pytest
 
 from baserow.core.models import Notification
@@ -34,4 +36,17 @@ def test_get_web_frontend_url_with_notification_that_has_url(data_fixture):
 
     assert notification.web_frontend_url == (
         f"http://localhost:3000/notification/{workspace.id}/{notification.id}"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow/")
+def test_get_web_frontend_url_keeps_the_embedded_share_url_path(data_fixture):
+    workspace = data_fixture.create_workspace()
+    notification = Notification.objects.create(
+        type="form_submitted", workspace_id=workspace.id, data={}
+    )
+
+    assert notification.web_frontend_url == (
+        f"https://embed.example/baserow/notification/{workspace.id}/{notification.id}"
     )

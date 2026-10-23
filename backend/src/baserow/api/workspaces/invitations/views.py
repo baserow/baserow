@@ -18,7 +18,6 @@ from baserow.api.decorators import (
 from baserow.api.errors import (
     BAD_TOKEN_SIGNATURE,
     ERROR_GROUP_DOES_NOT_EXIST,
-    ERROR_HOSTNAME_IS_NOT_ALLOWED,
     ERROR_USER_INVALID_GROUP_PERMISSIONS,
     ERROR_USER_NOT_IN_GROUP,
 )
@@ -41,7 +40,6 @@ from baserow.core.actions import (
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
@@ -191,7 +189,6 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
             WorkspaceUserAlreadyExists: ERROR_GROUP_USER_ALREADY_EXISTS,
-            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
             CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
         }
     )
@@ -213,7 +210,6 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
                 workspace,
                 data["email"],
                 data["permissions"],
-                data["base_url"],
             )
 
         return Response(WorkspaceInvitationSerializer(workspace_invitation).data)

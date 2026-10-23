@@ -13,7 +13,6 @@ export async function addWorkspaceMember(
     {
       email: member.email,
       permissions,
-      base_url: "http://localhost",
     },
   );
   await getClient(member).post(

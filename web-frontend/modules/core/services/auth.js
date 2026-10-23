@@ -47,11 +47,8 @@ export default (client) => {
 
       return client.post('/user/', values)
     },
-    sendResetPasswordEmail(email, baseUrl) {
-      return client.post('/user/send-reset-password-email/', {
-        email,
-        base_url: baseUrl,
-      })
+    sendResetPasswordEmail(email) {
+      return client.post('/user/send-reset-password-email/', { email })
     },
     resetPassword(token, password) {
       return client.post('/user/reset-password/', {
@@ -65,11 +62,10 @@ export default (client) => {
         new_password: newPassword,
       })
     },
-    sendChangeEmailConfirmation(newEmail, password, baseUrl) {
+    sendChangeEmailConfirmation(newEmail, password) {
       return client.post('/user/send-change-email-confirmation/', {
         new_email: newEmail,
         password,
-        base_url: baseUrl,
       })
     },
     changeEmail(token) {

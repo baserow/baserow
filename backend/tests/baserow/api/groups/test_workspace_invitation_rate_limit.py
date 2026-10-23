@@ -21,7 +21,6 @@ def invite(api_client, data_fixture, user, workspace, email="test@test.nl"):
         {
             "email": email,
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

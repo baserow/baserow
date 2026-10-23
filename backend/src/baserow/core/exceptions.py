@@ -174,13 +174,6 @@ class SubjectTypeNotExist(Exception):
     """Raised when trying to use a subject type that does not exist."""
 
 
-class BaseURLHostnameNotAllowed(Exception):
-    """
-    Raised when the provided base url is not allowed when requesting a password
-    reset email.
-    """
-
-
 class WorkspaceInvitationDoesNotExist(Exception):
     """
     Raised when the requested workspace invitation doesn't exist.

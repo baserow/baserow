@@ -120,9 +120,7 @@ def test_change_user_password_action_type(data_fixture):
 def test_send_reset_user_password_action_type(data_fixture, mailoutbox):
     user = data_fixture.create_user(password="12345678")
 
-    action_type_registry.get(SendResetUserPasswordActionType.type).do(
-        user, "http://localhost:3000/reset-password"
-    )
+    action_type_registry.get(SendResetUserPasswordActionType.type).do(user)
     assert len(mailoutbox) == 1
 
 

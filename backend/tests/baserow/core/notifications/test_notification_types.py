@@ -37,7 +37,6 @@ def test_notification_creation_on_creating_group_invitation(
             {
                 "email": "test2@test.nl",
                 "permissions": "ADMIN",
-                "base_url": "http://localhost:3000/invite",
             },
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token_1}",

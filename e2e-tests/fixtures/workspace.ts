@@ -1,6 +1,5 @@
 import { getClient } from "../client";
 import { User } from "./user";
-import { baserowConfig } from "../playwright.config";
 
 export class Workspace {
   constructor(public id: number, public name: string, public user: User) {}
@@ -29,7 +28,6 @@ export async function addUserToWorkspace(
     {
       email: invitee.email,
       permissions,
-      base_url: `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/workspace-invitation`,
     }
   );
   await getClient(invitee).post(

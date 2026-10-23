@@ -1,4 +1,7 @@
+import re
+
 from django.shortcuts import reverse
+from django.test.utils import override_settings
 
 import pytest
 from freezegun import freeze_time
@@ -82,6 +85,65 @@ def test_list_workspace_invitations(api_client, data_fixture):
     assert response_json[1]["id"] == invitation_2.id
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_workspace_invitation_ignores_a_deceptive_base_url(
+    api_client, data_fixture, mailoutbox
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    # The browser opens evil.com for this URL while urlparse sees localhost:3000.
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace.id}
+        ),
+        {
+            "email": "test@test.nl",
+            "permissions": "ADMIN",
+            "base_url": "http://evil.com\\@localhost:3000/workspace-invitation",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert len(mailoutbox) == 1
+    html_body = mailoutbox[0].alternatives[0][0]
+    assert "evil.com" not in html_body
+    links = re.findall(r'href="([^"]*workspace-invitation/[^"]*)"', html_body)
+    assert len(links) == 1
+    assert links[0].startswith("http://localhost:3000/workspace-invitation/")
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow")
+def test_create_workspace_invitation_link_points_to_embedded_share_url(
+    api_client, data_fixture, mailoutbox
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace.id}
+        ),
+        {
+            "email": "test@test.nl",
+            "permissions": "ADMIN",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert len(mailoutbox) == 1
+    links = re.findall(
+        r'href="([^"]*workspace-invitation[^"]*)"', mailoutbox[0].alternatives[0][0]
+    )
+    assert len(links) == 1
+    assert links[0].startswith("https://embed.example/baserow/workspace-invitation/")
+
+
 @pytest.mark.django_db
 def test_create_workspace_invitation(api_client, data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
@@ -97,7 +159,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_1}",
@@ -113,7 +174,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_2}",
@@ -129,7 +189,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": user_3.email,
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_1}",
@@ -145,7 +204,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_3}",
@@ -153,22 +211,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
-        ),
-        {
-            "email": "test@test.nl",
-            "permissions": "ADMIN",
-            "base_url": "http://test.nl:3000/invite",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_HOSTNAME_IS_NOT_ALLOWED"
 
     # Custom messages are no longer supported: any `message` in the request body is
     # silently ignored and neither persisted nor returned.
@@ -180,7 +222,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
             "email": "test0@test.nl",
             "permissions": "ADMIN",
             "message": "Test",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_1}",
@@ -203,7 +244,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test2@test.nl",
             "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_1}",

@@ -340,7 +340,7 @@ class SendResetUserPasswordActionType(ActionType):
         user_email: str
 
     @classmethod
-    def do(cls, user: AbstractUser, base_url: str):
+    def do(cls, user: AbstractUser):
         """
         Send a reset password email to the user.
 
@@ -349,7 +349,7 @@ class SendResetUserPasswordActionType(ActionType):
 
         # Requests dropped by the rate limit aren't logged, so that flooding the
         # endpoint can't flood the audit log as well.
-        if not UserHandler().send_reset_password_email(user, base_url):
+        if not UserHandler().send_reset_password_email(user):
             return
 
         cls.register_action(
@@ -531,21 +531,16 @@ class SendChangeEmailConfirmationActionType(ActionType):
         new_email: str
 
     @classmethod
-    def do(
-        cls, user: AbstractUser, new_email: str, password: str, base_url: str
-    ) -> AbstractUser:
+    def do(cls, user: AbstractUser, new_email: str, password: str) -> AbstractUser:
         """
         Send a change email confirmation email to the new email address.
 
         :param user: The user that requested the email change.
         :param new_email: The new email address.
         :param password: The current password for verification.
-        :param base_url: The base URL for the confirmation link.
         """
 
-        UserHandler().send_change_email_confirmation(
-            user, new_email, password, base_url
-        )
+        UserHandler().send_change_email_confirmation(user, new_email, password)
 
         cls.register_action(
             user=user,
