@@ -567,6 +567,7 @@
   },
   "assistant": {
     "statusThinking": "Thinking...",
+    "statusAnswering": "Answering...",
     "messageCancelled": "Message cancelled",
     "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
     "runMessageTooLong": "This message is too long for Kuma. Shorten it and send it again.",
