@@ -45,6 +45,7 @@ from .operations import (
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
     ReadWorkspaceOperationType,
+    RestoreWorkspaceOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -57,6 +58,7 @@ from .registries import (
     subject_type_registry,
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
+from .trash.operations import EmptyWorkspaceTrashOperationType
 
 User = get_user_model()
 
@@ -399,6 +401,8 @@ class BasicPermissionManagerType(PermissionManagerType):
         ListWorkspaceUsersWorkspaceOperationType.type,
         UpdateWorkspaceOperationType.type,
         DeleteWorkspaceOperationType.type,
+        RestoreWorkspaceOperationType.type,
+        EmptyWorkspaceTrashOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
         CreateAgentOperationType.type,

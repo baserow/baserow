@@ -8,7 +8,11 @@ from freezegun import freeze_time
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
-from baserow.core.exceptions import ApplicationDoesNotExist, WorkspaceDoesNotExist
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UserInvalidWorkspacePermissionsError,
+    WorkspaceDoesNotExist,
+)
 from baserow.core.models import Application, TrashEntry, Workspace
 from baserow.core.trash.exceptions import (
     CannotDeleteAlreadyDeletedItem,
@@ -517,3 +521,79 @@ def test_permanently_delete_item_raises_operationalerror(
             TrashHandler.try_perm_delete_trash_entry(
                 trash_entry, trash_item_lookup_cache
             )
+
+
+@pytest.mark.django_db
+def test_workspace_member_cannot_restore_or_empty_a_trashed_workspace(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    TrashHandler.trash(admin, workspace, None, workspace)
+
+    with pytest.raises(UserInvalidWorkspacePermissionsError):
+        TrashHandler.restore_item(member, "workspace", workspace.id)
+    with pytest.raises(UserInvalidWorkspacePermissionsError):
+        TrashHandler.empty(member, workspace.id, None)
+
+    workspace.refresh_from_db()
+    assert workspace.trashed
+    assert not TrashEntry.objects.get(
+        trash_item_type="workspace", trash_item_id=workspace.id
+    ).should_be_permanently_deleted
+
+    TrashHandler.restore_item(admin, "workspace", workspace.id)
+    workspace.refresh_from_db()
+    assert not workspace.trashed
+
+    TrashHandler.trash(admin, workspace, None, workspace)
+    TrashHandler.empty(admin, workspace.id, None)
+    assert TrashEntry.objects.get(
+        trash_item_type="workspace", trash_item_id=workspace.id
+    ).should_be_permanently_deleted
+
+
+@pytest.mark.django_db
+def test_workspace_member_cannot_empty_workspace_trash(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    application = data_fixture.create_database_application(workspace=workspace)
+    TrashHandler.trash(admin, workspace, application, application)
+
+    with pytest.raises(UserInvalidWorkspacePermissionsError):
+        TrashHandler.empty(member, workspace.id, None)
+    assert not TrashEntry.objects.get().should_be_permanently_deleted
+
+    TrashHandler.empty(admin, workspace.id, None)
+    assert TrashEntry.objects.get().should_be_permanently_deleted
+
+
+@pytest.mark.django_db
+def test_workspace_member_can_still_use_application_trash(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    application = data_fixture.create_database_application(workspace=workspace)
+    other_application = data_fixture.create_database_application(workspace=workspace)
+    TrashHandler.trash(member, workspace, application, application)
+    TrashHandler.trash(member, workspace, other_application, other_application)
+
+    structure = TrashHandler.get_trash_structure(member)
+    assert [w["id"] for w in structure["workspaces"]] == [workspace.id]
+    assert TrashHandler.get_trash_contents(member, workspace.id, None).count() == 2
+
+    TrashHandler.restore_item(member, "application", application.id)
+    application.refresh_from_db()
+    assert not application.trashed
+
+    TrashHandler.empty(member, workspace.id, other_application.id)
+    assert TrashEntry.objects.get().should_be_permanently_deleted

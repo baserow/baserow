@@ -9,7 +9,11 @@
       </div>
       <div class="trash__title-right">
         <Button
-          v-show="totalServerSideTrashContentsCount > 0 && !parentIsTrashed"
+          v-show="
+            totalServerSideTrashContentsCount > 0 &&
+            !parentIsTrashed &&
+            canEmpty
+          "
           type="danger"
           :loading="loadingContents"
           :disabled="loadingContents"
@@ -123,6 +127,24 @@ export default {
       return this.selectedTrashApplication === null
         ? 'workspace'
         : 'application'
+    },
+    canEmpty() {
+      if (this.selectedTrashApplication !== null) {
+        return true
+      }
+      // A trashed workspace is not in the store, so its permissions are unknown
+      // and the backend decides.
+      const workspace = this.$store.getters['workspace/get'](
+        this.selectedTrashWorkspace.id
+      )
+      if (!workspace?._.permissionsLoaded) {
+        return true
+      }
+      return this.$hasPermission(
+        'workspace.empty_trash',
+        workspace,
+        workspace.id
+      )
     },
     title() {
       const title = this.selectedItem.name
