@@ -54,7 +54,7 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
   afterEach(() => destroyRunsTestApp(testApp))
   const status = () => wrapper.find('.assistant__status-message').text()
 
-  test('shows streamed cumulative output and tool progress', async () => {
+  test('shows streamed output, tool progress, then that Kuma is answering', async () => {
     await receive(
       runRecord(
         'ai/reasoning',
@@ -71,6 +71,10 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     )
     expect(wrapper.text()).toContain('Looking at your tables')
     expect(status()).toBe('Creating rows')
+    await receive(
+      runRecord('ai/message', { content: 'Done' }, { cursor: cursor(3) })
+    )
+    expect(status()).toBe('assistant.statusAnswering')
   })
 
   test('Stop asks the run to stop and stays disabled meanwhile', async () => {
@@ -86,23 +90,32 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(status()).toBe('assistant.statusWaitingForOutput')
   })
 
-  test('a durable interrupted outcome removes Stop and shows why the answer ended', async () => {
-    await applySnapshot(store, {
-      status: 'failed',
-      error_code: 'interrupted',
-      message: {
-        id: 502,
-        type: 'ai/message',
-        content: 'Partly done',
-        run_status: 'failed',
+  test.each(['Partly done', ''])(
+    'a durable interrupted outcome %j removes Stop and shows why the answer ended',
+    async (content) => {
+      await applySnapshot(store, {
+        status: 'failed',
         error_code: 'interrupted',
-      },
-    })
-    await flushPromises()
-    expect(wrapper.text()).toContain('Partly done')
-    expect(wrapper.text()).toContain('assistant.runErrorInterrupted')
-    expect(wrapper.find('.iconoir-square').exists()).toBe(false)
-  })
+        message: {
+          id: 502,
+          type: 'ai/message',
+          content,
+          run_status: 'failed',
+          error_code: 'interrupted',
+          can_submit_feedback: true,
+        },
+      })
+      await flushPromises()
+      const answer = wrapper.findAll('.assistant__message').at(-1)
+      expect(answer.text()).toContain(content)
+      expect(answer.text()).toContain('assistant.runErrorInterrupted')
+      expect(answer.find('.assistant__actions').exists()).toBe(Boolean(content))
+      expect(answer.find('.assistant__disclaimer').exists()).toBe(
+        Boolean(content)
+      )
+      expect(wrapper.find('.iconoir-square').exists()).toBe(false)
+    }
+  )
 
   test('closing the panel keeps following the run', async () => {
     wrapper.unmount()

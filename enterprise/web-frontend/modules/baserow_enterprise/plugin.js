@@ -173,6 +173,8 @@ export default defineNuxtPlugin({
           if (!authenticated) {
             storeChatUuid(null)
             storeOnboardingRunId(null)
+            $store.dispatch('assistant/reset')
+            $store.commit('assistant/SET_UI_LOCATION', null)
           }
         },
         { flush: 'sync' }
