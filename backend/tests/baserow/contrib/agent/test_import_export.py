@@ -8,7 +8,6 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
-    AgentTurn,
 )
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.handler import CoreHandler
@@ -28,22 +27,20 @@ def export_internal(agent: AgentApplication) -> dict:
 def conversation_values(agent: AgentApplication) -> list[tuple]:
     values = []
     for conversation in agent.conversations.order_by("id"):
-        turns = list(conversation.turns.order_by("id"))
-        positions = {turn.id: position for position, turn in enumerate(turns)}
         values.append(
             (
                 conversation.title,
                 conversation.owner_user_id,
                 conversation.created_on,
                 conversation.updated_on,
-                [(turn.status, turn.error_code) for turn in turns],
                 [
                     (
                         message.role,
                         message.content,
+                        message.status,
+                        message.error_code,
                         message.created_on,
                         message.updated_on,
-                        positions.get(message.turn_id),
                     )
                     for message in conversation.messages.order_by("id")
                 ],
@@ -73,15 +70,12 @@ def test_duplicate_copies_conversations_with_new_identifiers(
         conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
         for role in AgentMessage.Role.values:
             data_fixture.create_agent_message(conversation=conversation, role=role)
-        turn = AgentTurn.objects.create(
+        data_fixture.create_agent_message(
             conversation=conversation,
-            status=AgentTurn.Status.FAILED,
+            role=AgentMessage.Role.ASSISTANT,
+            status=AgentMessage.Status.FAILED,
             error_code="timeout",
         )
-        for role in AgentMessage.Role.values:
-            data_fixture.create_agent_message(
-                conversation=conversation, turn=turn, role=role
-            )
 
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
@@ -142,28 +136,23 @@ def test_internal_copy_skips_conversations_of_deleted_owners(
 
 
 @pytest.mark.django_db
-def test_internal_copy_imports_conversations_copied_before_turns(
+def test_internal_copy_imports_messages_copied_before_replies(
     data_fixture, configured_agent
 ):
     owner = data_fixture.create_user()
     agent = configured_agent(user=owner)
-    conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
-    turn = AgentTurn.objects.create(conversation=conversation)
-    data_fixture.create_agent_message(
-        conversation=conversation, turn=turn, content="Hi"
-    )
+    data_fixture.create_agent_message(user=owner, agent=agent, content="Hi")
     serialized = export_internal(agent)
     for data in serialized["conversations"]:
-        del data["turns"]
         for message in data["messages"]:
-            del message["turn_position"]
+            del message["status"], message["error_code"]
 
     copied = AgentApplicationType().import_serialized(
         agent.workspace, serialized, INTERNAL_CONFIG, {}
     )
 
     message = AgentMessage.objects.get(conversation__agent=copied)
-    assert (message.content, message.turn_id) == ("Hi", None)
+    assert (message.content, message.status, message.error_code) == ("Hi", None, "")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -196,12 +185,15 @@ def test_duplicate_agent_job_rolls_back_failed_conversation_import(
 def test_a_copy_never_carries_a_reply_in_progress(data_fixture, configured_agent):
     owner = data_fixture.create_user()
     agent = configured_agent(user=owner)
-    conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
-    turn = AgentTurn.objects.create(conversation=conversation)
-    data_fixture.create_agent_message(conversation=conversation, turn=turn)
+    data_fixture.create_agent_message(
+        user=owner,
+        agent=agent,
+        role=AgentMessage.Role.ASSISTANT,
+        status=AgentMessage.Status.RUNNING,
+    )
 
     copied = CoreHandler().duplicate_application(owner, agent).specific
 
-    copied_turn = copied.conversations.get().turns.get()
-    assert (copied_turn.status, copied_turn.error_code) == ("failed", "interrupted")
+    reply = AgentMessage.objects.get(conversation__agent=copied)
+    assert (reply.status, reply.error_code) == ("failed", "interrupted")
     assert not ChatRun.objects.exists()

@@ -48,7 +48,8 @@ class CreateAgentConversationActionType(ActionType):
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
-        :return: The conversation and its first message, and whether they are new.
+        :return: The conversation, its first message and its reply, and whether they
+            are new.
         """
 
         result = AgentService().create_conversation(
@@ -100,7 +101,8 @@ class CreateAgentMessageActionType(ActionType):
         :param conversation_uuid: The uuid of the conversation.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
-        :return: The conversation and the message, and whether the message is new.
+        :return: The conversation, the message and its reply, and whether the message
+            is new.
         """
 
         result = AgentService().create_message(

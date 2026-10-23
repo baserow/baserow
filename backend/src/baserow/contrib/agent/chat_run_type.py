@@ -75,8 +75,8 @@ class AgentChatRunType(ChatRunType):
         return (request, *create_reply_model(request))
 
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict | None:
-        return AgentHandler().finish_turn(
-            run.context["turn_id"], outcome.status, outcome.error_code, outcome.result
+        return AgentHandler().finish_reply(
+            run.context["reply_id"], outcome.status, outcome.error_code, outcome.result
         )
 
     def on_run_lost(
@@ -85,16 +85,16 @@ class AgentChatRunType(ChatRunType):
         """Keep the text the user already saw."""
 
         text = fold_output(events)["text"] if events else ""
-        return AgentHandler().finish_turn(
-            run.context["turn_id"], run.status, run.error_code, text
+        return AgentHandler().finish_reply(
+            run.context["reply_id"], run.status, run.error_code, text
         )
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:
-        return AgentHandler().finish_turn(
-            run.context["turn_id"], run.status, run.error_code, None
+        return AgentHandler().finish_reply(
+            run.context["reply_id"], run.status, run.error_code, None
         )
 
     def ensure_interruption_warning(self, run: ChatRun) -> None:
-        """Mark the turn interrupted unless it already ended: it may run twice."""
+        """Mark the reply interrupted unless it already ended: it may run twice."""
 
-        AgentHandler().mark_turn_interrupted(run.context["turn_id"])
+        AgentHandler().mark_reply_interrupted(run.context["reply_id"])

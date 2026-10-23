@@ -48,7 +48,7 @@ def test_first_message_creates_a_private_conversation(
 
     response = api_client.post(agent_url(agent, "conversations"), payload)
     conversation = AgentConversation.objects.get()
-    message = AgentMessage.objects.get()
+    message, reply = AgentMessage.objects.order_by("id")
 
     assert response.json() == {
         "conversation": {
@@ -64,12 +64,19 @@ def test_first_message_creates_a_private_conversation(
             "role": "user",
             "content": payload["content"],
             "created_on": ANY,
-            "turn": {
-                "id": AgentMessage.objects.get().turn_id,
-                "status": "running",
-                "error_code": "",
-                "run_id": ANY,
-            },
+            "status": None,
+            "error_code": "",
+            "run_id": None,
+        },
+        "reply": {
+            "id": reply.id,
+            "uuid": str(reply.uuid),
+            "role": "assistant",
+            "content": "",
+            "created_on": ANY,
+            "status": "running",
+            "error_code": "",
+            "run_id": str(ChatRun.objects.get().id),
         },
     }
     assert conversation.owner_user == api_user
@@ -117,23 +124,19 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
     agent.instructions = ""
     agent.save()
 
-    for target, body, accepted, status, run_id in [
-        (url, payload, first, "completed", None),
+    for target, body, accepted, reply_state in [
         (
-            messages_url,
-            append,
-            second,
-            "running",
-            second.json()["message"]["turn"]["run_id"],
+            url,
+            payload,
+            first,
+            {"status": "completed", "content": "Hello from the agent", "run_id": None},
         ),
+        (messages_url, append, second, {}),
     ]:
-        retried = api_client.post(target, body)
-        message = accepted.json()["message"]
-        # The turn is live state: the reply finished since the first response.
-        assert retried.json()["message"] == {
-            **message,
-            "turn": {**message["turn"], "status": status, "run_id": run_id},
-        }
+        retried = api_client.post(target, body).json()
+        assert retried["message"] == accepted.json()["message"]
+        # The reply is live state: the first one finished since its response.
+        assert retried["reply"] == {**accepted.json()["reply"], **reply_state}
     for target, body in [
         (url, {**payload, "content": "Different"}),
         (url, {**payload, "message_uuid": str(uuid4())}),

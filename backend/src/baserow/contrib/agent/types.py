@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal, TypedDict
+from uuid import UUID
 
 from baserow.core.models import Workspace
 
@@ -20,6 +21,8 @@ class AgentConfiguration(TypedDict):
 class AgentMessageCreated:
     conversation: AgentConversation
     message: AgentMessage
+    reply: AgentMessage | None
+    run_id: UUID | None
     created: bool
 
 
@@ -32,7 +35,7 @@ class AgentConfigurationUpdated:
 
 @dataclass(frozen=True)
 class AgentReplyRequest:
-    turn_id: int
+    reply_id: int
     workspace: Workspace | None
     instructions: str
     provider_type: str

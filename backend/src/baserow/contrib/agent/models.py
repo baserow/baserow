@@ -41,8 +41,13 @@ class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Mode
         ]
 
 
-class AgentTurn(BigAutoFieldMixin, models.Model):
-    """The agent's answer to one prompt, from sending it to the final outcome."""
+class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
+    """A message as shown in a conversation, not as sent to the AI model."""
+
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+        SYSTEM = "system", "System"
 
     class Status(models.TextChoices):
         QUEUED = "queued", "Queued"
@@ -52,26 +57,6 @@ class AgentTurn(BigAutoFieldMixin, models.Model):
         FAILED = "failed", "Failed"
 
     conversation = models.ForeignKey(
-        AgentConversation, on_delete=models.CASCADE, related_name="turns"
-    )
-    status = models.CharField(
-        max_length=16, choices=Status.choices, default=Status.RUNNING
-    )
-    error_code = models.CharField(max_length=64, blank=True, default="")
-
-    class Meta:
-        ordering = ("id",)
-
-
-class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
-    """A message as shown in a conversation, not as sent to the AI model."""
-
-    class Role(models.TextChoices):
-        USER = "user", "User"
-        ASSISTANT = "assistant", "Assistant"
-        SYSTEM = "system", "System"
-
-    conversation = models.ForeignKey(
         AgentConversation, on_delete=models.CASCADE, related_name="messages"
     )
     uuid = models.UUIDField()
@@ -79,9 +64,9 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         max_length=16, choices=Role.choices, default=Role.USER, db_default=Role.USER
     )
     content = models.TextField()
-    turn = models.ForeignKey(
-        AgentTurn, null=True, on_delete=models.CASCADE, related_name="messages"
-    )
+    # Only the agent's replies have one.
+    status = models.CharField(max_length=16, choices=Status.choices, null=True)
+    error_code = models.CharField(max_length=64, blank=True, default="", db_default="")
 
     class Meta:
         ordering = ("-id",)
