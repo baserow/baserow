@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
     InvalidWorkflowActionEvent,
@@ -22,7 +24,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     CreateRowWorkflowActionType,
     NotificationWorkflowActionType,
 )
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 
 
 @pytest.mark.django_db
@@ -435,3 +437,37 @@ def test_update_workflow_action_with_invalid_event(data_fixture):
 
     workflow_action.refresh_from_db()
     assert workflow_action.event == EventTypes.CLICK
+
+
+@pytest.mark.django_db
+def test_dispatch_action_checks_element_visibility_whatever_the_managers_order(
+    data_fixture, settings
+):
+    """
+    The visibility of the action's element is enforced by the service itself, so
+    a hidden element's action can't be dispatched even when `element_visibility`
+    runs after `allow_public_builder`, which allows any public dispatch.
+    """
+
+    managers = list(settings.PERMISSION_MANAGERS)
+    managers.remove("element_visibility")
+    managers.insert(managers.index("allow_public_builder") + 1, "element_visibility")
+    settings.PERMISSION_MANAGERS = managers
+
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(), published_to=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(
+        page=page, visibility=Element.VISIBILITY_TYPES.LOGGED_IN
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK
+    )
+
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page)
+    with pytest.raises(PermissionDenied):
+        BuilderWorkflowActionService().dispatch_action(
+            AnonymousUser(), workflow_action, dispatch_context
+        )

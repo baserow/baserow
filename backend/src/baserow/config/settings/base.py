@@ -1671,8 +1671,10 @@ PERMISSION_MANAGERS = [
     "staff",
     "allow_if_template",
     "allow_builder_preview",
-    "allow_public_builder",
+    # Must run before `allow_public_builder`, which allows every dispatch on a
+    # published builder and would leave hidden elements' actions dispatchable.
     "element_visibility",
+    "allow_public_builder",
     "member",
     "token",
     "write_field_values",
