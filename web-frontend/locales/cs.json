@@ -96,7 +96,10 @@
         "automationDesc": "Automatizujte opakující se úlohy a pracovní postupy.",
         "automationDefaultName": "Automatizace bez názvu",
         "cantSelectAutomationWorkflowTitle": "Automatizaci se nepodařilo vybrat.",
-        "cantSelectAutomationWorkflowDescription": "Automatizaci se nepodařilo vybrat, protože nemá žádné pracovní postupy. Vytvořte jej pomocí postranního panelu."
+        "cantSelectAutomationWorkflowDescription": "Automatizaci se nepodařilo vybrat, protože nemá žádné pracovní postupy. Vytvořte jej pomocí postranního panelu.",
+        "agent": "Agent",
+        "agents": "Agenti",
+        "agentDesc": "Vytvořte agenta ve svém pracovním prostoru."
     },
     "settingType": {
         "account": "Účet",
