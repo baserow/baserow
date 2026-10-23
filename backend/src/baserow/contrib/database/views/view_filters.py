@@ -1,4 +1,5 @@
 import datetime as datetime_module
+import re
 import zoneinfo
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -77,6 +78,20 @@ from .registries import ViewFilterType
 
 DATE_FILTER_EMPTY_VALUE = ""
 DATE_FILTER_TIMEZONE_SEPARATOR = "?"
+INTEGER_FILTER_VALUE_REGEX = re.compile(r"-?[0-9]+")
+
+
+def parse_int_filter_value(value: str) -> int:
+    """
+    Parses an id filter value with the same rule as the frontend `isInteger`, so
+    values like `+1`, `1_0` or non-ASCII digits that `int()` accepts are rejected.
+
+    :raises ValueError: if the value is not an integer.
+    """
+
+    if not INTEGER_FILTER_VALUE_REGEX.fullmatch(value):
+        raise ValueError(f"{value!r} is not an integer.")
+    return int(value)
 
 
 class NotViewFilterTypeMixin:
@@ -1133,11 +1148,13 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
 
     def get_filter(self, field_name, value, model_field, field):
         value = value.strip()
+        if not value:
+            return Q()
 
         try:
-            int(value)
+            value = parse_int_filter_value(value)
         except ValueError:
-            return Q()
+            return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         effective_field_type = field_type.get_compatible_filter_field_type(field)
@@ -1282,9 +1299,9 @@ class ManyToManyHasBaseViewFilter(ViewFilterType):
             return Q()
 
         try:
-            val = int(value.strip())
-        except (ValueError, TypeError):
-            return Q()
+            val = parse_int_filter_value(value)
+        except ValueError:
+            return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions.get(field_type.type, self._get_filter)
@@ -1300,8 +1317,11 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
     compatible_field_types = [LinkRowFieldType.type]
 
     def get_filter(self, field_name, value, model_field, field):
-        if not (option_ids := parse_ids_from_csv_string(value)):
+        if not value.strip():
             return Q()
+
+        if not (option_ids := parse_ids_from_csv_string(value)):
+            return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
         filter_function = self.filter_functions.get(field_type.type, self._get_filter)
@@ -1357,7 +1377,7 @@ class LinkRowHasNotViewFilterType(LinkRowHasViewFilterType):
 
     def get_filter(self, field_name, value, model_field, field):
         try:
-            val = int(value.strip())
+            val = parse_int_filter_value(value.strip())
             return ~Q(**{f"field_{field.id}": val})
         except ValueError:
             return Q()
@@ -1560,13 +1580,13 @@ class UserIsViewFilterType(ViewFilterType):
     USER_KEY = f"users"
 
     def get_filter(self, field_name, value, model_field, field):
+        value = value.strip()
         if not value:
             return Q()
-        value = value.strip()
         try:
-            return Q(**{f"{field_name}__id": int(value)})
+            return Q(**{f"{field_name}__id": parse_int_filter_value(value)})
         except ValueError:
-            return Q()
+            return self.default_filter_on_exception()
 
     def get_export_serialized_value(self, value, id_mapping):
         if value is None:

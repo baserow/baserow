@@ -3271,3 +3271,45 @@ describe('Null and undefined rowValue guards', () => {
     }
   )
 })
+
+describe('Invalid id filter value tests', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const invalidValues = ['test', '1%', '1_', '+1', '1_0', '１']
+  const singleRowValue = { id: 1, value: 'Option A', color: 'blue' }
+  const manyRowValue = [{ id: 1 }, { id: 2 }]
+
+  // Mirrors the backend: an invalid non-empty value matches nothing for the
+  // positive filters and everything for their negated variants.
+  test.each([
+    ['single_select_equal', singleRowValue, false],
+    ['single_select_not_equal', singleRowValue, true],
+    ['user_is', singleRowValue, false],
+    ['user_is_not', singleRowValue, true],
+    ['multiple_collaborators_has', manyRowValue, false],
+    ['multiple_collaborators_has_not', manyRowValue, true],
+    ['link_row_has', manyRowValue, false],
+    ['link_row_has_not', manyRowValue, true],
+  ])('%s with an invalid value', (filterType, rowValue, expected) => {
+    const filter = testApp._app.$registry.get('viewFilter', filterType)
+    for (const value of invalidValues) {
+      expect(filter.matches(rowValue, value, {}, {})).toBe(expected)
+    }
+    expect(filter.matches(rowValue, ' 1 ', {}, {})).toBe(!expected)
+  })
+
+  test('LinkRowHasFilterType matches any of multiple ids', () => {
+    const filter = new LinkRowHasFilterType({ app: testApp._app })
+    expect(filter.matches([{ id: 2 }], '1,2', {}, {})).toBe(true)
+    expect(filter.matches([{ id: 3 }], '1,2', {}, {})).toBe(false)
+    expect(filter.matches([{ id: 2 }], '1,test', {}, {})).toBe(false)
+  })
+})
