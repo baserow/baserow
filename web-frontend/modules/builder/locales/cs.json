@@ -752,8 +752,8 @@
         "dropdown": "Rozbalovací nabídka",
         "checkbox": "Zaškrtávací políčko",
         "radio": "Přepínač",
-        "extraSettings": "|D|a|l|š|í| |n|a|s|t|a|v|e|n|í|",
-        "enableSearch": "|P|o|v|o|l|i|t| |v|y|h|l|e|d|á|v|á|n|í|"
+        "extraSettings": "Další nastavení",
+        "enableSearch": "Povolit vyhledávání"
     },
     "choiceOptionSelector": {
         "label": "Možnosti",
