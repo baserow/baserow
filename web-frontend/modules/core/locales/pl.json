@@ -170,7 +170,9 @@
     },
     "templateCategories": {
         "search": "Wyszukaj szablony",
-        "title": "Szablony"
+        "title": "Szablony",
+        "allTemplates": "Wszystkie szablony",
+        "noResults": "Brak szablonów"
     },
     "templateHeader": {
         "use": "Użyj tego szablonu",
@@ -500,7 +502,8 @@
         "errorJobAlreadyRunningDescription": "Zadanie importu jest już uruchomione. Zanim rozpoczniesz nowe, musisz poczekać, aż poprzednie zostanie zakończone.",
         "errorJobCannotBeCancelledTitle": "Nie można anulować",
         "errorJobCannotBeCancelledDescription": "Nie ma możliwości anulowania zadania, ponieważ zostało ono już zakończone.\nAby je skasować, usuń pierwszą migawkę z poniższej listy.",
-        "stateCanceled": "Anulowano"
+        "stateCanceled": "Anulowano",
+        "errorJobCannotBeCancelledGenericDescription": "Nie ma możliwości anulowania tej czynności, ponieważ została już wykonana."
     },
     "datetime": {
         "daysAgo": "0 dni temu | 1 dzień temu | {n} dni temu",
@@ -537,7 +540,10 @@
                 "highestRoleHelpText": "Najwyższa rola, jaką ten użytkownik przyznał im bezpośrednio lub w ramach zespołu, w odniesieniu do dowolnego elementu w tym obszarze roboczym",
                 "highestRoleInstanceHelpText": "Najwyższa rola tego użytkownika w obecnej instancji",
                 "2fa": "2FA"
-            }
+            },
+            "emptyTitle": "Nie ma jeszcze żadnych członków",
+            "emptyDescription": "Zaproś do współpracy w obszarze roboczym. Każdej zaproszonej osobie przypisz jakąś rolę. Pozwoli to określić, co dana osoba będzie mogła edytować lub przeglądać.",
+            "search": "Wyszukiwanie członków"
         },
         "invitesTable": {
             "title": "Liczba zaproszeń oczekujących na potwierdzenie w obszarze {workspaceName}: {invitesAmount}",
@@ -549,7 +555,10 @@
             "actions": {
                 "remove": "Anuluj zaproszenie",
                 "copyEmail": "Skopiuj e-mail"
-            }
+            },
+            "emptyTitle": "Brak oczekujących zaproszeń",
+            "emptyDescription": "Zaproś do obszaru roboczego. Zanim zaproszenia zostaną zaakceptowane, możesz je zmienić lub śledzić ich status.",
+            "search": "Wyszukiwanie zaproszonych"
         },
         "invitesTabTitle": "Zaproszenia",
         "membersInviteModal": {
@@ -732,7 +741,10 @@
         "invalidFormulaTitle": "Nieprawidłowa formuła",
         "invalidSyntax": "Ta formuła jest nieprawidłowa. Sprawdź składnię.",
         "useFormulaMode": "Użyj trybu formuł",
-        "useRawMode": "Użyj trybu źródłowego"
+        "useRawMode": "Użyj trybu źródłowego",
+        "formatPlain": "Zwykły tekst",
+        "formatMarkdown": "Markdown",
+        "formatBadgeTitle": "Format: {format}. Kliknij, żeby zmienić."
     },
     "dataExplorer": {
         "noMatchingNodesText": "Nie znaleziono pasujących wyników.",
@@ -1161,7 +1173,9 @@
         "createEndpoint": "Utwórz endpoint",
         "backToOverview": "Powrót",
         "createNewTitle": "Utwórz endpoint serwera MCP",
-        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint."
+        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint.",
+        "oauthTab": "OAuth",
+        "endpointTab": "Endpoint"
     },
     "workspaceSearch": {
         "types": {
@@ -1281,7 +1295,8 @@
         "useSimpleInputModalTitle": "Przełączyć na tryb standardowy?",
         "useAdvancedInput": "Przełącz się na tryb zaawansowany",
         "useAdvancedInputModalTitle": "Przełączyć na tryb zaawansowany?",
-        "modalMessage": "Przełączenie trybu spowoduje skasowanie bieżącej formuły. Czy na pewno chcesz kontynuować?"
+        "modalMessage": "Przełączenie trybu spowoduje skasowanie bieżącej formuły. Czy na pewno chcesz kontynuować?",
+        "formatLabel": "Format"
     },
     "formulaParserErrors": {
         "invalidArgCountMin": "Funkcja '{funcType}' wymaga co najmniej {minArgs} argumentów.",
@@ -1610,14 +1625,32 @@
         "tools": "{count} narzędzie | liczba narzędzi: {count}",
         "connectedOn": "Podłączono {date}",
         "disconnect": "Rozłącz",
-        "confirmDisconnect": "Kliknij ponownie aby rozłączyć"
+        "confirmDisconnect": "Kliknij ponownie aby rozłączyć",
+        "title": "Podłącz narzędzie AI",
+        "description": "Każde narzędzie z innym adresem URL. Zaloguj się i wybierz obszar roboczy oraz narzędzia.",
+        "copyURL": "Skopiuj URL",
+        "claudeInstructions": "W claude.ai lub Claude Desktop otwórz **Settings → Connectors**, kliknij **Add custom connector** i wklej powyższy URL.",
+        "claudeCodeInstructions": "Wykonaj tę komendę w oknie terminala. Następnie w Claude Code, aby się zalogować, wpisz komendę `/mcp`.",
+        "chatGptInstructions": "W ChatGPT otwórz **Plugins**, w prawym górnym rogu kliknij **+** i wybierz opcję **Add custom MCP server**. Wklej powyższy URL jako adres serwera oraz wybierz **OAuth** jako formę uwierzytelnienia.",
+        "cursorInstructions": "Dopisz to do `~/.cursor/mcp.json`. Cursor poprosi o zalogowanie się po połączeniu.",
+        "connectedApps": "Podłączone aplikacje",
+        "noConnections": "Nie ma jeszcze żadnych podłączonych aplikacji.",
+        "publishedBy": "{host}",
+        "expired": "Wylogowany",
+        "expiredTooltip": "Sesja tej aplikacji zakończyła się. Zaloguj się ponownie za pośrednictwem aplikacji.",
+        "toolsOff": "{count} narzędzie wyłączone | Liczba wyłączonych narzędzi: {count}",
+        "editTools": "Edytownie narzędzi",
+        "editToolsTitle": "Narzędzia do {client}",
+        "editToolsDescription": "Wybierz funkcje, z których aplikacja może korzystać w {workspace}. Zmiany zostaną uaktualnione przy następnym żądaniu i bez konieczności ponownego logowania.",
+        "saveTools": "Zapisz"
     },
     "subjectType": {
         "user": "Użytkownik",
         "users": "Użytkownicy",
         "anonymousUser": "Użytkownik anonimowy",
         "agent": "Agent",
-        "agents": "Agenci"
+        "agents": "Agenci",
+        "members": "Członkowie"
     },
     "agents": {
         "saved": "Zmiany zostały zapisane",
@@ -1634,6 +1667,178 @@
         "name": "Nazwa",
         "invalidNameTitle": "Ta nazwa agenta nie jest dozwolona",
         "lastActive": "Ostatnia aktywność",
-        "workspaceRole": "Rola w obszarze roboczym"
+        "workspaceRole": "Rola w obszarze roboczym",
+        "search": "Wyszukiwanie agentów",
+        "emptyTitle": "Brak agentów",
+        "emptyDescription": "Utwórz agenta, aby połączyć narzędzia AI z Twoim obszarem roboczym. Wybierz rolę i zespoły, aby określić, do czego ma mieć dostęp.",
+        "new": "Nowy",
+        "roleHelpText": "Zacznij od braku dostępu, następnie, w zależności od potrzeb, dodaj dostęp do konkretnych baz danych, tabel lub widoków."
+    },
+    "mcpAuthorize": {
+        "title": "Podłącz {client}",
+        "titleFrom": "Podłącz {client} z {host}",
+        "subtitle": "Będzie pełnił Twoją rolę w wybranym obszarze roboczym.",
+        "unverified": "Niezweryfikowane · przekierowuje z powrotem do {host}",
+        "returns": "Powraca do {host}",
+        "workspace": "Obszar roboczy",
+        "databases": "liczba baz danych: {count} | liczba baz danych: {count}",
+        "noWorkspaces": "Nie masz możliwości podłączenia aplikacji w żadnym z obszarów roboczych. Poproś administratora o dostęp.",
+        "loopbackWarning": "Ta aplikacja loguje się za pośrednictwem Twojego komputera. Ta nazwa może być użyta przez każdy zainstalowany program. Kontynuuj wyłącznie, jeżeli jesteś osobą, która sama rozpoczęła proces logowania.",
+        "signedIn": "Zalogowany jako {email}",
+        "allow": "Zezwalaj",
+        "deny": "Zablokuj",
+        "invalid": "Ta prośba o autoryzację jest niepoprawna.",
+        "invalidMessage": "Spróbuj ponownie podłączyć się z aplikacji. Jeśli problem powtórzy się, usuń serwer Baserow z aplikacji, a następnie dodaj go ponownie.",
+        "unknownClient": "Rejestracja logowania tej aplikacji nie jest skonfigurowana lub wygasła. Usuń serwer Baserow z aplikacji, a następnie dodaj go ponownie.",
+        "clientRejected": "Ta aplikacja nie może się zalogować do tego serwera Baserow. Poproś administratora, aby sprawdził przyczynę w logu serwera.",
+        "loadFailed": "Nie udało się załadować tego żądania logowania.",
+        "loadFailedMessage": "Sprawdź połączenie i przeładuj stronę, zanim spróbujesz ponownie.",
+        "failed": "Nie udało się uzyskać połączenia.",
+        "framed": "Ze względów bezpieczeństwa ta strona nie może być wyświetlana wewnątrz innej witryny. Aby kontynuować, otwórz ją w osobnym oknie przeglądarki."
+    },
+    "mcpToolPicker": {
+        "tools": "Co jest dostępne",
+        "readOnly": "Tylko odczyt",
+        "fullAccess": "Pełen dostęp",
+        "none": "Brak",
+        "noTools": "Brak dostępnych narzędzi.",
+        "deletes": "Usuwa",
+        "overwrites": "Nadpisuje",
+        "areaDatabase": "Bazy danych",
+        "databaseRead": "Odczyt tabel i wierszy",
+        "databaseEdit": "Tworzenie i modyfikacja",
+        "databaseDelete": "Usuwanie"
+    },
+    "createUserTemplateJobType": {
+        "name": "Tworzenie szablonów"
+    },
+    "inviteModal": {
+        "emailRoute": "E-mail z zaproszeniem",
+        "linkRoute": "Utwórz link",
+        "emailTitle": "Zaproś członków e-mailem",
+        "linkTitle": "Zaproś członków używając linku",
+        "linkEmptyTitle": "Jeszcze nie utworzono linku z zaproszeniem",
+        "linkEmptyDescription": "Możesz utworzyć wiele linków z różnymi rolami.",
+        "pendingTitle": "Wysłane zaproszenia",
+        "pendingEmptyTitle": "Brak wysłanych zaproszeń.",
+        "pendingEmptyDescription": "Zaproszenia będą tutaj widoczne, dopóki nie zostaną zaakceptowane."
+    },
+    "inviteInput": {
+        "batchLimitExceeded": "Możesz jednorazowo wysłać zaproszenia na maksymalnie {limit} adresy/ów.",
+        "placeholder": "Wpisz lub skopiuj adresy e-mail",
+        "invite": "Zaproś",
+        "inviteAs": "Zaproś {count} jako {role}",
+        "tabAll": "Wszyscy",
+        "inviteEmail": "Zaproś {email}",
+        "inviteEmailDescription": "Zostanie przypisany do obszaru roboczego jako {role}",
+        "alreadyInvited": "Zaproszenie zostało już wysłane.\nZamiast wysyłać ponownie, możesz zmodyfikować rolę na stronie zaproszenia.",
+        "alreadyMember": "Jest już członkiem tego obszaru roboczego",
+        "roleNotForEmails": "Nowy użytkownik nie może być zaproszony jako {role}",
+        "noResults": "Aby wysłać zaproszenie, wpisz pełny adres e-mail."
+    },
+    "templateEmptyState": {
+        "noResultsTitle": "Brak szablonów",
+        "noResultsDescription": "Brak szablonów pasujących do zapytania \"{query}\". Spróbuj wpisać inne zapytanie."
+    },
+    "templateInstall": {
+        "use": "Użyj tego szablonu",
+        "selectWorkspace": "Wybierz obszar roboczy",
+        "more": "Więcej",
+        "copyLink": "Skopiuj link do współdzielenia"
+    },
+    "templateDetails": {
+        "back": "Powrót do Szablonów",
+        "contents": "Co zawiera",
+        "actions": "Operacje",
+        "editDetails": "Edytuj szczegóły",
+        "updateContent": "Zmodyfikuj zawartość szablonu"
+    },
+    "templateModal": {
+        "officialTemplates": "Oficjalne szablony",
+        "yourTemplates": "Twoje szablony"
+    },
+    "createUserTemplateModal": {
+        "detailsTitle": "Nowe szablony",
+        "detailsDescription": "Zapisz co zrobiłeś, jako szablon do ponownego wykorzystania.",
+        "continue": "Kontynuuj",
+        "contentTitle": "Wybierz zawartość szablonu",
+        "contentDescription": "Wybierz obszar roboczy, a następnie elementy, które będzie zawierał szablon.",
+        "create": "Utwórz szablon",
+        "cannotBeCancelled": "Nie można anulować, ponieważ szablon został już utworzony.",
+        "failedAfterCreated": "Szablon został utworzony, ale po utworzeniu wystąpił błąd."
+    },
+    "updateUserTemplateModal": {
+        "detailsTitle": "Edytuj szablon",
+        "detailsDescription": "Zmodyfikuj wygląd szablonu. Zawartość szablonu pozostanie bez zmian.",
+        "contentTitle": "Zaktualizuj zawartość",
+        "contentDescription": "Zastąp zawartość szablonu aplikacjami z jednego z obszarów roboczych. Szczegóły, link i uprawnienia pozostaną bez zmian.",
+        "save": "Zapisz zmiany",
+        "update": "Zaktualizuj szablon",
+        "updated": "Szablon został zaktualizowany",
+        "failedAfterUpdated": "Szablon został zaktualizowany, ale po aktualizacji wystąpił błąd.",
+        "cannotBeCancelled": "Nie można anulować, ponieważ szablon został już zaktualizowany.",
+        "invalidKeptDetails": "Ta ikona lub kategoria szablonu nie może już być użyta. Aby je zmodyfikować, użyj opcji \"Edytuj szczegóły”, a następnie zaktualizuj zawartość."
+    },
+    "userTemplateDetailsForm": {
+        "name": "Nazwa",
+        "namePlaceholder": "Nazwa szablonu",
+        "nameRequired": "Nazwa jest wymagana.",
+        "chooseIcon": "Wybierz ikonę",
+        "description": "Opis",
+        "descriptionPlaceholder": "Do czego służy ten szablon?",
+        "categories": "Kategorie",
+        "categoriesRequired": "Wybierz przynajmniej jedną kategorię."
+    },
+    "userTemplateContentForm": {
+        "workspace": "Obszar roboczy",
+        "workspaceEmpty": "W tym obszarze roboczym nie ma nic do skopiowania.",
+        "workspaceNoPermission": "Nie masz uprawnień do skopiowania tego obszaru roboczego.",
+        "applications": "Zawartość",
+        "noticeTitle": "Co nie zostanie skopiowane",
+        "noticeSecrets": "Większość haseł, tokenów oraz kluczy API integracji lub synchronizacji danych.",
+        "noticePeople": "Użytkownicy: wartości pól współpracowników, przypisania ról oraz użytkownik, którego AI używa w trakcie uaktualniania pól.",
+        "noticePersonalViews": "Własne widoki.",
+        "noticeReferences": "Połączenia z bazami danych które nie są uwzgędnione. Należy ponownie skonfigurować źródła danych, filtry i triggery, które z nich korzystają.",
+        "noticeRest": "Pozostałe treści zostaną udostępnione bez zmian.",
+        "selectedApplications": "Wybano 0 aplikacji | Wybrano 1 aplikację | Liczba wybranych aplikacji: {count}"
+    },
+    "templateIconSelectContext": {
+        "search": "Wyszukiwanie ikon",
+        "noResults": "Nie znaleziono ikon"
+    },
+    "userTemplateList": {
+        "title": "Twoje szablony",
+        "count": "0 szablonów | 1 szablon | Liczba szablonów: {count}",
+        "search": "Wyszukiwanie szablonów",
+        "newTemplate": "Nowy szablon",
+        "name": "Nazwa",
+        "visibility": "Widoczność",
+        "lastUpdated": "Ostatnia aktualizacja",
+        "emptyTitle": "Nie ma jeszcze żadnych szablonów",
+        "emptyDescription": "Zapisz to, co zrobiłeś jako szablon, który będziesz mógł zobaczyć w podglądzie oraz udostępnić.",
+        "noWorkspace": "Szablon tworzony jest na podstawie obszaru roboczego. Musisz najpierw utworzyć nowy obszar lub dołączyć do istniejącego.",
+        "noContent": "Szablon jest tworzony na podstawie zawartości obszaru roboczego. Musisz najpierw dodać bazę danych, aplikację lub automatyzację.",
+        "statePrivate": "Prywatny",
+        "stateInReview": "W trakcie przeglądu",
+        "stateRejected": "Odrzucony",
+        "stateBlocked": "Zablokowany",
+        "statePublic": "Publiczny",
+        "errorTitle": "Nie można było załadować Twoich szablonów",
+        "errorDescription": "W trakcie ładowania Twoich szablonów wystąpił błąd.",
+        "retry": "Spróbuj ponownie",
+        "actions": "Operacje",
+        "editDetails": "Edytuj szczegóły",
+        "updateContent": "Zmodyfikuj zawartość szablonu"
+    },
+    "crudTable": {
+        "empty": "Jeszcze nie ma żadnych pozycji",
+        "emptyPage": "Brak rezultatów na tej stronie.",
+        "noResults": "Nie znaleziono żadnych wyników. Spróbuj zmienić zapytanie lub filtry.",
+        "rowActions": "Operacje na wierszach",
+        "expandRow": "Pokaż więcej szczegółów",
+        "collapseRow": "Pokaż mniej szczegółów"
+    },
+    "managementPages": {
+        "you": "Ty"
     }
 }
