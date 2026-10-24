@@ -53,9 +53,9 @@
         "subjectsColumn": "Členové",
         "roleColumn": "Výchozí role",
         "roleHelpText": "Lze přepsat pomocí rolí v databázích a tabulkách.",
-        "emptyTitle": "|Z|a|t|í|m| |ž|á|d|n|é| |t|ý|m|y|",
-        "emptyDescription": "|S|e|s|k|u|p|t|e| |l|i|d|i| |a| |a|g|e|n|t|y| |d|o| |t|ý|m|ů|,| |a|b|y|s|t|e| |s|p|o|l|e|č|n|ě| |s|p|r|a|v|o|v|a|l|i| |j|e|j|i|c|h| |p|ř|í|s|t|u|p|.| |V|y|t|v|o|ř|t|e| |t|ý|m| |p|r|o| |o|d|d|ě|l|e|n|í| |n|e|b|o| |p|r|o|j|e|k|t| |a| |p|a|k| |m|u| |p|ř|i|ř|a|ď|t|e| |r|o|l|i|.|",
-        "search": "|H|l|e|d|a|t| |t|ý|m|y|"
+        "emptyTitle": "Zatím žádné týmy",
+        "emptyDescription": "Seskupte lidi a agenty do týmů, abyste společně spravovali jejich přístup. Vytvořte tým pro oddělení nebo projekt a pak mu přiřaďte roli.",
+        "search": "Hledat týmy"
     },
     "teamsSettings": {
         "teamsTabTitle": "Týmy"
@@ -286,7 +286,7 @@
     "membersRoleField": {
         "noAccessHelpText": "Tento uživatel potřebuje výslovný přístup ke zdrojům.",
         "adminHelpText": "Administrátoři mohou omezit role ostatních administrátorů.",
-        "adminFullAccessHelpText": "|S|p|r|á|v|c|i| |m|a|j|í| |ú|p|l|n|ý| |p|ř|í|s|t|u|p| |k|e| |v|š|e|m|u| |v| |t|o|m|t|o| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u|.| |J|e|j|i|c|h| |r|o|l|i| |u| |d|a|t|a|b|á|z|e|,| |t|a|b|u|l|k|y| |n|e|b|o| |p|o|h|l|e|d|u| |n|e|l|z|e| |s|n|í|ž|i|t|.| |C|h|c|e|t|e|-|l|i| |s|p|r|á|v|c|e| |o|m|e|z|i|t|,| |n|e|j|p|r|v|e| |s|n|i|ž|t|e| |j|e|h|o| |r|o|l|i| |v| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u|.|"
+        "adminFullAccessHelpText": "Správci mají úplný přístup ke všemu v tomto pracovním prostoru. Jejich roli u databáze, tabulky nebo pohledu nelze snížit. Chcete-li správce omezit, nejprve snižte jeho roli v pracovním prostoru."
     },
     "membersPagePlugin": {
         "roleHelpText": "Lze přepsat rolemi na úrovni databází a tabulek."
@@ -929,7 +929,7 @@
     "subjectType": {
         "team": "Tým",
         "teams": "Týmy",
-        "teamMembers": "|{|c|o|u|n|t|}| |č|l|e|n|ů|"
+        "teamMembers": "{count} členů"
     },
     "fieldPermissionSubjectsSelector": {
         "accessNote": "Výběr neuděluje přístup k tabulce. Vybraný uživatel, agent nebo člen vybraného týmu musí mít také roli Editor, Builder nebo Správce v místě, kde se tato tabulka nachází.",
@@ -973,44 +973,44 @@
         "build": "Vytvořit"
     },
     "inviteModal": {
-        "memberRoute": "|P|o|z|v|a|t| |č|l|e|n|y|"
+        "memberRoute": "Pozvat členy"
     },
     "scopeInvitationTarget": {
-        "title": "|S|d|í|l|e|t| |{|n|a|m|e|}|",
-        "application": "|A|p|l|i|k|a|c|e|",
-        "table": "|T|a|b|u|l|k|a|",
-        "view": "|P|o|h|l|e|d|"
+        "title": "Sdílet {name}",
+        "application": "Aplikace",
+        "table": "Tabulka",
+        "view": "Pohled"
     },
     "shareScope": {
-        "pendingNoWorkspaceRole": "|B|e|z| |r|o|l|e| |v| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u|",
-        "searchPlaceholder": "|H|l|e|d|a|t| |{|s|u|b|j|e|c|t|s|}| |n|e|b|o| |z|a|d|e|j|t|e| |e|-|m|a|i|l|",
-        "searchSubjectsPlaceholder": "|H|l|e|d|a|t| |{|s|u|b|j|e|c|t|s|}|",
-        "workspaceInvitationRequired": "|P|o|z|v|á|n|í| |n|o|v|ý|c|h| |l|i|d|í| |v|y|ž|a|d|u|j|e| |o|p|r|á|v|n|ě|n|í| |z|v|á|t| |d|o| |p|r|a|c|o|v|n|í|h|o| |p|r|o|s|t|o|r|u|.| |S|t|á|v|a|j|í|c|í|m| |č|l|e|n|ů|m| |p|r|a|c|o|v|n|í|h|o| |p|r|o|s|t|o|r|u| |v|š|a|k| |s|t|á|l|e| |m|ů|ž|e|t|e| |u|d|ě|l|i|t| |p|ř|í|s|t|u|p|.|",
-        "add": "|P|ř|i|d|a|t|",
-        "addAs": "|P|ř|i|d|a|t| |{|c|o|u|n|t|}| |j|a|k|o| |{|r|o|l|e|}|",
-        "inviteEmailDescription": "|M|á| |r|o|l|i| |{|r|o|l|e|}| |p|o|u|z|e| |u| |t|o|h|o|t|o| |{|t|y|p|e|}| |–| |b|e|z| |r|o|l|e| |v| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u|",
-        "alreadyInvited": "|P|o|z|v|á|n|k|a| |p|r|o| |t|e|n|t|o| |{|t|y|p|e|}| |j|i|ž| |č|e|k|á|.|\\|n|M|í|s|t|o| |d|a|l|š|í|h|o| |p|o|z|v|á|n|í| |m|ů|ž|e|t|e| |j|e|j|í| |r|o|l|i| |z|m|ě|n|i|t| |v| |s|e|z|n|a|m|u| |n|í|ž|e|.|",
-        "alreadyAssigned": "|U| |t|o|h|o|t|o| |{|t|y|p|e|}| |j|i|ž| |m|á| |p|ř|i|ř|a|z|e|n|o|u| |r|o|l|i|.|\\|n|M|ů|ž|e|t|e| |j|i| |z|m|ě|n|i|t| |v| |s|e|z|n|a|m|u| |n|í|ž|e|.|",
-        "alreadyAdmin": "|S|p|r|á|v|c|e| |ú|r|o|v|n|ě| |{|l|e|v|e|l|}|:| |j|i|ž| |m|á| |ú|p|l|n|ý| |p|ř|í|s|t|u|p| |k| |t|o|m|u|t|o| |{|t|y|p|e|}|.|\\|n|C|h|c|e|t|e|-|l|i| |j|e|j| |o|m|e|z|i|t|,| |n|e|j|p|r|v|e| |s|n|i|ž|t|e| |j|e|h|o| |r|o|l|i| |n|a| |ú|r|o|v|n|i| |{|l|e|v|e|l|}|.|",
-        "noResults": "|Ž|á|d|n|í| |{|s|u|b|j|e|c|t|s|}| |n|e|o|d|p|o|v|í|d|a|j|í|.| |C|h|c|e|t|e|-|l|i| |p|o|z|v|a|t| |n|o|v|o|u| |o|s|o|b|u|,| |z|a|d|e|j|t|e| |c|e|l|o|u| |e|-|m|a|i|l|o|v|o|u| |a|d|r|e|s|u|.|",
-        "noSubjectResults": "|Ž|á|d|n|í| |{|s|u|b|j|e|c|t|s|}| |n|e|o|d|p|o|v|í|d|a|j|í|.|",
-        "directAccess": "|P|ř|í|m|ý| |p|ř|í|s|t|u|p| |k| |t|o|m|u|t|o| |{|t|y|p|e|}|",
-        "emptyTitle": "|Z|a|t|í|m| |n|e|m|á| |n|i|k|d|o| |u| |t|o|h|o|t|o| |{|t|y|p|e|}| |n|a|s|t|a|v|e|n|o|u| |r|o|l|i|.|",
-        "emptyDescription": "|V|š|i|c|h|n|i| |n|í|ž|e| |d|ě|d|í| |p|ř|í|s|t|u|p| |z| |v|y|š|š|í|c|h| |ú|r|o|v|n|í|.|",
-        "invitePending": "|P|o|z|v|á|n|k|a| |č|e|k|á|",
-        "noWorkspaceRole": "|B|e|z| |r|o|l|e| |v| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u| |–| |p|o|u|z|e| |t|e|n|t|o| |{|t|y|p|e|}|",
-        "inheritedAdminHelpText": "|S|p|r|á|v|c|e| |ú|r|o|v|n|ě| |{|l|e|v|e|l|}| |m|á| |v|ž|d|y| |ú|p|l|n|ý| |p|ř|í|s|t|u|p| |k| |t|o|m|u|t|o| |{|t|y|p|e|}|.| |R|o|l|e| |n|a|s|t|a|v|e|n|á| |z|d|e| |n|e|m|á| |ž|á|d|n|ý| |ú|č|i|n|e|k|.| |C|h|c|e|t|e|-|l|i| |j|e|j| |o|m|e|z|i|t|,| |n|e|j|p|r|v|e| |s|n|i|ž|t|e| |j|e|h|o| |r|o|l|i| |n|a| |ú|r|o|v|n|i| |{|l|e|v|e|l|}|.|",
-        "scopeAdminHelpText": "|M|á| |ú|p|l|n|ý| |p|ř|í|s|t|u|p| |k| |t|o|m|u|t|o| |{|t|y|p|e|}| |a| |v|š|e|m|u| |v| |n|ě|m|.| |R|o|l|e| |n|a|s|t|a|v|e|n|é| |p|r|o| |c|o|k|o|l|i| |u|v|n|i|t|ř| |n|a| |n|ě|j| |n|e|m|a|j|í| |ž|á|d|n|ý| |ú|č|i|n|e|k|.| |C|h|c|e|t|e|-|l|i| |j|e|j| |o|m|e|z|i|t|,| |n|e|j|p|r|v|e| |s|n|i|ž|t|e| |t|u|t|o| |r|o|l|i|.|",
-        "inheritedAccess": "|M|á| |t|a|k|é| |p|ř|í|s|t|u|p|",
-        "inherited": "|(|z|d|ě|d|ě|n|o|)|",
-        "everyoneAt": "|V|š|i|c|h|n|i| |v| |{|n|a|m|e|}|",
-        "roleCount": "|{|c|o|u|n|t|}| |{|r|o|l|e|}|",
-        "fromWorkspace": "|Z| |p|r|a|c|o|v|n|í|h|o| |p|r|o|s|t|o|r|u|",
-        "fromWorkspaceExplanation": "|V|š|i|c|h|n|i| |s|i| |z|a|c|h|o|v|á|v|a|j|í| |r|o|l|i| |p|r|a|c|o|v|n|í|h|o| |p|r|o|s|t|o|r|u| |u| |v|š|e|h|o| |v| |p|r|a|c|o|v|n|í|m| |p|r|o|s|t|o|r|u|,| |v|č|e|t|n|ě| |t|o|h|o|t|o| |{|t|y|p|e|}|.|",
-        "manageWorkspaceRoles": "|S|p|r|a|v|o|v|a|t| |r|o|l|e| |p|r|a|c|o|v|n|í|h|o| |p|r|o|s|t|o|r|u|",
+        "pendingNoWorkspaceRole": "Bez role v pracovním prostoru",
+        "searchPlaceholder": "Hledat {subjects} nebo zadejte e-mail",
+        "searchSubjectsPlaceholder": "Hledat {subjects}",
+        "workspaceInvitationRequired": "Pozvání nových lidí vyžaduje oprávnění zvát do pracovního prostoru. Stávajícím členům pracovního prostoru však stále můžete udělit přístup.",
+        "add": "Přidat",
+        "addAs": "Přidat {count} jako {role}",
+        "inviteEmailDescription": "Má roli {role} pouze u tohoto {type} – bez role v pracovním prostoru",
+        "alreadyInvited": "Pozvánka pro tento {type} již čeká.\r\nMísto dalšího pozvání můžete její roli změnit v seznamu níže.",
+        "alreadyAssigned": "U tohoto {type} již má přiřazenou roli.\r\nMůžete ji změnit v seznamu níže.",
+        "alreadyAdmin": "Správce úrovně {level}: již má úplný přístup k tomuto {type}.\r\nChcete-li jej omezit, nejprve snižte jeho roli na úrovni {level}.",
+        "noResults": "Žádní {subjects} neodpovídají. Chcete-li pozvat novou osobu, zadejte celou e-mailovou adresu.",
+        "noSubjectResults": "Žádní {subjects} neodpovídají.",
+        "directAccess": "Přímý přístup k tomuto {type}",
+        "emptyTitle": "Zatím nemá nikdo u tohoto {type} nastavenou roli.",
+        "emptyDescription": "Všichni níže dědí přístup z vyšších úrovní.",
+        "invitePending": "Pozvánka čeká",
+        "noWorkspaceRole": "Bez role v pracovním prostoru – pouze tento {type}",
+        "inheritedAdminHelpText": "Správce úrovně {level} má vždy úplný přístup k tomuto {type}. Role nastavená zde nemá žádný účinek. Chcete-li jej omezit, nejprve snižte jeho roli na úrovni {level}.",
+        "scopeAdminHelpText": "Má úplný přístup k tomuto {type} a všemu v něm. Role nastavené pro cokoli uvnitř na něj nemají žádný účinek. Chcete-li jej omezit, nejprve snižte tuto roli.",
+        "inheritedAccess": "Má také přístup",
+        "inherited": "(zděděno)",
+        "everyoneAt": "Všichni v {name}",
+        "roleCount": "{count} {role}",
+        "fromWorkspace": "Z pracovního prostoru",
+        "fromWorkspaceExplanation": "Všichni si zachovávají roli pracovního prostoru u všeho v pracovním prostoru, včetně tohoto {type}.",
+        "manageWorkspaceRoles": "Spravovat role pracovního prostoru",
         "error": {
-            "title": "|D|a|t|a| |s|e| |n|e|p|o|d|a|ř|i|l|o| |n|a|č|í|s|t|",
-            "description": "|P|ř|i| |n|a|č|í|t|á|n|í| |ú|d|a|j|ů| |o| |č|l|e|n|e|c|h| |d|o|š|l|o| |k| |c|h|y|b|ě|.|"
+            "title": "Data se nepodařilo načíst",
+            "description": "Při načítání údajů o členech došlo k chybě."
         }
     }
 }
