@@ -212,7 +212,9 @@ def describe_node(
             description["router_edge_label"] = labels.get(output, "")
     edges = router_edges(node)
     if edges:
-        description["edges"] = edges
+        # By label only: the tools name branches by label, and a client shown
+        # the uid passes it as a node ref.
+        description["edges"] = [{"label": edge["label"]} for edge in edges]
     return description
 
 

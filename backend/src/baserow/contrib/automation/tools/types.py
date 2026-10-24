@@ -218,7 +218,11 @@ class RouterEdgeUpdate(BaseModel):
     """A new condition for an existing router branch."""
 
     label: str = Field(description="The label of the branch.")
-    condition: str = Field(description="The new condition formula.")
+    condition: str | None = Field(
+        default=None,
+        description="The new condition formula. Leave it out to keep the "
+        "branch's condition.",
+    )
 
 
 class AutomationFieldValue(BaseModel):
@@ -812,6 +816,9 @@ def _router_update_service(
         for edge in node.service.specific.edges.all()
     ]
     for update in n.edges:
+        if update.condition is None:
+            # A branch listed without a condition keeps it.
+            continue
         matches = [edge for edge in edges if edge["label"] == update.label] or [
             edge for edge in edges if edge["label"].lower() == update.label.lower()
         ]

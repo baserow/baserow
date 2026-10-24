@@ -64,7 +64,7 @@ def test_list_nodes_in_execution_order_with_branches_and_output(automation_ctx):
         },
     }
     assert nodes[1]["previous_node_ref"] == str(trigger.id)
-    assert nodes[1]["edges"] == [{"label": "Big", "uid": big}]
+    assert nodes[1]["edges"] == [{"label": "Big"}]
     assert nodes[2]["previous_node_ref"] == str(router.id)
     assert nodes[2]["router_edge_label"] == "Big"
     assert nodes[2]["output_schema"] == {

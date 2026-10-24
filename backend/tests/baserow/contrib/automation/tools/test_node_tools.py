@@ -669,3 +669,39 @@ def test_list_nodes_names_the_container_of_a_child(automation_ctx, data_fixture)
     assert nodes[child.id]["parent_node_id"] == iterator.id
     assert "previous_node_ref" not in nodes[child.id]
     assert nodes[iterator.id]["previous_node_ref"] == str(trigger.id)
+
+
+@pytest.mark.django_db
+def test_update_nodes_keeps_a_branch_listed_without_a_condition(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={
+            "edges": [
+                {"uid": str(uuid4()), "label": "Big"},
+                {"uid": str(uuid4()), "label": "Small"},
+            ]
+        },
+    )
+
+    result = update_nodes(
+        ctx,
+        workflow.id,
+        [
+            NodeUpdate(
+                node_id=router.id,
+                edges=[{"label": "Big", "condition": "true"}, {"label": "Small"}],
+            )
+        ],
+    )
+
+    assert result == {"updated_nodes": [{"node_id": router.id, "label": router.label}]}
+    edges = {
+        edge.label: edge.condition["formula"]
+        for edge in router.service.specific.edges.all()
+    }
+    assert edges == {"Big": "true", "Small": ""}
