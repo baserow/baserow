@@ -485,7 +485,7 @@
         "true": "pravda",
         "false": "nepravda",
         "other": "Ostatní",
-        "empty": "|P|r|á|z|d|n|ý|"
+        "empty": "Prázdný"
     },
     "generateAIValuesModal": {
         "title": "Vygenerovat všechny hodnoty AI",
@@ -545,20 +545,20 @@
         "pieChart": "Koláčový",
         "doughnutChart": "Prstencový",
         "polarAreaChart": "Polární plocha",
-        "seriesColor": "|B|a|r|v|a|",
-        "automaticColor": "|P|o|u|ž|í|t| |a|u|t|o|m|a|t|i|c|k|o|u| |b|a|r|v|u|"
+        "seriesColor": "Barva",
+        "automaticColor": "Použít automatickou barvu"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Seskupit podle",
         "groupByNone": "Žádné",
         "groupByRowId": "ID řádku",
         "rowIdDisabledTooltip": "Seskupování podle ID řádku není momentálně k dispozici, protože primární pole může obsahovat více hodnot.",
-        "groupedByField": "|S|e|s|k|u|p|e|n|o| |p|o|d|l|e| |{|f|i|e|l|d|}|",
-        "bucketLimit": "|M|a|x|i|m|á|l|n|í| |p|o|č|e|t| |s|k|u|p|i|n|",
-        "bucketLimitHelp": "|Z|a|h|r|n|u|j|e| |s|k|u|p|i|n|u| |O|s|t|a|t|n|í|.| |P|o|n|e|c|h|á|t|e|-|l|i| |p|o|l|e| |p|r|á|z|d|n|é|,| |p|o|u|ž|i|j|e| |s|e| |m|a|x|i|m|á|l|n|í| |p|o|č|e|t| |n|a| |s|e|r|v|e|r|u| |(|{|m|a|x|}|)|.|",
-        "modeLabel": "|S|e|s|k|u|p|o|v|a|t| |v|í|c|e|n|á|s|o|b|n|ý| |v|ý|b|ě|r|",
-        "completeSelection": "|Ú|p|l|n|ý| |v|ý|b|ě|r|",
-        "eachOption": "|K|a|ž|d|á| |v|y|b|r|a|n|á| |m|o|ž|n|o|s|t|"
+        "groupedByField": "Seskupeno podle {field}",
+        "bucketLimit": "Maximální počet skupin",
+        "bucketLimitHelp": "Zahrnuje skupinu Ostatní. Ponecháte-li pole prázdné, použije se maximální počet na serveru ({max}).",
+        "modeLabel": "Seskupovat vícenásobný výběr",
+        "completeSelection": "Úplný výběr",
+        "eachOption": "Každá vybraná možnost"
     },
     "aggregationSortByForm": {
         "sortByFieldLabel": "Řadit podle",
@@ -571,6 +571,6 @@
         "aiFieldsDescription": "Generovat hodnoty v polích AI."
     },
     "premiumDashboardShareOptions": {
-        "hideLogo": "|S|k|r|ý|t| |l|o|g|o| |B|a|s|e|r|o|w| |n|a| |s|d|í|l|e|n|é| |n|á|s|t|ě|n|c|e|"
+        "hideLogo": "Skrýt logo Baserow na sdílené nástěnce"
     }
 }
