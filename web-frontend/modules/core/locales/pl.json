@@ -530,7 +530,7 @@
                 "copyEmail": "Skopiuj adres e-mail"
             },
             "title": "{userAmount} członków w obszarze roboczym {workspaceName}",
-            "inviteMember": "Zaproś członka zespołu",
+            "inviteMember": "Zaproś członków",
             "columns": {
                 "email": "Adres e-mail",
                 "name": "Nazwa",
@@ -1659,7 +1659,7 @@
         "create": "Utwórz agenta",
         "createTitle": "Utwórz agenta",
         "updateTitle": "Edytuj agenta",
-        "save": "Zapisz agenta",
+        "save": "Zapisz zmiany",
         "edit": "Edytuj agenta",
         "delete": "Usuń agenta",
         "general": "Ogólnie",
