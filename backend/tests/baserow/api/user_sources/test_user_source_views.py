@@ -105,6 +105,30 @@ def test_get_user_sources_w_auth_providers(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_user_sources_of_published_builder_requires_workspace_access(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    _, other_token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=builder, published_to=builder_to)
+    data_fixture.create_user_source_with_first_type(application=builder_to)
+
+    url = reverse("api:user_sources:list", kwargs={"application_id": builder_to.id})
+
+    response = api_client.get(url, format="json")
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+    response = api_client.get(
+        url, format="json", HTTP_AUTHORIZATION=f"JWT {other_token}"
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
 def test_create_user_source(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
