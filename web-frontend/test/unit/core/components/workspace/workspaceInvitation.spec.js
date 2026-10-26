@@ -45,14 +45,34 @@ describe('WorkspaceInvitation', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('workspaceInvitation.emailNotVerified')
-    const button = wrapper.find('button')
-    expect(button.text()).toBe('workspaceInvitation.sendVerificationEmail')
+    const buttons = wrapper.findAll('button')
+    expect(buttons.map((button) => button.text())).toEqual([
+      'workspaceInvitation.sendVerificationEmail',
+      'workspaceInvitation.accept',
+      'workspaceInvitation.reject',
+    ])
 
-    await button.trigger('click')
+    await buttons[0].trigger('click')
     await flushPromises()
     expect(
       mockServer.mock.history.post.map((request) => request.url)
     ).toContain('/user/send-verify-email/')
+  })
+
+  test('offers a verification email when rejecting with an unverified email', async () => {
+    testApp.dontFailOnErrorResponses()
+    mockServer.mock.onPost('/workspaces/invitations/1/reject/').reply(400, {
+      error: 'ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED',
+      detail: '',
+    })
+
+    const wrapper = await testApp.mount(WorkspaceInvitation, {
+      propsData: { invitation },
+    })
+    await wrapper.find('.alert__actions-button-text').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('workspaceInvitation.emailNotVerified')
   })
 
   test('sends the token and marks the email verified when accepting with it', async () => {

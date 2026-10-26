@@ -38,6 +38,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationEmailNotVerified,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
     WorkspaceUserIsLastAdmin,
@@ -838,7 +839,15 @@ def test_reject_workspace_invitation(data_fixture):
             user=user_2, invitation=workspace_invitation
         )
 
+    with pytest.raises(WorkspaceInvitationEmailNotVerified):
+        handler.reject_workspace_invitation(
+            user=user_1, invitation=workspace_invitation
+        )
+
     assert WorkspaceInvitation.objects.all().count() == 1
+
+    user_1.profile.email_verified = True
+    user_1.profile.save()
 
     handler.reject_workspace_invitation(user=user_1, invitation=workspace_invitation)
     assert WorkspaceInvitation.objects.all().count() == 0

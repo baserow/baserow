@@ -452,12 +452,17 @@ class RejectWorkspaceInvitationView(APIView):
         operation_id="reject_workspace_invitation",
         description=(
             "Rejects a workspace invitation with the given id if the email address of the "
-            "user matches that of the invitation."
+            "user matches that of the invitation and is verified."
         ),
         request=None,
         responses={
             204: None,
-            400: get_error_schema(["ERROR_GROUP_INVITATION_EMAIL_MISMATCH"]),
+            400: get_error_schema(
+                [
+                    "ERROR_GROUP_INVITATION_EMAIL_MISMATCH",
+                    "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED",
+                ]
+            ),
             404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
         },
     )
@@ -465,6 +470,9 @@ class RejectWorkspaceInvitationView(APIView):
     @map_exceptions(
         {
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationEmailNotVerified: (
+                ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED
+            ),
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
         }
     )

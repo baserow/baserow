@@ -24,8 +24,7 @@
         {{ $t('workspaceInvitation.sendVerificationEmail') }}
       </Button>
       <Button
-        v-else
-        type="primary"
+        :type="emailNotVerified ? 'secondary' : 'primary'"
         size="small"
         :disabled="acceptLoading || rejectLoading"
         :loading="acceptLoading"
@@ -86,7 +85,7 @@ export default {
         )
       } catch (error) {
         this.rejectLoading = false
-        notifyIf(error, 'workspace')
+        this.handleError(error)
       }
     },
     /**
@@ -139,16 +138,17 @@ export default {
         await nextTick()
       } catch (error) {
         this.acceptLoading = false
-        // Without the token from the invitation email, only a verified email
-        // address proves the user owns the invited address.
-        if (
-          error.handler?.code === 'ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED'
-        ) {
-          this.emailNotVerified = true
-          error.handler.handled()
-        } else {
-          notifyIf(error, 'workspace')
-        }
+        this.handleError(error)
+      }
+    },
+    handleError(error) {
+      // Without the token from the invitation email, only a verified email
+      // address proves the user owns the invited address.
+      if (error.handler?.code === 'ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED') {
+        this.emailNotVerified = true
+        error.handler.handled()
+      } else {
+        notifyIf(error, 'workspace')
       }
     },
   },

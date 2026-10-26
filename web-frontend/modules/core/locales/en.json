@@ -399,7 +399,7 @@
     "message": "{by} has invited you to join {workspace}.",
     "reject": "Reject",
     "accept": "Accept",
-    "emailNotVerified": "Verify your email address to accept this invitation, or open the link in the invitation email.",
+    "emailNotVerified": "Verify your email address to respond to this invitation, or open the link in the invitation email to accept it.",
     "sendVerificationEmail": "Send verification email"
   },
   "inviteModal": {

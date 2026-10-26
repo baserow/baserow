@@ -1421,7 +1421,7 @@ class CoreHandler:
         """
         Rejects a workspace invitation by deleting the invitation so that can't be
         reused again. It can only be rejected if the invitation was addressed to the
-        email address of the user.
+        email address of the user and that email address is verified.
 
         :param user: The user who wants to reject the invitation.
         :type user: User
@@ -1429,12 +1429,19 @@ class CoreHandler:
         :type invitation: WorkspaceInvitation
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
+        :raises WorkspaceInvitationEmailNotVerified: If the email address of the user
+            is not verified.
         """
 
         if user.username != invitation.email:
             raise WorkspaceInvitationEmailMismatch(
                 "The email address of the invitation does not match the one of the "
                 "user."
+            )
+
+        if not user.profile.email_verified:
+            raise WorkspaceInvitationEmailNotVerified(
+                "The invitation can only be rejected with a verified email address."
             )
 
         workspace_invitation_rejected.send(

@@ -628,6 +628,20 @@ def test_reject_workspace_invitation(api_client, data_fixture):
         ),
         HTTP_AUTHORIZATION=f"JWT {token_1}",
     )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED"
+    assert WorkspaceInvitation.objects.all().count() == 1
+
+    user_1.profile.email_verified = True
+    user_1.profile.save()
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:reject",
+            kwargs={"workspace_invitation_id": invitation.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token_1}",
+    )
     assert response.status_code == HTTP_204_NO_CONTENT
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 0
