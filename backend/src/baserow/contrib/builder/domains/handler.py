@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Iterable, List, Optional, cast
 
+from django.db import transaction
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
 
@@ -15,6 +16,8 @@ from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.domains.registries import DomainType
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.models import Page
 from baserow.core.cache import global_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -177,6 +180,8 @@ class DomainHandler:
         if "domain_name" in prepared_values:
             prepared_values["domain_name"] = prepared_values["domain_name"].lower()
 
+        previous_domain_name = domain.domain_name
+
         for key, value in prepared_values.items():
             setattr(domain, key, value)
 
@@ -186,6 +191,14 @@ class DomainHandler:
             if is_unique_violation_error(error):
                 raise DomainNameNotUniqueError(prepared_values["domain_name"])
             raise error
+
+        if domain.domain_name != previous_domain_name:
+            # The published builder is no longer served under the previous name.
+            transaction.on_commit(
+                lambda: self.invalidate_public_builder_by_domain_cache(
+                    previous_domain_name
+                )
+            )
 
         return domain
 
@@ -254,6 +267,10 @@ class DomainHandler:
         builder = domain.builder
         workspace = builder.workspace
 
+        # The pages of the previous publication stop being public, and the domain
+        # must serve the new publication once it's committed.
+        self.invalidate_public_cache_on_commit([domain])
+
         # Delete previously existing builder publication
         if domain.published_to:
             domain.published_to.delete()
@@ -303,9 +320,6 @@ class DomainHandler:
             imported_user_source.uid = f"domain_{domain.id}__{original_user_source.uid}"
             imported_user_source.save()
 
-        # Invalidate the public builder-by-domain cache after a new publication.
-        DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
-
         return domain
 
     @classmethod
@@ -315,3 +329,39 @@ class DomainHandler:
     @classmethod
     def invalidate_public_builder_by_domain_cache(cls, domain_name: str):
         global_cache.invalidate(cls.get_public_builder_by_domain_cache_key(domain_name))
+
+    @classmethod
+    def invalidate_public_cache_on_commit(cls, domains: Iterable[Domain]):
+        """
+        Invalidates the public caches of the given domains and of the pages
+        published to them once the current transaction commits. Must be called
+        before the publications are deleted, as their pages are collected right away.
+
+        Invalidating after the commit prevents a concurrent public request from
+        filling the caches again with the data being removed.
+
+        :param domains: The domains that stop serving their current publication.
+        """
+
+        domains = list(domains)
+        domain_names = [domain.domain_name for domain in domains]
+        published_builder_ids = [
+            domain.published_to_id for domain in domains if domain.published_to_id
+        ]
+        page_ids = (
+            list(
+                Page.objects_and_trash.filter(
+                    builder_id__in=published_builder_ids
+                ).values_list("id", flat=True)
+            )
+            if published_builder_ids
+            else []
+        )
+
+        def invalidate():
+            for domain_name in domain_names:
+                cls.invalidate_public_builder_by_domain_cache(domain_name)
+            for page_id in page_ids:
+                PageHandler.invalidate_page_public_cache(page_id)
+
+        transaction.on_commit(invalidate)

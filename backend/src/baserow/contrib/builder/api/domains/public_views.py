@@ -243,6 +243,9 @@ class PublicElementsView(APIView):
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
                 ),
+                invalidate_key=PageHandler.get_page_public_cache_invalidate_key(
+                    page_id
+                ),
                 default=lambda: self._get_public_page_elements(
                     request.user_source_user, page_id
                 ),
@@ -320,6 +323,9 @@ class PublicDataSourcesView(APIView):
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
+                ),
+                invalidate_key=PageHandler.get_page_public_cache_invalidate_key(
+                    page_id
                 ),
                 default=lambda: self._get_public_page_data_sources(
                     request.user_source_user, request.user_source_user, page_id
@@ -416,6 +422,9 @@ class PublicBuilderWorkflowActionsView(APIView):
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "workflow_actions"
+                ),
+                invalidate_key=PageHandler.get_page_public_cache_invalidate_key(
+                    page_id
                 ),
                 default=lambda: self._get_public_page_workflow_actions(
                     request.user_source_user, page_id
