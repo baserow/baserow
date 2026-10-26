@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import re
+import socket
 from datetime import timedelta
 from decimal import Decimal
 from ipaddress import ip_network
@@ -191,6 +192,29 @@ BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
 BASEROW_ROLE_USAGE_QUEUE = os.getenv("BASEROW_GROUP_STORAGE_USAGE_QUEUE", "export")
 
 CELERY_BROKER_URL = REDIS_URL
+# Without these, a broker connection that is dropped silently (e.g. by a NAT or
+# conntrack timeout) is never detected and the worker keeps waiting on the dead
+# socket forever without consuming new tasks. TCP keepalive probes detect the dead
+# peer, the socket timeout makes blocked reads fail instead of hanging and the
+# health check pings idle connections. The socket timeout must stay well above
+# kombu's BRPOP timeout of 1 second.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_keepalive": True,
+    # Start probing after 60s idle and give up after 3 unanswered probes 10s apart.
+    # TCP_KEEPIDLE is Linux only, so skip the options the platform doesn't have.
+    "socket_keepalive_options": {
+        getattr(socket, option): value
+        for option, value in (
+            ("TCP_KEEPIDLE", 60),
+            ("TCP_KEEPINTVL", 10),
+            ("TCP_KEEPCNT", 3),
+        )
+        if hasattr(socket, option)
+    },
+    "socket_timeout": 30,
+    "socket_connect_timeout": 30,
+    "health_check_interval": 25,
+}
 CELERY_TASK_ROUTES = {
     "baserow.contrib.database.export.tasks.run_export_job": {"queue": "export"},
     "baserow.contrib.database.export.tasks.clean_up_old_jobs": {"queue": "export"},
