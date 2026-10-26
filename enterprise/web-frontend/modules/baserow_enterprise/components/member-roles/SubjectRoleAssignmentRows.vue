@@ -40,6 +40,7 @@
             :icon="item.role?.icon"
             :role-name="item.role?.name || item.roleUid"
             :read-only="!item.canChangeRole"
+            :loading="savingKeys.includes(item.key)"
             @click="openRoleContext(item, $event)"
           />
           <HelpIcon
@@ -154,6 +155,14 @@ export default {
       type: Function,
       required: true,
     },
+    /**
+     * Fetches the table rows again, as provided by CrudTable.
+     */
+    refresh: {
+      type: Function,
+      required: false,
+      default: null,
+    },
     subjectType: {
       type: String,
       required: true,
@@ -187,6 +196,8 @@ export default {
       editing: null,
       // Counts the reloads, so only the latest one applies.
       reloadRequest: 0,
+      // The keys of the roles whose change is being saved.
+      savingKeys: [],
     }
   },
   computed: {
@@ -407,13 +418,17 @@ export default {
     },
     /**
      * Changes the role on the object, or removes it when `roleUid` is null, and
-     * restores the previous state if that fails.
+     * restores the previous state if that fails. A changed role's button shows
+     * that the change is on its way until it is saved. Other columns of the
+     * table row, like the highest role, depend on it, so the table rows are
+     * fetched again, quietly as they only change in place.
      */
     async save(roleAssignment, roleUid) {
       const index = this.roleAssignments.indexOf(roleAssignment)
       if (index === -1) {
         return
       }
+      const key = `${roleAssignment.scope_type}:${roleAssignment.scope_id}`
       if (roleUid === null) {
         this.roleAssignments.splice(index, 1)
         this.count -= 1
@@ -422,6 +437,7 @@ export default {
           ...roleAssignment,
           role: roleUid,
         })
+        this.savingKeys.push(key)
       }
       this.syncCount()
 
@@ -434,6 +450,7 @@ export default {
           roleAssignment.scope_type,
           roleUid
         )
+        this.refresh?.({ silent: true })
       } catch (error) {
         if (roleUid === null) {
           this.roleAssignments.splice(index, 0, roleAssignment)
@@ -443,6 +460,10 @@ export default {
         }
         this.syncCount()
         notifyIf(error)
+      } finally {
+        this.savingKeys = this.savingKeys.filter(
+          (savingKey) => savingKey !== key
+        )
       }
     },
   },

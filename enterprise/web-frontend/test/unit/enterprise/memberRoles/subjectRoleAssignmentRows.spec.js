@@ -64,12 +64,14 @@ async function mountRows(
   noAccessModal.answer = true
   noAccessModal.asked = []
   const updateRow = vi.fn((values) => Object.assign(row, values))
+  const refresh = vi.fn()
   const wrapper = await mountSuspended(SubjectRoleAssignmentRows, {
     props: {
       workspace,
       row,
       columns,
       updateRow,
+      refresh,
       subjectType: 'auth.User',
       subjectId: 8,
       roleColumnKey: 'role_uid',
@@ -121,7 +123,7 @@ async function mountRows(
     },
   })
   await flushPromises()
-  return { wrapper, updateRow, row }
+  return { wrapper, updateRow, refresh, row }
 }
 
 const rowTexts = (wrapper) =>
@@ -360,4 +362,52 @@ test('members and agents offer their roles as row expansions', () => {
     app: { ...app, $hasFeature: () => false },
   })
   expect(withoutRbac.isActive({ id: 12 })).toBe(false)
+})
+
+test('shows that a changed role is being saved until it is saved', async () => {
+  const client = createClient()
+  let resolveSave
+  client.post.mockImplementationOnce(
+    () => new Promise((resolve) => (resolveSave = resolve))
+  )
+  const { wrapper } = await mountRows(client)
+  const roleButtons = () =>
+    wrapper.findAll('.subject-role-assignments__role button')
+  try {
+    const saving = wrapper.vm.changeRole(wrapper.vm.items[1], 'EDITOR')
+    await flushPromises()
+    expect(
+      roleButtons().map((button) => button.classes('button--loading'))
+    ).toEqual([false, true, false])
+    expect(roleButtons()[1].text()).toBe('Editor')
+
+    resolveSave({})
+    await saving
+    await flushPromises()
+    expect(
+      roleButtons().some((button) => button.classes('button--loading'))
+    ).toBe(false)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('quietly fetches the table rows again once a role change is saved', async () => {
+  const client = createClient()
+  const { wrapper, refresh } = await mountRows(client)
+  try {
+    client.post.mockRejectedValueOnce({ handler: { notifyIf: vi.fn() } })
+    await wrapper.vm.changeRole(wrapper.vm.items[0], 'EDITOR')
+    await flushPromises()
+    expect(refresh).not.toHaveBeenCalled()
+
+    await wrapper.vm.changeRole(wrapper.vm.items[0], 'EDITOR')
+    await wrapper
+      .findAll('.subject-role-assignments__remove')[1]
+      .trigger('click')
+    await flushPromises()
+    expect(refresh.mock.calls).toEqual([[{ silent: true }], [{ silent: true }]])
+  } finally {
+    wrapper.unmount()
+  }
 })
