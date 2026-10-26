@@ -398,7 +398,9 @@
     "title": "Invitation",
     "message": "{by} has invited you to join {workspace}.",
     "reject": "Reject",
-    "accept": "Accept"
+    "accept": "Accept",
+    "emailNotVerified": "Verify your email address to accept this invitation, or open the link in the invitation email.",
+    "sendVerificationEmail": "Send verification email"
   },
   "inviteModal": {
     "emailRoute": "Email invite",

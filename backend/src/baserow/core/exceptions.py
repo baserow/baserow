@@ -193,6 +193,13 @@ class WorkspaceInvitationEmailMismatch(Exception):
     """
 
 
+class WorkspaceInvitationEmailNotVerified(Exception):
+    """
+    Raised when a workspace invitation is accepted without the token from the
+    invitation email by a user whose email address is not verified.
+    """
+
+
 class TemplateDoesNotExist(Exception):
     """
     Raised when the requested template does not exist in the database.

@@ -266,11 +266,8 @@ class UserHandler:
         # If we have an invitation to a workspace, then accept it.
         if workspace_invitation_token:
             workspace_user = core_handler.accept_workspace_invitation(
-                user, workspace_invitation
+                user, workspace_invitation, token=workspace_invitation_token
             )
-            profile = user.profile
-            profile.email_verified = True
-            profile.save()
 
         if (
             # If the user signs up and installs a template, then we must create a

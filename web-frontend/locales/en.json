@@ -417,6 +417,8 @@
     "notCompletedDescription": "The action couldn't be completed because an unknown error has occurred.",
     "userNotInWorkspaceTitle": "Action not allowed.",
     "userNotInWorkspaceDescription": "The action couldn't be completed because you aren't a member of the related workspace.",
+    "invitationEmailNotVerifiedTitle": "Invitation not accepted.",
+    "invitationEmailNotVerifiedDescription": "Open the link in the invitation email to accept it, or verify your email address first.",
     "invalidWorkspacePermissionsTitle": "Action not allowed.",
     "invalidWorkspacePermissionsDescription": "The action couldn't be completed because you don't have the right permissions to the related workspace.",
     "tableDoesNotExistTitle": "Table doesn't exist.",
