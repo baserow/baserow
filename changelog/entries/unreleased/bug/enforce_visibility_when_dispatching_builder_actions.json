@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Enforce element and page visibility when running actions in published applications",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}
