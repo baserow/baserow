@@ -179,10 +179,41 @@ def test_update_data_source_keeps_the_old_value_when_generation_fails(
     )
 
     assert result["status"] == "partial"
+    assert result["updated_fields"] == ["name"]
     assert "row_id" in result["errors"][0]
     data_source.refresh_from_db()
     assert data_source.name == "Renamed"
     assert formula(data_source.service.specific.row_id) == "'1'"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_data_source_deleted_while_generating_is_a_partial_result(
+    data_fixture, site, monkeypatch
+):
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=site["page"], table=site["table"], row_id="'1'"
+    )
+
+    def delete_then_generate(formulas: dict[str, str], context: Any) -> dict[str, str]:
+        DataSource.objects.filter(id=data_source.id).delete()
+        return {"row_id": "get('page_parameter.id')"}
+
+    use_generator(monkeypatch, delete_then_generate)
+
+    result = update_data_source(
+        site["ctx"],
+        page_id=site["page"].id,
+        data_source=DataSourceUpdate(
+            data_source_id=data_source.id,
+            name="Renamed",
+            row_id="$formula: the id page parameter",
+        ),
+        thought="test",
+    )
+
+    assert result["status"] == "partial"
+    assert result["updated_fields"] == ["name"]
+    assert "row_id" in result["errors"][0]
 
 
 @pytest.mark.django_db(transaction=True)

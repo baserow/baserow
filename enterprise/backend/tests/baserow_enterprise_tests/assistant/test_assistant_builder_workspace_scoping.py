@@ -462,7 +462,10 @@ def two_tables(data_fixture):
 def test_data_source_refuses_a_sort_field_of_another_table(two_tables):
     t = two_tables
 
-    with pytest.raises(ToolInputError, match=f"Field with ID {t['other_field'].id}"):
+    with pytest.raises(
+        ToolInputError,
+        match=f"Field with ID {t['other_field'].id} .* Use get_tables_schema ",
+    ):
         helpers.create_data_source(
             t["user"],
             t["page"],

@@ -6,12 +6,14 @@ and leaves nothing behind, while the other items of the call are saved.
 from typing import Any
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.services.models import Service
+from baserow_enterprise.assistant.tools.builder.errors import item_error
 from baserow_enterprise.assistant.tools.builder.tools import (
     add_action_field_mapping,
     create_actions,
@@ -305,3 +307,57 @@ def test_update_page_keeps_the_type_of_a_path_param_it_keeps(data_fixture, site)
         {"name": "id", "type": "numeric"},
         {"name": "slug", "type": "text"},
     ]
+
+
+@pytest.mark.django_db
+def test_failed_child_of_a_header_leaves_no_ghost_in_its_graph(site, monkeypatch):
+    post_create = ElementItemCreate.post_create
+
+    def fail_for_bad(self, user, orm_element, page):
+        if self.ref == "bad":
+            raise ValueError("post create failed")
+        return post_create(self, user, orm_element, page)
+
+    monkeypatch.setattr(ElementItemCreate, "post_create", fail_for_bad)
+
+    result = create_layout_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            LayoutElementCreate(ref="header", type="header"),
+            LayoutElementCreate(ref="bad", type="column", parent_element="header"),
+        ],
+        thought="test",
+    )
+
+    assert result["errors"] == ["bad: post create failed"]
+    assert [e["ref"] for e in result["created_elements"]] == ["header"]
+    assert [e["ref"] for e in result["empty_containers"]] == ["header"]
+
+
+@pytest.mark.django_db
+def test_update_page_refuses_a_path_param_named_like_a_query_param(data_fixture, site):
+    page = data_fixture.create_builder_page(
+        builder=site["builder"],
+        path="/products",
+        query_params=[{"name": "id", "type": "text"}],
+    )
+
+    with pytest.raises(ToolInputError, match="No changes were applied"):
+        update_page(
+            site["ctx"],
+            page=PageUpdate(page_id=page.id, path="/products/:id"),
+            thought="test",
+        )
+
+    page.refresh_from_db()
+    assert page.path == "/products"
+
+
+@pytest.mark.django_db
+def test_item_error_gives_the_messages_of_a_validation_error():
+    assert item_error(DRFValidationError("Pick a container.")) == "Pick a container."
+    assert (
+        item_error(DRFValidationError({"place_in_container": ["Bad.", "Worse."]}))
+        == "place_in_container: Bad. Worse."
+    )

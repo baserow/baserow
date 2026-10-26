@@ -5,6 +5,8 @@ API's.
 
 from typing import Any
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
 from baserow.api.utils import apply_exception_mapping
 
 
@@ -54,7 +56,21 @@ def user_error_message(exc: Exception) -> str | None:
     return detail or str(exc) or error.removeprefix("ERROR_").replace("_", " ").lower()
 
 
+def _validation_messages(detail: Any) -> str:
+    """The messages of a DRF ``ValidationError`` detail, with the field they're on."""
+
+    if isinstance(detail, dict):
+        return " ".join(
+            f"{field}: {_validation_messages(value)}" for field, value in detail.items()
+        )
+    if isinstance(detail, (list, tuple)):
+        return " ".join(_validation_messages(value) for value in detail)
+    return str(detail)
+
+
 def item_error(exc: Exception) -> str:
     """The message reported for one item of a batch that failed with ``exc``."""
 
+    if isinstance(exc, DRFValidationError):
+        return _validation_messages(exc.detail)
     return user_error_message(exc) or str(exc)

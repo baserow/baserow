@@ -146,9 +146,10 @@ def on_page(page: Page) -> Q:
 def forget_page_graphs(page: Page) -> None:
     """
     Drop the request's cached graphs of ``page`` and of its builder's shared page,
-    and reload ``page``'s graph. Called after an element's savepoint rolled back:
-    the cached graphs still hold the rolled back element, and their row locks were
-    released with the savepoint.
+    and reload both graphs. Called after an element's savepoint rolled back: the
+    cached graphs still hold the rolled back element, and their row locks were
+    released with the savepoint. The builder caches its shared page, which shared
+    elements created in the batch use as their ``page``.
     """
 
     for graph_page in (page, page.builder.shared_page):
@@ -158,7 +159,7 @@ def forget_page_graphs(page: Page) -> None:
         local_cache.delete(
             handler_class.generate_previous_position_map_cache_key(graph_page)
         )
-    page.refresh_from_db(fields=["graph"])
+        graph_page.refresh_from_db(fields=["graph"])
 
 
 def check_data_source_on_page(page: Page, data_source_id: int) -> None:
@@ -362,6 +363,9 @@ def update_page(
         except ValueError as exc:
             raise ToolInputError(f"{exc} No changes were applied.") from exc
         kwargs["path_params"] = [param.model_dump() for param in path_params]
+        # The handler checks the query params against the path params only when
+        # they're given.
+        kwargs.setdefault("query_params", page.query_params)
     if kwargs:
         PageService().update_page(user, page, **kwargs)
         page.refresh_from_db()
@@ -405,7 +409,7 @@ def check_fields_in_table(table: Any, field_ids: list[int]) -> None:
     if missing:
         raise ToolInputError(
             f"Field with ID {missing[0]} not found in the data source's table. "
-            "Use get_table_schema to find valid field IDs. No changes were applied."
+            "Use get_tables_schema to find valid field IDs. No changes were applied."
         )
 
 

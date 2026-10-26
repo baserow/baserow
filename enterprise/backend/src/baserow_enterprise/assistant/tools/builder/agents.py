@@ -579,17 +579,17 @@ def update_single_data_source_formulas(
     orm_ds: Any,
     ds_update: DataSourceUpdate,
     tool_helpers: "ToolHelpers",
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
     """Generate and apply formulas for one updated data source.
 
-    A field whose formula isn't generated keeps its previous value.
+    A field whose formula isn't generated or saved keeps its previous value.
 
     :param user: The user whose data-source permissions apply.
     :param page: The page containing the data source.
     :param orm_ds: The persisted data source to update.
     :param ds_update: The assistant update containing formula requests.
     :param tool_helpers: Helpers for status updates and the request model profile.
-    :return: Formula-generation errors, or an empty list on success.
+    :return: Applied formula fields and formula errors.
     """
 
     from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -600,7 +600,7 @@ def update_single_data_source_formulas(
 
     formulas = ds_update.get_formulas_to_update(orm_ds, context)
     if not formulas:
-        return []
+        return [], []
 
     tool_helpers.update_status(
         _("Generating formulas for data source %(id)d...")
@@ -611,6 +611,25 @@ def update_single_data_source_formulas(
     )
     try:
         generated = generate_formulas(formulas, context)
+        service_kwargs = {
+            field: formula_object(generated[field], mode=BASEROW_FORMULA_MODE_ADVANCED)
+            for field in ("row_id", "search_query")
+            if field in formulas and field in generated
+        }
+        if service_kwargs:
+            with transaction.atomic():
+                ds_for_update = DataSourceHandler().get_data_source_for_update(
+                    orm_ds.id
+                )
+                service_type = service_type_registry.get_by_model(
+                    ds_for_update.service.specific
+                )
+                DataSourceService().update_data_source(
+                    user,
+                    ds_for_update,
+                    service_type=service_type,
+                    **service_kwargs,
+                )
     except Exception as exc:
         raise_if_permission_denied(exc)
         logger.exception(
@@ -618,35 +637,19 @@ def update_single_data_source_formulas(
             orm_ds.id,
             exc,
         )
-        return [
+        return [], [
             f"Formula generation failed for {', '.join(sorted(formulas))}: {exc}. "
             "The previous value was kept."
         ]
 
-    service_kwargs = {
-        field: formula_object(generated[field], mode=BASEROW_FORMULA_MODE_ADVANCED)
-        for field in ("row_id", "search_query")
-        if field in formulas and field in generated
-    }
-    if service_kwargs:
-        with transaction.atomic():
-            ds_for_update = DataSourceHandler().get_data_source_for_update(orm_ds.id)
-            service_type = service_type_registry.get_by_model(
-                ds_for_update.service.specific
-            )
-            DataSourceService().update_data_source(
-                user,
-                ds_for_update,
-                service_type=service_type,
-                **service_kwargs,
-            )
+    applied = sorted(service_kwargs)
     missing = sorted(set(formulas) - set(service_kwargs))
     if missing:
-        return [
+        return applied, [
             f"No valid formula was generated for {', '.join(missing)}. "
             "The previous value was kept."
         ]
-    return []
+    return applied, []
 
 
 def update_single_element_formulas(
