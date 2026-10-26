@@ -2318,6 +2318,9 @@ def test_a_test_run_waiting_for_its_event_records_who_started_it(data_fixture):
     table = data_fixture.create_database_table(user=user)
     workflow = data_fixture.create_automation_workflow(
         user,
+        automation=data_fixture.create_automation_application(
+            workspace=table.database.workspace
+        ),
         trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
@@ -2345,6 +2348,9 @@ def test_a_simulation_waiting_for_its_event_records_who_started_it(data_fixture)
     table = data_fixture.create_database_table(user=user)
     workflow = data_fixture.create_automation_workflow(
         user,
+        automation=data_fixture.create_automation_application(
+            workspace=table.database.workspace
+        ),
         trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
@@ -2409,7 +2415,9 @@ def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
     workspace = data_fixture.create_workspace(user=first)
     second = data_fixture.create_user(workspace=workspace)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    table = data_fixture.create_database_table(user=first)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
     workflow = data_fixture.create_automation_workflow(
         first,
         automation=automation,

@@ -529,17 +529,29 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     original_workflow = data_fixture.create_automation_workflow(user=user)
     table_1, fields_1, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=original_workflow.automation.workspace
+        ),
         user=user,
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
-    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        create_trigger=False,
+        automation=data_fixture.create_automation_application(
+            workspace=original_workflow.automation.workspace
+        ),
+    )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
 
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=workflow.automation,
+            user=user,
+        ),
     )
     trigger_node = data_fixture.create_automation_node(
         user=user,
@@ -550,13 +562,17 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     # Next create an action node
     table_2, fields_2, _ = data_fixture.build_table(
+        database=table_1.database,
         user=user,
         columns=[("Name", "text")],
         rows=[],
     )
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table_2,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=workflow.automation,
+            user=user,
+        ),
     )
     action_service.field_mappings.create(
         field=fields_2[0],

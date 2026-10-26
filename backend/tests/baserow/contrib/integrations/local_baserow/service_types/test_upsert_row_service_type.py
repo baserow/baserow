@@ -106,7 +106,12 @@ def test_local_baserow_create_rows_service_dispatch_data_reports_invalid_row(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     data_fixture.create_text_field(table=table, name="Name")
     data_fixture.create_email_field(table=table, name="Email")
 
@@ -148,7 +153,12 @@ def test_local_baserow_create_rows_service_rejects_too_many_rows(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     data_fixture.create_text_field(table=table, name="Ingredient")
     service = data_fixture.create_local_baserow_create_rows_service(
         integration=integration,
@@ -448,7 +458,12 @@ def test_local_baserow_update_rows_service_dispatch_data_reports_invalid_row(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     name_field = data_fixture.create_text_field(table=table, name="Name")
     email_field = data_fixture.create_email_field(table=table, name="Email")
     model = table.get_model()
@@ -500,7 +515,12 @@ def test_local_baserow_update_rows_service_rejects_too_many_rows(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Ingredient")
     model = table.get_model()
     row_1 = model.objects.create(**{field.db_column: "Flour"})
@@ -685,6 +705,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_published_agent(
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration,
         table=table,
+    )
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=page.builder.workspace
+        ),
+        published_to=page.builder,
     )
     page.builder.workspace = None
     page.builder.save(update_fields=["workspace"])
@@ -967,7 +993,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_unknown_row_id(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
         row_id="'9999999999999'",
@@ -990,7 +1021,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_row_id_zero(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
         row_id="'0'",

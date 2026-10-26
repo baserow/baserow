@@ -17,7 +17,7 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.graph.types import GraphPointPositionType
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -34,6 +34,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.mixins import ServiceBackedTypeMixin
+from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.registries import TrashOperationType
@@ -310,35 +311,13 @@ class AutomationNodeType(
         """
 
         if prop_name == "service" and value:
-            integration = None
             serialized_service = value
-            integration_id = serialized_service.get("integration_id", None)
-            if integration_id:
-                integration_id = id_mapping["integrations"].get(
-                    integration_id, integration_id
-                )
-                # Use the trash-inclusive manager: duplicating an automation
-                # preserves the `integration_id` of a service pointing at a
-                # trashed integration (so the copy reconnects when it is
-                # restored), and the default manager would raise `DoesNotExist`
-                # on that trashed row.
-                try:
-                    integration = Integration.objects_and_trash.get(id=integration_id)
-                except Integration.DoesNotExist:
-                    integration = None
-                else:
-                    # Never reference an integration outside the target
-                    # application. On a cross-application import a trashed
-                    # integration is not part of the export (so it is absent
-                    # from `id_mapping`), and the unmapped id would otherwise
-                    # resolve to an unrelated integration in another
-                    # application.
-                    workflow = kwargs.get("workflow")
-                    if (
-                        workflow is not None
-                        and integration.application_id != workflow.automation_id
-                    ):
-                        integration = None
+            workflow = kwargs.get("workflow")
+            integration = IntegrationHandler().get_integration_for_import(
+                serialized_service.get("integration_id", None),
+                id_mapping,
+                application_id=workflow.automation_id if workflow else None,
+            )
 
             return ServiceHandler().import_service(
                 integration,
@@ -378,27 +357,51 @@ class AutomationNodeType(
             **kwargs,
         )
 
-    def _validate_service_integration_belongs_to_workflow(
+    def check_service_belongs_to_workflow(
         self,
-        workflow: Optional[AutomationWorkflow],
-        service_values: Dict[str, Any],
+        workflow: AutomationWorkflow,
+        service: Service,
+        prepared_service_values: Optional[Dict[str, Any]] = None,
     ) -> None:
-        if not workflow or "integration_id" not in service_values:
-            return
+        """
+        Checks that the node's service reads only through what its workflow's
+        automation may use: an integration of the automation, and a table of the
+        automation's workspace.
 
-        integration_id = service_values["integration_id"]
-        if integration_id is None:
-            return
+        :param workflow: The workflow the node belongs to.
+        :param service: The node's service.
+        :param prepared_service_values: The service values about to be saved, which
+            take precedence over the service's current ones.
+        :raises AutomationNodeMisconfiguredService: When the integration or the
+            table belongs elsewhere.
+        """
 
-        integration = Integration.objects.filter(id=integration_id).first()
-        if integration is None:
-            return
-
-        if integration.application_id != workflow.automation_id:
+        values = prepared_service_values or {}
+        integration = (
+            values["integration"]
+            if "integration" in values
+            else (service.integration if service.integration_id else None)
+        )
+        if integration is not None and not IntegrationHandler().is_integration_usable(
+            integration, application_id=workflow.automation_id
+        ):
             raise AutomationNodeMisconfiguredService(
-                f"The integration with ID {integration_id} is not related to the "
+                f"The integration with ID {integration.id} is not related to the "
                 f"automation {workflow.automation_id}."
             )
+
+        table = (
+            values["table"]
+            if "table" in values
+            else (service.table if getattr(service, "table_id", None) else None)
+        )
+        if table is not None:
+            workspace = workflow.automation.get_workspace()
+            if workspace is None or table.database.workspace_id != workspace.id:
+                raise AutomationNodeMisconfiguredService(
+                    f"The table with ID {table.id} is not related to the "
+                    f"automation {workflow.automation_id}."
+                )
 
     def prepare_values(
         self,
@@ -432,13 +435,13 @@ class AutomationNodeType(
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
         workflow = instance.workflow if instance else values.get("workflow", None)
-        self._validate_service_integration_belongs_to_workflow(
-            workflow,
-            service_values,
-        )
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
+        if workflow:
+            self.check_service_belongs_to_workflow(
+                workflow, service, prepared_service_values
+            )
 
         # Update the service instance with any prepared service values.
         ServiceHandler().update_service(
@@ -478,7 +481,9 @@ class AutomationNodeType(
             )
 
         return ServiceHandler().dispatch_service(
-            automation_node.service.specific, dispatch_context
+            automation_node.service.specific,
+            dispatch_context,
+            application_id=automation_node.workflow.automation_id,
         )
 
     def validate_jump_destination(

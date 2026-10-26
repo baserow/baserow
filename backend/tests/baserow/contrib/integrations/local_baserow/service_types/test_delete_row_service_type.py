@@ -22,7 +22,9 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 def test_create_local_baserow_delete_row_service(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    page = data_fixture.create_builder_page(user=user)
+    page = data_fixture.create_builder_page(
+        user=user, builder=data_fixture.create_builder_application(workspace=workspace)
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     integration = data_fixture.create_local_baserow_integration(
@@ -78,7 +80,12 @@ def test_update_local_baserow_delete_row_service(data_fixture):
 def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     model = table.get_model()
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -101,7 +108,12 @@ def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixt
 def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     model = table.get_model()
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -125,7 +137,12 @@ def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixtu
 def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -162,7 +179,12 @@ def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
 def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -229,7 +251,12 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
 def test_local_baserow_delete_row_service_rejects_too_many_ids(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -257,7 +284,12 @@ def test_local_baserow_delete_row_service_dispatch_data_with_json_text_ids(
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user

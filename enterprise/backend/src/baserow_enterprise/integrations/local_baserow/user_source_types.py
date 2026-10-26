@@ -38,6 +38,7 @@ from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -181,8 +182,9 @@ class LocalBaserowUserSourceType(UserSourceType):
 
                 if (
                     not integration_to_check
-                    or table.database.workspace_id
-                    != integration_to_check.application.workspace_id
+                    or not IntegrationHandler().is_integration_usable(
+                        integration_to_check, workspace_id=table.database.workspace_id
+                    )
                 ):
                     raise RequestBodyValidationException(
                         {
@@ -531,6 +533,14 @@ class LocalBaserowUserSourceType(UserSourceType):
                     field == "table"  # We need to check the hierarchy only for table
                     and TrashHandler.item_has_a_trashed_parent(
                         related_instance, check_item_also=True
+                    )
+                )
+                or (
+                    # The users are read through the integration, which must belong
+                    # to the user source's application.
+                    field == "integration"
+                    and not IntegrationHandler().is_integration_usable(
+                        related_instance, application_id=user_source.application_id
                     )
                 )
                 or related_instance.trashed

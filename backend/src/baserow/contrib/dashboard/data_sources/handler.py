@@ -13,6 +13,7 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
 )
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.models import Dashboard
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import ImportExportConfig
@@ -374,17 +375,12 @@ class DashboardDataSourceHandler:
         service = None
         serialized_service = serialized_data_source.get("service", None)
         if serialized_service:
-            integration = None
-            integration_id = serialized_service.pop("integration_id", None)
-            if integration_id:
-                integration_id = id_mapping["integrations"].get(integration_id, None)
-                try:
-                    integration = Integration.objects_and_trash.get(id=integration_id)
-                except Integration.DoesNotExist:
-                    integration = None
-                else:
-                    if integration.application_id != dashboard.id:
-                        integration = None
+            integration = IntegrationHandler().get_integration_for_import(
+                serialized_service.pop("integration_id", None),
+                id_mapping,
+                application_id=dashboard.id,
+                keep_unmapped=False,
+            )
 
             service = ServiceHandler().import_service(
                 integration,

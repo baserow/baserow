@@ -114,6 +114,9 @@ def test_update_create_row_workflow_action_field_mapping_undo_redo(data_fixture)
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_button_element(page=page)
     table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[("Name", "text")],
         rows=[],

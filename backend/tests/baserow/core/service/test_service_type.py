@@ -1,12 +1,13 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
-from baserow.core.services.registries import ServiceType
+from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 
@@ -168,30 +169,15 @@ def test_service_type_prepare_values(data_fixture):
         application=application_a
     )
     instance = Service.objects.create(integration=integration_a)
-    application_b = data_fixture.create_builder_application(user=user)
-    integration_b = data_fixture.create_local_baserow_integration(
-        application=application_b
-    )
     integration_c = data_fixture.create_local_baserow_integration(
         application=application_a
     )
 
     # Unknown integrations throw a validation error.
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(RequestBodyValidationException) as exc:
         service_type_cls().prepare_values({"integration_id": 9999999999999999}, user)
-    assert (
-        exc.value.args[0] == f"The integration with ID 9999999999999999 does not exist."
-    )
-
-    # The PATCHed integration cannot belong to a different
-    # application to the current one.
-    with pytest.raises(ValidationError) as exc:
-        service_type_cls().prepare_values(
-            {"integration_id": integration_b.id}, user, instance
-        )
-    assert (
-        str(exc.value.detail[0]) == f"The integration with ID {integration_b.id} is "
-        f"not related to the given application {application_a.id}."
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        "The integration with ID 9999999999999999 does not exist."
     )
 
     # The PATCHed integration does belong to the same application as the current one.
@@ -463,3 +449,29 @@ def test_dispatch_context_without_actor_in_own_properties_clones_without_one(
     dispatch_context.actor = data_fixture.create_user()
 
     assert dispatch_context.clone().actor is None
+
+
+@pytest.mark.django_db
+def test_service_type_check_integration(data_fixture):
+    service_type = service_type_registry.get("local_baserow_list_rows")
+    application = data_fixture.create_builder_application()
+    integration = data_fixture.create_local_baserow_integration(application=application)
+    other_application = data_fixture.create_builder_application()
+    other_application_integration = data_fixture.create_local_baserow_integration(
+        application=other_application
+    )
+    other_type_integration = data_fixture.create_smtp_integration(
+        application=application
+    )
+
+    # No integration, or one of the right type in the same application, passes.
+    service_type.check_integration(application, {})
+    service_type.check_integration(application, {"integration": None})
+    service_type.check_integration(application, {"integration": integration})
+
+    for mismatched in [other_application_integration, other_type_integration]:
+        with pytest.raises(RequestBodyValidationException) as exc:
+            service_type.check_integration(application, {"integration": mismatched})
+        assert exc.value.detail["detail"]["integration_id"][0]["code"] == (
+            "invalid_integration"
+        )

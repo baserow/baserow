@@ -184,7 +184,11 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
 def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token()
     dashboard = premium_data_fixture.create_dashboard_application(user=user)
-    table = premium_data_fixture.create_database_table(user=user)
+    table = premium_data_fixture.create_database_table(
+        database=premium_data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        )
+    )
     view = premium_data_fixture.create_grid_view(user, table=table)
     field = premium_data_fixture.create_number_field(table=table)
     field_2 = premium_data_fixture.create_number_field(table=table)

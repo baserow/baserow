@@ -299,7 +299,12 @@ def test_grouped_aggregate_rows_result_name_collisions(
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         table=table,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=data_fixture.create_builder_application(
+                workspace=table.database.workspace
+            ),
+            user=user,
+        ),
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=amount, aggregation_type="sum", order=0
@@ -516,7 +521,12 @@ def test_grouped_aggregate_rows_service_dispatch_adds_synthetic_row_id(data_fixt
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table, name="Amount")
     group_by_field = data_fixture.create_text_field(table=table, name="Category")
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         integration=integration,
@@ -597,7 +607,12 @@ def test_grouped_readable_ids_select_one_group(data_fixture, row_grouping):
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         table=table,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=data_fixture.create_builder_application(
+                workspace=table.database.workspace
+            ),
+            user=user,
+        ),
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=amount, aggregation_type="sum", order=0
@@ -643,7 +658,12 @@ def test_grouped_readable_ids_distinguish_overflow(data_fixture, settings):
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         table=table,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=data_fixture.create_builder_application(
+                workspace=table.database.workspace
+            ),
+            user=user,
+        ),
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=amount, aggregation_type="sum", order=0
@@ -730,7 +750,12 @@ def test_grouped_aggregate_rows_service_record_id_uses_field_type_human_value(
     option_b = data_fixture.create_select_option(
         field=group_by_field, value="Category B", color="blue"
     )
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         integration=integration,
@@ -823,7 +848,12 @@ def test_grouped_aggregate_rows_service_ungrouped_record_id_is_readable(data_fix
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table, name="Amount")
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows,
         integration=integration,
@@ -905,7 +935,12 @@ def test_create_grouped_aggregate_rows_service_no_data(data_fixture):
 def test_create_grouped_aggregate_rows_service(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -959,7 +994,12 @@ def test_create_grouped_aggregate_rows_service(data_fixture):
 def test_create_grouped_aggregate_rows_service_series_field_not_in_table(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     table_2 = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table_2)
@@ -994,7 +1034,12 @@ def test_create_grouped_aggregate_rows_service_series_agg_type_doesnt_exist(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -1027,7 +1072,12 @@ def test_create_grouped_aggregate_rows_service_series_incompatible_aggregation_t
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1062,7 +1112,12 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_in_table(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     table_2 = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table_2)
@@ -1100,7 +1155,12 @@ def test_create_grouped_aggregate_rows_service_group_by_database_compatible_fiel
     """Fields accepted by Database grouping are accepted by grouped aggregations."""
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     aggregation_field = data_fixture.create_number_field(table=table)
     group_by_field = getattr(data_fixture, field_factory)(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1132,7 +1192,12 @@ def test_create_grouped_aggregate_rows_service_group_by_field_not_compatible(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     table_2 = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_uuid_field(table=table)
@@ -1167,7 +1232,12 @@ def test_create_grouped_aggregate_rows_service_duplicate_series(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1202,7 +1272,12 @@ def test_create_grouped_aggregate_rows_service_max_series_exceeded(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -1240,7 +1315,12 @@ def test_create_grouped_aggregate_rows_service_max_group_bys_exceeded(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1277,7 +1357,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1318,7 +1403,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table, primary=True)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1359,7 +1449,12 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1396,10 +1491,15 @@ def test_create_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 def test_update_grouped_aggregate_rows_service(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     table_2_field = data_fixture.create_number_field(table=table_2)
     table_2_field_2 = data_fixture.create_number_field(table=table_2)
     table_2_view = data_fixture.create_grid_view(user=user, table=table_2)
@@ -1486,7 +1586,12 @@ def test_update_grouped_aggregate_rows_removes_obsolete_sorts(
     other_amount = data_fixture.create_number_field(table=table)
     replacement_amount = data_fixture.create_number_field(table=table)
     category = data_fixture.create_text_field(table=table)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+        user=user,
+    )
     service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
     service = data_fixture.create_service(
         LocalBaserowGroupedAggregateRows, integration=integration, table=table
@@ -1574,7 +1679,12 @@ def test_update_grouped_aggregate_rows_removes_obsolete_sorts(
 def test_update_grouped_aggregate_rows_service_filters(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1621,10 +1731,15 @@ def test_update_grouped_aggregate_rows_service_filters(data_fixture):
 def test_update_grouped_aggregate_rows_service_series_field_not_in_table(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     table_2_field = data_fixture.create_number_field(table=table_2)
     table_2_view = data_fixture.create_grid_view(user=user, table=table_2)
     integration = data_fixture.create_local_baserow_integration(
@@ -1667,9 +1782,14 @@ def test_update_grouped_aggregate_rows_service_series_agg_type_doesnt_exist(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     table_2_field = data_fixture.create_number_field(table=table_2)
     table_2_view = data_fixture.create_grid_view(user=user, table=table_2)
     integration = data_fixture.create_local_baserow_integration(
@@ -1713,9 +1833,14 @@ def test_update_grouped_aggregate_rows_service_series_incompatible_aggregation_t
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     table_2_field = data_fixture.create_text_field(table=table_2)
     table_2_view = data_fixture.create_grid_view(user=user, table=table_2)
     integration = data_fixture.create_local_baserow_integration(
@@ -1759,10 +1884,15 @@ def test_update_grouped_aggregate_rows_service_group_by_field_not_in_table(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     table_2_field = data_fixture.create_number_field(table=table_2)
     table_2_view = data_fixture.create_grid_view(user=user, table=table_2)
     integration = data_fixture.create_local_baserow_integration(
@@ -1805,7 +1935,12 @@ def test_update_grouped_aggregate_rows_service_group_by_field_not_in_compatible(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_uuid_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1845,7 +1980,12 @@ def test_update_grouped_aggregate_rows_service_max_series_exceeded(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -1889,7 +2029,12 @@ def test_update_grouped_aggregate_rows_service_max_group_bys_exceeded(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1932,7 +2077,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_field_outside_of_series_g
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -1979,7 +2129,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_no_group_by
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table, primary=True)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2026,7 +2181,12 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2069,10 +2229,15 @@ def test_update_grouped_aggregate_rows_service_sort_by_primary_field_with_group_
 def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-    table_2 = data_fixture.create_database_table(user=user)
+    table_2 = data_fixture.create_database_table(database=table.database, user=user)
     integration = data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
     )
@@ -2124,7 +2289,12 @@ def test_update_grouped_aggregate_rows_service_reset_after_table_change(data_fix
 def test_grouped_aggregate_rows_service_dispatch(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2177,7 +2347,12 @@ def test_grouped_aggregate_rows_service_dispatch(data_fixture):
 def test_grouped_aggregate_rows_service_dispatch_same_agg_fields(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2243,7 +2418,12 @@ def test_grouped_aggregate_rows_service_dispatch_same_agg_fields(data_fixture):
 def test_grouped_aggregate_rows_service_dispatch_with_view(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2299,7 +2479,12 @@ def test_grouped_aggregate_rows_service_dispatch_with_view(data_fixture):
 def test_grouped_aggregate_rows_service_dispatch_with_service_filters(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = None
@@ -2355,7 +2540,12 @@ def test_grouped_aggregate_rows_service_dispatch_with_service_filters(data_fixtu
 def test_grouped_aggregate_rows_service_dispatch_no_series(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = None
     integration = data_fixture.create_local_baserow_integration(
@@ -2381,7 +2571,12 @@ def test_grouped_aggregate_rows_service_dispatch_aggregation_type_doesnt_exist(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2412,7 +2607,12 @@ def test_grouped_aggregate_rows_service_dispatch_aggregation_type_doesnt_exist(
 def test_grouped_aggregate_rows_service_dispatch_incompatible_aggregation(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2448,7 +2648,12 @@ def test_dispatch_grouped_aggregate_rows_service_duplicate_series(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -2481,7 +2686,12 @@ def test_dispatch_grouped_aggregate_rows_service_duplicate_series(
 def test_grouped_aggregate_rows_service_agg_series_field_trashed(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, trashed=True)
     field_2 = data_fixture.create_number_field(table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -2507,7 +2717,12 @@ def test_grouped_aggregate_rows_service_agg_series_field_trashed(data_fixture):
 def test_grouped_aggregate_rows_service_group_by_field_trashed(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table, trashed=True)
     integration = data_fixture.create_local_baserow_integration(
@@ -2536,7 +2751,12 @@ def test_grouped_aggregate_rows_service_group_by_field_trashed(data_fixture):
 def test_grouped_aggregate_rows_service_group_by_field_not_compatible(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_uuid_field(table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -2597,7 +2817,12 @@ def test_grouped_aggregate_rows_service_table_trashed(data_fixture):
 def test_grouped_aggregate_rows_service_dispatch_with_total_aggregation(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_boolean_field(table=table)
     field_2 = data_fixture.create_boolean_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -2653,7 +2878,12 @@ def test_grouped_aggregate_rows_service_dispatch_with_total_aggregation(data_fix
 def test_grouped_aggregate_rows_service_dispatch_group_by(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_text_field(table=table)
@@ -2768,7 +2998,12 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_multiple_relations(
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = bucket_limit
     user = data_fixture.create_user(first_name="Alice")
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     amount = data_fixture.create_number_field(table=table, name="Amount")
     if field_type == "multiple_select":
         group_field = data_fixture.create_multiple_select_field(
@@ -2904,7 +3139,12 @@ def test_grouped_aggregate_rows_multiple_select_modes(
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 100
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     amount = data_fixture.create_number_field(table=table, name="Amount")
     category = data_fixture.create_multiple_select_field(
         table=table, name="Category", primary=primary
@@ -3057,7 +3297,12 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_single_select(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_single_select_field(table=table)
     option_a = data_fixture.create_select_option(
@@ -3135,7 +3380,12 @@ def test_grouped_aggregate_rows_service_dispatch_other_bucket_uses_raw_group_val
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 2
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, name="Amount")
     group_by_field = data_fixture.create_single_select_field(
         table=table, name="Category"
@@ -3209,7 +3459,12 @@ def test_grouped_aggregate_rows_service_dispatch_other_bucket_uses_raw_group_val
 def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -3287,7 +3542,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by(
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -3433,7 +3693,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ro
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -3561,7 +3826,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -3654,7 +3924,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_without_group_by
 def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -3784,7 +4059,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_field(data_fix
 def test_grouped_aggregate_rows_service_dispatch_sort_by_group_by_row_id(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -3897,7 +4177,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_field_outside_series_or
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -3936,7 +4221,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_no_group_
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -3975,7 +4265,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_primary_field_group_by_
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table, primary=True)
     field_2 = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4017,7 +4312,12 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_number_field(table=table)
@@ -4155,7 +4455,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_group_by_fi
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4250,7 +4555,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_series(
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4345,7 +4655,12 @@ def test_grouped_aggregate_rows_service_dispatch_max_buckets_sort_on_primary_fie
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table, primary=True)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4450,7 +4765,12 @@ def test_grouped_aggregate_rows_service_dispatch_within_max_buckets(
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4535,7 +4855,12 @@ def test_grouped_aggregate_rows_service_dispatch_1_bucket(data_fixture, settings
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 1
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4596,7 +4921,12 @@ def test_grouped_aggregate_rows_service_dispatch_1_other_bucket(data_fixture, se
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 1
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4671,7 +5001,12 @@ def test_grouped_aggregate_rows_service_dispatch_not_within_max_buckets_no_sort(
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 2
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4743,7 +5078,12 @@ def test_grouped_aggregate_rows_service_dispatch_not_within_max_buckets_sort_gro
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 2
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -4825,7 +5165,12 @@ def test_grouped_aggregate_rows_service_dispatch_not_within_max_buckets_sort_on_
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 4
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     field_3 = data_fixture.create_text_field(table=table)
@@ -5161,7 +5506,12 @@ def test_grouped_aggregate_rows_dispatch_query_count_is_constant_with_buckets(
 
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     number_field = data_fixture.create_number_field(table=table)
     text_field = data_fixture.create_text_field(table=table)
     for _ in range(5):

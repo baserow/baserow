@@ -1,5 +1,4 @@
-from ast import Dict
-from typing import Iterable, Optional, Union, cast
+from typing import Dict, Iterable, Optional, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -7,9 +6,16 @@ from django.db.models import QuerySet
 
 from loguru import logger
 
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
+from baserow.core.integrations.exceptions import (
+    IntegrationDoesNotExist,
+    IntegrationNotInApplication,
+    IntegrationNotInWorkspace,
+    IntegrationNotUsable,
+    IntegrationTypeNotAllowed,
+)
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import (
     IntegrationType,
@@ -61,6 +67,157 @@ class IntegrationHandler:
             raise IntegrationDoesNotExist()
 
         return integration
+
+    def get_integration_including_trashed(self, integration_id: int) -> Integration:
+        """
+        Returns an integration, falling back to a trashed one so a reference to it
+        can still be set, for example by an undo step that runs before the step
+        restoring the integration. A trashed integration isn't specific.
+
+        :param integration_id: The ID of the integration.
+        :raises IntegrationDoesNotExist: If no integration, trashed or not, has
+            this ID.
+        :return: The integration instance.
+        """
+
+        try:
+            return self.get_integration(integration_id)
+        except IntegrationDoesNotExist:
+            return self.get_integration(
+                integration_id,
+                base_queryset=Integration.objects_and_trash.all(),
+                specific=False,
+            )
+
+    def get_integration_for_import(
+        self,
+        integration_id: Optional[int],
+        id_mapping: Dict[str, Dict[int, int]],
+        application_id: Optional[int] = None,
+        keep_unmapped: bool = True,
+    ) -> Optional[Integration]:
+        """
+        Returns the integration an imported service refers to. A trashed integration
+        is returned too, so the copy reconnects when it's restored.
+
+        :param integration_id: The exported integration ID, if any.
+        :param id_mapping: The import ID mapping.
+        :param application_id: The application the service is imported into. When
+            given, an integration belonging to another application is dropped.
+        :param keep_unmapped: Whether an ID missing from the mapping is kept, as
+            duplicating within an application doesn't copy its integrations.
+        :return: The integration, or `None` when there's none to refer to.
+        """
+
+        if not integration_id:
+            return None
+
+        integration_id = id_mapping["integrations"].get(
+            integration_id, integration_id if keep_unmapped else None
+        )
+        if integration_id is None:
+            return None
+
+        try:
+            integration = Integration.objects_and_trash.get(id=integration_id)
+        except Integration.DoesNotExist:
+            return None
+
+        if application_id is not None:
+            try:
+                self.check_integration_usable(
+                    integration, application_id=application_id
+                )
+            except IntegrationNotInApplication:
+                return None
+
+        return integration
+
+    def check_integration_usable(
+        self,
+        integration: Integration,
+        application_id: Optional[int] = None,
+        workspace_id: Optional[int] = None,
+        integration_types: Optional[Iterable[str]] = None,
+    ):
+        """
+        Checks that an integration can be used from the given application or
+        workspace, and is of one of the given types. Only the given constraints are
+        checked, in that order.
+
+        :param integration: The integration to check.
+        :param application_id: The application the integration must belong to.
+        :param workspace_id: The workspace the integration must belong to.
+        :param integration_types: The integration types accepted.
+        :raises IntegrationNotInApplication: When it belongs to another application.
+        :raises IntegrationNotInWorkspace: When it belongs to another workspace.
+        :raises IntegrationTypeNotAllowed: When it isn't of an accepted type.
+        """
+
+        if application_id is not None and integration.application_id != application_id:
+            raise IntegrationNotInApplication()
+
+        if (
+            workspace_id is not None
+            and self.get_integration_workspace_id(integration) != workspace_id
+        ):
+            raise IntegrationNotInWorkspace()
+
+        if (
+            integration_types is not None
+            and integration.get_type().type not in integration_types
+        ):
+            raise IntegrationTypeNotAllowed()
+
+    def get_integration_workspace_id(self, integration: Integration) -> Optional[int]:
+        """
+        Returns the ID of the workspace the integration's application belongs to. A
+        published copy of an application has no workspace of its own, so the
+        workspace of the application it's published from is resolved, once per
+        request.
+
+        :param integration: The integration.
+        :return: The workspace ID, if any.
+        """
+
+        application = integration.application
+        if application.workspace_id is not None:
+            return application.workspace_id
+
+        def resolve():
+            workspace = application.specific.get_workspace()
+            return workspace.id if workspace else None
+
+        return local_cache.get(f"application_{application.id}_workspace_id", resolve)
+
+    def is_integration_usable(
+        self,
+        integration: Integration,
+        application_id: Optional[int] = None,
+        workspace_id: Optional[int] = None,
+        integration_types: Optional[Iterable[str]] = None,
+    ) -> bool:
+        """
+        Returns whether `check_integration_usable` accepts the integration.
+
+        :param integration: The integration to check.
+        :param application_id: The application the integration must belong to.
+        :param workspace_id: The workspace the integration must belong to.
+        :param integration_types: The integration types accepted.
+        :return: True when the integration fits every given constraint.
+        """
+
+        try:
+            self.check_integration_usable(
+                integration,
+                application_id=application_id,
+                workspace_id=workspace_id,
+                integration_types=integration_types,
+            )
+        except IntegrationNotUsable:
+            return False
+
+        return True
 
     def get_integration_for_update(
         self, integration_id: int, base_queryset: Optional[QuerySet] = None

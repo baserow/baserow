@@ -50,6 +50,7 @@ from baserow.core.db import specific_queryset
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.registry import Instance
@@ -465,10 +466,10 @@ class DatabaseWorkflowServiceActionType(
         :return: True when this action may carry it.
         """
 
-        return (
-            field is not None
-            and integration.get_type().type in self.allowed_integration_types
-            and integration.application_id == field.table.database_id
+        return field is not None and IntegrationHandler().is_integration_usable(
+            integration,
+            application_id=field.table.database_id,
+            integration_types=self.allowed_integration_types,
         )
 
     def _check_integration(
