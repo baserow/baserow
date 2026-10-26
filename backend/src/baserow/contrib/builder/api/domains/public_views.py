@@ -247,14 +247,17 @@ class PublicElementsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            # Authorize every request, including requests served from the cache.
-            page = PageHandler().get_page(page_id)
-            CoreHandler().check_permissions(
-                request.user_source_user,
-                ListElementsPageOperationType.type,
-                workspace=page.builder.workspace,
-                context=page,
-            )
+            # Authorize app users on every request, including requests served
+            # from the cache. Anonymous visitors only get the anonymous records
+            # of a published page, so they skip the extra queries.
+            if not request.user_source_user.is_anonymous:
+                page = PageHandler().get_page(page_id)
+                CoreHandler().check_permissions(
+                    request.user_source_user,
+                    ListElementsPageOperationType.type,
+                    workspace=page.builder.workspace,
+                    context=page,
+                )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
@@ -333,14 +336,17 @@ class PublicDataSourcesView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            # Authorize every request, including requests served from the cache.
-            page = PageHandler().get_page(page_id)
-            CoreHandler().check_permissions(
-                request.user_source_user,
-                ListDataSourcesPageOperationType.type,
-                workspace=page.builder.workspace,
-                context=page,
-            )
+            # Authorize app users on every request, including requests served
+            # from the cache. Anonymous visitors only get the anonymous records
+            # of a published page, so they skip the extra queries.
+            if not request.user_source_user.is_anonymous:
+                page = PageHandler().get_page(page_id)
+                CoreHandler().check_permissions(
+                    request.user_source_user,
+                    ListDataSourcesPageOperationType.type,
+                    workspace=page.builder.workspace,
+                    context=page,
+                )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
@@ -437,14 +443,17 @@ class PublicBuilderWorkflowActionsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
-            # Authorize every request, including requests served from the cache.
-            page = PageHandler().get_page(page_id)
-            CoreHandler().check_permissions(
-                request.user_source_user,
-                ListBuilderWorkflowActionsPageOperationType.type,
-                workspace=page.builder.workspace,
-                context=page,
-            )
+            # Authorize app users on every request, including requests served
+            # from the cache. Anonymous visitors only get the anonymous records
+            # of a published page, so they skip the extra queries.
+            if not request.user_source_user.is_anonymous:
+                page = PageHandler().get_page(page_id)
+                CoreHandler().check_permissions(
+                    request.user_source_user,
+                    ListBuilderWorkflowActionsPageOperationType.type,
+                    workspace=page.builder.workspace,
+                    context=page,
+                )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "workflow_actions"

@@ -261,8 +261,9 @@ class PageHandler:
         Generates the cache key used by the public elements, data sources and workflow
         actions endpoints. Anonymous and authenticated visitors always get separate
         cache keys, and authenticated visitors are further separated by role.
-        Callers must authorize the actor against the page before reading this cache;
-        role-based sharing is only valid among actors allowed to access that page.
+        Callers must authorize authenticated actors against the page before reading
+        this cache; role-based sharing is only valid among actors allowed to access
+        that page.
 
         Authenticated visitors without a role must not share a key with anonymous
         visitors: they see different records (e.g. elements restricted to logged-in

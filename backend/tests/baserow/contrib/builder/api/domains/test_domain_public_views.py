@@ -2643,3 +2643,30 @@ def test_public_page_list_cache_preserves_same_app_visibility(
             assert {record["id"] for record in response.json()} == {
                 record.id for record in expected
             }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["elements", "data_sources", "workflow_actions"])
+def test_public_page_lists_serve_cached_anonymous_records_without_queries(
+    api_client, data_fixture, django_assert_num_queries, endpoint
+):
+    """Anonymous visitors are served cached public records without any query."""
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    published = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=published)
+    page = data_fixture.create_builder_page(builder=published)
+    element = data_fixture.create_builder_heading_element(page=page)
+    data_fixture.create_builder_local_baserow_get_row_data_source(page=page)
+    data_fixture.create_notification_workflow_action(page=page, element=element)
+    url = reverse(f"api:builder:domains:list_{endpoint}", kwargs={"page_id": page.id})
+
+    response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 1
+
+    with django_assert_num_queries(0):
+        response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 1
