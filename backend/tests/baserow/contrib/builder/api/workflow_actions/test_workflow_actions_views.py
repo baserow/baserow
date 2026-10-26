@@ -16,6 +16,7 @@ from rest_framework.status import (
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.preview import (
     BuilderPreviewActor,
     BuilderPreviewGrantHandler,
@@ -2399,6 +2400,190 @@ def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoin
         assert table.get_model().objects.count() == (
             0 if actor == "other_builder" else 1
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "actor,page_visibility,element_kwargs,event,expected_status",
+    [
+        ("anonymous", "all", {"visibility": "all"}, EventTypes.CLICK, 200),
+        ("anonymous", "all", {"visibility": "logged-in"}, EventTypes.CLICK, 401),
+        ("anonymous", "logged-in", {"visibility": "all"}, EventTypes.CLICK, 401),
+        ("anonymous", "all", None, EventTypes.CLICK, 200),
+        ("anonymous", "logged-in", None, EventTypes.CLICK, 401),
+        ("user_source", "logged-in", None, EventTypes.CLICK, 200),
+        ("user_source", "all", {"visibility": "not-logged"}, EventTypes.CLICK, 401),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["admin"]},
+            EventTypes.CLICK,
+            401,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["member"]},
+            EventTypes.CLICK,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "allow_all_except", "roles": ["member"]},
+            EventTypes.CLICK,
+            401,
+        ),
+        # An after-login action is dispatched by the user who has just logged
+        # in, but its login form was submitted by a logged-out visitor, so the
+        # element only has to be visible to that visitor or to the new user.
+        (
+            "user_source",
+            "all",
+            {"visibility": "not-logged"},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["admin"]},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"visibility": "logged-in"},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        ("anonymous", "all", {"visibility": "logged-in"}, EventTypes.AFTER_LOGIN, 401),
+    ],
+)
+def test_public_dispatch_respects_element_and_page_visibility(
+    api_client,
+    data_fixture,
+    actor,
+    page_visibility,
+    element_kwargs,
+    event,
+    expected_status,
+):
+    """
+    An action can only be dispatched by a visitor who can see its element, or
+    its page for an action bound to the page itself (`element_kwargs` None). An
+    after-login action is also dispatchable when a logged-out visitor can see
+    its element, because that visitor is the one who submitted the login form.
+    """
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder, integration=integration, user=user
+    )
+    user_row = user_source.table.get_model().objects.first()
+    setattr(user_row, user_source.role_field.db_column, "member")
+    user_row.save()
+    page = data_fixture.create_builder_page(
+        builder=builder, visibility=Page.VISIBILITY_TYPES(page_visibility)
+    )
+    element = None
+    if element_kwargs is not None:
+        element = data_fixture.create_builder_button_element(
+            page=page, **element_kwargs
+        )
+    table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Public row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=event, service=service
+    )
+
+    headers = {}
+    if actor == "user_source":
+        external_user = data_fixture.create_user_source_user(
+            user_source=user_source, user_id=user_row.id
+        )
+        headers["HTTP_AUTHORIZATION"] = (
+            f"JWT {external_user.get_refresh_token().access_token}"
+        )
+
+    body = {}
+    if element is not None:
+        # The frontend always sends the action's element along, so the metadata
+        # validation must accept it even for a hidden after-login form.
+        body["metadata"] = {"data_source": {"element": element.id}}
+    url = reverse("api:builder:workflow_action:dispatch", args=[workflow_action.id])
+    response = api_client.post(url, body, format="json", **headers)
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == 401:
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    assert table.get_model().objects.count() == (1 if expected_status == 200 else 0)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("own_element,expected_status", [(True, 200), (False, 400)])
+def test_public_dispatch_metadata_element_must_be_the_action_element_or_visible(
+    api_client, data_fixture, own_element, expected_status
+):
+    """
+    The element sent in the dispatch metadata is only exempt from the visibility
+    check when it is the element of the dispatched action; any other element the
+    visitor cannot see is refused.
+    """
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    button = data_fixture.create_builder_button_element(page=page)
+    hidden_element = data_fixture.create_builder_button_element(
+        page=page, visibility="logged-in"
+    )
+    table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Public row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=button, event=EventTypes.CLICK, service=service
+    )
+    metadata_element = button if own_element else hidden_element
+
+    url = reverse("api:builder:workflow_action:dispatch", args=[workflow_action.id])
+    response = api_client.post(
+        url,
+        {"metadata": {"data_source": {"element": metadata_element.id}}},
+        format="json",
+    )
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == 400:
+        assert response.json()["error"] == "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN"
+    assert table.get_model().objects.count() == (1 if expected_status == 200 else 0)
 
 
 @pytest.mark.django_db

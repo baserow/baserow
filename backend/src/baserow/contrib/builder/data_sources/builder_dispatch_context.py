@@ -114,6 +114,7 @@ class BuilderDispatchContext(DispatchContext):
             context={
                 "page": self.page,
                 "user": getattr(self.request, "user", None),
+                "workflow_action": self.workflow_action,
             },
         )
         serializer.is_valid(raise_exception=True)
