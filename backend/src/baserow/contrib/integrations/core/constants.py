@@ -34,6 +34,18 @@ DISALLOWED_WORKFLOW_RESPONSE_HEADERS = frozenset(
 )
 
 
+# Credentials a caller sends with an HTTP trigger request. They are dropped
+# before the request reaches the workflow, so they are never stored in its run
+# history or sample data.
+HTTP_TRIGGER_DROPPED_REQUEST_HEADERS = frozenset(
+    {
+        "authorization",
+        "cookie",
+        "proxy-authorization",
+    }
+)
+
+
 class CSV_FILE_READER_INPUT_TYPE(models.TextChoices):
     FILE = "file", "File"
     CONTENT = "content", "Content"

@@ -410,3 +410,32 @@ def test_http_trigger_rolls_back_mutations_before_waiting(api_client, data_fixtu
 
     assert AutomationWorkflowHistory.objects.count() == 0
     mock_delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "header_name", ["Authorization", "Cookie", "Proxy-Authorization", "COOKIE"]
+)
+def test_caller_credential_headers_are_not_passed_to_the_workflow(
+    api_client, data_fixture, header_name
+):
+    node = data_fixture.create_core_http_trigger_node()
+
+    with patch.object(
+        service_type_registry.get("http_trigger"), "on_event"
+    ) as mock_on_event:
+        resp = api_client.generic(
+            "POST",
+            get_url(node.service.uid) + "?test=true",
+            data=b"{}",
+            content_type="application/json",
+            headers={header_name: "secret", "X-Signature": "abc"},
+        )
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+    headers = mock_on_event.call_args[0][1]["headers"]
+    assert "secret" not in headers.values()
+    assert {key.lower() for key in headers}.isdisjoint(
+        {"authorization", "cookie", "proxy-authorization"}
+    )
+    assert headers["X-Signature"] == "abc"
