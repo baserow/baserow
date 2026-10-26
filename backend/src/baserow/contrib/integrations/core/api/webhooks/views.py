@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.http import HttpResponse
 from django.utils.datastructures import MultiValueDict
@@ -13,8 +14,12 @@ from baserow.api.decorators import map_exceptions
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.integrations.core.api.webhooks.errors import (
+    ERROR_CORE_HTTP_TRIGGER_REQUEST_BODY_TOO_LARGE,
     ERROR_CORE_HTTP_TRIGGER_SERVICE_DOES_NOT_EXIST,
     ERROR_CORE_HTTP_TRIGGER_SERVICE_METHOD_NOT_ALLOWED,
+)
+from baserow.contrib.integrations.core.api.webhooks.throttling import (
+    CoreHTTPTriggerRateThrottle,
 )
 from baserow.contrib.integrations.core.constants import (
     DISALLOWED_WORKFLOW_RESPONSE_HEADERS,
@@ -22,6 +27,7 @@ from baserow.contrib.integrations.core.constants import (
     RESPONSE_BODY_TYPE,
 )
 from baserow.contrib.integrations.core.exceptions import (
+    CoreHTTPTriggerRequestBodyTooLarge,
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
 )
@@ -47,6 +53,7 @@ def webhook_schema(method):
         responses={
             204: None,
             404: get_error_schema(["ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST"]),
+            413: get_error_schema(["ERROR_CORE_HTTP_TRIGGER_REQUEST_BODY_TOO_LARGE"]),
         },
     )
 
@@ -57,7 +64,25 @@ class CoreHTTPTriggerView(APIView):
     """
 
     permission_classes = (AllowAny,)
+    throttle_classes = (CoreHTTPTriggerRateThrottle,)
     http_method_names = ["get", "post", "put", "patch", "delete"]
+
+    def check_body_size(self, request):
+        """
+        Refuses a body larger than the configured cap, so it never reaches the
+        workflow's history or sample data. The declared `Content-Length` is
+        checked before the body is read, and the body itself afterwards.
+        """
+
+        max_size = settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES
+
+        try:
+            content_length = int(request.META.get("CONTENT_LENGTH") or 0)
+        except ValueError:
+            content_length = 0
+
+        if content_length > max_size or len(request.body) > max_size:
+            raise CoreHTTPTriggerRequestBodyTooLarge()
 
     def handle_request_data(self, request):
         headers = {
@@ -155,9 +180,11 @@ class CoreHTTPTriggerView(APIView):
         {
             CoreHTTPTriggerServiceDoesNotExist: ERROR_CORE_HTTP_TRIGGER_SERVICE_DOES_NOT_EXIST,
             CoreHTTPTriggerServiceMethodNotAllowed: ERROR_CORE_HTTP_TRIGGER_SERVICE_METHOD_NOT_ALLOWED,
+            CoreHTTPTriggerRequestBodyTooLarge: ERROR_CORE_HTTP_TRIGGER_REQUEST_BODY_TOO_LARGE,
         }
     )
     def handle_request(self, request, webhook_uid, *args, **kwargs):
+        self.check_body_size(request)
         request_data = self.handle_request_data(request)
         simulate = request.GET.get("test", "").lower() == "true"
 

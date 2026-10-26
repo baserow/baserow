@@ -12,6 +12,8 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
     HTTP_405_METHOD_NOT_ALLOWED,
+    HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    HTTP_429_TOO_MANY_REQUESTS,
 )
 
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
@@ -22,6 +24,7 @@ from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTrigger
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.core.services.registries import service_type_registry
+from baserow.throttling.types import RateLimit
 
 
 def get_url(uid):
@@ -439,3 +442,85 @@ def test_caller_credential_headers_are_not_passed_to_the_workflow(
         {"authorization", "cookie", "proxy-authorization"}
     )
     assert headers["X-Signature"] == "abc"
+
+
+@pytest.mark.django_db
+def test_accepts_body_at_the_size_cap(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    resp, request_data = post_webhook(
+        api_client, node.service.uid, "x" * 10, "text/plain"
+    )
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+    assert request_data["raw_body"] == "x" * 10
+
+
+@pytest.mark.django_db
+def test_rejects_body_over_the_size_cap(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    resp, request_data = post_webhook(
+        api_client, node.service.uid, "x" * 11, "text/plain"
+    )
+
+    assert resp.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert resp.json()["error"] == "ERROR_CORE_HTTP_TRIGGER_REQUEST_BODY_TOO_LARGE"
+    assert request_data is None
+    assert not AutomationWorkflowHistory.objects.exists()
+
+
+@pytest.mark.django_db
+def test_rejects_declared_content_length_over_the_size_cap(
+    api_client, data_fixture, settings
+):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    with patch.object(
+        service_type_registry.get("http_trigger"), "process_webhook_request"
+    ) as mock_process:
+        resp = api_client.generic(
+            "POST",
+            get_url(node.service.uid),
+            data="x",
+            content_type="text/plain",
+            CONTENT_LENGTH="1000",
+        )
+
+    assert resp.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    mock_process.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_rate_limits_calls_per_http_trigger(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    node = data_fixture.create_core_http_trigger_node()
+    other_node = data_fixture.create_core_http_trigger_node()
+
+    first, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+    second, request_data = post_webhook(
+        api_client, node.service.uid, "{}", "application/json"
+    )
+    other, _ = post_webhook(
+        api_client, other_node.service.uid, "{}", "application/json"
+    )
+
+    assert first.status_code == HTTP_204_NO_CONTENT
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert request_data is None
+    assert other.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+def test_rate_limits_can_be_switched_off(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = ()
+    node = data_fixture.create_core_http_trigger_node()
+
+    for _ in range(3):
+        resp, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+        assert resp.status_code == HTTP_204_NO_CONTENT

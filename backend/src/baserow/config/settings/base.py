@@ -1210,6 +1210,26 @@ AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
 AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS", 20)
 )
+# The largest request body the HTTP trigger accepts. Every accepted body is kept
+# in the workflow's history and sample data, so larger ones are refused.
+AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = int(
+    os.getenv("BASEROW_AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES") or 1024 * 1024
+)
+# How often one HTTP trigger may be called. Leaving it empty keeps the default;
+# a single comma switches the limits off.
+try:
+    AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_AUTOMATION_HTTP_TRIGGER_RATE_LIMITS") or "300/m,6000/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "BASEROW_AUTOMATION_HTTP_TRIGGER_RATE_LIMITS must be a comma separated "
+        f"list of rate limits, for example '300/m,6000/h'. {exc}"
+    ) from exc
 _legacy_workflow_rate_limit_max_runs = os.getenv(
     "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
 )
