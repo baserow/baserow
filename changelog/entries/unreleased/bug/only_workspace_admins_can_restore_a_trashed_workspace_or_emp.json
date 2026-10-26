@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Only workspace admins can restore a trashed workspace or empty its trash",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}
