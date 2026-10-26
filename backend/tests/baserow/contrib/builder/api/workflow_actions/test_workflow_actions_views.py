@@ -2499,7 +2499,10 @@ def test_public_dispatch_respects_element_and_page_visibility(
             page=page, **element_kwargs
         )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[]
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
     )
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration, table=table
@@ -2556,7 +2559,10 @@ def test_public_dispatch_metadata_element_must_be_the_action_element_or_visible(
         page=page, visibility="logged-in"
     )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[]
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
     )
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration, table=table
