@@ -30,15 +30,24 @@
           </p>
         </div>
       </template>
+      <template #header-right-side>
+        <Button
+          v-if="canInvite && pendingInvitationsCount > 0"
+          type="secondary"
+          size="large"
+          icon="iconoir-mail"
+          @click="$refs.inviteModal.show()"
+        >
+          {{
+            $t('membersSettings.membersTable.pendingInvitations', {
+              count: pendingInvitationsCount,
+            })
+          }}
+        </Button>
+      </template>
       <template #primary-action>
         <Button
-          v-if="
-            $hasPermission(
-              'workspace.create_invitation',
-              workspace,
-              workspace.id
-            )
-          "
+          v-if="canInvite"
           type="primary"
           size="large"
           icon="iconoir-plus"
@@ -63,18 +72,7 @@
         ></EditRoleContext>
       </template>
     </CrudTable>
-    <InviteModal
-      ref="inviteModal"
-      :workspace="workspace"
-      @invite-submitted="
-        $router.push({
-          name: 'settings-invites',
-          params: {
-            workspaceId: workspace.id,
-          },
-        })
-      "
-    />
+    <InviteModal ref="inviteModal" :workspace="workspace" />
   </div>
 </template>
 
@@ -114,10 +112,25 @@ export default {
     return {
       editMember: {},
       editRoleMember: {},
+      pendingInvitationsCount: 0,
     }
   },
   computed: {
     ...mapGetters({ userId: 'auth/getUserId' }),
+    canInvite() {
+      return this.$hasPermission(
+        'workspace.create_invitation',
+        this.workspace,
+        this.workspace.id
+      )
+    },
+    canListInvitations() {
+      return this.$hasPermission(
+        'workspace.list_invitations',
+        this.workspace,
+        this.workspace.id
+      )
+    },
     membersCount() {
       return getWorkspaceMembersCount(
         this.workspace,
@@ -198,7 +211,48 @@ export default {
       return columns
     },
   },
+  watch: {
+    'workspace.id'() {
+      this.fetchPendingInvitationsCount()
+    },
+  },
+  beforeMount() {
+    this.$bus.$on('invite-submitted', this.refreshPendingInvitationsCount)
+    this.$bus.$on('invite-updated', this.refreshPendingInvitationsCount)
+    this.$bus.$on('invite-deleted', this.refreshPendingInvitationsCount)
+  },
+  mounted() {
+    this.fetchPendingInvitationsCount()
+  },
+  beforeUnmount() {
+    this.$bus.$off('invite-submitted', this.refreshPendingInvitationsCount)
+    this.$bus.$off('invite-updated', this.refreshPendingInvitationsCount)
+    this.$bus.$off('invite-deleted', this.refreshPendingInvitationsCount)
+  },
   methods: {
+    /**
+     * The pending invitations are managed in the invite modal, so they're only
+     * counted for those who can both open it and list them.
+     */
+    async fetchPendingInvitationsCount() {
+      if (!this.canInvite || !this.canListInvitations) {
+        this.pendingInvitationsCount = 0
+        return
+      }
+      try {
+        const { data } = await WorkspaceService(
+          this.$client
+        ).fetchAllInvitations(this.workspace.id)
+        this.pendingInvitationsCount = data.length
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      }
+    },
+    refreshPendingInvitationsCount(invitation) {
+      if (invitation.workspace === this.workspace.id) {
+        this.fetchPendingInvitationsCount()
+      }
+    },
     onRowContext({ row, event, target }) {
       event.preventDefault()
       if (target === undefined) {

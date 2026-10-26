@@ -131,11 +131,7 @@
           </a>
         </div>
 
-        <InviteModal
-          ref="inviteModal"
-          :workspace="selectedWorkspace"
-          @invite-submitted="handleInvite"
-        />
+        <InviteModal ref="inviteModal" :workspace="selectedWorkspace" />
       </li>
       <component
         :is="component"
@@ -205,12 +201,9 @@ export default {
       )
     },
     isManagementPage() {
-      return [
-        'settings-members',
-        'settings-invites',
-        'settings-teams',
-        'settings-agents',
-      ].includes(this.$route.name)
+      return ['settings-members', 'settings-teams', 'settings-agents'].includes(
+        this.$route.name
+      )
     },
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))
@@ -226,17 +219,6 @@ export default {
   methods: {
     openWorkspaceSearch() {
       this.$emit('open-workspace-search')
-    },
-
-    handleInvite(event) {
-      if (this.$route.name !== 'settings-invites') {
-        this.$router.push({
-          name: 'settings-invites',
-          params: {
-            workspaceId: this.selectedWorkspace.id,
-          },
-        })
-      }
     },
   },
 }

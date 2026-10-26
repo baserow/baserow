@@ -59,7 +59,6 @@ import {
 
 import {
   MembersWorkspaceSettingsPageType,
-  InvitesWorkspaceSettingsPageType,
   AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
@@ -290,10 +289,6 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new MembersWorkspaceSettingsPageType(context)
-    )
-    registry.register(
-      'workspaceSettingsPage',
-      new InvitesWorkspaceSettingsPageType(context)
     )
     registry.register(
       'workspaceSettingsPage',

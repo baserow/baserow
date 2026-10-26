@@ -92,6 +92,13 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
       scopeType,
       captchaToken: values.captchaToken,
     })
+    // Lets the members page recount its pending invitations, as a new address
+    // gets a workspace invitation along with the role on the object.
+    this.app.$bus.$emit('invite-submitted', {
+      id: data.invitation_id,
+      workspace: workspace.id,
+      email: data.email,
+    })
     return data
   }
 }

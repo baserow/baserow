@@ -591,7 +591,7 @@ export default {
     /**
      * Changes the role a pending invitation grants on the object, or revokes it
      * when `newRole` is null. Only this object is revoked, the invitation itself
-     * stays on the workspace's invites page.
+     * stays pending in the workspace.
      */
     async updateScopedInvitationRole(scopedInvitation, newRole) {
       const index = this.scopedInvitations.findIndex(
