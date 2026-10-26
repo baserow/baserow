@@ -560,8 +560,6 @@ def create_element(
             use_shared_page = True
 
     target_page = page.builder.shared_page if use_shared_page else page
-    if use_shared_page:
-        shared_page_refs.add(element_create.ref)
 
     # Resolve data source ref to integer ID early so that to_orm_kwargs
     # (e.g. _convert_table_fields) can look up the data source's table fields.
@@ -669,6 +667,10 @@ def create_element(
     )
 
     action_pairs = element_create.post_create(user, element, target_page)
+    # Added once the element exists, so a failed one doesn't send the children of a
+    # later element with the same ref to the shared page.
+    if use_shared_page:
+        shared_page_refs.add(element_create.ref)
     return element, element.id, action_pairs
 
 

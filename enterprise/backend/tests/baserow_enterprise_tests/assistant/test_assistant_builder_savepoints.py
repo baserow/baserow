@@ -361,3 +361,24 @@ def test_item_error_gives_the_messages_of_a_validation_error():
         item_error(DRFValidationError({"place_in_container": ["Bad.", "Worse."]}))
         == "place_in_container: Bad. Worse."
     )
+
+
+@pytest.mark.django_db
+def test_failed_shared_element_does_not_make_its_ref_shared(site):
+    result = setup_page(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[
+            ElementItemCreate(ref="x", type="header", page_ids=[999999]),
+            ElementItemCreate(ref="x", type="column"),
+            ElementItemCreate(
+                ref="h", type="heading", value="In x", parent_element="x"
+            ),
+        ],
+        thought="test",
+    )
+
+    assert len(result["errors"]) == 1
+    created = {e["ref"]: e["id"] for e in result["created_elements"]}
+    heading = Element.objects.get(id=created["h"])
+    assert heading.page_id == site["page"].id
