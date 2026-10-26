@@ -147,6 +147,11 @@ class TestFormulaUtils:
         assert needs_formula("get('page_parameter.id')")
         assert needs_formula("concat('hello', ' ', get('user.name'))")
 
+    def test_needs_formula_with_a_space_before_the_parenthesis(self):
+        # The generator turns these near misses into formulas.
+        assert needs_formula("get ('page_parameter.id')")
+        assert needs_formula("concat ('a', 'b')")
+
     def test_needs_formula_with_raw_expressions(self):
         assert needs_formula("if(get('user.is_authenticated'), 'yes', 'no')")
         assert needs_formula("today()")
