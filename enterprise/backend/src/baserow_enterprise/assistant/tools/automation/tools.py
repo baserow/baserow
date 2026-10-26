@@ -5,12 +5,12 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools import workflows as shared_workflows
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
 from . import agents, helpers, reconciliation
@@ -325,4 +325,4 @@ TOOL_FUNCTIONS = [
     update_nodes,
     delete_nodes,
 ]
-automation_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+automation_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

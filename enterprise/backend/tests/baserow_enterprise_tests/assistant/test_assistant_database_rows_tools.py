@@ -1,7 +1,10 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.assistant.agents import dynamic_tool_catalog, dynamic_toolset
@@ -827,3 +830,89 @@ def test_delete_rows(data_fixture):
     # Verify rows were deleted
     assert table_model.objects.count() == 1
     assert list(table_model.objects.values_list("id", flat=True)) == [2]
+
+
+def _linked_rows_with_and_without_a_primary_value(
+    data_fixture, user, table, primary_type
+):
+    """Return the ids of a linked row with a primary value and one without."""
+
+    if primary_type == "lookup":
+        data_fixture.create_text_field(table=table, primary=True)
+        colors = data_fixture.create_database_table(database=table.database)
+        color_name = data_fixture.create_text_field(table=colors, primary=True)
+        red = RowHandler().create_row(user, colors, {color_name.db_column: "Red"})
+        color = FieldHandler().create_field(
+            user, table, "link_row", name="Color", link_row_table=colors
+        )
+        lookup = FieldHandler().create_field(
+            user,
+            table,
+            "lookup",
+            name="Color name",
+            through_field_id=color.id,
+            target_field_id=color_name.id,
+        )
+        FieldHandler().change_primary_field(user, table, lookup)
+        filled = RowHandler().create_row(user, table, {color.db_column: [red.id]})
+        blank = RowHandler().create_row(user, table, {})
+        return filled.id, blank.id
+
+    if primary_type == "button":
+        data_fixture.create_formula_field(
+            table=table, primary=True, formula="button('https://baserow.io', 'Go')"
+        )
+        # A constant formula always has a value, so there is no blank row.
+        return RowHandler().create_row(user, table, {}).id, None
+
+    if primary_type == "uuid":
+        field = data_fixture.create_uuid_field(table=table, primary=True)
+        # A UUID field always has a value, so there is no blank row.
+        return RowHandler().create_row(user, table, {}).id, None
+
+    field, value = {
+        "text": (lambda: data_fixture.create_text_field, "SKU-1"),
+        "number": (lambda: data_fixture.create_number_field, 42),
+        "decimal": (lambda: data_fixture.create_number_field, "4.20"),
+        "date": (lambda: data_fixture.create_date_field, "2026-01-02"),
+    }[primary_type]
+    extra = {"number_decimal_places": 2} if primary_type == "decimal" else {}
+    field = field()(table=table, primary=True, **extra)
+    filled = RowHandler().create_row(user, table, {field.db_column: value})
+    blank = RowHandler().create_row(user, table, {})
+    return filled.id, blank.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "primary_type",
+    ["text", "number", "decimal", "date", "uuid", "lookup", "button"],
+)
+def test_row_tools_read_links_to_a_table_with_any_primary_field_type(
+    data_fixture, primary_type
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    linked_table = data_fixture.create_database_table(database=database)
+    filled, blank = _linked_rows_with_and_without_a_primary_value(
+        data_fixture, user, linked_table, primary_type
+    )
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    link = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table, name="Linked"
+    )
+    RowHandler().create_row(user, table, {link.db_column: [filled]})
+    ctx = make_test_ctx(user, database.workspace)
+
+    result = list_rows(
+        ctx, table_id=table.id, offset=0, limit=20, field_ids=None, thought="Read"
+    )
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+
+    assert result["total"] == 1
+    assert len(result["rows"][0]["Linked"]) == 1
+    link_description = json.dumps(ctx.deps.dynamic_tools[0].function_schema.json_schema)
+    assert f"id:{filled}," in link_description
+    if blank is not None:
+        assert f"id:{blank}," not in link_description

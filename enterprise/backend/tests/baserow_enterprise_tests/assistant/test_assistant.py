@@ -11,6 +11,7 @@ from django.test.utils import override_settings
 import pytest
 from asgiref.sync import async_to_sync
 from pydantic_ai import ModelRetry
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
@@ -3027,3 +3028,179 @@ class TestFinalAnswerValidation:
         confirmation = "Would you like me to delete the old field? It cannot be undone."
 
         assert validate_final_answer(ctx, confirmation) == confirmation
+
+
+def _run_chat(chat, workspace, user, content="Question"):
+    assistant = Assistant(chat)
+    ui_context = UIContext(
+        workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+        user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+    )
+
+    async def consume_stream():
+        human_message = HumanMessage(content=content, ui_context=ui_context)
+        return [msg async for msg in assistant.astream_messages(human_message)]
+
+    return async_to_sync(consume_stream)()
+
+
+def _captured_trace(mock_get_client):
+    return next(
+        call.kwargs["properties"]
+        for call in mock_get_client.return_value.capture.call_args_list
+        if call.kwargs["event"] == "$ai_trace"
+    )
+
+
+@pytest.mark.django_db
+class TestAssistantRunFailures:
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_failed_run_is_reported_to_sentry_and_posthog(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        error = RuntimeError("connection already closed")
+        mock_run_stream_events.side_effect = error
+
+        with pytest.raises(RuntimeError, match="connection already closed"):
+            _run_chat(chat, workspace, user)
+
+        mock_exception_capturer.assert_called_once_with(error)
+        trace = _captured_trace(mock_get_client)
+        assert trace["assistant_outcome"] == "error"
+        assert trace["$ai_error"] == "connection already closed"
+        assert trace["$ai_error_type"] == "RuntimeError"
+
+    @pytest.mark.parametrize(
+        "error, reported",
+        [
+            (ModelHTTPError(status_code=400, model_name="m", body="bad"), True),
+            (ModelHTTPError(status_code=429, model_name="m", body="slow"), False),
+            (ModelHTTPError(status_code=503, model_name="m", body="down"), False),
+            (ModelHTTPError(status_code=529, model_name="m", body="busy"), False),
+            (ModelAPIError(model_name="m", message="read timed out"), False),
+            (UsageLimitExceeded("request_limit of 200"), True),
+        ],
+    )
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_outages_are_not_reported_to_sentry(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        error,
+        reported,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = error
+
+        with pytest.raises(type(error)):
+            _run_chat(chat, workspace, user)
+
+        assert mock_exception_capturer.called is reported
+        assert (
+            _captured_trace(mock_get_client)["$ai_error_type"] == type(error).__name__
+        )
+
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_run_without_an_accepted_answer_is_recorded_as_no_answer(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = UnexpectedModelBehavior(
+            "Model token limit (16384) exceeded before any response was generated.",
+            body='{"content": "private user data"}',
+        )
+
+        messages = _run_chat(chat, workspace, user)
+
+        assert any(isinstance(msg, AiMessage) for msg in messages)
+        mock_exception_capturer.assert_not_called()
+        trace = _captured_trace(mock_get_client)
+        assert trace["assistant_outcome"] == "no_answer"
+        assert trace["$ai_error_type"] == "UnexpectedModelBehavior"
+        assert "token limit" in trace["$ai_error"]
+        assert "private user data" not in trace["$ai_error"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "generated, expected",
+    [
+        ("Greeting", "Greeting"),
+        ('"Quarterly sales report"\n', "Quarterly sales report"),
+        (
+            "# Inventory cleanup\n\nI'll start by listing the tables in your "
+            "workspace and then remove the duplicate rows.",
+            "Inventory cleanup",
+        ),
+        (
+            "Plan the migration of every customer record from the legacy CRM "
+            "into the new database",
+            "Plan the migration of every customer record from…",
+        ),
+        (
+            "<think>\nThe user wants a title.\n</think>\nInventory cleanup",
+            "Inventory cleanup",
+        ),
+        ("Title:\nQuarterly report", "Quarterly report"),
+        ("Title: Quarterly report", "Quarterly report"),
+        ('Title: "Quarterly report"', "Quarterly report"),
+        ("**Title:** Quarterly report", "Quarterly report"),
+        ("**Title**: Quarterly report", "Quarterly report"),
+        ("Title:", "Question"),
+        ('""', "Question"),
+    ],
+)
+@patch("baserow_enterprise.assistant.agents.title_agent.run")
+@patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+def test_chat_title_is_one_short_line(
+    mock_run_stream_events,
+    mock_title_run,
+    generated,
+    expected,
+    enterprise_data_fixture,
+    scoped_assistant_model,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
+    mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect("Hi")
+    mock_title_run.return_value = MagicMock(output=generated)
+
+    _run_chat(chat, workspace, user)
+
+    chat.refresh_from_db()
+    assert chat.title == expected

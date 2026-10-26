@@ -5,13 +5,13 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
 from baserow.core.tools import applications as shared_applications
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from . import helpers
 from .types import BuilderItem, BuilderItemCreate, BuilderUpdate
@@ -294,4 +294,4 @@ def ask_user(
 
 
 TOOL_FUNCTIONS = [list_builders, create_builders, update_builder, switch_mode, ask_user]
-core_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+core_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

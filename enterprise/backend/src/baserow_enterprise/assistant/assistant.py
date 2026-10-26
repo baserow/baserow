@@ -1,4 +1,5 @@
 import asyncio
+import re
 from contextlib import aclosing
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator
@@ -10,6 +11,7 @@ from django.utils import translation
 from loguru import logger
 from pydantic_ai import UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -31,6 +33,7 @@ from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow.core.models import Workspace
+from baserow.core.utils import exception_capturer
 from baserow_enterprise.assistant.action_memory import get_verified_tool_outcomes
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
@@ -77,6 +80,49 @@ _UNFINISHED_ANSWER = (
     "I couldn't finish my answer, but some changes may already have been made. "
     "Please check them, then tell me how to continue."
 )
+
+
+_TITLE_MAX_CHARS = 50
+_TITLE_PREFIX = re.compile(r"^[#*\"'\s]*(title[*\s]*:)?[*\"'\s]*", re.IGNORECASE)
+
+
+def _short_title(text: str) -> str:
+    """
+    Keep the first line of the title agent's output, without thinking blocks or
+    a "Title:" label, shortened at a word boundary.
+
+    :param text: The title agent's output.
+    :return: A title of at most ``_TITLE_MAX_CHARS`` characters.
+    """
+
+    lines = (
+        _TITLE_PREFIX.sub("", line).rstrip("#*\"' \t")
+        for line in _strip_think_tags(text).splitlines()
+    )
+    title = next((line for line in lines if line), "")
+    if len(title) <= _TITLE_MAX_CHARS:
+        return title
+    cut = title[: _TITLE_MAX_CHARS - 1].rsplit(" ", 1)[0].rstrip(" ,.;:-")
+    return f"{cut}…"
+
+
+_PROVIDER_RETRY_STATUS_CODES = (408, 409, 429)
+
+
+def _is_provider_outage(exc: Exception) -> bool:
+    """
+    Whether a failed run comes from the model provider rather than from
+    Baserow, so that reporting it would only add noise.
+
+    :param exc: The exception that ended the run.
+    :return: True for rate limits, timeouts, provider server errors, and
+        errors without a status code, which pydantic-ai raises for broken
+        connections and streams.
+    """
+
+    if isinstance(exc, ModelHTTPError):
+        return exc.status_code in _PROVIDER_RETRY_STATUS_CODES or exc.status_code >= 500
+    return isinstance(exc, ModelAPIError)
 
 
 @dataclass
@@ -518,6 +564,9 @@ class Assistant:
                     )
         except Exception as exc:
             logger.exception("Error running main agent")
+            if not _is_provider_outage(exc):
+                # Loguru logs don't reach Sentry.
+                exception_capturer(exc)
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
@@ -696,7 +745,9 @@ class Assistant:
             return None
         try:
             title = await self._generate_chat_title(human_message.content)
-            self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
+            self._chat.title = _short_title(title) or _short_title(
+                human_message.content
+            )
             await self._chat.asave(update_fields=["title", "updated_on"])
             return ChatTitleMessage(content=self._chat.title)
         except Exception:

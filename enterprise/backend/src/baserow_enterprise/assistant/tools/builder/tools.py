@@ -12,7 +12,6 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.exceptions import PermissionException
@@ -27,6 +26,7 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
 )
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
@@ -181,6 +181,7 @@ def create_pages(
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
+    helpers.ensure_distinct_paths([p for p in pages if p.name.lower() not in existing])
     created_pages: list[PageItem] = []
     skipped_pages: list[PageItem] = []
 
@@ -1769,4 +1770,4 @@ TOOL_FUNCTIONS = [
     setup_user_source,
     set_theme,
 ]
-builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+builder_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

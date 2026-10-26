@@ -9,11 +9,11 @@ from dataclasses import dataclass
 from typing import Any, Callable, Literal, Type
 
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 
 from pydantic import ConfigDict, Field, create_model
 from pydantic_ai import ModelRetry
 
+from baserow.contrib.database.fields.field_filters import FilterBuilder
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
 from baserow.contrib.database.fields.models import SelectOption as OrmSelectOption
 from baserow.contrib.database.table.models import (
@@ -21,6 +21,7 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.views.view_filters import NotEmptyViewFilterType
 from baserow_enterprise.assistant.types import BaseModel
 
 from .base import format_date, format_datetime, parse_date, parse_datetime
@@ -141,11 +142,24 @@ def _link_row_field_def(orm_field, orm_field_type):
         return FieldDefinition()
 
     linked_pk = linked_primary_key.db_column
-    examples = list(
-        linked_model.objects.exclude(
-            Q(**{f"{linked_pk}__isnull": True}) | Q(**{f"{linked_pk}__exact": ""})
-        ).values_list("id", linked_pk)[:10]
-    )
+    queryset = linked_model.objects.all()
+    # Skip rows without a primary value, as the "is not empty" filter does, for
+    # the field types that filter supports.
+    not_empty = NotEmptyViewFilterType()
+    if not_empty.field_is_compatible(linked_primary_key):
+        queryset = (
+            FilterBuilder()
+            .filter(
+                not_empty.get_filter(
+                    linked_pk,
+                    None,
+                    linked_model._meta.get_field(linked_pk),
+                    linked_primary_key,
+                )
+            )
+            .apply_to_queryset(queryset)
+        )
+    examples = list(queryset.values_list("id", linked_pk)[:10])
 
     def to_django_orm(value):
         if isinstance(value, (str, int)):
