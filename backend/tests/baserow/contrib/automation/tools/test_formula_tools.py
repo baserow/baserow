@@ -100,7 +100,10 @@ def test_service_values_leave_an_invalid_formula_empty():
     assert values.errors == ["Field 2 is not in table 7, so its value was not set."]
 
 
-@pytest.mark.parametrize("value", ["Order now (today only)", "if (you can)"])
+@pytest.mark.parametrize(
+    "value",
+    ["Order now (today only)", "if (you can)", "Call me (concat ('a', 'b'))"],
+)
 def test_text_with_a_word_before_a_parenthesis_is_a_literal(value):
     assert needs_formula(value) is False
 
@@ -154,6 +157,8 @@ def _outputs(node_id):
         "equal(get('previous_node.7.0.field_3.value'), 'High')",
         "get('previous_node.7.0.field_4.0.value')",
         "get('previous_node.7.0.field_4.*')",
+        "get('previous_node.7.0.Priority')",
+        "get('previous_node.7.0.Priority.value')",
     ],
 )
 def test_a_path_the_node_outputs_passes(formula):
@@ -170,7 +175,8 @@ def test_a_path_the_node_outputs_passes(formula):
             "previous_node.7.0.field_4 (Tags).",
         ),
         ("get('previous_node.7.field_3')", "is not an output of node 7"),
-        ("get('previous_node.7.0.Priority')", "is not an output of node 7"),
+        ("get('previous_node.7.0.Id')", "is not an output of node 7"),
+        ("get('previous_node.7.0.Priority.Value')", "is not an output of node 7"),
         ("get('previous_node.7.0.id.value')", "is not an output of node 7"),
         ("get('previous_node.7.0.field_4.value')", "is not an output of node 7"),
         (
@@ -199,3 +205,30 @@ def test_previous_node_in_text_is_not_a_node_path():
         "concat('Copied from previous_node.orders', get('previous_node.5.0.id'))"
     )
     check_automation_formula("subject", "concat('from previous_node.orders', 'x')")
+
+
+@pytest.mark.parametrize(
+    "value", ["concat ('Hello ', 'world')", "get ('previous_node.1.0.id')"]
+)
+def test_a_value_that_is_one_call_with_a_space_is_a_formula(value):
+    assert needs_formula(value) is True
+
+
+def test_formula_text_inside_a_string_literal_is_text():
+    quoted_path = """concat("get('previous_node.999999.0.id')", '!')"""
+    check_automation_formula("subject", quoted_path)
+    check_output_paths("subject", quoted_path, _outputs)
+    check_automation_formula("subject", "concat('Send $formula: as text', '!')")
+
+    formula = """concat("get('previous_node.o.0.id')", get('previous_node.o.0.id'))"""
+    assert resolve_node_refs(formula, {"o": 5}) == (
+        """concat("get('previous_node.o.0.id')", get('previous_node.5.0.id'))"""
+    )
+
+
+def test_a_quote_escaped_in_a_string_literal_doesnt_end_it():
+    formula = "concat('it\\'s get(\\'previous_node.x', get('previous_node.x.0.id'))"
+
+    assert resolve_node_refs(formula, {"x": 7}) == (
+        "concat('it\\'s get(\\'previous_node.x', get('previous_node.7.0.id'))"
+    )

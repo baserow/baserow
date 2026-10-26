@@ -31,22 +31,29 @@ EMPTY_FORMULA = "''"
 # Formula syntax written as a value: get('...'), concat(...), {{ ... }},
 # comparison functions, if(...), today(), now().
 # A function name must touch its parenthesis, so text such as "Order now (today
-# only)" stays a literal.
+# only)" stays a literal. A whole value that is one call, such as
+# "concat ('a', 'b')", is a formula even with a space before the parenthesis.
+_FUNCTION_NAMES = (
+    r"get|concat|equal|not_equal|greater_than|less_than"
+    r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal"
+)
 RAW_FORMULA_RE = re.compile(
     r"\bget\(|\bconcat\(|\{\{.*\}\}"
     r"|\b(?:equal|not_equal|greater_than|less_than"
     r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal)\("
     r"|\bif\(|\btoday\(|\bnow\("
+    rf"|^(?:{_FUNCTION_NAMES})\s+\(.*\)$",
+    re.DOTALL,
 )
 
-# The node part of the previous_node path a get() reads: get('previous_node.<node>…
-# Text such as concat('from previous_node.orders') is left alone.
-PREVIOUS_NODE_RE = re.compile(r"(\bget\(\s*['\"]previous_node\.)([^.'\"\s)]+)")
+# A string literal of a formula, quoted with ' or ", with backslash escapes.
+STRING_LITERAL_RE = re.compile(r"'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"")
 
-# A get() of a literal previous_node path: get('previous_node.12.0.field_3').
-GET_PREVIOUS_NODE_RE = re.compile(
-    r"\bget\(\s*(['\"])(previous_node\.\d+(?:\.[^'\"]*)?)\1\s*\)"
-)
+# A get( right before a string literal, the path it reads.
+GET_OPEN_RE = re.compile(r"\bget\(\s*$")
+
+# A previous_node path: previous_node.<node>.<rest>.
+PREVIOUS_NODE_PATH_RE = re.compile(r"previous_node\.([^.]+)(.*)", re.DOTALL)
 
 # The most output paths an error lists.
 MAX_LISTED_PATHS = 30
@@ -111,6 +118,35 @@ def wrap_static_string(value: str) -> str:
     return f"'{escaped}'"
 
 
+def _mask_strings(formula: str) -> str:
+    """The formula with the text of its string literals blanked, quotes kept."""
+
+    return STRING_LITERAL_RE.sub(
+        lambda m: m.group()[0] + " " * (len(m.group()) - 2) + m.group()[-1], formula
+    )
+
+
+def previous_node_paths(formula: str) -> list[tuple[int, int, str, str]]:
+    """
+    The previous_node paths the get() calls of a formula read, as the start and
+    end of the node part in the formula, the node part and the rest of the path.
+    Text in other string literals, such as concat('from previous_node.orders'), is
+    left alone.
+    """
+
+    masked = _mask_strings(formula)
+    paths = []
+    for literal in STRING_LITERAL_RE.finditer(formula):
+        if not GET_OPEN_RE.search(masked, 0, literal.start()):
+            continue
+        path = PREVIOUS_NODE_PATH_RE.fullmatch(literal.group()[1:-1])
+        if path is None:
+            continue
+        start = literal.start() + 1 + path.start(1)
+        paths.append((start, start + len(path.group(1)), path.group(1), path.group(2)))
+    return paths
+
+
 def resolve_node_refs(formula: str, refs: dict[str, int]) -> str:
     """
     Replace the refs of nodes made earlier in the call with their IDs in the
@@ -118,11 +154,10 @@ def resolve_node_refs(formula: str, refs: dict[str, int]) -> str:
     the trigger.
     """
 
-    def replace(match: re.Match) -> str:
-        node = match.group(2)
-        return match.group(1) + str(refs.get(node, node))
-
-    return PREVIOUS_NODE_RE.sub(replace, formula)
+    for start, end, node, _ in reversed(previous_node_paths(formula)):
+        if node in refs:
+            formula = formula[:start] + str(refs[node]) + formula[end:]
+    return formula
 
 
 def check_automation_formula(field: str, formula: str) -> None:
@@ -144,19 +179,19 @@ def check_automation_formula(field: str, formula: str) -> None:
     stripped = formula.strip()
     if not stripped:
         raise InvalidAutomationFormula(field, formula, f"'{field}' needs a formula.")
-    if FORMULA_PREFIX in stripped.lower():
+    if FORMULA_PREFIX in _mask_strings(stripped).lower():
         raise InvalidAutomationFormula(
             field,
             formula,
             f"'{field}' needs a formula, not a description. Write it in Baserow "
             "formula syntax.",
         )
-    for match in PREVIOUS_NODE_RE.finditer(formula):
-        if not match.group(2).isdigit():
+    for _, _, node, _ in previous_node_paths(formula):
+        if not node.isdigit():
             raise InvalidAutomationFormula(
                 field,
                 formula,
-                f"'{match.group(2)}' is not a node ID. Read a node's output with "
+                f"'{node}' is not a node ID. Read a node's output with "
                 "get('previous_node.<node id>...'): list_nodes gives the IDs, and "
                 "a node defined earlier in the same call can be named by its ref.",
             )
@@ -182,10 +217,26 @@ def _is_index(segment: str) -> bool:
     return segment.isdigit() or segment == "*"
 
 
-def _matches_properties(segments: list[str], properties: dict[str, Any]) -> bool:
+def _matches_properties(
+    segments: list[str], properties: dict[str, Any], by_title: bool = False
+) -> bool:
+    """
+    :param by_title: Whether the first segment may also name a row's field by
+        its name, which the row services read too.
+    """
+
     if not segments:
         return True
     prop = properties.get(segments[0])
+    if prop is None and by_title:
+        prop = next(
+            (
+                p
+                for key, p in properties.items()
+                if key.startswith("field_") and p.get("title") == segments[0]
+            ),
+            None,
+        )
     if prop is None:
         return False
     rest = segments[1:]
@@ -213,7 +264,7 @@ def _matches_output(segments: list[str], output: dict[str, Any]) -> bool:
         if not _is_index(segments[0]):
             return False
         segments = segments[1:]
-    return _matches_properties(segments, output["properties"])
+    return _matches_properties(segments, output["properties"], by_title=True)
 
 
 def _listed_paths(output: dict[str, Any]) -> str:
@@ -240,9 +291,11 @@ def check_output_paths(
     :raises InvalidAutomationFormula: Naming the paths the node outputs.
     """
 
-    for match in GET_PREVIOUS_NODE_RE.finditer(formula):
-        path = match.group(2)
-        _, node_id, *segments = path.split(".")
+    for _, _, node_id, rest in previous_node_paths(formula):
+        if not node_id.isdigit():
+            continue
+        path = f"previous_node.{node_id}{rest}"
+        segments = rest.split(".")[1:]
         output = outputs(int(node_id))
         if output is None:
             raise InvalidAutomationFormula(
