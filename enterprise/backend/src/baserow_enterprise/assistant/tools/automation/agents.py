@@ -266,6 +266,20 @@ def repair_formula_errors(
     return remaining
 
 
+def repaired_nodes(
+    formula_errors: list[dict[str, Any]], remaining: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The nodes a repair wrote a formula to: those with an error that is gone."""
+
+    left = {(error["node_id"], _request_key(error)) for error in remaining}
+    nodes = {
+        error["node_id"]: error["node_label"]
+        for error in formula_errors
+        if (error["node_id"], _request_key(error)) not in left
+    }
+    return [{"node_id": node_id, "label": label} for node_id, label in nodes.items()]
+
+
 def _refuses(message: str, error: dict[str, Any]) -> bool:
     """
     Whether an update refusal left the value of a formula error unset. A branch

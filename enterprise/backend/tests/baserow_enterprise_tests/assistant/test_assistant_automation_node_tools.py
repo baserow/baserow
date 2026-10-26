@@ -827,7 +827,7 @@ def test_inline_formula_marker_is_generated_not_stored_literally(
         lambda model_profile: generate,
     )
 
-    update_nodes(
+    result = update_nodes(
         ctx,
         workflow_id=workflow_id,
         nodes=[
@@ -839,6 +839,10 @@ def test_inline_formula_marker_is_generated_not_stored_literally(
         thought="update subject",
     )
 
+    # Only the repair wrote the subject, and the node is still reported.
+    assert result["updated_nodes"] == [
+        {"node_id": nodes[1]["id"], "label": "Send Email"}
+    ]
     assert set(requested) == {"subject"}
     assert "New deal: $formula: the deal name from the trigger" in requested["subject"]
     service = AutomationNode.objects.get(id=nodes[1]["id"]).specific.service.specific

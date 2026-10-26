@@ -883,6 +883,16 @@ def _branch_taken(router, trigger, row) -> str | None:
     )
 
 
+def _follows(node, previous) -> bool:
+    """Whether the saved workflow runs ``node`` right after ``previous``."""
+
+    with local_cache.context():
+        previous = AutomationNode.objects.filter(id=previous.id).first()
+        return previous is not None and any(
+            point.id == node.id for point in previous.get_next_points()
+        )
+
+
 # ---------------------------------------------------------------------------
 # Edits an email subject (list_nodes + update_nodes, formula from the trigger)
 # ---------------------------------------------------------------------------
@@ -911,6 +921,10 @@ def _check_edits_email_subject(
     return [
         CheckResult("called update_nodes", bool(tool_called(output, "update_nodes"))),
         CheckResult("the email node is kept", service is not None),
+        CheckResult(
+            "the email still runs after the trigger",
+            _follows(refs["email"], refs["trigger"]),
+        ),
         CheckResult(
             "saved subject follows the trigger's Customer",
             subjects == ["New order from Ada Lovelace", "New order from Grace Hopper"],
@@ -1101,6 +1115,10 @@ def _check_deletes_node(
         CheckResult(
             "the trigger and the email are kept",
             {refs["trigger"].id, refs["email"].id} <= remaining,
+        ),
+        CheckResult(
+            "the email still runs after the trigger",
+            _follows(refs["email"], refs["trigger"]),
         ),
     ]
 

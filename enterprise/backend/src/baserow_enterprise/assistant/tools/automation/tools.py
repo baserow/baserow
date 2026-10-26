@@ -277,9 +277,16 @@ def update_nodes(
     tool_context = ctx.deps.tool_context()
     result = _shared_call(shared_nodes.update_nodes, tool_context, workflow_id, nodes)
     # The updates are committed now, so the formula generator runs outside them.
+    to_repair = result.pop("formula_errors", [])
     formula_errors = agents.repair_formula_errors(
-        tool_context, ctx.deps.tool_helpers, result.pop("formula_errors", [])
+        tool_context, ctx.deps.tool_helpers, to_repair
     )
+    updated_ids = {node["node_id"] for node in result["updated_nodes"]}
+    result["updated_nodes"] += [
+        node
+        for node in agents.repaired_nodes(to_repair, formula_errors)
+        if node["node_id"] not in updated_ids
+    ]
     if formula_errors:
         result["formula_errors"] = formula_errors
     return result
