@@ -55,10 +55,14 @@ from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.data_sources.operations import (
+    ListDataSourcesPageOperationType,
+)
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.service import DomainService
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
+from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
@@ -67,6 +71,9 @@ from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.service import BuilderService
+from baserow.contrib.builder.workflow_actions.operations import (
+    ListBuilderWorkflowActionsPageOperationType,
+)
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
@@ -75,6 +82,7 @@ from baserow.contrib.builder.workflow_actions.service import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -239,6 +247,14 @@ class PublicElementsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
+            # Authorize every request, including requests served from the cache.
+            page = PageHandler().get_page(page_id)
+            CoreHandler().check_permissions(
+                request.user_source_user,
+                ListElementsPageOperationType.type,
+                workspace=page.builder.workspace,
+                context=page,
+            )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "elements"
@@ -317,6 +333,14 @@ class PublicDataSourcesView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
+            # Authorize every request, including requests served from the cache.
+            page = PageHandler().get_page(page_id)
+            CoreHandler().check_permissions(
+                request.user_source_user,
+                ListDataSourcesPageOperationType.type,
+                workspace=page.builder.workspace,
+                context=page,
+            )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "data_sources"
@@ -413,6 +437,14 @@ class PublicBuilderWorkflowActionsView(APIView):
         """
 
         if PageHandler().is_published_page(page_id):
+            # Authorize every request, including requests served from the cache.
+            page = PageHandler().get_page(page_id)
+            CoreHandler().check_permissions(
+                request.user_source_user,
+                ListBuilderWorkflowActionsPageOperationType.type,
+                workspace=page.builder.workspace,
+                context=page,
+            )
             data = global_cache.get(
                 PageHandler.get_page_public_records_cache_key(
                     page_id, request.user_source_user, "workflow_actions"
