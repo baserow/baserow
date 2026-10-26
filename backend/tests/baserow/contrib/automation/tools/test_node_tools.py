@@ -7,7 +7,10 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 import pytest
 
-from baserow.contrib.automation.nodes.actions import UpdateAutomationNodeActionType
+from baserow.contrib.automation.nodes.actions import (
+    DeleteAutomationNodeActionType,
+    UpdateAutomationNodeActionType,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.nodes import (
     add_nodes,
@@ -17,6 +20,7 @@ from baserow.contrib.automation.tools.nodes import (
 )
 from baserow.contrib.automation.tools.types import ActionNodeCreate, NodeUpdate
 from baserow.core.action.models import Action
+from baserow.core.cache import local_cache
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 
 from .conftest import create_node, create_workflow
@@ -331,6 +335,66 @@ def test_delete_nodes_hides_whether_a_node_exists(data_fixture, automation_ctx):
         for node_id in ids
     ]
     assert AutomationNode.objects.filter(id__in=ids[:2]).count() == 2
+
+
+@pytest.mark.django_db
+def test_delete_nodes_keeps_a_node_whose_deletion_failed_in_the_graph(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    first = _email_node(ctx, workflow, trigger, "First")
+    second = _email_node(ctx, workflow, first, "Second")
+    register_action = DeleteAutomationNodeActionType.register_action
+    calls = []
+
+    def fail_first(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("lock timeout")
+        return register_action(*args, **kwargs)
+
+    with (
+        local_cache.context(),
+        patch.object(DeleteAutomationNodeActionType, "register_action", fail_first),
+    ):
+        result = delete_nodes(ctx, [first.id, second.id])
+
+    assert result["deleted_node_ids"] == [second.id]
+    with local_cache.context():
+        trigger = AutomationNode.objects.get(id=trigger.id)
+        assert [node.id for node in trigger.get_next_points()] == [first.id]
+
+
+@pytest.mark.django_db
+def test_update_nodes_rejects_a_node_given_twice(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    mail = _email_node(ctx, workflow, trigger, "Mail")
+
+    with pytest.raises(DjangoValidationError, match=f"Node {mail.id} is given more"):
+        update_nodes(
+            ctx,
+            workflow.id,
+            [
+                NodeUpdate(node_id=mail.id, subject="concat("),
+                NodeUpdate(node_id=mail.id, subject="After"),
+            ],
+        )
+
+    assert mail.service.specific.subject["formula"] == "'Before'"
+
+
+@pytest.mark.django_db
+def test_add_nodes_reports_nothing_for_an_html_email(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    result = add_nodes(
+        ctx, workflow.id, [_email(previous=str(trigger.id), body_type="html")]
+    )
+
+    assert "errors" not in result
+    node = AutomationNode.objects.get(id=result["created_nodes"][0]["id"])
+    assert node.service.specific.body_type == "html"
 
 
 @pytest.mark.django_db

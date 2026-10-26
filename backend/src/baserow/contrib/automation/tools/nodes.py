@@ -39,6 +39,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.mcp.exceptions import (
@@ -548,6 +549,18 @@ def _lock_nodes(workflow: AutomationWorkflow, node_ids: list[int]) -> None:
     )
 
 
+def _reload_graph(workflow: AutomationWorkflow) -> None:
+    """
+    Read a workflow's graph again after a savepoint rolled back. The request's
+    cached graph still holds the changes the savepoint undid, and the next node
+    change would save them.
+    """
+
+    local_cache.delete(f"cached_graph_{workflow._meta.label}_{workflow.id}")
+    AutomationNodeHandler().invalidate_node_cache(workflow)
+    workflow.refresh_from_db(fields=["graph"])
+
+
 def update_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -563,7 +576,8 @@ def update_nodes(
     """
     Update nodes of a workflow: their label and settings, a row action's table
     and field values, and the conditions of a router's branches. A node's type and
-    a trigger's settings cannot change. Values not given keep theirs. Formulas
+    a trigger's settings cannot change. Give each node once, with all its changes.
+    Values not given keep theirs. Formulas
     work as in add_nodes, except that a value with an invalid formula keeps what
     it had; the formula is returned in formula_errors. A node that fails is
     reported in errors and the others are still updated; updated_nodes lists the
@@ -572,6 +586,14 @@ def update_nodes(
 
     if not nodes:
         raise DjangoValidationError("nodes must hold at least one node update.")
+    node_ids = [node_update.node_id for node_update in nodes]
+    repeated = sorted({node_id for node_id in node_ids if node_ids.count(node_id) > 1})
+    if repeated:
+        # A formula error of the first update would be repaired after the second.
+        raise DjangoValidationError(
+            f"Node {', '.join(map(str, repeated))} is given more than once. Give "
+            "each node one update with all its changes."
+        )
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
     updated = []
@@ -580,7 +602,7 @@ def update_nodes(
     field_ids = table_field_ids()
 
     with transaction.atomic():
-        _lock_nodes(workflow, [node_update.node_id for node_update in nodes])
+        _lock_nodes(workflow, node_ids)
         for node_update in nodes:
             ctx.update_status(
                 _("Updating node %(node_id)s...") % {"node_id": node_update.node_id}
@@ -594,6 +616,7 @@ def update_nodes(
             except PermissionException:
                 raise
             except Exception as exc:
+                _reload_graph(workflow)
                 errors.append(
                     f"Error updating node {node_update.node_id}: "
                     f"{item_error_message(exc)}"
@@ -639,11 +662,15 @@ def delete_nodes(
                 # Not found whether the node is missing, elsewhere or hidden, so
                 # the result doesn't tell which.
                 try:
-                    get_node_in_workspace(ctx, node_id)
+                    node = get_node_in_workspace(ctx, node_id)
                 except PermissionException:
                     raise AutomationNodeDoesNotExist(node_id)
-                with transaction.atomic():
-                    DeleteAutomationNodeActionType.do(ctx.user, node_id)
+                try:
+                    with transaction.atomic():
+                        DeleteAutomationNodeActionType.do(ctx.user, node_id)
+                except Exception:
+                    _reload_graph(node.workflow)
+                    raise
             except PermissionException:
                 errors.append(
                     f"Permission denied for node {node_id}; it was not deleted."

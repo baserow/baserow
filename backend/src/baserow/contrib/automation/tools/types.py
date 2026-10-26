@@ -594,7 +594,7 @@ class ActionNodeCreate(BaseModel):
         takes no part of are reported in ``values.errors``.
         """
 
-        _report_unused(self, self.type, _CREATE_FIELDS.get(self.type, set()), values)
+        _report_unused(self, self.type, _NODE_FIELDS.get(self.type, set()), values)
         return _TO_ORM_SERVICE[self.type](self, values)
 
 
@@ -727,9 +727,7 @@ class NodeUpdate(BaseModel):
 
         dispatch_type = service_dispatch_type(node.service)
         node_type = CANONICAL_TO_SHORT_TYPE.get(node.get_type().type, dispatch_type)
-        _report_unused(
-            self, node_type, _UPDATE_FIELDS.get(dispatch_type, set()), values
-        )
+        _report_unused(self, node_type, _NODE_FIELDS.get(dispatch_type, set()), values)
         builder = _TO_UPDATE_SERVICE.get(dispatch_type)
         if builder is None:
             return None
@@ -857,18 +855,21 @@ def _ai_agent_update_service(
 
 
 # The node values each type takes, beyond the ones every node has.
-_CREATE_FIELDS: dict[str, set[str]] = {
+_NODE_FIELDS: dict[str, set[str]] = {
     "router": {"edges"},
-    "smtp_email": {"to_emails", "cc_emails", "bcc_emails", "subject", "body"},
+    "smtp_email": {
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body",
+        "body_type",
+    },
     "slack_write_message": {"channel", "text"},
     "create_row": {"table_id", "row_id", "values"},
     "update_row": {"table_id", "row_id", "values"},
     "delete_row": {"table_id", "row_id", "values"},
     "ai_agent": {"prompt", "output_type", "choices"},
-}
-_UPDATE_FIELDS: dict[str, set[str]] = {
-    **_CREATE_FIELDS,
-    "smtp_email": _CREATE_FIELDS["smtp_email"] | {"body_type"},
 }
 # The values every node takes.
 _COMMON_FIELDS = {
