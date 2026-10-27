@@ -2272,6 +2272,19 @@ export class IsEvenAndWholeViewFilterType extends ViewFilterType {
   }
 }
 
+/**
+ * Parses an id filter value with the same rule as the backend
+ * `parse_int_filter_value`. Returns `null` for an empty value and `NaN` for a
+ * value that is not an integer, which never equals a row id.
+ */
+const parseIdFilterValue = (value) => {
+  const trimmed = String(value ?? '').trim()
+  if (trimmed === '') {
+    return null
+  }
+  return isInteger(trimmed) ? parseInt(trimmed) : NaN
+}
+
 export class SingleSelectEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'single_select_equal'
@@ -2298,11 +2311,12 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (filterValue === '') {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return null
     }
 
-    return rowValue != null && rowValue.id === parseInt(filterValue)
+    return rowValue != null && rowValue.id === filterValueId
   }
 }
 
@@ -2332,11 +2346,12 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (filterValue === '') {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return null
     }
 
-    return rowValue == null || rowValue.id !== parseInt(filterValue)
+    return rowValue == null || rowValue.id !== filterValueId
   }
 }
 
@@ -2535,7 +2550,8 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return true
     }
 
@@ -2543,7 +2559,6 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
       return false
     }
 
-    const filterValueId = parseInt(filterValue)
     return rowValue.some((user) => user.id === filterValueId)
   }
 }
@@ -2574,7 +2589,8 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return true
     }
 
@@ -2582,7 +2598,6 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
       return true
     }
 
-    const filterValueId = parseInt(filterValue)
     return !rowValue.some((user) => user.id === filterValueId)
   }
 }
@@ -2614,11 +2629,11 @@ export class UserIsFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return true
     }
 
-    const filterValueId = parseInt(filterValue)
     return rowValue?.id === filterValueId
   }
 }
@@ -2650,11 +2665,11 @@ export class UserIsNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return true
     }
 
-    const filterValueId = parseInt(filterValue)
     return rowValue?.id !== filterValueId
   }
 }
@@ -2721,7 +2736,8 @@ export class LinkRowHasFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const value = String(filterValue ?? '').trim()
+    if (value === '') {
       return true
     }
 
@@ -2729,8 +2745,14 @@ export class LinkRowHasFilterType extends ViewFilterType {
       return false
     }
 
-    const filterValueId = parseInt(filterValue)
-    return rowValue.some((relation) => relation.id === filterValueId)
+    // Like the backend, accepts a comma separated list of ids and ignores the
+    // tokens that are not ids.
+    const filterValueIds = value
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => /^\d+$/.test(v))
+      .map((v) => parseInt(v))
+    return rowValue.some((relation) => filterValueIds.includes(relation.id))
   }
 }
 
@@ -2757,7 +2779,8 @@ export class LinkRowHasNotFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (!isInteger(filterValue)) {
+    const filterValueId = parseIdFilterValue(filterValue)
+    if (filterValueId === null) {
       return true
     }
 
@@ -2765,7 +2788,6 @@ export class LinkRowHasNotFilterType extends ViewFilterType {
       return true
     }
 
-    const filterValueId = parseInt(filterValue)
     return !rowValue.some((relation) => relation.id === filterValueId)
   }
 }
