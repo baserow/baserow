@@ -23,13 +23,12 @@
       @selected="memberSelected"
     >
       <template #left-side="{ item }">
-        <Avatar
-          class="margin-left-1"
-          rounded
+        <component
+          :is="getSubjectAvatarComponent(item)"
+          :subject="item"
           size="medium"
-          :color="getSubjectAvatarColor(item)"
-          :initials="$filters.nameAbbreviation(item.name)"
-        ></Avatar>
+          class="margin-left-1"
+        />
 
         <span class="margin-left-1">
           {{ item.name }}
@@ -115,8 +114,8 @@ export default {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {
-    getSubjectAvatarColor(subject) {
-      return this.$registry.get('subject', subject.subject_type).avatarColor
+    getSubjectAvatarComponent(subject) {
+      return this.$registry.get('subject', subject.subject_type).avatarComponent
     },
     toggleSelectAll() {
       // If all filtered members are selected...

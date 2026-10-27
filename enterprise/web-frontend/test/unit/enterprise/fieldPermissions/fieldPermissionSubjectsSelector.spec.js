@@ -118,7 +118,7 @@ describe('FieldPermissionSubjectsSelector', () => {
     expect(options[0].text()).toContain('Alan Turing')
     expect(options[0].text()).not.toContain('alan@example.com')
     expect(options[0].find('.avatar-stub').text()).toBe('AT')
-    expect(options[1].find('.iconoir-community').exists()).toBe(true)
+    expect(options[1].find('.baserow-icon-team').exists()).toBe(true)
 
     expect(wrapper.find('.remove-subject .iconoir-cancel').exists()).toBe(true)
     expect(wrapper.find('.remove-subject .iconoir-bin').exists()).toBe(false)

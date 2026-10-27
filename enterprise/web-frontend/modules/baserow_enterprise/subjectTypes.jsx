@@ -1,4 +1,5 @@
-import { SubjectType } from '@baserow/modules/core/subjectTypes'
+import Avatar from '@baserow/modules/core/components/Avatar'
+import { SubjectType } from '@baserow/modules/core/subjectTypes.jsx'
 import TeamService from '@baserow_enterprise/services/team'
 
 export class TeamSubjectType extends SubjectType {
@@ -10,12 +11,14 @@ export class TeamSubjectType extends SubjectType {
     return 20
   }
 
-  get avatarColor() {
-    return 'neutral'
+  get avatarComponent() {
+    return (this._avatarComponent ??= ({ size }) => (
+      <Avatar icon="baserow-icon-team" color="yellow" size={size} />
+    ))
   }
 
   get iconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   get holdsRolesDirectly() {

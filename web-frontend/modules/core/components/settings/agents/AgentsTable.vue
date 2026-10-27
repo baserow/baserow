@@ -127,7 +127,10 @@ export default {
           true,
           true,
           false,
-          { icon: 'baserow-icon-agent', color: 'purple' }
+          {
+            avatarComponent: this.$registry.get('subject', 'core.Agent')
+              .avatarComponent,
+          }
         ),
         new CrudTableColumn(
           'last_active',

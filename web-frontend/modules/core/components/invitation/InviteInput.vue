@@ -15,8 +15,15 @@
           :class="{ 'invite-input__chip--error': chipError(item) !== null }"
           @mousedown.prevent
         >
-          <i class="invite-input__chip-icon" :class="item.icon"></i>
-          {{ item.name }}
+          <component
+            :is="item.avatarComponent"
+            v-if="item.avatarComponent"
+            :subject="item.subject"
+            size="small"
+            aria-hidden="true"
+          />
+          <i v-else class="invite-input__chip-icon" :class="item.icon"></i>
+          <span class="invite-input__chip-label">{{ item.name }}</span>
           <a class="invite-input__chip-remove" @click.stop="remove(item)">
             <i class="iconoir-cancel"></i>
           </a>
@@ -134,7 +141,14 @@
           :class="{ 'invite-input__item--disabled': option.disabledReason }"
           @click="toggle(option)"
         >
+          <component
+            :is="option.avatarComponent"
+            v-if="option.avatarComponent"
+            :subject="option.subject"
+            size="large"
+          />
           <Avatar
+            v-else
             :initials="option.initials"
             :icon="option.initials ? '' : option.icon"
             :color="option.color"
@@ -201,7 +215,7 @@ export function extractEmails(text) {
  * the parent calls `remove()` or `reset()` once they were added.
  *
  * An option is an object of `{ key, type, id, name, subtitle, search,
- * initials, icon, color }` with an optional `email` for someone who can be
+ * avatarComponent, subject }` with an optional `email` for someone who can be
  * found by their address. One that can't be picked, because it already has a
  * role, an invitation or whatever else, carries the reason in
  * `disabledReason` and a short version of it, like "Editor here", in

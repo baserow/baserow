@@ -325,9 +325,8 @@ export default {
             subtitle: subjectType.getSubtitle(subject),
             badge: subjectType.getBadge(),
             badgeColor: 'neutral',
-            initials: subjectType.getInitials(subject),
-            icon: subjectType.iconClass,
-            color: subjectType.avatarColor,
+            avatarComponent: subjectType.avatarComponent,
+            subject,
             roleUid: adminLevel ? 'ADMIN' : roleAssignment.role,
             roles: adminLevel
               ? [this.adminRole].filter(Boolean)

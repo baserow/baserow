@@ -197,7 +197,7 @@ export class UserSourcesBuilderSettingsType extends BuilderSettingType {
   }
 
   get icon() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getOrder() {

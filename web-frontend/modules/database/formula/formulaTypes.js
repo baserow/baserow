@@ -1100,7 +1100,7 @@ export class BaserowFormulaMultipleCollaboratorsType extends mix(
   }
 
   getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getFilterInputComponent(field, filterType) {
