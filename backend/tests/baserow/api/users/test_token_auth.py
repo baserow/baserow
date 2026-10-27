@@ -894,9 +894,9 @@ def test_token_refresh_keeps_the_refresh_token_claims(api_client, data_fixture):
 @override_settings(ROTATE_REFRESH_TOKENS=False)
 def test_token_refresh_without_rotation(api_client, data_fixture):
     user = data_fixture.create_user()
-    refresh_token = str(RefreshToken.for_user(user))
 
     with freeze_time("2026-10-27 09:00:00"):
+        refresh_token = str(RefreshToken.for_user(user))
         response = _refresh(api_client, refresh_token)
         assert response.status_code == HTTP_200_OK
         assert "refresh_token" not in response.json()
