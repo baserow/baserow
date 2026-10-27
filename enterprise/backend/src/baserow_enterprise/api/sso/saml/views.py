@@ -22,7 +22,11 @@ from baserow.api.decorators import (
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.schemas import get_error_schema
 from baserow.core.auth_provider.exceptions import DifferentAuthProvider
-from baserow.core.exceptions import WorkspaceInvitationEmailMismatch
+from baserow.core.exceptions import (
+    FeatureDisabledException,
+    WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkDoesNotExist,
+)
 from baserow.core.user.exceptions import DeactivatedUserException, DisabledSignupError
 from baserow_enterprise.api.sso.saml.errors import ERROR_SAML_INVALID_LOGIN_REQUEST
 from baserow_enterprise.api.sso.saml.serializers import SAMLResponseSerializer
@@ -74,6 +78,8 @@ class AssertionConsumerServiceView(APIView):
             DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
             RequestBodyValidationException: SsoErrorCode.INVALID_SAML_RESPONSE,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkDoesNotExist: SsoErrorCode.INVITATION_LINK_INVALID,
+            FeatureDisabledException: SsoErrorCode.INVITATION_LINK_INVALID,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }
     )
@@ -117,6 +123,13 @@ class BaserowInitiatedSingleSignOn(APIView):
                     "If provided and valid, the user accepts the workspace invitation "
                     "and will have access to the workspace after login or signing up."
                 ),
+            ),
+            OpenApiParameter(
+                name="workspace_invitation_link_slug",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The slug of the workspace invitation link that a user "
+                "who signs up joins.",
             ),
             OpenApiParameter(
                 name="language",
@@ -188,6 +201,13 @@ class AdminAuthProvidersLoginUrlView(APIView):
                     "If provided and valid, the user accepts the workspace invitation "
                     "and will have access to the workspace after login or signing up."
                 ),
+            ),
+            OpenApiParameter(
+                name="workspace_invitation_link_slug",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The slug of the workspace invitation link that a user "
+                "who signs up joins.",
             ),
             OpenApiParameter(
                 name="language",

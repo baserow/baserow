@@ -157,7 +157,8 @@ export const routes = [
   },
   {
     name: 'invitation-link',
-    path: '/invite/:slug',
+    // Only the characters a link code can have, the same as the backend URL.
+    path: '/invite/:slug([-\\w]+)',
     file: path.resolve(__dirname, 'pages/invitationLink.vue'),
     meta: { preventPageViewTracking: true },
   },

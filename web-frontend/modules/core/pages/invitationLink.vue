@@ -126,6 +126,17 @@ if (fetchError.value) {
       : { name: 'login', query: { original: route.fullPath } },
     { replace: true }
   )
+} else if (invitationLink.value) {
+  // Members, like someone who just signed up through the link with single
+  // sign-on, have nothing to confirm and land in the workspace.
+  await store.dispatch('workspace/loadAll')
+  const workspaceId = invitationLink.value.workspace_id
+  if (store.getters['workspace/get'](workspaceId)) {
+    await navigateTo(
+      { name: 'workspace', params: { workspaceId } },
+      { replace: true }
+    )
+  }
 }
 
 /**

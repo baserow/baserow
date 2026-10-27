@@ -45,10 +45,11 @@ def test_create_workspace_invitation_link(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("length", [20, 50])
 def test_create_workspace_invitation_link_uses_configured_length(
-    data_fixture, settings
+    data_fixture, settings, length
 ):
-    settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH = 20
+    settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH = length
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
 
@@ -56,7 +57,7 @@ def test_create_workspace_invitation_link_uses_configured_length(
         admin, workspace, "MEMBER"
     )
 
-    assert re.fullmatch(r"[A-Za-z0-9]{20}", invitation_link.slug)
+    assert re.fullmatch(rf"[A-Za-z0-9]{{{length}}}", invitation_link.slug)
 
 
 @pytest.mark.django_db
@@ -181,6 +182,27 @@ def test_get_workspace_invitation_link_by_slug(data_fixture, settings):
     settings.FEATURE_FLAGS = []
     with pytest.raises(FeatureDisabledException):
         CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
+
+
+@pytest.mark.django_db
+def test_get_workspace_invitation_link_by_slug_while_signups_are_disabled(
+    data_fixture,
+):
+    invitation_link = data_fixture.create_workspace_invitation_link()
+
+    data_fixture.update_settings(
+        allow_new_signups=False, allow_signups_via_workspace_invitations=False
+    )
+    with pytest.raises(WorkspaceInvitationLinkDoesNotExist):
+        CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
+    assert WorkspaceInvitationLink.objects.filter(id=invitation_link.id).exists()
+
+    # The link works again as soon as people can sign up through it.
+    data_fixture.update_settings(allow_signups_via_workspace_invitations=True)
+    assert (
+        CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug).id
+        == invitation_link.id
+    )
 
 
 @pytest.mark.django_db

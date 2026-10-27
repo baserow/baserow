@@ -68,9 +68,10 @@ def test_agent_workspace_reply_limit_is_optional(configured: str | None, expecte
 
 
 @pytest.mark.parametrize(
-    "configured_length,expected_length", [("", "12"), ("3", "7"), ("20", "20")]
+    "configured_length,expected_length",
+    [("", "12"), ("3", "7"), ("20", "20"), ("50", "50"), ("60", "50")],
 )
-def test_workspace_invitation_link_length_defaults_to_12_with_a_minimum_of_7(
+def test_workspace_invitation_link_length_defaults_to_12_between_7_and_50(
     configured_length: str, expected_length: str
 ):
     env = {
