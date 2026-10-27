@@ -22,11 +22,14 @@ def no_model_calls(monkeypatch):
 
 @pytest.fixture
 def dashboard_ctx(data_fixture):
-    """A user's workspace with a dashboard."""
+    """A user's workspace with a dashboard and its Baserow integration."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     dashboard = data_fixture.create_dashboard_application(
         workspace=workspace, name="Sales"
+    )
+    data_fixture.create_local_baserow_integration(
+        application=dashboard, authorized_user=user
     )
     return ToolContext(user=user, workspace=workspace), dashboard
