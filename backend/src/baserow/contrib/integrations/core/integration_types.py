@@ -54,7 +54,7 @@ class SMTPIntegrationType(IntegrationType):
     }
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self, values: Dict[str, Any], user: AbstractUser, instance=None
     ) -> Dict[str, Any]:
         """
         STARTTLS and implicit SSL/TLS are two ways of encrypting the same
@@ -72,7 +72,7 @@ class SMTPIntegrationType(IntegrationType):
         elif values.get("use_tls"):
             values["use_ssl"] = False
 
-        return super().prepare_values(values, user)
+        return super().prepare_values(values, user, instance=instance)
 
     def deserialize_property(
         self,

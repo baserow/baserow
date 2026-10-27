@@ -41,13 +41,13 @@ class LocalBaserowIntegrationType(IntegrationType):
     request_serializer_field_overrides = {}
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self, values: Dict[str, Any], user: AbstractUser, instance=None
     ) -> Dict[str, Any]:
         """Add the logged in user by default"""
 
         values["authorized_user"] = user
 
-        return super().prepare_values(values, user)
+        return super().prepare_values(values, user, instance=instance)
 
     def serialize_property(
         self,
