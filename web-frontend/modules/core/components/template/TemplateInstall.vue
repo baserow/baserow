@@ -87,7 +87,6 @@ import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
-import { injectWorkspaceSidebarVisible } from '@baserow/modules/core/composables/useWorkspaceSidebar'
 import TemplateService from '@baserow/modules/core/services/template'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 
@@ -118,13 +117,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['installed'])
+// `outdated` tells that the template was updated since it was shown, and must
+// be loaded again.
+const emit = defineEmits(['installed', 'outdated'])
 
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
 const { $client, $hasPermission } = useNuxtApp()
-const workspaceSidebarVisible = injectWorkspaceSidebarVisible()
 
 const moreButton = ref(null)
 const contextRef = ref(null)
@@ -216,25 +216,24 @@ async function use() {
     const { data } = await TemplateService($client).asyncInstall(
       workspaceId,
       props.template.id,
-      { latest: props.latest }
+      { latest: props.latest, revisionId: props.template.revision_id ?? null }
     )
-    // The user stays where they are. The progress shows in the sidebar if it
-    // lists the workspace that receives the template, so not when it's collapsed
-    // or on a page without a workspace, otherwise in a toast. Added before the
-    // job, whose end updates the toast.
-    const sidebarShowsProgress =
-      workspaceSidebarVisible.value &&
-      workspaceId === store.getters['workspace/getSelected']?.id
-    if (!sidebarShowsProgress) {
-      await store.dispatch('toast/add', {
-        type: 'installTemplate',
-        data: { jobId: data.id, template_name: props.template.name },
-      })
-    }
+    // The user stays where they are. The toast shows the progress, unless the
+    // sidebar shows it, and then the result. Added before the job, whose end
+    // updates the toast.
+    await store.dispatch('toast/add', {
+      type: 'installTemplate',
+      data: { jobId: data.id, template_name: props.template.name, workspaceId },
+    })
     await store.dispatch('job/create', data)
     emit('installed')
   } catch (error) {
     notifyIf(error, 'template')
+    // Another revision was made public, or the owner updated the template in
+    // another tab, since it was shown. Nothing was installed.
+    if (error.handler.code === 'ERROR_TEMPLATE_UPDATED') {
+      emit('outdated')
+    }
   } finally {
     installing.value = false
   }

@@ -258,7 +258,8 @@ const templates = ref([])
 const count = ref(0)
 const loading = ref(false)
 const loaded = ref(false)
-// Whether the templates couldn't be loaded, while none are shown yet.
+// Whether the templates couldn't be loaded, while none are shown yet, or a
+// refresh failed, see `refresh`.
 const failed = ref(false)
 // The search the shown templates were loaded with.
 const loadedSearch = ref('')
@@ -288,7 +289,15 @@ const createDisabledReason = computed(() => {
   return hasContent ? null : $i18n.t('userTemplateList.noContent')
 })
 
-async function fetchPage(offset, requestSearch = search.value) {
+/**
+ * @param {boolean} required Whether the shown templates can't be kept when the
+ *   page can't be loaded, see `refresh`.
+ */
+async function fetchPage(
+  offset,
+  requestSearch = search.value,
+  required = false
+) {
   const request = ++lastRequest
   loading.value = true
   try {
@@ -309,7 +318,7 @@ async function fetchPage(offset, requestSearch = search.value) {
   } catch (error) {
     if (request === lastRequest) {
       notifyIf(error, 'templates')
-      failed.value = failed.value || !loaded.value
+      failed.value = failed.value || !loaded.value || required
     }
   } finally {
     if (request === lastRequest) {
@@ -324,10 +333,12 @@ function fetchNextPage() {
 }
 
 /**
- * Loads the first page again, for example after a template was created.
+ * Loads the first page again, for example after a template was created. When it
+ * fails, the shown templates might be out of sync with the server, for example
+ * missing one after a deletion, so the error is shown and the user can retry.
  */
 function refresh() {
-  return fetchPage(0)
+  return fetchPage(0, search.value, true)
 }
 
 /**

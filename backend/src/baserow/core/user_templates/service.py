@@ -53,7 +53,7 @@ class UserTemplateService:
         name: str,
         progress_builder: Optional[ChildProgressBuilder] = None,
         track_content: Optional[Callable[..., None]] = None,
-    ) -> Tuple[Workspace, str]:
+    ) -> Workspace:
         """
         Copies applications of the workspace into the content of a new user
         template. See `UserTemplateHandler.copy_applications` for further details.
@@ -67,7 +67,7 @@ class UserTemplateService:
         :param track_content: Called with the content created so far.
         :raises NoApplicationsSelected: If no application is selected.
         :raises PermissionDenied: If the user can't copy the applications.
-        :return: The workspace holding the copy and the name of the stored archive.
+        :return: The workspace holding the copy.
         """
 
         applications = self.get_exportable_applications(

@@ -507,7 +507,9 @@
     "templateBlockedTitle": "Template is blocked",
     "templateBlockedDescription": "The template is blocked and can't be installed.",
     "templateHasNoContentTitle": "Template has no content",
-    "templateHasNoContentDescription": "The template has no content."
+    "templateHasNoContentDescription": "The template has no content.",
+    "templateUpdatedTitle": "This template was updated",
+    "templateUpdatedDescription": "The template changed since you opened it. The latest version is shown now; install it again."
   },
   "importerType": {
     "csv": "Import a CSV file",

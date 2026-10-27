@@ -18,6 +18,7 @@ class ListTemplatesQueryParamSerializer(serializers.Serializer):
 
 class InstallTemplateQueryParamSerializer(serializers.Serializer):
     latest = serializers.BooleanField(required=False, default=False)
+    revision_id = serializers.IntegerField(required=False)
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -27,6 +28,12 @@ class TemplateSerializer(serializers.ModelSerializer):
     """
 
     id = serializers.IntegerField(source="family_id", read_only=True)
+    revision_id = serializers.IntegerField(
+        source="id",
+        read_only=True,
+        help_text="The id of the serialized revision. Sent with an install, so that "
+        "the template isn't installed if it was updated since.",
+    )
     type = serializers.SerializerMethodField(
         help_text="Whether it's an official or a user template."
     )
@@ -42,6 +49,7 @@ class TemplateSerializer(serializers.ModelSerializer):
         model = Template
         fields = (
             "id",
+            "revision_id",
             "type",
             "name",
             "slug",

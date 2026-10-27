@@ -1,9 +1,8 @@
 import dataclasses
 import secrets
 import string
-from contextlib import contextmanager
 from datetime import timedelta
-from typing import Callable, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,7 +19,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from baserow.core.exceptions import TemplateDoesNotExist
-from baserow.core.import_export.handler import ImportExportHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.jobs.cache import job_progress_key
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED
 from baserow.core.jobs.exceptions import JobNotCancellable
@@ -28,15 +27,12 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED, Job
 from baserow.core.models import (
     Application,
-    ImportExportResource,
     InstallTemplateJob,
     Template,
     TemplateCategory,
     Workspace,
-    template_archive_upload_to,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
-from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
@@ -90,11 +86,6 @@ def generate_template_slug(name: str) -> str:
 
     base = slugify(name)[:SLUG_BASE_MAX_LENGTH].strip("-") or "template"
     return f"{base}-{generate_slug_suffix()}"
-
-
-def _mark_resource_for_deletion(resource: ImportExportResource) -> None:
-    resource.marked_for_deletion = True
-    resource.save(update_fields=["marked_for_deletion"])
 
 
 def user_template_copy_config() -> ImportExportConfig:
@@ -355,6 +346,40 @@ class UserTemplateHandler:
 
         return revision
 
+    def serialize_applications(
+        self,
+        applications: List[Application],
+        config: ImportExportConfig,
+        *,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Serializes the applications in memory, each one in its own consistent
+        snapshot, so that they can be imported with
+        `CoreHandler.import_applications_to_workspace`. Like a duplicate, the
+        copy refers to the same user files, so no file is exported.
+
+        :param applications: The applications to serialize.
+        :param config: The configuration of the copy.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        :return: The serialized applications.
+        """
+
+        progress = ChildProgressBuilder.build(
+            progress_builder, child_total=max(len(applications), 1)
+        )
+        serialized = []
+        for application in applications:
+            application = application.specific
+            application_type = application_type_registry.get_by_model(application)
+            with application_type.export_safe_transaction_context(application):
+                serialized.append(
+                    application_type.export_serialized(application, config)
+                )
+            progress.increment()
+        return serialized
+
     def copy_applications(
         self,
         owner: AbstractUser,
@@ -363,16 +388,15 @@ class UserTemplateHandler:
         name: str,
         progress_builder: Optional[ChildProgressBuilder] = None,
         track_content: Optional[Callable[..., None]] = None,
-    ) -> Tuple[Workspace, str]:
+    ) -> Workspace:
         """
-        Copies the applications into a new workspace nobody is a member of and
-        stores an archive of the copy, which together become the content of a user
-        template.
+        Copies the applications into a new workspace nobody is a member of, which
+        becomes the content of a user template.
 
-        The export and the import run their own transactions, so nothing is rolled
-        back if it fails. `track_content` is called with the `template_workspace`
-        and then with the `archive_name` as soon as they exist, so that the caller
-        can remove them with `delete_content_without_template`.
+        Each application is copied in its own transaction, so a failure rolls back
+        only the application being copied. `track_content` is called with the
+        `template_workspace` as soon as it exists, so that the caller can remove
+        it with `delete_content_without_template`.
 
         :param owner: The user who creates the template.
         :param applications: The applications copied into the template.
@@ -381,7 +405,7 @@ class UserTemplateHandler:
             progress.
         :param track_content: Called with the content created so far as keyword
             arguments.
-        :return: The workspace holding the copy and the name of the stored archive.
+        :return: The workspace holding the copy.
         """
 
         if track_content is None:
@@ -390,8 +414,6 @@ class UserTemplateHandler:
                 pass
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        storage = get_default_storage()
-        import_export_handler = ImportExportHandler()
         # Nobody is a member of the new workspace, so the import drops what
         # belongs to the users of the source: personal views and collaborators.
         config = user_template_copy_config()
@@ -399,56 +421,40 @@ class UserTemplateHandler:
         workspace = Workspace.objects.create(name=name)
         track_content(template_workspace=workspace)
 
-        resource = import_export_handler.export_workspace_applications(
+        serialized = self.serialize_applications(
             applications,
             config,
-            storage=storage,
-            progress_builder=progress.create_child_builder(represents_progress=40),
+            progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        try:
-            import_export_handler.import_applications_from_export(
-                owner,
-                workspace,
-                resource,
-                config,
-                storage=storage,
-                progress_builder=progress.create_child_builder(represents_progress=40),
-            )
-        finally:
-            _mark_resource_for_deletion(resource)
-
-        archive_resource = import_export_handler.export_workspace_applications(
-            list(workspace.application_set.all()),
+        CoreHandler().import_applications_to_workspace(
+            workspace,
+            serialized,
+            None,
             config,
-            storage=storage,
-            progress_builder=progress.create_child_builder(represents_progress=20),
+            progress_builder=progress.create_child_builder(represents_progress=50),
+            atomic_per_application=True,
         )
-        try:
-            archive_name = self._store_archive(archive_resource, storage, track_content)
-        finally:
-            _mark_resource_for_deletion(archive_resource)
 
-        return workspace, archive_name
+        return workspace
 
-    @contextmanager
-    def export_template_content(
+    def serialize_template_content(
         self,
         revision: Template,
         *,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> Iterator[ImportExportResource]:
+    ) -> List[Dict[str, Any]]:
         """
-        Exports the applications of a revision of a user template, so that they can
-        be installed. The export runs its own transactions, so it must not be
-        called inside an atomic block. The resource is marked for deletion when
-        the context exits.
+        Serializes the applications of a revision of a user template, so that
+        they can be installed with `install_template_content`. Each application
+        is serialized in its own snapshot, so this must not be called inside an
+        atomic block.
 
-        :param revision: The revision to export.
+        :param revision: The revision to serialize.
         :param progress_builder: A progress builder that allows for publishing
             progress.
         :raises TemplateHasNoContent: If the revision has no application to copy.
             An install of nothing would leave no trace that it committed.
-        :return: The resource holding the export.
+        :return: The serialized applications.
         """
 
         applications = (
@@ -465,36 +471,31 @@ class UserTemplateHandler:
                 f"The template {revision.family_id} has no content."
             )
 
-        resource = ImportExportHandler().export_workspace_applications(
+        return self.serialize_applications(
             applications,
             user_template_copy_config(),
-            storage=get_default_storage(),
             progress_builder=progress_builder,
         )
-        try:
-            yield resource
-        finally:
-            _mark_resource_for_deletion(resource)
 
     def install_template_content(
         self,
         user: AbstractUser,
         workspace: Workspace,
         revision: Template,
-        resource: ImportExportResource,
+        content: List[Dict[str, Any]],
         *,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
         """
-        Installs the export of a revision of a user template into a workspace and
-        counts the install on the root of the template. It must be called inside
-        an atomic block, so that a failure leaves nothing behind and the count is
-        bumped only with a successful install.
+        Installs the serialized content of a revision of a user template into a
+        workspace and counts the install on the root of the template. It must be
+        called inside an atomic block, so that a failure leaves nothing behind and
+        the count is bumped only with a successful install.
 
         :param user: The user who installs the template.
         :param workspace: The workspace the applications are installed into.
-        :param revision: The installed revision, see `export_template_content`.
-        :param resource: The export made by `export_template_content`.
+        :param revision: The installed revision, see `serialize_template_content`.
+        :param content: The content returned by `serialize_template_content`.
         :param progress_builder: A progress builder that allows for publishing
             progress.
         :return: The installed applications.
@@ -505,62 +506,26 @@ class UserTemplateHandler:
         config = dataclasses.replace(
             user_template_copy_config(), reduce_disk_space_usage=False
         )
-        applications = ImportExportHandler().import_applications_from_export(
-            user,
+        applications, _ = CoreHandler().import_applications_to_workspace(
             workspace,
-            resource,
+            content,
+            None,
             config,
-            storage=get_default_storage(),
             progress_builder=progress_builder,
         )
 
-        # Like `CoreHandler.install_template`: the user created the applications,
-        # and the import hooks, like setting up the integrations, must run.
-        for application in applications:
-            application.installed_from_template = revision
-            application_type = application_type_registry.get_by_model(application)
-            for signal in [application_created, application_imported]:
-                signal.send(
-                    self,
-                    application=application,
-                    user=user,
-                    type_name=application_type.type,
-                )
-        Application.objects.bulk_update(applications, ["installed_from_template"])
+        CoreHandler().mark_applications_installed_from_template(
+            user, applications, revision
+        )
 
-        # An update keeps the `updated_on` of the root, which orders the lists,
-        # and doesn't lose a concurrent install.
+        # Only user templates count their installs. An update keeps the
+        # `updated_on` of the root, which orders the lists, and doesn't lose a
+        # concurrent install.
         Template.objects.filter(pk=revision.family_id).update(
             install_count=F("install_count") + 1
         )
 
         return applications
-
-    def _store_archive(
-        self,
-        resource: ImportExportResource,
-        storage,
-        track_content: Callable[..., None],
-    ) -> str:
-        """
-        Copies an export to where the template archives are kept. The name is
-        tracked before the file is written, so that a failure leaves nothing
-        untracked behind.
-        """
-
-        export_path = ImportExportHandler().export_file_path(
-            resource.get_archive_name()
-        )
-        archive_name = template_archive_upload_to(None, None)
-        track_content(archive_name=archive_name)
-
-        with storage.open(export_path, "rb") as export_file:
-            stored_name = storage.save(archive_name, export_file)
-
-        if stored_name != archive_name:
-            track_content(archive_name=stored_name)
-
-        return stored_name
 
     def get_own_template(
         self, user: AbstractUser, template_id: int, *, for_update: bool = False

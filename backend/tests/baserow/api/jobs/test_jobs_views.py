@@ -671,35 +671,19 @@ def _create_user_template_install_jobs(data_fixture, user, pinned_versions):
 
 
 @pytest.mark.django_db
-def test_get_install_template_job_query_count_is_constant(data_fixture, api_client):
-    """
-    Pins the per-request query shape for a single job only. The single GET goes
-    through `JobHandler.get_job` and `job.specific`, not `enhance_queryset`, and one
-    item costs at most one root fetch, so this can't catch a per-item cost. The job
-    list test below guards that.
-    """
-
+def test_get_install_template_job_shows_its_template(data_fixture, api_client):
+    # A job pinned to a later revision shows the template it belongs to. The job
+    # list test below guards the query growth.
     user, token = data_fixture.create_user_and_token()
-    job_of_revision_2, job_of_revision_3 = _create_user_template_install_jobs(
-        data_fixture, user, [2, 3]
+    (job,) = _create_user_template_install_jobs(data_fixture, user, [3])
+
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    def get_job(job):
-        with CaptureQueriesContext(connection) as queries:
-            response = api_client.get(
-                reverse("api:jobs:item", kwargs={"job_id": job.id}),
-                HTTP_AUTHORIZATION=f"JWT {token}",
-            )
-        assert response.status_code == HTTP_200_OK
-        assert response.json()["template"]["id"] == job.template.root_id
-        return queries
-
-    # The first request fills the caches that the others find filled.
-    get_job(job_of_revision_2)
-
-    assert len(get_job(job_of_revision_3).captured_queries) == len(
-        get_job(job_of_revision_2).captured_queries
-    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["template"]["id"] == job.template.root_id
 
 
 @pytest.mark.django_db

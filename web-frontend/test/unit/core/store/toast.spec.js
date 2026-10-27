@@ -93,6 +93,9 @@ describe('toast store — userLoggedOut', () => {
 })
 
 describe('toast store — remove', () => {
+  // Several handlers can remove the same toast, for example the install toast
+  // and `onJobCancelled` when an install is cancelled. A second removal must not
+  // drop another toast.
   test('removing a toast that is no longer shown keeps the others', () => {
     const s = makeState()
     const first = { id: 'first', type: 'info-neutral' }
@@ -101,19 +104,9 @@ describe('toast store — remove', () => {
     const commit = commitTracker(s)
 
     actions.remove({ commit }, { id: 'gone', type: 'info-neutral' })
-
     expect(s.items).toStrictEqual([first, second])
-  })
-
-  test('removes the given toast', () => {
-    const s = makeState()
-    const first = { id: 'first', type: 'info-neutral' }
-    const second = { id: 'second', type: 'info-neutral' }
-    s.items = [first, second]
-    const commit = commitTracker(s)
 
     actions.remove({ commit }, first)
-
     expect(s.items).toStrictEqual([second])
   })
 })

@@ -140,9 +140,9 @@
   "InstallTemplateJobType": {
     "installing": "Installing",
     "installedTitle": "Template installed",
-    "installingTitle": "Installing the {name} template",
-    "installedMessage": "Successfully installed the {name} template",
-    "failedTitle": "The {name} template couldn't be installed",
+    "installingTitle": "Installing {name}",
+    "installedMessage": "Successfully installed {name}",
+    "failedTitle": "{name} couldn't be installed",
     "dismiss": "Dismiss"
   },
   "sidebar": {

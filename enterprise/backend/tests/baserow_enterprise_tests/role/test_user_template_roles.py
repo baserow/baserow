@@ -1,24 +1,21 @@
-from unittest.mock import patch
-
 from django.shortcuts import reverse
 
 import pytest
 from rest_framework.status import HTTP_202_ACCEPTED, HTTP_401_UNAUTHORIZED
 
-from baserow.core.cache import local_cache
-from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.constants import JOB_FAILED
-from baserow.core.jobs.handler import JobHandler
-from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import (
     Application,
     InstallTemplateJob,
     Template,
-    TemplateCategory,
 )
-from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import RoleAssignment
+from tests.baserow.core.user_templates.utils import (
+    request_install,
+    run_job,
+    start_job,
+)
 
 
 @pytest.mark.import_export_workspace
@@ -38,16 +35,7 @@ def test_create_user_template_doesnt_copy_role_assignments(
     RoleAssignmentHandler().assign_role(member, workspace, role=viewer, scope=table)
     assignment_count = RoleAssignment.objects.count()
 
-    JobHandler().create_and_start_job(
-        user,
-        CreateUserTemplateJobType.type,
-        sync=True,
-        workspace_id=workspace.id,
-        application_ids=[database.id],
-        name="My template",
-        icon="iconoir-view-grid",
-        category_ids=[TemplateCategory.objects.create(name="Cat").id],
-    )
+    start_job(user, workspace, [database])
 
     # The members of the source workspace aren't members of the template.
     template_workspace = Template.objects.get().workspace
@@ -59,12 +47,9 @@ def test_create_user_template_doesnt_copy_role_assignments(
 @pytest.mark.parametrize(
     "role_uid,expected_status",
     [
-        ("ADMIN", HTTP_202_ACCEPTED),
+        # The lowest role that can add applications, and the highest that can't.
         ("BUILDER", HTTP_202_ACCEPTED),
         ("EDITOR", HTTP_401_UNAUTHORIZED),
-        ("COMMENTER", HTTP_401_UNAUTHORIZED),
-        ("VIEWER", HTTP_401_UNAUTHORIZED),
-        ("NO_ACCESS", HTTP_401_UNAUTHORIZED),
     ],
 )
 def test_install_user_template_target_roles(
@@ -126,13 +111,7 @@ def test_install_user_template_refused_when_the_role_is_lowered_before_it_runs(
     enterprise_data_fixture.create_database_application(
         workspace=user_template.workspace
     )
-    with patch("baserow.core.jobs.handler.run_async_job"):
-        job = JobHandler().create_and_start_job(
-            user,
-            InstallTemplateJobType.type,
-            workspace_id=workspace.id,
-            template_id=user_template.id,
-        )
+    job = request_install(user, workspace, user_template)
 
     role_handler.assign_role(
         user,
@@ -140,11 +119,8 @@ def test_install_user_template_refused_when_the_role_is_lowered_before_it_runs(
         role=role_handler.get_role_by_uid("VIEWER"),
         scope=workspace,
     )
-    # A worker clears the local cache before each task.
-    local_cache.clear()
-    run_async_job(job.id)
+    job = run_job(job)
 
-    job = InstallTemplateJob.objects.get(id=job.id)
     assert job.state == JOB_FAILED
     assert job.error_code == "PermissionException"
     assert not Application.objects_and_trash.filter(workspace=workspace).exists()

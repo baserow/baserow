@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { updateJob } from '@baserow/test/helpers/store'
 import InstallTemplateToast from '@baserow/modules/core/components/toasts/InstallTemplateToast'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 
@@ -74,12 +75,6 @@ describe('InstallTemplateToast', () => {
     }
   }
 
-  const endJob = async (data) => {
-    const job = store.getters['job/get'](10)
-    await store.dispatch('job/forceUpdate', { job, data })
-    await flushPromises()
-  }
-
   test('shows the progress, then the result with a link to the database', async () => {
     const select = vi
       .spyOn(testApp.$registry.get('application', 'database'), 'select')
@@ -93,7 +88,10 @@ describe('InstallTemplateToast', () => {
     expect(wrapper.find('.toast__loading').exists()).toBe(true)
     expect(wrapper.find('.toast__close').exists()).toBe(false)
 
-    await endJob({ state: 'finished', installed_applications: [database] })
+    await updateJob(store, 10, {
+      state: 'finished',
+      installed_applications: [database],
+    })
 
     // The job is gone from the store, the toast shows the result it was given.
     expect(store.getters['job/get'](10)).toBeUndefined()
@@ -120,7 +118,7 @@ describe('InstallTemplateToast', () => {
   test('labels the link by the type of the installed application', async () => {
     const wrapper = await startInstall()
 
-    await endJob({
+    await updateJob(store, 10, {
       state: 'finished',
       installed_applications: [
         {
@@ -141,7 +139,10 @@ describe('InstallTemplateToast', () => {
 
   test('dismisses the result', async () => {
     const wrapper = await startInstall()
-    await endJob({ state: 'finished', installed_applications: [database] })
+    await updateJob(store, 10, {
+      state: 'finished',
+      installed_applications: [database],
+    })
 
     await wrapper.find('.install-template-toast__dismiss').trigger('click')
 
@@ -152,7 +153,7 @@ describe('InstallTemplateToast', () => {
     testApp.dontFailOnErrorResponses()
     const wrapper = await startInstall()
 
-    await endJob({
+    await updateJob(store, 10, {
       state: 'failed',
       human_readable_error: 'The template is blocked.',
     })
@@ -172,10 +173,14 @@ describe('InstallTemplateToast', () => {
     expect(installToasts()).toHaveLength(0)
   })
 
-  test('shows the result in a new toast when the sidebar showed the progress', async () => {
+  test('shows the result of an install started before the page was loaded', async () => {
+    // The pending jobs are fetched when the page loads, without their toast.
     await store.dispatch('job/forceCreate', runningJob())
 
-    await endJob({ state: 'finished', installed_applications: [database] })
+    await updateJob(store, 10, {
+      state: 'finished',
+      installed_applications: [database],
+    })
 
     expect(installToasts()).toHaveLength(1)
     expect(installToasts()[0].data).toMatchObject({
@@ -188,7 +193,7 @@ describe('InstallTemplateToast', () => {
   test('removes the toast of a cancelled install', async () => {
     await startInstall()
 
-    await endJob({ state: 'cancelled' })
+    await updateJob(store, 10, { state: 'cancelled' })
 
     expect(installToasts()).toHaveLength(0)
     expect(store.getters['job/get'](10)).toBeUndefined()
@@ -205,37 +210,33 @@ describe('InstallTemplateToast', () => {
     expect(installToasts()).toHaveLength(0)
   })
 
-  test('keeps the legacy notifications when the flag is off', async () => {
+  test.each([
+    [
+      'keeps the legacy notifications when the flag is off',
+      { state: 'finished', installed_applications: [database] },
+      ['info-neutral'],
+    ],
+    [
+      'removes a cancelled install from the sidebar when the flag is off',
+      { state: 'cancelled' },
+      [],
+    ],
+    [
+      'keeps the legacy error when the flag is off',
+      { state: 'failed', human_readable_error: 'Failed.' },
+      ['error'],
+    ],
+  ])('%s', async (_title, data, toastTypes) => {
     disableFlag()
     await store.dispatch('job/forceCreate', runningJob())
 
-    await endJob({ state: 'finished', installed_applications: [database] })
-
-    expect(installToasts()).toHaveLength(0)
-    expect(store.state.toast.items.map((toast) => toast.type)).toStrictEqual([
-      'info-neutral',
-    ])
-  })
-
-  test('removes a cancelled install from the sidebar when the flag is off', async () => {
-    disableFlag()
-    await store.dispatch('job/forceCreate', runningJob())
-
-    await endJob({ state: 'cancelled' })
+    await updateJob(store, 10, data)
 
     expect(store.getters['job/get'](10)).toBeUndefined()
-    expect(store.state.toast.items).toHaveLength(0)
-  })
-
-  test('keeps the legacy error when the flag is off', async () => {
-    disableFlag()
-    await store.dispatch('job/forceCreate', runningJob())
-
-    await endJob({ state: 'failed', human_readable_error: 'Failed.' })
-
-    expect(store.state.toast.items.map((toast) => toast.type)).toStrictEqual([
-      'error',
-    ])
+    expect(installToasts()).toHaveLength(0)
+    expect(store.state.toast.items.map((toast) => toast.type)).toStrictEqual(
+      toastTypes
+    )
   })
 
   test('renders an install toast once, next to the other toasts', async () => {

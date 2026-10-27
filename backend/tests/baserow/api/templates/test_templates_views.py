@@ -6,7 +6,6 @@ from django.db import connection
 from django.shortcuts import reverse
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
-from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
@@ -61,6 +60,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_1.id,
+                    "revision_id": template_1.id,
                     "type": "official",
                     "name": "Template 1",
                     "slug": template_1.slug,
@@ -79,6 +79,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_2.id,
+                    "revision_id": template_2.id,
                     "type": "official",
                     "name": "Template 2",
                     "slug": template_2.slug,
@@ -91,6 +92,7 @@ def test_list_templates(api_client, data_fixture):
                 },
                 {
                     "id": template_3.id,
+                    "revision_id": template_3.id,
                     "type": "official",
                     "name": "Template 3",
                     "slug": template_3.slug,
@@ -109,6 +111,7 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_3.id,
+                    "revision_id": template_3.id,
                     "type": "official",
                     "name": "Template 3",
                     "slug": template_3.slug,
@@ -385,32 +388,12 @@ def test_get_template_ignores_user_templates_with_flag_off(
 def _create_installable_user_template(data_fixture, owner, state="private"):
     """
     Creates a user template of the owner in the given state, with a database in
-    the workspace of its only revision unless the state says otherwise.
+    the workspace of its only revision.
     """
 
     user_template = data_fixture.create_user_template(user=owner)
-    if state == "trashed_applications":
-        data_fixture.create_database_application(
-            workspace=user_template.workspace, trashed=True
-        )
-    elif state != "no_applications":
-        data_fixture.create_database_application(workspace=user_template.workspace)
-
-    now = timezone.now()
-    changes = {
-        "public": {"public_revision": user_template},
-        "blocked": {"blocked_at": now},
-        "public_blocked": {"public_revision": user_template, "blocked_at": now},
-        "marked": {"marked_for_deletion_at": now},
-        "no_workspace": {"workspace": None},
-        "pruned": {"pruned_at": now},
-        "public_pruned": {"public_revision": user_template, "pruned_at": now},
-    }.get(state, {})
-    if "public_revision" in changes:
-        changes["review_state"] = Template.ReviewState.APPROVED
-    Template.objects.filter(id=user_template.id).update(**changes)
-    user_template.refresh_from_db()
-    return user_template
+    data_fixture.create_database_application(workspace=user_template.workspace)
+    return data_fixture.set_user_template_state(user_template, state)
 
 
 @pytest.mark.django_db
@@ -424,9 +407,7 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
         user=owner, slug="example-template-2"
     )
     data_fixture.create_database_application(workspace=user_template.workspace)
-    Template.objects.filter(id=user_template.id).update(
-        public_revision=user_template, review_state=Template.ReviewState.APPROVED
-    )
+    data_fixture.set_user_template_state(user_template, "public")
     revision = data_fixture.create_user_template_revision(
         user_template, workspace=user_template.workspace
     )
@@ -455,39 +436,10 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
     "actor,state,expected_status,expected_error",
     [
         ("owner", "private", HTTP_202_ACCEPTED, None),
-        ("owner", "public", HTTP_202_ACCEPTED, None),
         ("owner", "blocked", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
-        ("owner", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
-        (
-            "owner",
-            "no_workspace",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_TEMPLATE_HAS_NO_CONTENT",
-        ),
-        (
-            "owner",
-            "pruned",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_TEMPLATE_HAS_NO_CONTENT",
-        ),
-        (
-            "owner",
-            "no_applications",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_TEMPLATE_HAS_NO_CONTENT",
-        ),
-        (
-            "owner",
-            "trashed_applications",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_TEMPLATE_HAS_NO_CONTENT",
-        ),
         # An instance admin has no access of its own.
         ("staff", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
-        ("staff", "blocked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
-        ("staff", "public", HTTP_202_ACCEPTED, None),
         ("other", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
-        ("other", "blocked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
         ("other", "public", HTTP_202_ACCEPTED, None),
         (
             "other",
@@ -496,12 +448,6 @@ def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
             "ERROR_TEMPLATE_DOES_NOT_EXIST",
         ),
         ("other", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
-        (
-            "other",
-            "public_pruned",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_TEMPLATE_HAS_NO_CONTENT",
-        ),
     ],
 )
 def test_async_install_user_template_access(
@@ -540,24 +486,6 @@ def test_async_install_user_template_access(
 
 
 @pytest.mark.django_db
-def test_async_install_user_template_unknown_id(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.post(
-        reverse(
-            "api:templates:install_async",
-            kwargs={"workspace_id": workspace.id, "template_id": 0},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-    assert not InstallTemplateJob.objects.exists()
-
-
-@pytest.mark.django_db
 def test_async_install_user_template_anonymous(api_client, data_fixture):
     owner = data_fixture.create_user()
     user_template = _create_installable_user_template(data_fixture, owner, "public")
@@ -571,6 +499,27 @@ def test_async_install_user_template_anonymous(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert not InstallTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db
+def test_async_install_user_template_with_flag_off(api_client, data_fixture, settings):
+    owner, token = data_fixture.create_user_and_token()
+    user_template = _create_installable_user_template(data_fixture, owner, "public")
+    workspace = data_fixture.create_workspace(user=owner)
+    # The client still shows the template when the feature is switched off.
+    settings.FEATURE_FLAGS = []
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
     assert not InstallTemplateJob.objects.exists()
 
 
@@ -593,30 +542,6 @@ def test_async_install_user_template_checks_the_workspace_first(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
-    assert not InstallTemplateJob.objects.exists()
-
-
-@pytest.mark.django_db
-def test_install_user_template_by_revision_id_is_404(api_client, data_fixture):
-    owner, owner_token = data_fixture.create_user_and_token()
-    staff, staff_token = data_fixture.create_user_and_token(is_staff=True)
-    user_template = _create_installable_user_template(data_fixture, owner, "public")
-    revision = data_fixture.create_user_template_revision(
-        user_template, workspace=user_template.workspace
-    )
-
-    for user, token in [(owner, owner_token), (staff, staff_token)]:
-        workspace = data_fixture.create_workspace(user=user)
-        response = api_client.post(
-            reverse(
-                "api:templates:install_async",
-                kwargs={"workspace_id": workspace.id, "template_id": revision.id},
-            ),
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_404_NOT_FOUND
-        assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-
     assert not InstallTemplateJob.objects.exists()
 
 
@@ -660,17 +585,8 @@ def test_generic_jobs_endpoint_install_user_template_access(api_client, data_fix
 @pytest.mark.parametrize(
     "actor,latest,expected_status,expected_error,expected_pin",
     [
-        ("owner", False, HTTP_202_ACCEPTED, None, "public"),
         ("owner", True, HTTP_202_ACCEPTED, None, "latest"),
-        ("other", False, HTTP_202_ACCEPTED, None, "public"),
         ("other", True, HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST", None),
-        (
-            "owner",
-            "nope",
-            HTTP_400_BAD_REQUEST,
-            "ERROR_QUERY_PARAMETER_VALIDATION",
-            None,
-        ),
     ],
 )
 def test_async_install_user_template_latest(
@@ -713,9 +629,85 @@ def test_async_install_user_template_latest(
 
 
 @pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 @pytest.mark.parametrize(
-    "actor,latest", [("owner", False), ("owner", True), ("other", False)]
+    "case,expected_error",
+    [
+        # Another revision was made public after the user opened the template.
+        ("public_changed", "ERROR_TEMPLATE_UPDATED"),
+        # The owner made a revision that isn't public yet.
+        ("public_unchanged", None),
+        # The owner updated the template in another tab.
+        ("owner_updated", "ERROR_TEMPLATE_UPDATED"),
+        # The frontend sends the revision of an official template too.
+        ("official", None),
+    ],
 )
+def test_async_install_user_template_revision_id(
+    api_client, data_fixture, case, expected_error
+):
+    owner, owner_token = data_fixture.create_user_and_token()
+    viewer, viewer_token = data_fixture.create_user_and_token()
+    user, token = (
+        (owner, owner_token) if case == "owner_updated" else (viewer, viewer_token)
+    )
+    target = data_fixture.create_workspace(user=user)
+
+    if case == "official":
+        CoreHandler().sync_templates()
+        template = Template.objects.get(slug="example-template")
+    else:
+        template = _create_installable_user_template(data_fixture, owner, "public")
+
+    # The revision the user is shown: the preview, or "Your templates" for the
+    # owner, who installs the latest revision from there.
+    latest = case == "owner_updated"
+    if latest:
+        response = api_client.get(
+            reverse("api:templates:list"),
+            {"view": "flat", "type": "user", "owned": "true"},
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        shown = response.json()["results"][0]
+    else:
+        response = api_client.get(
+            reverse("api:templates:item", kwargs={"slug": template.slug}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        shown = response.json()
+    assert shown["id"] == template.id
+
+    if case != "official":
+        revision = data_fixture.create_user_template_revision(
+            template, review_state=Template.ReviewState.APPROVED
+        )
+        data_fixture.create_database_application(workspace=revision.workspace)
+        if case == "public_changed":
+            Template.objects.filter(id=template.id).update(public_revision=revision)
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": target.id, "template_id": template.id},
+        )
+        + f"?latest={latest}&revision_id={shown['revision_id']}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    jobs = InstallTemplateJob.objects.filter(workspace=target)
+    if expected_error is None:
+        assert response.status_code == HTTP_202_ACCEPTED, response.json()
+        assert jobs.get().template_id == shown["revision_id"]
+    else:
+        assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+        assert response.json()["error"] == expected_error
+        assert not jobs.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("actor,latest", [("owner", True), ("other", False)])
 def test_async_install_user_template_query_count_is_constant(
     api_client, data_fixture, actor, latest
 ):

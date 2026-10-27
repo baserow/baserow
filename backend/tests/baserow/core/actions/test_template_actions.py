@@ -64,11 +64,11 @@ def test_can_undo_redo_install_user_template(data_fixture):
     data_fixture.create_database_application(workspace=root.workspace, name="Mine")
     scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
 
-    with UserTemplateHandler().export_template_content(root) as resource:
-        with transaction.atomic():
-            installed_applications = action_type_registry.get_by_type(
-                InstallTemplateActionType
-            ).do(user, workspace, root, resource=resource)
+    content = UserTemplateHandler().serialize_template_content(root)
+    with transaction.atomic():
+        installed_applications = action_type_registry.get_by_type(
+            InstallTemplateActionType
+        ).do(user, workspace, root, content=content)
 
     assert [app.name for app in installed_applications] == ["Mine"]
     assert Template.objects.get(id=root.id).install_count == 1

@@ -86,7 +86,7 @@ class CreateUserTemplateActionType(ActionType):
         """
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        template_workspace, archive_name = UserTemplateService().copy_applications(
+        template_workspace = UserTemplateService().copy_applications(
             user,
             workspace,
             application_ids,
@@ -103,7 +103,8 @@ class CreateUserTemplateActionType(ActionType):
                 icon=icon,
                 category_ids=category_ids,
                 workspace=template_workspace,
-                archive=archive_name,
+                # A copy has no archive, see `UserTemplateHandler.copy_applications`.
+                archive="",
                 metadata=UserTemplateHandler().build_template_metadata(
                     workspace, application_ids
                 ),
@@ -216,7 +217,9 @@ class UpdateUserTemplateActionType(ActionType):
         service = UserTemplateService()
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         if source_workspace is not None:
-            template_workspace, archive_name = service.copy_applications(
+            # A copy has no archive, see `UserTemplateHandler.copy_applications`.
+            archive_name = ""
+            template_workspace = service.copy_applications(
                 user,
                 source_workspace,
                 application_ids,

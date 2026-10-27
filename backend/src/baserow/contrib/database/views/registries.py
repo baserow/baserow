@@ -426,7 +426,7 @@ class ViewType(
             id_mapping["database_views"] = {}
             # Must be kept in sync with
             # `src/baserow/contrib/database/table/handler.py::duplicate_table`
-            # and `USER_TEMPLATE_SEEDED_ID_MAPPINGS` in the import export handler.
+            # and `USER_TEMPLATE_SEEDED_ID_MAPPINGS` in the user templates constants.
             id_mapping["database_view_filters"] = {}
             id_mapping["database_view_filter_groups"] = {}
             id_mapping["database_view_sortings"] = {}

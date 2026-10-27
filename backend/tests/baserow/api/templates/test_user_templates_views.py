@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 from django.db import connection
-from django.db.models import F
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone as django_timezone
@@ -25,15 +24,10 @@ pytestmark = pytest.mark.django_db
 LIST_URL = reverse("api:templates:list")
 
 
-def create_own_template(data_fixture, user, **kwargs):
+def create_own_template(data_fixture, user, state="private", **kwargs):
     kwargs.setdefault("icon", "iconoir-view-grid")
-    return data_fixture.create_user_template(user=user, **kwargs)
-
-
-def publish(template):
-    Template.objects.filter(id=template.id).update(public_revision_id=F("id"))
-    template.refresh_from_db()
-    return template
+    template = data_fixture.create_user_template(user=user, **kwargs)
+    return data_fixture.set_user_template_state(template, state)
 
 
 def list_templates(api_client, token=None, **params):
@@ -82,6 +76,7 @@ def test_list_own_templates(api_client, data_fixture):
     assert response.json()["results"] == [
         {
             "id": template.id,
+            "revision_id": latest.id,
             "type": "user",
             "name": "Older v2",
             "slug": template.slug,
@@ -139,11 +134,9 @@ def test_list_templates_lists_what_the_actor_can_open(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
     _, stranger_token = data_fixture.create_user_and_token()
     official = data_fixture.create_template()
-    public = publish(create_own_template(data_fixture, owner))
+    public = create_own_template(data_fixture, owner, state="public")
     private = create_own_template(data_fixture, owner)
-    blocked = publish(
-        create_own_template(data_fixture, owner, blocked_at=django_timezone.now())
-    )
+    blocked = create_own_template(data_fixture, owner, state="public_blocked")
 
     def listed_ids(token):
         response = list_templates(api_client, token)
@@ -158,7 +151,7 @@ def test_list_templates_lists_what_the_actor_can_open(api_client, data_fixture):
 def test_list_templates_shows_others_the_public_revision(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
     _, stranger_token = data_fixture.create_user_and_token()
-    template = publish(create_own_template(data_fixture, owner, name="Public"))
+    template = create_own_template(data_fixture, owner, state="public", name="Public")
     data_fixture.create_user_template_revision(template, name="Latest")
 
     def listed_names(token):
@@ -176,8 +169,8 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     _, stranger_token = data_fixture.create_user_and_token()
     # Staff who don't own the template are others too.
     _, staff_token = data_fixture.create_user_and_token(is_staff=True)
-    template = publish(
-        create_own_template(data_fixture, owner, metadata={"source_workspace_id": 1})
+    template = create_own_template(
+        data_fixture, owner, state="public", metadata={"source_workspace_id": 1}
     )
     data_fixture.create_user_template_revision(
         template, metadata={"source_workspace_id": 1}
@@ -227,7 +220,7 @@ def test_list_templates_filters_by_type(api_client, data_fixture):
 def test_list_templates_filters_by_owner(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     data_fixture.create_template()
-    publish(data_fixture.create_user_template())
+    data_fixture.set_user_template_state(data_fixture.create_user_template(), "public")
     own = create_own_template(data_fixture, user)
 
     response = list_templates(api_client, token, owned="true")
@@ -280,7 +273,9 @@ def test_list_own_templates_search(api_client, data_fixture):
         data_fixture, user, name="Sales", description="A small crm for a shop."
     )
     create_own_template(data_fixture, user, name="Tasks", description="To do.")
-    publish(data_fixture.create_user_template(name="CRM of another user"))
+    data_fixture.set_user_template_state(
+        data_fixture.create_user_template(name="CRM of another user"), "public"
+    )
     # Only the latest revision is searched.
     by_latest = create_own_template(data_fixture, user, name="Notes")
     data_fixture.create_user_template_revision(by_latest, name="CRM notes")
@@ -376,7 +371,7 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, name="First", keywords="crm")
     public = data_fixture.create_user_template_revision(template, name="Second")
-    Template.objects.filter(id=template.id).update(public_revision=public)
+    data_fixture.set_user_template_state(template, "public", public)
     latest = data_fixture.create_user_template_revision(
         template,
         name="Third",
@@ -390,11 +385,12 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
         response = api_client.get(url, **headers)
         assert response.status_code == HTTP_200_OK
         result = response.json()
-        return result["id"], result["name"], result["workspace_id"]
+        return result["id"], result["revision_id"], result["name"]
 
-    # Everyone sees the public revision, the owner too.
+    # Everyone sees the public revision, the owner too. Its id is sent with an
+    # install.
     for headers in [{}, {"HTTP_AUTHORIZATION": f"JWT {token}"}]:
-        assert get_shown(headers) == (template.id, "Second", public.workspace_id)
+        assert get_shown(headers) == (template.id, public.id, "Second")
 
     # The owner sees the latest revision while the template isn't public, or is
     # blocked.
@@ -408,6 +404,7 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
         assert response.status_code == HTTP_200_OK
         assert response.json() == {
             "id": template.id,
+            "revision_id": latest.id,
             "type": "user",
             "name": "Third",
             "slug": template.slug,
@@ -790,10 +787,7 @@ def test_update_user_template_details_without_content(api_client, data_fixture):
 
 
 def create_template_with_rows(data_fixture, template):
-    database = data_fixture.create_database_application(workspace=template.workspace)
-    table = data_fixture.create_database_table(database=database)
-    field = data_fixture.create_text_field(table=table, primary=True)
-    table.get_model().objects.create(**{field.db_column: "Row"})
+    table = data_fixture.create_template_table(template.workspace)
     return data_fixture.create_grid_view(table=table)
 
 
@@ -894,14 +888,13 @@ def is_marked(template):
 
 def create_template_in_state(data_fixture, owner, state):
     template = create_own_template(data_fixture, owner)
-    if state == "shared":
-        Template.objects.filter(id=template.id).update(shared_revision_id=F("id"))
-    elif state == "public":
-        revision = data_fixture.create_user_template_revision(template)
-        Template.objects.filter(id=template.id).update(public_revision=revision)
-    elif state == "blocked":
-        Template.objects.filter(id=template.id).update(blocked_at=django_timezone.now())
-    return template
+    # Its public revision is not the root.
+    revision = (
+        data_fixture.create_user_template_revision(template)
+        if state == "public"
+        else None
+    )
+    return data_fixture.set_user_template_state(template, state, revision)
 
 
 @pytest.mark.parametrize("state", ["private", "shared", "public", "blocked"])
@@ -970,7 +963,7 @@ def test_deleted_user_template_is_gone_for_everybody(
     template = create_own_template(data_fixture, owner)
     # Revisions have no slug: the root's slug opens the public revision for others.
     revision = data_fixture.create_user_template_revision(template)
-    Template.objects.filter(id=template.id).update(public_revision=revision)
+    data_fixture.set_user_template_state(template, "public", revision)
     root_grid = create_template_with_rows(data_fixture, template)
     revision_grid = create_template_with_rows(data_fixture, revision)
     url = reverse("api:templates:item", kwargs={"slug": template.slug})

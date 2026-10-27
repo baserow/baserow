@@ -64,6 +64,7 @@
             :show-copy-link="!isOwn"
             :latest="isOwn"
             @installed="emit('installed')"
+            @outdated="emit('outdated')"
           >
             <template v-if="isOwn" #menu-items="{ hide }">
               <li class="context__menu-item">
@@ -139,8 +140,9 @@ const props = defineProps({
 })
 
 // `edit` asks to update the details or the content of the user's template, and
-// `delete` to delete it.
-const emit = defineEmits(['back', 'installed', 'edit', 'delete'])
+// `delete` to delete it. `outdated` tells that the template was updated since it
+// was shown, and must be loaded again.
+const emit = defineEmits(['back', 'installed', 'outdated', 'edit', 'delete'])
 
 const { $registry } = useNuxtApp()
 

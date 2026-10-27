@@ -28,6 +28,9 @@ export const mutations = {
       state.items.splice(index, 1)
     }
   },
+  REMOVE_TYPE(state, type) {
+    state.items = state.items.filter((toast) => toast.type !== type)
+  },
   UPDATE(state, { toast, data }) {
     const item = state.items.find((t) => t.id === toast.id)
     if (item) {
@@ -102,6 +105,12 @@ export const actions = {
   },
   remove({ commit }, toast) {
     commit('REMOVE', toast)
+  },
+  /**
+   * Removes every shown toast of the given type.
+   */
+  removeType({ commit }, type) {
+    commit('REMOVE_TYPE', type)
   },
   /**
    * Merges the given values into the data of a shown toast.

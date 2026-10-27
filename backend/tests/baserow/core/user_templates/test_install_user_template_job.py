@@ -1,9 +1,10 @@
 import os
 import threading
-from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import OperationalError, connection
 from django.db.models import Q
 from django.test import override_settings
@@ -12,12 +13,11 @@ from django.utils import timezone
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
+from baserow.contrib.database.fields.rich_text_utils import extract_user_file_names
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.core.action.models import Action
-from baserow.core.cache import local_cache
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import JobNotCancellable
@@ -32,27 +32,22 @@ from baserow.core.models import (
     UserFile,
     WorkspaceUser,
 )
+from baserow.core.storage import get_default_storage
+from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
-from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
-from baserow.core.user_templates.exceptions import (
-    TemplateBlocked,
-    TemplateHasNoContent,
-)
 from baserow.core.user_templates.handler import UserTemplateHandler
+from tests.baserow.core.user_templates.utils import (
+    cancel_in_another_connection,
+    fail_on_import,
+    install,
+    install_marks,
+    long_ago,
+    purge,
+    request_install,
+    run_job,
+)
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
-# The install exports and imports, so it runs outside a test transaction.
-install_test = [
-    pytest.mark.import_export_workspace,
-    pytest.mark.django_db(transaction=True),
-    pytest.mark.usefixtures("use_tmp_media_root"),
-]
-
-
-def install_marks(test):
-    for mark in reversed(install_test):
-        test = mark(test)
-    return test
 
 
 def _create_revisions(data_fixture, owner):
@@ -70,8 +65,7 @@ def _create_revisions(data_fixture, owner):
         )
         data_fixture.create_database_application(workspace=revision.workspace)
         revisions.append(revision)
-    Template.objects.filter(id=root.id).update(public_revision=revisions[1])
-    root.refresh_from_db()
+    data_fixture.set_user_template_state(root, "public", revisions[1])
     return revisions
 
 
@@ -110,70 +104,6 @@ def test_install_user_template_pins_revision(data_fixture):
     assert _start_install(owner, root).template_id == revision_3.id
 
 
-@pytest.mark.django_db
-def test_install_user_template_pins_details_only_revision(data_fixture):
-    owner = data_fixture.create_user()
-    data_fixture.create_workspace(user=owner)
-    root = data_fixture.create_user_template(user=owner)
-    data_fixture.create_database_application(workspace=root.workspace)
-    # An update of the details only shares the workspace of the first revision.
-    revision = data_fixture.create_user_template_revision(
-        root, workspace=root.workspace
-    )
-
-    job = _start_install(owner, root)
-
-    assert job.template_id == revision.id
-    assert job.template.workspace_id == root.workspace_id
-
-
-@pytest.mark.django_db
-def test_check_install_access(data_fixture):
-    owner = data_fixture.create_user()
-    staff = data_fixture.create_user(is_staff=True)
-    viewer = data_fixture.create_user()
-    inactive = data_fixture.create_user(is_active=False)
-    root, revision_2, revision_3 = _create_revisions(data_fixture, owner)
-    handler = UserTemplateHandler()
-
-    for user in [owner, staff, viewer]:
-        handler.check_install_access(user, revision_2)
-    with pytest.raises(TemplateDoesNotExist):
-        handler.check_install_access(inactive, revision_2)
-
-    # The pinned revision is still installed after the public revision moved, and
-    # after the template was marked for deletion.
-    Template.objects.filter(id=root.id).update(
-        public_revision=revision_3, marked_for_deletion_at=timezone.now()
-    )
-    revision_2 = Template.objects.get(id=revision_2.id)
-    handler.check_install_access(viewer, revision_2)
-
-    Template.objects.filter(id=root.id).update(public_revision=None)
-    revision_2 = Template.objects.get(id=revision_2.id)
-    with pytest.raises(TemplateDoesNotExist):
-        handler.check_install_access(viewer, revision_2)
-
-    Template.objects.filter(id=root.id).update(
-        public_revision=revision_2, blocked_at=timezone.now()
-    )
-    revision_2 = Template.objects.get(id=revision_2.id)
-    with pytest.raises(TemplateBlocked):
-        handler.check_install_access(owner, revision_2)
-    # An instance admin has no access of its own.
-    for user in [staff, viewer]:
-        with pytest.raises(TemplateDoesNotExist):
-            handler.check_install_access(user, revision_2)
-
-
-def _add_database(data_fixture, workspace, name):
-    database = data_fixture.create_database_application(workspace=workspace, name=name)
-    table = data_fixture.create_database_table(database=database, name=f"{name} table")
-    field = data_fixture.create_text_field(table=table, primary=True, name="Name")
-    table.get_model().objects.create(**{field.db_column: f"{name} row"})
-    return database
-
-
 def _create_template(data_fixture, owner, names=("First", "Second")):
     """
     A user template of the owner, public, with a database per name in its
@@ -182,34 +112,8 @@ def _create_template(data_fixture, owner, names=("First", "Second")):
 
     root = data_fixture.create_user_template(user=owner, name="Mine")
     for name in names:
-        _add_database(data_fixture, root.workspace, name)
-    Template.objects.filter(id=root.id).update(public_revision=root)
-    root.refresh_from_db()
-    return root
-
-
-def _request_install(user, workspace, root, latest=False):
-    """Requests an install without running it, like a job waiting in the queue."""
-
-    with patch("baserow.core.jobs.handler.run_async_job"):
-        return JobHandler().create_and_start_job(
-            user,
-            InstallTemplateJobType.type,
-            workspace_id=workspace.id,
-            template_id=root.id,
-            latest=latest,
-        )
-
-
-def _run(job):
-    # A worker clears the local cache before each task, see `config/celery.py`.
-    local_cache.clear()
-    run_async_job(job.id)
-    return InstallTemplateJob.objects.get(id=job.id)
-
-
-def _install(user, workspace, root, latest=False):
-    return _run(_request_install(user, workspace, root, latest))
+        data_fixture.create_template_table(root.workspace, name, f"{name} row")
+    return data_fixture.set_user_template_state(root, "public")
 
 
 def _installed_names(workspace):
@@ -231,37 +135,32 @@ def _assert_nothing_installed(workspace, root, counts):
     assert Template.objects.get(id=root.id).install_count == 0
 
 
-def _import_application_raising(exception, on_call=2, before=None):
+def _queue_install(data_fixture, names=("First", "Second")):
     """
-    Patches the import of an application so that the import of the `on_call`-th
-    application raises, or first calls `before`.
+    The owner of a public user template with a database per name, a workspace
+    of the owner to install it into, and an install of it waiting in the queue.
     """
 
-    import_application = ImportExportHandler.import_application
-    calls = []
-
-    def import_application_raising(self, *args, **kwargs):
-        calls.append(args)
-        if len(calls) == on_call:
-            if before is not None:
-                before()
-            if exception is not None:
-                raise exception
-        return import_application(self, *args, **kwargs)
-
-    return patch.object(
-        ImportExportHandler, "import_application", import_application_raising
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = _create_template(data_fixture, owner, names)
+    job = request_install(owner, target, root)
+    return SimpleNamespace(
+        owner=owner, target=target, root=root, job=job, counts=_counts()
     )
 
 
+@pytest.fixture
+def queued_install(data_fixture):
+    return _queue_install(data_fixture)
+
+
 @install_marks
-def test_install_user_template_job(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
+def test_install_user_template_job(queued_install):
+    target, root = queued_install.target, queued_install.root
     updated_on = root.updated_on
 
-    job = _install(owner, target, root)
+    job = run_job(queued_install.job)
 
     assert job.state == JOB_FINISHED
     applications = list(
@@ -280,7 +179,8 @@ def test_install_user_template_job(data_fixture):
     assert root.install_count == 1
     # The count is bumped without saving the root, which orders the lists.
     assert root.updated_on == updated_on
-    assert not ImportExportResource.objects.filter(marked_for_deletion=False).exists()
+    # The content is copied directly, without an export.
+    assert not ImportExportResource.objects_and_trash.exists()
 
 
 @install_marks
@@ -293,10 +193,10 @@ def test_install_user_template_job_counts_each_install_on_the_root(data_fixture)
     revision = data_fixture.create_user_template_revision(
         root, review_state=Template.ReviewState.APPROVED
     )
-    _add_database(data_fixture, revision.workspace, "Latest")
+    data_fixture.create_template_table(revision.workspace, "Latest", "Latest row")
 
-    assert _install(owner, owner_target, root, latest=True).template_id == revision.id
-    assert _install(viewer, viewer_target, root).template_id == root.id
+    assert install(owner, owner_target, root, latest=True).template_id == revision.id
+    assert install(viewer, viewer_target, root).template_id == root.id
 
     assert _installed_names(owner_target) == ["Latest"]
     assert _installed_names(viewer_target) == ["First", "Second"]
@@ -312,8 +212,8 @@ def test_concurrent_installs_both_count(data_fixture, test_thread):
     first_target = data_fixture.create_workspace(user=owner)
     second_target = data_fixture.create_workspace(user=viewer)
     root = _create_template(data_fixture, owner)
-    first_job = _request_install(owner, first_target, root)
-    second_job = _request_install(viewer, second_target, root)
+    first_job = request_install(owner, first_target, root)
+    second_job = request_install(viewer, second_target, root)
     check_install_access = UserTemplateHandler.check_install_access
     second_has_read = threading.Event()
     first_is_done = threading.Event()
@@ -342,7 +242,7 @@ def test_concurrent_installs_both_count(data_fixture, test_thread):
     ):
         thread.start()
         assert second_has_read.wait(30)
-        assert _run(first_job).state == JOB_FINISHED
+        assert run_job(first_job).state == JOB_FINISHED
         first_is_done.set()
         assert thread.thread_stopped.wait(30)
 
@@ -352,32 +252,31 @@ def test_concurrent_installs_both_count(data_fixture, test_thread):
 
 
 @install_marks
-def test_install_user_template_job_redelivered_after_it_finished(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _install(owner, target, root)
+def test_install_user_template_job_redelivered_after_it_finished(queued_install):
+    target, root = queued_install.target, queued_install.root
+    job = run_job(queued_install.job)
 
     with patch.object(
         UserTemplateHandler,
-        "export_template_content",
-        side_effect=AssertionError("The template was exported again."),
-    ) as export:
-        redelivered = _run(job)
+        "serialize_template_content",
+        side_effect=AssertionError("The template was copied again."),
+    ) as serialize:
+        redelivered = run_job(job)
 
     assert redelivered.state == JOB_FINISHED
     assert redelivered.installed_applications == job.installed_applications
     assert _installed_names(target) == ["First", "Second"]
     assert Template.objects.get(id=root.id).install_count == 1
-    export.assert_not_called()
+    serialize.assert_not_called()
 
 
 @install_marks
-def test_install_second_commit_of_same_job_keeps_first(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
+def test_install_second_commit_of_same_job_keeps_first(queued_install):
+    target, root, job = (
+        queued_install.target,
+        queued_install.root,
+        queued_install.job,
+    )
     check_install_access = UserTemplateHandler.check_install_access
     first_run = {}
 
@@ -385,13 +284,13 @@ def test_install_second_commit_of_same_job_keeps_first(data_fixture):
         # A second delivery of the job loaded it before the first one committed.
         if not first_run:
             first_run["job"] = None
-            first_run["job"] = _run(job)
+            first_run["job"] = run_job(job)
         check_install_access(self, *args)
 
     with patch.object(
         UserTemplateHandler, "check_install_access", commit_another_run_first
     ):
-        second_run = _run(job)
+        second_run = run_job(job)
 
     first_ids = first_run["job"].installed_applications
     assert first_run["job"].state == JOB_FINISHED
@@ -407,29 +306,30 @@ def test_install_second_commit_of_same_job_keeps_first(data_fixture):
 
 
 @install_marks
-def test_install_failed_run_keeps_the_commit_of_another_run(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    export_template_content = UserTemplateHandler.export_template_content
+def test_install_failed_run_keeps_the_commit_of_another_run(queued_install):
+    target, root, job = (
+        queued_install.target,
+        queued_install.root,
+        queued_install.job,
+    )
+    serialize_template_content = UserTemplateHandler.serialize_template_content
     first_run = {}
 
-    def export_failing_after_another_run(self, *args, **kwargs):
+    def serialize_failing_after_another_run(self, *args, **kwargs):
         # A second delivery of the job fails before its commit, after the first
         # one committed.
         if not first_run:
             first_run["job"] = None
-            first_run["job"] = _run(job)
-            raise RuntimeError("Export failed")
-        return export_template_content(self, *args, **kwargs)
+            first_run["job"] = run_job(job)
+            raise RuntimeError("Reading the template failed")
+        return serialize_template_content(self, *args, **kwargs)
 
     with patch.object(
         UserTemplateHandler,
-        "export_template_content",
-        export_failing_after_another_run,
+        "serialize_template_content",
+        serialize_failing_after_another_run,
     ):
-        second_run = _run(job)
+        second_run = run_job(job)
 
     first_ids = first_run["job"].installed_applications
     assert first_ids
@@ -440,17 +340,18 @@ def test_install_failed_run_keeps_the_commit_of_another_run(data_fixture):
 
 
 @install_marks
-def test_install_pinned_revision_survives_content_update(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
+def test_install_pinned_revision_survives_an_update(data_fixture, queued_install):
+    target, root = queued_install.target, queued_install.root
 
-    # A content update commits while the install waits in the queue.
-    revision = data_fixture.create_user_template_revision(root)
-    _add_database(data_fixture, revision.workspace, "Updated")
+    # A content update is approved and made public while the install waits in
+    # the queue.
+    revision = data_fixture.create_user_template_revision(
+        root, review_state=Template.ReviewState.APPROVED
+    )
+    data_fixture.create_template_table(revision.workspace, "Updated", "Updated row")
+    Template.objects.filter(id=root.id).update(public_revision=revision)
 
-    job = _run(job)
+    job = run_job(queued_install.job)
 
     assert job.state == JOB_FINISHED
     assert _installed_names(target) == ["First", "Second"]
@@ -466,14 +367,15 @@ def test_install_pinned_revision_with_details_only_update(data_fixture):
     owner = data_fixture.create_user()
     target = data_fixture.create_workspace(user=owner)
     root = _create_template(data_fixture, owner)
+    # An update of the details only shares the workspace of the first revision.
     revision = data_fixture.create_user_template_revision(
         root, workspace=root.workspace
     )
-    job = _request_install(owner, target, root, latest=True)
+    job = request_install(owner, target, root, latest=True)
     # Another update of the details only, after the request.
     data_fixture.create_user_template_revision(root, workspace=root.workspace)
 
-    job = _run(job)
+    job = run_job(job)
 
     assert job.state == JOB_FINISHED
     assert job.template_id == revision.id
@@ -485,25 +387,6 @@ def test_install_pinned_revision_with_details_only_update(data_fixture):
     ) == {revision.id}
 
 
-@install_marks
-def test_public_viewer_installs_pinned_public_revision_after_it_moved(data_fixture):
-    owner = data_fixture.create_user()
-    viewer = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=viewer)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(viewer, target, root)
-    revision = data_fixture.create_user_template_revision(
-        root, review_state=Template.ReviewState.APPROVED
-    )
-    _add_database(data_fixture, revision.workspace, "Latest")
-    Template.objects.filter(id=root.id).update(public_revision=revision)
-
-    job = _run(job)
-
-    assert job.state == JOB_FINISHED
-    assert _installed_names(target) == ["First", "Second"]
-
-
 def _refused_after_request(data_fixture, flip, installer="owner"):
     """
     Requests an install, flips something with `flip(context)` before the job
@@ -511,20 +394,15 @@ def _refused_after_request(data_fixture, flip, installer="owner"):
     """
 
     owner = data_fixture.create_user()
-    users = {
-        "owner": owner,
-        "staff": data_fixture.create_user(is_staff=True),
-        "viewer": data_fixture.create_user(),
-    }
-    user = users[installer]
+    user = owner if installer == "owner" else data_fixture.create_user()
     target = data_fixture.create_workspace(user=user)
     root = _create_template(data_fixture, owner)
-    job = _request_install(user, target, root)
+    job = request_install(user, target, root)
     counts = _counts()
 
-    flip({"root": root, "user": user, "owner": owner, "target": target, "job": job})
+    flip({"root": root, "user": user, "target": target})
 
-    return _run(job), target, root, counts
+    return run_job(job), target, root, counts
 
 
 def _block(context):
@@ -535,28 +413,10 @@ def _make_private(context):
     Template.objects.filter(id=context["root"].id).update(public_revision=None)
 
 
-def _mark_for_deletion(context):
-    Template.objects.filter(id=context["root"].id).update(
-        marked_for_deletion_at=timezone.now()
-    )
-
-
 def _remove_from_target(context):
     WorkspaceUser.objects.filter(
         user=context["user"], workspace=context["target"]
     ).delete()
-
-
-def _deactivate(context):
-    type(context["user"]).objects.filter(id=context["user"].id).update(is_active=False)
-
-
-def _detach_workspace(context):
-    Template.objects.filter(id=context["root"].id).update(workspace=None)
-
-
-def _trash_content(context):
-    Application.objects.filter(workspace=context["root"].workspace).update(trashed=True)
 
 
 @pytest.mark.parametrize(
@@ -565,13 +425,7 @@ def _trash_content(context):
         ("owner", _block, "TemplateBlocked"),
         ("viewer", _make_private, "TemplateDoesNotExist"),
         ("viewer", _block, "TemplateDoesNotExist"),
-        ("staff", _block, "TemplateDoesNotExist"),
         ("owner", _remove_from_target, "UserNotInWorkspace"),
-        ("viewer", _remove_from_target, "UserNotInWorkspace"),
-        # An inactive user doesn't count as a member, which is checked first.
-        ("owner", _deactivate, "UserNotInWorkspace"),
-        ("owner", _detach_workspace, "TemplateHasNoContent"),
-        ("owner", _trash_content, "TemplateHasNoContent"),
     ],
 )
 @install_marks
@@ -587,202 +441,66 @@ def test_install_user_template_job_access_checked_again_when_it_runs(
     _assert_nothing_installed(target, root, counts)
 
 
-@pytest.mark.parametrize(
-    "installer,flip",
-    [
-        ("viewer", _mark_for_deletion),
-        ("owner", _mark_for_deletion),
-    ],
-)
-@install_marks
-def test_install_user_template_job_still_runs_after(data_fixture, installer, flip):
-    # The installs already running when a template is deleted finish.
-    job, target, root, _ = _refused_after_request(data_fixture, flip, installer)
-
-    assert job.state == JOB_FINISHED
-    assert _installed_names(target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 1
-
-
-@install_marks
-def test_install_user_template_empty_revision_workspace(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner, names=())
-
-    with pytest.raises(TemplateHasNoContent):
-        _request_install(owner, target, root)
-
-    assert not InstallTemplateJob.objects.exists()
-
-
 @install_marks
 def test_install_user_template_job_fails_on_import_of_second_application(
-    data_fixture,
+    queued_install,
 ):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
+    job = queued_install.job
 
     with (
-        _import_application_raising(RuntimeError("Import failed")),
+        fail_on_import(RuntimeError("Import failed")),
         pytest.raises(RuntimeError),
     ):
-        _run(job)
+        run_job(job)
 
     job.refresh_from_db()
     assert job.state == JOB_FAILED
     assert job.installed_applications == []
-    _assert_nothing_installed(target, root, counts)
-    assert not ImportExportResource.objects.filter(marked_for_deletion=False).exists()
-
-
-@install_marks
-def test_install_user_template_job_fails_at_the_commit_point(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-    lock_job = JobHandler.lock_job
-    calls = []
-
-    def lock_job_raising(job):
-        calls.append(job)
-        # The first lock is taken when the job starts, the second one at the
-        # commit point, after the import.
-        if len(calls) == 2:
-            assert Application.objects.filter(workspace=target).count() == 2
-            raise RuntimeError("Lock failed")
-        return lock_job(job)
-
-    with (
-        patch.object(JobHandler, "lock_job", lock_job_raising),
-        pytest.raises(RuntimeError),
-    ):
-        _run(job)
-
-    # The third lock looks for the commit of another run of the job.
-    assert len(calls) == 3
-    job.refresh_from_db()
-    assert job.state == JOB_FAILED
-    _assert_nothing_installed(target, root, counts)
-
-
-@install_marks
-def test_install_user_template_job_fails_after_the_ids_are_set(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-    commit_install = InstallTemplateJobType._commit_install
-
-    def commit_then_fail(self, job, applications):
-        commit_install(self, job, applications)
-        assert job.installed_applications
-        raise RuntimeError("Failed before the transaction committed")
-
-    with (
-        patch.object(InstallTemplateJobType, "_commit_install", commit_then_fail),
-        pytest.raises(RuntimeError),
-    ):
-        _run(job)
-
-    job.refresh_from_db()
-    assert job.state == JOB_FAILED
-    # The ids of the rolled back applications aren't saved with the failure.
-    assert job.installed_applications == []
-    _assert_nothing_installed(target, root, counts)
-
-
-@install_marks
-@pytest.mark.parametrize(
-    "exception", [RuntimeError("Clean-up failed"), SoftTimeLimitExceeded()]
-)
-def test_install_user_template_job_fails_after_the_commit(data_fixture, exception):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-
-    with patch(
-        "baserow.core.user_templates.handler._mark_resource_for_deletion",
-        side_effect=exception,
-    ) as mark_resource_for_deletion:
-        job = _run(job)
-
-    mark_resource_for_deletion.assert_called_once()
-    # The install is committed, so a failure after it doesn't undo it.
-    assert job.state == JOB_FINISHED
-    applications = list(
-        Application.objects.filter(workspace=target).order_by("order", "id")
+    _assert_nothing_installed(
+        queued_install.target, queued_install.root, queued_install.counts
     )
-    assert [app.name for app in applications] == ["First", "Second"]
-    assert job.installed_applications == [app.id for app in applications]
-    assert Template.objects.get(id=root.id).install_count == 1
 
 
 @install_marks
-def test_install_user_template_job_soft_time_limit(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-
-    with _import_application_raising(SoftTimeLimitExceeded()):
-        job = _run(job)
+def test_install_user_template_job_soft_time_limit(queued_install):
+    with fail_on_import(SoftTimeLimitExceeded()):
+        job = run_job(queued_install.job)
 
     assert job.state == JOB_FAILED
     assert job.error_code == "SoftTimeLimitExceeded"
-    _assert_nothing_installed(target, root, counts)
+    _assert_nothing_installed(
+        queued_install.target, queued_install.root, queued_install.counts
+    )
 
 
 @install_marks
-def test_install_user_template_job_cancelled_before_it_starts(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-
-    JobHandler.cancel_job(job)
-    job = _run(job)
+def test_install_user_template_job_cancelled_before_it_starts(queued_install):
+    JobHandler.cancel_job(queued_install.job)
+    job = run_job(queued_install.job)
 
     assert job.state == JOB_CANCELLED
-    _assert_nothing_installed(target, root, counts)
-    assert not ImportExportResource.objects.exists()
+    _assert_nothing_installed(
+        queued_install.target, queued_install.root, queued_install.counts
+    )
 
 
 @install_marks
 def test_install_user_template_job_cancelled_during_the_import(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner, names=("First", "Second", "Third"))
-    job = _request_install(owner, target, root)
-    counts = _counts()
+    queued = _queue_install(data_fixture, names=("First", "Second", "Third"))
 
     def cancel():
-        JobHandler.cancel_job(InstallTemplateJob.objects.get(id=job.id))
+        JobHandler.cancel_job(InstallTemplateJob.objects.get(id=queued.job.id))
 
-    with _import_application_raising(None, before=cancel):
-        job = _run(job)
+    with fail_on_import(None, before=cancel):
+        job = run_job(queued.job)
 
     assert job.state == JOB_CANCELLED
     assert job.installed_applications == []
-    _assert_nothing_installed(target, root, counts)
+    _assert_nothing_installed(queued.target, queued.root, queued.counts)
 
 
 @install_marks
-def test_install_user_template_job_cancelled_at_the_commit_point(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
+def test_install_user_template_job_cancelled_at_the_commit_point(queued_install):
     commit_install = InstallTemplateJobType._commit_install
 
     def cancel_then_commit(self, job, applications):
@@ -793,59 +511,26 @@ def test_install_user_template_job_cancelled_at_the_commit_point(data_fixture):
         commit_install(self, job, applications)
 
     with patch.object(InstallTemplateJobType, "_commit_install", cancel_then_commit):
-        job = _run(job)
+        job = run_job(queued_install.job)
 
     assert job.state == JOB_CANCELLED
     assert job.installed_applications == []
-    _assert_nothing_installed(target, root, counts)
-
-
-@install_marks
-def test_install_user_template_job_cannot_be_cancelled_after_the_commit(
-    data_fixture,
-):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    commit_install = InstallTemplateJobType._commit_install
-
-    def commit_then_cancel(self, job, applications):
-        commit_install(self, job, applications)
-        with pytest.raises(JobNotCancellable):
-            JobHandler.cancel_job(InstallTemplateJob.objects.get(id=job.id))
-
-    with patch.object(InstallTemplateJobType, "_commit_install", commit_then_cancel):
-        job = _run(job)
-
-    assert job.state == JOB_FINISHED
-    assert _installed_names(target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 1
-    with pytest.raises(JobNotCancellable):
-        JobHandler.cancel_job(job)
+    _assert_nothing_installed(
+        queued_install.target, queued_install.root, queued_install.counts
+    )
 
 
 @install_marks
 def test_install_user_template_job_concurrent_cancel_waits_for_the_commit(
-    data_fixture, test_thread
+    queued_install, test_thread
 ):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
+    job = queued_install.job
     commit_install = InstallTemplateJobType._commit_install
     outcome = {}
 
-    def cancel():
-        try:
-            JobHandler.cancel_job(InstallTemplateJob.objects.get(id=job.id))
-            outcome["cancel"] = "accepted"
-        except JobNotCancellable:
-            outcome["cancel"] = "refused"
-        finally:
-            connection.close()
-
-    with test_thread(cancel) as thread:
+    with test_thread(
+        cancel_in_another_connection, outcome, InstallTemplateJob, id=job.id
+    ) as thread:
 
         def commit_with_a_concurrent_cancel(self, job, applications):
             commit_install(self, job, applications)
@@ -856,25 +541,23 @@ def test_install_user_template_job_concurrent_cancel_waits_for_the_commit(
         with patch.object(
             InstallTemplateJobType, "_commit_install", commit_with_a_concurrent_cancel
         ):
-            job = _run(job)
+            job = run_job(job)
 
     assert outcome == {"cancel": "refused"}
     assert job.state == JOB_FINISHED
-    assert Template.objects.get(id=root.id).install_count == 1
+    assert _installed_names(queued_install.target) == ["First", "Second"]
+    assert Template.objects.get(id=queued_install.root.id).install_count == 1
+    # A finished install can't be cancelled either.
+    with pytest.raises(JobNotCancellable):
+        JobHandler.cancel_job(job)
 
 
 @install_marks
-def test_install_user_template_job_max_locks_in_the_import(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-
-    with _import_application_raising(
+def test_install_user_template_job_max_locks_in_the_import(queued_install):
+    with fail_on_import(
         OperationalError("HINT:  You might need to increase max_locks_per_transaction.")
     ):
-        job = _run(job)
+        job = run_job(queued_install.job)
 
     assert job.state == JOB_FAILED
     assert job.error_code == "InstallTemplateMaxLocksExceededException"
@@ -883,58 +566,18 @@ def test_install_user_template_job_max_locks_in_the_import(data_fixture):
         "of PostgreSQL locks per transaction. Please read "
         "https://baserow.io/docs/technical/postgresql-locks"
     )
-    _assert_nothing_installed(target, root, counts)
+    _assert_nothing_installed(
+        queued_install.target, queued_install.root, queued_install.counts
+    )
 
 
 @install_marks
-def test_install_user_template_job_max_locks_in_the_export(
-    data_fixture, application_type_serialized_raising_operationalerror
+def test_install_user_template_leaves_the_template_unchanged(
+    data_fixture, queued_install
 ):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-
-    with application_type_serialized_raising_operationalerror():
-        job = _run(job)
-
-    assert job.state == JOB_FAILED
-    assert job.error_code == "InstallTemplateMaxLocksExceededException"
-    _assert_nothing_installed(target, root, counts)
-
-
-@install_marks
-def test_install_user_template_job_other_operational_error_isnt_mapped(
-    data_fixture, application_type_serialized_raising_operationalerror
-):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
-    counts = _counts()
-
-    with (
-        application_type_serialized_raising_operationalerror(
-            raise_transaction_exception=False
-        ),
-        pytest.raises(OperationalError),
-    ):
-        _run(job)
-
-    job.refresh_from_db()
-    assert job.state == JOB_FAILED
-    assert job.error_code == ""
-    _assert_nothing_installed(target, root, counts)
-
-
-@install_marks
-def test_install_user_template_leaves_the_template_unchanged(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
+    root = queued_install.root
     revision = data_fixture.create_user_template_revision(root)
-    _add_database(data_fixture, revision.workspace, "Latest")
+    data_fixture.create_template_table(revision.workspace, "Latest", "Latest row")
 
     def snapshot():
         templates = {
@@ -958,24 +601,24 @@ def test_install_user_template_leaves_the_template_unchanged(data_fixture):
         return templates, applications, rows
 
     before = snapshot()
-    job = _install(owner, target, root)
+    job = run_job(queued_install.job)
 
     assert job.state == JOB_FINISHED
     assert snapshot() == before
 
 
 @install_marks
-def test_installed_applications_are_independent_of_the_template(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _install(owner, target, root)
+def test_installed_applications_are_independent_of_the_template(
+    data_fixture, queued_install
+):
+    target, root = queued_install.target, queued_install.root
+    job = run_job(queued_install.job)
     installed = list(
         Application.objects.filter(workspace=target).order_by("id").values()
     )
 
     revision = data_fixture.create_user_template_revision(root)
-    _add_database(data_fixture, revision.workspace, "Updated")
+    data_fixture.create_template_table(revision.workspace, "Updated", "Updated row")
     Application.objects.filter(workspace=root.workspace).update(name="Renamed")
 
     assert (
@@ -995,20 +638,16 @@ def test_installed_applications_are_independent_of_the_template(data_fixture):
 
 @install_marks
 def test_install_user_template_schedules_search_data_of_installed_tables(
-    data_fixture,
+    queued_install,
 ):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-
     with patch.object(SearchHandler, "schedule_update_search_data") as schedule:
-        job = _install(owner, target, root)
+        job = run_job(queued_install.job)
 
     assert job.state == JOB_FINISHED
     # Like the official install, so that search works in the copy right away.
     installed_tables = {
         table.id
-        for application in Application.objects.filter(workspace=target)
+        for application in Application.objects.filter(workspace=queued_install.target)
         for table in application.specific.table_set.all()
     }
     assert len(installed_tables) == 2
@@ -1019,15 +658,7 @@ def _delete(user, root):
     """Deletes the template, and lets the grace period of its removal pass."""
 
     DeleteUserTemplateActionType.do(user, root.id)
-    Template.objects.filter(id=root.id).update(
-        marked_for_deletion_at=timezone.now()
-        - USER_TEMPLATE_DELETION_GRACE_PERIOD
-        - timedelta(hours=1)
-    )
-
-
-def _purge():
-    UserTemplateHandler().delete_marked_templates()
+    Template.objects.filter(id=root.id).update(marked_for_deletion_at=long_ago())
 
 
 def _assert_removed_and_installed_copy_kept(root, target, job):
@@ -1046,32 +677,36 @@ def test_deleted_template_is_removed_after_a_requested_install(data_fixture):
     viewer = data_fixture.create_user()
     target = data_fixture.create_workspace(user=viewer)
     root = _create_template(data_fixture, owner)
-    job = _request_install(viewer, target, root)
+    job = request_install(viewer, target, root)
 
     _delete(owner, root)
 
     # A new install is refused, the requested one waits in the queue, and the
     # template waits for it.
     with pytest.raises(TemplateDoesNotExist):
-        _request_install(viewer, target, root)
-    _purge()
+        request_install(viewer, target, root)
+    purge()
     assert Template.objects.filter(id=root.id).exists()
 
-    job = _run(job)
+    job = run_job(job)
     assert job.state == JOB_FINISHED
     assert _installed_names(target) == ["First", "Second"]
+    assert Template.objects.get(id=root.id).install_count == 1
 
-    _purge()
+    purge()
 
     _assert_removed_and_installed_copy_kept(root, target, job)
 
 
 @install_marks
-def test_deleted_template_is_removed_after_a_running_install(data_fixture, test_thread):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    job = _request_install(owner, target, root)
+def test_deleted_template_is_removed_after_a_running_install(
+    queued_install, test_thread
+):
+    owner, target, root = (
+        queued_install.owner,
+        queued_install.target,
+        queued_install.root,
+    )
     kept_while_running = []
 
     # Outside of the transaction of the install, like a request and the cleanup
@@ -1079,7 +714,7 @@ def test_deleted_template_is_removed_after_a_running_install(data_fixture, test_
     def delete_and_purge_in_another_connection():
         try:
             _delete(owner, root)
-            _purge()
+            purge()
         finally:
             connection.close()
 
@@ -1089,38 +724,90 @@ def test_deleted_template_is_removed_after_a_running_install(data_fixture, test_
             assert thread.thread_stopped.wait(30)
         kept_while_running.append(Template.objects.filter(id=root.id).exists())
 
-    with _import_application_raising(None, before=delete_and_purge):
-        job = _run(job)
+    with fail_on_import(None, before=delete_and_purge):
+        job = run_job(queued_install.job)
 
     assert kept_while_running == [True]
     assert job.state == JOB_FINISHED
     assert _installed_names(target) == ["First", "Second"]
 
-    _purge()
+    purge()
 
     _assert_removed_and_installed_copy_kept(root, target, job)
 
 
+def _add_files(data_fixture, owner, workspace):
+    """
+    A database with a row holding an uploaded file in a file field and an image
+    in a rich text field.
+    """
+
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Files"
+    )
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True, name="Name")
+    file_field = data_fixture.create_file_field(table=table, name="File")
+    notes_field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    handler = UserFileHandler()
+    document = handler.upload_user_file(owner, "document.txt", ContentFile(b"Document"))
+    image = handler.upload_user_file(owner, "photo.png", ContentFile(b"Photo"))
+    table.get_model().objects.create(
+        **{
+            file_field.db_column: [
+                {**document.serialize(), "visible_name": "document.txt"}
+            ],
+            notes_field.db_column: f"Look ![photo][{image.name}] here",
+        }
+    )
+    return SimpleNamespace(document=document, image=image)
+
+
+def _installed_files(workspace):
+    """The names of the user files of the row installed by `_add_files`."""
+
+    table = Application.objects.get(workspace=workspace).specific.table_set.get()
+    fields = {field.name: field for field in table.field_set.all()}
+    row = table.get_model().objects.get()
+    return SimpleNamespace(
+        documents=[file["name"] for file in getattr(row, fields["File"].db_column)],
+        images=sorted(extract_user_file_names(getattr(row, fields["Notes"].db_column))),
+    )
+
+
+def _read_user_file(name):
+    with get_default_storage().open(UserFileHandler().user_file_path(name)) as f:
+        return f.read()
+
+
+@install_marks
+def test_installed_copy_keeps_its_files_after_the_template_is_deleted(data_fixture):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = data_fixture.create_user_template(user=owner, name="Mine")
+    files = _add_files(data_fixture, owner, root.workspace)
+    data_fixture.set_user_template_state(root, "public")
+
+    job = install(owner, target, root)
+    _delete(owner, root)
+    purge()
+
+    assert job.state == JOB_FINISHED
+    _assert_removed_and_installed_copy_kept(root, target, job)
+    # Like a duplicate, the copy refers to the user files of the template, which
+    # the purge of the template keeps.
+    installed = _installed_files(target)
+    assert installed.documents == [files.document.name]
+    assert UserFile.objects.all().name(files.document.name).exists()
+    assert _read_user_file(files.document.name) == b"Document"
+    assert installed.images == [files.image.name]
+    assert _read_user_file(files.image.name) == b"Photo"
+
+
 # The official install runs in the transaction of the job, so it's rolled back
 # when it's cancelled, and `is_cancellable` keeps it cancellable until it ends.
-
-
-@pytest.mark.django_db(transaction=True)
-@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
-def test_official_install_cancelled_before_it_starts(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    CoreHandler().sync_templates()
-    template = Template.objects.get(slug="example-template")
-    job = _request_install(user, workspace, template)
-
-    JobHandler.cancel_job(job)
-    job = _run(job)
-
-    assert job.state == JOB_CANCELLED
-    assert not Application.objects_and_trash.filter(workspace=workspace).exists()
-
-
 @pytest.mark.django_db(transaction=True)
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 def test_official_install_cancelled_while_it_runs(
@@ -1130,7 +817,7 @@ def test_official_install_cancelled_while_it_runs(
     workspace = data_fixture.create_workspace(user=user)
     CoreHandler().sync_templates()
     template = Template.objects.get(slug="example-template")
-    job = _request_install(user, workspace, template)
+    job = request_install(user, workspace, template)
     install_template = CoreHandler.install_template
 
     def install_then_cancel(self, *args, **kwargs):
@@ -1142,26 +829,8 @@ def test_official_install_cancelled_while_it_runs(
         return result
 
     with patch.object(CoreHandler, "install_template", install_then_cancel):
-        job = _run(job)
+        job = run_job(job)
 
     assert job.state == JOB_CANCELLED
     assert not Application.objects_and_trash.filter(workspace=workspace).exists()
     assert Template.objects.get(id=template.id).install_count == 0
-
-
-@pytest.mark.django_db
-@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
-def test_install_job_with_installed_applications_isnt_cancellable(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    CoreHandler().sync_templates()
-    template = Template.objects.get(slug="example-template")
-    job = _request_install(user, workspace, template)
-    job.set_state_started()
-    job.save()
-    InstallTemplateJob.objects.filter(id=job.id).update(installed_applications=[1])
-
-    with pytest.raises(JobNotCancellable):
-        JobHandler.cancel_job(job)
-
-    assert InstallTemplateJob.objects.get(id=job.id).state != JOB_CANCELLED

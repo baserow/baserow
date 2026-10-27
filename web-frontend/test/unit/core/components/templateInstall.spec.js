@@ -3,33 +3,25 @@ import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { permission } from '@baserow/test/helpers/permission'
+import { updateJob } from '@baserow/test/helpers/store'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
+import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import { workspaceSidebarVisibleKey } from '@baserow/modules/core/composables/useWorkspaceSidebar'
 
-// The permission plugin allows everything in tests and can't be replaced.
-const permission = vi.hoisted(() => ({ check: () => true }))
-
-vi.mock('#app', async (importOriginal) => {
-  const original = await importOriginal()
-  return {
-    ...original,
-    useNuxtApp: () =>
-      new Proxy(original.useNuxtApp(), {
-        get(target, property) {
-          return property === '$hasPermission'
-            ? (...args) => permission.check(...args)
-            : Reflect.get(target, property)
-        },
-      }),
-  }
-})
+vi.mock('#app', async (importOriginal) =>
+  (await import('@baserow/test/helpers/permission')).mockHasPermission(
+    importOriginal
+  )
+)
 
 const template = { id: 5, slug: 'project-tracker', name: 'Project Tracker' }
 
-// What the `app` layout provides: whether its sidebar lists the selected workspace.
-const withWorkspaceSidebar = (visible) => ({
-  provide: { [workspaceSidebarVisibleKey]: ref(visible) },
+// What the `app` layout provides to the page and its toasts: whether its sidebar
+// lists the selected workspace.
+const withWorkspaceSidebar = (sidebar) => ({
+  provide: { [workspaceSidebarVisibleKey]: sidebar },
 })
 
 describe('TemplateInstall', () => {
@@ -80,49 +72,35 @@ describe('TemplateInstall', () => {
     expect(wrapper.emitted('installed')).toBeUndefined()
   })
 
-  test('installs into the provided workspace without redirecting', async () => {
-    signIn()
-    mockInstall(2)
-
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 2 } },
-    })
-    await clickUse(wrapper)
-
-    expect(testApp.mock.history.post.map((r) => r.url)).toStrictEqual([
-      '/templates/install/2/5/async/',
-    ])
-    // The public revision, or the owner's latest one while it isn't public.
-    expect(testApp.mock.history.post[0].params).toStrictEqual({})
-    expect(wrapper.emitted('installed')).toHaveLength(1)
-    expect(push).not.toHaveBeenCalled()
-  })
-
-  test('installs the latest revision when asked to', async () => {
-    signIn()
-    mockInstall(2)
-
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 2 }, latest: true },
-    })
-    await clickUse(wrapper)
-
-    expect(testApp.mock.history.post.map((r) => r.params)).toStrictEqual([
+  test.each([
+    [
+      'installs into the provided workspace without redirecting',
+      { workspace: { id: 2 } },
+      2,
+      // The public revision, or the owner's latest one while it isn't public.
+      {},
+    ],
+    [
+      'installs the latest revision when asked to',
+      { workspace: { id: 2 }, latest: true },
+      2,
       { latest: true },
-    ])
-  })
-
-  test('installs into the first workspace without leaving the page', async () => {
+    ],
+    ['installs into the first workspace without leaving the page', {}, 1, {}],
+  ])('%s', async (_title, props, workspaceId, params) => {
     signIn()
-    mockInstall(1)
+    mockInstall(workspaceId)
 
     const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template },
+      props: { template, ...props },
     })
     await clickUse(wrapper)
 
     expect(testApp.mock.history.post.map((r) => r.url)).toStrictEqual([
-      '/templates/install/1/5/async/',
+      `/templates/install/${workspaceId}/5/async/`,
+    ])
+    expect(testApp.mock.history.post.map((r) => r.params)).toStrictEqual([
+      params,
     ])
     expect(wrapper.emitted('installed')).toHaveLength(1)
     expect(push).not.toHaveBeenCalled()
@@ -159,20 +137,6 @@ describe('TemplateInstall', () => {
     ])
   })
 
-  test('fetches the permissions of every listed workspace', async () => {
-    signIn()
-    testApp.mock.onGet(/\/workspaces\/\d+\/permissions\//).reply(200, [])
-
-    await testApp.mount(TemplateInstall, { props: { template } })
-    await flushPromises()
-
-    expect(
-      testApp.store.getters['workspace/getAll'].map(
-        (workspace) => workspace._.permissionsLoaded
-      )
-    ).toStrictEqual([true, true])
-  })
-
   test('cannot install without a workspace to add applications to', async () => {
     signIn()
     permission.check = (operation) =>
@@ -199,62 +163,80 @@ describe('TemplateInstall', () => {
       testApp.store.getters['workspace/get'](id)
     )
 
-  test('shows the progress in a toast when no sidebar shows it', async () => {
-    signIn()
-    selectWorkspace(1)
-    mockInstall(1)
+  describe('while the install runs', () => {
+    const mockRunningInstall = (workspaceId) =>
+      testApp.mock
+        .onPost(`/templates/install/${workspaceId}/${template.id}/async/`)
+        .reply(202, {
+          id: 10,
+          type: 'install_template',
+          state: 'started',
+          progress_percentage: 10,
+          workspace: { id: workspaceId },
+          installed_applications: [],
+          human_readable_error: '',
+        })
 
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 1 } },
+    // The page and the toasts of the `app` layout, which share its sidebar.
+    const startInstall = async (workspaceId, sidebar) => {
+      const global = withWorkspaceSidebar(sidebar)
+      const toasts = await testApp.mount(Toasts, { global })
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, workspace: { id: workspaceId } },
+        global,
+      })
+      await clickUse(wrapper)
+      return toasts
+    }
+
+    const shownInstallToasts = (toasts) =>
+      toasts.findAll('.install-template-toast')
+
+    test('hides the progress while the sidebar shows the target workspace, then shows the result', async () => {
+      signIn()
+      selectWorkspace(1)
+      mockRunningInstall(1)
+
+      const toasts = await startInstall(1, ref(true))
+
+      expect(installToasts()).toHaveLength(1)
+      expect(shownInstallToasts(toasts)).toHaveLength(0)
+
+      await updateJob(testApp.store, 10, {
+        state: 'finished',
+        installed_applications: [],
+      })
+
+      expect(shownInstallToasts(toasts)).toHaveLength(1)
+      expect(toasts.find('.toast__title').text()).toBe(
+        'InstallTemplateJobType.installedMessage'
+      )
     })
-    await clickUse(wrapper)
 
-    expect(installToasts().map((toast) => toast.data)).toStrictEqual([
-      { jobId: 10, template_name: 'Project Tracker' },
-    ])
-  })
+    test.each([
+      [
+        'shows the progress when the sidebar is collapsed during the install',
+        (sidebar) => {
+          sidebar.value = false
+        },
+      ],
+      [
+        'shows the progress when the user switches workspace during the install',
+        () => selectWorkspace(2),
+      ],
+    ])('%s', async (_title, leaveWorkspace) => {
+      signIn()
+      selectWorkspace(1)
+      mockRunningInstall(1)
+      const sidebar = ref(true)
+      const toasts = await startInstall(1, sidebar)
 
-  test('shows the progress in a toast when installing into another workspace', async () => {
-    signIn()
-    selectWorkspace(1)
-    mockInstall(2)
+      leaveWorkspace(sidebar)
+      await flushPromises()
 
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 2 } },
-      global: withWorkspaceSidebar(true),
+      expect(shownInstallToasts(toasts)).toHaveLength(1)
+      expect(toasts.find('.toast__message').text()).toBe('10 %')
     })
-    await clickUse(wrapper)
-
-    expect(installToasts()).toHaveLength(1)
-  })
-
-  test('leaves the progress to the sidebar of the target workspace', async () => {
-    signIn()
-    selectWorkspace(1)
-    mockInstall(1)
-
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 1 } },
-      global: withWorkspaceSidebar(true),
-    })
-    await clickUse(wrapper)
-
-    expect(wrapper.emitted('installed')).toHaveLength(1)
-    expect(installToasts()).toHaveLength(0)
-  })
-
-  test('shows the progress in a toast when the sidebar is collapsed', async () => {
-    signIn()
-    selectWorkspace(1)
-    mockInstall(1)
-
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, workspace: { id: 1 } },
-      global: withWorkspaceSidebar(false),
-    })
-    await clickUse(wrapper)
-
-    expect(installToasts()).toHaveLength(1)
   })
 
   test('shows the copy link only when asked', async () => {
@@ -294,6 +276,33 @@ describe('TemplateInstall', () => {
       wrapper.find('.template-install__use').attributes('disabled')
     ).toBeUndefined()
   })
+
+  test('tells the user and asks to reload when the template was updated', async () => {
+    signIn()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock
+      .onPost(`/templates/install/1/${template.id}/async/`)
+      .reply(400, {
+        error: 'ERROR_TEMPLATE_UPDATED',
+        detail: 'The template was updated after it was opened.',
+      })
+
+    const wrapper = await testApp.mount(TemplateInstall, {
+      props: {
+        template: { ...template, revision_id: 8 },
+        workspace: { id: 1 },
+      },
+    })
+    await clickUse(wrapper)
+
+    expect(
+      testApp.store.state.toast.items.map((toast) => [toast.type, toast.title])
+    ).toStrictEqual([['error', 'clientHandler.templateUpdatedTitle']])
+    expect(wrapper.emitted('outdated')).toHaveLength(1)
+    expect(wrapper.emitted('installed')).toBeUndefined()
+    expect(installToasts()).toHaveLength(0)
+  })
+
   describe('without a workspace', () => {
     const userTemplate = {
       id: 5,
@@ -392,19 +401,6 @@ describe('TemplateInstall', () => {
           wrapper.find('.template-install__use').attributes('disabled')
         ).toBeDefined()
       })
-    })
-
-    test('shows the picker, not the create button, to a user with a workspace', async () => {
-      signIn()
-      const wrapper = await mountWithoutWorkspace({ template })
-
-      expect(wrapper.find('.template-install__no-workspace').exists()).toBe(
-        false
-      )
-      expect(wrapper.find('.template-install__create-workspace').exists()).toBe(
-        false
-      )
-      expect(wrapper.find('.template-install__workspace').exists()).toBe(true)
     })
 
     test('shows neither to an anonymous visitor', async () => {

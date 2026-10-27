@@ -1,7 +1,9 @@
 <template>
   <!-- Keyed by the phase, so that the toast of a failed install closes itself like
-  the other error toasts, counted from when the failure shows. -->
+  the other error toasts, counted from when the failure shows. Not rendered while
+  the sidebar shows the progress. -->
   <Toast
+    v-if="!hiddenBySidebar"
     :key="phase"
     class="install-template-toast"
     :type="toastType"
@@ -40,10 +42,12 @@ import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 
 import Toast from '@baserow/modules/core/components/toasts/Toast'
+import { injectWorkspaceSidebarVisible } from '@baserow/modules/core/composables/useWorkspaceSidebar'
 
 const props = defineProps({
-  // A toast of the `installTemplate` type. Its data holds the `jobId`, and the
-  // final fields of the job once the job is removed from the job store.
+  // A toast of the `installTemplate` type. Its data holds the `jobId`, the
+  // `workspaceId` the template is installed into, and the final fields of the
+  // job once the job is removed from the job store.
   toast: {
     type: Object,
     required: true,
@@ -53,6 +57,7 @@ const props = defineProps({
 const store = useStore()
 const nuxtApp = useNuxtApp()
 const { $i18n: i18n, $registry } = nuxtApp
+const workspaceSidebarVisible = injectWorkspaceSidebarVisible()
 
 // The job while it's in the job store, then the final fields written into the
 // toast when the job ended.
@@ -68,6 +73,21 @@ const phase = computed(() => {
     return 'failed'
   }
   return 'running'
+})
+
+// The sidebar lists the pending jobs of the selected workspace, so it shows the
+// progress while it's visible and the target workspace is selected. Switching
+// workspace or collapsing the sidebar shows the toast again. The result always
+// shows in the toast.
+const hiddenBySidebar = computed(() => {
+  // Without a selected workspace, `getSelected` is an empty object.
+  const selectedId = store.getters['workspace/getSelected']?.id
+  return (
+    phase.value === 'running' &&
+    workspaceSidebarVisible.value &&
+    selectedId !== undefined &&
+    selectedId === props.toast.data.workspaceId
+  )
 })
 
 const templateName = computed(

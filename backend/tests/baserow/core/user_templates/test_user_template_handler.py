@@ -20,7 +20,6 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING, JOB_STARTED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
@@ -378,33 +377,6 @@ def test_create_template_revision_waits_for_a_concurrent_commit(
 
 
 @pytest.mark.django_db
-def test_store_archive_tracks_the_name_given_by_the_storage(data_fixture, tmpdir):
-    storage = FileSystemStorage(location=str(tmpdir))
-    resource = data_fixture.create_import_export_resource(
-        created_by=data_fixture.create_user(), original_name="export.zip"
-    )
-    storage.save(
-        ImportExportHandler().export_file_path(resource.get_archive_name()),
-        ContentFile(b"archive"),
-    )
-    taken_name = storage.save("template-revisions/taken.zip", ContentFile(b"other"))
-    tracked = []
-
-    with patch(
-        "baserow.core.user_templates.handler.template_archive_upload_to",
-        return_value=taken_name,
-    ):
-        stored_name = UserTemplateHandler()._store_archive(
-            resource, storage, lambda **content: tracked.append(content)
-        )
-
-    assert stored_name != taken_name
-    assert tracked == [{"archive_name": taken_name}, {"archive_name": stored_name}]
-    with storage.open(stored_name) as stored_file:
-        assert stored_file.read() == b"archive"
-
-
-@pytest.mark.django_db
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 def test_sync_templates_installs_official_template_next_to_user_slug(
     data_fixture, tmpdir
@@ -737,35 +709,29 @@ def test_install_template_content_applies_the_content_rules(
     installer = data_fixture.create_user()
     target = data_fixture.create_workspace(user=installer)
     configs = []
-    export_workspace_applications = ImportExportHandler.export_workspace_applications
-    import_applications_from_export = (
-        ImportExportHandler.import_applications_from_export
-    )
+    serialize_applications = UserTemplateHandler.serialize_applications
+    import_applications = CoreHandler.import_applications_to_workspace
 
-    def export_spy(self, applications, import_export_config, **kwargs):
-        configs.append(import_export_config)
-        return export_workspace_applications(
-            self, applications, import_export_config, **kwargs
-        )
+    def serialize_spy(self, applications, config, *args, **kwargs):
+        configs.append(config)
+        return serialize_applications(self, applications, config, *args, **kwargs)
 
-    def import_spy(self, user, workspace, resource, import_export_config, **kwargs):
-        configs.append(import_export_config)
-        return import_applications_from_export(
-            self, user, workspace, resource, import_export_config, **kwargs
+    def import_spy(self, workspace, serialized, files_buffer, config, *args, **kwargs):
+        configs.append(config)
+        return import_applications(
+            self, workspace, serialized, files_buffer, config, *args, **kwargs
         )
 
     with (
-        patch.object(ImportExportHandler, "export_workspace_applications", export_spy),
-        patch.object(
-            ImportExportHandler, "import_applications_from_export", import_spy
-        ),
+        patch.object(UserTemplateHandler, "serialize_applications", serialize_spy),
+        patch.object(CoreHandler, "import_applications_to_workspace", import_spy),
     ):
         user_template_handler = UserTemplateHandler()
-        with user_template_handler.export_template_content(revision) as resource:
-            with transaction.atomic():
-                installed = user_template_handler.install_template_content(
-                    installer, target, revision, resource
-                )
+        content = user_template_handler.serialize_template_content(revision)
+        with transaction.atomic():
+            installed = user_template_handler.install_template_content(
+                installer, target, revision, content
+            )
 
     assert len(configs) == 2
     for config in configs:

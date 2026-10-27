@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { ModalStub } from '@baserow/test/helpers/modalStub'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
 
 const userTemplate = (values = {}) => ({
@@ -51,16 +52,11 @@ describe('DeleteUserTemplateModal', () => {
   const isModalOpen = (wrapper) =>
     wrapper.findComponent({ name: 'Modal' }).vm.open
 
-  // Replies to the deletion only when `reply` is called.
+  // Replies to the deletion only when `send` is called.
   const holdDeletion = (slug = 'sprint-tracker') => {
-    const held = { reply: null }
-    testApp.mock.onDelete(`/templates/${slug}/`).reply(
-      () =>
-        new Promise((resolve) => {
-          held.reply = resolve
-        })
-    )
-    return held
+    const deletion = heldBack()
+    testApp.mock.onDelete(`/templates/${slug}/`).reply(deletion.reply)
+    return deletion
   }
 
   test('asks to confirm with the name of the template', async () => {
@@ -109,7 +105,7 @@ describe('DeleteUserTemplateModal', () => {
 
     expect(testApp.mock.history.delete).toHaveLength(1)
 
-    held.reply([204])
+    held.send([204])
     await flushPromises()
 
     expect(wrapper.emitted('deleted')).toStrictEqual([
@@ -176,7 +172,7 @@ describe('DeleteUserTemplateModal', () => {
     // The running deletion is of the other template.
     expect(deleteButton(wrapper).attributes('disabled')).toBeUndefined()
 
-    held.reply([204])
+    held.send([204])
     await flushPromises()
 
     expect(wrapper.emitted('deleted')).toStrictEqual([

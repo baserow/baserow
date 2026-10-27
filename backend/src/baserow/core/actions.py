@@ -755,7 +755,7 @@ class InstallTemplateActionType(UndoableActionType):
         template: Template,
         progress_builder: Optional[ChildProgressBuilder] = None,
         *,
-        resource: Optional[ImportExportResource] = None,
+        content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
@@ -769,8 +769,8 @@ class InstallTemplateActionType(UndoableActionType):
         :param template: The template to install, a revision for a user template.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the installation.
-        :param resource: The export of a user template, see
-            UserTemplateHandler.export_template_content.
+        :param content: The serialized content of a user template, see
+            UserTemplateHandler.serialize_template_content.
         :return: The list of installed applications.
         """
 
@@ -779,7 +779,7 @@ class InstallTemplateActionType(UndoableActionType):
                 user,
                 workspace,
                 template,
-                resource,
+                content,
                 progress_builder=progress_builder,
             )
         else:

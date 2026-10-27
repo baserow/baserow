@@ -51,6 +51,7 @@ from baserow.core.user_templates.actions import DeleteUserTemplateActionType
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
+    TemplateUpdated,
 )
 
 from .errors import (
@@ -58,6 +59,7 @@ from .errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
+    ERROR_TEMPLATE_UPDATED,
 )
 
 
@@ -358,6 +360,15 @@ class AsyncInstallTemplateView(APIView):
                 description="Installs the latest revision of a user template, "
                 "which only its owner may. Ignored for official templates.",
             ),
+            OpenApiParameter(
+                name="revision_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="The `revision_id` of the user template that was "
+                "shown. If another revision would be installed, because the "
+                "template was updated since, nothing is installed. Ignored for "
+                "official templates.",
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
@@ -381,6 +392,7 @@ class AsyncInstallTemplateView(APIView):
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
                     "ERROR_TEMPLATE_BLOCKED",
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
+                    "ERROR_TEMPLATE_UPDATED",
                     "ERROR_QUERY_PARAMETER_VALIDATION",
                 ]
             ),
@@ -398,6 +410,7 @@ class AsyncInstallTemplateView(APIView):
             TemplateFileDoesNotExist: ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
             TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+            TemplateUpdated: ERROR_TEMPLATE_UPDATED,
         }
     )
     @validate_query_parameters(InstallTemplateQueryParamSerializer)
@@ -411,6 +424,7 @@ class AsyncInstallTemplateView(APIView):
             workspace_id=workspace_id,
             template_id=template_id,
             latest=query_params["latest"],
+            revision_id=query_params.get("revision_id"),
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

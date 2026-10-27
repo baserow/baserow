@@ -33,6 +33,7 @@ from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import JobType
+from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -393,11 +394,22 @@ class CreateUserTemplateJobType(JobType):
         job: CreateUserTemplateJob,
         committed_job: CreateUserTemplateJob,
         copies_from_workspace: bool,
-    ):
+    ) -> Template:
         """
         Another run of the job, like a redelivery of its task, committed its
-        revision first. The copy of this run is deleted, which skips the content of
-        the committed revision, and the job is saved with that revision instead.
+        revision first, so this run keeps that revision instead of its own.
+
+        Deletes the content this run tracked, which skips the content of the
+        committed revision, and points `job` at the committed revision in memory:
+        its `template_id`, `revision` and, when the content was copied from a
+        workspace, `template_workspace_id`. Saving the job is left to the task
+        that runs it.
+
+        :param job: The job of this run.
+        :param committed_job: The job as committed by the other run.
+        :param copies_from_workspace: Whether the job copies content from a
+            workspace, or shares the content of the previous revision.
+        :return: The revision committed by the other run.
         """
 
         try:
@@ -414,7 +426,6 @@ class CreateUserTemplateJobType(JobType):
         # Shared content isn't tracked, see `UpdateUserTemplateActionType.do`.
         if copies_from_workspace:
             job.template_workspace_id = revision.workspace_id
-            job.archive_name = revision.archive.name
         return revision
 
     def _delete_content_of_deleted_job(self, job: CreateUserTemplateJob) -> None:
@@ -464,8 +475,8 @@ class CreateUserTemplateJobType(JobType):
 
     def _track_content(self, job: CreateUserTemplateJob, **content) -> None:
         """
-        Stores the workspace and the archive on the job as soon as they exist, so
-        that the cleanup finds them whatever happens next. The job hooks clean up
+        Stores the template workspace on the job as soon as it exists, so that the
+        cleanup finds it whatever happens next. The job hooks clean up
         what this run tracked on the instance, the sweep what's on the row.
         """
 

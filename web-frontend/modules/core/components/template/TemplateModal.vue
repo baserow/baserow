@@ -23,6 +23,7 @@
         class="templates__body"
         @back="selectTemplate(null)"
         @installed="hide()"
+        @outdated="templateOutdated"
         @edit="openUpdateModal(selectedTemplate, $event)"
         @delete="openDeleteModal"
       ></TemplateDetails>
@@ -307,6 +308,14 @@ export default {
       } catch (error) {
         notifyIf(error, 'templates')
       }
+    },
+    /**
+     * An install was refused because the template was updated since it was
+     * shown, in another tab for example. Only the user's own templates can be,
+     * as the other tab lists the official ones.
+     */
+    templateOutdated() {
+      return this.templateUpdated({ template: this.selectedTemplate.id })
     },
     async openDeleteModal(template) {
       this.deletedTemplate = template

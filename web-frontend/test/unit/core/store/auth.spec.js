@@ -263,4 +263,20 @@ describe('Auth store', () => {
       JSON.stringify({ refresh_token: refreshToken(256) })
     )
   })
+
+  test('clears a finished install toast on logout, and keeps the other toasts', async () => {
+    // The install finished and its result toast is still shown when the user
+    // logs out. The next user must not see it.
+    await store.dispatch('toast/add', {
+      type: 'installTemplate',
+      data: { jobId: 10, template_name: 'Project Tracker', state: 'finished' },
+    })
+    await store.dispatch('toast/info', { title: 'Logged out', message: '' })
+
+    await store.dispatch('auth/clearAllStoreUserData')
+
+    expect(store.state.toast.items.map((toast) => toast.type)).toEqual([
+      'info-neutral',
+    ])
+  })
 })

@@ -33,6 +33,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
+    ERROR_TEMPLATE_UPDATED,
 )
 from baserow.api.templates.serializers import TemplateSerializer
 from baserow.api.workspaces.serializers import WorkspaceSerializer
@@ -55,6 +56,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     is_max_lock_exceeded_exception,
 )
+from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -84,6 +86,7 @@ from baserow.core.service import CoreService
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
+    TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder, Progress
@@ -184,6 +187,7 @@ class InstallTemplateJobType(JobType):
         TemplateFileDoesNotExist: ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
         TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+        TemplateUpdated: ERROR_TEMPLATE_UPDATED,
         InstallTemplateMaxLocksExceededException: ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED,
     }
 
@@ -245,12 +249,27 @@ class InstallTemplateJobType(JobType):
             root__isnull=True,
             marked_for_deletion_at__isnull=True,
         ).first()
-        if root is not None and root.type == Template.Type.USER:
+        # With the feature off, a user template is looked up like an official one
+        # below, which doesn't find it.
+        if (
+            root is not None
+            and root.type == Template.Type.USER
+            and feature_flag_is_enabled(FF_USER_TEMPLATES)
+        ):
             # The resolved revision is pinned, so that an update of the template
             # before the job runs doesn't change what's installed.
             template = UserTemplateHandler().get_installable_revision(
                 user, root, latest=values.get("latest", False)
             )
+            # The user installs the revision they were shown. If another one was
+            # made public, or the owner updated it in another tab since, the user
+            # is told, so that they see what they install first.
+            revision_id = values.get("revision_id")
+            if revision_id is not None and revision_id != template.id:
+                raise TemplateUpdated(
+                    f"The template {root.id} was updated after revision "
+                    f"{revision_id} was shown."
+                )
         else:
             # ensure everything is ok for the installation, otherwise
             # raise an exception immediately without submitting the job
@@ -299,10 +318,10 @@ class InstallTemplateJobType(JobType):
         self, job: InstallTemplateJob, progress_builder: ChildProgressBuilder
     ) -> List[Application]:
         """
-        Installs the pinned revision of a user template. The export runs first,
-        outside any transaction, and everything written into the target workspace,
-        the count included, is committed together at the commit point, so that a
-        failure or a cancellation leaves nothing behind.
+        Installs the pinned revision of a user template. Its content is
+        serialized first, outside any transaction, and everything written into the
+        target workspace, the count included, is committed together at the commit
+        point, so that a failure or a cancellation leaves nothing behind.
         """
 
         # A redelivered job that was already installed isn't installed again.
@@ -320,39 +339,28 @@ class InstallTemplateJobType(JobType):
         user_template_handler.check_install_access(job.user, job.template)
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
-        committed = False
         try:
-            with user_template_handler.export_template_content(
+            content = user_template_handler.serialize_template_content(
                 job.template,
                 progress_builder=progress.create_child_builder(represents_progress=50),
-            ) as resource:
-                with transaction.atomic():
-                    installed_applications = action_type_registry.get_by_type(
-                        InstallTemplateActionType
-                    ).do(
-                        job.user,
-                        job.workspace,
-                        job.template,
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=50
-                        ),
-                        resource=resource,
-                    )
-                    self._commit_install(job, installed_applications)
-                committed = True
+            )
+            with transaction.atomic():
+                installed_applications = action_type_registry.get_by_type(
+                    InstallTemplateActionType
+                ).do(
+                    job.user,
+                    job.workspace,
+                    job.template,
+                    progress_builder=progress.create_child_builder(
+                        represents_progress=50
+                    ),
+                    content=content,
+                )
+                self._commit_install(job, installed_applications)
         except _InstallAlreadyCommitted as exc:
             job.installed_applications = exc.installed_application_ids
             return self._get_installed_applications(exc.installed_application_ids)
         except BaseException as exc:
-            if committed:
-                if not isinstance(exc, Exception):
-                    raise
-                # The install is committed, so a failure after it, like in the
-                # clean-up of the export, doesn't undo it.
-                logger.exception(
-                    f"The install template job {job.id} failed after its commit."
-                )
-                return installed_applications
             # Another run of the job may have committed the install in the
             # meantime, and this failure mustn't be saved over its result.
             if isinstance(exc, Exception):

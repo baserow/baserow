@@ -289,8 +289,8 @@ export class InstallTemplateJobType extends JobType {
 
   /**
    * Writes the final fields of the job into its install toast, or shows one if there
-   * is none, because the progress was shown in the sidebar. The toast then shows the
-   * result after the job is removed from the store.
+   * is none, because the install was started before the page was loaded. The toast
+   * then shows the result after the job is removed from the store.
    */
   async updateInstallToast(job) {
     const store = this.app.$store
