@@ -324,3 +324,33 @@ def test_delete_widgets_trashes_and_hides_foreign(
     again = delete_widgets(ctx, [widget_id])
     assert again["deleted"] == []
     assert again["errors"] == [{"widget_id": widget_id, "error": NOT_FOUND}]
+
+
+@pytest.mark.django_db
+def test_undo_restores_a_deleted_widget(data_fixture, sales_table):
+    from baserow.core.action.handler import ActionHandler
+    from baserow.core.action.scopes import ApplicationActionScopeType
+    from baserow.core.tools import ToolContext
+
+    table, _, amount = sales_table
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    data_fixture.create_user_workspace(
+        user=user, workspace=table.database.workspace, permissions="ADMIN"
+    )
+    ctx = ToolContext(user=user, workspace=table.database.workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=ctx.workspace)
+    data_fixture.create_local_baserow_integration(
+        application=dashboard, authorized_user=user
+    )
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+    delete_widgets(ctx, [widget_id])
+
+    ActionHandler.undo(
+        user, [ApplicationActionScopeType.value(dashboard.id)], session_id
+    )
+
+    assert not Widget.objects_and_trash.get(id=widget_id).trashed
+    assert get_widget_data(ctx, [widget_id])["widgets"][0]["configured"] is True
