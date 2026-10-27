@@ -227,3 +227,110 @@ def test_chart_series_over_the_limit_is_rejected(premium_data_fixture, settings)
     assert result["created"] == []
     assert "maximum" in result["errors"][0]["error"]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
+
+
+def _styled_chart(premium_data_fixture):
+    """A chart with two series, the second one restyled in the UI."""
+
+    ctx, dashboard, table, _, amount, stage = _setup(premium_data_fixture)
+    widget_id = create_widgets(
+        ctx,
+        dashboard.id,
+        [
+            {
+                "type": "chart",
+                "title": "Styled",
+                "table_id": table.id,
+                "series": [
+                    {"field_id": amount.id, "aggregation_type": "sum"},
+                    {"field_id": amount.id, "aggregation_type": "max"},
+                ],
+                "group_by_field_id": stage.id,
+            }
+        ],
+    )["created"][0]["id"]
+    second = ChartSeriesConfig.objects.filter(widget_id=widget_id).order_by(
+        "series__order"
+    )[1]
+    second.series_chart_type = "LINE"
+    second.series_color = "#ff0000"
+    second.save()
+    return ctx, table, amount, widget_id
+
+
+def _styles(widget_id):
+    return [
+        (c.series_id, c.series_chart_type, c.series_color)
+        for c in ChartSeriesConfig.objects.filter(widget_id=widget_id).order_by(
+            "series__order"
+        )
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_changing_the_view_keeps_series_styles(premium_data_fixture):
+    ctx, table, _, widget_id = _styled_chart(premium_data_fixture)
+    view = premium_data_fixture.create_grid_view(table=table)
+    before = _styles(widget_id)
+
+    result = update_widgets(ctx, [{"widget_id": widget_id, "view_id": view.id}])
+
+    assert result["errors"] == []
+    assert result["updated"][0]["view_id"] == view.id
+    assert _styles(widget_id) == before
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_changing_one_series_keeps_the_style_of_the_others(premium_data_fixture):
+    ctx, _, amount, widget_id = _styled_chart(premium_data_fixture)
+    before = _styles(widget_id)
+
+    result = update_widgets(
+        ctx,
+        [
+            {
+                "widget_id": widget_id,
+                "series": [
+                    {"field_id": amount.id, "aggregation_type": "average"},
+                    {"field_id": amount.id, "aggregation_type": "max"},
+                    {"field_id": amount.id, "aggregation_type": "min"},
+                ],
+            }
+        ],
+    )
+
+    assert result["errors"] == []
+    after = _styles(widget_id)
+    assert after[:2] == before
+    assert after[2][1:] == ("BAR", None)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_changing_the_chart_type_keeps_series_colours(premium_data_fixture):
+    ctx, _, _, widget_id = _styled_chart(premium_data_fixture)
+
+    update_widgets(ctx, [{"widget_id": widget_id, "chart_type": "LINE"}])
+
+    assert [s[1:] for s in _styles(widget_id)] == [
+        ("LINE", None),
+        ("LINE", "#ff0000"),
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_changing_the_group_by_keeps_series_styles(premium_data_fixture):
+    ctx, table, _, widget_id = _styled_chart(premium_data_fixture)
+    region = premium_data_fixture.create_single_select_field(table=table, name="Region")
+    before = _styles(widget_id)
+
+    result = update_widgets(
+        ctx, [{"widget_id": widget_id, "group_by_field_id": region.id}]
+    )
+
+    assert result["errors"] == []
+    assert result["updated"][0]["group_by_field_id"] == region.id
+    assert _styles(widget_id) == before

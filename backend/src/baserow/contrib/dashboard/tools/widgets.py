@@ -299,24 +299,47 @@ def _aggregations(config: dict[str, Any]) -> list[tuple[int, str]]:
     return [(config["field_id"], config["aggregation_type"])]
 
 
-def _data_source_values(config: dict[str, Any]) -> dict[str, Any]:
-    """The service values of a widget's data source."""
+def _data_source_values(
+    config: dict[str, Any],
+    previous: dict[str, Any] | None = None,
+    series_ids: list[int] | None = None,
+) -> dict[str, Any]:
+    """
+    The service values of a widget's data source.
 
-    values = {"table_id": config["table_id"], "view_id": config["view_id"]}
+    :param config: The data source the widget gets.
+    :param previous: The data source it has, when it is updated. Only the values
+        that change are sent.
+    :param series_ids: The ids of the chart's series, in order. A series given at
+        the same position keeps its id, so its color and chart type stay.
+    """
+
+    changed = {
+        key for key in config if previous is None or previous[key] != config[key]
+    }
     if "series" not in config:
-        values["field_id"] = config["field_id"]
-        values["aggregation_type"] = config["aggregation_type"]
-        return values
+        return {key: config[key] for key in changed}
+
+    values = {key: config[key] for key in changed & {"table_id", "view_id"}}
+    # A new table drops the series and group by of the old one.
+    table_changed = "table_id" in changed and previous is not None
     # The grouped aggregate service (premium) takes the series and group bys
     # under the names of their relations. It drops the sorts they no longer match.
-    values["service_aggregation_series"] = [
-        {"field_id": s["field_id"], "aggregation_type": s["aggregation_type"]}
-        for s in config["series"]
-    ]
-    group_by = config.get("group_by_field_id")
-    values["service_aggregation_group_bys"] = (
-        [{"field_id": group_by}] if group_by is not None else []
-    )
+    if "series" in changed or table_changed:
+        ids = series_ids or []
+        values["service_aggregation_series"] = [
+            {
+                **({"id": ids[index]} if index < len(ids) else {}),
+                "field_id": series["field_id"],
+                "aggregation_type": series["aggregation_type"],
+            }
+            for index, series in enumerate(config["series"])
+        ]
+    if "group_by_field_id" in changed or table_changed:
+        group_by = config["group_by_field_id"]
+        values["service_aggregation_group_bys"] = (
+            [{"field_id": group_by}] if group_by is not None else []
+        )
     return values
 
 
@@ -331,26 +354,54 @@ def _data_source_config(description: dict[str, Any]) -> dict[str, Any]:
     return {key: description[key] for key in keys}
 
 
-def _update_data_source(ctx: ToolContext, widget: Widget, config: dict) -> None:
+def _update_data_source(
+    ctx: ToolContext,
+    widget: Widget,
+    config: dict[str, Any],
+    previous: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    :return: The values sent to the service.
+    """
+
     service = widget.data_source.service.specific
+    series_ids = (
+        [series.id for series in service.service_aggregation_series.all()]
+        if hasattr(service, "service_aggregation_series")
+        else None
+    )
+    values = _data_source_values(config, previous, series_ids)
     UpdateDashboardDataSourceActionType.do(
         ctx.user,
         widget.data_source_id,
         service_type_registry.get_by_model(service),
-        _data_source_values(config),
+        values,
     )
+    return values
 
 
-def _series_config(widget: Widget) -> list[dict[str, Any]]:
+def _series_config(widget: Widget, restyle: bool = False) -> list[dict[str, Any]]:
     """
-    One entry for each series of a chart, drawn as the chart's type. The chart
-    only draws a series in its own type when the series has an entry.
+    One entry for each series of a chart. The chart only draws a series in its
+    own type when the series has an entry. A series that has one keeps its type,
+    and its color, unless ``restyle`` draws every series as the chart's type.
     """
 
     widget.data_source.refresh_from_db()
     service = widget.data_source.service.specific
+    existing = {
+        config.series_id: config.series_chart_type
+        for config in widget.series_config.all()
+    }
     return [
-        {"series_id": series.id, "series_chart_type": widget.default_series_chart_type}
+        {
+            "series_id": series.id,
+            "series_chart_type": (
+                existing[series.id]
+                if series.id in existing and not restyle
+                else widget.default_series_chart_type
+            ),
+        }
         for series in service.service_aggregation_series.all()
     ]
 
@@ -471,15 +522,19 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     if "chart_type" in given and given["chart_type"] != current["chart_type"]:
         new_data["default_series_chart_type"] = given["chart_type"]
 
-    if data_source_changed:
-        _update_data_source(ctx, widget, new_config)
+    sent = (
+        _update_data_source(ctx, widget, new_config, config)
+        if data_source_changed
+        else {}
+    )
+    restyle = "default_series_chart_type" in new_data
     if widget_type not in SUMMARY_WIDGET_TYPES and (
-        data_source_changed or "default_series_chart_type" in new_data
+        "service_aggregation_series" in sent or restyle
     ):
         widget = WidgetService().get_widget(ctx.user, widget.id)
-        if "default_series_chart_type" in new_data:
+        if restyle:
             widget.default_series_chart_type = new_data["default_series_chart_type"]
-        new_data["series_config"] = _series_config(widget)
+        new_data["series_config"] = _series_config(widget, restyle)
     if new_data:
         UpdateWidgetActionType.do(ctx.user, widget.id, widget_type, new_data)
     return data_source_changed or bool(new_data)

@@ -19,6 +19,8 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
 from baserow.core.tools.errors import item_error_message
 
+MAX_DASHBOARDS = 20
+
 
 def get_dashboard_in_workspace(ctx: ToolContext, dashboard_id: int) -> Dashboard:
     """
@@ -65,7 +67,11 @@ def create_dashboards(
     ctx: ToolContext,
     names: Annotated[
         list[str],
-        Field(description="The names of the dashboards to create, one per dashboard."),
+        Field(
+            min_length=1,
+            max_length=MAX_DASHBOARDS,
+            description="The names of the dashboards to create, at most 20.",
+        ),
     ],
 ) -> dict[str, Any]:
     """
@@ -95,7 +101,4 @@ def create_dashboards(
             continue
         created.append({"id": dashboard.id, "name": dashboard.name})
 
-    result: dict[str, Any] = {"created": created}
-    if errors:
-        result["errors"] = errors
-    return result
+    return {"created": created, "errors": errors}

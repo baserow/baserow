@@ -134,6 +134,15 @@ def test_create_dashboards_rejects_empty_list(dashboard_ctx):
         create_dashboards(ctx, [])
 
 
+def test_create_dashboards_caps_the_batch():
+    from baserow.core.mcp.registries import mcp_tool_registry
+
+    schema = mcp_tool_registry.get("create_dashboards").input_schema
+    names = schema.model_json_schema()["properties"]["names"]
+    assert names["maxItems"] == 20
+    assert names["minItems"] == 1
+
+
 def test_chart_widget_create_rejects_empty_series():
     with pytest.raises(pydantic.ValidationError):
         TypeAdapter(WidgetCreate).validate_python(
