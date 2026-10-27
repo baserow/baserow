@@ -2626,16 +2626,19 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         **kwargs,
     ):
         """
-        Handle the is_public field during import based on publishing context.
+        Handle the is_public and uid fields during import based on publishing
+        context.
         """
 
-        if import_export_config:
-            if import_export_config.is_publishing:
-                serialized_values["is_public"] = True
-            if import_export_config.is_duplicate:
-                # Ensure that duplicating a service (e.g. installing a template)
-                # results in a new unique uuid.
-                serialized_values["uid"] = str(uuid.uuid4())
+        if import_export_config and import_export_config.is_publishing:
+            # Publishing must keep the uid so the published URL is the one
+            # shown next to the draft.
+            serialized_values["is_public"] = True
+        else:
+            # Every other import (duplicating, installing a template,
+            # importing an exported application) gets its own URL, since the
+            # newest service with a uid receives that URL's requests.
+            serialized_values["uid"] = str(uuid.uuid4())
 
         return super().import_serialized(
             parent,
