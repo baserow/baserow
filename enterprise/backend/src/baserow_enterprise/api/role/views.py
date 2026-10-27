@@ -176,6 +176,7 @@ class RoleAssignmentsView(APIView):
         role_assignment = roles_assignments[0]
 
         if role_assignment:
+            RoleAssignmentHandler().prefetch_role_assignment_subjects([role_assignment])
             serializer = RoleAssignmentSerializer(role_assignment)
             return Response(serializer.data)
 
@@ -263,6 +264,7 @@ class RoleAssignmentsView(APIView):
             workspace, scope=scope
         )
 
+        RoleAssignmentHandler().prefetch_role_assignment_subjects(role_assignments)
         return Response(RoleAssignmentSerializer(role_assignments, many=True).data)
 
 
@@ -360,6 +362,7 @@ class BatchRoleAssignmentsView(APIView):
             workspace,
         )
 
+        RoleAssignmentHandler().prefetch_role_assignment_subjects(role_assignments)
         response = [
             RoleAssignmentSerializer(ra).data if ra else None for ra in role_assignments
         ]

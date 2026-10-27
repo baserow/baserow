@@ -3,7 +3,16 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
+from django.contrib.contenttypes.prefetch import GenericPrefetch
+from django.db.models import (
+    Case,
+    IntegerField,
+    Q,
+    QuerySet,
+    Value,
+    When,
+    prefetch_related_objects,
+)
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
@@ -1321,6 +1330,19 @@ class RoleAssignmentHandler:
             id__in=scope_ids
         )
 
+    def prefetch_role_assignment_subjects(self, role_assignments):
+        """Bulk-load subjects with the team counts required by role serialization.
+
+        Removed assignments are represented by None and are left untouched.
+        """
+
+        from baserow_enterprise.teams.handler import TeamHandler
+
+        prefetch_related_objects(
+            [assignment for assignment in role_assignments if assignment is not None],
+            GenericPrefetch("subject", [TeamHandler().get_teams_queryset()]),
+        )
+
     def get_role_assignments(self, workspace: Workspace, scope: Optional[ScopeObject]):
         """
         Helper method that returns all role assignments given a scope and workspace.
@@ -1330,11 +1352,13 @@ class RoleAssignmentHandler:
         """
 
         role_assignments = list(
-            self._get_role_assignments_for_valid_subjects_qs().filter(
+            self._get_role_assignments_for_valid_subjects_qs()
+            .filter(
                 workspace=workspace,
                 scope_id=scope.id,
                 scope_type=ContentType.objects.get_for_model(scope),
             )
+            .select_related("role", "subject_type", "scope_type")
         )
         # Include both record-backed roles and roles owned by subject types.
         if scope == workspace:

@@ -37,7 +37,7 @@ class SubjectTeamSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_subject_count(self, obj):
-        return obj.subject_count if hasattr(obj, "subject_count") else 0
+        return obj.subject_count
 
 
 class SubjectField(serializers.Serializer):
