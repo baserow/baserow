@@ -1027,10 +1027,10 @@
   },
   "membersSettings": {
     "membersTabTitle": "Members",
-    "invitesTabTitle": "Invites",
     "membersTable": {
       "title": "{userAmount} members in {workspaceName}",
       "inviteMember": "Invite members",
+      "pendingInvitations": "Pending invitations ({count})",
       "emptyTitle": "No members yet",
       "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
@@ -1048,20 +1048,6 @@
         "remove": "Remove from workspace"
       },
       "search": "Search members"
-    },
-    "invitesTable": {
-      "title": "{invitesAmount} pending invites in {workspaceName}",
-      "emptyTitle": "No pending invites",
-      "emptyDescription": "Invite people to join this workspace. You can track and manage their invitations here until they accept.",
-      "columns": {
-        "email": "Email",
-        "role": "Default role"
-      },
-      "actions": {
-        "copyEmail": "Copy email",
-        "remove": "Cancel invite"
-      },
-      "search": "Search invites"
     },
     "membersInviteModal": {
       "errors": {

@@ -47,7 +47,6 @@
         :target="currentTarget"
         :target-type="targetType"
         @navigate="navigate"
-        @submitted="submitted"
         @close="close"
       ></component>
     </template>
@@ -62,11 +61,12 @@ import modal from '@baserow/modules/core/mixins/modal'
  * when opened with a more specific target. The routes listed in the left sidebar
  * come from the `invitationRoute` registry and the behaviour of the target from
  * the `invitationTarget` registry, so other modules can add their own without
- * changing this component. A route emits `submitted` with the created
- * invitations to close the modal once they were sent, or `close` when it leads
- * somewhere else. A route can emit `navigate` with another registered target
- * to replace the content in this modal. Back restores the previous target and
- * tab, remounting its route to refresh access data after changes at another level.
+ * changing this component. The modal stays open after invitations are sent, so
+ * that they show up in the route's pending list where they can be managed. A
+ * route emits `close` when it leads somewhere else. A route can emit `navigate`
+ * with another registered target to replace the content in this modal. Back
+ * restores the previous target and tab, remounting its route to refresh access
+ * data after changes at another level.
  */
 export default {
   name: 'InviteModal',
@@ -86,7 +86,7 @@ export default {
       default: () => ({ type: 'workspace' }),
     },
   },
-  emits: ['invite-submitted', 'close'],
+  emits: ['close'],
   data() {
     return {
       activeRouteType: null,
@@ -176,10 +176,6 @@ export default {
         : (this.invitationRoutes[0]?.type ?? null)
       this.pageRevision++
       this.$nextTick(() => this.$refs.header?.focus())
-    },
-    submitted(invitations) {
-      this.$emit('invite-submitted', invitations)
-      this.hide()
     },
     close() {
       this.hide()

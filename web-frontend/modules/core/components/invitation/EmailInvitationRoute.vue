@@ -41,13 +41,14 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
- * Invites people into the workspace by email. One input takes any number of
- * addresses, typed or pasted, and every address gets its own invitation with
- * the chosen role. The modal closes once all of them were sent; after a
- * failure the addresses that were not invited yet stay in the input. The
- * members of the workspace and the pending invitations are known to the input
- * by address only, as a reason not to invite them again. Below it, the pending
- * invitations are listed with their role.
+ * Invites people into the workspace by email and manages the pending
+ * invitations. One input takes any number of addresses, typed or pasted, and
+ * every address gets its own invitation with the chosen role. Once sent they
+ * join the pending invitations listed below the input, where their role can be
+ * changed or the invitation cancelled; after a failure the addresses that were
+ * not invited yet stay in the input. The members of the workspace and the
+ * pending invitations are known to the input by address only, as a reason not
+ * to invite them again.
  */
 export default {
   name: 'EmailInvitationRoute',
@@ -67,7 +68,6 @@ export default {
       required: true,
     },
   },
-  emits: ['submitted'],
   data() {
     return {
       inviting: false,
@@ -212,7 +212,6 @@ export default {
     async invite(picks, roleUid) {
       this.inviting = true
       this.hideError()
-      const invitations = []
 
       try {
         await this.sendInvitations(picks, roleUid, (pick, invitation) => {
@@ -225,10 +224,8 @@ export default {
           } else {
             this.invitations[index] = invitation
           }
-          invitations.push(invitation)
         })
         this.$refs.input.reset()
-        this.$emit('submitted', invitations)
       } catch (error) {
         this.handleInvitationError(error)
       } finally {

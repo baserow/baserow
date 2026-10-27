@@ -1,7 +1,6 @@
 import { MembersPagePluginType } from '@baserow/modules/database/membersPagePluginTypes'
 import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
 import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
@@ -50,15 +49,6 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
     columns.splice(insertBeforeColumnIndex, 0, teamsColumn)
 
     return columns
-  }
-
-  mutateMembersInvitesTableColumns(columns, context) {
-    return this._replaceRoleColumn(
-      columns,
-      InvitesRoleField,
-      'permissions',
-      context
-    )
   }
 
   mutateAdminUsersTableColumns(columns, context) {

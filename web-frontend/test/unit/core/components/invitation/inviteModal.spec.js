@@ -80,6 +80,12 @@ describe('InviteModal', () => {
     return wrapper.findAll('.invite-input__chip').map((chip) => chip.text())
   }
 
+  function pendingEmails(wrapper) {
+    return wrapper
+      .findAll('.invite-list__name')
+      .map((name) => name.text().trim())
+  }
+
   async function mountAndFillForm(emails = ['test@example.com']) {
     const wrapper = await mountAndShow()
     await pickEmails(wrapper, emails)
@@ -553,10 +559,10 @@ describe('InviteModal', () => {
       permissions: 'VIEWER',
       captchaToken: '',
     })
-    expect(wrapper.emitted('invite-submitted')).toEqual([[[{ id: 7 }]]])
+    expect(wrapper.vm.$refs.modal.open).toBe(true)
   })
 
-  test('emits the invitation and closes after a successful invite', async () => {
+  test('lists the invitation and stays open after a successful invite', async () => {
     const invitation = { id: 1, workspace: 1, email: 'test@example.com' }
     mockServer.mock
       .onPost('/workspaces/invitations/workspace/1/')
@@ -567,10 +573,10 @@ describe('InviteModal', () => {
     await submitInvites(wrapper)
     await flushPromises()
 
-    expect(wrapper.emitted('invite-submitted')).toEqual([[[invitation]]])
     expect(busEmit).toHaveBeenCalledWith('invite-submitted', invitation)
-    await waitForModalToClose()
-    expect(wrapper.vm.$refs.modal.open).toBe(false)
+    expect(chips(wrapper)).toEqual([])
+    expect(pendingEmails(wrapper)).toEqual(['test@example.com'])
+    expect(wrapper.vm.$refs.modal.open).toBe(true)
   })
 
   test('sends the captcha token along with the invitation', async () => {
@@ -611,7 +617,7 @@ describe('InviteModal', () => {
     expect(wrapper.html()).not.toContain('margin-top-2"><!--v-if-->')
   })
 
-  test('invites every picked address and closes with all of them', async () => {
+  test('invites every picked address and lists all of them', async () => {
     const first = { id: 1, workspace: 1, email: 'first@example.com' }
     const second = { id: 2, workspace: 1, email: 'second@example.com' }
     mockServer.mock
@@ -636,9 +642,11 @@ describe('InviteModal', () => {
       (request) => JSON.parse(request.data).email
     )
     expect(emails).toEqual(['first@example.com', 'second@example.com'])
-    expect(wrapper.emitted('invite-submitted')).toEqual([[[first, second]]])
-    await waitForModalToClose()
-    expect(wrapper.vm.$refs.modal.open).toBe(false)
+    expect(pendingEmails(wrapper)).toEqual([
+      'first@example.com',
+      'second@example.com',
+    ])
+    expect(wrapper.vm.$refs.modal.open).toBe(true)
   })
 
   test('points out a pending invitation instead of sending it again', async () => {
@@ -683,7 +691,7 @@ describe('InviteModal', () => {
     expect(wrapper.html()).toContain(
       'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.title'
     )
-    expect(wrapper.emitted('invite-submitted')).toBeUndefined()
+    expect(pendingEmails(wrapper)).toEqual(['first@example.com'])
     expect(wrapper.vm.$refs.modal.open).toBe(true)
   })
 
