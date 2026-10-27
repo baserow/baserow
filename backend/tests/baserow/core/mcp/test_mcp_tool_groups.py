@@ -4,12 +4,16 @@ import pytest
 
 from baserow.core.mcp.groups import (
     AREA_AUTOMATION,
+    AREA_DASHBOARD,
     GROUP_AUTOMATION_DELETE,
     GROUP_AUTOMATION_EDIT,
     GROUP_AUTOMATION_READ,
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
+    DashboardDeleteMCPToolGroup,
+    DashboardEditMCPToolGroup,
+    DashboardReadMCPToolGroup,
     MCPToolGroup,
     MCPToolGroupRegistry,
     mcp_tool_group_registry,
@@ -67,6 +71,17 @@ def test_core_automation_tool_groups():
         GROUP_AUTOMATION_DELETE,
     ):
         assert mcp_tool_group_registry.get(group).area == AREA_AUTOMATION
+
+
+def test_dashboard_groups_order_and_preset():
+    groups = [
+        DashboardReadMCPToolGroup(),
+        DashboardEditMCPToolGroup(),
+        DashboardDeleteMCPToolGroup(),
+    ]
+    assert [g.order for g in groups] == [70, 80, 90]
+    assert [g.read_only_preset for g in groups] == [True, False, False]
+    assert {g.area for g in groups} == {AREA_DASHBOARD}
 
 
 def test_read_only_preset_groups_hold_only_read_only_tools():
