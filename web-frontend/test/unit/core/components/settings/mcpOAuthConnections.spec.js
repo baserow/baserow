@@ -108,7 +108,7 @@ describe('McpOAuthConnections', () => {
     expect(wrapper.emitted('loaded')).toEqual([[false]])
   })
 
-  test('shows the URL and the client tabs', async () => {
+  test('shows the URL, the setup docs link and the client tabs', async () => {
     const wrapper = await mount({
       oauth_enabled: true,
       mcp_url: mcpUrl,
@@ -116,10 +116,16 @@ describe('McpOAuthConnections', () => {
     })
     expect(wrapper.emitted('loaded')).toEqual([[true]])
     expect(wrapper.find('[data-test="mcp-oauth-url"]').text()).toBe(mcpUrl)
-    const text = wrapper.text()
-    for (const title of ['Claude', 'Claude Code', 'ChatGPT', 'Cursor']) {
-      expect(text).toContain(title)
-    }
+    const docs = wrapper.find('[data-test="mcp-oauth-setup-docs"]')
+    expect(docs.attributes('href')).toBe(
+      'https://baserow.io/user-docs/mcp-server'
+    )
+    expect(docs.attributes('target')).toBe('_blank')
+    const tabs = wrapper.findAll('.tabs__link').map((tab) => tab.text())
+    expect(tabs).toEqual(['Claude Code', 'Cursor'])
+    expect(wrapper.text()).toContain(
+      `claude mcp add --transport http baserow ${mcpUrl}`
+    )
     expect(wrapper.find('[data-test="mcp-oauth-empty"]').exists()).toBe(true)
   })
 
