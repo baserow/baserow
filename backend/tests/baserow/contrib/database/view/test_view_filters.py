@@ -4243,6 +4243,19 @@ def test_link_row_has_filter_type(data_fixture):
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 0
 
+    fullwidth_id = "".join(chr(ord(c) + 0xFEE0) for c in str(related_row_1.id))
+    view_filter.value = fullwidth_id
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 0
+
+    view_filter.value = f"{related_row_1.id},²"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_with_all_relations.id in ids
+
     view_filter.value = "999999999"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]

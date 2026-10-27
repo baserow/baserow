@@ -1320,7 +1320,10 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
         if not value.strip():
             return Q()
 
-        if not (option_ids := parse_ids_from_csv_string(value)):
+        option_ids = [
+            int(v) for v in value.split(",") if re.fullmatch(r"[0-9]+", v.strip())
+        ]
+        if not option_ids:
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)

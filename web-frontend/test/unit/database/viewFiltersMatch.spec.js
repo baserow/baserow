@@ -3311,5 +3311,6 @@ describe('Invalid id filter value tests', () => {
     expect(filter.matches([{ id: 2 }], '1,2', {}, {})).toBe(true)
     expect(filter.matches([{ id: 3 }], '1,2', {}, {})).toBe(false)
     expect(filter.matches([{ id: 2 }], '1,test', {}, {})).toBe(false)
+    expect(filter.matches([{ id: 1 }], '1,²', {}, {})).toBe(true)
   })
 })

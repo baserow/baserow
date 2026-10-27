@@ -1394,6 +1394,11 @@ def test_single_select_equal_filter_type(field_name, data_fixture):
     assert len(ids) == 1
     assert row_1.id in ids
 
+    view_filter.value = f"00{option_a.id}"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert ids == [row_1.id]
+
     view_filter.value = str(option_b.id)
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
