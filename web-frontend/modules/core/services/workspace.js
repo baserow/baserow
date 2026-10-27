@@ -71,6 +71,34 @@ export default (client) => {
           token ? { token } : {}
         )
       },
+      fetchAllInvitationLinks(workspaceId) {
+        return client.get(
+          `/workspaces/invitation-links/workspace/${workspaceId}/`
+        )
+      },
+      createInvitationLink(workspaceId, values) {
+        return client.post(
+          `/workspaces/invitation-links/workspace/${workspaceId}/`,
+          values
+        )
+      },
+      updateInvitationLink(invitationLinkId, values) {
+        return client.patch(
+          `/workspaces/invitation-links/${invitationLinkId}/`,
+          values
+        )
+      },
+      deleteInvitationLink(invitationLinkId) {
+        return client.delete(
+          `/workspaces/invitation-links/${invitationLinkId}/`
+        )
+      },
+      fetchInvitationLinkBySlug(slug) {
+        return client.get(`/workspaces/invitation-links/slug/${slug}/`)
+      },
+      joinInvitationLink(slug) {
+        return client.post(`/workspaces/invitation-links/slug/${slug}/join/`)
+      },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)
       },

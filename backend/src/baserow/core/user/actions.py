@@ -25,7 +25,8 @@ class CreateUserActionType(ActionType):
         _("Create User"),
         _(
             'User "%(user_email)s" (%(user_id)s) created via "%(auth_provider_type)s"'
-            " (%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
+            " (%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s,"
+            " invitation link: %(with_invitation_link)s)"
         ),
     )
     analytics_params = [
@@ -34,6 +35,7 @@ class CreateUserActionType(ActionType):
         "workspace_id",
         "with_invitation_token",
         "template_id",
+        "with_invitation_link",
     ]
 
     @dataclasses.dataclass
@@ -46,6 +48,7 @@ class CreateUserActionType(ActionType):
         workspace_name: Optional[str] = ""
         with_invitation_token: bool = False
         template_id: Optional[int] = None
+        with_invitation_link: bool = False
 
     @classmethod
     def do(
@@ -58,6 +61,7 @@ class CreateUserActionType(ActionType):
         template: Optional[Template] = None,
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
+        workspace_invitation_link_slug: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user.
@@ -71,6 +75,8 @@ class CreateUserActionType(ActionType):
         :param template: The template that will be used to create the user.
         :param auth_provider: The auth provider that will be used to create the user.
         :param email_verified: Whether the provider confirmed the email as verified.
+        :param workspace_invitation_link_slug: The slug of the workspace invitation
+            link that will be used to add the user to a workspace.
 
         :return: The created user.
         """
@@ -87,6 +93,7 @@ class CreateUserActionType(ActionType):
             template,
             auth_provider=auth_provider,
             email_verified=email_verified,
+            workspace_invitation_link_slug=workspace_invitation_link_slug,
         )
 
         workspace_id, workspace_name = None, None
@@ -105,11 +112,18 @@ class CreateUserActionType(ActionType):
                 workspace_name,
                 workspace_invitation_token is not None,
                 template.id if template else None,
+                workspace_invitation_link_slug is not None,
             ),
             scope=cls.scope(),
             workspace=user.default_workspace,
         )
         return user
+
+    @classmethod
+    def get_long_description(cls, params_dict: dict[str, Any], *args, **kwargs) -> str:
+        # Users created before invitation links existed have no such param.
+        params_dict.setdefault("with_invitation_link", False)
+        return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

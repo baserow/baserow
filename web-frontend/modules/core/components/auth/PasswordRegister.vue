@@ -1,13 +1,21 @@
 <template>
   <div>
-    <Alert v-if="invitation !== null" type="info-primary">
+    <Alert v-if="invitationDetails !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n-t scope="global" keypath="invitationMessage" tag="p">
+      <i18n-t
+        scope="global"
+        :keypath="
+          invitationDetails.invited_by
+            ? 'invitationMessage'
+            : 'invitationLinkMessage'
+        "
+        tag="p"
+      >
         <template #invitedBy>
-          <strong>{{ invitation.invited_by }}</strong>
+          <strong>{{ invitationDetails.invited_by }}</strong>
         </template>
         <template #workspace>
-          <strong>{{ invitation.workspace }}</strong>
+          <strong>{{ invitationDetails.workspace }}</strong>
         </template>
       </i18n-t>
     </Alert>
@@ -167,6 +175,15 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
       default: null,
     },
+    /**
+     * The permanent invitation link the visitor came from. Unlike an email
+     * invitation, it doesn't tell which email address to sign up with.
+     */
+    invitationLink: {
+      required: false,
+      validator: (prop) => typeof prop === 'object' || prop === null,
+      default: null,
+    },
     template: {
       required: false,
       validator: (prop) => typeof prop === 'object' || prop === null,
@@ -210,6 +227,9 @@ export default {
     }
   },
   computed: {
+    invitationDetails() {
+      return this.invitation ?? this.invitationLink
+    },
     registerComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .map((plugin) => plugin.getRegisterComponent())
@@ -259,6 +279,8 @@ export default {
         if (this.invitation !== null) {
           values.workspaceInvitationToken =
             this.$route.query.workspaceInvitationToken
+        } else if (this.invitationLink !== null) {
+          values.workspaceInvitationLinkSlug = this.invitationLink.slug
         }
 
         // If a template is provided, we can add that id to the parameters so that the

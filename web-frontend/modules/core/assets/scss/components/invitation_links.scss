@@ -1,0 +1,59 @@
+// The permanent invitation links of the invite modal, one row per link with
+// the role it grants, its URL and the actions on it. The add button floats in
+// the bottom right corner, so the route keeps room for it below the rows.
+.invitation-links {
+  min-height: 360px;
+  padding-bottom: 56px;
+}
+
+.invitation-links__head,
+.invitation-links__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.invitation-links__head {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  // Lines the labels up with the columns, the actions have no label.
+  padding-right: 60px;
+}
+
+.invitation-links__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invitation-links__item {
+  & + & {
+    margin-top: 12px;
+  }
+}
+
+.invitation-links__role {
+  flex: 0 0 180px;
+}
+
+.invitation-links__url {
+  flex: 1;
+  min-width: 0;
+}
+
+.invitation-links__action {
+  position: relative;
+  flex-shrink: 0;
+  width: 24px;
+  font-size: 16px;
+  text-align: center;
+  color: $palette-neutral-900;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}

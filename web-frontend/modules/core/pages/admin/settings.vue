@@ -107,11 +107,7 @@
               }}
             </div>
             <div class="admin-settings__description">
-              {{
-                $t(
-                  'settings.settingAllowSignupsViaWorkspaceInvitationDescription'
-                )
-              }}
+              {{ $t(allowSignupsViaWorkspaceInvitationsDescription) }}
             </div>
           </div>
           <div class="admin-settings__control">
@@ -279,13 +275,15 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
+import { FF_RBAC_IMPROVEMENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 definePageMeta({
   layout: 'app',
   middleware: 'staff',
 })
 
-const { $registry, $client, $baserowVersion, $i18n } = useNuxtApp()
+const { $registry, $client, $baserowVersion, $i18n, $featureFlagIsEnabled } =
+  useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
 
@@ -298,6 +296,13 @@ const values = reactive({
 })
 
 const settings = computed(() => store.getters['settings/get'])
+// Invite links are still behind a feature flag, so they're only mentioned
+// when the flag is enabled.
+const allowSignupsViaWorkspaceInvitationsDescription = computed(() =>
+  $featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
+    ? 'settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription'
+    : 'settings.settingAllowSignupsViaWorkspaceInvitationDescription'
+)
 
 const emailVerificationOptions = computed(() => [
   {
