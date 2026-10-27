@@ -1356,6 +1356,45 @@ def test_verify_email_address_with_login(client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_verify_email_address_does_not_log_in_two_factor_user(client, data_fixture):
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+    token = UserHandler().create_email_verification_token(user)
+
+    response = client.post(
+        reverse("api:user:verify_email"),
+        {"token": token},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"email": user.email}
+    user.refresh_from_db()
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_verify_email_address_two_factor_user_password_auth_disabled(
+    client, data_fixture
+):
+    data_fixture.create_password_provider(enabled=False)
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+    token = UserHandler().create_email_verification_token(user)
+
+    response = client.post(
+        reverse("api:user:verify_email"),
+        {"token": token},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
+    user.refresh_from_db()
+    assert user.profile.email_verified is False
+
+
+@pytest.mark.django_db
 def test_verify_email_address_no_login(client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     token = UserHandler().create_email_verification_token(user)
