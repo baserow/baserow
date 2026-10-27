@@ -7,11 +7,11 @@
   padding-bottom: 56px;
 }
 
-// The URL only has to fit a short code, so the name gets the remaining width.
+// The link only shows its path, so the name gets the remaining width.
 .invitation-links__head,
 .invitation-links__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 168px 272px 60px;
+  grid-template-columns: minmax(0, 1fr) 168px 200px 60px;
   align-items: center;
   gap: 12px;
 }

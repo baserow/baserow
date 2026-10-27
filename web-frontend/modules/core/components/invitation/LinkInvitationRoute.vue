@@ -46,7 +46,7 @@
           />
           <FormInput
             class="invitation-links__url"
-            :model-value="getDisplayUrl(invitationLink)"
+            :model-value="getPath(invitationLink)"
             disabled
           />
           <div class="invitation-links__actions">
@@ -173,21 +173,20 @@ export default {
     this.loading = false
   },
   methods: {
+    /**
+     * Only the path is shown, which leaves room for the name and the role.
+     * Copying the link gives the full URL.
+     */
+    getPath(invitationLink) {
+      return this.$router.resolve({
+        name: 'invitation-link',
+        params: { slug: invitationLink.slug },
+      }).href
+    },
     getUrl(invitationLink) {
       return (
-        this.$config.public.publicWebFrontendUrl +
-        this.$router.resolve({
-          name: 'invitation-link',
-          params: { slug: invitationLink.slug },
-        }).href
+        this.$config.public.publicWebFrontendUrl + this.getPath(invitationLink)
       )
-    },
-    /**
-     * The URL without its protocol, so that the code at the end stays visible
-     * in the narrow field. Copying the link gives the full URL.
-     */
-    getDisplayUrl(invitationLink) {
-      return this.getUrl(invitationLink).replace(/^https?:\/\//, '')
     },
     copy(invitationLink) {
       copyToClipboard(this.getUrl(invitationLink))
