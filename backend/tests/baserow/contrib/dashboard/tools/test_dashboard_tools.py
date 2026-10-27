@@ -94,6 +94,39 @@ def test_create_dashboards_registers_undoable_action(dashboard_ctx):
 
 
 @pytest.mark.django_db
+def test_created_dashboard_can_show_widget_data(dashboard_ctx, data_fixture):
+    from baserow.contrib.dashboard.tools.widgets import (
+        create_widgets,
+        get_widget_data,
+    )
+
+    ctx, _ = dashboard_ctx
+    database = data_fixture.create_database_application(workspace=ctx.workspace)
+    table = data_fixture.create_database_table(database=database)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    table.get_model().objects.create(**{f"field_{amount.id}": 4})
+
+    dashboard_id = create_dashboards(ctx, ["Ops"])["created"][0]["id"]
+    widget = create_widgets(
+        ctx,
+        dashboard_id,
+        [
+            {
+                "type": "summary",
+                "title": "Total",
+                "table_id": table.id,
+                "field_id": amount.id,
+                "aggregation_type": "sum",
+            }
+        ],
+    )["created"][0]
+
+    assert get_widget_data(ctx, [widget["id"]])["widgets"] == [
+        {"widget_id": widget["id"], "configured": True, "data": {"result": "4"}}
+    ]
+
+
+@pytest.mark.django_db
 def test_create_dashboards_rejects_empty_list(dashboard_ctx):
     ctx, _ = dashboard_ctx
 

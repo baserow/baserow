@@ -83,8 +83,10 @@ def create_dashboards(
         ctx.update_status(_("Creating dashboard %(name)s...") % {"name": name})
         try:
             with transaction.atomic():
+                # init_with_data adds the Baserow integration its widgets read
+                # their tables through.
                 dashboard = CreateApplicationActionType.do(
-                    ctx.user, ctx.workspace, "dashboard", name=name
+                    ctx.user, ctx.workspace, "dashboard", name=name, init_with_data=True
                 )
         except PermissionException:
             raise

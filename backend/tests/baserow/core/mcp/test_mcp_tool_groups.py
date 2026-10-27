@@ -8,6 +8,9 @@ from baserow.core.mcp.groups import (
     GROUP_AUTOMATION_DELETE,
     GROUP_AUTOMATION_EDIT,
     GROUP_AUTOMATION_READ,
+    GROUP_DASHBOARD_DELETE,
+    GROUP_DASHBOARD_EDIT,
+    GROUP_DASHBOARD_READ,
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
@@ -73,6 +76,17 @@ def test_core_automation_tool_groups():
         assert mcp_tool_group_registry.get(group).area == AREA_AUTOMATION
 
 
+def test_core_dashboard_tool_groups():
+    groups = {tool.name: tool.group for tool in mcp_tool_registry.get_all()}
+    assert groups["list_dashboards"] == GROUP_DASHBOARD_READ
+    assert groups["list_widgets"] == GROUP_DASHBOARD_READ
+    assert groups["get_widget_data"] == GROUP_DASHBOARD_READ
+    assert groups["create_dashboards"] == GROUP_DASHBOARD_EDIT
+    assert groups["create_widgets"] == GROUP_DASHBOARD_EDIT
+    assert groups["update_widgets"] == GROUP_DASHBOARD_EDIT
+    assert groups["delete_widgets"] == GROUP_DASHBOARD_DELETE
+
+
 def test_dashboard_groups_order_and_preset():
     groups = [
         DashboardReadMCPToolGroup(),
@@ -91,6 +105,9 @@ def test_read_only_preset_groups_hold_only_read_only_tools():
     assert GROUP_DATABASE_DELETE not in preset
     # Automations are turned on in Settings, not by the preset.
     assert GROUP_AUTOMATION_READ not in preset
+    # Dashboards only show figures the user can already see.
+    assert GROUP_DASHBOARD_READ in preset
+    assert GROUP_DASHBOARD_EDIT not in preset
     for tool in mcp_tool_registry.get_all():
         if tool.group in preset:
             assert tool.read_only, tool.name
