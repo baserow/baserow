@@ -1,3 +1,4 @@
+import re
 from unittest.mock import patch
 
 import pytest
@@ -39,8 +40,23 @@ def test_create_workspace_invitation_link(data_fixture):
     assert invitation_link.workspace_id == workspace.id
     assert invitation_link.created_by_id == admin.id
     assert invitation_link.permissions == "MEMBER"
-    assert len(invitation_link.slug) >= 43
+    assert re.fullmatch(r"[A-Za-z0-9]{12}", invitation_link.slug)
     assert invitation_link.slug != second_link.slug
+
+
+@pytest.mark.django_db
+def test_create_workspace_invitation_link_uses_configured_length(
+    data_fixture, settings
+):
+    settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH = 20
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+
+    invitation_link = CoreHandler().create_workspace_invitation_link(
+        admin, workspace, "MEMBER"
+    )
+
+    assert re.fullmatch(r"[A-Za-z0-9]{20}", invitation_link.slug)
 
 
 @pytest.mark.django_db
