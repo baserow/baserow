@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Limit the number of decimal places in the number_format formula",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

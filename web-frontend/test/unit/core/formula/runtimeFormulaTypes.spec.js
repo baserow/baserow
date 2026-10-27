@@ -2436,6 +2436,13 @@ describe('RuntimeNumberFormat', () => {
     expect(result).toEqual(expected)
   })
 
+  test('execute caps decimal places', () => {
+    const formulaType = new RuntimeNumberFormat()
+    const parsedArgs = formulaType.parseArgs([42, 1000])
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual('42.' + '0'.repeat(100))
+  })
+
   test.each([
     { args: [1000], expected: [] },
     { args: [1000, 2], expected: [] },
