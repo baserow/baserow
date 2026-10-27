@@ -1005,6 +1005,79 @@ def test_get_user_source_users_missing_application(
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.django_db
+def test_get_user_source_users_of_published_builder_requires_workspace_access(
+    api_client, data_fixture, stub_user_source_registry
+):
+    owner = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=owner)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    data_fixture.create_user_source_with_first_type(application=published_builder)
+    _, other_token = data_fixture.create_user_and_token()
+
+    def list_users_return(user_source, count, search):
+        return [
+            data_fixture.create_user_source_user(
+                user_source=user_source, email="app.user@mail.com"
+            )
+        ]
+
+    url = reverse(
+        "api:user_sources:list_user_source_users",
+        kwargs={"application_id": published_builder.id},
+    )
+    with stub_user_source_registry(list_users_return=list_users_return):
+        response = api_client.get(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {other_token}",
+        )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert "app.user@mail.com" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_get_user_source_users_of_template(
+    api_client, data_fixture, stub_user_source_registry
+):
+    template_workspace = data_fixture.create_workspace()
+    data_fixture.create_template(workspace=template_workspace)
+    application = data_fixture.create_builder_application(workspace=template_workspace)
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=application
+    )
+    _, token = data_fixture.create_user_and_token()
+
+    def list_users_return(user_source, count, search):
+        return [
+            data_fixture.create_user_source_user(
+                user_source=user_source, user_id=1, email="template@mail.com"
+            )
+        ]
+
+    url = reverse(
+        "api:user_sources:list_user_source_users",
+        kwargs={"application_id": application.id},
+    )
+    with stub_user_source_registry(list_users_return=list_users_return):
+        response = api_client.get(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert [
+        user["email"]
+        for user in response.json()["users_per_user_sources"][str(user_source.id)]
+    ] == ["template@mail.com"]
+
+
 def _create_mismatched_integration(data_fixture, kind, user, application):
     """
     Returns an integration a `local_baserow` user source in `application` must
