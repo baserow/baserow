@@ -1306,6 +1306,100 @@ def test_public_dispatch_data_source_cannot_use_hidden_element_refinements(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("nested_in_group", [False, True])
+def test_public_dispatch_data_source_filters_must_use_filterable_fields(
+    api_client, data_fixture, nested_in_group
+):
+    user = data_fixture.create_user()
+    table, _, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("SSN", "text"),
+        ],
+        rows=[
+            ["Peter", "111"],
+            ["Afonso", "222"],
+        ],
+    )
+    builder_from = data_fixture.create_builder_application(
+        workspace=table.database.workspace
+    )
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder_from, published_to=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=user, name="test"
+    )
+    public_field = table.field_set.get(name="Name")
+    private_field = table.field_set.get(name="SSN")
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+    )
+    element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": f"get('current_record.{public_field.db_column}')"},
+            },
+        ],
+    )
+    element.property_options.create(
+        schema_property=public_field.db_column, filterable=True
+    )
+    element.property_options.create(
+        schema_property=private_field.db_column, filterable=False
+    )
+
+    def build_filters(field, value):
+        filters = [{"field": field.id, "type": "equal", "value": value}]
+        if nested_in_group:
+            return {
+                "filter_type": "AND",
+                "filters": [],
+                "groups": [
+                    {
+                        "filter_type": "AND",
+                        "filters": [],
+                        "groups": [{"filter_type": "AND", "filters": filters}],
+                    }
+                ],
+            }
+        return {"filter_type": "AND", "filters": filters}
+
+    url = reverse(
+        "api:builder:domains:public_dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    response = api_client.post(
+        f"{url}?filters={json.dumps(build_filters(private_field, '222'))}",
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN"
+
+    response = api_client.post(
+        f"{url}?filters={json.dumps(build_filters(public_field, 'Afonso'))}",
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [row["id"] for row in response.json()["results"]] == [rows[1].id]
+
+
+@pytest.mark.django_db
 def test_public_dispatch_data_sources_get_row_no_elements(
     api_client, data_fixture, user_source_user_fixture
 ):
