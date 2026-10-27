@@ -337,12 +337,14 @@ def total_secs(
     )
 
 
+# The lookbehinds stop a match from starting inside a number, otherwise finditer retries
+# every alternative from each position of a digit run, which is quadratic.
 POSTGRES_INTERVAL_FORMAT = re.compile(
     r"""
-    (?P<years>-?\d+)\s+years?\s*|
-    (?P<months>-?\d+)\s+mons?\s*|
-    (?P<days>-?\d+)\s+days?\s*|
-    (?P<time>(-?\d{1,2}):(\d{2}):(\d{2}))?
+    (?<![\d-])(?P<years>-?\d+)\s+years?\s*|
+    (?<![\d-])(?P<months>-?\d+)\s+mons?\s*|
+    (?<![\d-])(?P<days>-?\d+)\s+days?\s*|
+    (?<![\d-])(?P<time>(-?\d{1,2}):(\d{2}):(\d{2}))?
 """,
     re.VERBOSE,
 )
@@ -383,7 +385,7 @@ def postgres_interval_to_seconds(interval_str: str) -> Optional[float]:
 
 
 # Legitimate duration strings are short. Longer values are rejected before matching
-# because the regexps below and the postgres interval fallback backtrack on long input.
+# so a single value can't keep the parser busy.
 MAX_DURATION_STRING_LENGTH = 255
 
 # These regexps are supposed to tokenize the provided duration value and to return a
