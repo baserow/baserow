@@ -564,6 +564,12 @@ class WorkspaceInvitationLink(
         related_name="+",
         help_text="The user that created the link.",
     )
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="A name that reminds the admins what the link is for.",
+    )
     slug = models.SlugField(
         default=get_default_invitation_link_slug,
         unique=True,

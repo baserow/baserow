@@ -424,6 +424,8 @@
     "linkEmptyTitle": "You have not yet created an invite link",
     "linkEmptyDescription": "You can create multiple links with different roles.",
     "linkColumn": "Link",
+    "linkName": "Name",
+    "linkNamePlaceholder": "E.g. Sales team",
     "linkAdd": "Add link",
     "linkInviteAs": "Invite as",
     "linkCopy": "Copy link",

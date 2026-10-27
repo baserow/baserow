@@ -1657,7 +1657,11 @@ class CoreHandler:
         return WorkspaceInvitationLink.objects.filter(workspace=workspace)
 
     def create_workspace_invitation_link(
-        self, user: AbstractUser, workspace: Workspace, permissions: str
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        permissions: str,
+        name: str = "",
     ) -> WorkspaceInvitationLink:
         """
         Creates a new permanent link that anyone can use to join the workspace with
@@ -1666,6 +1670,7 @@ class CoreHandler:
         :param user: The user on whose behalf the link is created.
         :param workspace: The workspace that people join through the link.
         :param permissions: The workspace permissions people get when joining.
+        :param name: A name that reminds the admins what the link is for.
         :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises PermissionException: If the user isn't allowed to create links.
         :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
@@ -1692,22 +1697,25 @@ class CoreHandler:
             )
 
         return WorkspaceInvitationLink.objects.create(
-            workspace=workspace, created_by=user, permissions=permissions
+            workspace=workspace, created_by=user, permissions=permissions, name=name
         )
 
     def update_workspace_invitation_link(
         self,
         user: AbstractUser,
         invitation_link: WorkspaceInvitationLink,
-        permissions: str,
+        permissions: str | None = None,
+        name: str | None = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the permissions that people get when joining through the link. It
-        doesn't change the permissions of people who already joined.
+        Changes the name of the link or the permissions that people get when joining
+        through it. It doesn't change the permissions of people who already joined.
 
         :param user: The user on whose behalf the link is updated.
         :param invitation_link: The link that must be updated.
-        :param permissions: The new workspace permissions of the link.
+        :param permissions: The new workspace permissions of the link, if they
+            change.
+        :param name: The new name of the link, if it changes.
         :raises PermissionException: If the user isn't allowed to update the link.
         :return: The updated workspace invitation link.
         """
@@ -1719,8 +1727,14 @@ class CoreHandler:
             context=invitation_link,
         )
 
-        invitation_link.permissions = permissions
-        invitation_link.save(update_fields=["permissions", "updated_on"])
+        update_fields = ["updated_on"]
+        if permissions is not None:
+            invitation_link.permissions = permissions
+            update_fields.append("permissions")
+        if name is not None:
+            invitation_link.name = name
+            update_fields.append("name")
+        invitation_link.save(update_fields=update_fields)
 
         return invitation_link
 

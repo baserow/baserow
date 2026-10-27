@@ -140,7 +140,7 @@ class WorkspaceInvitationLinksView(APIView):
         workspace = CoreHandler().get_workspace(workspace_id)
         invitation_link = action_type_registry.get(
             CreateWorkspaceInvitationLinkActionType.type
-        ).do(request.user, workspace, data["permissions"])
+        ).do(request.user, workspace, data["permissions"], data.get("name", ""))
 
         return Response(WorkspaceInvitationLinkSerializer(invitation_link).data)
 
@@ -161,9 +161,9 @@ class WorkspaceInvitationLinkView(APIView):
         tags=["Workspace invitation links"],
         operation_id="update_workspace_invitation_link",
         description=(
-            "Updates the permissions people get when joining through the invitation "
-            "link if the authorized user has admin rights to the related workspace. "
-            "People who already joined keep their permissions."
+            "Updates the name of the invitation link or the permissions people get "
+            "when joining through it if the authorized user has admin rights to the "
+            "related workspace. People who already joined keep their permissions."
         ),
         request=UpdateWorkspaceInvitationLinkSerializer,
         responses={
@@ -179,7 +179,7 @@ class WorkspaceInvitationLinkView(APIView):
         },
     )
     @transaction.atomic
-    @validate_body(UpdateWorkspaceInvitationLinkSerializer)
+    @validate_body(UpdateWorkspaceInvitationLinkSerializer, partial=True)
     @map_exceptions(
         {
             WorkspaceInvitationLinkDoesNotExist: (
@@ -190,14 +190,14 @@ class WorkspaceInvitationLinkView(APIView):
         }
     )
     def patch(self, request, data, invitation_link_id):
-        """Updates the permissions of an invitation link."""
+        """Updates the name or the permissions of an invitation link."""
 
         invitation_link = CoreHandler().get_workspace_invitation_link(
             invitation_link_id
         )
         invitation_link = action_type_registry.get(
             UpdateWorkspaceInvitationLinkActionType.type
-        ).do(request.user, invitation_link, data["permissions"])
+        ).do(request.user, invitation_link, **data)
 
         return Response(WorkspaceInvitationLinkSerializer(invitation_link).data)
 

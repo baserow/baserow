@@ -128,6 +128,15 @@ def test_update_workspace_invitation_link(data_fixture):
 
     invitation_link.refresh_from_db()
     assert invitation_link.permissions == "ADMIN"
+    assert invitation_link.name == ""
+
+    CoreHandler().update_workspace_invitation_link(
+        admin, invitation_link, name="Freelancers"
+    )
+
+    invitation_link.refresh_from_db()
+    assert invitation_link.name == "Freelancers"
+    assert invitation_link.permissions == "ADMIN"
 
 
 @pytest.mark.django_db

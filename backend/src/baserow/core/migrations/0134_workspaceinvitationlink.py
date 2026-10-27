@@ -21,6 +21,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_on', models.DateTimeField(auto_now_add=True)),
                 ('updated_on', baserow.core.fields.SyncedDateTimeField(auto_now=True)),
+                ('name', models.CharField(blank=True, default='', help_text='A name that reminds the admins what the link is for.', max_length=255)),
                 ('slug', models.SlugField(default=baserow.core.models.get_default_invitation_link_slug, help_text='The unique slug of the public link URL.', unique=True)),
                 ('permissions', models.CharField(default='MEMBER', help_text='The permissions that people get within the workspace when they join through the link.', max_length=32)),
                 ('created_by', models.ForeignKey(help_text='The user that created the link.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),

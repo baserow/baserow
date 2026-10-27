@@ -87,9 +87,10 @@ export class InvitationTargetType extends Registerable {
   }
 
   /**
-   * Changes the role uid the link grants and resolves with the updated link.
+   * Changes the `name` of the link or the role uid it grants as `permissions`,
+   * whichever `values` holds, and resolves with the updated link.
    */
-  async updateInvitationLink(workspace, target, invitationLink, permissions) {
+  async updateInvitationLink(workspace, target, invitationLink, values) {
     throw new Error(
       'The invitation links of this target type are not supported.'
     )
@@ -139,10 +140,10 @@ export class WorkspaceInvitationTargetType extends InvitationTargetType {
     return data
   }
 
-  async updateInvitationLink(workspace, target, invitationLink, permissions) {
+  async updateInvitationLink(workspace, target, invitationLink, values) {
     const { data } = await WorkspaceService(
       this.app.$client
-    ).updateInvitationLink(invitationLink.id, { permissions })
+    ).updateInvitationLink(invitationLink.id, values)
     return data
   }
 

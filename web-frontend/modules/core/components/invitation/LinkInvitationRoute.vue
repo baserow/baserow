@@ -18,12 +18,9 @@
     </div>
     <template v-else>
       <div class="invitation-links__head">
-        <div class="invitation-links__role">
-          {{ $t('inviteModal.linkInviteAs') }}
-        </div>
-        <div class="invitation-links__url">
-          {{ $t('inviteModal.linkColumn') }}
-        </div>
+        <div>{{ $t('inviteModal.linkName') }}</div>
+        <div>{{ $t('inviteModal.linkInviteAs') }}</div>
+        <div>{{ $t('inviteModal.linkColumn') }}</div>
       </div>
       <ul class="invitation-links__items">
         <li
@@ -31,8 +28,16 @@
           :key="invitationLink.id"
           class="invitation-links__item"
         >
+          <FormInput
+            :ref="(el) => (nameRefs[invitationLink.id] = el)"
+            class="invitation-links__name"
+            :model-value="invitationLink.name"
+            :placeholder="$t('inviteModal.linkNamePlaceholder')"
+            :maxlength="255"
+            @blur="updateName(invitationLink, $event.target.value)"
+            @keydown.enter="$event.target.blur()"
+          />
           <WorkspaceRoleSelector
-            class="invitation-links__role"
             :model-value="invitationLink.permissions"
             :roles="roles"
             :workspace="workspace"
@@ -41,26 +46,28 @@
           />
           <FormInput
             class="invitation-links__url"
-            :model-value="getUrl(invitationLink)"
+            :model-value="getDisplayUrl(invitationLink)"
             disabled
           />
-          <a
-            v-tooltip="$t('inviteModal.linkCopy')"
-            class="invitation-links__action"
-            @click="copy(invitationLink)"
-          >
-            <i class="iconoir-copy"></i>
-            <Copied
-              :ref="(el) => (copiedRefs[invitationLink.id] = el)"
-            ></Copied>
-          </a>
-          <a
-            v-tooltip="$t('inviteModal.linkDelete')"
-            class="invitation-links__action"
-            @click="$refs.deleteModal.show(invitationLink)"
-          >
-            <i class="iconoir-bin"></i>
-          </a>
+          <div class="invitation-links__actions">
+            <a
+              v-tooltip="$t('inviteModal.linkCopy')"
+              class="invitation-links__action"
+              @click="copy(invitationLink)"
+            >
+              <i class="iconoir-copy"></i>
+              <Copied
+                :ref="(el) => (copiedRefs[invitationLink.id] = el)"
+              ></Copied>
+            </a>
+            <a
+              v-tooltip="$t('inviteModal.linkDelete')"
+              class="invitation-links__action"
+              @click="$refs.deleteModal.show(invitationLink)"
+            >
+              <i class="iconoir-bin"></i>
+            </a>
+          </div>
         </li>
       </ul>
     </template>
@@ -99,10 +106,10 @@ const ADMIN_ROLE_UID = 'ADMIN'
 
 /**
  * Lists the permanent links that anyone can use to join the target, each with
- * the role it grants, and lets the links be created, changed, copied and
- * deleted. Granting the admin role through a link and deleting a link must be
- * confirmed first. The links come from the target type, so only targets
- * supporting them get this route. It is registered behind the
+ * a name and the role it grants, and lets the links be created, changed,
+ * copied and deleted. Granting the admin role through a link and deleting a
+ * link must be confirmed first. The links come from the target type, so only
+ * targets supporting them get this route. It is registered behind the
  * `RBAC_IMPROVEMENTS` feature flag.
  */
 export default {
@@ -133,6 +140,7 @@ export default {
       creating: false,
       invitationLinks: [],
       copiedRefs: {},
+      nameRefs: {},
       pendingChange: null,
     }
   },
@@ -174,6 +182,13 @@ export default {
         }).href
       )
     },
+    /**
+     * The URL without its protocol, so that the code at the end stays visible
+     * in the narrow field. Copying the link gives the full URL.
+     */
+    getDisplayUrl(invitationLink) {
+      return this.getUrl(invitationLink).replace(/^https?:\/\//, '')
+    },
     copy(invitationLink) {
       copyToClipboard(this.getUrl(invitationLink))
       this.copiedRefs[invitationLink.id]?.show()
@@ -206,6 +221,9 @@ export default {
             this.defaultRoleUid
           )
           this.invitationLinks.push(invitationLink)
+          // A new link has no name yet, so it's asked for right away.
+          await this.$nextTick()
+          this.nameRefs[invitationLink.id]?.focus()
         } catch (error) {
           this.handleError(error)
         }
@@ -223,13 +241,31 @@ export default {
             this.workspace,
             this.target,
             invitationLink,
-            roleUid
+            { permissions: roleUid }
           )
           Object.assign(invitationLink, updated)
         } catch (error) {
           this.handleError(error)
         }
       })
+    },
+    async updateName(invitationLink, value) {
+      const name = value.trim()
+      if (name === invitationLink.name) {
+        return
+      }
+      this.hideError()
+      try {
+        const updated = await this.targetType.updateInvitationLink(
+          this.workspace,
+          this.target,
+          invitationLink,
+          { name }
+        )
+        Object.assign(invitationLink, updated)
+      } catch (error) {
+        this.handleError(error)
+      }
     },
     removed(invitationLink) {
       this.invitationLinks = this.invitationLinks.filter(
