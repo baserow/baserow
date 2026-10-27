@@ -15,7 +15,9 @@ COPY --from=builder /model /model
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
+# requirements-gpu.txt builds the GPU image.
+ARG REQUIREMENTS=requirements.txt
+COPY ${REQUIREMENTS} requirements.txt
 
 # Nothing installs packages at runtime, so pip only adds CVEs.
 RUN pip install --no-cache-dir --root-user-action=ignore --no-deps \
@@ -25,7 +27,8 @@ RUN pip install --no-cache-dir --root-user-action=ignore --no-deps \
 
 COPY app.py .
 # --no-deps can't catch a missing dependency, so fail the build instead of startup.
-RUN python -B -c "import app"
+# There's no GPU while building.
+RUN EMBEDDINGS_DEVICE=cpu python -B -c "import app"
 
 EXPOSE 80
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]
