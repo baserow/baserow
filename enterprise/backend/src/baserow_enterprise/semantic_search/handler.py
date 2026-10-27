@@ -737,7 +737,10 @@ class _ChunkBatch:
             (row_id, chunk_index, content_hash, content)
             for chunk_index, content in enumerate(contents)
         )
-        if len(self.chunks) >= EMBEDDING_BATCH_CHUNKS:
+        # Otherwise more texts per request wouldn't have any effect.
+        if len(self.chunks) >= max(
+            EMBEDDING_BATCH_CHUNKS, settings.BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST
+        ):
             self.save()
 
     def save(self):

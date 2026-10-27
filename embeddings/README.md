@@ -37,15 +37,43 @@ The service uses a multi-stage Docker build:
 
 ## Docker
 
-### Run locally
+There are two images. Both create the same vectors, so they can be swapped without re-embedding.
 
-```
+| Image                          | Runs on               | Platforms                    | Size    |
+| ------------------------------ | --------------------- | ---------------------------- | ------- |
+| `baserow/embeddings:1.1.0`     | CPU                   | `linux/amd64`, `linux/arm64` | ~0.6 GB |
+| `baserow/embeddings:1.1.0-gpu` | NVIDIA GPU, with CUDA | `linux/amd64`                | ~2.2 GB |
+
+The CPU image is enough for the AI assistant's knowledge base and for searching. The GPU image is only worth it to embed large volumes, like enabling semantic search on big tables.
+
+### Run the CPU image
+
+```bash
 docker run -p 127.0.0.1:8080:80 baserow/embeddings:1.1.0
 ```
 
-### Build for publish
+The service will be available at `http://localhost:8080`.
 
+### Run the GPU image
+
+The host needs an NVIDIA driver of version 525 or newer and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+
+```bash
+docker run --gpus all -p 127.0.0.1:8080:80 baserow/embeddings:1.1.0-gpu
 ```
+
+-   It fails to start when no GPU is usable, instead of silently falling back to the CPU. Set `EMBEDDINGS_DEVICE=cpu` to run it without a GPU anyway.
+-   It processes 64 texts at a time instead of 8, because a GPU only runs at full speed with bigger batches. Set `BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST` to 64 in Baserow, so that its requests fill those batches.
+-   Requests are processed one at a time, while the CPU handles tokenization and JSON. Run two to four containers on one GPU to keep it busy. On an NVIDIA RTX A4000, four containers embedded about 1,200 texts of 200 to 1,000 characters per second, against 18 per second for the CPU image with 1 CPU.
+-   Its vectors differ from the CPU image's only in the last decimals, which doesn't noticeably change cosine distances.
+
+### Build and publish
+
+Bump the version in the tags, and in the run commands above, for every release. Publish both images with the same version.
+
+CPU image:
+
+```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t baserow/embeddings:1.1.0 \
@@ -53,14 +81,32 @@ docker buildx build \
   --push .
 ```
 
+GPU image, which only supports `linux/amd64`:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  --build-arg REQUIREMENTS=requirements-gpu.txt \
+  -t baserow/embeddings:1.1.0-gpu \
+  -t baserow/embeddings:latest-gpu \
+  --push .
+```
+
 ### Build and run from source
+
+CPU image:
 
 ```bash
 docker build -t baserow-embeddings .
 docker run -p 127.0.0.1:8080:80 baserow-embeddings
 ```
 
-The service will be available at `http://localhost:8080`.
+GPU image:
+
+```bash
+docker build --build-arg REQUIREMENTS=requirements-gpu.txt -t baserow-embeddings-gpu .
+docker run --gpus all -p 127.0.0.1:8080:80 baserow-embeddings-gpu
+```
 
 ### Configuration
 
@@ -68,6 +114,7 @@ The service will be available at `http://localhost:8080`.
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `EMBEDDINGS_NUM_THREADS` | Number of CPU threads used for inference, as a positive integer. Requests are processed one at a time, using all threads. | The container's CPU limit rounded up, or all CPUs without a limit. |
 | `EMBEDDINGS_MODEL_DIR`   | Directory with the model files. Change it only to run the service outside Docker.                                         | `/model`                                                           |
+| `EMBEDDINGS_DEVICE`      | `cpu` or `gpu`. Set `cpu` to run the GPU image without a GPU.                                                             | `gpu` in the GPU image, otherwise `cpu`.                           |
 
 ## API
 
@@ -185,6 +232,8 @@ Measured on an Apple M2 Max with the Helm chart's limits of 1 CPU and 1.5 GiB:
 Python 3.14, with every runtime package pinned in [requirements.txt](requirements.txt), so rebuilds install exactly the same versions. `huggingface_hub` is only used in the build stage, to download the model.
 
 To update a package, install the new versions of `numpy`, `onnxruntime`, `starlette` and `uvicorn` into a clean Python 3.14 environment, add `tokenizers` with `--no-deps`, and write the output of `pip freeze` below the comment at the top of `requirements.txt`. The build stage installs `huggingface_hub`, pinned in the Dockerfile and above, with `-c requirements.txt`, so check that it still installs. After a bump, compare a few vectors with the previous image.
+
+[requirements-gpu.txt](requirements-gpu.txt) pins the GPU image the same way, with `onnxruntime-gpu[cuda,cudnn]` instead of `onnxruntime`, in a `linux/amd64` environment. Keep `onnxruntime-gpu` at the same version as `onnxruntime`.
 
 ## License
 
