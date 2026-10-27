@@ -4,7 +4,7 @@
       <div>{{ emptyTitle }}</div>
       <div>{{ emptyDescription }}</div>
     </div>
-    <ul v-else class="invite-list__items">
+    <ul v-else class="invite-list__items invite-list__items--scrollable">
       <li v-for="item in items" :key="item.key" class="invite-list__item">
         <div class="invite-list__subject">
           <Avatar

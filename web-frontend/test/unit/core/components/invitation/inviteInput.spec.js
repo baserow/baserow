@@ -88,7 +88,10 @@ function itemTitles(wrapper) {
 }
 
 function resultsOpen(wrapper) {
-  return wrapper.find('.invite-input__results').exists()
+  return !wrapper
+    .find('.invite-input__results')
+    .classes()
+    .includes('visibility-hidden')
 }
 
 function paste(input, text) {
@@ -253,7 +256,7 @@ test('only takes email addresses when there is nothing to pick', async () => {
   }
 })
 
-test('lists every option on focus in place of what is below the input', async () => {
+test('opens a context on focus while keeping the access summary visible', async () => {
   const wrapper = await mountInput(
     {
       options: [member, pickable],
@@ -263,9 +266,7 @@ test('lists every option on focus in place of what is below the input', async ()
     { default: '<p class="below">Direct access</p>' }
   )
   try {
-    // Hidden rather than removed, so that it keeps its state.
-    const belowShown = () =>
-      wrapper.find('.below').element.parentElement.style.display !== 'none'
+    const belowShown = () => wrapper.find('.below').isVisible()
     expect(resultsOpen(wrapper)).toBe(false)
     expect(belowShown()).toBe(true)
 
@@ -274,7 +275,7 @@ test('lists every option on focus in place of what is below the input', async ()
     const input = wrapper.find('input')
     await input.trigger('focus')
     expect(resultsOpen(wrapper)).toBe(true)
-    expect(belowShown()).toBe(false)
+    expect(belowShown()).toBe(true)
     expect(itemTitles(wrapper)).toEqual(['Mark Delgado', 'Foo Bar Viewer'])
     expect(wrapper.find('.invite-input__item--disabled').text()).toContain(
       'Member'
@@ -298,8 +299,7 @@ test('closes the results with the button next to the tabs', async () => {
     { default: '<p class="below">Direct access</p>' }
   )
   try {
-    const belowShown = () =>
-      wrapper.find('.below').element.parentElement.style.display !== 'none'
+    const belowShown = () => wrapper.find('.below').isVisible()
     const input = wrapper.find('input')
     await input.trigger('focus')
     await wrapper.find('.invite-input__item').trigger('click')
@@ -683,6 +683,37 @@ test('picks every typed address on enter', async () => {
     await input.setValue('one@x.com')
     await input.trigger('keydown', { key: 'Enter' })
     expect(chips(wrapper)).toEqual(['one@x.com', 'two@x.com', 'olga@x.com'])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('dismisses the popup on outside click without clearing picks or search', async () => {
+  const wrapper = await mountInput(
+    {
+      options: [pickable],
+      tabs: [{ value: 'auth.User', label: 'Members' }],
+    },
+    undefined,
+    { default: '<p class="below">Direct access</p>' },
+    { attachTo: document.body }
+  )
+  try {
+    const input = wrapper.find('input')
+    await paste(input, 'foo@bar.com')
+    await input.setValue('foo')
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(true)
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    document.body.click()
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
+    expect(input.element.value).toBe('foo')
+    expect(wrapper.find('.below').isVisible()).toBe(true)
+    await input.trigger('focus')
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(true)
   } finally {
     wrapper.unmount()
   }
