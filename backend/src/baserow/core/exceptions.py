@@ -98,6 +98,13 @@ class CannotChangeYourOwnWorkspaceRole(Exception):
     """
 
 
+class InvalidWorkspaceRole(Exception):
+    """
+    Raised when a workspace role is not one of the roles available in the
+    workspace.
+    """
+
+
 class ApplicationDoesNotExist(Exception):
     """Raised when trying to get an application that does not exist."""
 
