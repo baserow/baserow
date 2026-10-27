@@ -2523,3 +2523,150 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
         "detail": "A data source sort is misconfigured: "
         "One or more sorted properties no longer exist.",
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["elements", "data_sources", "workflow_actions"])
+@pytest.mark.parametrize("role", ["admin", "", "other"])
+@pytest.mark.parametrize("warm_cache", [False, True])
+def test_public_page_lists_reject_foreign_user_source(
+    api_client, data_fixture, endpoint, role, warm_cache
+):
+    """A published app's cached definitions require an actor from that app."""
+
+    user = data_fixture.create_user()
+    actors = []
+    pages = []
+    for _ in range(2):
+        draft = data_fixture.create_builder_application(user=user)
+        published = data_fixture.create_builder_application(workspace=None)
+        data_fixture.create_builder_custom_domain(builder=draft, published_to=published)
+        pages.append(data_fixture.create_builder_page(builder=published))
+        source, _ = data_fixture.create_user_table_and_role(user, published, role)
+        row = source.table.get_model().objects.first()
+        actors.append(
+            data_fixture.create_user_source_user(
+                user_source=source, user_id=row.id, role=role
+            )
+        )
+
+    page = pages[1]
+    element = data_fixture.create_builder_heading_element(
+        page=page,
+        visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+        roles=[role],
+    )
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    action = data_fixture.create_notification_workflow_action(
+        page=page, element=element
+    )
+    expected_id = {
+        "elements": element.id,
+        "data_sources": data_source.id,
+        "workflow_actions": action.id,
+    }[endpoint]
+    url = reverse(f"api:builder:domains:list_{endpoint}", kwargs={"page_id": page.id})
+    own_headers = {
+        "HTTP_AUTHORIZATION": f"JWT {actors[1].get_refresh_token().access_token}"
+    }
+    foreign_headers = {
+        "HTTP_AUTHORIZATION": f"JWT {actors[0].get_refresh_token().access_token}"
+    }
+
+    if warm_cache:
+        response = api_client.get(url, **own_headers)
+        assert response.status_code == HTTP_200_OK
+        assert expected_id in [record["id"] for record in response.json()]
+
+    response = api_client.get(url, **foreign_headers)
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+    for headers in (own_headers, own_headers, {}, {}, own_headers):
+        response = api_client.get(url, **headers)
+        assert response.status_code == HTTP_200_OK
+        visible = bool(headers) or endpoint == "data_sources"
+        assert (expected_id in [record["id"] for record in response.json()]) == visible
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["elements", "workflow_actions"])
+def test_public_page_list_cache_preserves_same_app_visibility(
+    api_client, data_fixture, endpoint
+):
+    """Cached responses stay separate for roles, blank roles and anonymous users."""
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    published = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=published)
+    page = data_fixture.create_builder_page(builder=published)
+    public = data_fixture.create_builder_heading_element(page=page)
+    logged_in = data_fixture.create_builder_heading_element(
+        page=page, visibility=Element.VISIBILITY_TYPES.LOGGED_IN
+    )
+    admin = data_fixture.create_builder_heading_element(
+        page=page,
+        visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+        roles=["admin"],
+    )
+    records = [public, logged_in, admin]
+    if endpoint == "workflow_actions":
+        records = [
+            data_fixture.create_notification_workflow_action(element=e) for e in records
+        ]
+    headers_by_role = {}
+    for role in ("admin", "", "other"):
+        source, _ = data_fixture.create_user_table_and_role(user, published, role)
+        row = source.table.get_model().objects.first()
+        actor = data_fixture.create_user_source_user(
+            user_source=source, user_id=row.id, role=role
+        )
+        headers_by_role[role] = {
+            "HTTP_AUTHORIZATION": f"JWT {actor.get_refresh_token().access_token}"
+        }
+    url = reverse(f"api:builder:domains:list_{endpoint}", kwargs={"page_id": page.id})
+
+    for _ in range(2):
+        for role, expected in (
+            ("admin", records),
+            ("", records[:2]),
+            (None, records[:1]),
+            ("other", records[:2]),
+        ):
+            response = api_client.get(url, **headers_by_role.get(role, {}))
+            assert response.status_code == HTTP_200_OK
+            assert {record["id"] for record in response.json()} == {
+                record.id for record in expected
+            }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["elements", "data_sources", "workflow_actions"])
+def test_public_page_lists_serve_cached_anonymous_records_without_queries(
+    api_client, data_fixture, django_assert_num_queries, endpoint
+):
+    """Anonymous visitors are served cached public records without any query."""
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    published = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=published)
+    page = data_fixture.create_builder_page(builder=published)
+    element = data_fixture.create_builder_heading_element(page=page)
+    data_fixture.create_builder_local_baserow_get_row_data_source(page=page)
+    data_fixture.create_notification_workflow_action(page=page, element=element)
+    url = reverse(f"api:builder:domains:list_{endpoint}", kwargs={"page_id": page.id})
+
+    response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 1
+
+    with django_assert_num_queries(0):
+        response = api_client.get(url)
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 1
