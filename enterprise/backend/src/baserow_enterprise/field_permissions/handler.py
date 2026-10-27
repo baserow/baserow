@@ -133,7 +133,7 @@ class FieldPermissionsHandler:
         """
 
         field_content_type = ContentType.objects.get_for_model(Field)
-        return list(
+        assignments = list(
             RoleAssignment.objects.filter(
                 workspace=field.table.database.workspace,
                 scope_id=field.id,
@@ -141,9 +141,11 @@ class FieldPermissionsHandler:
                 role__uid=FIELD_PERMISSION_EDITOR_ROLE_UID,
             )
             .select_related("role", "subject_type")
-            .prefetch_related("subject")
             .order_by("subject_type_id", "subject_id")
         )
+        # Teams need their `subject_count` annotation to be serialized.
+        RoleAssignmentHandler().prefetch_role_assignment_subjects(assignments)
+        return assignments
 
     @classmethod
     def _filter_active_field_permission_subjects(
