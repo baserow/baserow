@@ -45,7 +45,7 @@ GroupByFieldId = Annotated[
     int | None,
     Field(
         description="The field whose values become the chart's categories. null "
-        "gives one category per row."
+        "shows one value per series, without categories."
     ),
 ]
 
