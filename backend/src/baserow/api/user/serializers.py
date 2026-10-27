@@ -205,13 +205,19 @@ class RegisterSerializer(serializers.Serializer):
         help_text="If provided and valid, the user accepts the workspace invitation and "
         "will have access to the workspace after signing up.",
     )
+    workspace_invitation_link_slug = serializers.CharField(
+        required=False,
+        help_text="If provided and valid, the user joins the workspace of the "
+        "invitation link after signing up. Can't be combined with "
+        "`workspace_invitation_token`.",
+    )
     template_id = serializers.PrimaryKeyRelatedField(
         required=False,
         default=None,
         queryset=Template.objects.official(),
         help_text="The id of the template that must be installed after creating the "
-        "account. This only works if the `workspace_invitation_token` param is not "
-        "provided.",
+        "account. This only works if the `workspace_invitation_token` and "
+        "`workspace_invitation_link_slug` params are not provided.",
     )
     captcha_token = serializers.CharField(
         required=False,
@@ -219,6 +225,15 @@ class RegisterSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="The captcha response token, required when captcha is enabled.",
     )
+
+    def validate(self, data):
+        if data.get("workspace_invitation_token") and data.get(
+            "workspace_invitation_link_slug"
+        ):
+            raise serializers.ValidationError(
+                "A workspace invitation token and invitation link can't be combined."
+            )
+        return data
 
 
 class AccountSerializer(serializers.Serializer):

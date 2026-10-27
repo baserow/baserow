@@ -28,6 +28,7 @@ from tqdm import tqdm
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -51,6 +52,8 @@ from .exceptions import (
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationEmailNotVerified,
+    WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
     WorkspaceUserIsLastAdmin,
@@ -65,21 +68,26 @@ from .models import (
     TemplateCategory,
     Workspace,
     WorkspaceInvitation,
+    WorkspaceInvitationLink,
     WorkspaceUser,
 )
 from .operations import (
     CreateApplicationsWorkspaceOperationType,
+    CreateInvitationLinkWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
     CreateWorkspaceOperationType,
     DeleteApplicationOperationType,
+    DeleteWorkspaceInvitationLinkOperationType,
     DeleteWorkspaceInvitationOperationType,
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     DuplicateApplicationOperationType,
+    ListInvitationLinksWorkspaceOperationType,
     OrderApplicationsOperationType,
     ReadApplicationOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
+    UpdateWorkspaceInvitationLinkOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
@@ -108,6 +116,7 @@ from .signals import (
     workspace_updated,
     workspace_user_added,
     workspace_user_deleted,
+    workspace_user_joined_via_invitation_link,
     workspace_user_updated,
     workspaces_reordered,
 )
@@ -1575,6 +1584,191 @@ class CoreHandler:
             sender=self, invitation=invitation, user=user
         )
         invitation.delete()
+
+        return workspace_user
+
+    def get_workspace_invitation_link(
+        self, invitation_link_id: int, base_queryset: Optional[QuerySet] = None
+    ) -> WorkspaceInvitationLink:
+        """
+        Selects a workspace invitation link with a given id from the database.
+
+        :param invitation_link_id: The identifier of the link that must be returned.
+        :param base_queryset: The base queryset from where to select the link.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the link does not exist.
+        :return: The requested workspace invitation link.
+        """
+
+        if base_queryset is None:
+            base_queryset = WorkspaceInvitationLink.objects
+
+        try:
+            return base_queryset.select_related("workspace").get(id=invitation_link_id)
+        except WorkspaceInvitationLink.DoesNotExist as e:
+            raise WorkspaceInvitationLinkDoesNotExist(
+                f"The workspace invitation link with id {invitation_link_id} does "
+                "not exist."
+            ) from e
+
+    def get_workspace_invitation_link_by_slug(
+        self, slug: str
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the workspace invitation link of the given slug, which is what the
+        public link URL contains. Links of a trashed workspace can't be used.
+
+        :param slug: The slug of the link.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises WorkspaceInvitationLinkDoesNotExist: If no usable link has the slug.
+        :return: The workspace invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        try:
+            return WorkspaceInvitationLink.objects.select_related(
+                "workspace", "created_by"
+            ).get(slug=slug, workspace__trashed=False)
+        except WorkspaceInvitationLink.DoesNotExist as e:
+            raise WorkspaceInvitationLinkDoesNotExist(
+                "The workspace invitation link does not exist."
+            ) from e
+
+    def list_workspace_invitation_links(
+        self, user: AbstractUser, workspace: Workspace
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the invitation links of the workspace if the user is allowed to
+        manage them.
+
+        :param user: The user on whose behalf the links are listed.
+        :param workspace: The workspace of which the links must be returned.
+        :raises PermissionException: If the user isn't allowed to list the links.
+        :return: The invitation links of the workspace.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            ListInvitationLinksWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        return WorkspaceInvitationLink.objects.filter(workspace=workspace)
+
+    def create_workspace_invitation_link(
+        self, user: AbstractUser, workspace: Workspace, permissions: str
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a new permanent link that anyone can use to join the workspace with
+        the given permissions.
+
+        :param user: The user on whose behalf the link is created.
+        :param workspace: The workspace that people join through the link.
+        :param permissions: The workspace permissions people get when joining.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises PermissionException: If the user isn't allowed to create links.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created workspace invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        CoreHandler().check_permissions(
+            user,
+            CreateInvitationLinkWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        settings = self.get_settings()
+        if not (
+            settings.allow_new_signups
+            or settings.allow_signups_via_workspace_invitations
+        ):
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=workspace, created_by=user, permissions=permissions
+        )
+
+    def update_workspace_invitation_link(
+        self,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        permissions: str,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the permissions that people get when joining through the link. It
+        doesn't change the permissions of people who already joined.
+
+        :param user: The user on whose behalf the link is updated.
+        :param invitation_link: The link that must be updated.
+        :param permissions: The new workspace permissions of the link.
+        :raises PermissionException: If the user isn't allowed to update the link.
+        :return: The updated workspace invitation link.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateWorkspaceInvitationLinkOperationType.type,
+            workspace=invitation_link.workspace,
+            context=invitation_link,
+        )
+
+        invitation_link.permissions = permissions
+        invitation_link.save(update_fields=["permissions", "updated_on"])
+
+        return invitation_link
+
+    def delete_workspace_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> None:
+        """
+        Deletes a workspace invitation link, after which it can't be used anymore.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param invitation_link: The link that must be deleted.
+        :raises PermissionException: If the user isn't allowed to delete the link.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            DeleteWorkspaceInvitationLinkOperationType.type,
+            workspace=invitation_link.workspace,
+            context=invitation_link,
+        )
+
+        invitation_link.delete()
+
+    def join_workspace_via_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> WorkspaceUser:
+        """
+        Adds the user to the workspace of the link with the permissions of the
+        link. Someone who is already a member keeps their current permissions.
+
+        :param user: The user who joins the workspace.
+        :param invitation_link: The link the user joins through.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :return: The workspace user of the user in the workspace of the link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        workspace_user = self.add_user_to_workspace(
+            invitation_link.workspace, user, permissions=invitation_link.permissions
+        )
+
+        workspace_user_joined_via_invitation_link.send(
+            sender=self,
+            invitation_link=invitation_link,
+            user=user,
+            workspace_user=workspace_user,
+        )
 
         return workspace_user
 

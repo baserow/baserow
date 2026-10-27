@@ -1,5 +1,6 @@
 from django.urls import include, path, re_path
 
+from .invitation_links import urls as invitation_link_urls
 from .invitations import urls as invitation_urls
 from .users import urls as user_urls
 from .views import (
@@ -21,6 +22,10 @@ app_name = "baserow.api.workspaces"
 urlpatterns = [
     path("users/", include(user_urls, namespace="users")),
     path("invitations/", include(invitation_urls, namespace="invitations")),
+    path(
+        "invitation-links/",
+        include(invitation_link_urls, namespace="invitation_links"),
+    ),
     re_path(r"^$", WorkspacesView.as_view(), name="list"),
     re_path(
         r"(?P<workspace_id>[0-9]+)/permissions/$",

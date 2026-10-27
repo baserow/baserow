@@ -59,6 +59,7 @@ __all__ = [
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
+    "WorkspaceInvitationLink",
     "Agent",
     "Application",
     "TemplateCategory",
@@ -533,6 +534,48 @@ class WorkspaceInvitation(
     class Meta:
         ordering = ("id",)
         unique_together = [["workspace", "email"]]
+
+
+class WorkspaceInvitationLink(
+    HierarchicalModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """
+    A permanent link that anyone can use to join the workspace with the role of the
+    link. It can be used any number of times and stops working once it's deleted.
+    """
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="invitation_links",
+        help_text="The workspace that people join through the link.",
+    )
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The user that created the link.",
+    )
+    slug = models.SlugField(
+        default=secrets.token_urlsafe,
+        unique=True,
+        help_text="The unique slug of the public link URL.",
+    )
+    permissions = models.CharField(
+        default=WORKSPACE_USER_PERMISSION_MEMBER,
+        max_length=32,
+        help_text="The permissions that people get within the workspace when they "
+        "join through the link.",
+    )
+
+    def get_parent(self):
+        return self.workspace
+
+    class Meta:
+        ordering = ("id",)
 
 
 class Application(

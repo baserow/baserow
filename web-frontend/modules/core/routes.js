@@ -155,6 +155,12 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
     meta: { preventPageViewTracking: true },
   },
+  {
+    name: 'invitation-link',
+    path: '/invite/:slug',
+    file: path.resolve(__dirname, 'pages/invitationLink.vue'),
+    meta: { preventPageViewTracking: true },
+  },
 
   {
     name: 'template',

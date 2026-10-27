@@ -199,6 +199,7 @@ class UserHandler:
         template: Template = None,
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
+        workspace_invitation_link_slug: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -218,17 +219,23 @@ class UserHandler:
             for the user to login.
         :param email_verified: Whether the auth provider confirmed the email as
             verified. When True, the profile is marked verified at creation time.
+        :param workspace_invitation_link_slug: If provided and valid, the user joins
+            the workspace of the invitation link and initial workspace will not be
+            created. Unlike an email invitation, the link doesn't verify the email.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
             does not match the one of the user.
         :raises SignupDisabledError: If signing up is disabled.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the invitation link does not
+            exist.
         :return: The user object.
         """
 
         core_handler = CoreHandler()
 
         workspace_invitation = None
+        workspace_invitation_link = None
         workspace_user = None
 
         if workspace_invitation_token:
@@ -242,11 +249,22 @@ class UserHandler:
                     "user."
                 )
 
+        if workspace_invitation_link_slug:
+            workspace_invitation_link = (
+                core_handler.get_workspace_invitation_link_by_slug(
+                    workspace_invitation_link_slug
+                )
+            )
+
+        invited_to_workspace = (
+            workspace_invitation is not None or workspace_invitation_link is not None
+        )
+
         instance_settings = core_handler.get_settings()
         allow_new_signups = instance_settings.allow_new_signups
         allow_signup_for_invited_user = (
             instance_settings.allow_signups_via_workspace_invitations
-            and workspace_invitation is not None
+            and invited_to_workspace
         )
         if not (allow_new_signups or allow_signup_for_invited_user):
             raise DisabledSignupError("Sign up is disabled.")
@@ -276,6 +294,10 @@ class UserHandler:
             workspace_user = core_handler.accept_workspace_invitation(
                 user, workspace_invitation, token=workspace_invitation_token
             )
+        elif workspace_invitation_link is not None:
+            workspace_user = core_handler.join_workspace_via_invitation_link(
+                user, workspace_invitation_link
+            )
 
         if (
             # If the user signs up and installs a template, then we must create a
@@ -296,13 +318,13 @@ class UserHandler:
         workspace = getattr(workspace_user, "workspace", None)
         user.default_workspace = workspace
 
-        if not workspace_invitation_token and template and workspace:
+        if not invited_to_workspace and template and workspace:
             core_handler.install_template(user, workspace, template)
 
         if (
             # If the user accepted an invitation, then a workspace already exists
             # making the onboarding redundant.
-            workspace_invitation
+            invited_to_workspace
             # If the user signups up with a template, then we must create a workspace
             # because making the onboarding redundant.
             or template

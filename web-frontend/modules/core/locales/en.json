@@ -311,6 +311,7 @@
   },
   "invitationTitle": "Invitation",
   "invitationMessage": "{invitedBy} has invited you to join {workspace}.",
+  "invitationLinkMessage": "You have been invited to join {workspace}.",
   "workspaceForm": {
     "nameLabel": "Name"
   },
@@ -414,9 +415,24 @@
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
     "linkEmptyDescription": "You can create multiple links with different roles.",
+    "linkColumn": "Link",
+    "linkAdd": "Add link",
+    "linkInviteAs": "Invite as",
+    "linkCopy": "Copy link",
+    "linkDelete": "Delete link",
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
     "pendingEmptyDescription": "Invitations show up here until they are accepted."
+  },
+  "invitationLinkDeleteModal": {
+    "title": "Delete link",
+    "deleteWarning": "Are you sure that you want to delete this invite link to {workspaceName}? After deleting, it will not be possible to join the workspace via this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it keep their access.",
+    "delete": "Delete link"
+  },
+  "invitationLinkAdminConfirmModal": {
+    "title": "Invite as admin through a link?",
+    "message": "Anyone with this link can join the workspace as an admin, and admins can manage everything in it, including its members and invite links. Only share it with people you trust.",
+    "confirm": "Invite as admin"
   },
   "inviteInput": {
     "batchLimitExceeded": "You can invite up to {limit} email addresses at once. Remove extra addresses to continue.",
@@ -903,6 +919,7 @@
     "settingAllowNewAccountsDescription": "By default, any user visiting your Baserow domain can sign up for a new account.",
     "settingAllowSignupsViaWorkspaceInvitationsName": "Allow signups via workspace invitations",
     "settingAllowSignupsViaWorkspaceInvitationDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users to still create an account.",
+    "settingAllowSignupsViaWorkspaceInvitationOrLinkDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users, and anyone who opens a workspace invite link, to still create an account.",
     "settingAllowNonStaffCreateWorkspaceOperation": "Allow everyone to create new workspaces",
     "settingAllowNonStaffCreateWorkspaceOperationDescription": "By default, everyone can create new workspaces. Disable this to only allow staff to create new workspaces.",
     "settingAllowNonStaffCreateWorkspaceOperationWarning": "New users will have a workspace automatically created for them where they are an Admin.",
