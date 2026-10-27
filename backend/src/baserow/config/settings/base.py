@@ -581,6 +581,13 @@ ACCESS_TOKEN_LIFETIME = timedelta(
 REFRESH_TOKEN_LIFETIME = timedelta(
     hours=int(os.getenv("BASEROW_REFRESH_TOKEN_LIFETIME_HOURS", 24 * 7))  # 7 days
 )
+# Every refresh returns a new refresh token and revokes the one that was used.
+ROTATE_REFRESH_TOKENS = str_to_bool(
+    os.getenv("BASEROW_ROTATE_REFRESH_TOKENS") or "true"
+)
+# A revoked refresh token keeps working for this long, so tabs that refresh at the
+# same time don't log each other out. Using it later revokes the whole session.
+REFRESH_TOKEN_REUSE_GRACE_PERIOD = timedelta(seconds=30)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": ACCESS_TOKEN_LIFETIME,

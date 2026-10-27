@@ -5,6 +5,8 @@ from typing import Dict, Optional, Union
 from django.contrib.auth.models import AbstractUser
 from django.core.signing import TimestampSigner
 
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from baserow.core.utils import generate_hash
@@ -14,6 +16,9 @@ from baserow.core.utils import generate_hash
 class UserSessionPayload:
     user_id: int
     token_hash: str
+    # Sessions signed before refresh tokens were rotated don't have these.
+    session_hash: Optional[str] = None
+    expires_at: Optional[int] = None
 
 
 def normalize_email_address(email):
@@ -33,6 +38,22 @@ def normalize_email_address(email):
 # Holds the id of the staff member the token was issued to.
 IMPERSONATED_BY_CLAIM = "impersonated_by"
 IMPERSONATED_BY_USER_ATTR = "impersonated_by_user_id"
+# Holds the id of the login a rotated refresh token descends from.
+SESSION_ID_CLAIM = "session_id"
+
+
+def get_refresh_token_session_hash(refresh_token: RefreshToken) -> str:
+    """
+    :param refresh_token: A refresh token of the session.
+    :return: The hash under which the session of the token is blacklisted.
+    """
+
+    # Tokens issued before rotation have no session claim, their own id is then
+    # the session id.
+    session_id = refresh_token.get(SESSION_ID_CLAIM) or refresh_token.get(
+        jwt_settings.JTI_CLAIM
+    )
+    return generate_hash(f"session:{session_id}")
 
 
 def set_user_impersonated_from_token(user: AbstractUser, token) -> None:
@@ -111,9 +132,17 @@ def sign_user_session(user_id: int, refresh_token: str) -> str:
     :return: The signed user id.
     """
 
-    return TimestampSigner().sign_object(
-        asdict(UserSessionPayload(str(user_id), generate_hash(refresh_token)))
-    )
+    payload = UserSessionPayload(str(user_id), generate_hash(refresh_token))
+    try:
+        token = RefreshToken(refresh_token)
+    except TokenError:
+        pass
+    else:
+        # A rotated refresh token keeps the expiry of the first one, while the
+        # signature would otherwise be valid for a full lifetime from now.
+        payload.session_hash = get_refresh_token_session_hash(token)
+        payload.expires_at = token["exp"]
+    return TimestampSigner().sign_object(asdict(payload))
 
 
 def prepare_user_tokens_payload(

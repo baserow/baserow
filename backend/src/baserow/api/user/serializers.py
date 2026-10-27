@@ -46,6 +46,7 @@ from baserow.core.user.utils import (
     IMPERSONATED_BY_CLAIM,
     generate_session_tokens_for_user,
     normalize_email_address,
+    prepare_user_tokens_payload,
 )
 
 User = get_user_model()
@@ -430,14 +431,19 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         attrs["refresh"] = attrs.pop("refresh_token", attrs.get("token"))
         super().validate(attrs)
 
+        # A rotated token stays usable for a short while, so the rotation itself
+        # checks the blacklist.
         user = get_user_from_token(
-            attrs["refresh"], RefreshToken, check_if_refresh_token_is_blacklisted=True
+            attrs["refresh"],
+            RefreshToken,
+            check_if_refresh_token_is_blacklisted=not settings.ROTATE_REFRESH_TOKENS,
         )
 
         token = RefreshToken(attrs["refresh"])
-        settings = CoreHandler().get_settings()
+        instance_settings = CoreHandler().get_settings()
         if (
-            settings.email_verification == Settings.EmailVerificationOptions.ENFORCED
+            instance_settings.email_verification
+            == Settings.EmailVerificationOptions.ENFORCED
             and not user.profile.email_verified
             and not user.is_staff
             and token.get("verified_email_claim")
@@ -448,6 +454,11 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         data = generate_session_tokens_for_user(
             user, impersonated_by_user_id=token.get(IMPERSONATED_BY_CLAIM)
         )
+        if settings.ROTATE_REFRESH_TOKENS:
+            refresh_token = UserHandler().rotate_refresh_token(attrs["refresh"])
+            data = prepare_user_tokens_payload(
+                user.id, data["access_token"], refresh_token
+            )
         data.update(**get_all_user_data_serialized(user, self.context["request"]))
         token_refreshes_counter.add(1)
         return data

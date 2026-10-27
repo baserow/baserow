@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 from urllib.parse import unquote
 from urllib.request import Request
@@ -61,8 +62,15 @@ class AuthenticateFromUserSessionAuthentication(authentication.BaseAuthenticatio
         except user_model.DoesNotExist:
             raise exceptions.AuthenticationFailed(err_msg)
 
-        if not user.is_active or UserHandler().refresh_token_hash_is_blacklisted(
-            user_session.token_hash
+        handler = UserHandler()
+        if (
+            not user.is_active
+            or handler.refresh_token_hash_is_blacklisted(user_session.token_hash)
+            or (
+                user_session.session_hash
+                and handler.refresh_token_hash_is_blacklisted(user_session.session_hash)
+            )
+            or (user_session.expires_at and user_session.expires_at < time.time())
         ):
             raise exceptions.AuthenticationFailed(err_msg)
 

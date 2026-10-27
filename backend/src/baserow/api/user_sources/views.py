@@ -654,6 +654,8 @@ class UserSourceBlacklistJSONWebToken(BlacklistJSONWebToken):
     authentication_classes = ()
 
     token_class = UserSourceToken
+    # User source refresh tokens aren't rotated.
+    revoke_session = False
 
     @extend_schema(
         tags=["User sources"],
