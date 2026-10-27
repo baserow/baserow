@@ -1,3 +1,4 @@
+from io import BytesIO
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -9,7 +10,9 @@ from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
 )
+from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
 from baserow.contrib.integrations.core.service_types import CoreHTTPTriggerServiceType
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.pytest_conftest import fake_import_formula
 
@@ -190,3 +193,73 @@ def test_import_serialized_sets_is_public(data_fixture, is_publishing):
     )
 
     assert instance.is_public is is_publishing
+    if is_publishing:
+        # Publishing must keep the same uid so the published URL keeps working.
+        assert str(instance.uid) == str(service.uid)
+    else:
+        # Any other import is a new trigger and gets its own URL.
+        assert str(instance.uid) != str(service.uid)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("is_duplicate", [True, False])
+def test_import_serialized_regenerates_uid_unless_publishing(
+    data_fixture, is_duplicate
+):
+    trigger_node = data_fixture.create_core_http_trigger_node()
+    service = trigger_node.service
+
+    service_type = CoreHTTPTriggerServiceType()
+    serialized_service = service_type.export_serialized(service)
+
+    import_export_config = ImportExportConfig(
+        include_permission_data=True,
+        reduce_disk_space_usage=False,
+        exclude_sensitive_data=False,
+        is_duplicate=is_duplicate,
+    )
+    instance = service_type.import_serialized(
+        None,
+        serialized_service,
+        {},
+        import_export_config,
+        import_formula=fake_import_formula,
+    )
+
+    assert str(instance.uid) != str(service.uid)
+
+
+@pytest.mark.django_db
+def test_imported_application_trigger_has_its_own_url(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        automation=automation,
+        trigger_type=CoreHTTPTriggerServiceType.type,
+    )
+    service = CoreHTTPTriggerService.objects.get(
+        automation_workflow_node__workflow=workflow
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    core_handler.import_applications_to_workspace(
+        workspace, exported, BytesIO(), config, None
+    )
+
+    imported_service = CoreHTTPTriggerService.objects.exclude(id=service.id).get(
+        automation_workflow_node__workflow__automation__workspace=workspace
+    )
+    assert imported_service.uid != service.uid
+
+    service_type = CoreHTTPTriggerServiceType()
+    service_type.on_event = MagicMock()
+    found_service, _ = service_type.process_webhook_request(
+        service.uid, {"method": "POST"}, True
+    )
+    assert found_service.id == service.id

@@ -18,6 +18,7 @@ from baserow.contrib.integrations.core.api.webhooks.errors import (
 )
 from baserow.contrib.integrations.core.constants import (
     DISALLOWED_WORKFLOW_RESPONSE_HEADERS,
+    HTTP_TRIGGER_DROPPED_REQUEST_HEADERS,
     RESPONSE_BODY_TYPE,
 )
 from baserow.contrib.integrations.core.exceptions import (
@@ -59,7 +60,11 @@ class CoreHTTPTriggerView(APIView):
     http_method_names = ["get", "post", "put", "patch", "delete"]
 
     def handle_request_data(self, request):
-        headers = {key: value for key, value in request.headers.items()}
+        headers = {
+            key: value
+            for key, value in request.headers.items()
+            if key.lower() not in HTTP_TRIGGER_DROPPED_REQUEST_HEADERS
+        }
         query_params = dict(request.GET.items())
 
         # The sender is an arbitrary third-party system, so the body can
