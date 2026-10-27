@@ -6,6 +6,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.dashboard.filters.service import DashboardFilterService
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.handler import CoreHandler
@@ -544,6 +545,39 @@ def test_dispatch_public_dashboard_data_source(api_client, data_fixture):
     )
     assert authenticated_response.status_code == HTTP_200_OK
     assert response.json() == authenticated_response.json()
+
+
+@pytest.mark.django_db
+def test_dispatch_public_dashboard_with_an_unselected_dashboard_filter(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    dashboard, data_source, _ = create_shared_dashboard(data_fixture, user, public=True)
+    service = data_source.service.specific
+    country = data_fixture.create_text_field(table=service.table, name="Country")
+    selection = DashboardFilterService().create_filter(
+        user, dashboard.id, label="Country", mode="input"
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=country,
+        type="equal",
+        value={"formula": f"get('dashboard_filter.{selection.id}')", "mode": "simple"},
+    )
+    # Permanent source conditions still apply when no dashboard value is selected.
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=service.field,
+        type="higher_than",
+        value={"formula": "10", "mode": "raw"},
+    )
+
+    response = api_client.post(
+        public_dispatch_url(dashboard.slug, data_source.id), format="json"
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {"result": "50"}
 
 
 @pytest.mark.django_db

@@ -292,15 +292,17 @@ export default {
     // Because is not no "Vue way" of watching these components, we're using the
     // mutation observer to monitor changes. This is needed because we need to
     // update the select value display value.
-    this.observer = new MutationObserver(() => {
-      this.forceRefreshSelectedValue()
-    })
-    this.observer.observe(this.$refs.items, {
-      attributes: false,
-      childList: true,
-      characterData: false,
-      subtree: false,
-    })
+    if (this.$refs.items) {
+      this.observer = new MutationObserver(() => {
+        this.forceRefreshSelectedValue()
+      })
+      this.observer.observe(this.$refs.items, {
+        attributes: false,
+        childList: true,
+        characterData: false,
+        subtree: false,
+      })
+    }
 
     // If the dropdown is set to open by default, we want to open it.
     if (this.openOnMount) {

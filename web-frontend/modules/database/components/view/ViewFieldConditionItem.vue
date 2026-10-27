@@ -28,9 +28,14 @@
           ></DropdownItem>
         </Dropdown>
       </div>
-      <div class="filters__type">
+      <div
+        v-tooltip.focus="filter._?.typeHelp"
+        class="filters__type"
+        :tabindex="filter._?.typeHelp ? 0 : undefined"
+        :aria-label="filter._?.typeHelp"
+      >
         <Dropdown
-          :disabled="disableFilter"
+          :disabled="disableFilter || filter._?.typeDisabled"
           :value="filter.type"
           :fixed-items="true"
           @input="$emit('updateFilter', { type: $event })"

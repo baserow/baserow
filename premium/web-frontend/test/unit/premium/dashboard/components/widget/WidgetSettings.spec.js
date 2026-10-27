@@ -119,4 +119,23 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     await flushPromises()
     expect(savedDataSource.filters[0].value.mode).toBe('simple')
   })
+
+  test('saves a condition group through the shared source editor', async () => {
+    const wrapper = await openFilters()
+    const addGroup = wrapper
+      .findAll('.filters__add')
+      .find(
+        (item) =>
+          item.text() ===
+          'localBaserowTableServiceConditionalForm.addFilterGroup'
+      )
+    await addGroup.trigger('click')
+    await vi.waitFor(() => {
+      expect(savedDataSource.filter_groups).toHaveLength(1)
+      expect(savedDataSource.filters).toHaveLength(2)
+      expect(savedDataSource.filters[1].group).toBe(
+        savedDataSource.filter_groups[0].id
+      )
+    })
+  })
 })

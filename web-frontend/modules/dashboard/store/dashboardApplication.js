@@ -6,8 +6,20 @@ import IntegrationService from '@baserow/modules/core/services/integration'
 import { getToken, setToken } from '@baserow/modules/core/utils/auth'
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
+import {
+  createLatestCollectionFetch,
+  isDashboardRequestCurrent,
+  isFetchRequestCurrent,
+} from '@baserow/modules/dashboard/utils/requests'
+import {
+  filterState,
+  filterActions,
+  filterMutations,
+  filterGetters,
+} from '@baserow/modules/dashboard/store/dashboardFilters'
 
 export const state = () => ({
+  ...filterState(),
   dashboardId: null,
   dashboardGeneration: 0,
   widgetFetchGeneration: 0,
@@ -37,6 +49,7 @@ const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
 const DATA_SOURCE_DISPATCH_MAX_RETRIES = 3
 const DATA_SOURCE_DISPATCH_RETRY_DELAY_MS = 250
 const dataSourceDispatchQueues = new WeakMap()
+const fetchDataSourceCollection = createLatestCollectionFetch()
 
 const getDataSourceDispatchQueue = (state, concurrency) => {
   let queue = dataSourceDispatchQueues.get(state)
@@ -168,20 +181,6 @@ const getDataSourceMutationRequest = (request, state) => {
   }
 }
 
-const isDashboardRequestCurrent = (state, request) => {
-  return (
-    state.dashboardId === request.dashboardId &&
-    state.dashboardGeneration === request.dashboardGeneration
-  )
-}
-
-const isFetchRequestCurrent = (state, request, generationKey) => {
-  return (
-    isDashboardRequestCurrent(state, request) &&
-    state[generationKey] === request.generation
-  )
-}
-
 const isDataSourceDispatchCurrent = (state, request) => {
   return (
     isDashboardRequestCurrent(state, request) &&
@@ -222,8 +221,10 @@ const refreshAfterWidgetCreation = async (dispatch, dashboard) => {
 }
 
 export const mutations = {
+  ...filterMutations,
   RESET(state) {
     dataSourceDispatchQueues.get(state)?.cancelPending()
+    Object.assign(state, filterState())
     state.dashboardId = null
     state.dashboardGeneration += 1
     state.widgetFetchGeneration += 1
@@ -251,6 +252,7 @@ export const mutations = {
       state.dataSourceCollectionFetchGeneration += 1
       state.dataSourceDispatchGenerations = {}
       state.dataSourceMutationGenerations = {}
+      state.filterDataSourceInputs = {}
     }
     state.dashboardId = dashboardId
   },
@@ -307,6 +309,7 @@ export const mutations = {
         state.dataSourceMutationGenerations[existingDataSource.id] =
           getDataSourceMutationGeneration(state, existingDataSource.id) + 1
         delete state.data[existingDataSource.id]
+        delete state.filterDataSourceInputs[existingDataSource.id]
       }
     }
 
@@ -333,19 +336,14 @@ export const mutations = {
     }
   },
   UPDATE_DATA(state, { dataSourceId, values }) {
-    if (state.data[dataSourceId] === undefined) {
-      state.data[dataSourceId] = {}
-    }
-    state.data = {
-      ...state.data,
-      [dataSourceId]: { ...values },
-    }
+    state.data[dataSourceId] = { ...values }
   },
   ADD_INTEGRATION(state, integration) {
     state.integrations.push(integration)
   },
   SELECT_WIDGET(state, widgetId) {
     state.selectedWidgetId = widgetId
+    state.selectedFilterId = null
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
@@ -384,6 +382,7 @@ export const mutations = {
 }
 
 export const actions = {
+  ...filterActions,
   reset({ commit }) {
     commit('RESET')
   },
@@ -466,6 +465,7 @@ export const actions = {
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', dataSourceId)
     commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSourceId)
     const request = getDataSourceMutationRequest({ dataSourceId }, state)
+    const filterGeneration = state.filterFetchGeneration
     commit('UPDATE_DATA', { dataSourceId, values: null })
 
     let data
@@ -489,6 +489,16 @@ export const actions = {
 
     if (!isDataSourceMutationCurrent(state, request)) {
       return
+    }
+
+    if (filterGeneration !== state.filterFetchGeneration) {
+      // A control deletion or restoration can change conditions while saving.
+      // Read the current source instead of reapplying the earlier PATCH response.
+      const sources = await dispatch('fetchNewDataSources', request.dashboardId)
+      data = sources?.find((source) => source.id === dataSourceId)
+      if (!data || !isDataSourceMutationCurrent(state, request)) {
+        return
+      }
     }
 
     commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
@@ -569,16 +579,23 @@ export const actions = {
     return (await getToken(this.app, slug)) || null
   },
   /**
-   * Dispatches every data source of the current dashboard, the ones shown by the
-   * top most widgets first.
+   * Dispatches current sources, optionally limited to changed filter inputs,
+   * with the top most widgets first.
    */
-  async dispatchDataSources({ state, dispatch }) {
+  async dispatchDataSources(
+    { state, getters, dispatch },
+    { onlyChangedFilters = false } = {}
+  ) {
     const request = {
       dashboardId: state.dashboardId,
       dashboardGeneration: state.dashboardGeneration,
     }
     const queuedDataSources = prioritizeDataSources(
-      state.dataSources,
+      onlyChangedFilters
+        ? state.dataSources.filter((source) =>
+            getters.hasFilterDataSourceChanges(source, this.$registry)
+          )
+        : state.dataSources,
       state.widgets
     )
     await Promise.allSettled(
@@ -610,15 +627,22 @@ export const actions = {
       return
     }
 
-    // Render widgets while their data sources are still loading.
-    commit('SET_LOADING', false)
-    let dataSources
-    do {
-      dataSources = await dispatch('fetchNewDataSources', dashboardId)
-    } while (
-      dataSources === undefined &&
-      isDashboardRequestCurrent(state, request)
-    )
+    await dispatch('fetchCurrentFilters', request)
+    if (!isDashboardRequestCurrent(state, request)) return
+
+    const loadDataSources = async () => {
+      let dataSources
+      do {
+        dataSources = await dispatch('fetchNewDataSources', dashboardId)
+      } while (
+        dataSources === undefined &&
+        isDashboardRequestCurrent(state, request)
+      )
+    }
+    await Promise.all([
+      dispatch('preloadFilterOptions', request),
+      loadDataSources(),
+    ])
     if (!isDashboardRequestCurrent(state, request)) {
       return
     }
@@ -675,57 +699,65 @@ export const actions = {
       state,
       'dataSourceCollectionFetchGeneration'
     )
-    const { data: dataSourcesData } = await DataSourceService(
-      $client
-    ).getAllDataSources(request.dashboardId)
+    return fetchDataSourceCollection(state, {
+      isCurrent: () => isDashboardRequestCurrent(state, request),
+      isLatest: () =>
+        state.dataSourceCollectionFetchGeneration === request.generation,
+      fetch: async () => {
+        const { data: dataSourcesData } = await DataSourceService(
+          $client
+        ).getAllDataSources(request.dashboardId)
 
-    if (
-      !isFetchRequestCurrent(
-        state,
-        request,
-        'dataSourceCollectionFetchGeneration'
-      )
-    ) {
-      return
-    }
+        if (
+          !isFetchRequestCurrent(
+            state,
+            request,
+            'dataSourceCollectionFetchGeneration'
+          )
+        ) {
+          return
+        }
 
-    const dataSourceIdsToDispatch = new Set(
-      dataSourcesData.flatMap((dataSource) => {
-        const existingDataSource = getters.getDataSourceById(dataSource.id)
-        const existingData = state.data[dataSource.id]
-        const shouldDispatch =
-          !existingDataSource ||
-          !existingData ||
-          Object.keys(existingData).length === 0
-        return shouldDispatch ? [dataSource.id] : []
-      })
-    )
-    commit('SET_DATA_SOURCES', dataSourcesData)
+        const dataSourceIdsToDispatch = new Set(
+          dataSourcesData.flatMap((dataSource) => {
+            const existingDataSource = getters.getDataSourceById(dataSource.id)
+            const existingData = state.data[dataSource.id]
+            const shouldDispatch =
+              requestValues?.dispatchMissing !== false &&
+              (!existingDataSource ||
+                !existingData ||
+                Object.keys(existingData).length === 0)
+            return shouldDispatch ? [dataSource.id] : []
+          })
+        )
+        commit('SET_DATA_SOURCES', dataSourcesData)
 
-    const queuedDataSources = prioritizeDataSources(
-      dataSourcesData.filter(({ id }) => dataSourceIdsToDispatch.has(id)),
-      state.widgets
-    )
-    await Promise.allSettled(
-      queuedDataSources.map((dataSource, priority) =>
-        dispatch('dispatchDataSource', {
-          dataSourceId: dataSource.id,
-          dashboardId: request.dashboardId,
-          dashboardGeneration: request.dashboardGeneration,
-          priority,
-        })
-      )
-    )
-    if (
-      !isFetchRequestCurrent(
-        state,
-        request,
-        'dataSourceCollectionFetchGeneration'
-      )
-    ) {
-      return
-    }
-    return dataSourcesData
+        const queuedDataSources = prioritizeDataSources(
+          dataSourcesData.filter(({ id }) => dataSourceIdsToDispatch.has(id)),
+          state.widgets
+        )
+        await Promise.allSettled(
+          queuedDataSources.map((dataSource, priority) =>
+            dispatch('dispatchDataSource', {
+              dataSourceId: dataSource.id,
+              dashboardId: request.dashboardId,
+              dashboardGeneration: request.dashboardGeneration,
+              priority,
+            })
+          )
+        )
+        if (
+          !isFetchRequestCurrent(
+            state,
+            request,
+            'dataSourceCollectionFetchGeneration'
+          )
+        ) {
+          return
+        }
+        return dataSourcesData
+      },
+    })
   },
   async createWidget({ state, dispatch }, { dashboard, widget }) {
     const { $client } = this
@@ -760,21 +792,23 @@ export const actions = {
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
-    const { $client, $config } = this
+    const { $client, $config, $registry } = this
     const requestContext = normalizeDataSourceRequestContext(
       requestValues,
       state
     )
-    if (
-      !isDashboardRequestCurrent(state, requestContext) ||
-      !state.dataSources.some(
-        (dataSource) => dataSource.id === requestContext.dataSourceId
-      )
-    ) {
+    const source = state.dataSources.find(
+      ({ id }) => id === requestContext.dataSourceId
+    )
+    if (!isDashboardRequestCurrent(state, requestContext) || !source) {
       return
     }
 
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', requestContext.dataSourceId)
+    commit('RECORD_FILTER_DISPATCH', {
+      dataSourceId: source.id,
+      serviceType: $registry?.getAll('service')[source.type],
+    })
     const request = getDataSourceDispatchRequest(requestContext, state)
     commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
     const queue = getDataSourceDispatchQueue(
@@ -879,6 +913,7 @@ export const actions = {
 }
 
 export const getters = {
+  ...filterGetters,
   getDashboardId(state) {
     return state.dashboardId
   },
@@ -915,6 +950,7 @@ export const getters = {
   getSelectedWidget(state) {
     return state.widgets.find((widget) => widget.id === state.selectedWidgetId)
   },
+  getDataSources: (state) => state.dataSources,
   getDataSourceById: (state, getters) => (dataSourceId) => {
     return state.dataSources.find(
       (dataSource) => dataSource.id === dataSourceId

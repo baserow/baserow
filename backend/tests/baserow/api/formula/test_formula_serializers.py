@@ -141,3 +141,44 @@ def test_baserow_formula_object_serializer_defaults_the_format_to_plain():
 
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data["format"] == BASEROW_FORMULA_FORMAT_PLAIN
+
+
+def test_formula_serializer_uses_explicit_provider_registry_without_application_context():
+    from baserow.core.formula.registries import (
+        DataProviderType,
+        DataProviderTypeRegistry,
+    )
+
+    class OptionProvider(DataProviderType):
+        type = "option"
+
+        def get_data_chunk(self, dispatch_context, path):
+            raise AssertionError("Formula validation must not read provider data.")
+
+    registry = DataProviderTypeRegistry()
+    registry.register(OptionProvider())
+    field = FormulaSerializerField(data_provider_type_registry=registry)
+    value = {"formula": "get('option.value')", "mode": "advanced"}
+    assert field.to_internal_value(value)["formula"] == value["formula"]
+
+
+def test_formula_serializer_explicit_registry_does_not_inherit_application_providers():
+    from baserow.contrib.builder.application_types import BuilderApplicationType
+    from baserow.core.formula.registries import DataProviderTypeRegistry
+
+    field = FormulaSerializerField(
+        data_provider_type_registry=DataProviderTypeRegistry()
+    )
+    field._context = {"application_type": BuilderApplicationType}
+    with pytest.raises(ValidationError) as exc:
+        field.to_internal_value({"formula": "get('data_source.123.field_456')"})
+    assert exc.value.detail[0].code == "invalid_formula_argument"
+
+
+def test_formula_serializer_defaults_to_application_provider_registry():
+    from baserow.contrib.builder.application_types import BuilderApplicationType
+
+    field = FormulaSerializerField()
+    field._context = {"application_type": BuilderApplicationType}
+    value = {"formula": "get('data_source.123.field_456')", "mode": "advanced"}
+    assert field.to_internal_value(value)["formula"] == value["formula"]

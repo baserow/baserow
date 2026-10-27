@@ -17,15 +17,20 @@
             :store-prefix="storePrefix"
           />
           <DashboardWidgetGridLoading v-if="loading" />
+          <DashboardFilters
+            v-if="!loading"
+            :dashboard="dashboard"
+            :store-prefix="storePrefix"
+          />
           <EmptyDashboard
-            v-else-if="isEmpty"
+            v-if="!loading && isEmpty"
             :dashboard="dashboard"
             :is-creating-widget="isCreatingWidget"
             @widget-variation-selected="
               $emit('widget-variation-selected', $event)
             "
           />
-          <template v-else>
+          <template v-else-if="!loading">
             <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
           </template>
         </div>
@@ -46,10 +51,12 @@ import DashboardSidebar from '@baserow/modules/dashboard/components/DashboardSid
 import DashboardContentHeader from '@baserow/modules/dashboard/components/DashboardContentHeader'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'
 import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
+import DashboardFilters from '@baserow/modules/dashboard/components/filter/DashboardFilters'
 
 export default {
   name: 'DashboardContent',
   components: {
+    DashboardFilters,
     EmptyDashboard,
     WidgetBoard,
     DashboardWidgetGridLoading,

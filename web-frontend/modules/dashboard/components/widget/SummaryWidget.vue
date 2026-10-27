@@ -42,7 +42,7 @@ export default {
     dataForDataSource() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getDataForDataSource`
-      ](this.dataSource?.id)
+      ](this.widget.data_source_id)
     },
     result() {
       if (this.dataSource) {

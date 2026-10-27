@@ -414,14 +414,15 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     const { dataProviderRegistry } = validationContext
     const path = args[0]
 
-    // Ensure the path is dot-delimited (e.g., 'a.b' or 'a.b.c')
-    if (!path.includes('.')) {
+    // Keep the existing syntax unless this context supplies its runtime's parser.
+    const parsePath = validationContext.parseDataProviderPath
+    if (!parsePath && !path.includes('.')) {
       throw new InvalidFormulaArgument(
         this.getType(),
         $i18n.t('runtimeGetErrors.invalidPath', { path })
       )
     }
-    const [providerName, ...rest] = _.toPath(path)
+    const [providerName, ...rest] = (parsePath || _.toPath)(path)
 
     // Ensure that a provider has been given to us.
     if (!providerName) {

@@ -87,6 +87,7 @@ import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDate
 export default {
   name: 'ViewFilterTypeMultiStepDate',
   mixins: [filterTypeMultiStepDateInput],
+  emits: ['draft-change'],
   setup(...args) {
     return {
       ...(filterTypeMultiStepDateInput.setup?.(...args) ?? {}),
@@ -113,6 +114,25 @@ export default {
     },
   },
   methods: {
+    emitDraftChange(value) {
+      // Explicit drafts include empty/invalid edits. Keep the historical `input`
+      // event separate so existing immediately-persisted filters behave as before.
+      const operator = this.selectedOperator
+      const empty =
+        !!(operator?.hasDateInputValue || operator?.hasNrInputValue) &&
+        value === ''
+      const valid =
+        !!operator &&
+        (empty ||
+          (operator.hasDateInputValue
+            ? moment.utc(value, 'YYYY-MM-DD', true).isValid()
+            : !operator.hasNrInputValue || /^\d+$/.test(value)))
+      this.$emit('draft-change', {
+        value: this.prepareValue(value),
+        valid,
+        empty,
+      })
+    },
     isInputValid() {
       return true
     },
@@ -131,6 +151,7 @@ export default {
     },
     setCopy(combinedValue, sender) {
       const [timezone, value, operator] = this.splitCombinedValue(combinedValue)
+      let draftValue = value
       this.operatorValue = operator
       this.timezoneValue = timezone
 
@@ -146,6 +167,7 @@ export default {
 
         if (newDate.isValid()) {
           this.copy = newDate.format('YYYY-MM-DD')
+          draftValue = this.copy
 
           if (sender !== 'dateObject') {
             this.setDateObject(newDate)
@@ -159,13 +181,16 @@ export default {
       } else {
         this.copy = value
       }
+      this.emitDraftChange(draftValue)
     },
     setOperator(operator) {
       this.operatorValue = operator
+      this.emitDraftChange(this.value)
       this.delayedUpdate(this.value, true)
     },
     setValue(value) {
       this.copy = value
+      this.emitDraftChange(value)
       this.delayedUpdate(value, true)
     },
     chooseDate(value) {
@@ -182,6 +207,7 @@ export default {
     setCopyFromDateString(value, sender) {
       if (value === '') {
         this.copy = ''
+        this.emitDraftChange(value)
         return
       }
 
@@ -198,6 +224,7 @@ export default {
         this.setValue(dateString, sender)
       } else {
         this.copy = value
+        this.emitDraftChange(value)
       }
     },
     getDatePlaceholder(field) {

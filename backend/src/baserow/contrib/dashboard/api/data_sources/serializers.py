@@ -4,6 +4,9 @@ from rest_framework import serializers
 
 from baserow.api.services.serializers import ServiceSerializer, UpdateServiceSerializer
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
+from baserow.contrib.dashboard.data_sources.records import DashboardTableRecordsService
+from baserow.contrib.database.table.exceptions import TableDoesNotExist
+from baserow.core.exceptions import PermissionException
 
 
 class DashboardDataSourceSerializer(ServiceSerializer):
@@ -24,6 +27,9 @@ class DashboardDataSourceSerializer(ServiceSerializer):
         help_text=DashboardDataSource._meta.get_field("order").help_text
     )
     type = serializers.SerializerMethodField(help_text="The type of the data source.")
+    table_schema = serializers.SerializerMethodField(
+        help_text="The rows and fields of the underlying table, before aggregation."
+    )
 
     def _get_service_instance(self, instance):
         # We generate the service schema using a `Service` instance.
@@ -80,8 +86,46 @@ class DashboardDataSourceSerializer(ServiceSerializer):
         else:
             return None
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_table_schema(self, instance):
+        from baserow.contrib.integrations.local_baserow.service_types import (
+            LocalBaserowTableServiceType,
+        )
+
+        service = self._get_service_instance(instance)
+        # Shared websocket messages cannot carry recipient-specific schemas.
+        request = self.context.get("request")
+        if service is None or request is None:
+            return None
+        service = service.specific
+        service_type = service.get_type()
+        if (
+            not isinstance(service_type, LocalBaserowTableServiceType)
+            or not service.table_id
+        ):
+            return None
+        try:
+            table = DashboardTableRecordsService().get_readable_table(
+                request.user, service.table_id
+            )
+        except (PermissionException, TableDoesNotExist):
+            return None
+        return {
+            "title": table.name,
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": service_type.get_table_properties(service),
+            },
+        }
+
     class Meta(ServiceSerializer.Meta):
-        fields = ServiceSerializer.Meta.fields + ("name", "dashboard_id", "order")
+        fields = ServiceSerializer.Meta.fields + (
+            "name",
+            "dashboard_id",
+            "order",
+            "table_schema",
+        )
         extra_kwargs = {
             **ServiceSerializer.Meta.extra_kwargs,
             "name": {"read_only": True},

@@ -61,6 +61,7 @@ function mountDashboardWidget({
             'dashboardApplication/getData': data,
             'dashboardApplication/getSelectedWidgetId': null,
             'dashboardApplication/isEditMode': true,
+            'dashboardApplication/isDataSourceFiltered': () => false,
           },
         },
         $t: (key) => key,

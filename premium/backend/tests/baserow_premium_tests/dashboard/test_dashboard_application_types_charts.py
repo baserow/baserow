@@ -78,6 +78,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
 
     serialized = json.loads(json.dumps(serialized))
     assert serialized == {
+        "filters": [],
         "id": dashboard.id,
         "name": dashboard.name,
         "description": "Dashboard description",
@@ -158,7 +159,7 @@ def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
     )
     table = premium_data_fixture.create_database_table(database=database)
     field = premium_data_fixture.create_number_field(table=table)
-    field_2 = premium_data_fixture.create_number_field(table=table, primary=True)
+    premium_data_fixture.create_number_field(table=table, primary=True)
 
     id_mapping = {
         "database_tables": {1: table.id},
@@ -329,10 +330,10 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
     series_2 = LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=field_2, aggregation_type="min", order=1
     )
-    series_conf_1 = ChartSeriesConfig.objects.create(
+    ChartSeriesConfig.objects.create(
         widget=dashboard_widget, series=series_1, series_chart_type="BAR"
     )
-    series_conf_2 = ChartSeriesConfig.objects.create(
+    ChartSeriesConfig.objects.create(
         widget=dashboard_widget, series=series_2, series_chart_type="LINE"
     )
 
@@ -346,6 +347,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
 
     serialized = json.loads(json.dumps(serialized))
     assert serialized == {
+        "filters": [],
         "id": dashboard.id,
         "name": dashboard.name,
         "description": "Dashboard description",
@@ -596,6 +598,7 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
 
     serialized = json.loads(json.dumps(serialized))
     assert serialized == {
+        "filters": [],
         "id": dashboard.id,
         "name": dashboard.name,
         "description": "Dashboard description",

@@ -18,6 +18,28 @@ const buildStore = (dashboardId = 42) => ({
 })
 
 describe('dashboard realtime', () => {
+  test('reloads table schemas with the current user permissions after a remote source change', async () => {
+    const handlers = getHandlers()
+    const store = buildStore()
+    const dataSource = { id: 7, table_id: 12, table_schema: null }
+
+    await handlers.data_source_updated(
+      { store },
+      { dashboard_id: 42, data_source: dataSource }
+    )
+
+    expect(store.dispatch).toHaveBeenNthCalledWith(
+      1,
+      'dashboardApplication/handleDataSourceUpdated',
+      dataSource
+    )
+    expect(store.dispatch).toHaveBeenNthCalledWith(
+      2,
+      'dashboardApplication/fetchNewDataSources',
+      42
+    )
+  })
+
   test('refetches permission-filtered state after a layout invalidation', async () => {
     const handlers = getHandlers()
     const store = buildStore()

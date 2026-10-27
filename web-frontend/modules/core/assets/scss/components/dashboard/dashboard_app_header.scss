@@ -1,8 +1,12 @@
-.dashboard-app-header__done-editing {
-  width: 100%;
-  margin-top: 7px;
-  margin-right: 24px;
+.dashboard-app-header__mode {
+  margin: 7px 0 7px 24px;
   display: flex;
-  flex-direction: row-reverse;
-  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-app-header__actions {
+  margin: 7px 24px 7px auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }

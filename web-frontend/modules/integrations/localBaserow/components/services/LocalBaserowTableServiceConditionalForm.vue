@@ -44,7 +44,8 @@
       >
         <InjectedFormulaInput
           v-if="
-            propFilterType.hasEditableValue && !propFilterType.isDeprecated()
+            (propFilterType.hasEditableValue || filter._?.typeDisabled) &&
+            !propFilterType.isDeprecated()
           "
           :model-value="getFormulaObject(filter)"
           class="filters__value--formula-input"
@@ -116,6 +117,9 @@ export default {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
   },
+  inject: {
+    resolveServiceFilterOperator: { default: () => () => null },
+  },
   props: {
     modelValue: {
       type: Array,
@@ -175,10 +179,21 @@ export default {
       // string, so we keep the mode alongside the flattened formula string.
       return this.modelValue.map((filterConf) => {
         const formulaObject = this.normalizeFormulaObject(filterConf)
+        const operator = this.resolveServiceFilterOperator(formulaObject)
         return {
           ...filterConf,
           value: formulaObject.formula,
           mode: formulaObject.mode,
+          ...(operator
+            ? {
+                type: operator.type,
+                _: {
+                  ...filterConf._,
+                  typeDisabled: true,
+                  typeHelp: operator.help,
+                },
+              }
+            : {}),
         }
       })
     },
@@ -332,10 +347,9 @@ export default {
      * will always add the timezone and `DATE_FILTER_TIMEZONE_VALUE_SEPARATOR`.
      */
     prepareValue(value, filter, field, filterType) {
-      // When a filter is not editable (e.g. empty/not empty), ordinarily the
-      // value is reset to a blank string by prepareValue. As we want to skip
-      // this function, we have to reset manually here.
-      return filterType.hasEditableValue ? value : ''
+      // A controlled condition still needs its formula to identify the control,
+      // including when its operator takes no comparison value.
+      return filterType.hasEditableValue || filter._?.typeDisabled ? value : ''
     },
     /**
      * Baserow formula (i.e. non-database formulas) are objects, and within

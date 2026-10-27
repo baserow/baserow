@@ -5,6 +5,7 @@ import {
   LocalBaserowCreateRowServiceType,
   LocalBaserowDeleteRowServiceType,
   LocalBaserowFieldsUpdatedTriggerServiceType,
+  LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { readFileSync } from 'fs'
@@ -28,6 +29,47 @@ describe('Local baserow service types', () => {
 
   afterEach(() => {
     testApp.afterEach()
+  })
+
+  test('aggregate dispatch inputs keep execution configuration and exclude metadata', () => {
+    const serviceType = new LocalBaserowAggregateRowsServiceType()
+    const condition = {
+      field: 4,
+      type: 'equal',
+      value: { formula: "get('dashboard_filter.12')", mode: 'simple' },
+    }
+    const search = { formula: 'query', mode: 'raw' }
+    const configuration = {
+      type: 'local_baserow_aggregate_rows',
+      integration_id: 1,
+      table_id: 2,
+      view_id: 3,
+      filter_type: 'AND',
+      filters: [condition],
+      filter_groups: [{ id: 5, filter_type: 'OR', parent_group: null }],
+      field_id: 4,
+      aggregation_type: 'sum',
+      search_query: search,
+    }
+    const service = {
+      ...configuration,
+      id: 6,
+      dashboard_id: 7,
+      name: 'Total',
+      order: '1',
+      schema: { properties: {} },
+      table_schema: { properties: {} },
+      context_data: { field: { name: 'Amount' } },
+      context_data_schema: {},
+      sample_data: { result: 10 },
+    }
+    expect(serviceType.getDispatchInputs(service)).toEqual({
+      configuration,
+      formulas: [condition.value, search],
+    })
+    expect(serviceType.getDispatchInputs(configuration)).toEqual(
+      serviceType.getDispatchInputs(service)
+    )
   })
 
   test('Get service should prepareValuePath', () => {

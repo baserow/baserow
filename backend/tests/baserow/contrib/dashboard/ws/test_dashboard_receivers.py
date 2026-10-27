@@ -6,6 +6,8 @@ import pytest
 
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.data_sources.signals import dashboard_data_source_updated
+from baserow.contrib.dashboard.filters.actions import OrderDashboardFiltersActionType
+from baserow.contrib.dashboard.filters.service import DashboardFilterService
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.contrib.dashboard.widgets.signals import (
@@ -14,7 +16,52 @@ from baserow.contrib.dashboard.widgets.signals import (
     widget_updated,
     widgets_layout_updated,
 )
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.services.registries import service_type_registry
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_filter_order_ws_marks_reorder_undo_redo_without_changing_crud_events(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user(
+        web_socket_id="filter-order-socket", session_id="filter-order-session"
+    )
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    service = DashboardFilterService()
+    first = service.create_filter(user, dashboard.id, label="Country")
+    second = service.create_filter(user, dashboard.id, label="Channel")
+    ordinary_payload = {
+        "type": "dashboard_filters_updated",
+        "dashboard_id": dashboard.id,
+    }
+    assert mock_broadcast_to_channel_group.delay.call_args.args[1] == ordinary_payload
+    mock_broadcast_to_channel_group.reset_mock()
+
+    OrderDashboardFiltersActionType.do(user, dashboard.id, [second.id, first.id])
+    scope = [ApplicationActionScopeType.value(dashboard.id)]
+    with transaction.atomic():
+        ActionHandler.undo(user, scope, "filter-order-session")
+    with transaction.atomic():
+        ActionHandler.redo(user, scope, "filter-order-session")
+
+    assert mock_broadcast_to_channel_group.delay.call_count == 3
+    for call in mock_broadcast_to_channel_group.delay.call_args_list:
+        assert call.args[0] == f"dashboard-{dashboard.id}"
+        assert call.args[1] == {**ordinary_payload, "order_only": True}
+    assert mock_broadcast_to_channel_group.delay.call_args_list[0].args[2] == (
+        "filter-order-socket"
+    )
+    # Undo/redo deliberately refresh the initiating browser too.
+    assert mock_broadcast_to_channel_group.delay.call_args_list[1].args[2] is None
+    assert mock_broadcast_to_channel_group.delay.call_args_list[2].args[2] is None
+
+    service.update_filter(user, first.id, label="Updated country")
+    assert mock_broadcast_to_channel_group.delay.call_args.args[1] == ordinary_payload
+    service.delete_filter(user, first.id)
+    assert mock_broadcast_to_channel_group.delay.call_args.args[1] == ordinary_payload
 
 
 @pytest.mark.django_db(transaction=True)
@@ -136,4 +183,5 @@ def test_dashboard_data_source_updated_ws_receiver(
     assert args[0][1]["data_source"]["view_id"] is None
     assert args[0][1]["data_source"]["field_id"] == field.id
     assert args[0][1]["data_source"]["aggregation_type"] == "sum"
+    assert args[0][1]["data_source"]["table_schema"] is None
     assert args[0][2] == "test_websocket_id"

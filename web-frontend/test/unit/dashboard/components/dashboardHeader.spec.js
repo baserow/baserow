@@ -1,132 +1,128 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import { vi } from 'vitest'
-
+import { TestApp } from '@baserow/test/helpers/testApp'
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 
-const CreateWidgetButtonStub = {
-  name: 'CreateWidgetButton',
-  props: ['loading'],
-  emits: ['widget-variation-selected'],
-  template: `
-    <button
-      data-testid="dashboard-add-widget-button"
-      :data-loading="loading"
-      @click="$emit('widget-variation-selected', { type: 'summary' })"
-    >
-      Add widget
-    </button>
-  `,
-}
+const { hasPermission } = vi.hoisted(() => ({ hasPermission: vi.fn() }))
+vi.mock('#app', async (importOriginal) => {
+  const original = await importOriginal()
+  return {
+    ...original,
+    useNuxtApp: (...args) =>
+      new Proxy(original.useNuxtApp(...args), {
+        get: (app, key) =>
+          key === '$hasPermission' ? hasPermission : app[key],
+      }),
+  }
+})
 
-function mountDashboardHeader({
-  isEditMode,
-  canCreateWidget,
-  isCreatingWidget = false,
-  loading = false,
-}) {
-  const dispatch = vi.fn()
-  const wrapper = mount(DashboardHeader, {
+let testApp
+beforeEach(() => {
+  hasPermission.mockReturnValue(true)
+  testApp = new TestApp()
+})
+afterEach(async () => {
+  await testApp.afterEach()
+  vi.restoreAllMocks()
+})
+
+async function render(props = {}) {
+  return testApp.mount(DashboardHeader, {
     props: {
-      dashboard: {
-        id: 1,
-        workspace: { id: 1 },
-      },
-      isCreatingWidget,
-      loading,
-    },
-    global: {
-      mocks: {
-        $hasPermission: () => canCreateWidget,
-        $store: {
-          getters: {
-            'dashboardApplication/isEditMode': isEditMode,
-          },
-          dispatch,
-        },
-        $t: (key) => key,
-      },
-      stubs: {
-        Button: {
-          emits: ['click'],
-          template:
-            '<button data-testid="done-editing" @click="$emit(\'click\')"><slot /></button>',
-        },
-        CreateWidgetButton: CreateWidgetButtonStub,
-        DashboardHeaderMenuItems: {
-          template: '<div data-testid="dashboard-header-menu-items"></div>',
-        },
-      },
+      dashboard: { id: 1, workspace: { id: 1 } },
+      loading: false,
+      ...props,
     },
   })
-
-  return { wrapper, dispatch }
 }
 
-describe('DashboardHeader', () => {
-  test('shows the add widget action beside Done editing and forwards selection', async () => {
-    const { wrapper } = mountDashboardHeader({
-      isEditMode: true,
-      canCreateWidget: true,
-      isCreatingWidget: true,
-    })
+async function openMenu(wrapper) {
+  await wrapper.get('.dashboard-add-element__trigger').trigger('click')
+  await flushPromises()
+  return testApp.body.get('.dashboard-add-element__context')
+}
 
-    const addWidgetButton = wrapper.get(
-      '[data-testid="dashboard-add-widget-button"]'
+test('opens the existing widget picker from the shared menu and forwards selection', async () => {
+  const wrapper = await render()
+  const menu = await openMenu(wrapper)
+  await menu.get('[data-testid="create-dashboard-widget"]').trigger('click')
+  await flushPromises()
+  expect(
+    testApp.body.get('.dashboard-add-element__context').classes()
+  ).toContain('visibility-hidden')
+  expect(testApp.body.text()).toContain('createWidgetModal.title')
+  await testApp.body.get('.create-widget-card').trigger('click')
+  expect(wrapper.emitted('widget-variation-selected')[0][0]).toMatchObject({
+    name: 'summaryWidget.name',
+    params: {},
+  })
+})
+
+test.each([
+  ['dashboard.create_widget', true, false],
+  ['dashboard.create_filter', false, true],
+  [null, false, false],
+])(
+  'limits creation choices to the granted permission: %s',
+  async (permission, widget, filter) => {
+    hasPermission.mockImplementation((operation) => operation === permission)
+    const wrapper = await render()
+    expect(wrapper.find('.dashboard-add-element__trigger').exists()).toBe(
+      widget || filter
     )
+    if (widget || filter) {
+      const menu = await openMenu(wrapper)
+      expect(
+        menu.find('[data-testid="create-dashboard-widget"]').exists()
+      ).toBe(widget)
+      expect(
+        menu.find('[data-testid="create-dashboard-filter"]').exists()
+      ).toBe(filter)
+    }
+  }
+)
 
-    expect(addWidgetButton.attributes('data-loading')).toBe('true')
-    expect(wrapper.get('[data-testid="done-editing"]').exists()).toBe(true)
-
-    await addWidgetButton.trigger('click')
-
-    expect(wrapper.emitted('widget-variation-selected')).toEqual([
-      [{ type: 'summary' }],
-    ])
-  })
-
-  test('only shows the add widget action in edit mode for users with permission', () => {
-    const viewMode = mountDashboardHeader({
-      isEditMode: false,
-      canCreateWidget: true,
-    })
-    const withoutPermission = mountDashboardHeader({
-      isEditMode: true,
-      canCreateWidget: false,
-    })
-
+test.each(['isCreatingWidget', 'isCreatingFilter'])(
+  'disables creation while %s',
+  async (prop) => {
+    const wrapper = await render({ [prop]: true })
     expect(
-      viewMode.wrapper
-        .find('[data-testid="dashboard-add-widget-button"]')
-        .exists()
-    ).toBe(false)
-    expect(
-      withoutPermission.wrapper
-        .find('[data-testid="dashboard-add-widget-button"]')
-        .exists()
-    ).toBe(false)
-  })
+      wrapper.get('.dashboard-add-element__trigger').element.disabled
+    ).toBe(true)
+  }
+)
 
-  test('leaves edit mode when Done editing is clicked', async () => {
-    const { wrapper, dispatch } = mountDashboardHeader({
-      isEditMode: true,
-      canCreateWidget: true,
-    })
+test('keeps the shared menu in edit mode and leaves edit mode on Done editing', async () => {
+  await testApp.store.dispatch('dashboardApplication/enterEditMode')
+  const wrapper = await render()
+  expect(wrapper.find('.dashboard-add-element__trigger').exists()).toBe(true)
+  const done = wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'dashboardHeader.doneEditing')
+  await done.trigger('click')
+  expect(wrapper.text()).toContain('dashboardHeaderMenuItems.editMode')
+  expect(wrapper.text()).not.toContain('dashboardHeader.doneEditing')
+})
 
-    await wrapper.get('[data-testid="done-editing"]').trigger('click')
+test('hides creation while the dashboard is loading', async () => {
+  const wrapper = await render({ loading: true })
+  expect(wrapper.find('.dashboard-add-element__trigger').exists()).toBe(false)
+})
 
-    expect(dispatch).toHaveBeenCalledWith('dashboardApplication/toggleEditMode')
-  })
-
-  test('hides editing actions while the dashboard is loading', () => {
-    const { wrapper } = mountDashboardHeader({
-      isEditMode: true,
-      canCreateWidget: true,
-      loading: true,
-    })
-
-    expect(
-      wrapper.find('[data-testid="dashboard-add-widget-button"]').exists()
-    ).toBe(false)
-    expect(wrapper.find('[data-testid="done-editing"]').exists()).toBe(false)
-  })
+test('focuses the first choice and returns to the trigger on Escape', async () => {
+  const wrapper = await render()
+  const menu = await openMenu(wrapper)
+  expect(document.activeElement).toBe(
+    menu.get('[data-testid="create-dashboard-widget"]').element
+  )
+  await menu.trigger('keydown', { key: 'Escape' })
+  expect(
+    testApp.body.get('.dashboard-add-element__context').classes()
+  ).toContain('visibility-hidden')
+  expect(document.activeElement).toBe(
+    wrapper.get('.dashboard-add-element__trigger').element
+  )
+  expect(
+    wrapper.get('.dashboard-add-element__trigger').attributes('aria-expanded')
+  ).toBe('false')
 })

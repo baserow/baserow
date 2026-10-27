@@ -243,7 +243,11 @@ export default {
   },
 
   provide() {
-    return { nodesHierarchy: computed(() => this.nodesHierarchy) }
+    return {
+      nodesHierarchy: computed(() => this.nodesHierarchy),
+      parseFormulaPath: (path) =>
+        (this.validationContext.parseDataProviderPath || _.toPath)(path),
+    }
   },
   inject: {
     forInput: { from: 'forInput', default: null },
@@ -338,6 +342,10 @@ export default {
       required: false,
       default: () => [BASEROW_FORMULA_FORMAT_PLAIN],
     },
+    /**
+     * Optional parseDataProviderPath(path) supplies the runtime's path rules for
+     * both validation and reference labels. Other consumers retain Lodash syntax.
+     */
     validationContext: {
       type: Object,
       required: false,
@@ -642,10 +650,14 @@ export default {
     content: {
       handler() {
         if (this.editor && !_.isEqual(this.content, this.editor.getJSON())) {
-          this.editor.commands.setContent(this.content, false, {
-            preserveWhitespace: 'full',
-            addToHistory: false,
-          })
+          this.editor
+            .chain()
+            .setMeta('addToHistory', false)
+            .setContent(this.content, {
+              emitUpdate: false,
+              parseOptions: { preserveWhitespace: 'full' },
+            })
+            .run()
         }
       },
       deep: true,

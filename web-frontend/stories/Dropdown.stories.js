@@ -1,5 +1,6 @@
 import Dropdown from '@baserow/modules/core/components/Dropdown'
 import DropdownItem from '@baserow/modules/core/components/DropdownItem'
+import Button from '@baserow/modules/core/components/Button'
 
 export default {
   title: 'Baserow/Form Elements/Dropdown',
@@ -17,6 +18,10 @@ export default {
     disabled: {
       control: 'boolean',
       description: 'Disable the dropdown',
+    },
+    loading: {
+      control: 'boolean',
+      description: 'Show a spinner and prevent opening the dropdown',
     },
     showSearch: {
       control: 'boolean',
@@ -48,6 +53,7 @@ export default {
     value: '',
     placeholder: 'Select an option',
     disabled: false,
+    loading: false,
     showSearch: false,
     searchText: '',
     showFooter: false,
@@ -133,6 +139,49 @@ export const WithFooter = {
           <DropdownItem name="Option B" value="b" />
           <template #footer>
               Custom Footer Content
+          </template>
+        </Dropdown>
+      </div>
+    `,
+  }),
+}
+
+export const CustomContent = {
+  args: {
+    placeholder: 'Open custom content',
+  },
+  argTypes: {
+    size: { options: ['regular', 'large'] },
+  },
+  parameters: {
+    controls: {
+      include: ['placeholder', 'disabled', 'loading', 'size', 'error'],
+    },
+    docs: {
+      description: {
+        story:
+          'The content slot replaces the item list with arbitrary content. Its scoped close function closes the panel and restores focus to the trigger. Dropdown handles positioning, outside clicks and Escape; the caller owns the content and its behavior.',
+      },
+    },
+  },
+  render: (args) => ({
+    components: { Dropdown, Button },
+    setup() {
+      return { args }
+    },
+    template: `
+      <div style="max-width: 360px; min-height: 300px;">
+        <Dropdown v-bind="args">
+          <template #content="{ close }">
+            <div class="context__form">
+              <div class="context__form-container">
+                <h3>Custom content</h3>
+                <p>Use this slot to compose any content inside the dropdown.</p>
+                <div class="context__form-footer-actions">
+                  <Button button-type="button" @click="close">Close</Button>
+                </div>
+              </div>
+            </div>
           </template>
         </Dropdown>
       </div>

@@ -12,6 +12,7 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
     DashboardDataSourceImproperlyConfigured,
 )
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
+from baserow.contrib.dashboard.filters.handler import DashboardFilterHandler
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -217,6 +218,13 @@ class DashboardDataSourceHandler:
         :param kwargs: The values that should be set on the service.
         :return: The updated data source.
         """
+
+        if "service_filters" in kwargs:
+            kwargs["service_filters"] = (
+                DashboardFilterHandler().filter_available_source_conditions(
+                    data_source.dashboard, kwargs["service_filters"]
+                )
+            )
 
         original_service_type = service_type_registry.get_by_model(
             data_source.service.specific

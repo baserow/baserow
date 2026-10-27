@@ -250,5 +250,7 @@ class PublicDashboardDataSourceDispatchView(APIView):
             base_queryset=DashboardDataSource.objects.filter(dashboard=dashboard),
         )
 
-        dispatch_context = DashboardDispatchContext(request, dashboard.workspace)
+        dispatch_context = DashboardDispatchContext(
+            request, dashboard.workspace, dashboard=dashboard
+        )
         return Response(handler.dispatch_data_source(data_source, dispatch_context))

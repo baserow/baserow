@@ -1,6 +1,50 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 describe('Premium integrations service types', () => {
+  test('grouped aggregate dispatch inputs include grouping and sorting but omit metadata', () => {
+    const serviceType = useNuxtApp().$registry.get(
+      'service',
+      'local_baserow_grouped_aggregate_rows'
+    )
+    const condition = {
+      field: 4,
+      value: { formula: "get('dashboard_filter.12')", mode: 'simple' },
+    }
+    const configuration = {
+      type: 'local_baserow_grouped_aggregate_rows',
+      integration_id: 1,
+      table_id: 2,
+      view_id: 3,
+      filter_type: 'AND',
+      filters: [
+        condition,
+        { ...condition, trashed: true },
+        { ...condition, field: null },
+      ],
+      filter_groups: [{ id: 5, filter_type: 'OR', parent_group: null }],
+      aggregation_series: [{ field_id: 4, aggregation_type: 'sum' }],
+      aggregation_group_bys: [{ field_id: 8, mode: 'raw' }],
+      aggregation_sorts: [
+        { sort_on: 'series', reference: 0, direction: 'ASC' },
+      ],
+      bucket_limit: 10,
+    }
+    expect(
+      serviceType.getDispatchInputs({
+        ...configuration,
+        id: 6,
+        dashboard_id: 7,
+        name: 'By department',
+        order: '1',
+        schema: { properties: {} },
+        table_schema: { properties: {} },
+        context_data: {},
+        context_data_schema: {},
+        sample_data: [],
+      })
+    ).toEqual({ configuration, formulas: [condition.value] })
+  })
+
   test('LocalBaserowGroupedAggregateRowsServiceType is registered as a builder data source', () => {
     const testApp = useNuxtApp()
     const serviceType = testApp.$registry.get(

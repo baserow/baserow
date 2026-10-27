@@ -116,6 +116,13 @@
         </Dropdown>
       </FormGroup>
     </FormSection>
+    <ServiceRefinementForms
+      v-if="values.table_id && !fieldHasErrors('table_id')"
+      small
+      :values="values"
+      :table-fields="tableFields"
+      show-filter
+    />
   </form>
 </template>
 
@@ -124,6 +131,7 @@ import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
+import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
 
 const includes = (array) => (value) => {
   return array.includes(value)
@@ -138,6 +146,7 @@ const includesIfSet = (array) => (value) => {
 
 export default {
   name: 'AggregateRowsDataSourceForm',
+  components: { ServiceRefinementForms },
   mixins: [form, tableFields],
   props: {
     dashboard: {
@@ -163,12 +172,23 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['table_id', 'view_id', 'field_id', 'aggregation_type'],
+      allowedValues: [
+        'table_id',
+        'view_id',
+        'field_id',
+        'aggregation_type',
+        'filters',
+        'filter_groups',
+        'filter_type',
+      ],
       values: {
         table_id: null,
         view_id: null,
         field_id: null,
         aggregation_type: 'sum',
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
       },
       tableLoading: false,
       skipFirstValuesEmit: true,
@@ -186,6 +206,8 @@ export default {
           this.tableIdHasChanged = true
           this.v$.values.view_id.$model = null
           this.v$.values.field_id.$model = null
+          this.values.filters = []
+          this.values.filter_groups = []
         }
       },
     },

@@ -23,6 +23,16 @@
         <div class="widget__header-title-wrapper">
           <div class="widget__header-title">{{ widget.title }}</div>
           <span
+            v-if="isFiltered"
+            v-tooltip.focus="$t('widget.filtered')"
+            class="dashboard-widget__filter-status"
+            role="img"
+            tabindex="0"
+            :aria-label="$t('widget.filtered')"
+          >
+            <i class="iconoir-filter" aria-hidden="true"></i>
+          </span>
+          <span
             v-if="isMisconfigured"
             v-tooltip="$t('widget.fixConfiguration')"
             class="dashboard-widget__configuration-status"
@@ -109,6 +119,15 @@ export default {
     },
     isMisconfigured() {
       return this.widgetType.isMisconfigured(this.widget, this.widgetData)
+    },
+    isFiltered() {
+      return (
+        !this.isLoading &&
+        !this.isMisconfigured &&
+        this.$store.getters[
+          `${this.storePrefix}dashboardApplication/isDataSourceFiltered`
+        ](this.widget.data_source_id, this.$registry)
+      )
     },
   },
   methods: {

@@ -1,0 +1,23 @@
+.dashboard-add-element {
+  flex: 0 0 auto;
+}
+
+.dashboard-add-element__context {
+  width: 248px;
+}
+
+.dashboard-add-element__option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  gap: 4px;
+
+  &:focus-visible {
+    background-color: $palette-neutral-100;
+    outline: 1px solid $palette-blue-500;
+    outline-offset: -1px;
+  }
+}
