@@ -11,6 +11,7 @@ class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "workspace",
+            "name",
             "slug",
             "permissions",
             "created_on",
@@ -21,13 +22,14 @@ class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
 class CreateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkspaceInvitationLink
-        fields = ("permissions",)
+        fields = ("name", "permissions")
+        extra_kwargs = {"permissions": {"required": True}}
 
 
 class UpdateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkspaceInvitationLink
-        fields = ("permissions",)
+        fields = ("name", "permissions")
 
 
 class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):

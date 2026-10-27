@@ -103,7 +103,26 @@ def test_create_workspace_invitation_link(api_client, data_fixture):
     assert response_json["workspace"] == workspace.id
     assert response_json["slug"] == invitation_link.slug
     assert response_json["permissions"] == "MEMBER"
+    assert response_json["name"] == ""
     assert invitation_link.created_by_id == admin.id
+
+    response = api_client.post(
+        url,
+        {"name": "Marketing team", "permissions": "MEMBER"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == "Marketing team"
+
+    response = api_client.post(
+        url,
+        {"name": "Marketing team"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db
@@ -195,6 +214,19 @@ def test_update_workspace_invitation_link(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["permissions"] == "ADMIN"
     invitation_link.refresh_from_db()
+    assert invitation_link.permissions == "ADMIN"
+
+    response = api_client.patch(
+        url,
+        {"name": "Freelancers"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == "Freelancers"
+    assert response.json()["permissions"] == "ADMIN"
+    invitation_link.refresh_from_db()
+    assert invitation_link.name == "Freelancers"
     assert invitation_link.permissions == "ADMIN"
 
 

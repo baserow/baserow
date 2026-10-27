@@ -77,6 +77,10 @@ describe('LinkInvitationRoute', () => {
     return row.find('.invitation-links__url input').element.value
   }
 
+  function nameInput(row) {
+    return row.find('.invitation-links__name input')
+  }
+
   test('shows the empty state when there are no links', async () => {
     mockLinks([])
     const wrapper = await mountRoute()
@@ -85,15 +89,16 @@ describe('LinkInvitationRoute', () => {
     expect(rows(wrapper)).toHaveLength(0)
   })
 
-  test('lists the links with their role and URL', async () => {
+  test('lists the links with their name, role and URL', async () => {
     mockLinks([
-      { id: 1, slug: 'first', permissions: 'MEMBER' },
-      { id: 2, slug: 'second', permissions: 'ADMIN' },
+      { id: 1, name: 'Marketing', slug: 'first', permissions: 'MEMBER' },
+      { id: 2, name: '', slug: 'second', permissions: 'ADMIN' },
     ])
     const wrapper = await mountRoute()
 
     expect(rows(wrapper)).toHaveLength(2)
-    expect(url(rows(wrapper)[0])).toBe('https://baserow.test/invite/first')
+    expect(nameInput(rows(wrapper)[0]).element.value).toBe('Marketing')
+    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/first')
     const selectors = wrapper.findAllComponents(WorkspaceRoleSelector)
     expect(selectors.map((selector) => selector.props('modelValue'))).toEqual([
       'MEMBER',
@@ -116,7 +121,7 @@ describe('LinkInvitationRoute', () => {
       permissions: 'MEMBER',
     })
     expect(rows(wrapper)).toHaveLength(1)
-    expect(url(rows(wrapper)[0])).toBe('https://baserow.test/invite/new')
+    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/new')
   })
 
   test('changes the role of a link right away', async () => {
@@ -138,6 +143,29 @@ describe('LinkInvitationRoute', () => {
     expect(
       wrapper.findComponent(WorkspaceRoleSelector).props('modelValue')
     ).toBe('MEMBER')
+  })
+
+  test('renames a link when its name field loses focus', async () => {
+    mockLinks([{ id: 1, name: '', slug: 'first', permissions: 'MEMBER' }])
+    mockServer.mock
+      .onPatch('/workspaces/invitation-links/1/')
+      .reply(200, { id: 1, name: 'Freelancers', slug: 'first' })
+    const wrapper = await mountRoute()
+    const input = nameInput(rows(wrapper)[0])
+
+    await input.setValue('  Freelancers ')
+    await input.trigger('blur')
+    await flushPromises()
+
+    expect(mockServer.mock.history.patch).toHaveLength(1)
+    expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
+      name: 'Freelancers',
+    })
+
+    await input.trigger('blur')
+    await flushPromises()
+
+    expect(mockServer.mock.history.patch).toHaveLength(1)
   })
 
   test('asks before a link grants the admin role', async () => {
@@ -190,6 +218,6 @@ describe('LinkInvitationRoute', () => {
 
     expect(mockServer.mock.history.delete).toHaveLength(1)
     expect(rows(wrapper)).toHaveLength(1)
-    expect(url(rows(wrapper)[0])).toBe('https://baserow.test/invite/second')
+    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/second')
   })
 })

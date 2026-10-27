@@ -1146,10 +1146,15 @@ class CreateWorkspaceInvitationLinkActionType(ActionType):
         permissions: str
         workspace_id: int
         workspace_name: str
+        name: str = ""
 
     @classmethod
     def do(
-        cls, user: AbstractUser, workspace: Workspace, permissions: str
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        permissions: str,
+        name: str = "",
     ) -> WorkspaceInvitationLink:
         """
         Creates a new permanent link to join the workspace.
@@ -1158,13 +1163,13 @@ class CreateWorkspaceInvitationLinkActionType(ActionType):
         """
 
         invitation_link = CoreHandler().create_workspace_invitation_link(
-            user, workspace, permissions
+            user, workspace, permissions, name
         )
 
         cls.register_action(
             user=user,
             params=cls.Params(
-                invitation_link.id, permissions, workspace.id, workspace.name
+                invitation_link.id, permissions, workspace.id, workspace.name, name
             ),
             scope=cls.scope(),
             workspace=workspace,
@@ -1181,9 +1186,9 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
     description = ActionTypeDescription(
         _("Update workspace invitation link"),
         _(
-            "Invitation link (%(invitation_link_id)s) permissions changed from "
-            '%(original_permissions)s to %(permissions)s on "%(group_name)s" '
-            "(%(group_id)s)."
+            'Invitation link (%(invitation_link_id)s) to join "%(group_name)s" '
+            '(%(group_id)s) changed from "%(original_name)s" as '
+            '%(original_permissions)s to "%(name)s" as %(permissions)s.'
         ),
     )
     analytics_params = [
@@ -1200,35 +1205,42 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
         workspace_id: int
         workspace_name: str
         original_permissions: str
+        name: str
+        original_name: str
 
     @classmethod
     def do(
         cls,
         user: AbstractUser,
         invitation_link: WorkspaceInvitationLink,
-        permissions: str,
+        permissions: str | None = None,
+        name: str | None = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the permissions people get when joining through the link.
+        Changes the name of the link or the permissions people get when joining
+        through it.
         Look into baserow.core.handler.CoreHandler.update_workspace_invitation_link
         for further details.
         """
 
         workspace = invitation_link.workspace
-        params = cls.Params(
-            invitation_link.id,
-            permissions,
-            workspace.id,
-            workspace.name,
-            original_permissions=invitation_link.permissions,
-        )
+        original_permissions = invitation_link.permissions
+        original_name = invitation_link.name
         invitation_link = CoreHandler().update_workspace_invitation_link(
-            user, invitation_link, permissions
+            user, invitation_link, permissions=permissions, name=name
         )
 
         cls.register_action(
             user=user,
-            params=params,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.permissions,
+                workspace.id,
+                workspace.name,
+                original_permissions=original_permissions,
+                name=invitation_link.name,
+                original_name=original_name,
+            ),
             scope=cls.scope(),
             workspace=workspace,
         )
@@ -1244,8 +1256,8 @@ class DeleteWorkspaceInvitationLinkActionType(ActionType):
     description = ActionTypeDescription(
         _("Delete workspace invitation link"),
         _(
-            'Invitation link (%(invitation_link_id)s) to join "%(group_name)s" '
-            "(%(group_id)s) as %(permissions)s deleted."
+            'Invitation link "%(name)s" (%(invitation_link_id)s) to join '
+            '"%(group_name)s" (%(group_id)s) as %(permissions)s deleted.'
         ),
     )
     analytics_params = [
@@ -1260,6 +1272,7 @@ class DeleteWorkspaceInvitationLinkActionType(ActionType):
         permissions: str
         workspace_id: int
         workspace_name: str
+        name: str = ""
 
     @classmethod
     def do(cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink):
@@ -1275,6 +1288,7 @@ class DeleteWorkspaceInvitationLinkActionType(ActionType):
             invitation_link.permissions,
             workspace.id,
             workspace.name,
+            invitation_link.name,
         )
         CoreHandler().delete_workspace_invitation_link(user, invitation_link)
 
