@@ -12,7 +12,7 @@
         }
       "
     >
-      <i class="context__menu-item-icon iconoir-community"></i>
+      <i class="context__menu-item-icon baserow-icon-team"></i>
       {{ $t('memberRolesDatabaseContexItem.label') }}
       <div v-if="deactivated" class="deactivated-label">
         <i class="iconoir-lock"></i>

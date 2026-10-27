@@ -83,7 +83,7 @@ import {
   AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+} from '@baserow/modules/core/subjectTypes.jsx'
 import {
   EmailInvitationRouteType,
   LinkInvitationRouteType,

@@ -27,6 +27,10 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     )
   }
 
+  getNavigationLabel(workspace, { scopeType, scope }) {
+    return this.getScopeTypeName(scopeType, scope).toLowerCase()
+  }
+
   getTitle(workspace, { scope }) {
     return this.$t('scopeInvitationTarget.title', { name: scope.name })
   }

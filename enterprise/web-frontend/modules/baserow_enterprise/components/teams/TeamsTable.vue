@@ -20,7 +20,7 @@
       <template #empty>
         <div class="placeholder">
           <div class="placeholder__icon">
-            <i class="iconoir-community" aria-hidden="true"></i>
+            <i class="baserow-icon-team" aria-hidden="true"></i>
           </div>
           <h2 class="placeholder__header">
             {{ $t('teamsTable.emptyTitle') }}
@@ -136,6 +136,10 @@ export default {
       )
     },
     columns() {
+      const teamSubjectType = this.$registry.get(
+        'subject',
+        'baserow_enterprise.Team'
+      )
       const columns = [
         new CrudTableColumn(
           'name',
@@ -144,7 +148,9 @@ export default {
           true,
           true,
           false,
-          { icon: 'iconoir-community', color: 'neutral' }
+          {
+            avatarComponent: teamSubjectType.avatarComponent,
+          }
         ),
         new CrudTableColumn(
           'default_role',

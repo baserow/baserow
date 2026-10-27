@@ -4973,7 +4973,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   static getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   parseFromLinkedRowItemValue(field, value) {

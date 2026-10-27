@@ -29,6 +29,14 @@ export default (client) => {
         },
       })
     },
+    getEffectiveAccess(workspaceId, scopeId, scopeType) {
+      return client.get(`/role/${workspaceId}/effective-access/`, {
+        params: {
+          scope_id: scopeId,
+          scope_type: scopeType,
+        },
+      })
+    },
     createScopedInvitation(
       workspaceId,
       { email, roleUid, scopeId, scopeType, captchaToken = '' }

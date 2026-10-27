@@ -96,7 +96,7 @@
               @pointerenter="shouldPrefetch('interaction') && prefetch()"
               @focus="shouldPrefetch('interaction') && prefetch()"
             >
-              <i class="tree__icon iconoir-group"></i>
+              <i class="tree__icon baserow-icon-team"></i>
               <span class="tree__link-text">
                 <span class="sidebar__item-name">{{
                   $t('sidebar.members')

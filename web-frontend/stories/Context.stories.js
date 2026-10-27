@@ -67,7 +67,7 @@ export const Default = {
             </li>
             <li class="context__menu-item">
               <a class="context__menu-item-link">
-                <i class="context__menu-item-icon iconoir-community"></i>
+                <i class="context__menu-item-icon baserow-icon-team"></i>
                 Members
               </a>
             </li>

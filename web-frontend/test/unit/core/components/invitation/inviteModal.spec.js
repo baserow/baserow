@@ -374,6 +374,115 @@ describe('InviteModal', () => {
     expect(wrapper.html()).toContain('inviteModal.linkEmptyTitle')
   })
 
+  test('navigates in one modal, restores tabs with fresh data, and resets on reopen', async () => {
+    class FakeInvitationTargetType extends InvitationTargetType {
+      static getType() {
+        return 'fake'
+      }
+
+      getNavigationLabel(workspace, target) {
+        return target.level
+      }
+
+      getTitle(workspace, target) {
+        return `Share ${target.name}`
+      }
+    }
+    testApp
+      .getRegistry()
+      .register(
+        'invitationTarget',
+        new FakeInvitationTargetType({ app: testApp.getApp() })
+      )
+    let role = 'Admin'
+    mockServer.mock.onGet('/navigation-demo/').reply(() => [200, { role }])
+    mockServer.mock.onPatch('/navigation-demo/').reply(() => {
+      role = 'Viewer'
+      return [200, { role }]
+    })
+    const route = {
+      props: ['target'],
+      emits: ['navigate'],
+      data: () => ({ role: '' }),
+      async mounted() {
+        const { data } = await testApp.getApp().$client.get('/navigation-demo/')
+        this.role = data.role
+      },
+      methods: {
+        async edit() {
+          await testApp.getApp().$client.patch('/navigation-demo/')
+        },
+      },
+      template: `<div class="navigation-demo">
+        <span class="navigation-demo__role">{{ role }}</span>
+        <button v-if="target.parent" class="navigation-demo__parent"
+          @click="$emit('navigate', target.parent)">Parent</button>
+        <button class="navigation-demo__edit" @click="edit">Edit</button>
+      </div>`,
+    }
+    for (const type of ['email', 'link']) {
+      const registered = testApp.getRegistry().get('invitationRoute', type)
+      vi.spyOn(registered, 'isEnabled').mockReturnValue(true)
+      vi.spyOn(registered, 'getComponent').mockReturnValue(route)
+    }
+    const database = { type: 'fake', name: 'Database', level: 'database' }
+    const table = {
+      type: 'fake',
+      name: 'Table',
+      level: 'table',
+      parent: database,
+    }
+    const target = { type: 'fake', name: 'View', level: 'view', parent: table }
+    const wrapper = await testApp.mount(InviteModal, {
+      propsData: { workspace, target },
+      global: {
+        mocks: {
+          $t: (key, params) =>
+            key === 'inviteModal.backTo'
+              ? `${key}: ${params.level}: ${params.title}`
+              : key,
+        },
+      },
+    })
+    await wrapper.vm.show()
+    await flushPromises()
+    await getNavLinks(wrapper)[1].trigger('click')
+    await wrapper.find('.navigation-demo__parent').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.invite-modal__title').text()).toBe('Share Table')
+    expect(wrapper.find('.invite-modal__back').text()).toBe(
+      'inviteModal.backTo: view: Share View'
+    )
+    expect(getNavLinks(wrapper)[0].classes()).toContain('active')
+    await wrapper.find('.navigation-demo__parent').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.invite-modal__title').text()).toBe('Share Database')
+    expect(wrapper.findAll('.modal__wrapper')).toHaveLength(1)
+    await wrapper.find('.navigation-demo__edit').trigger('click')
+    await flushPromises()
+    await wrapper.find('.invite-modal__back').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.invite-modal__title').text()).toBe('Share Table')
+    expect(wrapper.find('.navigation-demo__role').text()).toBe('Viewer')
+    await wrapper.find('.invite-modal__back').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.invite-modal__title').text()).toBe('Share View')
+    expect(getNavLinks(wrapper)[1].classes()).toContain('active')
+    expect(wrapper.find('.navigation-demo__role').text()).toBe('Viewer')
+    expect(wrapper.find('.invite-modal__back').exists()).toBe(false)
+
+    await wrapper.find('.navigation-demo__parent').trigger('click')
+    await flushPromises()
+    await wrapper.find('.modal__close').trigger('click')
+    await waitForModalToClose()
+    expect(wrapper.find('.modal__wrapper').exists()).toBe(false)
+    await wrapper.vm.show()
+    await flushPromises()
+    expect(wrapper.find('.invite-modal__title').text()).toBe('Share View')
+    expect(wrapper.find('.invite-modal__back').exists()).toBe(false)
+    expect(getNavLinks(wrapper)[0].classes()).toContain('active')
+  })
+
   test('takes the roles and the request from the target type', async () => {
     const sendInvitation = vi.fn().mockResolvedValue({ id: 7 })
     class FakeInvitationTargetType extends InvitationTargetType {

@@ -10,7 +10,7 @@ describe('Management pages', () => {
   let app
   const roles = [
     { uid: 'ADMIN', name: 'Admin', icon: 'iconoir-crown' },
-    { uid: 'MEMBER', name: 'Member', icon: 'iconoir-group' },
+    { uid: 'MEMBER', name: 'Member', icon: 'baserow-icon-team' },
   ]
   const workspace = { id: 1, name: 'Design', users: [], _: { roles } }
 
