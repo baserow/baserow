@@ -4241,7 +4241,20 @@ def test_link_row_has_filter_type(data_fixture):
     view_filter.value = "not_number"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 5
+    assert len(ids) == 0
+
+    fullwidth_id = "".join(chr(ord(c) + 0xFEE0) for c in str(related_row_1.id))
+    view_filter.value = fullwidth_id
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 0
+
+    view_filter.value = f"{related_row_1.id},²"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_with_all_relations.id in ids
 
     view_filter.value = "999999999"
     view_filter.save()
@@ -4381,7 +4394,7 @@ def test_link_row_reference_same_table_has_filter_type(data_fixture):
     view_filter.value = "not_number"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 5
+    assert len(ids) == 0
 
     view_filter.value = "9999999"
     view_filter.save()
@@ -4544,10 +4557,13 @@ def test_link_row_has_not_filter_type(data_fixture):
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 5
 
-    view_filter.value = "not_number"
-    view_filter.save()
-    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
-    assert len(ids) == 5
+    for invalid_value in ["not_number", f"+{related_row_1.id}"]:
+        view_filter.value = invalid_value
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 5
 
     view_filter.value = "-1"
     view_filter.save()
@@ -6152,12 +6168,14 @@ def test_multiple_collaborators_has_filter_type(data_fixture):
         ]
         assert len(ids) == 4
 
-        view_filter.value = "not_number"
-        view_filter.save()
-        ids = [
-            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
-        ]
-        assert len(ids) == 4
+        for invalid_value in ["not_number", f"+{user.id}", f"{user.id}%"]:
+            view_filter.value = invalid_value
+            view_filter.save()
+            ids = [
+                r.id
+                for r in handler.apply_filters(grid_view, model.objects.all()).all()
+            ]
+            assert len(ids) == 0
 
         view_filter.value = "-1"
         view_filter.save()
@@ -6280,12 +6298,14 @@ def test_multiple_collaborators_has_not_filter_type(data_fixture):
         ]
         assert len(ids) == 4
 
-        view_filter.value = "not_number"
-        view_filter.save()
-        ids = [
-            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
-        ]
-        assert len(ids) == 4
+        for invalid_value in ["not_number", f"+{user.id}", f"{user.id}%"]:
+            view_filter.value = invalid_value
+            view_filter.save()
+            ids = [
+                r.id
+                for r in handler.apply_filters(grid_view, model.objects.all()).all()
+            ]
+            assert len(ids) == 4
 
         view_filter.value = "-1"
         view_filter.save()
@@ -6838,6 +6858,19 @@ def test_user_is_filter_type(data_fixture):
     assert len(ids) == 1
     assert row.id in ids
 
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+
+    for invalid_value in ["not_number", f"+{user.id}", f"{user.id}%"]:
+        view_filter.value = invalid_value
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 0
+
 
 @pytest.mark.field_last_modified_by
 @pytest.mark.django_db
@@ -6877,6 +6910,14 @@ def test_user_is_not_filter_type(data_fixture):
     assert len(ids) == 2
     assert row_2.id in ids
     assert row_3.id in ids
+
+    for value in ["", "not_number", f"+{user.id}", f"{user.id}%"]:
+        view_filter.value = value
+        view_filter.save()
+        ids = [
+            r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()
+        ]
+        assert len(ids) == 3
 
 
 @pytest.mark.field_last_modified_by
