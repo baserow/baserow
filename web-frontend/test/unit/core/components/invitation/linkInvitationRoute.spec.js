@@ -98,7 +98,7 @@ describe('LinkInvitationRoute', () => {
 
     expect(rows(wrapper)).toHaveLength(2)
     expect(nameInput(rows(wrapper)[0]).element.value).toBe('Marketing')
-    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/first')
+    expect(url(rows(wrapper)[0])).toBe('/invite/first')
     const selectors = wrapper.findAllComponents(WorkspaceRoleSelector)
     expect(selectors.map((selector) => selector.props('modelValue'))).toEqual([
       'MEMBER',
@@ -121,7 +121,7 @@ describe('LinkInvitationRoute', () => {
       permissions: 'MEMBER',
     })
     expect(rows(wrapper)).toHaveLength(1)
-    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/new')
+    expect(url(rows(wrapper)[0])).toBe('/invite/new')
   })
 
   test('changes the role of a link right away', async () => {
@@ -218,6 +218,6 @@ describe('LinkInvitationRoute', () => {
 
     expect(mockServer.mock.history.delete).toHaveLength(1)
     expect(rows(wrapper)).toHaveLength(1)
-    expect(url(rows(wrapper)[0])).toBe('baserow.test/invite/second')
+    expect(url(rows(wrapper)[0])).toBe('/invite/second')
   })
 })
