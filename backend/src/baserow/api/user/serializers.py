@@ -336,12 +336,27 @@ def get_all_user_data_serialized(
     }
 
 
-def log_in_user(request, user):
+def check_user_can_log_in_with_password(user):
+    """
+    Raises if the user isn't allowed to sign in with the password provider.
+
+    :param user: The user that wants to sign in.
+    :raises AuthProviderDisabled: When the password provider is disabled and the
+        user isn't staff.
+    :raises DeactivatedUserException: When the user is deactivated.
+    :return: The password provider.
+    """
+
     password_provider = PasswordProviderHandler.get()
     if not password_provider.enabled and user.is_staff is False:
         raise AuthProviderDisabled()
     if not user.is_active:
         raise DeactivatedUserException()
+    return password_provider
+
+
+def log_in_user(request, user):
+    password_provider = check_user_can_log_in_with_password(user)
 
     settings = CoreHandler().get_settings()
     if (
@@ -399,18 +414,16 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
 
         super().validate(attrs)
 
-        twofa_provider = TwoFactorAuthHandler().get_provider(self.user)
+        twofa_provider = TwoFactorAuthHandler().get_enabled_provider(self.user)
         if twofa_provider:
-            provider_type = twofa_provider.get_type()
-            if provider_type.is_enabled(twofa_provider):
-                token = TwoFactorAccessToken.for_user(self.user)
-                token.set_exp(lifetime=timedelta(minutes=2))
-                return TwoFactorAuthRequiredSerializer(
-                    {
-                        "two_factor_auth": provider_type.type,
-                        "token": str(token),
-                    }
-                ).data
+            token = TwoFactorAccessToken.for_user(self.user)
+            token.set_exp(lifetime=timedelta(minutes=2))
+            return TwoFactorAuthRequiredSerializer(
+                {
+                    "two_factor_auth": twofa_provider.get_type().type,
+                    "token": str(token),
+                }
+            ).data
 
         return log_in_user(self.context["request"], self.user)
 
