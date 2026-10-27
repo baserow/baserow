@@ -183,6 +183,7 @@ export default {
             workspaceId: this.workspace.id,
             scopeType: 'workspace',
           },
+          1,
           this.$t('teamsTable.roleHelpText')
         ),
         new CrudTableColumn(

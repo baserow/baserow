@@ -313,7 +313,7 @@ describe('CrudTable component', () => {
     expect(table.find('.data-table__expanded-rows').exists()).toBe(true)
   })
 
-  test('the toggle can be placed in another column with custom content', async () => {
+  test('the toggle has its own untitled column after the configured column', async () => {
     const table = await mountCrudTable(
       aService(
         vi
@@ -331,13 +331,19 @@ describe('CrudTable component', () => {
     )
     await flushPromises()
     expect(table.find('td:first-child button').exists()).toBe(false)
-    const toggle = table.find('td:nth-child(2) button')
+    expect(table.findAll('thead th').map((cell) => cell.text())).toEqual([
+      'Name',
+      'Role',
+      '',
+    ])
+    expect(table.find('td:nth-child(2)').text()).toBe('Editor')
+    const toggle = table.find('td:nth-child(3) button')
     expect(toggle.text()).toBe('+3')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('true')
     expect(
       table.find('.data-table__expanded-rows td').attributes('colspan')
-    ).toBe('2')
+    ).toBe('3')
   })
 
   test('sorting and refresh retain expansion by rowIdKey, but searching clears it', async () => {

@@ -179,7 +179,8 @@ export default {
           {
             roles: this.roles,
             workspace: this.workspace,
-          }
+          },
+          1
         ),
       ]
       for (const extension of Object.values(

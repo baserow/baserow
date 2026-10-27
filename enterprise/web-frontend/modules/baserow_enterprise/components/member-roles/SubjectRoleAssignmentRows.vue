@@ -134,6 +134,7 @@ const UPDATE_ROLE_OPERATIONS = {
  */
 export default {
   name: 'SubjectRoleAssignmentRows',
+  inheritAttrs: false,
   components: { EditRoleContext, RoleSelectorButton, ScopeNoAccessModal },
   props: {
     workspace: {

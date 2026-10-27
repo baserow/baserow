@@ -311,7 +311,6 @@ thead + .data-table__row-group .data-table__table-cell-content {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-left: 12px;
   padding: 4px 8px;
   border: 1px solid $palette-blue-100;
   border-radius: 16px;
@@ -391,4 +390,9 @@ thead + .data-table__row-group .data-table__table-cell-content {
     flex: 1;
     min-width: 120px;
   }
+}
+
+// Let the disclosure column share available space after its button.
+.data-table__table-cell--expansion {
+  white-space: nowrap;
 }

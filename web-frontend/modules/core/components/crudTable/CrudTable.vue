@@ -27,7 +27,7 @@
           <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
             <th
               class="data-table__table-cell data-table__table-cell--header"
-              :colspan="columns.length"
+              :colspan="tableColumns.length"
             >
               <div class="data-table__table-cell-head skeleton">
                 <SkeletonBlock width="200px"></SkeletonBlock>
@@ -36,11 +36,12 @@
           </tr>
           <tr v-else class="data-table__table-row">
             <th
-              v-for="col in columns"
+              v-for="col in tableColumns"
               :key="'head-' + col.key"
               :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
               class="data-table__table-cell data-table__table-cell--header"
               :class="{
+                'data-table__table-cell--expansion': col.isExpansionColumn,
                 'data-table__table-cell--sticky-left': col.stickyLeft,
                 'data-table__table-cell--sticky-right': col.stickyRight,
               }"
@@ -77,11 +78,17 @@
           </tr>
         </thead>
         <tbody v-if="loading">
-          <CrudTableSkeletonRows :columns="columns" :count="skeletonRowCount" />
+          <CrudTableSkeletonRows
+            :columns="tableColumns"
+            :count="skeletonRowCount"
+          />
         </tbody>
         <tbody v-else-if="showEmptyState">
           <tr>
-            <td :colspan="columns.length || 1" class="data-table__empty-cell">
+            <td
+              :colspan="tableColumns.length || 1"
+              class="data-table__empty-cell"
+            >
               <div class="data-table__empty">
                 <slot v-if="showEmptyCollectionState" name="empty">
                   <p>{{ $t('crudTable.empty') }}</p>
@@ -104,7 +111,7 @@
           <slot
             name="rows"
             :rows="rows"
-            :columns="columns"
+            :columns="tableColumns"
             :update-row="updateRow"
             :delete-row="deleteRow"
             :refresh="refresh"
@@ -115,10 +122,9 @@
             v-for="row in rows"
             :key="row[rowIdKey]"
             :row="row"
-            :columns="columns"
+            :columns="tableColumns"
             :expandable="canExpandRow(row)"
             :expanded="canExpandRow(row) && expandedRows.has(row[rowIdKey])"
-            :expand-column-key="expandColumnKey"
             :cell-attrs="$attrs"
             @toggle="toggleRow(row)"
             @row-context="$emit('row-context', $event)"
@@ -211,7 +217,7 @@ export default {
       type: Function,
       default: null,
     },
-    /** Column containing the disclosure control; defaults to the first column. */
+    /** Column after which to insert the disclosure column; defaults to the first. */
     expandColumnKey: {
       type: String,
       default: null,
@@ -318,6 +324,21 @@ export default {
     }
   },
   computed: {
+    /** Adds a dedicated disclosure column without changing caller-owned columns. */
+    tableColumns() {
+      if (!this.$slots['expanded-row'] || this.$slots.rows) return this.columns
+
+      const columns = [...this.columns]
+      const index = columns.findIndex(
+        ({ key }) => key === (this.expandColumnKey || columns[0]?.key)
+      )
+      columns.splice(index + 1, 0, {
+        key: '__row_expansion__',
+        header: '',
+        isExpansionColumn: true,
+      })
+      return columns
+    },
     hasActiveFilters() {
       return !!this.searchQuery || Object.keys(this.filters).length > 0
     },
