@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone as django_timezone
 
 import pytest
+from pytest_unordered import unordered
 
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.data_sources.models import DataSource
@@ -240,7 +241,9 @@ def test_update_user_template_content(data_fixture, use_tmp_media_root):
     assert revision.version == 2
     assert revision.metadata == {
         "source_workspace_id": workspace.id,
-        "source_application_ids": [application.id for application in applications],
+        "source_application_ids": unordered(
+            [application.id for application in applications]
+        ),
     }
     assert revision.name == "Mine"
     assert revision.description == "Kept"
