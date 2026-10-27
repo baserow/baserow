@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -25,6 +25,7 @@ from baserow.core.user_sources.signals import (
     user_source_updated,
 )
 from baserow.core.user_sources.types import UpdatedUserSource, UserSourceForUpdate
+from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import extract_undo_redo_values
 
 
@@ -120,6 +121,36 @@ class UserSourceService:
         return self.handler.get_user_sources(
             application=application, base_queryset=user_user_sources
         )
+
+    def list_users_per_user_source(
+        self, user: AbstractUser, application: Application, count: int, search: str
+    ) -> Dict[int, List[UserSourceUser]]:
+        """
+        Lists the first users of each user source of the given application. Reading
+        the users of a user source requires to be allowed to read the user source.
+
+        :param user: The user trying to list the users.
+        :param application: The application that holds the user_sources.
+        :param count: The maximum number of users to return per user source.
+        :param search: A search term to filter the users.
+        :return: A dict of user source id to the list of its users.
+        """
+
+        user_sources = self.get_user_sources(user, application)
+
+        users_per_user_sources = {}
+        for user_source in user_sources:
+            CoreHandler().check_permissions(
+                user,
+                ReadUserSourceOperationType.type,
+                workspace=application.workspace,
+                context=user_source,
+            )
+            users_per_user_sources[user_source.id] = user_source.get_type().list_users(
+                user_source, count=count, search=search
+            )
+
+        return users_per_user_sources
 
     def create_user_source(
         self,

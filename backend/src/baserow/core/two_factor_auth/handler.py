@@ -39,6 +39,22 @@ class TwoFactorAuthHandler:
         provider_specific: TwoFactorAuthProviderModel = provider.specific
         return provider_specific
 
+    def get_enabled_provider(
+        self, user: AbstractUser
+    ) -> TwoFactorAuthProviderModel | None:
+        """
+        Returns the user's provider only if it's fully configured and in use, meaning
+        that signing in requires the second factor.
+
+        :param user: The user the provider is for.
+        :return: The enabled provider instance or None.
+        """
+
+        provider = self.get_provider(user)
+        if provider is None or not provider.get_type().is_enabled(provider):
+            return None
+        return provider
+
     def get_provider_for_update(
         self,
         user: AbstractUser,
