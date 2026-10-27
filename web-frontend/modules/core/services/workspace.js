@@ -94,10 +94,14 @@ export default (client) => {
         )
       },
       fetchInvitationLinkBySlug(slug) {
-        return client.get(`/workspaces/invitation-links/slug/${slug}/`)
+        return client.get(
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/`
+        )
       },
       joinInvitationLink(slug) {
-        return client.post(`/workspaces/invitation-links/slug/${slug}/join/`)
+        return client.post(
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/join/`
+        )
       },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)

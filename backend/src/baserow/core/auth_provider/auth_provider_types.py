@@ -182,6 +182,7 @@ class AuthProviderType(BaseAuthProviderType):
             password=None,
             language=user_info.language,
             workspace_invitation_token=user_info.workspace_invitation_token,
+            workspace_invitation_link_slug=user_info.workspace_invitation_link_slug,
             auth_provider=auth_provider,
             email_verified=user_info.email_verified,
         )

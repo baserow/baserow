@@ -36,7 +36,11 @@
       </template>
       <template v-else>
         <template v-if="loginButtons.length">
-          <LoginButtons :invitation="invitation" :hide-if-no-buttons="true" />
+          <LoginButtons
+            :invitation="invitation"
+            :original="invitationLinkPath"
+            :hide-if-no-buttons="true"
+          />
 
           <div class="auth__separator">
             {{ $t('common.or') }}
@@ -54,6 +58,7 @@
         <LoginActions
           v-if="!shouldShowAdminSignupPage"
           :invitation="invitation"
+          :original="invitationLinkPath"
         ></LoginActions>
       </template>
     </template>
@@ -143,18 +148,19 @@ const { data: invitationLink } = await useAsyncData(
 
 // Computed properties
 const settings = computed(() => store.getters['settings/get'])
-// Someone who already has an account comes back to the link after logging in.
-const loginRoute = computed(() =>
+// Someone who already has an account comes back to the link after logging in,
+// also through single sign-on, which signs new people up through the link.
+const invitationLinkPath = computed(() =>
   invitationLink.value
-    ? {
-        name: 'login',
-        query: {
-          original: router.resolve({
-            name: 'invitation-link',
-            params: { slug: invitationLink.value.slug },
-          }).href,
-        },
-      }
+    ? router.resolve({
+        name: 'invitation-link',
+        params: { slug: invitationLink.value.slug },
+      }).href
+    : null
+)
+const loginRoute = computed(() =>
+  invitationLinkPath.value
+    ? { name: 'login', query: { original: invitationLinkPath.value } }
     : { name: 'login' }
 )
 const loginActions = computed(

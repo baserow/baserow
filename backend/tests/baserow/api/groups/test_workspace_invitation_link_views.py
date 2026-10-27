@@ -354,6 +354,36 @@ def test_join_workspace_via_invitation_link_feature_disabled(
 
 
 @pytest.mark.django_db
+def test_join_workspace_via_invitation_link_signups_disabled(api_client, data_fixture):
+    newcomer, newcomer_token = data_fixture.create_user_and_token()
+    invitation_link = data_fixture.create_workspace_invitation_link()
+    data_fixture.update_settings(
+        allow_new_signups=False, allow_signups_via_workspace_invitations=False
+    )
+
+    for response in [
+        api_client.get(
+            reverse(
+                "api:workspaces:invitation_links:slug",
+                kwargs={"slug": invitation_link.slug},
+            )
+        ),
+        api_client.post(
+            reverse(
+                "api:workspaces:invitation_links:join",
+                kwargs={"slug": invitation_link.slug},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {newcomer_token}",
+        ),
+    ]:
+        assert response.status_code == HTTP_404_NOT_FOUND
+        assert (
+            response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"
+        )
+    assert not WorkspaceUser.objects.filter(user=newcomer).exists()
+
+
+@pytest.mark.django_db
 def test_sign_up_via_invitation_link(api_client, data_fixture):
     data_fixture.create_password_provider()
     admin = data_fixture.create_user()
@@ -407,8 +437,9 @@ def test_sign_up_via_invitation_link_respects_signup_settings(api_client, data_f
         },
         format="json",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_DISABLED_SIGNUP"
+    # The link doesn't exist for anyone while signups are disabled.
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"
     assert not User.objects.filter(email="newcomer@test.nl").exists()
 
 

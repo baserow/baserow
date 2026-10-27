@@ -128,6 +128,13 @@ const getRedirectUrlWithValidQueryParams = (url) => {
       parsedUrl.searchParams.append(decamelize(key), value)
     }
   }
+  const { workspaceInvitationToken, invitationLinkSlug } = route.query
+  if (invitationLinkSlug && !workspaceInvitationToken) {
+    parsedUrl.searchParams.append(
+      'workspace_invitation_link_slug',
+      invitationLinkSlug
+    )
+  }
   return parsedUrl.toString()
 }
 

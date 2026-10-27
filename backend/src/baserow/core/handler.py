@@ -1610,12 +1610,26 @@ class CoreHandler:
                 "not exist."
             ) from e
 
+    def _invitation_link_signups_allowed(self) -> bool:
+        """
+        Whether the instance settings let new people sign up through an invitation
+        link, which links need to be created or used.
+        """
+
+        settings = self.get_settings()
+        return bool(
+            settings.allow_new_signups
+            or settings.allow_signups_via_workspace_invitations
+        )
+
     def get_workspace_invitation_link_by_slug(
         self, slug: str
     ) -> WorkspaceInvitationLink:
         """
         Returns the workspace invitation link of the given slug, which is what the
-        public link URL contains. Links of a trashed workspace can't be used.
+        public link URL contains. Links of a trashed workspace can't be used, and
+        no link can be used while the instance doesn't let anyone sign up through
+        it. The links are kept, so they work again once signups are allowed.
 
         :param slug: The slug of the link.
         :raises FeatureDisabledException: If invitation links aren't enabled.
@@ -1624,6 +1638,11 @@ class CoreHandler:
         """
 
         feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        if not self._invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkDoesNotExist(
+                "Invitation links can't be used while signups are disabled."
+            )
 
         try:
             return WorkspaceInvitationLink.objects.select_related(
@@ -1687,11 +1706,7 @@ class CoreHandler:
             context=workspace,
         )
 
-        settings = self.get_settings()
-        if not (
-            settings.allow_new_signups
-            or settings.allow_signups_via_workspace_invitations
-        ):
+        if not self._invitation_link_signups_allowed():
             raise WorkspaceInvitationLinkSignupsDisabled(
                 "Invitation links can't be created while signups are disabled."
             )

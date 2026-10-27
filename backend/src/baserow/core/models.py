@@ -571,6 +571,8 @@ class WorkspaceInvitationLink(
         help_text="A name that reminds the admins what the link is for.",
     )
     slug = models.SlugField(
+        # BASEROW_WORKSPACE_INVITATION_LINK_LENGTH is capped at this length.
+        max_length=50,
         default=get_default_invitation_link_slug,
         unique=True,
         help_text="The unique slug of the public link URL.",
