@@ -6,20 +6,7 @@ export default {
   mixins: [applicationContextMixin],
   computed: {
     runtimeFormulaContext() {
-      /**
-       * This proxy allow the RuntimeFormulaContextClass to act like a regular object.
-       */
-      return new Proxy(
-        new RuntimeFormulaContext(
-          this.$registry.getAll('builderDataProvider'),
-          this.applicationContext
-        ),
-        {
-          get(target, prop) {
-            return target.get(prop)
-          },
-        }
-      )
+      return this.getRuntimeFormulaContext()
     },
     formulaFunctions() {
       return {
@@ -30,12 +17,35 @@ export default {
     },
   },
   methods: {
+    /** Wrap an application context for runtime formula evaluation. */
+    getRuntimeFormulaContext(applicationContext = this.applicationContext) {
+      return new Proxy(
+        new RuntimeFormulaContext(
+          this.$registry.getAll('builderDataProvider'),
+          applicationContext
+        ),
+        {
+          get(target, prop) {
+            return target.get(prop)
+          },
+        }
+      )
+    },
+    /**
+     * Resolve with a custom runtime context or a callback transforming the current
+     * application context. Return a new context from the callback to keep other
+     * formulas unaffected.
+     */
     resolveFormula(formula, formulaContext = null, defaultIfError = '') {
       try {
         return resolveFormula(
           formula,
           this.formulaFunctions,
-          formulaContext || this.runtimeFormulaContext
+          typeof formulaContext === 'function'
+            ? this.getRuntimeFormulaContext(
+                formulaContext(this.applicationContext)
+              )
+            : formulaContext || this.runtimeFormulaContext
         )
       } catch (e) {
         return defaultIfError

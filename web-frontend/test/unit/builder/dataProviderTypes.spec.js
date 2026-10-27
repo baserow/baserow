@@ -1,3 +1,12 @@
+import { reactive } from 'vue'
+import resolveFormulaMixin from '@baserow/modules/builder/mixins/resolveFormula'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement.vue'
+import GeneralSidePanel from '@baserow/modules/builder/components/page/sidePanels/GeneralSidePanel.vue'
+import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
+import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
+import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput.vue'
+import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField.vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import TableElement from '@baserow/modules/builder/components/elements/components/TableElement'
@@ -116,6 +125,7 @@ describe('Builder data provider types', () => {
     })
   })
 
+  /** Build a reactive form with child inputs shared by scope regression tests. */
   const formContainerPage = () => {
     const formContainer = {
       id: 2,
@@ -141,8 +151,9 @@ describe('Builder data provider types', () => {
       default_value: { formula: '' },
       placeholder: { formula: '' },
     }
-    const page = {
+    const page = reactive({
       id: 1,
+      _: { dataSourceLoading: false, dataSourceContentLoading: false },
       elementMap: { 2: formContainer, 3: nameInput, 4: emailInput },
       orderedElements: [formContainer, nameInput, emailInput],
       graph: {
@@ -155,7 +166,7 @@ describe('Builder data provider types', () => {
         3: { value: 'Ada', isValid: true, touched: true },
         4: { value: 'ada@example.com', isValid: true, touched: true },
       },
-    }
+    })
     return {
       builder: { id: 1 },
       workspace: {},
@@ -202,6 +213,179 @@ describe('Builder data provider types', () => {
       dataProvider.getDataSchema(excludingTargetSubtreeContext).properties
     ).toEqual({})
   })
+
+  test('form submit label editor offers inputs inside the form', async () => {
+    const applicationContext = formContainerPage()
+    const { page, element, builder } = applicationContext
+    builder.theme = {}
+    const wrapper = await mountSuspended(FormContainerElementForm, {
+      props: { defaultValues: { ...element, styles: {} } },
+      global: {
+        provide: {
+          ...applicationContext,
+          currentPage: page,
+          elementPage: page,
+          mode: 'editing',
+          formulaComponent: ApplicationBuilderFormulaInput,
+          dataProvidersAllowed: ['form_data'],
+          applicationContext: {
+            ...applicationContext,
+            dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+          },
+        },
+        stubs: { CustomStyleButton: true },
+      },
+    })
+    const input = wrapper.findComponent(FormulaInputField)
+    const formDataNode = input
+      .props('nodesHierarchy')
+      .flatMap((group) => group.nodes || [])
+      .find((node) => node.identifier === 'form_data')
+    expect(formDataNode.nodes.map((node) => node.identifier)).toEqual([
+      '3',
+      '4',
+    ])
+    wrapper.unmount()
+  })
+
+  test.each(['editing', 'public'])(
+    'form submit label reads child inputs in %s mode',
+    async (mode) => {
+      const applicationContext = formContainerPage()
+      const { page, element, builder } = applicationContext
+      builder.theme = {}
+      page.workflowActions = []
+      element.styles = {}
+      element.submit_button_label = { formula: "get('form_data.3')" }
+      const wrapper = await mountSuspended(FormContainerElement, {
+        props: { element },
+        global: {
+          provide: {
+            ...applicationContext,
+            currentPage: page,
+            elementPage: page,
+            mode,
+            applicationContext: {
+              ...applicationContext,
+              mode,
+              dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+            },
+          },
+          stubs: {
+            ElementPreview: true,
+            PageElement: true,
+            ABButton: { template: '<button><slot /></button>' },
+          },
+        },
+      })
+      expect(wrapper.find('button').text()).toBe('Ada')
+      await useNuxtApp().$store.dispatch('formData/setFormData', {
+        page,
+        uniqueElementId: '3',
+        payload: { value: 'Grace', isValid: true, touched: true },
+      })
+      expect(wrapper.find('button').text()).toBe('Grace')
+      wrapper.unmount()
+    }
+  )
+
+  test.each([
+    [3, '4', 'ada@example.com'],
+    [4, '3', 'Ada'],
+  ])('input %s can read its sibling input %s', (targetId, siblingId, value) => {
+    const applicationContext = formContainerPage()
+    applicationContext.element = applicationContext.page.elementMap[targetId]
+    applicationContext.dataScope = DATA_SCOPES.EXCLUDE_TARGET_SUBTREE
+    const provider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'form_data')
+    expect(provider.getDataChunk(applicationContext, [siblingId])).toBe(value)
+    expect(
+      Object.keys(provider.getDataSchema(applicationContext).properties)
+    ).toEqual([siblingId])
+  })
+
+  test.each(['before form', 'after form', 'inside form'])(
+    'a heading %s can select and render form inputs',
+    async (position) => {
+      const { page, builder, workspace } = formContainerPage()
+      const heading = {
+        id: 5,
+        type: 'heading',
+        page_id: page.id,
+        level: 1,
+        styles: {},
+        value: { formula: "get('form_data.3')" },
+      }
+      page.graph[5] = {}
+      if (position === 'before form') {
+        page.graph[0] = 5
+        page.graph[5] = { next: { '': [2] } }
+      } else if (position === 'after form') {
+        page.graph[2].next = { '': [5] }
+      } else {
+        page.graph[4].next = { '': [5] }
+      }
+      builder.theme = {}
+      builder.pages = [page, { id: 2, shared: true, dataSources: [] }]
+      page.dataSources = []
+      const store = useNuxtApp().$store
+      store.commit('element/SET_ITEMS', {
+        builder,
+        page,
+        elements: [...page.orderedElements, heading],
+      })
+      for (const element of page.orderedElements) {
+        await store.dispatch('element/_setElementNamespacePath', {
+          page,
+          element,
+        })
+      }
+      builder.selectedElement = page.elementMap[5]
+      const applicationContext = {
+        page,
+        builder,
+        workspace,
+        element: builder.selectedElement,
+        mode: 'editing',
+        dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+      }
+      const provide = {
+        builder,
+        workspace,
+        currentPage: page,
+        elementPage: page,
+        mode: 'editing',
+        formulaComponent: ApplicationBuilderFormulaInput,
+        applicationContext,
+      }
+      const editor = await mountSuspended(GeneralSidePanel, {
+        global: { provide, stubs: { CustomStyleButton: true } },
+      })
+      const formDataNode = editor
+        .findComponent(FormulaInputField)
+        .props('nodesHierarchy')
+        .flatMap((group) => group.nodes || [])
+        .find((node) => node.identifier === 'form_data')
+      expect(formDataNode.nodes.map((node) => node.identifier)).toEqual([
+        '3',
+        '4',
+      ])
+      const rendered = await mountSuspended(HeadingElement, {
+        props: { element: builder.selectedElement },
+        global: { provide },
+      })
+      expect(rendered.text()).toBe('Ada')
+      await store.dispatch('formData/setFormData', {
+        page,
+        uniqueElementId: '3',
+        payload: { value: 'Grace', isValid: true, touched: true },
+      })
+      expect(rendered.text()).toBe('Grace')
+      editor.unmount()
+      rendered.unmount()
+    }
+  )
 
   test('current record dispatch preserves nested row indexes', () => {
     const dataProvider = testApp
@@ -350,8 +534,8 @@ describe('Builder data provider types', () => {
         {
           $registry: testApp.getRegistry(),
           applicationContext: tableContext,
-          resolveFormula: (_formula, context) =>
-            context['current_record.cellName'],
+          resolveFormula: (_formula, formulaContext) =>
+            formulaContext['current_record.cellName'],
         },
         'get(current_record.cellName)',
         0
@@ -460,8 +644,12 @@ describe('Builder data provider types', () => {
       element: { option_name_suffix: { formula: '' } },
       elementContent: recordSelector._.content,
       getId: (record) => record.id,
-      resolveFormula: (_formula, context) =>
-        context['current_record.choiceName'],
+      resolveFormula(_formula, formulaContext) {
+        return resolveFormulaMixin.methods.getRuntimeFormulaContext.call(
+          this,
+          formulaContext(this.applicationContext)
+        )['current_record.choiceName']
+      },
       dataSourceType: { getRecordName: () => 'Option' },
       dataSource: page.dataSources[0],
       defaultValueOptions: [],
