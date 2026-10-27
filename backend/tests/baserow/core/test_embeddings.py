@@ -9,7 +9,6 @@ from httpx import ConnectError
 from baserow.core.embeddings import (
     BaserowEmbedder,
     EmbeddingsServiceError,
-    embedding_model_key,
     vector_search_available,
 )
 
@@ -64,12 +63,3 @@ def test_vector_search_available():
         patch("baserow.core.embeddings.is_pgvector_enabled", return_value=True),
     ):
         assert vector_search_available() is True
-
-
-def test_embedding_model_key_depends_on_the_service():
-    with override_settings(BASEROW_EMBEDDINGS_API_URL="http://first:80"):
-        first = embedding_model_key()
-    with override_settings(BASEROW_EMBEDDINGS_API_URL="http://second:80"):
-        second = embedding_model_key()
-
-    assert first != second

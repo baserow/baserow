@@ -952,11 +952,10 @@ class FieldHandler:
 
         specific_field = field.specific
         field_type = field_type_registry.get_by_model(specific_field)
+        serialized_field = field_type.export_serialized(specific_field)
         # The extensions copy their own values in `after_duplicate`, because unlike
         # creating a field, duplicating one must not validate them again.
-        serialized_field = field_extension_registry.remove_values(
-            field_type.export_serialized(specific_field)
-        )
+        serialized_field.pop("extensions", None)
         progress.increment()
 
         new_name = self.find_next_unused_field_name(

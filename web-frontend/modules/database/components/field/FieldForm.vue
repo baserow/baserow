@@ -325,6 +325,9 @@ export default {
         type: this.values.type,
         ...this.defaultValues,
         ...this.values,
+        // The values of the type specific form, like the output type of an AI
+        // field, can change before they're saved as well.
+        ...this.getChildFormsValues(),
       }
     },
     ...mapGetters({

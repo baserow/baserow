@@ -16,7 +16,10 @@ const LabelSetting = defineComponent({
   data() {
     return { allowedValues: ['label'], values: { label: '' } }
   },
-  template: '<div class="label-setting">{{ fieldValues.type }}</div>',
+  template: `<div class="label-setting">{{ fieldValues.type }}</div>
+    <div class="label-setting__decimal-places">
+      {{ fieldValues.number_decimal_places }}
+    </div>`,
 })
 
 class LabelSettingType extends FieldFormAdvancedSettingType {
@@ -65,5 +68,30 @@ describe('FieldForm advanced settings', () => {
       name: 'Notes',
       label: 'saved',
     })
+  })
+
+  test('receives the unsaved values of the field type form', async () => {
+    const wrapper = await testApp.mount(FieldForm, {
+      props: {
+        table: { id: 1 },
+        view: null,
+        primary: false,
+        allFieldsInTable: [],
+        database: { id: 1, workspace: { id: 1 } },
+        defaultValues: {
+          id: 1,
+          name: 'Amount',
+          type: 'number',
+          number_decimal_places: 0,
+        },
+      },
+      global: { stubs: { Dropdown: true, FieldConstraintsSubForm: true } },
+    })
+    await flushPromises()
+
+    wrapper.vm.$refs.childForm.values.number_decimal_places = 2
+    await flushPromises()
+
+    expect(wrapper.find('.label-setting__decimal-places').text()).toBe('2')
   })
 })

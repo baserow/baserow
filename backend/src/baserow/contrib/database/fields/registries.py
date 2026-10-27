@@ -1289,8 +1289,14 @@ class FieldType(
                 for select_option in field.select_options.all()
             ]
 
+        extension_values = {}
         for extension in field_extension_registry.get_all():
-            serialized.update(extension.export_serialized(field, import_export_config))
+            values = extension.export_serialized(field, import_export_config)
+            if values:
+                extension_values[extension.type] = values
+        # Under one key, so that an instance without an extension ignores its values.
+        if extension_values:
+            serialized["extensions"] = extension_values
 
         return serialized
 
@@ -1331,7 +1337,8 @@ class FieldType(
         if table.id not in id_mapping["database_field_names"]:
             id_mapping["database_field_names"][table.id] = {}
 
-        serialized_copy = field_extension_registry.remove_values(serialized_values)
+        serialized_copy = serialized_values.copy()
+        extension_values = serialized_copy.pop("extensions", {})
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
         field_constraints = serialized_copy.pop("field_constraints", [])
@@ -1373,7 +1380,11 @@ class FieldType(
 
         for extension in field_extension_registry.get_all():
             extension.import_serialized(
-                field, serialized_values, id_mapping, import_export_config
+                field,
+                extension_values.get(extension.type, {}),
+                serialized_values,
+                id_mapping,
+                import_export_config,
             )
 
         return field
@@ -3121,7 +3132,7 @@ class FieldExtensionType(Instance):
         """
         :param field: The field that's exported.
         :param import_export_config: The configuration of the export, if any.
-        :return: The values that are added to the serialized field.
+        :return: The values of the extension that are exported with the field.
         """
 
         return {}
@@ -3129,14 +3140,16 @@ class FieldExtensionType(Instance):
     def import_serialized(
         self,
         field: Field,
+        values: Dict[str, Any],
         serialized_values: Dict[str, Any],
         id_mapping: Dict[str, Any],
         import_export_config: ImportExportConfig,
     ):
         """
         :param field: The imported field.
-        :param serialized_values: The serialized field, including the values
-            returned by `export_serialized` if they were exported.
+        :param values: The values returned by `export_serialized`, empty if the
+            field was exported without them.
+        :param serialized_values: The serialized field.
         :param id_mapping: Maps the ids of the export to the ids of the import.
         :param import_export_config: The configuration of the import.
         """
@@ -3197,15 +3210,6 @@ class FieldExtensionRegistry(Registry[FieldExtensionType]):
 
         for extension in self.get_all():
             extension.prefetch_fields(fields)
-
-    def remove_values(self, values: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        :param values: The values of a field, like a serialized one.
-        :return: A copy of the values without the ones of the extensions.
-        """
-
-        names = self.get_serializer_field_names(request_serializer=True)
-        return {key: value for key, value in values.items() if key not in names}
 
 
 field_extension_registry: FieldExtensionRegistry = FieldExtensionRegistry()

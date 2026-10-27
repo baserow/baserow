@@ -1,5 +1,3 @@
-from urllib.parse import urlparse
-
 from django.conf import settings
 
 import httpx
@@ -100,14 +98,6 @@ def vector_search_available() -> bool:
     """
 
     return embeddings_configured() and is_pgvector_enabled()
-
-
-def embedding_model_key() -> str:
-    # Mixed into the content hashes of stored vectors, so that pointing the
-    # instance to another embeddings service embeds everything again instead of
-    # comparing vectors of different models with each other.
-    host = urlparse(settings.BASEROW_EMBEDDINGS_API_URL or "").netloc
-    return f"{host}/{DEFAULT_EMBEDDING_DIMENSIONS}"
 
 
 def get_embedder(timeout: float = 5) -> BaserowEmbedder:

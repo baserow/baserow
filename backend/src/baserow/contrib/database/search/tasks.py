@@ -58,6 +58,7 @@ def schedule_update_search_data(
     from baserow.contrib.database.table.handler import TableHandler
 
     table = None
+    types_to_schedule = []
     for search_data_updater_type in search_data_updater_registry.get_all():
         if not search_data_updater_type.should_queue():
             continue
@@ -81,7 +82,20 @@ def schedule_update_search_data(
         elif not search_data_updater_type.has_pending_updates(table_id):
             continue
 
-        search_data_updater_type.schedule(table_id, new_pending_updates)
+        types_to_schedule.append((search_data_updater_type, new_pending_updates))
+
+    # Scheduled after all changes are queued, so that a failing broker can't prevent
+    # another type from queuing them. The periodic check starts the tasks that
+    # couldn't be scheduled.
+    for search_data_updater_type, new_pending_updates in types_to_schedule:
+        try:
+            search_data_updater_type.schedule(table_id, new_pending_updates)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "Could not schedule the {} update of table {}.",
+                search_data_updater_type.type,
+                table_id,
+            )
 
 
 @app.task(queue="export")
@@ -103,7 +117,7 @@ def schedule_search_data_updater_task(search_data_updater_type: str, table_id: i
     queue="export",
     base=Singleton,
     unique_on="table_id",
-    raise_on_duplicate=False,
+    raise_on_duplicate=True,
     lock_expiry=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     soft_time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,

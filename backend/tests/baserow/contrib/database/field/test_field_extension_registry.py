@@ -61,13 +61,14 @@ class LabelFieldExtensionType(FieldExtensionType):
     def export_prepared_values(self, field):
         return {"label": self.labels.get(field.id)}
 
+    # Exported with another name than the request property, which must not matter.
     def export_serialized(self, field, import_export_config):
-        return {"label": self.labels.get(field.id)}
+        return {"text": self.labels.get(field.id)}
 
     def import_serialized(
-        self, field, serialized_values, id_mapping, import_export_config
+        self, field, values, serialized_values, id_mapping, import_export_config
     ):
-        self.labels[field.id] = serialized_values.get("label")
+        self.labels[field.id] = values.get("text")
 
 
 @pytest.fixture
@@ -192,4 +193,34 @@ def test_field_extension_values_in_workspace_export(data_fixture, label_extensio
         ImportExportConfig(include_permission_data=False),
     )
 
-    assert exported[0]["tables"][0]["fields"][0]["label"] == "label"
+    assert exported[0]["tables"][0]["fields"][0]["extensions"] == {
+        "label": {"text": "label"}
+    }
+
+
+@pytest.mark.django_db
+def test_field_extension_values_ignored_without_the_extension(
+    data_fixture, label_extension
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Text")
+    label_extension.labels[field.id] = "label"
+    config = ImportExportConfig(include_permission_data=False)
+    database = table.database
+    exported = database.get_type().export_serialized(
+        database, config, files_zip=None, storage=None
+    )
+
+    # Like an instance on which the plugin of the extension isn't installed.
+    field_extension_registry.registry = {}
+    imported = database.get_type().import_serialized(
+        data_fixture.create_workspace(user=user),
+        exported,
+        config,
+        {},
+        files_zip=None,
+        storage=None,
+    )
+
+    assert imported.table_set.get().field_set.filter(name="Text").exists()
