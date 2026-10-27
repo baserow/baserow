@@ -312,6 +312,14 @@
   "invitationTitle": "Invitation",
   "invitationMessage": "{invitedBy} has invited you to join {workspace}.",
   "invitationLinkMessage": "You have been invited to join {workspace}.",
+  "invitationLinkJoin": {
+    "title": "Join {workspace}",
+    "joinAs": "You will join as {email}. The members of the workspace will be able to see your name and email address.",
+    "join": "Join workspace",
+    "failed": "Could not join the workspace",
+    "failedMessage": "Something went wrong while joining the workspace. Please try again.",
+    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."
+  },
   "workspaceForm": {
     "nameLabel": "Name"
   },
