@@ -200,6 +200,7 @@ class UserHandler:
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
         workspace_invitation_link_slug: Optional[str] = None,
+        join_invitation_link_workspace: bool = True,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -222,6 +223,9 @@ class UserHandler:
         :param workspace_invitation_link_slug: If provided and valid, the user joins
             the workspace of the invitation link and initial workspace will not be
             created. Unlike an email invitation, the link doesn't verify the email.
+        :param join_invitation_link_workspace: Whether the user joins the workspace
+            of the invitation link right away. When False, the link only allows the
+            signup, and the user confirms joining on the page of the link.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -294,7 +298,7 @@ class UserHandler:
             workspace_user = core_handler.accept_workspace_invitation(
                 user, workspace_invitation, token=workspace_invitation_token
             )
-        elif workspace_invitation_link is not None:
+        elif workspace_invitation_link is not None and join_invitation_link_workspace:
             workspace_user = core_handler.join_workspace_via_invitation_link(
                 user, workspace_invitation_link
             )
