@@ -524,6 +524,7 @@ def test_accept_workspace_invitation(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend")
 def test_accept_workspace_invitation_requires_token_or_verified_email(
     api_client, data_fixture
 ):
@@ -588,6 +589,31 @@ def test_accept_workspace_invitation_without_token_when_email_verified(
 
 
 @pytest.mark.django_db
+@override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend"
+)
+def test_accept_workspace_invitation_without_token_when_emails_are_not_delivered(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(email="test1@test.nl")
+    invitation = data_fixture.create_workspace_invitation(email="test1@test.nl")
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:accept",
+            kwargs={"workspace_invitation_id": invitation.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert WorkspaceUser.objects.filter(
+        user=user, workspace=invitation.workspace
+    ).exists()
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is False
+
+
+@pytest.mark.django_db
 def test_reject_workspace_invitation(api_client, data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
     user_2, token_2 = data_fixture.create_user_and_token(email="test2@test.nl")
@@ -620,20 +646,6 @@ def test_reject_workspace_invitation(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_GROUP_INVITATION_EMAIL_MISMATCH"
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:reject",
-            kwargs={"workspace_invitation_id": invitation.id},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED"
-    assert WorkspaceInvitation.objects.all().count() == 1
-
-    user_1.profile.email_verified = True
-    user_1.profile.save()
 
     response = api_client.post(
         reverse(

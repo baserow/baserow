@@ -32,7 +32,7 @@ from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
 from .context import clear_current_workspace_id, set_current_workspace_id
-from .emails import WorkspaceInvitationEmail
+from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -1421,7 +1421,7 @@ class CoreHandler:
         """
         Rejects a workspace invitation by deleting the invitation so that can't be
         reused again. It can only be rejected if the invitation was addressed to the
-        email address of the user and that email address is verified.
+        email address of the user.
 
         :param user: The user who wants to reject the invitation.
         :type user: User
@@ -1429,19 +1429,12 @@ class CoreHandler:
         :type invitation: WorkspaceInvitation
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
-        :raises WorkspaceInvitationEmailNotVerified: If the email address of the user
-            is not verified.
         """
 
         if user.username != invitation.email:
             raise WorkspaceInvitationEmailMismatch(
                 "The email address of the invitation does not match the one of the "
                 "user."
-            )
-
-        if not user.profile.email_verified:
-            raise WorkspaceInvitationEmailNotVerified(
-                "The invitation can only be rejected with a verified email address."
             )
 
         workspace_invitation_rejected.send(
@@ -1497,7 +1490,9 @@ class CoreHandler:
         Accepts a workspace invitation by adding the user to the correct workspace with
         the right permissions. It can only be accepted if the invitation was
         addressed to the email address of the user, and if the user either provides
-        the token from the invitation email or has a verified email address. Because
+        the token from the invitation email or has a verified email address. The
+        latter is only required when this instance can deliver emails, because
+        otherwise neither the invitation nor a verification email arrives. Because
         the invitation has been accepted it can then be deleted. If the user is
         already a member of the workspace the invitation is consumed without changing
         their existing permissions, so a stale invitation can never lower an existing
@@ -1510,8 +1505,9 @@ class CoreHandler:
             verified.
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
-        :raises WorkspaceInvitationEmailNotVerified: If no valid token is provided and
-            the email address of the user is not verified.
+        :raises WorkspaceInvitationEmailNotVerified: If no valid token is provided,
+            the email address of the user is not verified and this instance can
+            deliver emails.
         :return: The workspace user relationship related to the invite.
         """
 
@@ -1526,7 +1522,7 @@ class CoreHandler:
             if not profile.email_verified:
                 profile.email_verified = True
                 profile.save(update_fields=["email_verified"])
-        elif not profile.email_verified:
+        elif not profile.email_verified and can_deliver_emails():
             raise WorkspaceInvitationEmailNotVerified(
                 "The invitation can only be accepted with the token from the "
                 "invitation email or with a verified email address."

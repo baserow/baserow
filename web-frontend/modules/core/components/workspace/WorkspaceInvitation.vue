@@ -24,7 +24,8 @@
         {{ $t('workspaceInvitation.sendVerificationEmail') }}
       </Button>
       <Button
-        :type="emailNotVerified ? 'secondary' : 'primary'"
+        v-else
+        type="primary"
         size="small"
         :disabled="acceptLoading || rejectLoading"
         :loading="acceptLoading"
@@ -71,8 +72,20 @@ export default {
     return {
       rejectLoading: false,
       acceptLoading: false,
-      emailNotVerified: false,
     }
+  },
+  computed: {
+    /**
+     * Without the token from the invitation email, only a verified email address
+     * proves the user owns the invited address. If this instance can't deliver
+     * emails, then there is no way to prove it, so it isn't required.
+     */
+    emailNotVerified() {
+      return (
+        this.$store.getters['settings/get'].email_delivery_enabled === true &&
+        this.$store.getters['auth/getUserObject']?.email_verified === false
+      )
+    },
   },
   methods: {
     async reject(invitation) {
@@ -85,7 +98,7 @@ export default {
         )
       } catch (error) {
         this.rejectLoading = false
-        this.handleError(error)
+        notifyIf(error, 'workspace')
       }
     },
     /**
@@ -138,16 +151,6 @@ export default {
         await nextTick()
       } catch (error) {
         this.acceptLoading = false
-        this.handleError(error)
-      }
-    },
-    handleError(error) {
-      // Without the token from the invitation email, only a verified email
-      // address proves the user owns the invited address.
-      if (error.handler?.code === 'ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED') {
-        this.emailNotVerified = true
-        error.handler.handled()
-      } else {
         notifyIf(error, 'workspace')
       }
     },

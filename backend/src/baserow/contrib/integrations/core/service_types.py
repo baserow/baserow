@@ -92,6 +92,7 @@ from baserow.core.deferred_callbacks import (
     is_deferred_callback_context_active,
     register_deferred_callback,
 )
+from baserow.core.emails import can_deliver_emails
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
@@ -984,10 +985,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
-    # An installation with no SMTP server keeps a backend that writes the
-    # message somewhere local and reports that it sent it.
-    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
-
     # Why this installation cannot send through its own server. Returned as a
     # code rather than a sentence, so each caller can word it for its own
     # reader and translate it.
@@ -1028,15 +1025,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         if not self.instance_smtp_is_available():
             return self.INSTANCE_SMTP_NO_SERVER
 
-        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
-        # says nothing about whether this installation can send. What it does
-        # with a message it is given does, and a backend it does not name at
-        # all is one the service could not ask for.
-        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
-        segments = backend.split(".")
-        if not backend or any(
-            name in segments for name in self.NON_DELIVERING_EMAIL_BACKENDS
-        ):
+        if not can_deliver_emails():
             return self.INSTANCE_SMTP_NO_SERVER
         return None
 
