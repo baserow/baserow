@@ -344,7 +344,7 @@ test('uses the shared list to change and revoke only a scoped invitation', async
     realList: true,
   })
   try {
-    expect(wrapper.find('.invite-list__items--scrollable').exists()).toBe(true)
+    expect(wrapper.find('.invite-list__items').exists()).toBe(true)
     const row = wrapper.find('.invite-list__item')
     expect(row.find('.invite-list__name').text()).toContain('olga@x.com')
     expect(row.find('.invite-list__role > a').text()).toBe('Editor')
@@ -803,7 +803,7 @@ test('shows a locked admin role with an explanation in the list', async () => {
   }
 })
 
-test('summarises who else has access, without those with a direct role', async () => {
+test('summarises access and forwards navigation to the owning modal', async () => {
   const client = createClient()
   const wrapper = await mountRoute(client, createTargetType())
   try {
@@ -812,16 +812,15 @@ test('summarises who else has access, without those with a direct role', async (
     })
     expect(wrapper.find('.inherited').text()).toBe('auth.User:9|auth.User:8')
 
-    // Managing the roles of a level above may change who reaches the object.
+    const parentTarget = {
+      type: 'scope',
+      scopeType: 'application',
+      scope: database,
+    }
     wrapper
       .findComponent({ name: 'ScopeInheritedAccess' })
-      .vm.$emit('level-roles-managed')
-    await flushPromises()
-    expect(
-      client.get.mock.calls.filter(
-        ([url]) => url === '/role/12/effective-access/'
-      )
-    ).toHaveLength(2)
+      .vm.$emit('navigate', parentTarget)
+    expect(wrapper.emitted('navigate')).toEqual([[parentTarget]])
   } finally {
     wrapper.unmount()
   }

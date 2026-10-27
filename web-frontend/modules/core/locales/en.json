@@ -405,6 +405,7 @@
     "accept": "Accept"
   },
   "inviteModal": {
+    "backTo": "Back to {level}: {title}",
     "emailRoute": "Email invite",
     "linkRoute": "Create link",
     "emailTitle": "Invite members by email",

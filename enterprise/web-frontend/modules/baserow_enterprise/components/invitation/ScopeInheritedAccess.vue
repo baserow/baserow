@@ -59,18 +59,10 @@
         </ul>
       </template>
     </Context>
-    <InviteModal
-      v-if="manageTarget"
-      ref="manageModal"
-      :workspace="workspace"
-      :target="manageTarget"
-      @hidden="$emit('level-roles-managed')"
-    />
   </div>
 </template>
 
 <script>
-import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 /**
@@ -79,14 +71,13 @@ import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
  * agent is counted once, under the level their effective role comes from, so
  * whoever is blocked on a level above isn't counted at all. Those with a role on
  * the object itself, directly or through a team, are listed as direct access
- * instead, as are those whose own row there has no effect. Once the roles of a
- * level above were managed from here, `level-roles-managed` is emitted, as who
- * reaches the object may have changed. Following the link to the workspace's
- * members page emits `close`, as the dialog has no place on that page.
+ * instead, as are those whose own row there has no effect. Managing a level above
+ * emits `navigate` with its target so the owning modal can replace its content.
+ * Following the link to the workspace's members page emits `close`, as the
+ * dialog has no place on that page.
  */
 export default {
   name: 'ScopeInheritedAccess',
-  components: { InviteModal },
   props: {
     workspace: {
       type: Object,
@@ -117,11 +108,10 @@ export default {
       default: () => [],
     },
   },
-  emits: ['level-roles-managed', 'close'],
+  emits: ['navigate', 'close'],
   data() {
     return {
       openRowKey: null,
-      manageTarget: null,
     }
   },
   computed: {
@@ -274,11 +264,9 @@ export default {
       this.$refs.context.hide()
       this.$emit('close')
     },
-    async manage(row) {
+    manage(row) {
       this.$refs.context.hide()
-      this.manageTarget = row.manageTarget
-      await this.$nextTick()
-      this.$refs.manageModal.show()
+      this.$emit('navigate', row.manageTarget)
     },
   },
 }

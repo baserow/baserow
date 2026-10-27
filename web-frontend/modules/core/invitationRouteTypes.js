@@ -28,7 +28,9 @@ export class InvitationRouteType extends Registerable {
    * The component rendered in the modal content when the route is active. It
    * receives the `workspace`, `target` and `targetType` props and must emit
    * `submitted` with the created invitations once they have been sent, so the
-   * modal can close.
+   * modal can close. Emit `navigate` with another registered invitation target
+   * to replace the modal content and offer Back navigation, or `close` when
+   * leaving the dialog entirely. Returning remounts the route to refresh its data.
    */
   getComponent() {
     throw new Error('The component of an invitation route type must be set.')

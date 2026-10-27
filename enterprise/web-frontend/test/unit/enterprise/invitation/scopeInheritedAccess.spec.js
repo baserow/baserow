@@ -192,3 +192,28 @@ test('asks to close the dialog when leaving for the members page', async () => {
     wrapper.unmount()
   }
 })
+
+test('requests navigation to the parent without opening another modal', async () => {
+  const wrapper = await mountSummary(
+    { type: 'scope', scopeType: 'database_table', scope: table, database },
+    [access('auth.User', 5, 'VIEWER', 'application', 30)],
+    {
+      stubs: {
+        Context: {
+          template: '<div><slot /></div>',
+          methods: { toggle() {}, hide() {} },
+        },
+      },
+    }
+  )
+  try {
+    await wrapper.find('.invite-list__item a').trigger('click')
+    await wrapper.find('.context__menu-item-link').trigger('click')
+    expect(wrapper.emitted('navigate')).toEqual([
+      [{ type: 'scope', scopeType: 'application', scope: database }],
+    ])
+    expect(wrapper.findComponent({ name: 'InviteModal' }).exists()).toBe(false)
+  } finally {
+    wrapper.unmount()
+  }
+})

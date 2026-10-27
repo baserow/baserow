@@ -53,7 +53,7 @@
           :target-type="targetType"
           :effective-access="effectiveAccess"
           :direct-keys="Object.keys(assignedRoles)"
-          @level-roles-managed="fetchEffectiveAccess"
+          @navigate="$emit('navigate', $event)"
           @close="$emit('close')"
         />
       </ShareScopeInput>
@@ -121,7 +121,7 @@ export default {
       required: true,
     },
   },
-  emits: ['close'],
+  emits: ['navigate', 'close'],
   data() {
     return {
       loading: false,

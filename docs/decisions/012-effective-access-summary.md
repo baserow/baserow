@@ -121,8 +121,10 @@ added on top of the same response later.
 - Opening the dialog makes one more request, which resolves every member and agent of
   the workspace. It is a constant number of queries, and the response grows with the
   number of members with access, about 150 bytes each.
-- A row of a level above links to that level's share dialog, opened on top, when its
-  roles may be read; the summary refreshes when it closes.
+- A row of a level above opens that level's sharing settings inside the same modal
+  when its roles may be read. The shared invitation modal keeps a target history;
+  Back restores the previous target and tab with freshly loaded roles and counts.
+  Closing the modal exits the entire sharing flow.
 - "No access" now asks for confirmation, in the picker and on a row.
 - Follow-up work: a per-person list in the rows, #6374 on the same endpoint, and #6014,
   which lists each subject's role assignments on the members, teams and agents pages.
