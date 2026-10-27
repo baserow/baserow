@@ -20,6 +20,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
+from django.utils.crypto import get_random_string
 
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
@@ -102,6 +103,10 @@ WORKSPACE_USER_PERMISSION_MEMBER = "MEMBER"
 
 def get_default_application_content_type():
     return ContentType.objects.get_for_model(Application)
+
+
+def get_default_invitation_link_slug():
+    return get_random_string(settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH)
 
 
 class Operation(models.Model):
@@ -560,7 +565,7 @@ class WorkspaceInvitationLink(
         help_text="The user that created the link.",
     )
     slug = models.SlugField(
-        default=secrets.token_urlsafe,
+        default=get_default_invitation_link_slug,
         unique=True,
         help_text="The unique slug of the public link URL.",
     )
