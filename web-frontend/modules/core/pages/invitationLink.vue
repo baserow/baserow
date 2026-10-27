@@ -127,8 +127,7 @@ if (fetchError.value) {
     { replace: true }
   )
 } else if (invitationLink.value) {
-  // Members, like someone who just signed up through the link with single
-  // sign-on, have nothing to confirm and land in the workspace.
+  // Members have nothing to confirm and land in the workspace.
   await store.dispatch('workspace/loadAll')
   const workspaceId = invitationLink.value.workspace_id
   if (store.getters['workspace/get'](workspaceId)) {

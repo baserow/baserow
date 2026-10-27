@@ -63,8 +63,8 @@ class OAuth2LoginView(APIView):
                 name="workspace_invitation_link_slug",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.STR,
-                description="The slug of the workspace invitation link that a user "
-                "who signs up joins.",
+                description="The slug of the workspace invitation link that a new "
+                "user signs up through.",
             ),
         ],
         tags=["Auth"],

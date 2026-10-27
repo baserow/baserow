@@ -385,12 +385,9 @@ def test_oauth2_callback_signup_workspace_invitation_link(
     params = dict(parse_qsl(urlparse(response.headers["Location"]).query))
     user = get_user_from_token(params["token"], token_class=RefreshToken)
     assert user.email == "testuser@example.com"
-    assert (
-        WorkspaceUser.objects.get(
-            user=user, workspace=invitation_link.workspace
-        ).permissions
-        == "MEMBER"
-    )
+    # The link allowed the signup, but joining is confirmed on the link page that
+    # the user returns to, because signing in with a provider can need no click.
+    assert not WorkspaceUser.objects.filter(user=user).exists()
 
 
 @pytest.mark.django_db

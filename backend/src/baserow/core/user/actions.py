@@ -62,6 +62,7 @@ class CreateUserActionType(ActionType):
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
         workspace_invitation_link_slug: Optional[str] = None,
+        join_invitation_link_workspace: bool = True,
     ) -> AbstractUser:
         """
         Creates a new user.
@@ -77,6 +78,8 @@ class CreateUserActionType(ActionType):
         :param email_verified: Whether the provider confirmed the email as verified.
         :param workspace_invitation_link_slug: The slug of the workspace invitation
             link that will be used to add the user to a workspace.
+        :param join_invitation_link_workspace: Whether the user joins the workspace
+            of the invitation link right away, or only signs up through it.
 
         :return: The created user.
         """
@@ -94,6 +97,7 @@ class CreateUserActionType(ActionType):
             auth_provider=auth_provider,
             email_verified=email_verified,
             workspace_invitation_link_slug=workspace_invitation_link_slug,
+            join_invitation_link_workspace=join_invitation_link_workspace,
         )
 
         workspace_id, workspace_name = None, None

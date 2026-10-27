@@ -37,8 +37,8 @@ class SsoLoginRequestSerializer(BaseSsoLoginRequestSerializer):
     )
     workspace_invitation_link_slug = serializers.CharField(
         required=False,
-        help_text="If provided and valid, a user who signs up joins the workspace of "
-        "the invitation link.",
+        help_text="If provided and valid, a new user can sign up through the "
+        "workspace invitation link, and confirms joining its workspace afterwards.",
     )
 
     def validate_original(self, value):

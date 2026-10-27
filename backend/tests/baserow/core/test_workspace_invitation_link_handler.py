@@ -13,6 +13,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceInvitationLink, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.handler import UserHandler
 
 
 @pytest.mark.django_db
@@ -277,3 +278,24 @@ def test_invitation_link_survives_deleting_its_creator(data_fixture):
 
     invitation_link.refresh_from_db()
     assert invitation_link.created_by is None
+
+
+@pytest.mark.django_db
+def test_sign_up_through_invitation_link_without_joining(data_fixture):
+    data_fixture.create_password_provider()
+    invitation_link = data_fixture.create_workspace_invitation_link()
+    data_fixture.update_settings(
+        allow_new_signups=False, allow_signups_via_workspace_invitations=True
+    )
+
+    user = UserHandler().create_user(
+        "Newcomer",
+        "newcomer@test.nl",
+        "thisIsAValidPassword",
+        workspace_invitation_link_slug=invitation_link.slug,
+        join_invitation_link_workspace=False,
+    )
+
+    # The link allows the signup, and the user joins after confirming it.
+    assert not WorkspaceUser.objects.filter(user=user).exists()
+    assert user.profile.completed_onboarding is True
