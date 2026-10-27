@@ -28,6 +28,7 @@ from baserow.core.operations import (
 from baserow.core.types import PermissionCheck
 from baserow.core.user_sources.operations import (
     AuthenticateUserSourceOperationType,
+    ListUserSourcesApplicationOperationType,
     LoginUserSourceOperationType,
 )
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -271,3 +272,32 @@ def test_allow_public_builder_manager_type(data_fixture):
         ("", "application.user_source.login", "public", True),
         ("", "application.user_source.login", "private", None),
     ]
+
+
+@pytest.mark.django_db
+def test_allow_public_builder_manager_type_does_not_list_user_sources(data_fixture):
+    user = data_fixture.create_user(username="Auth user")
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=builder, published_to=builder_to)
+    public_user_source = data_fixture.create_user_source_with_first_type(
+        application=builder_to
+    )
+    public_user_source_user = UserSourceUser(
+        public_user_source, None, 1, "US public", "e@ma.il"
+    )
+
+    checks = [
+        PermissionCheck(
+            actor,
+            ListUserSourcesApplicationOperationType.type,
+            builder_to.application_ptr,
+        )
+        for actor in [user, public_user_source_user, AnonymousUser()]
+    ]
+
+    result = AllowPublicBuilderManagerType().check_multiple_permissions(
+        checks, builder.workspace
+    )
+
+    assert all(result.get(check) is None for check in checks)
