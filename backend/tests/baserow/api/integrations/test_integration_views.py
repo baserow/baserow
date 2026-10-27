@@ -827,6 +827,119 @@ def test_update_smtp_integration_with_empty_password_clears_it(
     assert integration.password == ""
 
 
+def _create_ai_integration_via_api(api_client, token, application):
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+    return api_client.post(
+        url,
+        {
+            "type": "ai",
+            "name": "AI",
+            "ai_settings": {
+                "openai": {
+                    "api_key": "sk-secret",
+                    "models": ["gpt-4o"],
+                    "base_url": "https://api.openai.com/v1",
+                }
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.django_db
+def test_ai_integration_responses_do_not_return_the_api_key(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+
+    response = _create_ai_integration_via_api(api_client, token, application)
+
+    assert response.status_code == HTTP_200_OK
+    assert "sk-secret" not in response.content.decode()
+    assert response.json()["ai_settings"] == {
+        "openai": {
+            "models": ["gpt-4o"],
+            "base_url": "https://api.openai.com/v1",
+            "has_api_key": True,
+        }
+    }
+
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert "sk-secret" not in response.content.decode()
+    assert response.json()[0]["ai_settings"]["openai"]["has_api_key"] is True
+
+
+@pytest.mark.django_db
+def test_update_ai_integration_without_api_key_keeps_the_stored_one(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+    integration_id = _create_ai_integration_via_api(
+        api_client, token, application
+    ).json()["id"]
+    url = reverse("api:integrations:item", kwargs={"integration_id": integration_id})
+
+    response = api_client.patch(
+        url, {"name": "Renamed"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["ai_settings"]["openai"]["has_api_key"] is True
+
+    response = api_client.patch(
+        url,
+        {
+            "ai_settings": {
+                "openai": {
+                    "models": ["gpt-4.1"],
+                    "base_url": "https://api.openai.com/v1",
+                }
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "sk-secret" not in response.content.decode()
+
+    integration = Integration.objects.get(id=integration_id).specific
+    assert integration.ai_settings["openai"] == {
+        "api_key": "sk-secret",
+        "models": ["gpt-4.1"],
+        "base_url": "https://api.openai.com/v1",
+    }
+
+
+@pytest.mark.django_db
+def test_update_ai_integration_base_url_without_api_key_returns_400(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+    integration_id = _create_ai_integration_via_api(
+        api_client, token, application
+    ).json()["id"]
+    url = reverse("api:integrations:item", kwargs={"integration_id": integration_id})
+
+    response = api_client.patch(
+        url,
+        {
+            "ai_settings": {
+                "openai": {"models": ["gpt-4o"], "base_url": "https://other.example"}
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INTEGRATION_CREDENTIAL_REQUIRED"
+    integration = Integration.objects.get(id=integration_id).specific
+    assert integration.ai_settings["openai"]["base_url"] == "https://api.openai.com/v1"
+
+
 @pytest.mark.django_db
 def test_secret_request_fields_document_the_write_only_contract():
     for type_name, secret in [("smtp", "password"), ("slack_bot", "token")]:
