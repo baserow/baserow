@@ -906,6 +906,13 @@ def test_token_refresh_without_rotation(api_client, data_fixture):
         assert response.status_code == HTTP_200_OK
 
 
+def test_token_refresh_schema_documents_the_rotated_refresh_token(api_client):
+    schema = api_client.get(reverse("api:json_schema")).json()
+    response = schema["paths"]["/api/user/token-refresh/"]["post"]["responses"]["200"]
+    properties = response["content"]["application/json"]["schema"]["properties"]
+    assert "refresh_token" in properties
+
+
 @pytest.mark.django_db
 def test_token_auth_two_factor_token_is_not_access_token(api_client, data_fixture):
     data_fixture.create_password_provider()

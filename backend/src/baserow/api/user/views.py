@@ -113,8 +113,8 @@ from .errors import (
 )
 from .exceptions import ClientSessionIdHeaderNotSetException
 from .schemas import (
-    authenticate_user_schema,
     authenticated_user_response_schema,
+    token_refresh_response_schema,
     verify_user_schema,
 )
 from .serializers import (
@@ -201,7 +201,7 @@ class RefreshJSONWebToken(TokenRefreshView):
             "after 30 seconds, and using it after that signs the session off."
         ),
         responses={
-            200: authenticate_user_schema,
+            200: token_refresh_response_schema,
             401: get_error_schema(
                 ["ERROR_INVALID_REFRESH_TOKEN", "ERROR_EMAIL_VERIFICATION_REQUIRED"]
             ),
