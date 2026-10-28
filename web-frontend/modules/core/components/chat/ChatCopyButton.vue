@@ -14,10 +14,7 @@
 <script setup>
 import { ref } from 'vue'
 
-const props = defineProps({
-  /** The text to copy. */
-  text: { type: String, required: true },
-})
+const props = defineProps({ text: { type: String, required: true } })
 
 const copied = ref(null)
 

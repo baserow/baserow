@@ -13,22 +13,31 @@ function render(content) {
     }),
     push: vi.fn(),
   }
+  const open = vi.spyOn(window, 'open').mockImplementation(() => null)
   const wrapper = mount(ChatMarkdown, {
     props: { content },
     global: { provide: { [routerKey]: router } },
   })
-  return { link: wrapper.get('a'), router }
+  return { wrapper, link: wrapper.find('a'), router, open }
 }
 
 describe('ChatMarkdown', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  test('renders markdown without raw HTML or images', () => {
+    const { wrapper } = render(
+      '- **First**\n- ![leak](https://evil.test/?q=1)\n\n<img src="https://evil.test/?q=2" onerror="alert(1)">'
+    )
+
+    expect(wrapper.find('strong').text()).toBe('First')
+    expect(wrapper.find('img').exists()).toBe(false)
+  })
+
   test.each([
     ['[Table](/database/1/table/2)', '/database/1/table/2'],
     ['[Setup](#setup)', `${pathname}#setup`],
   ])('opens %s in the app', async (content, path) => {
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
-    const { link, router } = render(content)
+    const { link, router, open } = render(content)
 
     await link.trigger('click')
 
@@ -40,8 +49,7 @@ describe('ChatMarkdown', () => {
     `[File](${origin}/media/user_files/report.pdf)`,
     '[Site](https://example.com/page)',
   ])('opens %s in a new tab', async (content) => {
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
-    const { link, router } = render(content)
+    const { link, router, open } = render(content)
 
     await link.trigger('click')
 
@@ -53,13 +61,15 @@ describe('ChatMarkdown', () => {
     expect(router.push).not.toHaveBeenCalled()
   })
 
-  test('leaves clicks with a modifier key to the browser', () => {
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
-    const { link, router } = render('[Table](/database/1/table/2)')
+  test.each([
+    ['[Table](/database/1/table/2)', { metaKey: true }],
+    ['Write to support@example.com', {}],
+  ])('leaves %s to the browser', (content, modifiers) => {
+    const { link, router, open } = render(content)
     const click = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
-      metaKey: true,
+      ...modifiers,
     })
 
     link.element.dispatchEvent(click)
