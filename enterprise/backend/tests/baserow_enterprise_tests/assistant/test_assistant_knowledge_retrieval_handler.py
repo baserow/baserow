@@ -3,6 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from baserow.core.embeddings import BaserowEmbedder, EmbeddingsServiceError
 from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS
 from baserow_enterprise.assistant.models import (
     KnowledgeBaseCategory,
@@ -10,7 +11,6 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseDocument,
 )
 from baserow_enterprise.assistant.tools.search_user_docs.handler import (
-    BaserowEmbedder,
     KnowledgeBaseHandler,
     VectorHandler,
 )
@@ -25,10 +25,8 @@ class TestBaserowEmbedder:
 
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
-        # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        # Mock the httpxClient where it's used in the embeddings module
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
             mock_post_response.json.return_value = {
@@ -54,10 +52,8 @@ class TestBaserowEmbedder:
 
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
-        # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        # Mock the httpxClient where it's used in the embeddings module
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
             mock_post_response.json.return_value = {
@@ -80,10 +76,8 @@ class TestBaserowEmbedder:
 
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
-        # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        # Mock the httpxClient where it's used in the embeddings module
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             # Mock the httpxClient.post call with smaller dimensions
             small_dimension = 512
             mock_client_instance = mock_client.return_value
@@ -109,10 +103,8 @@ class TestBaserowEmbedder:
 
         embedder = BaserowEmbedder(api_url="http://test-api:8000")
 
-        # Mock the httpxClient where it's used in the handler module
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-        ) as mock_client:
+        # Mock the httpxClient where it's used in the embeddings module
+        with patch("baserow.core.embeddings.httpxClient") as mock_client:
             # Mock the httpxClient.post call with larger dimensions
             large_dimension = DEFAULT_EMBEDDING_DIMENSIONS + 100
             mock_client_instance = mock_client.return_value
@@ -125,8 +117,7 @@ class TestBaserowEmbedder:
 
             texts = ["text 1"]
 
-            # Should raise ValueError
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(EmbeddingsServiceError) as exc_info:
                 embedder(texts)
 
             assert (
@@ -602,12 +593,10 @@ def test_embedder_closes_client_on_failed_batch():
         request=Request("POST", "http://test/embed"),
         response=Response(503),
     )
-    with patch(
-        "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
-    ) as client:
+    with patch("baserow.core.embeddings.httpxClient") as client:
         response = client.return_value.post.return_value
         response.raise_for_status.side_effect = error
-        with pytest.raises(HTTPStatusError):
+        with pytest.raises(EmbeddingsServiceError):
             BaserowEmbedder("http://test")(["one passage"])
         response.json.assert_not_called()
         client.return_value.close.assert_called_once()

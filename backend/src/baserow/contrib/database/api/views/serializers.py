@@ -783,6 +783,8 @@ class PublicViewSerializer(serializers.ModelSerializer):
 
 
 class PublicFieldSerializer(FieldSerializer):
+    include_field_extensions = False
+
     table_id = serializers.SerializerMethodField()
     database_id = serializers.SerializerMethodField()
     workspace_id = serializers.SerializerMethodField()
