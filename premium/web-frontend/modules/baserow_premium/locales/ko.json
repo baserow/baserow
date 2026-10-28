@@ -384,7 +384,8 @@
     "chart": {
         "other": "기타",
         "true": "참",
-        "false": "거짓"
+        "false": "거짓",
+        "empty": "비어 있음"
     },
     "generateAIValuesModal": {
         "title": "모든 AI 값 생성",
@@ -447,13 +448,21 @@
         "lineChart": "선",
         "pieChart": "원형",
         "doughnutChart": "도넛",
-        "polarAreaChart": "극좌표 영역"
+        "polarAreaChart": "극좌표 영역",
+        "seriesColor": "색상",
+        "automaticColor": "자동 색상 사용"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "그룹화 기준",
         "groupByNone": "없음",
         "groupByRowId": "행 ID",
-        "rowIdDisabledTooltip": "기본 필드에 여러 값이 포함될 수 있어 현재 행 ID로 그룹화할 수 없습니다."
+        "rowIdDisabledTooltip": "기본 필드에 여러 값이 포함될 수 있어 현재 행 ID로 그룹화할 수 없습니다.",
+        "groupedByField": "{field}별로 그룹화됨",
+        "bucketLimit": "최대 버킷 수",
+        "bucketLimitHelp": "기타 버킷을 포함합니다. 서버 최댓값({max})을 사용하려면 비워 두세요.",
+        "modeLabel": "다중 선택 항목 그룹화",
+        "completeSelection": "전체 선택 항목",
+        "eachOption": "선택된 각 옵션"
     },
     "aggregationSortByForm": {
         "sortByFieldLabel": "정렬 기준",
@@ -464,5 +473,8 @@
     "aiProviderModelFeature": {
         "aiFields": "AI 필드",
         "aiFieldsDescription": "AI 필드의 값을 생성합니다."
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "공유 대시보드에서 Baserow 로고 숨기기"
     }
 }
