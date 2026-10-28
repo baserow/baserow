@@ -190,7 +190,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref, toRef, watch } from 'vue'
+import { computed, nextTick, provide, reactive, ref, toRef, watch } from 'vue'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
@@ -210,6 +210,8 @@ const state = reactive({
 })
 const configurationOpen = ref(true)
 provideNow()
+// Configuration sections read the Agent's workspace from here.
+provide('agentApplication', agent)
 const showChatIntro = computed(
   () =>
     !state.currentHistory?.items.length &&

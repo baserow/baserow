@@ -11,6 +11,7 @@ from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
 )
+from baserow.core.models import Agent
 
 from .utils import agent_url
 
@@ -172,6 +173,72 @@ def test_configuration_update_rejects_invalid_values(
 
 
 @pytest.mark.django_db
+def test_run_as_identity_is_set_reported_and_cleared(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    url = agent_url(agent, "configuration")
+    run_as = {"type": "core.Agent", "id": identity.id, "name": "Investor"}
+
+    response = api_client.patch(
+        url, {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id}
+    )
+    assert response.json()["run_as"] == {**run_as, "trashed": False}
+
+    identity.trashed = True
+    identity.save()
+    assert api_client.get(url).json()["run_as"] == {**run_as, "trashed": True}
+
+    identity.delete()
+    assert api_client.get(url).json()["run_as"] is None
+
+    response = api_client.patch(
+        url, {"run_as_subject_type": None, "run_as_subject_id": None}
+    )
+    agent.refresh_from_db()
+    assert (response.status_code, agent.run_as_subject_id) == (200, None)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "case,error",
+    [
+        ("other-workspace", "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST"),
+        ("trashed", "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST"),
+        ("user", "ERROR_REQUEST_BODY_VALIDATION"),
+        ("id-only", "ERROR_REQUEST_BODY_VALIDATION"),
+    ],
+)
+def test_run_as_rejects_subjects_the_agent_cannot_act_as(
+    data_fixture, configured_agent, api_client, api_user, case, error
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(
+        workspace=(
+            data_fixture.create_workspace()
+            if case == "other-workspace"
+            else agent.workspace
+        ),
+        name="Investor",
+        trashed=case == "trashed",
+    )
+    values = (
+        {"run_as_subject_type": "auth.User", "run_as_subject_id": api_user.id}
+        if case == "user"
+        else {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id}
+    )
+    if case == "id-only":
+        del values["run_as_subject_type"]
+
+    response = api_client.patch(agent_url(agent, "configuration"), values)
+
+    assert (response.status_code, response.json()["error"]) == (400, error)
+    agent.refresh_from_db()
+    assert agent.run_as_subject_id is None
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("endpoint", ["agent", "workspace"])
 def test_agent_payload_includes_only_public_readiness(
     configured_agent, api_client, api_user, endpoint
@@ -227,6 +294,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "instructions": "PRIVATE",
         "provider_type": "openai",
         "model_identifier": "test-model",
+        "run_as": None,
         "errors": {},
     }
     assert response.json() == configuration

@@ -40,6 +40,35 @@ class AgentApplicationType(ApplicationType):
             and not import_export_config.exclude_sensitive_data
         )
 
+    @staticmethod
+    def _imported_run_as(
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+    ) -> tuple[str | None, int | None]:
+        """
+        Keep the identity only in internal copies that stay in its workspace.
+
+        :param workspace: The workspace the Agent is imported into, or None for a
+            snapshot, which keeps the identity for its restore.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :return: The run-as type and id to save.
+        """
+
+        run_as = (
+            serialized_values.get("run_as_subject_type"),
+            serialized_values.get("run_as_subject_id"),
+        )
+        # Ids from another instance or template could match unrelated identities.
+        if not import_export_config.is_duplicate or import_export_config.is_template:
+            return None, None
+        if workspace is None or AgentHandler().is_run_as_subject_usable(
+            *run_as, workspace
+        ):
+            return run_as
+        return None, None
+
     def get_api_urls(self) -> list[URLResolver]:
         from baserow.contrib.agent.api import urls as api_urls
 
@@ -92,6 +121,8 @@ class AgentApplicationType(ApplicationType):
             instructions=application.instructions,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
+            run_as_subject_type=application.run_as_subject_type,
+            run_as_subject_id=application.run_as_subject_id,
         )
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
@@ -123,6 +154,9 @@ class AgentApplicationType(ApplicationType):
         application.instructions = serialized_values.get("instructions", "")
         application.provider_type = serialized_values.get("provider_type") or None
         application.model_identifier = serialized_values.get("model_identifier") or None
+        application.run_as_subject_type, application.run_as_subject_id = (
+            self._imported_run_as(workspace, serialized_values, import_export_config)
+        )
         application.save()
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

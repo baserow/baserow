@@ -13,7 +13,11 @@ export default (client) => ({
   getConfiguration(agentId) {
     return client.get(`/agent/${agentId}/configuration/`)
   },
-  updateConfiguration(agentId, values) {
+  updateConfiguration(agentId, { run_as: runAs, ...values }) {
+    if (runAs !== undefined) {
+      values.run_as_subject_type = runAs?.type ?? null
+      values.run_as_subject_id = runAs?.id ?? null
+    }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
   getConversations(agentId, page = 1, realtimeRecovery = false) {
