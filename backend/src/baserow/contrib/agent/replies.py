@@ -28,27 +28,26 @@ if TYPE_CHECKING:
 
 def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
     """
-    Pair earlier prompts and replies as model history, marking unfinished ones.
+    Turn earlier prompts and replies into model history, marking replies that did
+    not complete.
 
     :param messages: Earlier messages of the conversation, oldest first.
-    :return: The history; a reply whose prompt fell outside the window is left
+    :return: The history; replies before the first prompt in the window are left
         out, so it always starts with a prompt.
     """
 
-    pairs: list[list[AgentMessage | None]] = []
+    history: list[ModelMessage] = []
     for message in messages:
         if message.role == AgentMessage.Role.USER:
-            pairs.append([message, None])
-        elif pairs and pairs[-1][1] is None:
-            pairs[-1][1] = message
-    history: list[ModelMessage] = []
-    for prompt, reply in pairs:
-        history.append(ModelRequest(parts=[UserPromptPart(content=prompt.content)]))
-        text = reply.content if reply else ""
-        if reply and reply.status != AgentMessage.Status.COMPLETED:
-            text = f"{text}\n\n{INTERRUPTED_REPLY_NOTE}".strip()
-        if text:
-            history.append(ModelResponse(parts=[TextPart(content=text)]))
+            history.append(
+                ModelRequest(parts=[UserPromptPart(content=message.content)])
+            )
+        elif history:
+            text = message.content
+            if message.status != ChatRunStatus.COMPLETED:
+                text = f"{text}\n\n{INTERRUPTED_REPLY_NOTE}".strip()
+            if text:
+                history.append(ModelResponse(parts=[TextPart(content=text)]))
     return history
 
 
@@ -146,7 +145,8 @@ class AgentResponder:
                 self._result = await result.get_output()
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
-        if self._result is not None:
+        # A blank answer is no reply, and some providers reject it in the history.
+        if self._result is not None and self._result.strip():
             return ChatRunOutcome(ChatRunStatus.COMPLETED, result=self._result)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
             return ChatRunOutcome(ChatRunStatus.CANCELLED, result=self._text)

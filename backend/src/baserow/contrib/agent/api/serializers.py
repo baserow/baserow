@@ -72,9 +72,17 @@ class AgentConfigurationUpdateSerializer(
 
 
 class AgentConversationSerializer(serializers.ModelSerializer):
+    run_id = serializers.SerializerMethodField(
+        help_text="The run writing a reply in this conversation, or null."
+    )
+
     class Meta:
         model = AgentConversation
-        fields = ("id", "uuid", "title", "created_on", "updated_on")
+        fields = ("id", "uuid", "title", "created_on", "updated_on", "run_id")
+
+    @extend_schema_field(serializers.UUIDField(allow_null=True))
+    def get_run_id(self, conversation: AgentConversation) -> UUID | None:
+        return self.context.get("conversation_runs", {}).get(conversation.id)
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):

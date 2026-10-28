@@ -13,11 +13,15 @@ from baserow.core.chat_runs.registries import ChatRunType
 from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
+from baserow.core.models import Workspace
 
+from .api.serializers import AgentMessageSerializer
 from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
 from .exceptions import AgentConversationDoesNotExist, AgentNotReady
 from .handler import AgentHandler
 from .replies import AgentResponder, create_reply_model
+from .service import AgentService
+from .signals import agent_conversation_updated
 from .types import AgentReplyRequest
 
 if TYPE_CHECKING:
@@ -34,13 +38,15 @@ class AgentChatRunType(ChatRunType):
 
         return None
 
-    def get_max_active_runs_per_workspace(self) -> int | None:
+    def get_max_active_runs_per_workspace(self, workspace: Workspace) -> int | None:
+        """A plugin can replace this run type to set the limit per plan."""
+
         return settings.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE
 
     def can_read(self, user: AbstractUser, run: ChatRun) -> bool:
         """Only the owner, while they may still read the Agent's conversations."""
 
-        return AgentHandler().can_read_conversation(user, run.chat_id)
+        return AgentService().can_read_conversation(user, run.chat_id)
 
     def can_cancel(self, user: AbstractUser, run: ChatRun) -> bool:
         return self.can_read(user, run)
@@ -71,12 +77,12 @@ class AgentChatRunType(ChatRunType):
         return await AgentResponder(request, journal, model, model_settings).answer()
 
     def _prepare(self, run: ChatRun) -> tuple[AgentReplyRequest, Model, dict]:
-        request = AgentHandler().prepare_reply(run)
+        request = AgentService().prepare_reply(run.context["reply_id"])
         return (request, *create_reply_model(request))
 
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict | None:
-        return AgentHandler().finish_reply(
-            run.context["reply_id"], outcome.status, outcome.error_code, outcome.result
+        return self._finish_reply(
+            run, outcome.status, outcome.error_code, outcome.result
         )
 
     def on_run_lost(
@@ -85,16 +91,38 @@ class AgentChatRunType(ChatRunType):
         """Keep the text the user already saw."""
 
         text = fold_output(events)["text"] if events else ""
-        return AgentHandler().finish_reply(
-            run.context["reply_id"], run.status, run.error_code, text
-        )
+        return self._finish_reply(run, run.status, run.error_code, text)
 
     def on_run_not_started(self, run: ChatRun) -> dict | None:
-        return AgentHandler().finish_reply(
-            run.context["reply_id"], run.status, run.error_code, None
-        )
+        return self._finish_reply(run, run.status, run.error_code, None)
 
     def ensure_interruption_warning(self, run: ChatRun) -> None:
         """Mark the reply interrupted unless it already ended: it may run twice."""
 
-        AgentHandler().mark_reply_interrupted(run.context["reply_id"])
+        conversation = AgentHandler().mark_reply_interrupted(run.context["reply_id"])
+        if conversation is not None:
+            agent_conversation_updated.send(self, conversation=conversation, user=None)
+
+    def _finish_reply(
+        self, run: ChatRun, status: str, error_code: str, text: str | None
+    ) -> dict | None:
+        """
+        Save how the reply ended and tell all the owner's sessions.
+
+        :param run: The run that wrote the reply.
+        :param status: The final status.
+        :param error_code: Why the reply failed, or an empty string.
+        :param text: What the reply produced, or None when it never started.
+        :return: The saved reply as the messages list shows it, so followers don't
+            read it again, or None when the reply no longer exists.
+        """
+
+        reply = AgentHandler().finish_reply(
+            run.context["reply_id"], status, error_code, text
+        )
+        if reply is None:
+            return None
+        agent_conversation_updated.send(
+            self, conversation=reply.conversation, user=None
+        )
+        return dict(AgentMessageSerializer(reply).data)

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.mixins import BigAutoFieldMixin, CreatedAndUpdatedOnMixin
 from baserow.core.models import Application
 
@@ -49,13 +50,6 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         ASSISTANT = "assistant", "Assistant"
         SYSTEM = "system", "System"
 
-    class Status(models.TextChoices):
-        QUEUED = "queued", "Queued"
-        RUNNING = "running", "Running"
-        COMPLETED = "completed", "Completed"
-        CANCELLED = "cancelled", "Cancelled"
-        FAILED = "failed", "Failed"
-
     conversation = models.ForeignKey(
         AgentConversation, on_delete=models.CASCADE, related_name="messages"
     )
@@ -65,7 +59,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     )
     content = models.TextField()
     # Only the agent's replies have one.
-    status = models.CharField(max_length=16, choices=Status.choices, null=True)
+    status = models.CharField(max_length=16, choices=ChatRunStatus.choices, null=True)
     error_code = models.CharField(max_length=64, blank=True, default="", db_default="")
 
     class Meta:
