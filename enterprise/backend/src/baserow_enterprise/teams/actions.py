@@ -17,8 +17,8 @@ from baserow_enterprise.teams.handler import TeamHandler
 
 TEAM_CONTEXT = _('in team "%(team_name)s" (%(team_id)s) ')
 
-# None of the team actions are undoable, like role assignments and workspace
-# invitations: undoing them would add or remove someone's access without asking.
+# None of the team actions are undoable, like workspace invitations: undoing them
+# would add or remove someone's access without asking.
 
 
 class CreateTeamActionType(ActionType):

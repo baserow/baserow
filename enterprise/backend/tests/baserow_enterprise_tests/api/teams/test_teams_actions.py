@@ -54,7 +54,7 @@ def test_creating_team_cannot_be_undone(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_updating_team_cannot_be_undone(data_fixture, enterprise_data_fixture):
+def test_updating_team_cannot_be_undone(data_fixture):
     session_id = "session-id"
     role_viewer = Role.objects.get(uid="VIEWER")
     role_builder = Role.objects.get(uid="BUILDER")

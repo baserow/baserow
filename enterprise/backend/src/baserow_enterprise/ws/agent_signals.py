@@ -10,7 +10,6 @@ from baserow_enterprise.signals import (
     team_restored,
     team_subject_created,
     team_subject_deleted,
-    team_subject_restored,
     team_updated,
 )
 from baserow_enterprise.teams.models import TeamSubject
@@ -33,9 +32,8 @@ def notify_agents_after_team_change(workspace, agent_ids):
 
 @receiver(team_subject_created)
 @receiver(team_subject_deleted)
-@receiver(team_subject_restored)
 def agent_team_membership_changed(sender, subject, **kwargs):
-    """Refresh an agent when its team membership is added, removed or restored."""
+    """Refresh an agent when its team membership is added or removed."""
 
     if subject.subject_type_id == AgentSubjectType().get_content_type().id:
         notify_agents_after_team_change(subject.team.workspace, [subject.subject_id])
