@@ -13,7 +13,6 @@
         :key="col.key"
         class="data-table__table-cell"
         :class="{
-          'data-table__table-cell--expansion': col.isExpansionColumn,
           'data-table__table-cell--sticky-left': col.stickyLeft,
           'data-table__table-cell--sticky-right': col.stickyRight,
           [`data-table__table-cell--${col.key}`]: true,
@@ -23,7 +22,6 @@
         <div class="data-table__table-cell-content">
           <component
             :is="col.cellComponent"
-            v-if="!col.isExpansionColumn"
             :row="row"
             :column="col"
             v-bind="cellAttrs"
@@ -33,7 +31,9 @@
             @refresh="$emit('refresh', $event)"
           />
           <button
-            v-if="expandable && col.isExpansionColumn"
+            v-if="
+              expandable && col.key === (expandColumnKey || columns[0]?.key)
+            "
             type="button"
             class="data-table__expand"
             :aria-label="
@@ -72,6 +72,7 @@ const props = defineProps({
   cellAttrs: { type: Object, default: () => ({}) },
   expandable: { type: Boolean, default: false },
   expanded: { type: Boolean, default: false },
+  expandColumnKey: { type: String, default: null },
 })
 const emit = defineEmits([
   'row-context',

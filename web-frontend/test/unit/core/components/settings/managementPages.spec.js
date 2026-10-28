@@ -67,9 +67,15 @@ describe('Management pages', () => {
         'managementPages.you'
       )
       expect(wrapper.get('tbody').text()).toContain('alex@example.com')
-      expect(wrapper.get('tbody').text()).toContain(
-        'twoFactorAuthField.enabled'
+      expect(wrapper.get('.management-table__boolean').element.checked).toBe(
+        true
       )
+      expect(wrapper.get('.management-table__boolean').element.disabled).toBe(
+        true
+      )
+      expect(
+        wrapper.get('.management-table__boolean').attributes('aria-label')
+      ).toBe('twoFactorAuthField.enabled')
       expect(
         wrapper.get('.member-role-field__link').attributes('disabled')
       ).toBeDefined()

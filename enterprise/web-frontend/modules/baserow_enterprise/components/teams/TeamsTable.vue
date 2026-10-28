@@ -2,6 +2,8 @@
   <div>
     <CrudTable
       ref="crudTable"
+      class="management-table"
+      v-bind="tableLayout"
       :service="service"
       :columns="columns"
       row-id-key="id"
@@ -85,6 +87,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 import UpdateTeamModal from '@baserow_enterprise/components/teams/UpdateTeamModal'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
@@ -119,6 +122,13 @@ export default {
     }
   },
   computed: {
+    tableLayout() {
+      const layout = getManagementTableLayout(this.columns, 'default_role')
+      layout.columnWidths.name = '40%'
+      layout.columnWidths.default_role = 'auto'
+      layout.columnWidths.subject_sample = '120px'
+      return layout
+    },
     rowExpansion() {
       return getSubjectRoleAssignmentsRowExpansion({
         subjectType: 'baserow_enterprise.Team',
@@ -183,7 +193,7 @@ export default {
             workspaceId: this.workspace.id,
             scopeType: 'workspace',
           },
-          1,
+          '',
           this.$t('teamsTable.roleHelpText')
         ),
         new CrudTableColumn(

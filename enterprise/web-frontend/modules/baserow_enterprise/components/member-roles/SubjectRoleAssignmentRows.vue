@@ -23,13 +23,17 @@
             rounded
             class="subject-role-assignments__icon"
           />
-          <span class="subject-role-assignments__name">{{ item.name }}</span>
+          <span class="subject-role-assignments__name" :title="item.name">{{
+            item.name
+          }}</span>
           <span class="subject-role-assignments__separator" aria-hidden="true"
             >·</span
           >
-          <span class="subject-role-assignments__location">{{
-            item.location
-          }}</span>
+          <span
+            class="subject-role-assignments__location"
+            :title="item.location"
+            >{{ item.location }}</span
+          >
         </div>
       </td>
       <td class="data-table__table-cell">

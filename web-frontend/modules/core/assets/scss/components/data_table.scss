@@ -392,7 +392,20 @@ thead + .data-table__row-group .data-table__table-cell-content {
   }
 }
 
-// Let the disclosure column share available space after its button.
-.data-table__table-cell--expansion {
-  white-space: nowrap;
+.data-table__table--fixed {
+  table-layout: fixed;
+
+  .data-table__table-cell-content > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  // Text fields opt into clipping; avatar groups must retain visible overflow.
+  .data-table__text-field {
+    @extend %ellipsis;
+  }
+}
+
+.data-table__body--fixed {
+  scrollbar-gutter: stable;
 }

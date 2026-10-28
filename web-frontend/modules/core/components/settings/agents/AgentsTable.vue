@@ -1,6 +1,8 @@
 <template>
   <CrudTable
+    v-bind="tableLayout"
     ref="table"
+    class="management-table management-table--agents"
     :service="service"
     :columns="columns"
     row-id-key="id"
@@ -63,6 +65,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
@@ -81,6 +84,15 @@ export default {
     return { focusedAgentId: null }
   },
   computed: {
+    tableLayout() {
+      const layout = getManagementTableLayout(this.columns, 'role_uid')
+      layout.columnWidths.name = 'max(200px, 40cqw)'
+      layout.columnWidths.role_uid = 'auto'
+      layout.columnWidths.teams = 'clamp(80px, 10cqw, 120px)'
+      layout.columnWidths.last_active = 'clamp(96px, 10cqw, 160px)'
+      layout.minTableWidth = '800px'
+      return layout
+    },
     /**
      * How an agent's row expands into more rows, as given by the first active
      * extension offering it, or null.
@@ -164,12 +176,6 @@ export default {
           }
         ),
         new CrudTableColumn(
-          'last_active',
-          this.$t('agents.lastActive'),
-          AgentLastActiveField,
-          true
-        ),
-        new CrudTableColumn(
           'role_uid',
           this.$t('agents.workspaceRole'),
           AgentRoleField,
@@ -179,8 +185,7 @@ export default {
           {
             roles: this.roles,
             workspace: this.workspace,
-          },
-          1
+          }
         ),
       ]
       for (const extension of Object.values(
@@ -192,6 +197,14 @@ export default {
           })
         }
       }
+      columns.push(
+        new CrudTableColumn(
+          'last_active',
+          this.$t('agents.lastActive'),
+          AgentLastActiveField,
+          true
+        )
+      )
       if (this.canManage)
         columns.push(
           new CrudTableColumn(null, null, MoreField, false, false, true)

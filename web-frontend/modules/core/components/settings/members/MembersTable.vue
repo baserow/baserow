@@ -1,7 +1,9 @@
 <template>
   <div>
     <CrudTable
+      v-bind="tableLayout"
       ref="crudTable"
+      class="management-table"
       :service="service"
       :columns="columns"
       row-id-key="id"
@@ -89,6 +91,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -99,7 +102,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
-import TwoFactorAuthField from '@baserow/modules/core/components/crudTable/fields/TwoFactorAuthField'
+import MemberTwoFactorAuthField from '@baserow/modules/core/components/settings/members/MemberTwoFactorAuthField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
@@ -128,6 +131,12 @@ export default {
     }
   },
   computed: {
+    tableLayout() {
+      return getManagementTableLayout(
+        this.columns,
+        this.rowExpansion?.columnKey || 'permissions'
+      )
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     canInvite() {
       return this.$hasPermission(
@@ -224,7 +233,7 @@ export default {
         new CrudTableColumn(
           'two_factor_auth',
           this.$t('membersSettings.membersTable.columns.2fa'),
-          TwoFactorAuthField,
+          MemberTwoFactorAuthField,
           false
         ),
         new CrudTableColumn(null, null, MoreField, false, false, true),
