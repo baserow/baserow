@@ -5475,6 +5475,10 @@ export class PasswordFieldType extends FieldType {
     return true
   }
 
+  canBeDefaultValue() {
+    return false
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('fieldType.password')

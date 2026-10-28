@@ -196,17 +196,6 @@ class DatabaseApplicationType(ApplicationType):
                     row_queryset = row_queryset.select_related("created_by")
                 if table.last_modified_by_column_added:
                     row_queryset = row_queryset.select_related("last_modified_by")
-                # A user template never carries the values of write-only fields,
-                # like password hashes, so they are exported empty.
-                emptied_field_names = (
-                    {
-                        field_object["name"]
-                        for field_object in model._field_objects.values()
-                        if field_object["type"].write_only
-                    }
-                    if import_export_config.is_user_template
-                    else set()
-                )
                 for row in row_queryset:
                     serialized_row = DatabaseExportSerializedStructure.row(
                         id=row.id,
@@ -218,10 +207,15 @@ class DatabaseApplicationType(ApplicationType):
                     )
                     for field_object in model._field_objects.values():
                         field_name = field_object["name"]
-                        if field_name in emptied_field_names:
+                        field_type = field_object["type"]
+                        # A user template never carries the values of write-only
+                        # fields, like password hashes, so they are exported empty.
+                        if (
+                            import_export_config.is_user_template
+                            and field_type.write_only
+                        ):
                             serialized_row[field_name] = None
                             continue
-                        field_type = field_object["type"]
                         serialized_row[field_name] = (
                             field_type.get_export_serialized_value(
                                 row, field_name, table_cache, files_zip, storage

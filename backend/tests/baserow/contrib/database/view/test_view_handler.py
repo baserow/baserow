@@ -4895,46 +4895,57 @@ def test_export_import_view_with_default_values(data_fixture):
     assert record.value == "export test"
 
 
-def _default_on_a_field_converted_to_password(user, view, field):
-    FieldHandler().update_field(user, field, new_type_name="password")
-    return "text"
+@pytest.mark.django_db
+def test_update_view_default_values_rejects_write_only_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    password_field = data_fixture.create_password_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    for item in [
+        {"field": password_field.id, "enabled": True, "value": "secret"},
+        {"field": password_field.id, "enabled": False},
+    ]:
+        with pytest.raises(ValidationError):
+            ViewHandler().update_view_default_values(
+                user=user,
+                view=view,
+                items=[{"field": text_field.id, "enabled": True}, item],
+            )
+
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
 
 
-def _default_on_a_password_field_converted_to_text(user, view, field):
-    FieldHandler().update_field(user, field, new_type_name="password")
-    # Stores the value again, now for a password field. The update replaces every
-    # entry of the view, so the other entries are sent along.
-    others = [
-        {"field": entry.field_id, "enabled": entry.enabled, "value": entry.value}
-        for entry in ViewDefaultValue.objects.filter(view=view).exclude(field=field)
-    ]
-    ViewHandler().update_view_default_values(
-        user=user,
-        view=view,
-        items=[*others, {"field": field.id, "enabled": True, "value": "secret"}],
+@pytest.mark.django_db
+def test_row_creation_ignores_default_values_of_write_only_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    password_field = data_fixture.create_password_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+    ViewDefaultValue.objects.create(
+        view=view, field=text_field, value="keep me", field_type="text"
     )
-    FieldHandler().update_field(user, field, new_type_name="text")
-    return "password"
+    # Stored before password fields lost their default values.
+    ViewDefaultValue.objects.create(
+        view=view, field=password_field, value="secret", field_type="password"
+    )
 
+    row = RowHandler().create_row(user, table, {}, view=view)
 
-def _default_on_a_trashed_field(user, view, field):
-    FieldHandler().update_field(user, field, new_type_name="password")
-    FieldHandler().delete_field(user, field)
-    return "text"
+    assert getattr(row, text_field.db_column) == "keep me"
+    assert getattr(row, password_field.db_column) is None
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "make_secret_default",
-    [
-        _default_on_a_field_converted_to_password,
-        _default_on_a_password_field_converted_to_text,
-        _default_on_a_trashed_field,
-    ],
-    ids=["current_type", "stale_type", "missing_field"],
+    "config",
+    [user_template_copy_config(), ImportExportConfig(include_permission_data=True)],
+    ids=["user_template", "other"],
 )
-def test_user_template_export_leaves_out_write_only_default_values(
-    data_fixture, make_secret_default
+def test_export_import_leaves_out_default_values_of_write_only_fields(
+    data_fixture, config
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -4949,55 +4960,44 @@ def test_user_template_export_leaves_out_write_only_default_values(
             {"field": secret_field.id, "enabled": True, "value": "secret"},
         ],
     )
-    stored_type = make_secret_default(user, view, secret_field)
-    assert (
-        ViewDefaultValue.objects.get(view=view, field_id=secret_field.id).field_type
-        == stored_type
-    )
+    FieldHandler().update_field(user, secret_field, new_type_name="password")
     view = View.objects.get(id=view.id).specific
     view_type = view_type_registry.get_by_model(view)
 
-    def export(config):
-        return view_type.export_serialized(view, config, {})["default_row_values"]
+    serialized = view_type.export_serialized(view, config, {})
 
-    template_defaults = export(user_template_copy_config())
-    assert list(template_defaults) == [str(note_field.id)]
-    assert template_defaults[str(note_field.id)]["value"] == "keep me"
-
-    # Other exports keep every entry.
-    defaults = export(ImportExportConfig(include_permission_data=True))
-    assert set(defaults) == {str(note_field.id), str(secret_field.id)}
-    assert defaults[str(note_field.id)] == {
-        "field_id": note_field.id,
-        "enabled": True,
-        "value": "keep me",
-        "function": None,
-        "field_type": "text",
+    assert serialized["default_row_values"] == {
+        str(note_field.id): {
+            "field_id": note_field.id,
+            "enabled": True,
+            "value": "keep me",
+            "function": None,
+            "field_type": "text",
+        }
     }
-    secret_default = defaults[str(secret_field.id)]
-    assert secret_default["field_id"] == secret_field.id
-    assert secret_default["enabled"] is True
-    assert secret_default["field_type"] == stored_type
 
-
-@pytest.mark.django_db
-def test_user_template_export_with_unknown_stored_default_field_type(data_fixture):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    field = data_fixture.create_text_field(table=table)
-    view = data_fixture.create_grid_view(user=user, table=table)
-    ViewDefaultValue.objects.create(
-        view=view, field=field, value="keep me", field_type="not_registered"
+    # An export made before password fields lost their default values.
+    serialized["default_row_values"][str(secret_field.id)] = {
+        "field_id": secret_field.id,
+        "enabled": True,
+        "value": "secret",
+        "function": None,
+        "field_type": "password",
+    }
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
     )
-    view_type = view_type_registry.get_by_model(view)
 
-    serialized = view_type.export_serialized(view, user_template_copy_config(), {})
-
-    assert serialized["default_row_values"][str(field.id)]["value"] == "keep me"
-    assert (
-        serialized["default_row_values"][str(field.id)]["field_type"]
-        == "not_registered"
-    )
+    assert list(
+        ViewDefaultValue.objects.filter(view=imported_view).values_list(
+            "field_id", "value"
+        )
+    ) == [(note_field.id, "keep me")]
 
 
 @pytest.mark.django_db
@@ -5385,7 +5385,7 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:

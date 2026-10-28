@@ -1,5 +1,4 @@
 from django.contrib.auth.hashers import check_password, make_password
-from django.db import transaction
 from django.urls import reverse
 
 import pytest
@@ -14,8 +13,6 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.models import RowHistory
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import ExportApplicationsActionType
@@ -729,15 +726,8 @@ def test_password_values_are_kept_outside_user_templates(data_fixture, copy):
     table = data_fixture.create_database_table(database=database)
     data_fixture.create_text_field(table=table, name="Name", primary=True)
     password_field = data_fixture.create_password_field(table=table, name="Password")
-    view = data_fixture.create_grid_view(table=table)
     password = make_password("test")
     table.get_model().objects.create(**{password_field.db_column: password})
-    with transaction.atomic():
-        ViewHandler().update_view_default_values(
-            user,
-            view,
-            [{"field": password_field.id, "enabled": True, "value": "default"}],
-        )
 
     copied_table = copy(data_fixture, user, table)
 
@@ -748,7 +738,3 @@ def test_password_values_are_kept_outside_user_templates(data_fixture, copy):
     )
     assert copied_value == password
     assert check_password("test", copied_value)
-    copied_default = ViewDefaultValue.objects.get(
-        view__table=copied_table, field=copied_field
-    )
-    assert copied_default.enabled is True

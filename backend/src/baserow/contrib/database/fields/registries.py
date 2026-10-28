@@ -205,11 +205,12 @@ class FieldType(
     write_only = False
     """
     Indicates whether the stored value must never be handed back, as the password
-    field's hash must not be. Serializers and file exports mask such a value
-    already; this marks it for the paths that read the column itself.
+    field's hash must not be. Serializers and table and view exports, like CSV,
+    Excel and JSON, mask such a value already; this marks it for the paths that read
+    the column itself.
     User-template copies (`ImportExportConfig.is_user_template`) leave out the values
-    of such fields and their view default values, while other serialized copies,
-    like workspace exports and duplicates, keep them.
+    of such fields, while other serialized copies, like workspace exports and
+    duplicates, keep them. Such fields can't have view default values.
     """
 
     keep_data_on_duplication = True
