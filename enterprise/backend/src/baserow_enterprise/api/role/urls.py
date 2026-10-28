@@ -6,6 +6,7 @@ from .views import (
     RoleAssignmentsView,
     ScopedInvitationsView,
     ScopedInvitationView,
+    SubjectRoleAssignmentsView,
 )
 
 app_name = "baserow_enterprise.api.role"
@@ -25,6 +26,11 @@ urlpatterns = [
         r"^(?P<workspace_id>[0-9]+)/effective-access/$",
         EffectiveAccessView.as_view(),
         name="effective_access",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/subject-role-assignments/$",
+        SubjectRoleAssignmentsView.as_view(),
+        name="subject_role_assignments",
     ),
     re_path(
         r"^(?P<workspace_id>[0-9]+)/invitations/$",

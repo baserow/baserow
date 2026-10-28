@@ -43,6 +43,40 @@ describe('CrudTable component', () => {
     })
   }
 
+  test('fixed layout accepts caller-defined widths for arbitrary columns', async () => {
+    const table = await mountCrudTable(
+      aService(
+        vi
+          .fn()
+          .mockResolvedValue(aPage([{ id: 1, label: 'Item', status: 'Ready' }]))
+      ),
+      {
+        fixedLayout: true,
+        columnWidths: { label: '35%', status: '120px' },
+        minTableWidth: '600px',
+        class: 'custom-table',
+        columns: [
+          new CrudTableColumn('label', 'Label', SimpleField),
+          new CrudTableColumn('status', 'Status', SimpleField),
+        ],
+      }
+    )
+    await flushPromises()
+    expect(table.classes()).toContain('custom-table')
+    expect(table.get('table').classes()).toContain('data-table__table--fixed')
+    expect(table.get('table').element.style.minWidth).toBe('600px')
+    expect(table.findAll('col').map((col) => col.element.style.width)).toEqual([
+      '35%',
+      '120px',
+    ])
+    expect(table.findAll('tbody .custom-table')).toHaveLength(0)
+    await table.setProps({ fixedLayout: false })
+    expect(table.find('colgroup').exists()).toBe(false)
+    expect(table.get('table').classes()).not.toContain(
+      'data-table__table--fixed'
+    )
+  })
+
   test('empty tables keep the title, search, action and menus mounted', async () => {
     const crudTable = await mountCrudTable(
       aService(vi.fn().mockResolvedValue(aPage([]))),
@@ -313,7 +347,7 @@ describe('CrudTable component', () => {
     expect(table.find('.data-table__expanded-rows').exists()).toBe(true)
   })
 
-  test('the toggle can be placed in another column with custom content', async () => {
+  test('the toggle shares the configured column with its role', async () => {
     const table = await mountCrudTable(
       aService(
         vi
@@ -331,6 +365,11 @@ describe('CrudTable component', () => {
     )
     await flushPromises()
     expect(table.find('td:first-child button').exists()).toBe(false)
+    expect(table.findAll('thead th').map((cell) => cell.text())).toEqual([
+      'Name',
+      'Role',
+    ])
+    expect(table.find('td:nth-child(2)').text()).toContain('Editor')
     const toggle = table.find('td:nth-child(2) button')
     expect(toggle.text()).toBe('+3')
     await toggle.trigger('click')

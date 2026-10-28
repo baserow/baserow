@@ -1,14 +1,28 @@
 <template>
   <div>
     <CrudTable
+      v-bind="tableLayout"
       ref="crudTable"
+      class="management-table"
       :service="service"
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('membersSettings.membersTable.search')"
+      :row-expandable="rowExpansion?.isExpandable"
+      :expand-column-key="rowExpansion?.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template v-if="rowExpansion" #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template v-if="rowExpansion" #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
       <template #title>
         {{
           $t('membersSettings.membersTable.title', {
@@ -77,6 +91,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -87,7 +102,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
-import TwoFactorAuthField from '@baserow/modules/core/components/crudTable/fields/TwoFactorAuthField'
+import MemberTwoFactorAuthField from '@baserow/modules/core/components/settings/members/MemberTwoFactorAuthField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
@@ -116,6 +131,12 @@ export default {
     }
   },
   computed: {
+    tableLayout() {
+      return getManagementTableLayout(
+        this.columns,
+        this.rowExpansion?.columnKey || 'permissions'
+      )
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     canInvite() {
       return this.$hasPermission(
@@ -158,6 +179,23 @@ export default {
     membersPagePlugins() {
       return Object.values(this.$registry.getAll('membersPagePlugins'))
     },
+    /**
+     * How a member's row expands into more rows, as given by the first active
+     * plugin offering it, or null.
+     */
+    rowExpansion() {
+      for (const plugin of this.membersPagePlugins) {
+        if (!plugin.isDeactivated(this.workspace.id)) {
+          const expansion = plugin.getRowExpansion({
+            workspace: this.workspace,
+          })
+          if (expansion) {
+            return expansion
+          }
+        }
+      }
+      return null
+    },
     columns() {
       let columns = [
         new CrudTableColumn(
@@ -195,7 +233,7 @@ export default {
         new CrudTableColumn(
           'two_factor_auth',
           this.$t('membersSettings.membersTable.columns.2fa'),
-          TwoFactorAuthField,
+          MemberTwoFactorAuthField,
           false
         ),
         new CrudTableColumn(null, null, MoreField, false, false, true),

@@ -1,7 +1,7 @@
 from typing import List, NamedTuple, Optional
 
 from baserow.core.types import ScopeObject, Subject
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.teams.models import Team
 
 
@@ -18,6 +18,20 @@ class NewRoleAssignment(NamedTuple):
     subject: Subject
     role: Role
     scope: ScopeObject
+
+
+class SubjectRoleAssignment(NamedTuple):
+    """
+    A role a subject holds on a database, table or view. `parent_scopes` are the
+    scopes the object is inside, from the outermost in, without the workspace.
+    `locked_by` is the scope, the workspace or one of the parents, on which the
+    subject holds the admin role themselves, which makes this role inert.
+    """
+
+    role_assignment: RoleAssignment
+    scope: ScopeObject
+    parent_scopes: List[ScopeObject]
+    locked_by: Optional[ScopeObject]
 
 
 class EffectiveAccess(NamedTuple):

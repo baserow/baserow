@@ -16,7 +16,9 @@
       size="large"
       aria-hidden="true"
     />
-    <span class="management-name-field__name">{{ row[column.key] }}</span>
+    <span class="management-name-field__name" :title="row[column.key]">{{
+      row[column.key]
+    }}</span>
     <Badge
       v-if="
         row.user_id != null && row.user_id === column.additionalProps.userId

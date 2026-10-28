@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.prefetch import GenericPrefetch
@@ -19,10 +20,12 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import Workspace, WorkspaceInvitation, WorkspaceUser
-from baserow.core.object_scopes import CoreObjectScopeType
+from baserow.core.object_scopes import CoreObjectScopeType, WorkspaceObjectScopeType
 from baserow.core.registries import (
+    ObjectScopeType,
     SubjectType,
     object_scope_type_registry,
+    permission_manager_type_registry,
     subject_type_registry,
 )
 from baserow.core.subjects import UserSubjectType
@@ -55,7 +58,7 @@ from .constants import (
     READ_ONLY_ROLE_UID,
     ROLE_ASSIGNABLE_OBJECT_MAP,
 )
-from .types import EffectiveAccess, NewRoleAssignment
+from .types import EffectiveAccess, NewRoleAssignment, SubjectRoleAssignment
 
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
 
@@ -96,6 +99,22 @@ def team_subjects_cache_key(subject_type_name: str, actor_ids: List[int]) -> str
 
     joined_actor_ids = "_".join(str(actor_id) for actor_id in actor_ids)
     return f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{subject_type_name}_{joined_actor_ids}"
+
+
+def get_assignable_scope_type(scope_object: ScopeObject) -> Optional[ObjectScopeType]:
+    """
+    Returns the scope type a role can be assigned on that the given object is
+    stored as, for instance the application scope type for a database.
+
+    :param scope_object: The object to return the scope type of.
+    :return: The scope type, or None when no role can be assigned on the object.
+    """
+
+    for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP:
+        scope_type = object_scope_type_registry.get(scope_type_name)
+        if isinstance(scope_object, scope_type.model_class):
+            return scope_type
+    return None
 
 
 def _clear_role_assignments_from_local_cache():
@@ -1502,6 +1521,224 @@ class RoleAssignmentHandler:
             result.append(EffectiveAccess(subject, role, source_scope, teams))
 
         return result
+
+    def get_subject_role_assignments(
+        self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
+    ) -> Dict[Subject, List[SubjectRoleAssignment]]:
+        """
+        Returns the roles the given users, agents or teams hold on databases, tables
+        and views of the workspace, as shown to the given user: only on objects whose
+        roles the user may read, not on objects in the trash, and on views only while
+        they are restricted, as a role on any other view has no effect.
+
+        A role is locked when the subject holds the admin role themselves on the
+        workspace or on a database or table the object is in, which makes the role
+        inert. A team's admin role never locks anything.
+
+        :param user: The user the roles are shown to.
+        :param workspace: The workspace the roles are held in.
+        :param subjects: The users, agents or teams to return the roles of.
+        :return: The roles of every given subject, grouped by the database they are
+            in, a database before its tables and a table before its views, then by
+            name.
+        """
+
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        result = {subject: [] for subject in subjects}
+        if not subjects:
+            return result
+
+        subjects_by_key = {}
+        subjects_q = Q(pk__in=[])
+        for subject in subjects:
+            subject_type = subject_type_registry.get_by_model(subject)
+            content_type_id = subject_type.get_content_type().id
+            subjects_by_key[(content_type_id, subject.id)] = subject
+        for content_type_id in {key[0] for key in subjects_by_key}:
+            subjects_q |= Q(
+                subject_type_id=content_type_id,
+                subject_id__in=[
+                    subject_id
+                    for subject_type_id, subject_id in subjects_by_key
+                    if subject_type_id == content_type_id
+                ],
+            )
+
+        scope_types = [
+            object_scope_type_registry.get(scope_type_name)
+            for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP
+            if scope_type_name != WorkspaceObjectScopeType.type
+        ]
+        scope_types_by_content_type_id = {
+            ContentType.objects.get_for_model(scope_type.model_class).id: scope_type
+            for scope_type in scope_types
+        }
+
+        def get_scope_key(scope_object):
+            return get_assignable_scope_type(scope_object).type, scope_object.id
+
+        role_assignments = list(
+            RoleAssignment.objects.filter(workspace=workspace)
+            .filter(subjects_q)
+            .filter(scope_type_id__in=scope_types_by_content_type_id.keys())
+            .exclude(role__uid__in=[NO_ROLE_LOW_PRIORITY_ROLE_UID, *INTERNAL_ROLE_UIDS])
+        )
+
+        scope_ids_per_content_type_id = defaultdict(set)
+        for role_assignment in role_assignments:
+            scope_ids_per_content_type_id[role_assignment.scope_type_id].add(
+                role_assignment.scope_id
+            )
+        scopes = {}
+        for content_type_id, scope_ids in scope_ids_per_content_type_id.items():
+            scope_type = scope_types_by_content_type_id[content_type_id]
+            for scope in scope_type.get_enhanced_queryset(include_trash=True).filter(
+                id__in=scope_ids
+            ):
+                scopes[(content_type_id, scope.id)] = scope
+
+        def get_parent_scopes(scope_object):
+            parents = []
+            parent = scope_object.get_parent()
+            while parent is not None and not isinstance(parent, Workspace):
+                # A database's parent is the application it is, the same scope.
+                if not parents or get_scope_key(parent) != get_scope_key(parents[0]):
+                    parents.insert(0, parent)
+                parent = parent.get_parent()
+            return parents
+
+        # The scopes on which each user or agent holds the admin role themselves.
+        admin_keys_per_subject_key = defaultdict(set)
+        for role_assignment in role_assignments:
+            subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
+            subject_type = subject_type_registry.get_by_model(
+                subjects_by_key[subject_key]
+            )
+            role = self.get_role_by_id(role_assignment.role_id)
+            scope = scopes.get(
+                (role_assignment.scope_type_id, role_assignment.scope_id)
+            )
+            if (
+                subject_type.has_direct_workspace_roles
+                and role.uid == ADMIN_ROLE_UID
+                and scope is not None
+            ):
+                admin_keys_per_subject_key[subject_key].add(get_scope_key(scope))
+        workspace_admin_subject_keys = set()
+        for subject_type in {
+            subject_type_registry.get_by_model(subject) for subject in subjects
+        }:
+            if not subject_type.has_direct_workspace_roles:
+                continue
+            content_type_id = subject_type.get_content_type().id
+            role_uids = subject_type.get_workspace_role_uids(
+                [
+                    subject
+                    for (type_id, _), subject in subjects_by_key.items()
+                    if type_id == content_type_id
+                ],
+                workspace,
+            )
+            workspace_admin_subject_keys.update(
+                (content_type_id, subject_id)
+                for subject_id, role_uid in role_uids.items()
+                if role_uid == ADMIN_ROLE_UID
+            )
+
+        listed = []
+        for role_assignment in role_assignments:
+            scope = scopes.get(
+                (role_assignment.scope_type_id, role_assignment.scope_id)
+            )
+            if scope is None:
+                continue
+            parent_scopes = get_parent_scopes(scope)
+            if any(
+                getattr(scope_object, "trashed", False)
+                for scope_object in [*parent_scopes, scope]
+            ):
+                continue
+            if (
+                get_scope_key(scope)[0] == "database_view"
+                and scope.ownership_type != RestrictedViewOwnershipType.type
+            ):
+                continue
+            listed.append((role_assignment, scope, parent_scopes))
+
+        # Only the roles on objects whose roles the user may read are shown.
+        checks = {}
+        for _, scope, _ in listed:
+            scope_key = get_scope_key(scope)
+            if scope_key not in checks:
+                checks[scope_key] = PermissionCheck(
+                    user, ROLE_ASSIGNABLE_OBJECT_MAP[scope_key[0]]["READ"], scope
+                )
+        permissions = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+
+        for role_assignment, scope, parent_scopes in listed:
+            if permissions[checks[get_scope_key(scope)]] is not True:
+                continue
+            subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
+            if subject_key in workspace_admin_subject_keys:
+                locked_by = workspace
+            else:
+                locked_by = next(
+                    (
+                        parent
+                        for parent in parent_scopes
+                        if get_scope_key(parent)
+                        in admin_keys_per_subject_key[subject_key]
+                    ),
+                    None,
+                )
+            result[subjects_by_key[subject_key]].append(
+                SubjectRoleAssignment(role_assignment, scope, parent_scopes, locked_by)
+            )
+
+        def get_sort_key(subject_role_assignment):
+            return [
+                (scope_object.name.lower(), scope_object.id)
+                for scope_object in [
+                    *subject_role_assignment.parent_scopes,
+                    subject_role_assignment.scope,
+                ]
+            ]
+
+        for subject_role_assignments in result.values():
+            subject_role_assignments.sort(key=get_sort_key)
+
+        return result
+
+    def count_subject_role_assignments(
+        self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
+    ) -> Dict[Subject, int]:
+        """
+        Counts the roles `get_subject_role_assignments` lists for every given subject,
+        so that a count always matches the listed roles. Nothing is counted when roles
+        don't apply to the workspace, without the RBAC licence for instance.
+
+        :param user: The user the roles are shown to.
+        :param workspace: The workspace the roles are held in.
+        :param subjects: The users, agents or teams to count the roles of.
+        :return: The number of listed roles per subject, or an empty dict when roles
+            don't apply to the workspace.
+        """
+
+        if (
+            "role" not in settings.PERMISSION_MANAGERS
+            or not permission_manager_type_registry.get("role").is_enabled(workspace)
+        ):
+            return {}
+
+        return {
+            subject: len(subject_role_assignments)
+            for subject, subject_role_assignments in self.get_subject_role_assignments(
+                user, workspace, subjects
+            ).items()
+        }
 
     @classmethod
     def is_workspace_level_assignment(

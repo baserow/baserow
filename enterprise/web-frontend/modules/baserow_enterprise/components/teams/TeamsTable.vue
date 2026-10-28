@@ -2,13 +2,27 @@
   <div>
     <CrudTable
       ref="crudTable"
+      class="management-table"
+      v-bind="tableLayout"
       :service="service"
       :columns="columns"
       row-id-key="id"
       :search-placeholder="$t('teamsTable.search')"
+      :row-expandable="rowExpansion.isExpandable"
+      :expand-column-key="rowExpansion.columnKey"
       @row-context="onRowContext"
       @edit-role-context="onEditRoleContext"
     >
+      <template #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
       <template #title="{ count }">
         {{
           $t('teamsTable.title', {
@@ -73,6 +87,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 import UpdateTeamModal from '@baserow_enterprise/components/teams/UpdateTeamModal'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
@@ -84,6 +99,7 @@ import ManagementNameField from '@baserow/modules/core/components/settings/Manag
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import EditTeamContext from '@baserow_enterprise/components/teams/EditTeamContext'
+import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
 
 export default {
   name: 'TeamsTable',
@@ -106,6 +122,19 @@ export default {
     }
   },
   computed: {
+    tableLayout() {
+      const layout = getManagementTableLayout(this.columns, 'default_role')
+      layout.columnWidths.name = '40%'
+      layout.columnWidths.default_role = 'auto'
+      layout.columnWidths.subject_sample = '120px'
+      return layout
+    },
+    rowExpansion() {
+      return getSubjectRoleAssignmentsRowExpansion({
+        subjectType: 'baserow_enterprise.Team',
+        columnKey: 'default_role',
+      })
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     service() {
       const service = TeamService(this.$client)
@@ -164,6 +193,7 @@ export default {
             workspaceId: this.workspace.id,
             scopeType: 'workspace',
           },
+          '',
           this.$t('teamsTable.roleHelpText')
         ),
         new CrudTableColumn(

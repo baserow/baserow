@@ -20,7 +20,9 @@ from baserow.api.errors import (
     ERROR_GROUP_DOES_NOT_EXIST,
     ERROR_USER_NOT_IN_GROUP,
 )
+from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
+from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
@@ -35,7 +37,10 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
-from baserow.core.registries import object_scope_type_registry
+from baserow.core.registries import (
+    object_scope_type_registry,
+    subject_type_registry,
+)
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import (
     get_user_remote_ip_address_from_request,
@@ -85,6 +90,8 @@ from .serializers import (
     OpenApiRoleAssignmentSerializer,
     RoleAssignmentSerializer,
     ScopedInvitationSerializer,
+    SubjectRoleAssignmentSerializer,
+    SubjectRoleAssignmentsQueryParametersSerializer,
     UpdateScopedInvitationSerializer,
 )
 
@@ -481,6 +488,114 @@ class EffectiveAccessView(APIView):
                 many=True,
                 context={"visible_team_ids": visible_team_ids},
             ).data
+        )
+
+
+class SubjectRoleAssignmentsPagination(LimitOffsetPagination):
+    default_limit = 10
+    max_limit = 100
+
+
+class SubjectRoleAssignmentsView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workspace the roles are held in.",
+            ),
+            OpenApiParameter(
+                name="subject_type",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The type of the subject: a user, an agent or a team.",
+            ),
+            OpenApiParameter(
+                name="subject_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="The id of the subject.",
+            ),
+            OpenApiParameter(
+                name="limit",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="How many roles to return, 10 by default and 100 at most.",
+            ),
+            OpenApiParameter(
+                name="offset",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="How many roles to skip.",
+            ),
+        ],
+        tags=["Role assignments"],
+        operation_id="list_subject_role_assignments",
+        description=(
+            "Lists the roles a user, agent or team holds on databases, tables and "
+            "restricted views of the workspace, limited to the objects whose roles "
+            "the requesting user may read. A role is locked when the subject is an "
+            "admin of the workspace, or of a database or table the object is in, "
+            "which makes the role have no effect."
+        ),
+        responses={
+            200: get_example_pagination_serializer_class(
+                SubjectRoleAssignmentSerializer,
+                serializer_name="SubjectRoleAssignmentPagination",
+            ),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_QUERY_PARAMETER_VALIDATION"]
+            ),
+            404: get_error_schema(
+                ["ERROR_GROUP_DOES_NOT_EXIST", "ERROR_SUBJECT_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            SubjectNotExist: ERROR_SUBJECT_DOES_NOT_EXIST,
+        }
+    )
+    @validate_query_parameters(
+        SubjectRoleAssignmentsQueryParametersSerializer, return_validated=True
+    )
+    def get(
+        self,
+        request: Request,
+        workspace_id: int,
+        query_params: Dict[str, Any],
+    ) -> Response:
+        workspace = CoreHandler().get_workspace(workspace_id)
+
+        LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, request.user, workspace)
+
+        subject_type = subject_type_registry.get(query_params["subject_type"])
+        CoreHandler().check_permissions(
+            request.user,
+            subject_type.options_list_operation_type,
+            workspace=workspace,
+            context=workspace,
+        )
+        subject = subject_type_registry.get_subject(
+            subject_type.type, query_params["subject_id"]
+        )
+        if (
+            subject is None
+            or not subject_type.are_in_workspace([subject], workspace)[0]
+        ):
+            raise SubjectNotExist()
+
+        subject_role_assignments = RoleAssignmentHandler().get_subject_role_assignments(
+            request.user, workspace, [subject]
+        )[subject]
+
+        paginator = SubjectRoleAssignmentsPagination()
+        page = paginator.paginate_queryset(subject_role_assignments, request, self)
+        return paginator.get_paginated_response(
+            SubjectRoleAssignmentSerializer(page, many=True).data
         )
 
 

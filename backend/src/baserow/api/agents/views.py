@@ -12,6 +12,7 @@ from baserow.api.agents.errors import (
 )
 from baserow.api.agents.serializers import (
     AgentListParamsSerializer,
+    AgentListSerializer,
     AgentRequestSerializer,
     AgentSerializer,
     UpdateAgentRequestSerializer,
@@ -37,6 +38,7 @@ from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.agents.exceptions import AgentDoesNotExist, AgentRoleDoesNotExist
 from baserow.core.agents.handler import AgentHandler
+from baserow.core.agents.registries import agent_extension_type_registry
 from baserow.core.agents.service import AgentService
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
@@ -101,7 +103,7 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
         description="Lists the agents in a workspace.",
         responses={
             200: get_example_pagination_serializer_class(
-                AgentSerializer, serializer_name="AgentPagination"
+                AgentListSerializer, serializer_name="AgentPagination"
             )
         },
     )
@@ -125,7 +127,10 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
             queryset = queryset.order_by(*queryset.query.order_by, "id")
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
-        return paginator.get_paginated_response(AgentSerializer(page, many=True).data)
+        serialized_agents = agent_extension_type_registry.annotate_serialized_agents(
+            workspace, page, AgentSerializer(page, many=True).data, request.user
+        )
+        return paginator.get_paginated_response(serialized_agents)
 
     @extend_schema(
         parameters=[WORKSPACE_ID_PATH_PARAMETER],

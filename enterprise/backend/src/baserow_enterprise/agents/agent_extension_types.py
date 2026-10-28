@@ -53,6 +53,15 @@ class EnterpriseAgentExtensionType(AgentExtensionType):
         )
     }
     response_fields = {"teams": AgentTeamsField(source="*", read_only=True)}
+    list_response_fields = {
+        "role_assignment_count": serializers.IntegerField(
+            read_only=True,
+            required=False,
+            help_text="Enterprise or advanced only: the number of roles this agent "
+            "holds on databases, tables and restricted views whose roles the "
+            "requesting user may read.",
+        )
+    }
 
     def enhance_queryset(self, queryset, workspace):
         """Load team summaries with the Agents instead of querying each Agent."""
@@ -87,6 +96,20 @@ class EnterpriseAgentExtensionType(AgentExtensionType):
         if LicenseHandler.workspace_has_feature(RBAC, workspace):
             return "NO_ACCESS"
         return None
+
+    def annotate_serialized_agents(self, workspace, agents, serialized_agents, user):
+        """
+        Annotates every agent with the number of roles it holds on databases, tables
+        and restricted views, as listed by the subject role assignments endpoint.
+        """
+
+        counts = RoleAssignmentHandler().count_subject_role_assignments(
+            user, workspace, list(agents)
+        )
+        if counts:
+            for agent, serialized_agent in zip(agents, serialized_agents):
+                serialized_agent["role_assignment_count"] = counts[agent]
+        return serialized_agents
 
     def _sync_teams(self, agent, team_ids, user):
         """Authorize all membership changes before replacing an agent's teams."""

@@ -29,6 +29,21 @@ export default (client) => {
         },
       })
     },
+    getSubjectRoleAssignments(
+      workspaceId,
+      subjectType,
+      subjectId,
+      { offset = 0, limit = 10 } = {}
+    ) {
+      return client.get(`/role/${workspaceId}/subject-role-assignments/`, {
+        params: {
+          subject_type: subjectType,
+          subject_id: subjectId,
+          offset,
+          limit,
+        },
+      })
+    },
     getEffectiveAccess(workspaceId, scopeId, scopeType) {
       return client.get(`/role/${workspaceId}/effective-access/`, {
         params: {
