@@ -6,6 +6,7 @@ import {
   createSummaryWidget,
   getDashboardWidgets,
   updateDashboardWidgetLayout,
+  updateDashboardSharing,
 } from '../../fixtures/dashboard/dashboard'
 import { baserowConfig } from '../../playwright.config'
 import { expect, test } from '../baserowTest'
@@ -660,23 +661,19 @@ test.describe('Dashboard widget grid', () => {
 
       await page.getByRole('button', { name: 'Done editing' }).click()
       await page.setViewportSize({ width: 1100, height: 1000 })
-      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '1')
       await expect(item.locator('.vgl-item__resizer')).toHaveCount(0)
       await expect
         .poll(() => pane.evaluate((el) => el.scrollWidth > el.clientWidth))
-        .toBe(true)
+        .toBe(false)
       await expect
         .poll(async () => {
           const canvasBox = await grid.boundingBox()
           const widgetBox = await item.boundingBox()
           if (!canvasBox || !widgetBox) return null
-          const columnWidth = (canvasBox.width + 16) / 6
-          return {
-            x: Math.round((widgetBox.x - canvasBox.x) / columnWidth),
-            width: Math.round((widgetBox.width + 16) / columnWidth),
-          }
+          return Math.round(widgetBox.width - canvasBox.width)
         })
-        .toEqual({ x: 3, width: 3 })
+        .toBe(0)
 
       await page.setViewportSize({ width: 1920, height: 1000 })
       await page.reload({ waitUntil: 'networkidle' })
@@ -685,29 +682,28 @@ test.describe('Dashboard widget grid', () => {
     })
   }
 
-  test('preserves the saved row and scrolls to offscreen widgets in view mode', async ({
+  test('adapts viewing rows and public mobile dashboards without saving', async ({
     page,
     workspacePage,
   }) => {
+    test.setTimeout(60_000)
     const dashboard = await createDashboard(
-      'Dashboard scrolling view',
+      'Responsive dashboard',
       workspacePage.workspace
     )
     const widgets = await Promise.all(
-      [1, 2, 3].map((index) =>
+      [1, 2, 3, 4, 5].map((index) =>
         createSummaryWidget(dashboard, `Summary ${index}`)
       )
     )
-    await updateDashboardWidgetLayout(
-      dashboard,
-      widgets.map((widget, index) => ({
-        id: widget.id,
-        grid_x: index * 2,
-        grid_y: 0,
-        grid_width: 2,
-        grid_height: 4,
-      }))
-    )
+    const saved = [
+      { grid_x: 0, grid_y: 0, grid_width: 2, grid_height: 4 },
+      { grid_x: 2, grid_y: 0, grid_width: 4, grid_height: 6 },
+      { grid_x: 0, grid_y: 6, grid_width: 3, grid_height: 4 },
+      { grid_x: 3, grid_y: 6, grid_width: 3, grid_height: 6 },
+      { grid_x: 0, grid_y: 10, grid_width: 2, grid_height: 4 },
+    ].map((coordinates, index) => ({ id: widgets[index].id, ...coordinates }))
+    await updateDashboardWidgetLayout(dashboard, saved)
     let layoutUpdates = 0
     page.on('request', (request) => {
       if (
@@ -720,36 +716,97 @@ test.describe('Dashboard widget grid', () => {
     await goToDashboard(page, dashboard)
 
     const grid = page.getByTestId('dashboard-widget-grid')
-    const items = grid.locator('.vgl-item:not(.vgl-item--placeholder)')
     const pane = page.locator('.dashboard-app__layout-scrollable')
-    for (const width of [1100, 700]) {
+    const desktop = [
+      [0, 0, 2],
+      [2, 0, 4],
+      [0, 6, 3],
+      [3, 6, 3],
+      [0, 10, 2],
+    ]
+    const tablet = [
+      [0, 0, 1],
+      [0, 4, 2],
+      [0, 10, 1],
+      [1, 10, 1],
+      [0, 16, 1],
+    ]
+    const mobile = [
+      [0, 0, 1],
+      [0, 4, 1],
+      [0, 10, 1],
+      [0, 14, 1],
+      [0, 20, 1],
+    ]
+    for (const { width, columns, expected } of [
+      { width: 1920, columns: 6, expected: desktop },
+      { width: 1200, columns: 2, expected: tablet },
+      { width: 900, columns: 1, expected: mobile },
+      { width: 1920, columns: 6, expected: desktop },
+    ]) {
       await page.setViewportSize({ width, height: 1000 })
-      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
+      await expect(grid).toHaveCSS(
+        '--dashboard-widget-grid-columns',
+        String(columns)
+      )
       await expect(grid.locator('.vgl-item__resizer')).toHaveCount(0)
       await expect
-        .poll(() =>
-          items.evaluateAll((elements) => {
-            const boxes = elements.map((element) =>
-              element.getBoundingClientRect()
-            )
-            return (
-              boxes.length === 3 &&
-              boxes.every(
-                (box, index) =>
-                  Math.abs(box.y - boxes[0].y) < 1 &&
-                  (index === 0 || box.x >= boxes[index - 1].right)
-              )
+        .poll(() => pane.evaluate((el) => el.scrollWidth > el.clientWidth))
+        .toBe(false)
+      for (const [index, [x, y, w]] of expected.entries()) {
+        const item = page.getByTestId(
+          `dashboard-widget-grid-item-${widgets[index].id}`
+        )
+        await expect
+          .poll(async () => {
+            const canvas = await grid.boundingBox()
+            const box = await item.boundingBox()
+            if (!canvas || !box) return null
+            const unit = (canvas.width + 16) / columns
+            return Math.max(
+              Math.abs(box.x - canvas.x - x * unit),
+              Math.abs(box.y - canvas.y - y * 40),
+              Math.abs(box.width - (w * unit - 16)),
+              Math.abs(box.height - (saved[index].grid_height * 40 - 16))
             )
           })
+          .toBeLessThanOrEqual(1)
+      }
+    }
+
+    const { slug } = await updateDashboardSharing(dashboard, { public: true })
+    await page.goto(
+      `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/dashboard/${slug}`
+    )
+    for (const width of [375, 320]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '1')
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth
+          )
         )
         .toBe(true)
-      await items.last().scrollIntoViewIfNeeded()
-      await expect(items.last()).toBeInViewport({ ratio: 1 })
-      await expect
-        .poll(() => pane.evaluate((el) => el.scrollLeft))
-        .toBeGreaterThan(0)
+      for (const widget of widgets) {
+        const item = page.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
+        await expect
+          .poll(async () => {
+            const canvas = await grid.boundingBox()
+            const box = await item.boundingBox()
+            if (!canvas || !box) return null
+            return Math.round(box.width - canvas.width)
+          })
+          .toBe(0)
+      }
     }
     expect(layoutUpdates).toBe(0)
+    const persisted = await getDashboardWidgets(dashboard)
+    for (const coordinates of saved) {
+      expect(
+        persisted.find((widget) => widget.id === coordinates.id)
+      ).toMatchObject(coordinates)
+    }
   })
 
   test('keeps the canonical desktop layout when deleting on a small screen', async ({
@@ -784,7 +841,7 @@ test.describe('Dashboard widget grid', () => {
 
     await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
       '--dashboard-widget-grid-columns',
-      '6'
+      '1'
     )
 
     const firstWidgetItem = page.getByTestId(
@@ -802,7 +859,7 @@ test.describe('Dashboard widget grid', () => {
         }
         return (firstBox.width + 16) / (secondBox.width + 16)
       })
-      .toBeCloseTo(1 / 2, 1)
+      .toBeCloseTo(1, 1)
 
     await enterEditMode(page)
     await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
