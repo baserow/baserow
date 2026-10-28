@@ -67,8 +67,9 @@ def reply_run(data_fixture, configured_agent):
     [
         ("Hello\x00 from the agent", ("completed", "", "Hello from the agent")),
         ("\n\n", ("failed", "failed", "")),
+        ("\x00 \n\x00", ("failed", "failed", "")),
     ],
-    ids=["null-characters", "blank"],
+    ids=["null-characters", "blank", "blank-after-cleaning"],
 )
 def test_a_message_is_answered_privately_and_saved_clean(
     reply_run, reply_model, output, saved

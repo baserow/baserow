@@ -180,6 +180,36 @@ def test_retries_return_the_accepted_message_and_conflicts_are_rejected(
 
 
 @pytest.mark.django_db
+def test_retrying_legacy_messages_only_returns_their_own_reply(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    first, second = [
+        data_fixture.create_agent_message(conversation=conversation, content=content)
+        for content in ["First", "Following"]
+    ]
+    reply = data_fixture.create_agent_message(
+        conversation=conversation,
+        role="assistant",
+        content="Answer",
+        status="completed",
+    )
+    service = AgentService()
+
+    for message, expected_reply in [(first, None), (second, reply)]:
+        retried = service.create_message(
+            user, agent.id, conversation.uuid, message.uuid, message.content
+        )
+
+        assert retried.message == message
+        assert retried.reply == expected_reply
+        assert retried.run_id is None
+        assert not retried.created
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("case", ["other owner", "other agent"])
 def test_conversations_are_private_to_their_owner_and_agent(
     data_fixture, configured_agent, case

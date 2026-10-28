@@ -235,6 +235,8 @@ class AgentHandler:
 
         runs = self.get_active_reply_runs(conversation)
         reply = conversation.messages.filter(id__gt=message.id).order_by("id").first()
+        if reply is not None and reply.role != AgentMessage.Role.ASSISTANT:
+            reply = None
         run_id = runs.get(reply.id) if reply else None
         return AgentMessageCreated(conversation, message, reply, run_id, False)
 
