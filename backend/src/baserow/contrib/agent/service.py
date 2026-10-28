@@ -70,7 +70,7 @@ class AgentService:
 
     @transaction.atomic
     def update_configuration(
-        self, user: AbstractUser, agent_id: int, **values: str | None
+        self, user: AbstractUser, agent_id: int, **values: str | int | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration for a user who may update and read it.
@@ -80,6 +80,8 @@ class AgentService:
         :param values: The configuration values to set, by field name.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
+        :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
+            given subject.
         :return: The Agent, the names of the fields that changed and the resulting
             configuration.
         """

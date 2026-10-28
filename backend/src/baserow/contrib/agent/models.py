@@ -16,6 +16,11 @@ class AgentApplication(Application):
     model_identifier = models.CharField(
         max_length=255, null=True, blank=True, db_default=None
     )
+    # The subject the Agent's tools act as; empty means no workspace access.
+    run_as_subject_type = models.CharField(
+        max_length=255, null=True, blank=True, db_default=None
+    )
+    run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
 
 
 class AgentConversation(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):

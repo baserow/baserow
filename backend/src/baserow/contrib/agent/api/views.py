@@ -26,6 +26,7 @@ from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentMessageConflict,
     AgentNotReady,
+    AgentRunAsSubjectDoesNotExist,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
@@ -41,6 +42,7 @@ from .errors import (
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
+    ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
 )
 from .serializers import (
     AgentConfigurationSerializer,
@@ -65,6 +67,7 @@ AGENT_EXCEPTIONS = {
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
+    AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
 }
@@ -181,8 +184,9 @@ class AgentConfigurationView(APIView):
         tags=["Agent applications"],
         operation_id="get_agent_configuration",
         description=(
-            "Returns the instructions, provider and model of the agent, with its "
-            "readiness and the fields that are missing or no longer available."
+            "Returns the instructions, provider, model and run-as identity of the "
+            "agent, with its readiness and the fields that are missing or no longer "
+            "available."
         ),
         responses={200: AgentConfigurationSerializer, **READ_ERRORS},
     )
@@ -205,7 +209,12 @@ class AgentConfigurationView(APIView):
         responses={
             200: AgentConfigurationSerializer,
             **READ_ERRORS,
-            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)

@@ -14,6 +14,7 @@ from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
 
 INTERNAL_COPY = {"is_duplicate": True, "exclude_sensitive_data": False}
@@ -98,6 +99,28 @@ def test_duplicate_copies_conversations_with_new_identifiers(
 
     assert conversation_values(copied) == conversation_values(agent)
     assert uuids(copied).isdisjoint(uuids(agent))
+
+
+@pytest.mark.django_db
+def test_run_as_is_kept_only_by_copies_in_the_same_workspace(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+    imported = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        export_internal(agent),
+        INTERNAL_CONFIG,
+        {},
+    )
+
+    assert duplicate.run_as_subject_id == identity.id
+    assert (imported.run_as_subject_type, imported.run_as_subject_id) == (None, None)
 
 
 @pytest.mark.django_db

@@ -11,12 +11,20 @@ from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
+from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Subject
 from baserow.core.utils import extract_allowed, remove_null_characters
 
-from .constants import AGENT_RUN_TYPE, HISTORY_MESSAGE_LIMIT
-from .exceptions import AgentConversationDoesNotExist, AgentMessageConflict
+from .constants import AGENT_RUN_TYPE, HISTORY_MESSAGE_LIMIT, RUN_AS_SUBJECT_TYPES
+from .exceptions import (
+    AgentConversationDoesNotExist,
+    AgentMessageConflict,
+    AgentRunAsSubjectDoesNotExist,
+)
 from .models import (
     AgentApplication,
     AgentConversation,
@@ -34,6 +42,7 @@ from .types import (
 
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
+    run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
     transcript_fields = ["provider_type", "model_identifier", "model_messages", "usage"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
@@ -99,26 +108,83 @@ class AgentHandler:
         else:
             readiness = "ready"
         return {
-            **{field: getattr(agent, field) for field in self.configuration_fields},
+            **{
+                field: getattr(agent, field)
+                for field in [*self.configuration_fields, *self.run_as_fields]
+            },
             "readiness": readiness,
             "errors": errors,
         }
 
+    def get_run_as_subject(
+        self,
+        subject_type: str | None,
+        subject_id: int | None,
+        include_trash: bool = False,
+    ) -> Subject | None:
+        """
+        Resolve the subject an Agent runs as from its stored type and id.
+
+        :param subject_type: The stored subject type, or None.
+        :param subject_id: The stored subject id, or None.
+        :param include_trash: Whether a trashed subject is returned, only to report
+            why the Agent can't use it.
+        :return: The subject, or None when none is set or it no longer exists.
+        """
+
+        if not subject_type or subject_id is None:
+            return None
+        try:
+            return subject_type_registry.get_subject(
+                subject_type, subject_id, include_trash=include_trash
+            )
+        except SubjectTypeNotExist:
+            return None
+
+    def is_run_as_subject_usable(
+        self, subject_type: str | None, subject_id: int | None, workspace: Workspace
+    ) -> bool:
+        """
+        Whether an Agent in the workspace may act as the subject.
+
+        :param subject_type: The subject type.
+        :param subject_id: The subject id.
+        :param workspace: The workspace of the Agent.
+        :return: Whether the type is allowed and the subject exists, isn't trashed
+            and belongs to the workspace.
+        """
+
+        subject = self.get_run_as_subject(subject_type, subject_id)
+        return (
+            subject_type in RUN_AS_SUBJECT_TYPES
+            and subject is not None
+            and subject_type_registry.get(subject_type).is_in_workspace(
+                subject, workspace
+            )
+        )
+
     def update_configuration(
-        self, agent: AgentApplication, **values: str | None
+        self, agent: AgentApplication, **values: str | int | None
     ) -> AgentConfigurationUpdated:
         """
         Save part of the configuration, accepting blank values as a draft.
 
         :param agent: The Agent to update.
         :param values: The configuration values to set, by field name. The caller
-            must validate their types and lengths beforehand. Unknown field names
-            are ignored.
+            must validate their types and lengths beforehand, and pass the run-as
+            type and id together. Unknown field names are ignored.
+        :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
+            given subject.
         :return: The Agent, the names of the fields that changed and the
             resulting configuration.
         """
 
-        values = extract_allowed(values, self.configuration_fields)
+        values = extract_allowed(
+            values, [*self.configuration_fields, *self.run_as_fields]
+        )
+        run_as = [values.get(field) for field in self.run_as_fields]
+        if any(run_as) and not self.is_run_as_subject_usable(*run_as, agent.workspace):
+            raise AgentRunAsSubjectDoesNotExist()
         changed_fields = []
         for field, value in values.items():
             if field in ("provider_type", "model_identifier"):

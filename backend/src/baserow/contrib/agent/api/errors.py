@@ -13,6 +13,11 @@ ERROR_AGENT_NOT_READY = (
     400,
     "The agent must have an available saved configuration before accepting messages.",
 )
+ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST = (
+    "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST",
+    400,
+    "The identity to run as does not exist in this workspace or is trashed.",
+)
 ERROR_AGENT_BUSY = (
     "ERROR_AGENT_BUSY",
     429,
