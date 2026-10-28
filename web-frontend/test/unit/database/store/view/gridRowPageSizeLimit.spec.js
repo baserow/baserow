@@ -19,7 +19,12 @@ const mockGridRows = (mockServer, requests) => {
   mockServer.mock.onGet('/database/views/grid/1/').reply((config) => {
     const offset = Number(config.params.get('offset') || 0)
     const limit = Number(config.params.get('limit'))
-    requests.push({ offset, limit, include: config.params.get('include') })
+    requests.push({
+      offset,
+      limit,
+      include: config.params.get('include'),
+      excludeCount: config.params.has('exclude_count'),
+    })
     const results = []
     const rowMetadata = {}
     for (let id = offset; id < offset + limit; id++) {
@@ -80,6 +85,12 @@ describe('Grid view rows respect the row page size limit', () => {
       'row_metadata',
       'row_metadata',
     ])
+    // The count is only needed once.
+    expect(requests.map(({ excludeCount }) => excludeCount)).toEqual([
+      false,
+      true,
+      true,
+    ])
     expect(data.results.map((row) => row.id)).toEqual(
       Array.from({ length: 450 }, (_, index) => index)
     )
@@ -104,22 +115,22 @@ describe('Grid view rows respect the row page size limit', () => {
     expect(data.results).toHaveLength(200)
   })
 
-  test('sections spanning a collapsed group are fetched in chunks', async () => {
+  test('rows hidden between sections are not fetched', async () => {
     const requests = []
     mockGridRows(mockServer, requests)
     store.replaceState({
       ...store.state,
       grid: Object.assign(gridStore.state(), {
         activeGroupBys: [{ field: 1 }],
-        count: 1000,
+        count: 1000000,
       }),
     })
 
     // Two visible groups with a large collapsed group in between, so the
-    // visible rows are 600 positions apart in the absolute row space.
+    // visible rows are almost a million positions apart in the absolute row space.
     const sections = [
       { absoluteRowOffset: 0, startPosition: 0, endPosition: 10 },
-      { absoluteRowOffset: 600, startPosition: 0, endPosition: 10 },
+      { absoluteRowOffset: 999900, startPosition: 0, endPosition: 10 },
     ]
     const data = await store.dispatch('grid/fetchGroupByRowsForSections', {
       gridId: 1,
@@ -129,15 +140,18 @@ describe('Grid view rows respect the row page size limit', () => {
       layout: { items: [] },
     })
 
-    expect(requests.length).toBeGreaterThan(1)
-    for (const { limit } of requests) {
-      expect(limit).toBeLessThanOrEqual(200)
-    }
-    // The merged rows still line up with their absolute position.
-    expect(data.results[0].id).toBe(requests[0].offset)
-    data.results.forEach((row, index) => {
-      expect(row.id).toBe(requests[0].offset + index)
-    })
-    expect(data.results.at(-1).id).toBeGreaterThanOrEqual(609)
+    // Each section is padded to whole buffer pages of 40 rows.
+    expect(requests.map(({ offset, limit }) => ({ offset, limit }))).toEqual([
+      { offset: 0, limit: 80 },
+      { offset: 999840, limit: 120 },
+    ])
+    // Only the first window asks for the count.
+    expect(requests.map(({ excludeCount }) => excludeCount)).toEqual([
+      false,
+      true,
+    ])
+    const ids = data.results.map((row) => row.id)
+    expect(ids).toContain(9)
+    expect(ids).toContain(999909)
   })
 })

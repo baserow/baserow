@@ -1272,12 +1272,49 @@ export function buildGroupBySectionPlacements({
   })
 }
 
+/**
+ * The absolute row windows to fetch for the given sections. Each section is padded to
+ * whole `bufferSize` pages and overlapping windows are merged, so the rows between
+ * distant sections, like the ones of a large collapsed group, aren't fetched.
+ */
+export function getGroupByRowFetchWindows(sections, bufferSize, count) {
+  const windows = sections
+    .map((section) => {
+      const start = section.absoluteRowOffset + section.startPosition
+      const end = section.absoluteRowOffset + section.endPosition
+      return {
+        start: Math.max(
+          Math.floor((start - bufferSize) / bufferSize) * bufferSize,
+          0
+        ),
+        end: Math.min(
+          Math.ceil((end + bufferSize) / bufferSize) * bufferSize,
+          count > 0 ? count : end
+        ),
+      }
+    })
+    .filter((window) => window.end > window.start)
+    .sort((a, b) => a.start - b.start)
+
+  const merged = []
+  for (const window of windows) {
+    const last = merged.at(-1)
+    if (last && window.start <= last.end) {
+      last.end = Math.max(last.end, window.end)
+    } else {
+      merged.push({ ...window })
+    }
+  }
+  return merged.map(({ start, end }) => ({ offset: start, limit: end - start }))
+}
+
 /** Stable cache key identifying a group-by rows request by its query parameters. */
 export function getGroupByRowsRequestKey({
   gridId,
   offset,
   limit,
   includeFieldOptions,
+  excludeCount,
   search,
   searchMode,
   publicUrl,
@@ -1291,6 +1328,7 @@ export function getGroupByRowsRequestKey({
     offset,
     limit,
     includeFieldOptions,
+    excludeCount,
     search,
     searchMode,
     publicUrl,
