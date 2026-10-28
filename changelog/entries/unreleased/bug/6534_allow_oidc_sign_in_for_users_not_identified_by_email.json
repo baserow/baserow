@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Allow OpenID Connect sign-in for users identified by a claim other than their email (e.g. the AWS Cognito user id) when the provider reports their email as unverified.",
+    "issue_origin": "github",
+    "issue_number": 6534,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-28"
+}

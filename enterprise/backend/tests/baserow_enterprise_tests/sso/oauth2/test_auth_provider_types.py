@@ -485,6 +485,135 @@ def test_oidc_user_info_endpoint_propagates_email_verified_false(
 
 
 @pytest.mark.parametrize(
+    "identifier,claims,expected",
+    [
+        # The identifier is the email claim: the provider's flag applies.
+        ("a@example.com", {"email": "a@example.com", "email_verified": True}, True),
+        ("a@example.com", {"email": "a@example.com", "email_verified": False}, False),
+        ("a@example.com", {"email": "a@example.com"}, True),
+        # Some providers send the flag as a string.
+        ("a@example.com", {"email": "a@example.com", "email_verified": "true"}, True),
+        ("a@example.com", {"email": "a@example.com", "email_verified": "false"}, False),
+        ("a@example.com", {"email": "a@example.com", "email_verified": "False"}, False),
+        # Written differently but resolving to the same account: still checked.
+        ("A@Example.com", {"email": "a@example.com", "email_verified": False}, False),
+        (" a@example.com ", {"email": "a@example.com", "email_verified": False}, False),
+        ("ａ@example.com", {"email": "a@example.com", "email_verified": False}, False),
+        # The identifier isn't the email claim (e.g. AWS Cognito `sub`): ignored.
+        ("cognito-sub", {"email": "a@example.com", "email_verified": False}, True),
+        ("cognito-sub", {"email_verified": False}, True),
+        (None, {"email": "a@example.com", "email_verified": False}, True),
+    ],
+)
+def test_oidc_resolve_email_verified(identifier, claims, expected):
+    pt = auth_provider_type_registry.get("openid_connect")
+    assert pt._resolve_email_verified(identifier, claims) is expected
+
+
+def _mock_oidc_responses(pt, provider, claims, kid="testkey123"):
+    responses.add(
+        responses.POST,
+        pt.get_access_token_url(provider),
+        json={
+            "id_token": jwt.encode(
+                {"iss": provider.issuer, "aud": provider.client_id, **claims},
+                PRIVATE_KEY,
+                algorithm="RS256",
+                headers={"kid": kid},
+            ),
+            "access_token": "testtoken",
+            "token_type": "Bearer",
+        },
+        status=200,
+    )
+    responses.add(
+        responses.GET, pt.get_user_info_url(provider), json=claims, status=200
+    )
+    responses.add(
+        responses.GET,
+        provider.jwks_url,
+        json={"keys": [pem_to_jwk(PUBLIC_KEY, kid)]},
+        status=200,
+    )
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("use_id_token", [True, False])
+@pytest.mark.parametrize(
+    "email_attr_key,claims,expected_email,expected_verified",
+    [
+        # AWS Cognito setup identifying users by their id: the unverified email
+        # doesn't matter.
+        (
+            "sub",
+            {"sub": "cognito-sub", "email": "a@example.com", "email_verified": False},
+            "cognito-sub",
+            True,
+        ),
+        ("sub", {"sub": "cognito-sub", "email_verified": False}, "cognito-sub", True),
+        # Identified by email: the unverified email is reported, also as a string.
+        (
+            "email",
+            {"sub": "cognito-sub", "email": "a@example.com", "email_verified": False},
+            "a@example.com",
+            False,
+        ),
+        (
+            "email",
+            {"sub": "cognito-sub", "email": "a@example.com", "email_verified": "false"},
+            "a@example.com",
+            False,
+        ),
+        # Identified by another claim that holds the same email.
+        (
+            "preferred_username",
+            {
+                "sub": "keycloak-sub",
+                "preferred_username": "A@example.com",
+                "email": "a@example.com",
+                "email_verified": False,
+            },
+            "A@example.com",
+            False,
+        ),
+    ],
+)
+def test_oidc_get_user_info_email_verified_follows_identifier(
+    use_id_token,
+    email_attr_key,
+    claims,
+    expected_email,
+    expected_verified,
+    enterprise_data_fixture,
+):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="openid_connect",
+        client_id="test_client_id",
+        secret="test_secret",
+        name="oidc",
+        base_url="https://example.com",
+        authorization_url="https://example.com/oauth/authorize",
+        access_token_url="https://example.com/oauth/token",
+        user_info_url="https://example.com/userinfo",
+        jwks_url="https://example.com/jwks",
+        issuer="https://example.com",
+        use_id_token=use_id_token,
+        email_attr_key=email_attr_key,
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+    session = SessionBase()
+    pt.push_request_data_to_session(session, {"original": "/"})
+    _mock_oidc_responses(pt, provider, claims)
+
+    user_info, _ = pt.get_user_info(provider, "testcode", session)
+
+    assert user_info.email == expected_email
+    assert user_info.email_verified is expected_verified
+
+
+@pytest.mark.parametrize(
     "provider_type,extra_params",
     [
         ("google", {}),
