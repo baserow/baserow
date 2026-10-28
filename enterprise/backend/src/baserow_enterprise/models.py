@@ -26,6 +26,10 @@ from baserow_enterprise.role.models import (
     RoleAssignment,
     WorkspaceScopedInvitation,
 )
+from baserow_enterprise.semantic_search.models import (
+    SemanticSearchField,
+    SemanticSearchPendingUpdate,
+)
 from baserow_enterprise.teams.models import Team, TeamSubject
 
 __all__ = [
@@ -47,4 +51,6 @@ __all__ = [
     "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
+    "SemanticSearchField",
+    "SemanticSearchPendingUpdate",
 ]

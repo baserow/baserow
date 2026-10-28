@@ -301,6 +301,14 @@ until you make a model available to Kuma and select it under **AI features**; se
 | OLLAMA\_API\_KEY                           | If the BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL uses an ollama provider (e.g. `ollama:gpt-oss:120b`), then the Ollama API key can be provided here.                                                                                                                                                                                                 | "" (empty string) |
 | UDSPY\_LM\_OPENAI\_COMPATIBLE\_BASE\_URL   | If the BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL uses an openai provider (e.g. `openai:gpt-5-nano`), then the base URL can be changed here. This can be used to point to a different OpenAI compatible API like Azure, for example.                                                                                                                  | "" (empty string) |
 
+### Semantic search configuration
+| Name | Description | Defaults |
+| ---- | ----------- | -------- |
+| BASEROW\_SEMANTIC\_SEARCH\_CHUNK\_SIZE | The maximum number of characters of a part of a cell value that's searched by semantic search. Requires `BASEROW_EMBEDDINGS_API_URL` and pgvector. | 1000 |
+| BASEROW\_SEMANTIC\_SEARCH\_CHUNK\_OVERLAP | The number of characters consecutive parts of a cell value overlap, so that text on a boundary remains findable. | 150 |
+| BASEROW\_SEMANTIC\_SEARCH\_MAX\_CHUNKS\_PER\_CELL | The maximum number of parts of a cell value that are searchable. Text beyond this isn't found by semantic search. | 30 |
+| BASEROW\_SEMANTIC\_SEARCH\_TASK\_TIME\_BUDGET\_SECONDS | How long a background task updates the semantic search index of a table before it continues in a new task. | 240 |
+
 ### Data sync configuration
 
 | Name                                                | Description                                                                                                          | Defaults |
