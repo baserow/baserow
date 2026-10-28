@@ -17,6 +17,7 @@ from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStopReason
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.utils import remove_null_characters
 
 from .constants import INTERRUPTED_REPLY_NOTE, REPLY_REQUEST_LIMIT
 from .models import AgentMessage
@@ -146,8 +147,9 @@ class AgentResponder:
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
         # A blank answer is no reply, and some providers reject it in the history.
-        if self._result is not None and self._result.strip():
-            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=self._result)
+        text = remove_null_characters(self._result or "")
+        if text.strip():
+            return ChatRunOutcome(ChatRunStatus.COMPLETED, result=text)
         if self._journal.stop_reason == ChatRunStopReason.CANCELLED:
             return ChatRunOutcome(ChatRunStatus.CANCELLED, result=self._text)
         if self._journal.stop_reason == ChatRunStopReason.TIMEOUT:
