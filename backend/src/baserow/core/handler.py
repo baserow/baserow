@@ -1104,6 +1104,32 @@ class CoreHandler:
         if not is_valid:
             raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
 
+    def is_workspace_role_upgrade(
+        self, current_role_uid: str, new_role_uid: str, workspace: Workspace
+    ) -> bool:
+        """
+        Checks whether the new role gives a workspace member everything their current
+        role does and more. The first permission manager that answers decides,
+        otherwise only becoming ADMIN is an upgrade.
+
+        :param current_role_uid: The role uid the member currently has.
+        :param new_role_uid: The role uid the member would get instead.
+        :param workspace: The workspace the roles are given in.
+        :return: True if the new role is an upgrade.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            is_upgrade = permission_manager_type_registry.get(
+                permission_manager_name
+            ).is_workspace_role_upgrade(current_role_uid, new_role_uid, workspace)
+            if is_upgrade is not None:
+                return is_upgrade
+
+        return (
+            new_role_uid == WORKSPACE_USER_PERMISSION_ADMIN
+            and current_role_uid != WORKSPACE_USER_PERMISSION_ADMIN
+        )
+
     def update_workspace_user(
         self,
         user: AbstractUser,
@@ -1773,12 +1799,51 @@ class CoreHandler:
 
         invitation_link.delete()
 
+    def _invitation_link_raises_permissions(
+        self, permissions: str, invitation_link: WorkspaceInvitationLink
+    ) -> bool:
+        return permissions != invitation_link.permissions and (
+            self.is_workspace_role_upgrade(
+                permissions, invitation_link.permissions, invitation_link.workspace
+            )
+        )
+
+    def get_permissions_raised_by_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[str]:
+        """
+        Returns the current permissions of a member of the workspace of the link
+        when joining through the link would raise them.
+
+        :param user: The user who opened the link, possibly anonymous.
+        :param invitation_link: The link the user opened.
+        :return: The current permissions of the member, or None if the user isn't a
+            member or joining wouldn't change their permissions.
+        """
+
+        if not user.is_authenticated:
+            return None
+
+        permissions = (
+            WorkspaceUser.objects.filter(
+                user=user, workspace_id=invitation_link.workspace_id
+            )
+            .values_list("permissions", flat=True)
+            .first()
+        )
+        if permissions is None or not self._invitation_link_raises_permissions(
+            permissions, invitation_link
+        ):
+            return None
+        return permissions
+
     def join_workspace_via_invitation_link(
         self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
     ) -> WorkspaceUser:
         """
         Adds the user to the workspace of the link with the permissions of the
-        link. Someone who is already a member keeps their current permissions.
+        link. Someone who is already a member gets the permissions of the link when
+        they are an upgrade, and otherwise keeps their current permissions.
 
         :param user: The user who joins the workspace.
         :param invitation_link: The link the user joins through.
@@ -1791,6 +1856,14 @@ class CoreHandler:
         workspace_user = self.add_user_to_workspace(
             invitation_link.workspace, user, permissions=invitation_link.permissions
         )
+
+        # A link can raise the role of a member, but never lowers it.
+        if self._invitation_link_raises_permissions(
+            workspace_user.permissions, invitation_link
+        ):
+            workspace_user = self.force_update_workspace_user(
+                user, workspace_user, permissions=invitation_link.permissions
+            )
 
         workspace_user_joined_via_invitation_link.send(
             sender=self,

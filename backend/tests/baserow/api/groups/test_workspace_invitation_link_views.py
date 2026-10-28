@@ -285,6 +285,7 @@ def test_get_public_workspace_invitation_link(api_client, data_fixture, settings
         "invited_by": "Bram",
         "workspace": "Widelab",
         "workspace_id": workspace.id,
+        "role_upgrade": None,
     }
 
     TrashHandler.trash(admin, workspace, None, workspace)
@@ -295,6 +296,38 @@ def test_get_public_workspace_invitation_link(api_client, data_fixture, settings
     response = api_client.get(url)
     assert response.status_code == HTTP_403_FORBIDDEN
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+
+
+@pytest.mark.django_db
+def test_get_public_workspace_invitation_link_role_upgrade(api_client, data_fixture):
+    admin, admin_token = data_fixture.create_user_and_token()
+    member, member_token = data_fixture.create_user_and_token()
+    outsider, outsider_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="ADMIN"
+    )
+    url = reverse(
+        "api:workspaces:invitation_links:slug", kwargs={"slug": invitation_link.slug}
+    )
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {member_token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["role_upgrade"] == {
+        "current_permissions": "MEMBER",
+        "permissions": "ADMIN",
+    }
+
+    # Nothing changes for someone who already has the role, or who isn't a member.
+    for token in [admin_token, outsider_token]:
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["role_upgrade"] is None
+
+    invitation_link.permissions = "MEMBER"
+    invitation_link.save()
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {member_token}")
+    assert response.json()["role_upgrade"] is None
 
 
 @pytest.mark.django_db
@@ -326,7 +359,7 @@ def test_join_workspace_via_invitation_link(api_client, data_fixture):
     assert response_json["permissions"] == "MEMBER"
     assert WorkspaceUser.objects.get(user=newcomer).workspace_id == workspace.id
 
-    # An existing member keeps their current role.
+    # The link never lowers the role of an existing member.
     response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {admin_token}")
     assert response.status_code == HTTP_200_OK
     assert response.json()["permissions"] == "ADMIN"

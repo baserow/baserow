@@ -316,6 +316,9 @@
     "title": "Join {workspace}",
     "joinAs": "You will join as {email}. The members of the workspace will be able to see your name and email address.",
     "join": "Join workspace",
+    "upgradeTitle": "Change your role in {workspace}",
+    "upgradeRole": "You're already a member of this workspace. Your role will change from {from} to {to}.",
+    "upgrade": "Change my role",
     "failed": "Could not join the workspace",
     "failedMessage": "Something went wrong while joining the workspace. Please try again.",
     "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."

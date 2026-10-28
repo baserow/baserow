@@ -1321,9 +1321,19 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
         """
 
         workspace = invitation_link.workspace
+        permissions_before = (
+            WorkspaceUser.objects.filter(user=user, workspace=workspace)
+            .values_list("permissions", flat=True)
+            .first()
+        )
         workspace_user = CoreHandler().join_workspace_via_invitation_link(
             user, invitation_link
         )
+
+        # Members open the link on their way into the workspace, so only record
+        # the visits that changed their membership.
+        if workspace_user.permissions == permissions_before:
+            return workspace_user
 
         cls.register_action(
             user=user,
