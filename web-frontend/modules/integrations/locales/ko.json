@@ -14,7 +14,8 @@
         "localBaserowNoUser": "로컬 Baserow - 구성되지 않음",
         "localBaserowWarning": "계정을 승인하면 애플리케이션 편집 권한이 있는 모든 사용자에게 귀하가 접근하는 데이터에 대한 전체 접근 권한이 부여됩니다. 두 번째 사용자를 생성하고 적절한 권한을 부여하여 해당 사용자를 사용할 수 있습니다.",
         "localBaserowSubjectSummary": "로컬 Baserow - {type}: {name}",
-        "errorTrashedAgent": "인증된 에이전트가 휴지통으로 이동되었습니다"
+        "errorTrashedAgent": "인증된 에이전트가 휴지통으로 이동되었습니다",
+        "errorNoUser": "이 연동을 승인한 사용자나 에이전트가 없습니다."
     },
     "serviceType": {
         "localBaserowGetRow": "단일 행 가져오기",
@@ -206,7 +207,8 @@
         "nameFieldInvalid": "이름은 영숫자, 대시 또는 밑줄만 포함할 수 있으며 대시나 밑줄로 시작할 수 없습니다."
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP - {host}:{port}"
+        "smtpSummary": "SMTP - {host}:{port}",
+        "errorNoHost": "SMTP 호스트가 설정되지 않았습니다."
     },
     "smtpForm": {
         "host": "SMTP 호스트",
@@ -308,7 +310,8 @@
     "slackBotIntegrationType": {
         "slackBotSummary": "슬랙 봇",
         "slackBotNoToken": "슬랙 봇 - 구성되지 않음",
-        "slackBotWarning": "이 애플리케이션에서 빌드할 수 있는 사람은 누구나 이 봇으로 메시지를 보내거나 토큰을 교체할 수 있습니다. 접근 권한을 공유해도 괜찮은 봇을 사용하세요."
+        "slackBotWarning": "이 애플리케이션에서 빌드할 수 있는 사람은 누구나 이 봇으로 메시지를 보내거나 토큰을 교체할 수 있습니다. 접근 권한을 공유해도 괜찮은 봇을 사용하세요.",
+        "errorNoToken": "봇 토큰이 설정되지 않았습니다."
     },
     "aiForm": {
         "description": "이 통합에 대한 AI 공급자 설정을 구성하세요. 기본적으로 Workspace AI 설정은 상속됩니다.",
