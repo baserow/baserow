@@ -142,12 +142,15 @@ def _link_row_field_def(orm_field, orm_field_type):
         return FieldDefinition()
 
     linked_pk = linked_primary_key.db_column
-    queryset = linked_model.objects.all()
+    queryset = linked_model.objects.all().enhance_by_fields(
+        only_field_ids=[linked_primary_key.id]
+    )
     # Skip rows without a primary value, as the "is not empty" filter does, for
-    # the field types that filter supports.
+    # the field types that filter supports. FilterBuilder.apply_to_queryset is not
+    # used because its DISTINCT makes Postgres read the whole table.
     not_empty = NotEmptyViewFilterType()
     if not_empty.field_is_compatible(linked_primary_key):
-        queryset = (
+        q, annotations = (
             FilterBuilder()
             .filter(
                 not_empty.get_filter(
@@ -157,9 +160,12 @@ def _link_row_field_def(orm_field, orm_field_type):
                     linked_primary_key,
                 )
             )
-            .apply_to_queryset(queryset)
+            .get_filters_and_annotations()
         )
-    examples = list(queryset.values_list("id", linked_pk)[:10])
+        queryset = queryset.annotate(**annotations).filter(q)
+    # The readable value, as the link field accepts it and from_django_orm
+    # shows it.
+    examples = [(row.id, str(row)) for row in queryset[:10]]
 
     def to_django_orm(value):
         if isinstance(value, (str, int)):

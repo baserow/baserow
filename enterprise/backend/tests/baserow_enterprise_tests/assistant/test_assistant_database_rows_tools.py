@@ -916,3 +916,38 @@ def test_row_tools_read_links_to_a_table_with_any_primary_field_type(
     assert f"id:{filled}," in link_description
     if blank is not None:
         assert f"id:{blank}," not in link_description
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("primary_type", ["eu_date", "single_select"])
+def test_link_examples_show_values_the_link_field_accepts(data_fixture, primary_type):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    linked_table = data_fixture.create_database_table(database=database)
+    if primary_type == "eu_date":
+        primary = data_fixture.create_date_field(
+            table=linked_table, primary=True, date_format="EU"
+        )
+        value, expected = "2026-01-02", "02/01/2026"
+    else:
+        primary = data_fixture.create_single_select_field(
+            table=linked_table, primary=True
+        )
+        value = data_fixture.create_select_option(field=primary, value="Alpha").id
+        expected = "Alpha"
+    linked_row = RowHandler().create_row(user, linked_table, {primary.db_column: value})
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    link = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table, name="Linked"
+    )
+    ctx = make_test_ctx(user, database.workspace)
+
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+
+    link_description = json.dumps(ctx.deps.dynamic_tools[0].function_schema.json_schema)
+    assert f"value: `{expected}`" in link_description
+    row = RowHandler().create_row(user, table, {link.db_column: [expected]})
+    assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
+        linked_row.id
+    ]

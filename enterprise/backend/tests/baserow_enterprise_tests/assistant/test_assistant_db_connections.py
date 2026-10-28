@@ -5,10 +5,11 @@ from asgiref.sync import async_to_sync, sync_to_async
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.toolsets import CombinedToolset
+from pydantic_ai.toolsets import CombinedToolset, FunctionToolset
 
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.database.tools import database_toolset
+from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from .utils import make_test_ctx
@@ -25,7 +26,7 @@ def backend_pid() -> str:
     return "ok"
 
 
-def _report_pid_list_tables_then_answer(
+def _list_tables_report_pid_then_answer(
     messages: list[ModelMessage], info: AgentInfo
 ) -> ModelResponse:
     tool_returns = [
@@ -35,12 +36,12 @@ def _report_pid_list_tables_then_answer(
         if part.part_kind == "tool-return"
     ]
     if not tool_returns:
-        return ModelResponse(parts=[ToolCallPart("backend_pid", {})])
-    if len(tool_returns) == 1:
         return ModelResponse(
             parts=[ToolCallPart("list_tables", {"filters": {}, "thought": "List"})]
         )
-    return ModelResponse(parts=[TextPart(str(tool_returns[-1].content))])
+    if len(tool_returns) == 1:
+        return ModelResponse(parts=[ToolCallPart("backend_pid", {})])
+    return ModelResponse(parts=[TextPart(str(tool_returns[0].content))])
 
 
 def _terminate_backend(pid: int):
@@ -65,11 +66,11 @@ def test_tools_reconnect_after_the_database_drops_their_connection(
     deps = make_test_ctx(user, workspace).deps
     tool_backend_pids.clear()
     agent = Agent(
-        FunctionModel(_report_pid_list_tables_then_answer),
+        FunctionModel(_list_tables_report_pid_then_answer),
         deps_type=AssistantDeps,
-        toolsets=[
-            CombinedToolset([database_toolset, AssistantFunctionToolset([backend_pid])])
-        ],
+        # backend_pid does not refresh the connection, so list_tables, the first
+        # call after the restart, has to do it itself.
+        toolsets=[CombinedToolset([database_toolset, FunctionToolset([backend_pid])])],
     )
 
     async def run_twice_with_a_database_restart_in_between():
@@ -84,3 +85,10 @@ def test_tools_reconnect_after_the_database_drops_their_connection(
 
     assert "Customers" in first
     assert "Customers" in second
+
+
+def test_every_assistant_toolset_refreshes_db_connections():
+    for tool_type in assistant_tool_registry.get_all():
+        assert isinstance(tool_type.get_toolset(), AssistantFunctionToolset), (
+            tool_type.type
+        )

@@ -83,7 +83,26 @@ _UNFINISHED_ANSWER = (
 
 
 _TITLE_MAX_CHARS = 50
-_TITLE_PREFIX = re.compile(r"^[#*\"'\s]*(title[*\s]*:)?[*\"'\s]*", re.IGNORECASE)
+# A Markdown heading or bold marker, then an optional "Title:" label.
+_TITLE_PREFIX = re.compile(
+    r"^\s*(#+\s+)?(\*\*)?\s*(title\s*(\*\*)?\s*:\s*(\*\*)?)?\s*", re.IGNORECASE
+)
+_TITLE_QUOTES = ('"', "'")
+
+
+def _clean_title_line(line: str) -> str:
+    """
+    Remove Markdown markers, a "Title:" label and quotes around the whole line,
+    keeping characters that belong to the title.
+
+    :param line: One line of the title agent's output.
+    :return: The cleaned line, empty when nothing is left.
+    """
+
+    line = _TITLE_PREFIX.sub("", line).strip().removesuffix("**").strip()
+    if len(line) >= 2 and line[0] == line[-1] and line[0] in _TITLE_QUOTES:
+        line = line[1:-1].strip()
+    return line
 
 
 def _short_title(text: str) -> str:
@@ -95,10 +114,7 @@ def _short_title(text: str) -> str:
     :return: A title of at most ``_TITLE_MAX_CHARS`` characters.
     """
 
-    lines = (
-        _TITLE_PREFIX.sub("", line).rstrip("#*\"' \t")
-        for line in _strip_think_tags(text).splitlines()
-    )
+    lines = (_clean_title_line(line) for line in _strip_think_tags(text).splitlines())
     title = next((line for line in lines if line), "")
     if len(title) <= _TITLE_MAX_CHARS:
         return title

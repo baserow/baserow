@@ -45,7 +45,7 @@ from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelHTTPError
 
 from baserow.core.posthog import get_posthog_client
 from baserow_enterprise.assistant.models import AssistantChat
@@ -561,6 +561,25 @@ class AssistantTraceOutcome(StrEnum):
 
 _ERROR_MAX_CHARS = 500
 
+
+def _error_message(exception: Exception) -> str:
+    """
+    Describe *exception* without the model output or provider response body,
+    which can hold user data and would split PostHog's error groups.
+
+    :param exception: The error that ended the run.
+    :return: The message, at most ``_ERROR_MAX_CHARS`` characters long.
+    """
+
+    if isinstance(exception, ModelHTTPError):
+        message = (
+            f"status_code: {exception.status_code}, model_name: {exception.model_name}"
+        )
+    else:
+        message = getattr(exception, "message", None) or str(exception)
+    return message[:_ERROR_MAX_CHARS]
+
+
 _FAILED_OUTCOMES = frozenset(
     {AssistantTraceOutcome.ERROR, AssistantTraceOutcome.NO_ANSWER}
 )
@@ -651,10 +670,7 @@ class PosthogTracingCallback:
             }
             if exception is not None:
                 # PostHog groups failed traces by these, not by the output state.
-                # Some errors put the whole model response in str(), so prefer
-                # their message.
-                message = getattr(exception, "message", None) or str(exception)
-                properties["$ai_error"] = message[:_ERROR_MAX_CHARS]
+                properties["$ai_error"] = _error_message(exception)
                 properties["$ai_error_type"] = type(exception).__name__
             self._capture_event(
                 "$ai_trace", timestamp=start_time, properties=properties
@@ -681,9 +697,6 @@ class PosthogTracingCallback:
         :return: The outcome to record on the ``$ai_trace`` event.
         """
 
-        if isinstance(exception, UnexpectedModelBehavior):
-            # The caller answers with a fallback instead of failing the turn.
-            return AssistantTraceOutcome.NO_ANSWER
         if exception is not None:
             return AssistantTraceOutcome.ERROR
         if interruption is not None:
@@ -705,7 +718,7 @@ class PosthogTracingCallback:
         """
 
         if outcome is AssistantTraceOutcome.ERROR:
-            return str(exception)
+            return _error_message(exception)
         if outcome is AssistantTraceOutcome.ANSWERED:
             return self.trace_outputs
         return {"status": outcome.value}

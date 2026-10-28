@@ -3121,10 +3121,37 @@ class TestAssistantRunFailures:
             _captured_trace(mock_get_client)["$ai_error_type"] == type(error).__name__
         )
 
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_error_body_is_not_recorded(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = ModelHTTPError(
+            status_code=400,
+            model_name="m",
+            body={"error": {"failed_generation": "private user data"}},
+        )
+
+        with pytest.raises(ModelHTTPError):
+            _run_chat(chat, workspace, user)
+
+        trace = _captured_trace(mock_get_client)
+        assert trace["$ai_error"] == "status_code: 400, model_name: m"
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
     @patch("baserow_enterprise.assistant.assistant.exception_capturer")
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_run_without_an_accepted_answer_is_recorded_as_no_answer(
+    def test_run_without_an_accepted_answer_keeps_the_model_output_out(
         self,
         mock_run_stream_events,
         mock_get_client,
@@ -3149,10 +3176,11 @@ class TestAssistantRunFailures:
         assert any(isinstance(msg, AiMessage) for msg in messages)
         mock_exception_capturer.assert_not_called()
         trace = _captured_trace(mock_get_client)
-        assert trace["assistant_outcome"] == "no_answer"
+        assert trace["assistant_outcome"] == "error"
         assert trace["$ai_error_type"] == "UnexpectedModelBehavior"
         assert "token limit" in trace["$ai_error"]
         assert "private user data" not in trace["$ai_error"]
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
 
 
 @pytest.mark.django_db
@@ -3182,6 +3210,10 @@ class TestAssistantRunFailures:
         ("**Title**: Quarterly report", "Quarterly report"),
         ("Title:", "Question"),
         ('""', "Question"),
+        ("**Quarterly report**", "Quarterly report"),
+        ("Learn C#", "Learn C#"),
+        ("#1 priority tasks", "#1 priority tasks"),
+        ('"Quarterly" report', '"Quarterly" report'),
     ],
 )
 @patch("baserow_enterprise.assistant.agents.title_agent.run")

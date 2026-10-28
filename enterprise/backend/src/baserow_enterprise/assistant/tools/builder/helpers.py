@@ -304,16 +304,17 @@ def _taken_path_error(
         # The clash can surface as an IntegrityError that aborts the transaction.
         page = None
     if page is None:
-        owner, next_step = "another page", "Pick another path."
+        owner = "another page"
     elif page.trashed:
-        owner = f"page {page.id} ('{page.name}'), which is in the trash"
-        next_step = "Pick another path, or ask the user to restore that page."
+        owner = (
+            f"page {page.id} ('{page.name}'), which is in the trash and keeps the "
+            "path until it is permanently deleted"
+        )
     else:
         owner = f"page {page.id} ('{page.name}')"
-        next_step = "Pick another path, or update that page instead."
     return ToolInputError(
         f"The path '{path}' is already used by {owner}. Nothing was changed in "
-        f"this call. {next_step}"
+        "this call. Pick another path."
     )
 
 
@@ -1435,21 +1436,27 @@ def create_login_page(
     user: AbstractUser, builder: Builder, user_source_id: int
 ) -> Page:
     """
-    Create a login page with an auth_form element and set it as the
-    builder's login page.
+    Set up the builder's login page with an auth_form element. A page the
+    model already created at /login is used, so links to it keep working.
+    Otherwise a Login page is created at the first free /login path.
     """
 
-    path = "/login"
-    suffix = 0
-    while not PageHandler().is_page_path_unique(builder, path):
-        suffix += 1
-        path = f"/login-{suffix}"
-    page = PageService().create_page(user, builder, "Login", path)
+    from baserow_enterprise.builder.elements.models import AuthFormElement
 
-    auth_form_type = element_type_registry.get("auth_form")
-    CreateElementActionType.do(
-        user, auth_form_type, page, {"user_source_id": user_source_id}
-    )
+    page = Page.objects.filter(builder=builder, path="/login", shared=False).first()
+    if page is None:
+        path = "/login"
+        suffix = 0
+        while not PageHandler().is_page_path_unique(builder, path):
+            suffix += 1
+            path = f"/login-{suffix}"
+        page = PageService().create_page(user, builder, "Login", path)
+
+    if not AuthFormElement.objects.filter(page=page).exists():
+        auth_form_type = element_type_registry.get("auth_form")
+        CreateElementActionType.do(
+            user, auth_form_type, page, {"user_source_id": user_source_id}
+        )
 
     CoreHandler().update_application(user, builder, login_page_id=page.id)
     builder.refresh_from_db()
