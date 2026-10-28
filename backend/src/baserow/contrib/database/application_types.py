@@ -208,6 +208,14 @@ class DatabaseApplicationType(ApplicationType):
                     for field_object in model._field_objects.values():
                         field_name = field_object["name"]
                         field_type = field_object["type"]
+                        # A user template never carries the values of write-only
+                        # fields, like password hashes, so they are exported empty.
+                        if (
+                            import_export_config.is_user_template
+                            and field_type.write_only
+                        ):
+                            serialized_row[field_name] = None
+                            continue
                         serialized_row[field_name] = (
                             field_type.get_export_serialized_value(
                                 row, field_name, table_cache, files_zip, storage

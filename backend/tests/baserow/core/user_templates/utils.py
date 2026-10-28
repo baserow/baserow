@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
 from django.db import connection
 from django.utils import timezone
@@ -12,7 +13,9 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.builder.elements.models import ChoiceElement
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.fields.models import PasswordField
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
@@ -362,3 +365,45 @@ def copied_applications(template):
         application.get_type().type: application.specific
         for application in template.workspace.application_set.all()
     }
+
+
+PASSWORD_DEFAULT = "default secret"
+NOTE_DEFAULT = "keep me"
+
+
+def add_password_data(data_fixture, table, view):
+    """
+    Adds a password field to the table with a hash in every row, and gives the view
+    a default value for it and for the primary field.
+    """
+
+    password_field = data_fixture.create_password_field(table=table, name="Password")
+    password = make_password("source secret")
+    table.get_model().objects.update(**{password_field.db_column: password})
+    primary_field = table.field_set.get(primary=True)
+    ViewDefaultValue.objects.create(
+        view=view, field=password_field, value=PASSWORD_DEFAULT, field_type="password"
+    )
+    ViewDefaultValue.objects.create(
+        view=view, field=primary_field, value=NOTE_DEFAULT, field_type="text"
+    )
+    return password_field, password
+
+
+def assert_password_data_left_out(table):
+    """
+    Asserts that the copied table kept its password field, with every cell empty,
+    and that no view of it has a default value for that field.
+    """
+
+    password_field = table.field_set.get(name="Password").specific
+    assert isinstance(password_field, PasswordField)
+    values = list(
+        table.get_model().objects.values_list(password_field.db_column, flat=True)
+    )
+    assert values and all(value is None for value in values)
+    primary_field = table.field_set.get(primary=True)
+    defaults = ViewDefaultValue.objects.filter(view__table=table)
+    assert [(default.field_id, default.value) for default in defaults] == [
+        (primary_field.id, NOTE_DEFAULT)
+    ]

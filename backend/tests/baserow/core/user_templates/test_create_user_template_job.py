@@ -62,6 +62,8 @@ from baserow.core.utils import Progress
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
+    add_password_data,
+    assert_password_data_left_out,
     cancel_in_another_connection,
     copied_applications,
     create_content,
@@ -203,6 +205,25 @@ def test_create_user_template_job_content_rules(data_fixture):
         dashboard_data_source__dashboard=applications["dashboard"]
     )
     assert dashboard_service.field_id == text_field.id
+
+
+def test_create_user_template_job_empties_password_fields(data_fixture):
+    source = create_source(data_fixture)
+    table = source["table"]
+    password_field, password = add_password_data(
+        data_fixture, table, View.objects.get(table=table, name="Shared")
+    )
+
+    job = start_job(source["user"], source["workspace"], [source["database"]])
+
+    assert job.state == JOB_FINISHED
+    assert_password_data_left_out(
+        copied_applications(job.template)["database"].table_set.get()
+    )
+    # The source keeps its passwords.
+    assert list(
+        table.get_model().objects.values_list(password_field.db_column, flat=True)
+    ) == [password]
 
 
 def test_create_user_template_job_strips_automation_secrets(data_fixture):
