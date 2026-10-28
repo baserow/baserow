@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import override_settings
@@ -35,6 +36,30 @@ def test_embedder_treats_an_invalid_response_as_a_service_error():
     ):
         with pytest.raises(EmbeddingsServiceError):
             BaserowEmbedder("http://test")(["text"])
+
+
+@override_settings(BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST=3)
+def test_embedder_sends_the_configured_number_of_texts_per_request():
+    request_sizes = []
+
+    def embed(request):
+        texts = json.loads(request.content)["texts"]
+        request_sizes.append(len(texts))
+        return httpx.Response(
+            200, json={"embeddings": [[float(len(text))] for text in texts]}
+        )
+
+    real_client = httpx.Client
+    with patch(
+        "baserow.core.embeddings.httpxClient",
+        lambda **kwargs: real_client(transport=httpx.MockTransport(embed), **kwargs),
+    ):
+        embeddings = BaserowEmbedder("http://test", dimensions=1)(
+            ["a", "bb", "ccc", "dddd"]
+        )
+
+    assert request_sizes == [3, 1]
+    assert embeddings == [[1.0], [2.0], [3.0], [4.0]]
 
 
 def test_embedder_pads_vectors():
