@@ -52,9 +52,9 @@ def get_user_from_token(
     except KeyError:
         raise InvalidToken("Token contained no recognizable user identification")
 
-    if (
-        check_if_refresh_token_is_blacklisted
-        and UserHandler().refresh_token_is_blacklisted(token)
+    if check_if_refresh_token_is_blacklisted and (
+        UserHandler().refresh_token_is_blacklisted(token)
+        or UserHandler().refresh_token_session_is_revoked(token)
     ):
         raise InvalidToken("Token is blacklisted.")
 

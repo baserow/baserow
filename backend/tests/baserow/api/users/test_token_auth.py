@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.signing import TimestampSigner
 from django.shortcuts import reverse
+from django.test.utils import override_settings
 
 import pytest
 from freezegun import freeze_time
@@ -18,7 +20,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import BlacklistedToken, Settings, UserLogEntry
 from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.user.handler import UserHandler
-from baserow.core.user.utils import generate_session_tokens_for_user
+from baserow.core.user.tasks import flush_expired_tokens
+from baserow.core.user.utils import (
+    USER_SESSION_SALT,
+    generate_session_tokens_for_user,
+)
 from baserow.core.utils import generate_hash
 from baserow.test_utils.helpers import AnyStr
 
@@ -768,7 +774,7 @@ def test_token_blacklist(api_client, data_fixture):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    token = BlacklistedToken.objects.all().first()
+    token = BlacklistedToken.objects.get(hashed_token=generate_hash(refresh_token_str))
 
     assert refresh_token.payload["exp"] == token.expires_at.timestamp()
     assert token.hashed_token == generate_hash(refresh_token_str)
@@ -790,6 +796,146 @@ def test_token_blacklist(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response_json["error"] == "ERROR_INVALID_REFRESH_TOKEN"
+
+
+def _refresh(api_client, refresh_token):
+    return api_client.post(
+        reverse("api:user:token_refresh"),
+        {"refresh_token": refresh_token},
+        format="json",
+    )
+
+
+@pytest.mark.django_db
+def test_token_refresh_rotates_the_refresh_token(api_client, data_fixture):
+    data_fixture.create_password_provider()
+    data_fixture.create_user(email="test@test.nl", password="password")
+
+    with freeze_time("2026-10-27 09:00:00"):
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": "test@test.nl", "password": "password"},
+            format="json",
+        )
+        login = response.json()
+
+        response = _refresh(api_client, login["refresh_token"])
+        assert response.status_code == HTTP_200_OK
+        rotated = response.json()
+        assert rotated["refresh_token"] != login["refresh_token"]
+        user_session = TimestampSigner(salt=USER_SESSION_SALT).unsign_object(
+            rotated["user_session"]
+        )
+        assert user_session["token_hash"] == generate_hash(rotated["refresh_token"])
+        login_exp = RefreshToken(login["refresh_token"])["exp"]
+        assert RefreshToken(rotated["refresh_token"])["exp"] == login_exp
+
+    # Another tab that refreshed with the same token at the same time.
+    with freeze_time("2026-10-27 09:00:20"):
+        response = _refresh(api_client, login["refresh_token"])
+        assert response.status_code == HTTP_200_OK
+
+        response = _refresh(api_client, rotated["refresh_token"])
+        assert response.status_code == HTTP_200_OK
+        latest = response.json()
+
+    # Replaying the first token later means it leaked, so the session is revoked.
+    with freeze_time("2026-10-27 09:01:00"):
+        response = _refresh(api_client, login["refresh_token"])
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "ERROR_INVALID_REFRESH_TOKEN"
+
+        response = _refresh(api_client, latest["refresh_token"])
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+        response = api_client.post(
+            reverse("api:user:token_verify"),
+            {"refresh_token": latest["refresh_token"]},
+            format="json",
+        )
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_token_blacklist_with_an_older_token_revokes_the_session(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    refresh_token = str(RefreshToken.for_user(user))
+    latest = _refresh(api_client, refresh_token).json()["refresh_token"]
+
+    # The older token was already blacklisted by the rotation.
+    response = api_client.post(
+        reverse("api:user:token_blacklist"),
+        {"refresh_token": refresh_token},
+        format="json",
+    )
+    assert response.json()["error"] == "ERROR_REFRESH_TOKEN_ALREADY_BLACKLISTED"
+
+    response = _refresh(api_client, latest)
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_revoked_session_outlives_flushing_expired_tokens(api_client, data_fixture):
+    user = data_fixture.create_user()
+    with freeze_time("2026-10-27 09:00"):
+        refresh_token = str(RefreshToken.for_user(user))
+        latest = _refresh(api_client, refresh_token).json()["refresh_token"]
+        api_client.post(
+            reverse("api:user:token_blacklist"),
+            {"refresh_token": refresh_token},
+            format="json",
+        )
+
+    with freeze_time("2026-10-28 09:00"):
+        flush_expired_tokens()
+
+        response = _refresh(api_client, latest)
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_token_refresh_keeps_the_refresh_token_claims(api_client, data_fixture):
+    user = data_fixture.create_user()
+    staff = data_fixture.create_user(is_staff=True)
+    tokens = generate_session_tokens_for_user(
+        user,
+        include_refresh_token=True,
+        verified_email_claim=Settings.EmailVerificationOptions.ENFORCED,
+        impersonated_by_user_id=staff.id,
+    )
+
+    response = _refresh(api_client, tokens["refresh_token"])
+    assert response.status_code == HTTP_200_OK
+    rotated = RefreshToken(response.json()["refresh_token"])
+    assert rotated["impersonated_by"] == staff.id
+    assert rotated["verified_email_claim"] == Settings.EmailVerificationOptions.ENFORCED
+    assert rotated["session_id"] == RefreshToken(tokens["refresh_token"])["jti"]
+    assert rotated["jti"] != rotated["session_id"]
+
+
+@pytest.mark.django_db
+@override_settings(ROTATE_REFRESH_TOKENS=False)
+def test_token_refresh_without_rotation(api_client, data_fixture):
+    user = data_fixture.create_user()
+
+    with freeze_time("2026-10-27 09:00:00"):
+        refresh_token = str(RefreshToken.for_user(user))
+        response = _refresh(api_client, refresh_token)
+        assert response.status_code == HTTP_200_OK
+        assert "refresh_token" not in response.json()
+
+    with freeze_time("2026-10-27 10:00:00"):
+        response = _refresh(api_client, refresh_token)
+        assert response.status_code == HTTP_200_OK
+
+
+def test_token_refresh_schema_documents_the_rotated_refresh_token(api_client):
+    schema = api_client.get(reverse("api:json_schema")).json()
+    response = schema["paths"]["/api/user/token-refresh/"]["post"]["responses"]["200"]
+    properties = response["content"]["application/json"]["schema"]["properties"]
+    assert "refresh_token" in properties
 
 
 @pytest.mark.django_db

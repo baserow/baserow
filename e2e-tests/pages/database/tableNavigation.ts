@@ -2,7 +2,7 @@ import { Page } from "@playwright/test";
 import { baserowConfig } from "../../playwright.config";
 import { Database } from "../../fixtures/database/database";
 import { Table } from "../../fixtures/database/table";
-import { User } from "../../fixtures/user";
+import { User, getBrowserRefreshToken } from "../../fixtures/user";
 import { View } from "../../fixtures/database/view";
 
 /** Opens the table as the user and waits until Nuxt has hydrated the page. */
@@ -18,12 +18,13 @@ export async function openTableAs(
     `/database/${database.id}/table/${table.id}${view ? `/${view.id}` : ""}`,
     baseUrl,
   );
-  url.searchParams.set("token", user.refreshToken);
+  const refreshToken = await getBrowserRefreshToken(user);
+  url.searchParams.set("token", refreshToken);
 
   await page.context().addCookies([
     {
       name: `${baserowConfig.BASEROW_FRONTEND_COOKIE_PREFIX}jwt_token`,
-      value: user.refreshToken,
+      value: refreshToken,
       url: baseUrl,
     },
   ]);

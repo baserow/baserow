@@ -113,8 +113,8 @@ from .errors import (
 )
 from .exceptions import ClientSessionIdHeaderNotSetException
 from .schemas import (
-    authenticate_user_schema,
     authenticated_user_response_schema,
+    token_refresh_response_schema,
     verify_user_schema,
 )
 from .serializers import (
@@ -195,10 +195,13 @@ class RefreshJSONWebToken(TokenRefreshView):
         operation_id="token_refresh",
         description=(
             "Generate a new access_token that can be used to continue operating on Baserow "
-            "starting from a valid refresh token."
+            "starting from a valid refresh token. Unless refresh token rotation is "
+            "disabled, the response also contains a new refresh_token that must be "
+            "used for the next refresh. The provided refresh token stops working "
+            "after 30 seconds, and using it after that signs the session off."
         ),
         responses={
-            200: authenticate_user_schema,
+            200: token_refresh_response_schema,
             401: get_error_schema(
                 ["ERROR_INVALID_REFRESH_TOKEN", "ERROR_EMAIL_VERIFICATION_REQUIRED"]
             ),
@@ -208,6 +211,7 @@ class RefreshJSONWebToken(TokenRefreshView):
     @map_exceptions(
         {
             InvalidToken: ERROR_INVALID_REFRESH_TOKEN,
+            RefreshTokenAlreadyBlacklisted: ERROR_INVALID_REFRESH_TOKEN,
             EmailVerificationRequired: ERROR_EMAIL_VERIFICATION_REQUIRED,
         }
     )
@@ -247,6 +251,8 @@ class BlacklistJSONWebToken(TokenBlacklistView):
     permission_classes = ()
     authentication_classes = ()
     token_class = RefreshToken
+    # A client may hold an older token of the session than the latest rotated one.
+    revoke_session = True
 
     @extend_schema(
         tags=["User"],
@@ -270,7 +276,10 @@ class BlacklistJSONWebToken(TokenBlacklistView):
     @validate_body(TokenBlacklistSerializer)
     def post(self, request, data):
         refresh_token = data["refresh_token"]
-        expires_at = datetime_from_epoch(self.token_class(refresh_token)["exp"])
+        token = self.token_class(refresh_token)
+        if self.revoke_session:
+            UserHandler().revoke_refresh_token_session(token)
+        expires_at = datetime_from_epoch(token["exp"])
         UserHandler().blacklist_refresh_token(refresh_token, expires_at)
         return Response(status=204)
 
