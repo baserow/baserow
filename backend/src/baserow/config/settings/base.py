@@ -1979,7 +1979,7 @@ else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = int(
-    os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE", "") or 5
+    os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE", "") or 10
 )
 
 # Deprecated provider connection/model environment variables. Manage providers and

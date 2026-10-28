@@ -9,6 +9,8 @@ from baserow.core.chat_runs.buffer import set_buffer_redis
 
 @pytest.fixture(autouse=True)
 def reply_model(mocker):
+    """Eager Celery answers every committed send, so no test reaches a provider."""
+
     model = TestModel(custom_output_text="Hello from the agent")
     mocker.patch(
         "baserow.contrib.agent.chat_run_type.create_reply_model",
@@ -18,7 +20,7 @@ def reply_model(mocker):
 
 
 @pytest.fixture(autouse=True)
-def reply_buffer():
+def buffer_redis():
     client = FakeRedis(decode_responses=True)
     set_buffer_redis(client)
     yield client

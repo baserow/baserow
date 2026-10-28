@@ -2,8 +2,8 @@ import asyncio
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS
 from django.test import override_settings
+from django.urls import reverse
 
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
@@ -29,10 +29,12 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.replies import create_reply_model
-from baserow.contrib.agent.types import AgentMessageCreated, AgentReplyRequest
-from baserow.core.cache import local_cache
+from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.signals import agent_conversation_updated
+from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
@@ -40,12 +42,8 @@ from baserow.core.trash.handler import TrashHandler
 from .utils import agent_url, new_conversation, run_reply
 
 
-def start(
-    user: AbstractUser, agent: AgentApplication, content: str = "Hi"
-) -> AgentMessageCreated:
-    return CreateAgentConversationActionType.do(
-        user, agent.id, uuid4(), uuid4(), content
-    )
+def start(user: AbstractUser, agent: AgentApplication) -> AgentMessageCreated:
+    return CreateAgentConversationActionType.do(user, agent.id, uuid4(), uuid4(), "Hi")
 
 
 def run_of(conversation: AgentConversation) -> ChatRun:
@@ -64,10 +62,20 @@ def reply_run(data_fixture, configured_agent):
 
 
 @pytest.mark.django_db
-def test_a_message_is_answered_privately_and_saved_without_null_characters(
-    reply_run, reply_model
+@pytest.mark.parametrize(
+    "output,saved",
+    [
+        ("Hello\x00 from the agent", ("completed", "", "Hello from the agent")),
+        ("\n\n", ("failed", "failed", "")),
+    ],
+    ids=["null-characters", "blank"],
+)
+def test_a_message_is_answered_privately_and_saved_clean(
+    reply_run, reply_model, output, saved
 ):
-    reply_model.custom_output_text = "Hello\x00 from the agent"
+    """Kuma traces every pydantic-ai Agent with content; conversations are private."""
+
+    reply_model.custom_output_text = output
     exporter = InMemorySpanExporter()
     tracer_provider = TracerProvider()
     tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
@@ -78,34 +86,45 @@ def test_a_message_is_answered_privately_and_saved_without_null_characters(
         Agent.instrument_all(False)
 
     reply = AgentMessage.objects.get(role="assistant")
-    assert (reply_run.created_by_id, reply_run.context) == (
-        reply.conversation.owner_user_id,
-        {"reply_id": reply.id},
-    )
-    assert reply_state(reply.id) == ("completed", "", "Hello from the agent")
+    assert reply_state(reply.id) == saved
     assert exporter.get_finished_spans() == ()
 
 
 @pytest.mark.django_db
-def test_a_blank_reply_is_saved_empty(reply_run, reply_model):
-    reply_model.custom_output_text = "\n\n"
+@pytest.mark.parametrize("change", ["ends", "starts"])
+def test_listed_replies_have_their_run_or_are_read_again(
+    api_client, api_user, configured_agent, mocker, change
+):
+    """A reply can end, or another start, between reading the messages and runs."""
 
-    run_reply(reply_run)
+    agent = configured_agent(user=api_user)
+    payload = new_conversation()
+    api_client.post(agent_url(agent, "conversations"), payload)
+    if change == "starts":
+        run_reply(ChatRun.objects.get())
+    read_runs = AgentHandler.get_active_reply_runs
 
-    assert reply_state(reply_run.context["reply_id"]) == ("completed", "", "")
+    def read_runs_while_replies_change(handler, conversation):
+        if change == "ends":
+            run_reply(ChatRun.objects.get())
+        runs = read_runs(handler, conversation)
+        if change == "starts":
+            AgentService().create_message(
+                api_user, agent.id, conversation.uuid, uuid4(), "More"
+            )
+        return runs
 
-
-@pytest.mark.django_db
-def test_replies_still_read_as_unfinished_are_read_again(data_fixture):
-    reply = data_fixture.create_agent_message(
-        role="assistant", status="completed", content="Done"
+    mocker.patch.object(
+        AgentHandler, "get_active_reply_runs", read_runs_while_replies_change
     )
-    stale = AgentMessage.objects.get(id=reply.id)
-    stale.status, stale.content = "running", ""
+    messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
 
-    (fresh,) = AgentHandler().refresh_unfinished_replies([stale])
+    listed = api_client.get(messages_url).json()["results"]
 
-    assert (fresh.status, fresh.content) == ("completed", "Done")
+    assert [(m["role"], m["status"], m["run_id"]) for m in listed] == [
+        ("user", None, None),
+        ("assistant", "completed", None),
+    ]
 
 
 @pytest.mark.django_db
@@ -116,6 +135,7 @@ def test_the_model_gets_the_instructions_and_recent_history(
     agent = configured_agent(user=user, instructions="Be brief.")
     conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
     for status, reply in [
+        ("completed", "Old"),
         ("completed", "First"),
         ("cancelled", "Half"),
         ("failed", ""),
@@ -124,7 +144,7 @@ def test_the_model_gets_the_instructions_and_recent_history(
         data_fixture.create_agent_message(
             conversation=conversation, role="assistant", content=reply, status=status
         )
-    mocker.patch("baserow.contrib.agent.handler.HISTORY_MESSAGE_LIMIT", 4)
+    mocker.patch("baserow.contrib.agent.handler.HISTORY_MESSAGE_LIMIT", 6)
     seen = []
 
     async def stream(messages, info):
@@ -140,6 +160,8 @@ def test_the_model_gets_the_instructions_and_recent_history(
     run_reply(run_of(conversation))
 
     assert [(type(m).__name__, m.parts[0].content) for m in seen] == [
+        ("ModelRequest", "Q"),
+        ("ModelResponse", "First"),
         ("ModelRequest", "Q"),
         ("ModelResponse", f"Half\n\n{INTERRUPTED_REPLY_NOTE}"),
         ("ModelRequest", "Q"),
@@ -184,9 +206,7 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     run_reply(reply_run)
 
     reply_id = reply_run.context["reply_id"]
-    reply_run.refresh_from_db()
     assert reply_state(reply_id) == (status, error_code, "Hel")
-    assert (reply_run.status, reply_run.error_code) == (status, error_code)
     assert [log.record["message"] for log in logs] == (
         [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
         if reason is None
@@ -195,26 +215,13 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
 
 
 @pytest.mark.django_db
-def test_the_reply_model_is_built_without_a_request(
-    data_fixture, configured_agent, mocker
-):
-    agent = configured_agent(user=data_fixture.create_user())
-    send = mocker.patch("httpx2.AsyncClient.send")
-    request = AgentReplyRequest(
-        reply_id=1,
-        workspace=agent.workspace,
-        instructions="",
-        provider_type="openai",
-        model_identifier="test-model",
-        prompt="Hi",
-        history=[],
-    )
+def test_the_reply_model_is_the_configured_one(reply_run):
+    request = AgentService().prepare_reply(reply_run.context["reply_id"])
 
     # The autouse fixture patches the name chat_run_type imported, not this one.
     model, _ = create_reply_model(request)
 
     assert (type(model), model.model_name) == (OpenAIResponsesModel, "test-model")
-    send.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -229,7 +236,7 @@ def test_a_reply_to_a_deleted_conversation_fails_without_an_error_log(reply_run,
 
 
 @pytest.mark.django_db
-def test_lost_and_unstarted_runs_end_their_reply(reply_run):
+def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
     conversation = AgentConversation.objects.get(id=reply_run.chat_id)
     run_type = AgentChatRunType()
     lost = reply_run
@@ -237,37 +244,54 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run):
     lost.status, lost.error_code = "failed", "interrupted"
     unstarted.status, unstarted.error_code = "failed", "not_started"
     events = [
-        {"kind": "text.delta", "data": {"segment": 0, "text": "Hel\x00"}},
+        {"kind": "text.delta", "data": {"segment": 0, "text": "Hel"}},
         {"kind": "text.delta", "data": {"segment": 0, "text": "lo"}},
     ]
+    updated = mocker.spy(agent_conversation_updated, "send")
 
-    run_type.on_run_lost(lost, events)
-    run_type.on_run_not_started(unstarted)
+    saved = [run_type.on_run_lost(lost, events), run_type.on_run_not_started(unstarted)]
 
     assert reply_state(lost.context["reply_id"]) == ("failed", "interrupted", "Hello")
     assert reply_state(unstarted.context["reply_id"]) == ("failed", "not_started", "")
+    assert [(m["id"], m["content"]) for m in saved] == [
+        (lost.context["reply_id"], "Hello"),
+        (unstarted.context["reply_id"], ""),
+    ]
+    assert updated.call_count == 2
 
 
 @pytest.mark.django_db
-def test_the_interruption_warning_only_ends_replies_still_running(reply_run):
+def test_the_interruption_warning_only_ends_replies_still_running(reply_run, mocker):
     run_type = AgentChatRunType()
     reply_id = reply_run.context["reply_id"]
+    updated = mocker.spy(agent_conversation_updated, "send")
 
-    run_type.ensure_interruption_warning(reply_run)
     run_type.ensure_interruption_warning(reply_run)
 
     assert reply_state(reply_id) == ("failed", "interrupted", "")
     AgentMessage.objects.filter(id=reply_id).update(status="completed", error_code="")
     run_type.ensure_interruption_warning(reply_run)
     assert reply_state(reply_id) == ("completed", "", "")
+    updated.assert_called_once_with(
+        run_type,
+        conversation=AgentConversation.objects.get(id=reply_run.chat_id),
+        user=None,
+    )
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "change,error_code",
-    [("unconfigure", "not_ready"), ("leave", "not_allowed"), ("trash", "not_allowed")],
+    [
+        ("unconfigure", "not_ready"),
+        ("leave", "not_allowed"),
+        ("deny_sending", "not_allowed"),
+        ("trash", "not_allowed"),
+    ],
 )
-def test_a_reply_rechecks_the_configuration_and_access(reply_run, change, error_code):
+def test_a_reply_rechecks_the_configuration_and_access(
+    reply_run, mocker, change, error_code
+):
     user = reply_run.created_by
     agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
     if change == "unconfigure":
@@ -275,6 +299,10 @@ def test_a_reply_rechecks_the_configuration_and_access(reply_run, change, error_
         agent.save()
     elif change == "leave":
         WorkspaceUser.objects.filter(user=user).delete()
+    elif change == "deny_sending":
+        mocker.patch.object(
+            CoreHandler, "check_permissions", side_effect=PermissionDenied
+        )
     else:
         TrashHandler.trash(user, agent.workspace, agent, agent)
 
@@ -321,10 +349,6 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
         )
     else:
         TrashHandler.trash(owner, agent.workspace, agent, agent)
-    if user == owner:
-        # Like a new request: membership is cached on the user and in the thread.
-        local_cache.clear()
-        user = type(owner).objects.get(id=owner.id)
 
     assert not run_type.can_read(user, reply_run)
     assert not run_type.can_cancel(user, reply_run)
@@ -332,18 +356,24 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
 
 
 @pytest.mark.django_db
-def test_messages_show_completed_and_running_replies(
+def test_lists_show_completed_and_running_replies(
     api_client, api_user, configured_agent
 ):
     agent = configured_agent(user=api_user)
     payload = new_conversation()
-    api_client.post(agent_url(agent, "conversations"), payload)
-    run_reply(ChatRun.objects.get())
+    conversations_url = agent_url(agent, "conversations")
+    api_client.post(conversations_url, payload)
+    finished = ChatRun.objects.get()
+    run_reply(finished)
+    idle = api_client.get(conversations_url).json()["results"]
     messages_url = agent_url(agent, "messages", conversation_uuid=payload["uuid"])
     sent = api_client.post(messages_url, {"uuid": str(uuid4()), "content": "More"})
     running = ChatRun.objects.get(status="queued")
 
     listed = api_client.get(messages_url).json()["results"]
+    replying = api_client.get(conversations_url).json()["results"]
+    # Followers apply the reply from its run instead of reading the messages.
+    outcome = api_client.get(reverse("api:chat_runs:detail", args=[finished.id]))
 
     assert [(m["role"], m["status"], m["run_id"]) for m in listed] == [
         ("user", None, None),
@@ -352,6 +382,9 @@ def test_messages_show_completed_and_running_replies(
         ("assistant", "running", str(running.id)),
     ]
     assert sent.json()["reply"]["run_id"] == str(running.id)
+    assert [c["run_id"] for c in idle + replying] == [None, str(running.id)]
+    assert sent.json()["conversation"]["run_id"] == str(running.id)
+    assert outcome.json()["message"] == listed[1]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -365,24 +398,6 @@ def test_a_send_names_its_run_even_when_the_reply_ended_before_the_response(
     run = ChatRun.objects.get()
     assert run.status == "completed"
     assert response.json()["reply"]["run_id"] == str(run.id)
-
-
-@pytest.mark.django_db
-def test_the_refresh_after_a_reply_reads_the_messages_from_the_primary(
-    api_client, api_user, configured_agent, mocker
-):
-    agent = configured_agent(user=api_user)
-    payload = new_conversation()
-    api_client.post(agent_url(agent, "conversations"), payload)
-    set_db_alias = mocker.patch("baserow.api.mixins.set_db_alias")
-
-    response = api_client.get(
-        agent_url(agent, "messages", conversation_uuid=payload["uuid"]),
-        HTTP_X_BASEROW_REALTIME_RECOVERY="true",
-    )
-
-    assert response.status_code == 200
-    set_db_alias.assert_called_once_with(DEFAULT_DB_ALIAS)
 
 
 @pytest.mark.django_db

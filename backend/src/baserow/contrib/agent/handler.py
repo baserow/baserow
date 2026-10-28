@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils.dateparse import parse_datetime
 
@@ -10,23 +10,14 @@ from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.handler import ChatRunHandler
-from baserow.core.chat_runs.models import ChatRun
-from baserow.core.exceptions import PermissionDenied
+from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import extract_allowed, remove_null_characters
 
 from .constants import AGENT_RUN_TYPE, HISTORY_MESSAGE_LIMIT
-from .exceptions import (
-    AgentConversationDoesNotExist,
-    AgentMessageConflict,
-    AgentNotReady,
-)
+from .exceptions import AgentConversationDoesNotExist, AgentMessageConflict
 from .models import AgentApplication, AgentConversation, AgentMessage
-from .operations import (
-    CreateAgentMessageOperationType,
-    ReadAgentConversationsOperationType,
-)
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
@@ -163,16 +154,18 @@ class AgentHandler:
         :param for_update: Whether to lock the conversation until the transaction ends.
         :raises AgentConversationDoesNotExist: When the conversation doesn't exist,
             also when it belongs to another owner or agent.
-        :return: The conversation.
+        :return: The conversation, with the agent and the owner it was found for.
         """
 
         queryset = AgentConversation.objects.all()
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         try:
-            return queryset.get(uuid=uuid, agent=agent, owner_user=owner)
+            conversation = queryset.get(uuid=uuid, agent=agent, owner_user=owner)
         except AgentConversation.DoesNotExist as exc:
             raise AgentConversationDoesNotExist from exc
+        conversation.agent, conversation.owner_user = agent, owner
+        return conversation
 
     def get_creation_retry(
         self,
@@ -213,7 +206,7 @@ class AgentHandler:
         message_uuid: UUID,
         content: str,
     ) -> AgentMessageCreated:
-        """Validate both an existing identifier and a racing get_or_create result."""
+        """Validate an existing identifier, also one a racing request just created."""
 
         if conversation.agent_id != agent.id or conversation.owner_user_id != owner.id:
             raise AgentConversationDoesNotExist
@@ -265,26 +258,28 @@ class AgentHandler:
             conversation with this uuid for another owner or agent.
         :raises AgentMessageConflict: When a concurrent request created it with
             another first message.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
         :return: The conversation, its first message and its reply, and whether they
             are new.
         """
 
-        conversation, created = AgentConversation.objects.get_or_create(
-            uuid=uuid,
-            defaults={
-                "agent": agent,
-                "owner_user": user,
-                "title": " ".join(content.split())[:250],
-            },
-        )
-        if not created:
-            # get_or_create resolves a racing duplicate inside a savepoint.
+        try:
+            with transaction.atomic():
+                conversation = AgentConversation.objects.create(
+                    uuid=uuid,
+                    agent=agent,
+                    owner_user=user,
+                    title=" ".join(content.split())[:250],
+                )
+        except IntegrityError:
+            # A concurrent request created this uuid after the retry check.
             return self._get_first_message_retry(
-                conversation, agent, user, message_uuid, content
+                AgentConversation.objects.get(uuid=uuid),
+                agent,
+                user,
+                message_uuid,
+                content,
             )
-        return self.create_message(conversation, message_uuid, content)
+        return self._add_message(conversation, message_uuid, content)
 
     def get_message_retry(
         self, conversation: AgentConversation, uuid: UUID, content: str
@@ -319,13 +314,17 @@ class AgentHandler:
         :param conversation: The conversation to add the message to.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
-        :raises ChatRunAlreadyActive: When the agent is still replying in this
-            conversation.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
         :return: The conversation, the new message, its reply and the run writing
             it.
         """
+
+        conversation.save(update_fields=["updated_on"])
+        return self._add_message(conversation, uuid, content)
+
+    def _add_message(
+        self, conversation: AgentConversation, uuid: UUID, content: str
+    ) -> AgentMessageCreated:
+        """Add the message and its empty reply, and start the run writing it."""
 
         message = AgentMessage.objects.create(
             conversation=conversation, uuid=uuid, content=content
@@ -335,9 +334,8 @@ class AgentHandler:
             uuid=uuid4(),
             role=AgentMessage.Role.ASSISTANT,
             content="",
-            status=AgentMessage.Status.RUNNING,
+            status=ChatRunStatus.RUNNING,
         )
-        conversation.save(update_fields=["updated_on"])
         run = ChatRunHandler().start_run(
             AGENT_RUN_TYPE,
             conversation.id,
@@ -360,6 +358,25 @@ class AgentHandler:
         run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
         return {run.context["reply_id"]: run.id} if run else {}
 
+    def get_conversation_runs(self, conversation_ids: list[int]) -> dict[int, UUID]:
+        """
+        Return the runs writing a reply in the given conversations.
+
+        :param conversation_ids: The ids of the conversations to look at.
+        :return: The id of the active run by the id of its conversation, only for
+            the conversations where the agent is replying.
+        """
+
+        return dict(
+            ChatRunHandler()
+            .runs.filter(
+                run_type=AGENT_RUN_TYPE,
+                chat_id__in=conversation_ids,
+                status__in=ACTIVE_CHAT_RUN_STATUSES,
+            )
+            .values_list("chat_id", "id")
+        )
+
     def get_accessible_conversations(
         self, owner: AbstractUser
     ) -> QuerySet[AgentConversation]:
@@ -378,71 +395,36 @@ class AgentHandler:
             agent__workspace__workspaceuser__user_id=owner.id,
         )
 
-    def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
+    def get_reply(self, reply_id: int) -> AgentMessage:
         """
-        Check that the user owns the conversation in an untrashed Agent and may
-        still read the agent's conversations.
+        Fetch a reply with its conversation, the conversation's owner and its agent.
 
-        :param user: The user asking.
-        :param conversation_id: The id of the conversation.
-        :return: Whether the user may read the conversation.
-        """
-
-        conversation = (
-            self.get_accessible_conversations(user)
-            .select_related("agent__workspace")
-            .filter(id=conversation_id)
-            .first()
-        )
-        if conversation is None:
-            return False
-        return CoreHandler().check_permissions(
-            user,
-            ReadAgentConversationsOperationType.type,
-            workspace=conversation.agent.workspace,
-            context=conversation.agent,
-            raise_permission_exceptions=False,
-        )
-
-    def prepare_reply(self, run: ChatRun) -> AgentReplyRequest:
-        """
-        Load what a run answers, checking again that its author may still send it.
-
-        :param run: The run writing a reply.
+        :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists.
-        :raises PermissionException: When the author doesn't own the conversation,
-            the agent or its workspace is trashed, or the author may no longer send
-            messages to the agent.
-        :raises AgentNotReady: When the agent's configuration is no longer ready.
-        :return: The instructions, the model, the prompt and the earlier messages.
+        :return: The reply.
         """
 
         reply = (
             AgentMessage.objects.select_related(
                 "conversation__agent__workspace", "conversation__owner_user"
             )
-            .filter(id=run.context["reply_id"])
+            .filter(id=reply_id)
             .first()
         )
         if reply is None:
             raise AgentConversationDoesNotExist
+        return reply
+
+    def get_reply_request(self, reply: AgentMessage) -> AgentReplyRequest:
+        """
+        Collect what the model needs to write a reply.
+
+        :param reply: The reply, with its conversation and agent.
+        :return: The instructions, the model, the prompt and the earlier messages.
+        """
+
         conversation = reply.conversation
         agent = conversation.agent
-        if (
-            run.created_by_id != conversation.owner_user_id
-            or not self.get_accessible_conversations(conversation.owner_user)
-            .filter(id=conversation.id)
-            .exists()
-        ):
-            raise PermissionDenied
-        CoreHandler().check_permissions(
-            conversation.owner_user,
-            CreateAgentMessageOperationType.type,
-            workspace=agent.workspace,
-            context=agent,
-        )
-        if self.get_configuration(agent)["readiness"] != "ready":
-            raise AgentNotReady
         # The prompt is the message right before its reply.
         prompt, *history = conversation.messages.filter(id__lt=reply.id).order_by(
             "-id"
@@ -463,72 +445,78 @@ class AgentHandler:
         status: str,
         error_code: str,
         text: str | None,
-    ) -> dict | None:
+    ) -> AgentMessage | None:
         """
-        Save how a reply ended, with its text. NUL characters are dropped because
-        PostgreSQL can't store them, and blank text is saved empty because some
-        providers reject blank replies in the history.
+        Save how a reply ended, with its text, unless the reply no longer exists.
+        NUL characters are dropped because PostgreSQL can't store them, and blank
+        text is saved empty.
 
         :param reply_id: The id of the reply.
         :param status: The final status: completed, cancelled or failed.
         :param error_code: Why the reply failed, or an empty string.
         :param text: What the reply produced, or None when it never started.
-        :return: The id of the reply, or None when it no longer exists.
+        :return: The saved reply with its conversation, or None when it no longer
+            exists.
         """
 
+        # The caller's lock on the run already serializes everything ending a reply.
         reply = (
-            AgentMessage.objects.select_for_update(of=("self",))
-            .select_related("conversation")
+            AgentMessage.objects.select_related("conversation")
             .filter(id=reply_id)
             .first()
         )
         if reply is None:
             return None
-        reply.status = AgentMessage.Status(status)
+        reply.status = status
         reply.error_code = error_code
         content = remove_null_characters(text or "")
         reply.content = content if content.strip() else ""
-        reply.save()
+        reply.save(update_fields=["status", "error_code", "content", "updated_on"])
         reply.conversation.save(update_fields=["updated_on"])
-        return {"message_id": reply.id}
+        return reply
 
     def refresh_unfinished_replies(
-        self, messages: list[AgentMessage]
+        self, messages: list[AgentMessage], active_runs: dict[int, UUID]
     ) -> list[AgentMessage]:
         """
-        Read the replies that still look unfinished again from the primary database,
-        where their runs are read: a lagging replica can show a reply as running
-        after its run ended.
+        Read again, from the primary database, the replies that still look
+        unfinished although no run writes them any more: the messages were read
+        before the runs, maybe from a lagging replica.
 
         :param messages: Messages, possibly read from a replica.
-        :return: The same messages, with the unfinished replies read again.
+        :param active_runs: The active run by reply id, read after the messages.
+        :return: The same messages, with the replies whose run ended read again.
         """
 
-        unfinished = [
+        ended = [
             message.id
             for message in messages
-            if message.status
-            in (AgentMessage.Status.QUEUED, AgentMessage.Status.RUNNING)
+            if message.status in ACTIVE_CHAT_RUN_STATUSES
+            and message.id not in active_runs
         ]
-        if not unfinished:
+        if not ended:
             return messages
-        fresh = AgentMessage.objects.using(DEFAULT_DB_ALIAS).in_bulk(unfinished)
+        fresh = AgentMessage.objects.using(DEFAULT_DB_ALIAS).in_bulk(ended)
         return [fresh.get(message.id, message) for message in messages]
 
-    def mark_reply_interrupted(self, reply_id: int) -> None:
+    def mark_reply_interrupted(self, reply_id: int) -> AgentConversation | None:
         """
         Show that a started reply did not complete, unless it already ended.
 
         :param reply_id: The id of the reply.
+        :return: The reply's conversation when this ended the reply, else None.
         """
 
-        AgentMessage.objects.filter(
+        ended = AgentMessage.objects.filter(
             id=reply_id,
-            status__in=[AgentMessage.Status.QUEUED, AgentMessage.Status.RUNNING],
+            status__in=ACTIVE_CHAT_RUN_STATUSES,
         ).update(
-            status=AgentMessage.Status.FAILED,
+            status=ChatRunStatus.FAILED,
             error_code=ChatRunErrorCode.INTERRUPTED,
         )
+        if not ended:
+            return None
+        return AgentConversation.objects.filter(messages__id=reply_id).first()
 
     def export_conversations(self, agent: AgentApplication) -> list[dict]:
         """
@@ -566,30 +554,6 @@ class AgentHandler:
             }
             for conversation in conversations
         ]
-
-    @staticmethod
-    def _import_message(conversation: AgentConversation, data: dict) -> AgentMessage:
-        """
-        Copy a message, ending a reply in progress: a copy never carries one.
-
-        :param conversation: The copied conversation the message belongs to.
-        :param data: The serialized message.
-        :return: The unsaved message.
-        """
-
-        status = data.get("status")
-        error_code = data.get("error_code", "")
-        if status in (AgentMessage.Status.QUEUED, AgentMessage.Status.RUNNING):
-            status = AgentMessage.Status.FAILED
-            error_code = ChatRunErrorCode.INTERRUPTED
-        return AgentMessage(
-            conversation=conversation,
-            uuid=uuid4(),
-            role=data["role"],
-            content=data["content"],
-            status=status,
-            error_code=error_code,
-        )
 
     def import_conversations(
         self, agent: AgentApplication, serialized_conversations: list[dict]
@@ -632,7 +596,21 @@ class AgentHandler:
             conversation.created_on = parse_datetime(data["created_on"])
             conversation.updated_on = parse_datetime(data["updated_on"])
             for serialized_message in data["messages"]:
-                messages.append(self._import_message(conversation, serialized_message))
+                status = serialized_message["status"]
+                error_code = serialized_message["error_code"]
+                if status in ACTIVE_CHAT_RUN_STATUSES:
+                    status = ChatRunStatus.FAILED
+                    error_code = ChatRunErrorCode.INTERRUPTED
+                messages.append(
+                    AgentMessage(
+                        conversation=conversation,
+                        uuid=uuid4(),
+                        role=serialized_message["role"],
+                        content=serialized_message["content"],
+                        status=status,
+                        error_code=error_code,
+                    )
+                )
                 message_data.append(serialized_message)
 
         # auto_now overrides timestamps in bulk_create, so restore the captured ones.
