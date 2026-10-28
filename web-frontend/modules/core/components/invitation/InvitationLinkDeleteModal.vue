@@ -4,11 +4,7 @@
     <Error :error="error"></Error>
     <div>
       <p>
-        {{
-          $t('invitationLinkDeleteModal.deleteWarning', {
-            workspaceName: workspace.name,
-          })
-        }}
+        {{ targetType.getInvitationLinkDeleteWarning(workspace, target) }}
       </p>
       <div class="actions">
         <div class="align-right">

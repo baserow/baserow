@@ -101,4 +101,55 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     })
     return data
   }
+
+  /**
+   * Links give their role on the object only. Admins of the workspace and of the
+   * object can manage them, which are the people who can open this dialog.
+   */
+  supportsInvitationLinks() {
+    return true
+  }
+
+  async fetchInvitationLinks(workspace, { scope, scopeType }) {
+    const { data } = await RoleAssignmentsService(
+      this.app.$client
+    ).getScopedInvitationLinks(workspace.id, scope.id, scopeType)
+    return data
+  }
+
+  async createInvitationLink(workspace, { scope, scopeType }, permissions) {
+    const { data } = await RoleAssignmentsService(
+      this.app.$client
+    ).createScopedInvitationLink(workspace.id, {
+      permissions,
+      scopeId: scope.id,
+      scopeType,
+    })
+    return data
+  }
+
+  async updateInvitationLink(workspace, target, invitationLink, values) {
+    const { data } = await RoleAssignmentsService(
+      this.app.$client
+    ).updateScopedInvitationLink(invitationLink.id, values)
+    return data
+  }
+
+  async deleteInvitationLink(workspace, target, invitationLink) {
+    await RoleAssignmentsService(this.app.$client).deleteScopedInvitationLink(
+      invitationLink.id
+    )
+  }
+
+  getInvitationLinkAdminWarning(workspace, { scope }) {
+    return this.$t('scopeInvitationTarget.linkAdminWarning', {
+      name: scope.name,
+    })
+  }
+
+  getInvitationLinkDeleteWarning(workspace, { scope }) {
+    return this.$t('scopeInvitationTarget.linkDeleteWarning', {
+      name: scope.name,
+    })
+  }
 }
