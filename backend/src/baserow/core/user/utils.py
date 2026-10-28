@@ -40,6 +40,9 @@ IMPERSONATED_BY_CLAIM = "impersonated_by"
 IMPERSONATED_BY_USER_ATTR = "impersonated_by_user_id"
 # Holds the id of the login a rotated refresh token descends from.
 SESSION_ID_CLAIM = "session_id"
+# Signs user sessions that carry a session hash. Releases before refresh token
+# rotation can't read those, and the salt makes them reject them as invalid.
+USER_SESSION_SALT = "baserow.user_session"
 
 
 def get_refresh_token_session_hash(refresh_token: RefreshToken) -> str:
@@ -136,13 +139,13 @@ def sign_user_session(user_id: int, refresh_token: str) -> str:
     try:
         token = RefreshToken(refresh_token)
     except TokenError:
-        pass
-    else:
-        # A rotated refresh token keeps the expiry of the first one, while the
-        # signature would otherwise be valid for a full lifetime from now.
-        payload.session_hash = get_refresh_token_session_hash(token)
-        payload.expires_at = token["exp"]
-    return TimestampSigner().sign_object(asdict(payload))
+        return TimestampSigner().sign_object(asdict(payload))
+
+    # A rotated refresh token keeps the expiry of the first one, while the
+    # signature would otherwise be valid for a full lifetime from now.
+    payload.session_hash = get_refresh_token_session_hash(token)
+    payload.expires_at = token["exp"]
+    return TimestampSigner(salt=USER_SESSION_SALT).sign_object(asdict(payload))
 
 
 def prepare_user_tokens_payload(

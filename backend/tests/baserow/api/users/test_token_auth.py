@@ -20,7 +20,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import BlacklistedToken, Settings, UserLogEntry
 from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.user.handler import UserHandler
-from baserow.core.user.utils import generate_session_tokens_for_user
+from baserow.core.user.tasks import flush_expired_tokens
+from baserow.core.user.utils import (
+    USER_SESSION_SALT,
+    generate_session_tokens_for_user,
+)
 from baserow.core.utils import generate_hash
 from baserow.test_utils.helpers import AnyStr
 
@@ -819,7 +823,9 @@ def test_token_refresh_rotates_the_refresh_token(api_client, data_fixture):
         assert response.status_code == HTTP_200_OK
         rotated = response.json()
         assert rotated["refresh_token"] != login["refresh_token"]
-        user_session = TimestampSigner().unsign_object(rotated["user_session"])
+        user_session = TimestampSigner(salt=USER_SESSION_SALT).unsign_object(
+            rotated["user_session"]
+        )
         assert user_session["token_hash"] == generate_hash(rotated["refresh_token"])
         login_exp = RefreshToken(login["refresh_token"])["exp"]
         assert RefreshToken(rotated["refresh_token"])["exp"] == login_exp
@@ -868,6 +874,25 @@ def test_token_blacklist_with_an_older_token_revokes_the_session(
 
     response = _refresh(api_client, latest)
     assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_revoked_session_outlives_flushing_expired_tokens(api_client, data_fixture):
+    user = data_fixture.create_user()
+    with freeze_time("2026-10-27 09:00"):
+        refresh_token = str(RefreshToken.for_user(user))
+        latest = _refresh(api_client, refresh_token).json()["refresh_token"]
+        api_client.post(
+            reverse("api:user:token_blacklist"),
+            {"refresh_token": refresh_token},
+            format="json",
+        )
+
+    with freeze_time("2026-10-28 09:00"):
+        flush_expired_tokens()
+
+        response = _refresh(api_client, latest)
+        assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
