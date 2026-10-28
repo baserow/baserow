@@ -44,7 +44,7 @@ export class ChatRunType extends Registerable {
     return view
   }
 
-  /** Refresh product history to discover work started while this tab was idle. */
+  /** Re-read the subscribed chat after a websocket reconnect may have missed runs. */
   refreshChat(chatId) {}
 
   /** Keep a completed outcome needed for a product handoff beyond the cache limit. */

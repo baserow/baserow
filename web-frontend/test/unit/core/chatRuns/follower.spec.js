@@ -23,7 +23,7 @@ const record = (cursor, kind, data = {}, metadata = {}) => ({
 })
 
 describe('core HTTP run follower without a product adapter', () => {
-  let testApp, store, type, api
+  let testApp, store, type, api, realtime
   const current = () => store.getters['chatRuns/getFollower']('run')
   const accept = (value) =>
     store.dispatch('chatRuns/acceptRecord', { runId: 'run', record: value })
@@ -37,7 +37,7 @@ describe('core HTTP run follower without a product adapter', () => {
     })
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     testApp = new TestApp()
     testApp.authenticate({ id: 1, first_name: 'Test' })
     store = testApp.store
@@ -49,8 +49,15 @@ describe('core HTTP run follower without a product adapter', () => {
       stream: vi.fn().mockResolvedValue(),
     }
     service.mockReturnValue(api)
+    realtime = Object.assign(store.app.$realtime, {
+      connected: true,
+      socket: {},
+    })
+    vi.spyOn(realtime, 'subscribe').mockImplementation(() => {})
+    vi.spyOn(realtime, 'unsubscribe').mockImplementation(() => {})
   })
   afterEach(async () => {
+    Object.assign(realtime, { connected: false, socket: null })
     await store.dispatch('chatRuns/disconnect')
     testApp.getRegistry().unregister('chatRunType', 'fake')
     await testApp.afterEach()
@@ -97,7 +104,7 @@ describe('core HTTP run follower without a product adapter', () => {
       status: 'completed',
       message: { id: 9, content: 'Complete answer' },
     })
-    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(15000)
     expect(current()).toMatchObject({
       finished: true,
       view: { text: 'Complete answer' },
@@ -143,6 +150,52 @@ describe('core HTTP run follower without a product adapter', () => {
     expect(type.onEvent.mock.calls.at(-1)[2]).toBe(false)
   })
 
+  test('an open stream is the only status source while it sends heartbeats', async () => {
+    await follow({ controller: new AbortController() })
+    for (let second = 5; second <= 60; second += 5) {
+      await vi.advanceTimersByTimeAsync(5000)
+      await accept({ kind: 'run.heartbeat', data: {}, cursor: null })
+    }
+    await store.dispatch('chatRuns/handleChanged', {
+      runId: 'run',
+      runType: 'fake',
+      chatId: 1,
+    })
+    await store.dispatch('chatRuns/cancelRun', 'run')
+    expect(api.get).not.toHaveBeenCalled()
+    expect(type.onEvent).not.toHaveBeenCalled()
+
+    // Without output to stream, a change is read from the saved run.
+    await accept({ kind: 'run.replay_unavailable', data: {} })
+    await flushPromises()
+    await store.dispatch('chatRuns/handleChanged', {
+      runId: 'run',
+      runType: 'fake',
+      chatId: 1,
+    })
+    expect(api.get).toHaveBeenCalledTimes(2)
+  })
+
+  test('a silent stream reconnects, also after the computer slept', async () => {
+    type.openStream.mockImplementation(
+      (follower, onRecord, signal) =>
+        new Promise((resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('closed')))
+        )
+    )
+    await follow({ attach: true })
+    await flushPromises()
+    expect(api.get).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(15000)
+    expect(type.openStream).toHaveBeenCalledTimes(2)
+    expect(api.get).toHaveBeenCalledOnce()
+
+    vi.setSystemTime(Date.now() + 20000)
+    await store.dispatch('chatRuns/resumeFollowers')
+    await flushPromises()
+    expect(type.openStream).toHaveBeenCalledTimes(3)
+  })
+
   test('the default follower reads the run after its cursor', async () => {
     await follow()
     await accept(record('10', 'text.delta', { segment: 0, text: 'Hi' }))
@@ -186,7 +239,7 @@ describe('core HTTP run follower without a product adapter', () => {
     await accept(record('10', 'text.delta', { segment: 0, text: 'Partial' }))
     const message = { id: 9, content: 'Saved' }
     api.get.mockResolvedValue({ status: 'completed', error_code: '', message })
-    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(15000)
     await accept(record('11', 'text.delta', { segment: 0, text: ' Late' }))
     expect(current()).toMatchObject({
       finished: true,
@@ -216,6 +269,10 @@ describe('core HTTP run follower without a product adapter', () => {
 
   test('lifecycle and subscription confirmations do not renew an exhausted reconnect budget', async () => {
     type.openStream.mockRejectedValue(new Error('offline'))
+    await store.dispatch('chatRuns/subscribeToChat', {
+      runType: 'fake',
+      chatId: 1,
+    })
     await follow({ attach: true })
     await flushPromises()
     expect(type.openStream).toHaveBeenCalledTimes(3)
@@ -225,6 +282,7 @@ describe('core HTTP run follower without a product adapter', () => {
         runType: 'fake',
         chatId: 1,
       })
+      realtime.socket = {}
       await store.dispatch('chatRuns/handlePageAdd', {
         run_type: 'fake',
         chat_id: 1,
@@ -234,6 +292,79 @@ describe('core HTTP run follower without a product adapter', () => {
     }
     expect(type.openStream).toHaveBeenCalledTimes(3)
     expect(current().finished).toBe(false)
+  })
+
+  test('focus resumes followers whose stream ended without re-reading their chat', async () => {
+    type.openStream.mockRejectedValue(new Error('offline'))
+    type.refreshChat = vi.fn()
+    await follow({ attach: true })
+    await follow({ runId: 'live', controller: new AbortController() })
+    await flushPromises()
+    expect(type.openStream).toHaveBeenCalledTimes(3)
+    await store.dispatch('chatRuns/resumeFollowers')
+    await flushPromises()
+    expect(type.openStream).toHaveBeenCalledTimes(6)
+    expect(
+      type.openStream.mock.calls.map(([{ runId }]) => runId)
+    ).not.toContain('live')
+    expect(type.refreshChat).not.toHaveBeenCalled()
+  })
+
+  describe('chat subscriptions', () => {
+    const subscribe = (chatId, runType = 'fake') =>
+      store.dispatch('chatRuns/subscribeToChat', { runType, chatId })
+    const confirm = (chatId) =>
+      store.dispatch('chatRuns/handlePageAdd', {
+        run_type: 'fake',
+        chat_id: chatId,
+      })
+
+    beforeEach(() => {
+      type.refreshChat = vi.fn()
+    })
+
+    test('a confirmation re-reads the chat only after a websocket reconnect', async () => {
+      await subscribe(1)
+      await follow()
+      await confirm(1)
+      await confirm(2)
+      expect(type.refreshChat).not.toHaveBeenCalled()
+
+      realtime.socket = {}
+      await confirm(1)
+      await confirm(1)
+      expect(type.refreshChat).toHaveBeenCalledExactlyOnceWith(1)
+      expect(api.get).toHaveBeenCalledExactlyOnceWith('run')
+    })
+
+    test('a subscription sent while disconnected re-reads the chat once confirmed', async () => {
+      realtime.connected = false
+      await subscribe(1)
+      realtime.connected = true
+      await confirm(1)
+      expect(type.refreshChat).toHaveBeenCalledExactlyOnceWith(1)
+    })
+
+    test('each run type keeps one subscription until its owner releases it', async () => {
+      await subscribe(1)
+      await subscribe(2)
+      await subscribe(1, 'other')
+      await store.dispatch('chatRuns/unsubscribeFromChat', {
+        runType: 'fake',
+        chatId: 1,
+      })
+      expect(store.state.chatRuns.subscriptions).toEqual({ fake: 2, other: 1 })
+
+      await store.dispatch('chatRuns/unsubscribeFromChat', {
+        runType: 'fake',
+        chatId: 2,
+      })
+      expect(store.state.chatRuns.subscriptions).toEqual({ other: 1 })
+      expect(realtime.unsubscribe.mock.calls).toEqual([
+        ['chat_runs', { run_type: 'fake', chat_id: 1 }],
+        ['chat_runs', { run_type: 'fake', chat_id: 2 }],
+      ])
+    })
   })
 
   test('Stop is run-scoped and remains usable with unavailable output', async () => {

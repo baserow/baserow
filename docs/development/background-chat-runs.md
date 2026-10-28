@@ -154,6 +154,14 @@ default it reads that stream and handles the resume baseline: the record that
 rebuilds the output before the cursor a follower resumes from. The product only
 folds its own events into what the UI shows, in `foldEvent`.
 
+To follow runs that other tabs start, a product subscribes to one chat per run
+type with `chatRuns/subscribeToChat` and releases it with
+`chatRuns/unsubscribeFromChat`. Websocket lifecycle messages are not replayed, so
+the store calls the type's `refreshChat` when the subscription is confirmed again
+after a reconnect. While no output arrives, an open stream sends a
+`run.heartbeat` record about every 5 seconds; the store restarts a stream that
+sends nothing for 15 seconds.
+
 ## When things go wrong
 
 The engine never runs an answer twice. Tools may already have changed data, so a

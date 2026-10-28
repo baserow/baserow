@@ -7,13 +7,13 @@ export default defineNuxtPlugin({
     const store = nuxtApp.$store
     registerChatRunRealtimeEvents(nuxtApp.$realtime)
     if (import.meta.client) {
-      const refresh = () => {
+      const resume = () => {
         if (store.getters['auth/isAuthenticated']) {
-          store.dispatch('chatRuns/refreshSubscription', { retry: true })
+          store.dispatch('chatRuns/resumeFollowers')
         }
       }
-      window.addEventListener('focus', refresh)
-      window.addEventListener('online', refresh)
+      window.addEventListener('focus', resume)
+      window.addEventListener('online', resume)
       store.watch(
         (_, getters) => getters['auth/isAuthenticated'],
         (authenticated) => {
