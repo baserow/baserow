@@ -135,12 +135,13 @@ export async function createAgentPage() {
     testApp,
     agent,
     allowed,
-    mount: () =>
+    mount: ({ mixins = [] } = {}) =>
       testApp.mount(AgentApplicationContent, {
         props: { agent },
         global: {
           provide: { [matchedRouteKey]: ref(route) },
           plugins: [{ install: (app) => (app.$nuxt = permissionApp) }],
+          mixins,
         },
       }),
     leave: () => [...route.leaveGuards][0](),
@@ -149,6 +150,7 @@ export async function createAgentPage() {
 }
 
 export async function destroyAgentPage(testApp) {
+  await testApp.store.dispatch('chatRuns/disconnect')
   await testApp.afterEach()
   vi.restoreAllMocks()
   vi.clearAllTimers()
@@ -244,14 +246,6 @@ export const message = (
   error_code: errorCode,
   run_id: runId,
 })
-
-export const runningReply = (runId = 'run-1', id = 2) =>
-  message(`reply-${id}`, '', {
-    id,
-    role: 'assistant',
-    status: 'running',
-    runId,
-  })
 
 export const acceptConversation = (config) => {
   const body = JSON.parse(config.data)
