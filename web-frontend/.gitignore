@@ -24,3 +24,4 @@ logs
 !.env.example
 
 iconoir.scss
+iconoir.subset.scss
