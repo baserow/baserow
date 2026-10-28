@@ -70,7 +70,7 @@
                 ></template
               >
             </Alert>
-            <template v-if="threadItems.length">
+            <template v-if="state.currentHistory?.items.length">
               <Button
                 v-if="state.currentHistory.next"
                 type="secondary"
@@ -81,48 +81,11 @@
                 @click="loadMoreMessages"
                 >{{ $t('agent.olderMessages') }}</Button
               >
-              <ChatMessage
-                v-for="item in threadItems"
-                :key="item.message.uuid"
-                :own="item.own"
-                :author="item.own ? '' : agent.name"
-                :first="item.first"
-                :last="item.last"
-                :status="item.status ? $t(item.status) : ''"
-              >
-                <div v-if="item.own" class="chat-message__bubble">
-                  {{ item.message.content }}
-                </div>
-                <div
-                  v-else-if="item.message.content"
-                  class="chat-message__bubble"
-                  aria-live="polite"
-                  :aria-busy="item.message.writing"
-                >
-                  <ChatMarkdown :content="item.message.content" />
-                </div>
-                <div
-                  v-if="item.error"
-                  class="chat-message__bubble chat-message__bubble--error"
-                >
-                  {{ $t(item.error) }}
-                </div>
-                <div v-if="item.note" class="chat-message__note">
-                  {{ $t(item.note) }}
-                </div>
-                <template
-                  v-if="item.message.content && !item.message.writing"
-                  #actions
-                >
-                  <span v-if="item.own" class="chat-message__time">{{
-                    getHumanAgoLabel($t, item.message.created_on)
-                  }}</span>
-                  <ChatCopyButton :text="item.message.content" />
-                  <span v-if="!item.own" class="chat-message__time">{{
-                    getHumanAgoLabel($t, item.message.created_on)
-                  }}</span>
-                </template>
-              </ChatMessage>
+              <AgentMessage
+                v-for="message in state.currentHistory.items"
+                :key="message.uuid"
+                :message="message"
+              />
             </template>
             <div v-else-if="showChatIntro" class="agent-chat__intro">
               <div class="agent-chat__avatar">
@@ -182,7 +145,7 @@
             role="alert"
             class="margin-bottom-2"
           >
-            {{ $t(SEND_ERROR_MESSAGES[state.sendError]) }}
+            {{ $t(state.sendError) }}
           </Alert>
           <ChatComposer
             v-if="showComposer"
@@ -201,7 +164,7 @@
             :sending="Boolean(state.currentDraft?.sending)"
             :running="replyRunning"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
-            :status="composerStatus ? $t(composerStatus) : ''"
+            :activity="composerActivity ? $t(composerActivity) : ''"
             :send-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
             :stop-label="$t('agent.stop')"
             @update:model-value="state.updateMessage"
@@ -237,15 +200,13 @@
 import { computed, nextTick, reactive, ref, toRef, watch } from 'vue'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
-import ChatCopyButton from '@baserow/modules/core/components/chat/ChatCopyButton'
-import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
-import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
-import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
-import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
 import { useAgentConversations } from '@baserow/modules/agent/composables/useAgentConversations'
+import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 
 const props = defineProps({ agent: { type: Object, required: true } })
 const agent = toRef(props, 'agent')
@@ -255,6 +216,7 @@ const state = reactive({
   ...useAgentConversations(agent, configuration),
 })
 const configurationOpen = ref(true)
+provideNow()
 const showChatIntro = computed(
   () =>
     !state.currentHistory?.items.length &&
@@ -264,6 +226,7 @@ const showChatIntro = computed(
 const configurationSidebar = ref(null)
 const historyElement = ref(null)
 const historyScrolled = ref(false)
+const announcement = ref('')
 // Any selection change, even away and back, invalidates a pending scroll anchor.
 let historySelectionRevision = 0
 watch(
@@ -271,6 +234,7 @@ watch(
   () => {
     ++historySelectionRevision
     historyScrolled.value = false
+    announcement.value = ''
   },
   { flush: 'sync' }
 )
@@ -279,71 +243,23 @@ const fieldLabels = {
   provider_type: 'agent.provider',
   model_identifier: 'agent.model',
 }
-const SEND_ERROR_MESSAGES = {
-  conflict: 'agent.messageConflict',
-  inProgress: 'agent.replyInProgress',
-  busy: 'agent.agentsBusy',
-  failed: 'agent.messageSaveError',
-}
-const FAILED_REPLY_NOTICES = {
-  timeout: 'agent.replyTimedOut',
-  interrupted: 'agent.replyInterrupted',
-  not_started: 'agent.replyNotStarted',
-  not_ready: 'agent.replyNotReady',
-  not_allowed: 'agent.replyNotAllowed',
-}
-/**
- * How a reply that isn't being written ended, when it didn't complete: a note
- * when it was stopped, an error otherwise.
- */
-function replyOutcome({ status, error_code: errorCode, writing }) {
-  if (writing || !status || status === RUN_STATUS.COMPLETED) return {}
-  if (status === RUN_STATUS.CANCELLED) return { note: 'agent.replyStopped' }
-  if (status === RUN_STATUS.FAILED) {
-    return { error: FAILED_REPLY_NOTICES[errorCode] || 'agent.replyFailed' }
-  }
-  return { error: 'agent.replyInterrupted' }
-}
-// A private conversation has one person and one agent, so the role is the author.
-const authorOf = (message) => message.role
-const threadItems = computed(() => {
-  const messages = state.currentMessages
-  const sameAuthor = (message, other) =>
-    Boolean(other) && authorOf(other) === authorOf(message)
-  return messages.map((message, index) => {
-    const own = message.role === 'user'
-    return {
-      message,
-      own,
-      first: !sameAuthor(message, messages[index - 1]),
-      last: !sameAuthor(message, messages[index + 1]),
-      status:
-        message.writing && !message.content ? 'agent.thinking' : undefined,
-      ...(own ? {} : replyOutcome(message)),
-    }
-  })
-})
-const replyRunning = computed(() =>
-  Boolean(state.replyFollower && !state.replyFollower.finished)
-)
-const composerStatus = computed(() => {
+const replyRunning = computed(() => Boolean(state.replyFollower))
+const composerActivity = computed(() => {
   if (!replyRunning.value) return null
   return state.replyFollower.view.text ? 'agent.writing' : 'agent.thinking'
 })
-const announcement = ref('')
 watch(
-  () => {
-    const follower = state.replyFollower
-    if (!follower) return null
-    if (!follower.finished) return 'agent.replying'
-    const { note, error } = replyOutcome({
-      status: follower.view.status,
-      error_code: follower.view.errorCode,
-    })
-    return note || error || ''
-  },
-  (key) => {
-    if (key !== null) announcement.value = key
+  () => state.replyFollower,
+  (follower, previous) => {
+    if (follower) {
+      announcement.value = 'agent.replying'
+    } else if (previous?.finished) {
+      const { note, error } = replyOutcome({
+        status: previous.view.status,
+        error_code: previous.view.errorCode,
+      })
+      announcement.value = note || error || ''
+    }
   }
 )
 const warningFields = computed(() => Object.keys(state.fieldErrors))
@@ -419,10 +335,10 @@ async function loadMoreMessages() {
   container.scrollTop += anchor.offsetTop - previousOffset
 }
 watch(
-  () => [
-    state.selectedUuid,
-    state.currentHistory?.items.at(-1)?.uuid,
-    state.replyFollower?.view.text,
+  [
+    () => state.selectedUuid,
+    () => state.currentHistory?.items.at(-1)?.uuid,
+    () => state.replyFollower?.view.text,
   ],
   async ([selection], [previousSelection, previousLast]) => {
     const container = historyElement.value

@@ -154,25 +154,28 @@ describe('Agent conversations', () => {
     expect(composer(wrapper).element.value).toBe('Unsent draft')
   })
 
-  test('lets a rejected message be edited and sent with new IDs', async () => {
-    testApp.dontFailOnErrorResponses()
-    mockStartConversation(
-      testApp,
-      [400, { error: 'ERROR_REQUEST_BODY_VALIDATION' }],
-      acceptConversation
-    )
-    const wrapper = await mount()
-    await sendMessage(wrapper, 'Rejected')
+  test.each([
+    ['ERROR_REQUEST_BODY_VALIDATION', 400, 'agent.messageSaveError'],
+    ['ERROR_AGENT_BUSY', 429, 'agent.agentsBusy'],
+  ])(
+    'lets a message rejected with %s be edited and sent with new IDs',
+    async (error, status, alert) => {
+      testApp.dontFailOnErrorResponses()
+      mockStartConversation(testApp, [status, { error }], acceptConversation)
+      const wrapper = await mount()
+      await sendMessage(wrapper, 'Rejected')
 
-    expect(composer(wrapper).element.readOnly).toBe(false)
-    await composer(wrapper).setValue('Accepted')
-    await send(wrapper).trigger('click')
-    await flushPromises()
+      expect(wrapper.get('#agent-chat-send-error').text()).toBe(alert)
+      expect(composer(wrapper).element.readOnly).toBe(false)
+      await composer(wrapper).setValue('Accepted')
+      await send(wrapper).trigger('click')
+      await flushPromises()
 
-    const [rejected, accepted] = sentBodies(testApp)
-    expect(accepted.content).toBe('Accepted')
-    expect(accepted.message_uuid).not.toBe(rejected.message_uuid)
-  })
+      const [rejected, accepted] = sentBodies(testApp)
+      expect(accepted.content).toBe('Accepted')
+      expect(accepted.message_uuid).not.toBe(rejected.message_uuid)
+    }
+  )
 
   test('retries a failed first message with the same content and IDs', async () => {
     testApp.dontFailOnErrorResponses()
@@ -448,6 +451,23 @@ describe('Agent conversations', () => {
       )
     }
   )
+
+  test('follows runs only in the selected saved conversation', async () => {
+    const { id } = conversation('conversation-a', 'Conversation A')
+    twoConversations()
+    mockMessages(testApp, 'conversation-a', page([]))
+    const subscriptions = () => testApp.store.state.chatRuns.subscriptions
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Conversation A')
+    expect(subscriptions()).toEqual({ agent: id })
+    await wrapper.get('.agent-conversations__footer .button').trigger('click')
+    await flushPromises()
+    expect(subscriptions()).toEqual({})
+    await selectConversation(wrapper, 'Conversation A')
+    wrapper.unmount()
+    expect(subscriptions()).toEqual({})
+  })
 
   test('ignores a send that finishes after switching to another Agent', async () => {
     const write = deferredReply()

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import service from '@baserow/modules/core/services/chatRuns'
 import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
 import {
   agentData,
@@ -21,18 +22,33 @@ import {
   sendMessage,
 } from './helpers'
 
+vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
+
 const storedMessage = (id, content) => ({
   ...message(`message-${id}`, content),
   id,
 })
+const remoteReply = (id) =>
+  message(`reply-${id}`, '', {
+    id,
+    role: 'assistant',
+    status: 'running',
+    runId: 'remote-run',
+  })
 const first = conversation('conversation-a', 'Conversation A')
 const second = conversation('conversation-b', 'Conversation B')
+const isRecovery = (request) =>
+  request.headers['X-Baserow-Realtime-Recovery'] === 'true'
 
 describe('Agent conversation realtime updates', () => {
   let testApp, agent, allowed, mount, receive
 
   beforeEach(async () => {
     ;({ testApp, agent, allowed, mount } = await createAgentPage())
+    service.mockReturnValue({
+      get: vi.fn().mockResolvedValue({ status: 'running' }),
+      stream: vi.fn(() => new Promise(() => {})),
+    })
     registerRealtimeEvents({
       registerEvent: (type, handler) => {
         if (type === 'agent_conversation_updated') receive = handler
@@ -42,15 +58,31 @@ describe('Agent conversation realtime updates', () => {
 
   afterEach(() => destroyAgentPage(testApp))
 
-  const update = async (uuid, agentId = agentData.id) => {
+  const update = async (
+    uuid,
+    {
+      runId = null,
+      updatedOn = '2026-10-22T10:00:00Z',
+      agentId = agentData.id,
+    } = {}
+  ) => {
     receive(
       { store: testApp.store },
-      { agent_id: agentId, conversation_uuid: uuid }
+      {
+        agent_id: agentId,
+        conversation_uuid: uuid,
+        run_id: runId,
+        updated_on: updatedOn,
+      }
     )
     await flushPromises()
   }
+  const reconnect = async (chatId) => {
+    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chatId)
+    await flushPromises()
+  }
 
-  test('keeps selected older conversations, history, drafts and focus during a remote refresh', async () => {
+  test('lists a remote conversation and loads a remote reply, keeping history, draft and focus', async () => {
     mockConversations(testApp, page([first], 'next'), page([second]))
     mockMessages(
       testApp,
@@ -83,15 +115,21 @@ describe('Agent conversation realtime updates', () => {
     mockMessages(
       testApp,
       second.uuid,
-      page([storedMessage(3, 'Remote message')], 'next'),
+      page([storedMessage(3, 'Remote message'), remoteReply(4)], 'next'),
       page([storedMessage(2, 'Recent')], 'next')
     )
 
-    await update(second.uuid)
+    await update('conversation-c')
+    await update(second.uuid, { runId: 'remote-run' })
 
     expect(conversationTitles(wrapper)).toContain('New remote conversation')
+    expect(
+      testApp.mock.history.get
+        .filter(({ url }) => url.endsWith('/conversations/'))
+        .at(-1)
+    ).toSatisfy(isRecovery)
     expect(selected(wrapper).text()).toContain(second.title)
-    expect(messages(wrapper)).toEqual(['Older', 'Recent', 'Remote message'])
+    expect(messages(wrapper)).toEqual(['Older', 'Recent', 'Remote message', ''])
     expect(composer(wrapper).element).toBe(textarea)
     expect(document.activeElement).toBe(textarea)
     expect(textarea.value).toBe('Unfinished draft')
@@ -106,7 +144,7 @@ describe('Agent conversation realtime updates', () => {
     await selectConversation(wrapper, first.title)
     const refresh = deferredReply()
     mockMessages(testApp, first.uuid, refresh.reply)
-    await update(first.uuid)
+    await reconnect(first.id)
     mockSendMessage(testApp, first.uuid, ({ data }) => [
       200,
       {
@@ -133,14 +171,18 @@ describe('Agent conversation realtime updates', () => {
     expect(composer(wrapper).element.value).toBe('')
   })
 
-  test('refreshes an event received during the first history load without replacing the draft', async () => {
+  test('loads a remote reply that starts during the first history load without replacing the draft', async () => {
     mockConversations(testApp, page([first]))
     const initial = deferredReply()
     mockMessages(
       testApp,
       first.uuid,
       initial.reply,
-      page([storedMessage(1, 'Earlier'), storedMessage(2, 'Remote message')])
+      page([
+        storedMessage(1, 'Earlier'),
+        storedMessage(2, 'Remote message'),
+        remoteReply(3),
+      ])
     )
     const wrapper = await mount()
     await selectConversation(wrapper, first.title)
@@ -154,17 +196,17 @@ describe('Agent conversation realtime updates', () => {
     const textarea = composer(wrapper).element
     textarea.focus()
 
-    await update(first.uuid)
+    await update(first.uuid, { runId: 'remote-run' })
     initial.resolve(200, page([storedMessage(1, 'Earlier')]))
     await flushPromises()
 
-    expect(messages(wrapper)).toEqual(['Earlier', 'Remote message'])
+    expect(messages(wrapper)).toEqual(['Earlier', 'Remote message', ''])
     expect(composer(wrapper).element).toBe(textarea)
     expect(textarea.value).toBe('Writing during load')
     expect(document.activeElement).toBe(textarea)
   })
 
-  test('queues a remote update during a send and refreshes without duplicating the accepted message', async () => {
+  test('queues a reconnect read during a send without duplicating the accepted message', async () => {
     mockConversations(testApp, page([first]))
     mockMessages(testApp, first.uuid, page([storedMessage(1, 'Earlier')]))
     const write = deferredReply()
@@ -185,7 +227,7 @@ describe('Agent conversation realtime updates', () => {
       url.includes('/messages/')
     ).length
 
-    await update(first.uuid)
+    await reconnect(first.id)
 
     expect(
       testApp.mock.history.get.filter(({ url }) => url.includes('/messages/'))
@@ -243,7 +285,7 @@ describe('Agent conversation realtime updates', () => {
       page([storedMessage(1, 'Earlier'), storedMessage(2, 'Remote message')])
     )
 
-    await update(first.uuid)
+    await reconnect(first.id)
 
     expect(messages(wrapper)).toEqual(['Earlier'])
     expect(composer(wrapper).element).toBe(textarea)
@@ -291,7 +333,7 @@ describe('Agent conversation realtime updates', () => {
     vi.spyOn(anchor, 'offsetTop', 'get').mockImplementation(() => anchorOffset)
     await wrapper.get('.agent-chat__older').trigger('click')
     await flushPromises()
-    await update(first.uuid)
+    await reconnect(first.id)
     scrollHeight = 1500
     anchorOffset = 500
     older.resolve(
@@ -353,7 +395,7 @@ describe('Agent conversation realtime updates', () => {
       page([storedMessage(1, 'Earlier'), storedMessage(2, 'Remote message')])
     )
 
-    await update(first.uuid)
+    await reconnect(first.id)
 
     expect(messages(wrapper)).toEqual(['Earlier', 'Remote message'])
     expect(scrollTop).toBe(150)
@@ -385,13 +427,44 @@ describe('Agent conversation realtime updates', () => {
     expect(messages(wrapper)).toEqual(['Earlier A', 'Remote A'])
   })
 
+  test('pulses the dot while any session writes a reply, without reading again', async () => {
+    mockConversations(testApp, page([first, { ...second, run_id: 'run-b' }]))
+    const wrapper = await mount()
+    const replying = () =>
+      wrapper
+        .findAll('.agent-conversations__item')
+        .filter((item) =>
+          item.find('.agent-conversations__status--replying').exists()
+        )
+        .map((item) => item.text())
+    const reads = testApp.mock.history.get.length
+    expect(replying()).toEqual(['Conversation B'])
+
+    await update(first.uuid, {
+      runId: 'run-a',
+      updatedOn: '2026-10-22T10:00:00Z',
+    })
+    await update(second.uuid, { updatedOn: '2026-10-22T10:00:01Z' })
+    expect(conversationTitles(wrapper)).toEqual([second.title, first.title])
+    expect(replying()).toEqual(['Conversation A'])
+
+    // A start delivered after its end must not relight the dot.
+    await update(first.uuid, { updatedOn: '2026-10-22T10:00:02Z' })
+    await update(first.uuid, {
+      runId: 'run-a',
+      updatedOn: '2026-10-22T10:00:00Z',
+    })
+    expect(replying()).toEqual([])
+    expect(testApp.mock.history.get).toHaveLength(reads)
+  })
+
   test('does not read private data without conversation access or for another Agent', async () => {
     allowed.value = (operation) => !operation.includes('conversation')
     await mount()
     const reads = testApp.mock.history.get.length
 
     await update(first.uuid)
-    await update(first.uuid, 999)
+    await update(first.uuid, { agentId: 999 })
 
     expect(testApp.mock.history.get).toHaveLength(reads)
     expect(agent._.conversationUpdate.version).toBe(1)

@@ -1,12 +1,9 @@
 import { ChatRunType } from '@baserow/modules/core/chatRuns/chatRunType'
-import {
-  RUN_FINISHED,
-  RUN_STARTED,
-} from '@baserow/modules/core/chatRuns/constants'
+import { RUN_FINISHED } from '@baserow/modules/core/chatRuns/constants'
 
 export const AGENT_RUN_TYPE = 'agent'
 
-/** Refresh persisted messages as shared Core runs start and finish. */
+/** Tell the open Agent page when a reply ends or its chat needs a re-read. */
 export class AgentChatRunType extends ChatRunType {
   static getType() {
     return AGENT_RUN_TYPE
@@ -14,19 +11,18 @@ export class AgentChatRunType extends ChatRunType {
 
   listeners = new Set()
 
-  onRefresh(listener) {
+  listen(listener) {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
 
-  refreshChat(chatId, finishedRunId = null) {
-    this.listeners.forEach((listener) => listener(chatId, finishedRunId))
+  refreshChat(chatId) {
+    this.listeners.forEach((listener) => listener.chatReconnected(chatId))
   }
 
   onEvent(follower, event) {
-    if (event.kind === RUN_STARTED) this.refreshChat(follower.chatId)
     if (event.kind === RUN_FINISHED) {
-      this.refreshChat(follower.chatId, follower.runId)
+      this.listeners.forEach((listener) => listener.replyFinished(follower))
     }
   }
 }
