@@ -1,6 +1,10 @@
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.nodes.node_types import AutomationActionNodeType
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
     CoreXLSFileReaderActionNode,
@@ -13,7 +17,15 @@ from baserow_enterprise.integrations.core.service_types import (
 from baserow_premium.license.handler import LicenseHandler
 
 
-class CoreCodeActionNodeType(AutomationActionNodeType):
+class CoreCodeActionNodeType(UntrustedContentTypeMixin, AutomationActionNodeType):
+    def get_import_report_entry(self, instance):
+        return {
+            "type": "automation_code_node",
+            "id": instance.id,
+            "label": instance.label,
+            "workflow_id": instance.workflow_id,
+        }
+
     type = "code"
     model_class = CoreCodeActionNode
     service_type = CoreCodeServiceType.type
@@ -24,6 +36,13 @@ class CoreCodeActionNodeType(AutomationActionNodeType):
 
     def raise_if_deactivated(self, workspace) -> None:
         LicenseHandler.raise_if_workspace_doesnt_have_feature(CODE_RUNNER, workspace)
+
+    def dispatch(self, automation_node, dispatch_context):
+        if automation_node.workflow.untrusted_content:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Custom code is disabled until the workflow content is trusted."
+            )
+        return super().dispatch(automation_node, dispatch_context)
 
 
 class CoreXLSFileReaderActionNodeType(AutomationActionNodeType):

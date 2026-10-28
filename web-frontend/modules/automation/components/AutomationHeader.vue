@@ -75,6 +75,24 @@
       </li>
     </ul>
 
+    <ApplicationUntrustedContentAlert
+      v-if="!loading"
+      :key="workflow?.id"
+      :content-owner="workflow"
+      :can-trust="
+        Boolean(
+          workflow &&
+          $hasPermission(
+            'automation.workflow.update',
+            workflow,
+            automation.workspace.id
+          )
+        )
+      "
+      :trust-content="trustContent"
+      :message="$t('automationHeader.untrustedContentWarning')"
+    />
+
     <div
       v-if="
         !loading &&
@@ -131,6 +149,12 @@
           }}
         </Button>
         <Button
+          v-tooltip:[publishTooltipOptions]="
+            workflow?.untrusted_content
+              ? $t('untrustedContentReviewModal.publishBlocked')
+              : null
+          "
+          tooltip-position="bottom-left"
           data-highlight="automation-publish"
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
@@ -150,6 +174,7 @@
 
 <script>
 import { useStore } from 'vuex'
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { defineComponent, ref, computed, inject } from 'vue'
@@ -162,7 +187,7 @@ import WorkflowSettingsModal from '@baserow/modules/automation/components/settin
 
 export default defineComponent({
   name: 'AutomationHeader',
-  components: { WorkflowSettingsModal },
+  components: { WorkflowSettingsModal, ApplicationUntrustedContentAlert },
   props: {
     automation: {
       type: Object,
@@ -207,6 +232,7 @@ export default defineComponent({
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
         const isInError = nodeType.isInError({
+          workflow: workflow.value,
           service: node.service,
           workspace: workspace.value,
           application: props.automation,
@@ -218,7 +244,11 @@ export default defineComponent({
     })
 
     const canPublishWorkflow = computed(() => {
-      return hasActionNode.value && !isPublishing.value
+      return (
+        hasActionNode.value &&
+        !isPublishing.value &&
+        !workflow.value?.untrusted_content
+      )
     })
 
     const publishedOn = computed(() => {
@@ -318,12 +348,21 @@ export default defineComponent({
       isPublishing.value = false
     }
 
+    const trustContent = () =>
+      store.dispatch('automationWorkflow/update', {
+        automation: props.automation,
+        workflow: workflow.value,
+        values: { untrusted_content: false },
+      })
+
     const workflowSettingsModal = ref(null)
     const openSettingsModal = () => {
       workflowSettingsModal.value.show()
     }
 
     return {
+      publishTooltipOptions: { contentClasses: 'tooltip__content--expandable' },
+      trustContent,
       isDev,
       debug,
       workflow,

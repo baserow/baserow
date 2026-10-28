@@ -2,6 +2,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, test, vi } from 'vitest'
 
+import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import WorkflowGeneralSettings from '@baserow/modules/automation/components/settings/WorkflowGeneralSettings'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 
@@ -48,4 +49,39 @@ describe('WorkflowGeneralSettings', () => {
       }))
     )
   })
+})
+
+test('trusts only the workflow shown in settings', async () => {
+  WorkspaceService.mockReturnValue({
+    fetchAllUsers: vi.fn().mockResolvedValue({ data: [] }),
+  })
+  const automation = { id: 10, workspace: { id: 12 } }
+  const workflow = {
+    id: 20,
+    name: 'Code',
+    notification_recipient_ids: [],
+    untrusted_content: true,
+  }
+  const { $store } = useNuxtApp()
+  const dispatch = vi.spyOn($store, 'dispatch').mockResolvedValue(undefined)
+  const wrapper = await mountSuspended(WorkflowGeneralSettings, {
+    props: { automation, workflow, defaultValues: workflow },
+    global: { stubs: { MemberAssignmentModal: true } },
+  })
+  await flushPromises()
+  const alert = wrapper.findComponent(ApplicationUntrustedContentAlert)
+  expect(wrapper.findComponent({ name: 'Checkbox' }).exists()).toBe(false)
+  expect(alert.html()).toMatchSnapshot()
+  expect(dispatch).not.toHaveBeenCalledWith(
+    'automationWorkflow/update',
+    expect.anything()
+  )
+  await alert.props('trustContent')()
+  expect(dispatch).toHaveBeenCalledWith('automationWorkflow/update', {
+    automation,
+    workflow,
+    values: { untrusted_content: false },
+  })
+  wrapper.unmount()
+  dispatch.mockRestore()
 })

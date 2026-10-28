@@ -24,7 +24,10 @@ from baserow.contrib.automation.workflows.models import PublishAutomationWorkflo
 from baserow.contrib.automation.workflows.operations import (
     DuplicateAutomationWorkflowOperationType,
 )
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import (
+    UntrustedContentCannotBePublished,
+    UserNotInWorkspace,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
 
@@ -84,6 +87,10 @@ class DuplicateAutomationWorkflowJobType(JobType):
 
 
 class PublishAutomationWorkflowJobType(JobType):
+    job_exceptions_map = {
+        UntrustedContentCannotBePublished: "Review and trust the imported content before publishing.",
+    }
+
     type = "publish_automation_workflow"
     model_class = PublishAutomationWorkflowJob
     max_count = 2

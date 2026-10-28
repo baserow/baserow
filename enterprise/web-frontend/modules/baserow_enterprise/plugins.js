@@ -151,6 +151,10 @@ export class EnterprisePlugin extends BaserowPlugin {
    * Adds the custom CSS/JS defined for this builder.
    */
   getBuilderApplicationHeaderAddition({ builder, mode }) {
+    if (builder.untrusted_content) {
+      return { link: [], script: [] }
+    }
+
     const customCodeBase =
       mode === 'preview'
         ? `${this.app.$config.public.publicBackendUrl}/api/builder/preview/${builder.id}/custom-code`

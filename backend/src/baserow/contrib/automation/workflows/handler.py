@@ -57,7 +57,9 @@ from baserow.contrib.automation.workflows.tasks import (
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
-from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.deferred_callbacks import deferred_callback_context
+from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
+from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
 from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.subjects import UserSubjectType
@@ -83,6 +85,7 @@ tracer = trace.get_tracer(__name__)
 @baserow_trace_handler
 class AutomationWorkflowHandler:
     allowed_fields = [
+        "untrusted_content",
         "name",
         "allow_test_run_until",
         "state",
@@ -435,6 +438,15 @@ class AutomationWorkflowHandler:
             [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN
         )
 
+    @staticmethod
+    def _is_external_import_export(config: Optional[ImportExportConfig]) -> bool:
+        """Whether the workflow crosses the instance's trust boundary."""
+
+        return not any(
+            getattr(config, flag, False)
+            for flag in ("is_duplicate", "is_publishing", "is_template")
+        )
+
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
@@ -455,6 +467,7 @@ class AutomationWorkflowHandler:
         :return: The serialized version.
         """
 
+        cache = {**(cache or {}), "has_untrusted_content": False}
         serialized_nodes = [
             AutomationNodeHandler().export_node(
                 n,
@@ -467,6 +480,11 @@ class AutomationWorkflowHandler:
         ]
 
         return AutomationWorkflowDict(
+            untrusted_content=(
+                cache["has_untrusted_content"]
+                if self._is_external_import_export(import_export_config)
+                else workflow.untrusted_content
+            ),
             id=workflow.id,
             name=workflow.name,
             order=workflow.order,
@@ -537,6 +555,7 @@ class AutomationWorkflowHandler:
 
         return imported_nodes
 
+    @deferred_callback_context()
     def import_workflows(
         self,
         automation: Automation,
@@ -563,6 +582,9 @@ class AutomationWorkflowHandler:
         :return: the newly created instances.
         """
 
+        if import_export_config is None:
+            import_export_config = ImportExportConfig(include_permission_data=False)
+
         if cache is None:
             cache = {}
 
@@ -573,18 +595,31 @@ class AutomationWorkflowHandler:
 
         imported_workflows = []
         for serialized_workflow in serialized_workflows:
+            workflow_cache = {**cache, "import_report": []}
+            workflow_values = {**serialized_workflow}
+            if self._is_external_import_export(import_export_config):
+                workflow_values["untrusted_content"] = True
             workflow_instance = self.import_workflow_only(
                 automation,
-                serialized_workflow,
+                workflow_values,
                 id_mapping,
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
                 cache=cache,
             )
-            imported_workflows.append([workflow_instance, serialized_workflow])
+            defer_untrusted_content_update(
+                workflow_instance, workflow_cache, import_export_config
+            )
+            imported_workflows.append(
+                [workflow_instance, serialized_workflow, workflow_cache]
+            )
 
-        for workflow_instance, serialized_workflow in imported_workflows:
+        for (
+            workflow_instance,
+            serialized_workflow,
+            workflow_cache,
+        ) in imported_workflows:
             self.import_nodes(
                 workflow_instance,
                 serialized_workflow["nodes"],
@@ -593,7 +628,7 @@ class AutomationWorkflowHandler:
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
-                cache=cache,
+                cache=workflow_cache,
             )
 
             workflow_instance.get_graph().migrate_graph(id_mapping)
@@ -647,11 +682,14 @@ class AutomationWorkflowHandler:
         progress: Optional[ChildProgressBuilder] = None,
         **kwargs: Any,
     ):
+        """Create a workflow with its serialized trust state before importing nodes."""
+
         if "automation_workflows" not in id_mapping:
             id_mapping["automation_workflows"] = {}
 
         workflow_instance = AutomationWorkflow.objects.create(
             automation=automation,
+            untrusted_content=serialized_workflow.get("untrusted_content", False),
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
@@ -783,6 +821,9 @@ class AutomationWorkflowHandler:
         # Make sure we are the only process to update the automation workflow
         # to prevent race conditions.
         workflow = self.get_workflow(workflow.id, for_update=True)
+        if workflow.untrusted_content:
+            raise UntrustedContentCannotBePublished()
+
         self.clean_up_previously_published_automations(workflow)
 
         cloned_automation, id_mapping = self._clone_workflow(

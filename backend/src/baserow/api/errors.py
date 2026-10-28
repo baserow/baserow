@@ -63,3 +63,10 @@ ERROR_DATABASE_DEADLOCK = (
     "The requested resource is already being updated or used by another operation, "
     "please try again after other concurrent operations have finished.",
 )
+
+
+ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED = (
+    "ERROR_UNTRUSTED_CONTENT_CANNOT_BE_PUBLISHED",
+    HTTP_400_BAD_REQUEST,
+    "Review and trust the imported content before publishing.",
+)

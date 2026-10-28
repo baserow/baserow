@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`trusts only the workflow shown in settings 1`] = `
+"<div class="alert alert--warning" role="alert" aria-label="automationHeader.untrustedContentWarning">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-triangle"></i>
+    <div class="alert__content">
+      <!--v-if-->
+      <div class="alert__message"><span class="">automationHeader.untrustedContentWarning</span><a href="#" class="margin-left-1">applicationUntrustedContentAlert.review</a></div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>
+<teleport-stub to="body">
+  <!--v-if-->
+</teleport-stub>"
+`;

@@ -10,6 +10,19 @@ export class CoreCodeActionNodeType extends ActionNodeTypeMixin(NodeType) {
     return 'code'
   }
 
+  isInError(context) {
+    return (
+      Boolean(context.workflow?.untrusted_content) || super.isInError(context)
+    )
+  }
+
+  getErrorMessage(context) {
+    if (context.workflow?.untrusted_content) {
+      return this.app.$i18n.t('automationHeader.untrustedContentWarning')
+    }
+    return super.getErrorMessage(context)
+  }
+
   getOrder() {
     return 6.4
   }

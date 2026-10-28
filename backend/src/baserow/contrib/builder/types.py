@@ -69,6 +69,7 @@ class PageDict(TypedDict):
 
 
 class BuilderDict(TypedDict):
+    untrusted_content: bool
     id: int
     name: str
     order: int

@@ -35,6 +35,31 @@ describe('Test enterprise Baserow plugin', () => {
   // `!important` to their custom rules. The tags must use `tagPosition:
   // 'bodyClose'` so the custom CSS/JS renders last and wins the cascade tie.
   describe('getBuilderApplicationHeaderAddition', () => {
+    test.each(['preview', 'public'])(
+      'blocks all custom code and external assets in %s until trusted',
+      (mode) => {
+        const plugin = new EnterprisePlugin({ app })
+        const builder = makeBuilder({
+          untrusted_content: true,
+          custom_code: { css: 'body { color: red }', js: 'alert(1)' },
+          scripts: [
+            { type: 'javascript', url: 'https://example.com/a.js' },
+            { type: 'stylesheet', url: 'https://example.com/a.css' },
+          ],
+        })
+        expect(
+          plugin.getBuilderApplicationHeaderAddition({ builder, mode })
+        ).toMatchSnapshot()
+        builder.untrusted_content = false
+        const { link, script } = plugin.getBuilderApplicationHeaderAddition({
+          builder,
+          mode,
+        })
+        expect(link).toHaveLength(1)
+        expect(script).toHaveLength(3)
+      }
+    )
+
     test('custom CSS and JS are injected at body close', () => {
       const plugin = new EnterprisePlugin({ app })
       const builder = makeBuilder({

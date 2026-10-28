@@ -1,0 +1,53 @@
+.untrusted-content-report {
+  max-height: 40vh;
+  padding: 0;
+  margin: 0 0 24px;
+  overflow: auto;
+  list-style: none;
+}
+
+.untrusted-content-report__heading {
+  margin: 24px 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.untrusted-content-report__item {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+
+  &:not(:last-child) {
+    margin-bottom: 8px;
+  }
+}
+
+.untrusted-content-report__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: $palette-neutral-600;
+  font-size: 20px;
+}
+
+.untrusted-content-report__body {
+  min-width: 0;
+}
+
+.untrusted-content-report__title {
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.untrusted-content-report__detail {
+  color: $palette-neutral-600;
+  overflow-wrap: anywhere;
+  line-height: 20px;
+}
+
+.untrusted-content-report__risk {
+  margin: 8px 0 0;
+  color: $palette-neutral-900;
+  line-height: 20px;
+}

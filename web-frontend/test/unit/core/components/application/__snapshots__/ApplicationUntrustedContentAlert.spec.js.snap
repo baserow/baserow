@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automation untrusted content header alert > stays visible until content is trusted and returns when blocked again 1`] = `
+"<div class="alert alert--warning header__alert" role="alert" aria-label="automationHeader.untrustedContentWarning">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-triangle"></i>
+    <div class="alert__content">
+      <!--v-if-->
+      <div class="alert__message"><span class="header__alert-label">applicationUntrustedContentAlert.title</span><a href="#" class="">applicationUntrustedContentAlert.review</a></div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;
+
+exports[`builder untrusted content header alert > stays visible until content is trusted and returns when blocked again 1`] = `
+"<div class="alert alert--warning header__alert" role="alert" aria-label="builderUntrustedContent.warning">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-triangle"></i>
+    <div class="alert__content">
+      <!--v-if-->
+      <div class="alert__message"><span class="header__alert-label">applicationUntrustedContentAlert.title</span><a href="#" class="">applicationUntrustedContentAlert.review</a></div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;
