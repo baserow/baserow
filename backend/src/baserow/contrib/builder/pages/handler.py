@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.builder.compat.graph_migrator import (
@@ -178,9 +178,11 @@ class PageHandler:
         if page.shared:
             raise SharedPageIsReadOnly()
 
+        page_id = page.id
         page.delete()
 
         self.invalidate_page_cache(page)
+        transaction.on_commit(lambda: self.invalidate_page_public_cache(page_id))
 
     def update_page(self, page: Page, **kwargs) -> Page:
         """
@@ -286,6 +288,31 @@ class PageHandler:
             auth = f"_auth_{getattr(user, 'role', '')}"
         return f"ab_public_page_{page_id}{auth}_{record_name}_records"
 
+    @classmethod
+    def get_page_public_cache_invalidate_key(cls, page_id: int) -> str:
+        """
+        Returns the key invalidating every public cache of a published page: whether
+        it's published and its records for every audience.
+
+        :param page_id: the ID of the public page.
+        :return: the invalidation key.
+        """
+
+        return f"ab_public_page_{page_id}_public_cache"
+
+    @classmethod
+    def invalidate_page_public_cache(cls, page_id: int):
+        """
+        Invalidates every public cache of a published page, so that the next public
+        request reads the page from the database again.
+
+        :param page_id: the ID of the public page.
+        """
+
+        global_cache.invalidate(
+            invalidate_key=cls.get_page_public_cache_invalidate_key(page_id)
+        )
+
     def is_published_page(self, public_page_id: int) -> bool:
         """
         Returns whether this public page ID points to a published domain
@@ -298,6 +325,7 @@ class PageHandler:
         return global_cache.get(
             f"ab_public_page_{public_page_id}_published",
             default=lambda: self._is_published_application_page(public_page_id),
+            invalidate_key=self.get_page_public_cache_invalidate_key(public_page_id),
             timeout=BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS,
         )
 
