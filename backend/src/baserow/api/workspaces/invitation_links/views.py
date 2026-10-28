@@ -265,7 +265,8 @@ class PublicWorkspaceInvitationLinkView(APIView):
         description=(
             "Responds with the workspace and the inviter of the invitation link with "
             "the provided slug, so that someone who opens the link knows what they "
-            "join."
+            "join. For a member whose role the link would raise, it also responds "
+            "with their current role and the role of the link."
         ),
         responses={
             200: PublicWorkspaceInvitationLinkSerializer,
@@ -284,7 +285,11 @@ class PublicWorkspaceInvitationLinkView(APIView):
         """Responds with the public details of the invitation link."""
 
         invitation_link = CoreHandler().get_workspace_invitation_link_by_slug(slug)
-        return Response(PublicWorkspaceInvitationLinkSerializer(invitation_link).data)
+        return Response(
+            PublicWorkspaceInvitationLinkSerializer(
+                invitation_link, context={"user": request.user}
+            ).data
+        )
 
 
 class JoinWorkspaceInvitationLinkView(APIView):
@@ -304,8 +309,9 @@ class JoinWorkspaceInvitationLinkView(APIView):
         operation_id="join_workspace_invitation_link",
         description=(
             "Adds the authorized user to the workspace of the invitation link with "
-            "the permissions of the link. Someone who is already a member keeps "
-            "their current permissions."
+            "the permissions of the link. Someone who is already a member gets the "
+            "permissions of the link when they are higher than their own, and "
+            "otherwise keeps their current permissions."
         ),
         request=None,
         responses={

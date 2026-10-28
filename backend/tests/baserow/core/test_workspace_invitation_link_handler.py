@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from baserow.core.actions import JoinWorkspaceViaInvitationLinkActionType
 from baserow.core.exceptions import (
     FeatureDisabledException,
     UserInvalidWorkspacePermissionsError,
@@ -237,7 +238,7 @@ def test_join_workspace_via_invitation_link(send_mock, data_fixture):
 
 
 @pytest.mark.django_db
-def test_join_workspace_via_invitation_link_keeps_existing_permissions(data_fixture):
+def test_join_workspace_via_invitation_link_never_lowers_permissions(data_fixture):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     invitation_link = data_fixture.create_workspace_invitation_link(
@@ -250,6 +251,62 @@ def test_join_workspace_via_invitation_link_keeps_existing_permissions(data_fixt
 
     assert workspace_user.permissions == "ADMIN"
     assert WorkspaceUser.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.django_db
+@patch("baserow.core.handler.workspace_user_updated.send")
+def test_join_workspace_via_invitation_link_raises_permissions(
+    updated_mock, data_fixture
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="ADMIN"
+    )
+
+    workspace_user = CoreHandler().join_workspace_via_invitation_link(
+        member, invitation_link
+    )
+
+    assert workspace_user.permissions == "ADMIN"
+    assert WorkspaceUser.objects.get(user=member).permissions == "ADMIN"
+    updated_mock.assert_called_once()
+    assert updated_mock.call_args.kwargs["permissions_before"] == "MEMBER"
+
+
+@pytest.mark.django_db
+@patch("baserow.core.action.signals.action_done.send")
+def test_join_workspace_via_invitation_link_action_records_only_changes(
+    action_done_mock, data_fixture
+):
+    admin = data_fixture.create_user()
+    newcomer = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    member_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER"
+    )
+    admin_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="ADMIN"
+    )
+
+    def recorded_joins():
+        return [
+            call.kwargs["action_params"]["permissions"]
+            for call in action_done_mock.call_args_list
+            if call.kwargs["action_type"] is JoinWorkspaceViaInvitationLinkActionType
+        ]
+
+    JoinWorkspaceViaInvitationLinkActionType.do(newcomer, member_link)
+    assert recorded_joins() == ["MEMBER"]
+
+    # Opening a link that doesn't change anything isn't recorded.
+    JoinWorkspaceViaInvitationLinkActionType.do(newcomer, member_link)
+    JoinWorkspaceViaInvitationLinkActionType.do(admin, member_link)
+    assert recorded_joins() == ["MEMBER"]
+
+    JoinWorkspaceViaInvitationLinkActionType.do(newcomer, admin_link)
+    assert recorded_joins() == ["MEMBER", "ADMIN"]
 
 
 @pytest.mark.django_db

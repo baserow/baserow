@@ -8,9 +8,12 @@
       </div>
       <h1 class="auth__head-title">
         {{
-          $t('invitationLinkJoin.title', {
-            workspace: invitationLink.workspace,
-          })
+          $t(
+            roleUpgrade
+              ? 'invitationLinkJoin.upgradeTitle'
+              : 'invitationLinkJoin.title',
+            { workspace: invitationLink.workspace }
+          )
         }}
       </h1>
       <i18n-t
@@ -30,6 +33,21 @@
         </template>
       </i18n-t>
       <i18n-t
+        v-if="roleUpgrade"
+        scope="global"
+        keypath="invitationLinkJoin.upgradeRole"
+        tag="p"
+        class="mb-24"
+      >
+        <template #from>
+          <strong>{{ roleUpgrade.from }}</strong>
+        </template>
+        <template #to>
+          <strong>{{ roleUpgrade.to }}</strong>
+        </template>
+      </i18n-t>
+      <i18n-t
+        v-else
         scope="global"
         keypath="invitationLinkJoin.joinAs"
         tag="p"
@@ -49,7 +67,13 @@
           :disabled="joining"
           @click="join"
         >
-          {{ $t('invitationLinkJoin.join') }}
+          {{
+            $t(
+              roleUpgrade
+                ? 'invitationLinkJoin.upgrade'
+                : 'invitationLinkJoin.join'
+            )
+          }}
         </Button>
       </div>
       <ul class="auth__action-links">
@@ -86,6 +110,7 @@ if (import.meta.server) {
 const slug = route.params.slug
 const username = store.getters['auth/getUsername']
 const joining = ref(false)
+const roleUpgrade = ref(null)
 const error = ref({ visible: false, title: '', message: '' })
 
 // Fetch the invitation link data
@@ -99,11 +124,15 @@ const { data: invitationLink, error: fetchError } = await useAsyncData(
 )
 
 useHead({
-  title: invitationLink.value
-    ? t('invitationLinkJoin.title', {
-        workspace: invitationLink.value.workspace,
-      })
-    : '',
+  title: () =>
+    invitationLink.value
+      ? t(
+          roleUpgrade.value
+            ? 'invitationLinkJoin.upgradeTitle'
+            : 'invitationLinkJoin.title',
+          { workspace: invitationLink.value.workspace }
+        )
+      : '',
 })
 
 // Handle error - the link doesn't exist (anymore)
@@ -127,10 +156,20 @@ if (fetchError.value) {
     { replace: true }
   )
 } else if (invitationLink.value) {
-  // Members have nothing to confirm and land in the workspace.
+  // Members land in the workspace, unless the link raises their role. Then they
+  // confirm the change first, like newcomers confirm joining.
   await store.dispatch('workspace/loadAll')
   const workspaceId = invitationLink.value.workspace_id
-  if (store.getters['workspace/get'](workspaceId)) {
+  const workspace = store.getters['workspace/get'](workspaceId)
+  if (workspace && invitationLink.value.role_upgrade) {
+    await store.dispatch('workspace/fetchRoles', workspace)
+    const roleName = (uid) =>
+      workspace._.roles.find((role) => role.uid === uid)?.name || uid
+    roleUpgrade.value = {
+      from: roleName(invitationLink.value.role_upgrade.current_permissions),
+      to: roleName(invitationLink.value.role_upgrade.permissions),
+    }
+  } else if (workspace) {
     await navigateTo(
       { name: 'workspace', params: { workspaceId } },
       { replace: true }
@@ -140,8 +179,8 @@ if (fetchError.value) {
 
 /**
  * Joins the workspace once the logged in user confirms it, because joining
- * shares their name and email address with the workspace's members. Someone
- * who is already a member keeps their role and lands in the workspace.
+ * shares their name and email address with the workspace's members, or
+ * because it raises the role of a member.
  */
 async function join() {
   joining.value = true
