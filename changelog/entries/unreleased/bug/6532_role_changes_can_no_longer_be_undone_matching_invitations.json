@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Role changes can no longer be undone, matching invitations",
+    "issue_origin": "github",
+    "issue_number": 6532,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-28"
+}
