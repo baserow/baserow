@@ -950,6 +950,7 @@ class AcceptWorkspaceInvitationActionType(ActionType):
         cls,
         user: AbstractUser,
         workspace_invitation: WorkspaceInvitation,
+        token: str | None = None,
     ) -> WorkspaceUser:
         """
         Accepts an existing workspace invitation.
@@ -966,7 +967,7 @@ class AcceptWorkspaceInvitationActionType(ActionType):
             workspace.name,
         )
         workspace_user = CoreHandler().accept_workspace_invitation(
-            user, workspace_invitation
+            user, workspace_invitation, token=token
         )
 
         cls.register_action(

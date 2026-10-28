@@ -27,6 +27,7 @@ from baserow.api.workspaces.errors import ERROR_INVALID_WORKSPACE_ROLE
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
     ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+    ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED,
 )
 from baserow.api.workspaces.serializers import WorkspaceUserWorkspaceSerializer
 from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
@@ -47,6 +48,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationEmailNotVerified,
     WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
@@ -59,6 +61,7 @@ from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.handler import WorkspaceInvitationRateThrottle
 
 from .serializers import (
+    AcceptWorkspaceInvitationSerializer,
     CreateWorkspaceInvitationSerializer,
     GetWorkspaceInvitationsViewQuerySerializer,
     UpdateWorkspaceInvitationSerializer,
@@ -388,12 +391,19 @@ class AcceptWorkspaceInvitationView(APIView):
         operation_id="accept_workspace_invitation",
         description=(
             "Accepts a workspace invitation with the given id if the email address of the "
-            "user matches that of the invitation."
+            "user matches that of the invitation. The token from the invitation email "
+            "must be provided unless the email address of the user is verified."
         ),
-        request=None,
+        request=AcceptWorkspaceInvitationSerializer,
         responses={
             200: WorkspaceUserWorkspaceSerializer,
-            400: get_error_schema(["ERROR_GROUP_INVITATION_EMAIL_MISMATCH"]),
+            400: get_error_schema(
+                [
+                    "ERROR_GROUP_INVITATION_EMAIL_MISMATCH",
+                    "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
             404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
         },
     )
@@ -401,10 +411,14 @@ class AcceptWorkspaceInvitationView(APIView):
     @map_exceptions(
         {
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationEmailNotVerified: (
+                ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED
+            ),
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
         }
     )
-    def post(self, request, workspace_invitation_id):
+    @validate_body(AcceptWorkspaceInvitationSerializer)
+    def post(self, request, data, workspace_invitation_id):
         """Accepts a workspace invitation."""
 
         try:
@@ -418,7 +432,7 @@ class AcceptWorkspaceInvitationView(APIView):
 
         workspace_user = action_type_registry.get(
             AcceptWorkspaceInvitationActionType.type
-        ).do(request.user, workspace_invitation)
+        ).do(request.user, workspace_invitation, token=data.get("token"))
         workspaceuser_workspace = (
             CoreHandler()
             .get_workspaceuser_workspace_queryset()

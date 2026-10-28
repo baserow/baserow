@@ -20,7 +20,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 import zipstream
-from itsdangerous import URLSafeSerializer
+from itsdangerous import BadSignature, URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
@@ -32,7 +32,7 @@ from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
 from .context import clear_current_workspace_id, set_current_workspace_id
-from .emails import WorkspaceInvitationEmail
+from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -50,6 +50,7 @@ from .exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationEmailNotVerified,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
     WorkspaceUserIsLastAdmin,
@@ -1216,6 +1217,21 @@ class CoreHandler:
 
         return URLSafeSerializer(settings.SECRET_KEY, "workspace-invite")
 
+    def _is_workspace_invitation_token(
+        self, token: str | None, invitation: WorkspaceInvitation
+    ) -> bool:
+        """
+        Returns whether the token is the signed id of the given invitation.
+        """
+
+        if not token:
+            return False
+
+        try:
+            return self.get_workspace_invitation_signer().loads(token) == invitation.id
+        except BadSignature:
+            return False
+
     def send_workspace_invitation_email(self, invitation):
         """
         Sends out a workspace invitation email to the user based on the provided
@@ -1504,20 +1520,33 @@ class CoreHandler:
         return workspace_user
 
     def accept_workspace_invitation(
-        self, user: User, invitation: WorkspaceInvitation
+        self,
+        user: User,
+        invitation: WorkspaceInvitation,
+        token: str | None = None,
     ) -> WorkspaceUser:
         """
         Accepts a workspace invitation by adding the user to the correct workspace with
         the right permissions. It can only be accepted if the invitation was
-        addressed to the email address of the user. Because the invitation has been
-        accepted it can then be deleted. If the user is already a member of the
-        workspace the invitation is consumed without changing their existing
-        permissions, so a stale invitation can never lower an existing member's role.
+        addressed to the email address of the user, and if the user either provides
+        the token from the invitation email or has a verified email address. The
+        latter is only required when this instance can deliver emails, because
+        otherwise neither the invitation nor a verification email arrives. Because
+        the invitation has been accepted it can then be deleted. If the user is
+        already a member of the workspace the invitation is consumed without changing
+        their existing permissions, so a stale invitation can never lower an existing
+        member's role.
 
         :param user: The user who has accepted the invitation.
         :param invitation: The invitation that must be accepted.
+        :param token: The signed invitation id from the invitation email. It proves
+            that the user received the email, so their email address is marked as
+            verified.
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
+        :raises WorkspaceInvitationEmailNotVerified: If no valid token is provided,
+            the email address of the user is not verified and this instance can
+            deliver emails.
         :return: The workspace user relationship related to the invite.
         """
 
@@ -1525,6 +1554,17 @@ class CoreHandler:
             raise WorkspaceInvitationEmailMismatch(
                 "The email address of the invitation does not match the one of the "
                 "user."
+            )
+
+        profile = user.profile
+        if self._is_workspace_invitation_token(token, invitation):
+            if not profile.email_verified:
+                profile.email_verified = True
+                profile.save(update_fields=["email_verified"])
+        elif not profile.email_verified and can_deliver_emails():
+            raise WorkspaceInvitationEmailNotVerified(
+                "The invitation can only be accepted with the token from the "
+                "invitation email or with a verified email address."
             )
 
         workspace_user = self.add_user_to_workspace(

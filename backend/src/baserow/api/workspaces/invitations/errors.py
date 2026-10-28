@@ -10,3 +10,9 @@ ERROR_GROUP_INVITATION_EMAIL_MISMATCH = (
     HTTP_400_BAD_REQUEST,
     "Your email address does not match with the invitation.",
 )
+ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED = (
+    "ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED",
+    HTTP_400_BAD_REQUEST,
+    "Open the link in the invitation email to accept it, or verify your email "
+    "address first.",
+)

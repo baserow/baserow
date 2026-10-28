@@ -73,6 +73,25 @@ def test_get_settings_reports_whether_inbound_email_is_enabled(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "backend,expected",
+    [
+        ("django.core.mail.backends.smtp.EmailBackend", True),
+        ("django.core.mail.backends.console.EmailBackend", False),
+        ("", False),
+    ],
+)
+def test_get_settings_reports_whether_email_delivery_is_enabled(
+    api_client, backend, expected
+):
+    with override_settings(CELERY_EMAIL_BACKEND=backend):
+        response = api_client.get(reverse("api:settings:get"))
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["email_delivery_enabled"] is expected
+
+
+@pytest.mark.django_db
 def test_inbound_email_enabled_cannot_be_updated(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token(is_staff=True)
 
