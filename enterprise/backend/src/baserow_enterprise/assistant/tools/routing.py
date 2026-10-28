@@ -80,6 +80,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         switch_mode,
         update_builder,
     )
+    from .dashboard.tools import TOOL_FUNCTIONS as dashboard_tools
     from .database.tools import TOOL_FUNCTIONS as database_tools
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
@@ -89,6 +90,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     database_mode = frozenset({AgentMode.DATABASE})
     application_mode = frozenset({AgentMode.APPLICATION})
     automation_mode = frozenset({AgentMode.AUTOMATION})
+    dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
 
     database_reads = [
@@ -99,6 +101,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     ]
     automation_reads = [
         tool for tool in automation_tools if tool.__name__.startswith("list_")
+    ]
+    dashboard_reads = [
+        tool for tool in dashboard_tools if tool.__name__.startswith(("list_", "get_"))
     ]
 
     return {
@@ -115,6 +120,12 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_reads,
             AgentMode.AUTOMATION,
             automation_mode | explain_mode,
+        ),
+        **_routes_for(dashboard_tools, AgentMode.DASHBOARD, dashboard_mode),
+        **_routes_for(
+            dashboard_reads,
+            AgentMode.DASHBOARD,
+            dashboard_mode | explain_mode,
         ),
         **_routes_for(
             (navigate, switch_mode, list_builders, ask_user),

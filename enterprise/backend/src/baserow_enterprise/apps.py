@@ -451,6 +451,9 @@ class BaserowEnterpriseConfig(AppConfig):
             BuilderToolType,
         )
         from baserow_enterprise.assistant.tools.core.tool_types import CoreToolType
+        from baserow_enterprise.assistant.tools.dashboard.tool_types import (
+            DashboardToolType,
+        )
         from baserow_enterprise.assistant.tools.database.tool_types import (
             DatabaseToolType,
         )
@@ -479,6 +482,7 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(CoreToolType())
         assistant_tool_registry.register(DatabaseToolType())
         assistant_tool_registry.register(AutomationToolType())
+        assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
         assistant_element_type_registry.register(TableAssistantElementType())

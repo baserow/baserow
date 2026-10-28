@@ -1,0 +1,289 @@
+"""Kuma-dashboard eval dataset: summary and chart widgets on a dashboard."""
+
+from __future__ import annotations
+
+from baserow.contrib.dashboard.models import Dashboard
+from baserow.contrib.dashboard.tools.widgets import create_widgets, list_widgets
+from baserow.core.tools import ToolContext
+from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.deps import AgentMode
+from baserow_enterprise.assistant.evals.harness import tool_called
+from baserow_enterprise.assistant.evals.registry import (
+    register_case,
+    register_scenario,
+)
+from baserow_enterprise.assistant.evals.types import (
+    CheckResult,
+    EvalCase,
+    EvalRunOutput,
+    EvalScenario,
+)
+from baserow_enterprise.assistant.types import (
+    DashboardUIContext,
+    UIContext,
+    UserUIContext,
+    WorkspaceUIContext,
+)
+
+PROMPT_ADDS_REVENUE_SUMMARY = (
+    "Add a widget to the 'Sales' dashboard with the total revenue: the sum of "
+    "Amount in the Orders table."
+)
+PROMPT_ADDS_CHART_BY_STAGE = (
+    "On the 'Sales' dashboard, add a chart of the number of deals per stage from "
+    "the Deals table."
+)
+PROMPT_CHANGES_TO_AVERAGE = (
+    "Change the Revenue widget on this dashboard to show the average order amount "
+    "instead of the total."
+)
+PROMPT_READS_WIDGET = "What does the Revenue widget on this dashboard show right now?"
+
+
+def _dashboard_ui_context(user, workspace, dashboard: Dashboard) -> str:
+    return UIContext(
+        workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+        dashboard=DashboardUIContext(id=str(dashboard.id), name=dashboard.name),
+        user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+    ).format()
+
+
+def _sales_workspace(fx: Fixtures, with_revenue_widget: bool = False) -> EvalScenario:
+    """
+    A workspace with an Orders table (Customer, Amount), a Deals table (Name,
+    Stage) and an empty Sales dashboard, opened in the UI.
+    """
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="CRM")
+
+    orders = fx.create_database_table(database=database, name="Orders")
+    fx.create_text_field(table=orders, name="Customer", primary=True)
+    amount = fx.create_number_field(table=orders, name="Amount")
+    model = orders.get_model()
+    for customer, value in (("Acme", 120), ("Globex", 80), ("Initech", 100)):
+        model.objects.create(
+            **{
+                f"field_{orders.field_set.get(name='Customer').id}": customer,
+                f"field_{amount.id}": value,
+            }
+        )
+
+    deals = fx.create_database_table(database=database, name="Deals")
+    fx.create_text_field(table=deals, name="Name", primary=True)
+    stage = fx.create_single_select_field(table=deals, name="Stage")
+    won = fx.create_select_option(field=stage, value="Won")
+    lost = fx.create_select_option(field=stage, value="Lost")
+    deal_model = deals.get_model()
+    for option in (won, won, lost):
+        deal_model.objects.create(**{f"field_{stage.id}_id": option.id})
+
+    dashboard = fx.create_dashboard_application(workspace=workspace, name="Sales")
+    fx.create_local_baserow_integration(application=dashboard, authorized_user=user)
+    refs = {
+        "dashboard": dashboard,
+        "orders": orders,
+        "amount": amount,
+        "deals": deals,
+        "stage": stage,
+    }
+    if with_revenue_widget:
+        (widget,) = create_widgets(
+            ToolContext(user=user, workspace=workspace),
+            dashboard.id,
+            [
+                {
+                    "type": "summary",
+                    "title": "Revenue",
+                    "table_id": orders.id,
+                    "field_id": amount.id,
+                    "aggregation_type": "sum",
+                }
+            ],
+        )["created"]
+        refs["widget_id"] = widget["id"]
+
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=_dashboard_ui_context(user, workspace, dashboard),
+        refs=refs,
+    )
+
+
+def _widgets(scenario: EvalScenario) -> list[dict]:
+    return list_widgets(
+        ToolContext(user=scenario.user, workspace=scenario.workspace),
+        scenario.refs["dashboard"].id,
+    )["widgets"]
+
+
+# ---------------------------------------------------------------------------
+# Adds a summary widget
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("dashboard-sales")
+def _sales_scenario(fx: Fixtures) -> EvalScenario:
+    return _sales_workspace(fx)
+
+
+def _check_adds_revenue_summary(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    widgets = _widgets(scenario)
+    matching = [
+        w
+        for w in widgets
+        if w["type"] == "summary"
+        and w["field_id"] == scenario.refs["amount"].id
+        and w["aggregation_type"] == "sum"
+    ]
+    return [
+        CheckResult(
+            "called create_widgets", tool_called(output, "create_widgets") >= 1
+        ),
+        CheckResult(
+            "one summary of sum(Amount) on Sales",
+            len(matching) == 1 and len(widgets) == 1,
+            hint=f"widgets: {widgets}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="dashboard/adds-revenue-summary",
+        dataset="kuma-dashboard",
+        prompt=PROMPT_ADDS_REVENUE_SUMMARY,
+        scenario="dashboard-sales",
+        checks=_check_adds_revenue_summary,
+        mode=AgentMode.DASHBOARD,
+        max_iters=15,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Adds a chart grouped by a single select (needs premium)
+# ---------------------------------------------------------------------------
+
+COUNT_AGGREGATIONS = {"count", "not_empty_count", "unique_count"}
+
+
+def _check_adds_chart_by_stage(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    widgets = _widgets(scenario)
+    matching = [
+        w
+        for w in widgets
+        if w["type"] in ("chart", "pie_chart")
+        and w["table_id"] == scenario.refs["deals"].id
+        and w["group_by_field_id"] == scenario.refs["stage"].id
+        and len(w["series"]) == 1
+        and w["series"][0]["aggregation_type"] in COUNT_AGGREGATIONS
+    ]
+    return [
+        CheckResult(
+            "called create_widgets", tool_called(output, "create_widgets") >= 1
+        ),
+        CheckResult(
+            "one chart counting Deals grouped by Stage",
+            len(matching) == 1 and len(widgets) == 1,
+            hint=f"widgets: {widgets}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="dashboard/adds-chart-by-stage",
+        dataset="kuma-dashboard",
+        prompt=PROMPT_ADDS_CHART_BY_STAGE,
+        scenario="dashboard-sales",
+        checks=_check_adds_chart_by_stage,
+        mode=AgentMode.DASHBOARD,
+        max_iters=15,
+        metadata={"requires": "premium licence for chart widgets"},
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Changes and reads an existing widget
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("dashboard-sales-with-revenue")
+def _sales_with_revenue_scenario(fx: Fixtures) -> EvalScenario:
+    return _sales_workspace(fx, with_revenue_widget=True)
+
+
+def _check_changes_to_average(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    widgets = _widgets(scenario)
+    return [
+        CheckResult(
+            "called update_widgets", tool_called(output, "update_widgets") >= 1
+        ),
+        CheckResult(
+            "the Revenue widget averages Amount, and no widget was added",
+            [(w["id"], w["field_id"], w["aggregation_type"]) for w in widgets]
+            == [
+                (
+                    scenario.refs["widget_id"],
+                    scenario.refs["amount"].id,
+                    "average",
+                )
+            ],
+            hint=f"widgets: {widgets}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="dashboard/changes-to-average",
+        dataset="kuma-dashboard",
+        prompt=PROMPT_CHANGES_TO_AVERAGE,
+        scenario="dashboard-sales-with-revenue",
+        checks=_check_changes_to_average,
+        mode=AgentMode.DASHBOARD,
+        max_iters=15,
+    )
+)
+
+
+def _check_reads_widget(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult(
+            "called get_widget_data", tool_called(output, "get_widget_data") >= 1
+        ),
+        CheckResult(
+            "answer gives the total of 300",
+            "300" in output.answer,
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "changed nothing",
+            tool_called(output, "update_widgets") == 0
+            and tool_called(output, "create_widgets") == 0
+            and tool_called(output, "delete_widgets") == 0,
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="dashboard/reads-widget",
+        dataset="kuma-dashboard",
+        prompt=PROMPT_READS_WIDGET,
+        scenario="dashboard-sales-with-revenue",
+        checks=_check_reads_widget,
+        mode=AgentMode.DASHBOARD,
+        max_iters=10,
+    )
+)

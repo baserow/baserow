@@ -216,6 +216,8 @@ def _mode_for_ui_context(ui_context: UIContext | None) -> AgentMode | None:
         return AgentMode.APPLICATION
     if ui_context.automation or ui_context.workflow:
         return AgentMode.AUTOMATION
+    if ui_context.dashboard:
+        return AgentMode.DASHBOARD
     return AgentMode.DATABASE
 
 
