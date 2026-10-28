@@ -1,17 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
-import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
-import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
-import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement'
-import TextElementForm from '@baserow/modules/builder/components/elements/components/forms/general/TextElementForm'
-import HeadingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/HeadingElementForm'
-import LinkElementForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkElementForm'
-import ImageElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ImageElementForm'
-import ImageElement from '@baserow/modules/builder/components/elements/components/ImageElement'
-import InputTextElement from '@baserow/modules/builder/components/elements/components/InputTextElement'
-import InputTextElementForm from '@baserow/modules/builder/components/elements/components/forms/general/InputTextElementForm'
-import TableElement from '@baserow/modules/builder/components/elements/components/TableElement'
-import TableElementForm from '@baserow/modules/builder/components/elements/components/forms/general/TableElementForm'
 import {
   ensureArray,
   ensureBoolean,
@@ -32,34 +20,9 @@ import {
   PAGE_ELEMENT_BEHAVIOURS,
   DATA_PROVIDERS_ALLOWED_ELEMENTS,
 } from '@baserow/modules/builder/enums'
-import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
-import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
-import DefaultStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'
-import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
-import ButtonElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'
 import { ClickEvent, SubmitEvent } from '@baserow/modules/builder/eventTypes'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { isFormulaValid, resolveFormula } from '@baserow/modules/core/formula'
-import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
-import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
-import SimpleContainerElement from '@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'
-import SimpleContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'
-import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
-import ChoiceElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'
-import CheckboxElement from '@baserow/modules/builder/components/elements/components/CheckboxElement.vue'
-import CheckboxElementForm from '@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue'
-import IFrameElement from '@baserow/modules/builder/components/elements/components/IFrameElement.vue'
-import IFrameElementForm from '@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue'
-import RepeatElement from '@baserow/modules/builder/components/elements/components/RepeatElement'
-import RepeatElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'
-import RecordSelectorElement from '@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'
-import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'
-import MultiPageContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'
-import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
-import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
-import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
-import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
-import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -79,11 +42,6 @@ import {
   ROLE_TYPE_ALLOW_EXCEPT,
   ROLE_TYPE_DISALLOW_EXCEPT,
 } from '@baserow/modules/builder/constants'
-
-import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
-import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
-import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
-import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
 // Images for element modal
 import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg?url'
@@ -111,6 +69,172 @@ import moment from '@baserow/modules/core/moment'
 
 import _ from 'lodash'
 import { getValueAtPath } from '../core/utils/object'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const TextElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/TextElement')
+)
+const HeadingElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/HeadingElement')
+)
+const LinkElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/LinkElement')
+)
+const TextElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/TextElementForm')
+)
+const HeadingElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/HeadingElementForm')
+)
+const LinkElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/LinkElementForm')
+)
+const ImageElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ImageElementForm')
+)
+const ImageElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/ImageElement')
+)
+const InputTextElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/InputTextElement')
+)
+const InputTextElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/InputTextElementForm')
+)
+const TableElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/TableElement')
+)
+const TableElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/TableElementForm')
+)
+const ColumnElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/ColumnElement')
+)
+const ColumnElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm')
+)
+const DefaultStyleForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm')
+)
+const ButtonElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/ButtonElement')
+)
+const ButtonElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm')
+)
+const FormContainerElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/FormContainerElement.vue')
+)
+const FormContainerElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue')
+)
+const SimpleContainerElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue')
+)
+const SimpleContainerElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue')
+)
+const ChoiceElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/ChoiceElement.vue')
+)
+const ChoiceElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue')
+)
+const CheckboxElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/CheckboxElement.vue')
+)
+const CheckboxElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue')
+)
+const IFrameElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/IFrameElement.vue')
+)
+const IFrameElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue')
+)
+const RepeatElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/RepeatElement')
+)
+const RepeatElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm')
+)
+const RecordSelectorElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue')
+)
+const RecordSelectorElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm')
+)
+const MultiPageContainerElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm')
+)
+const MultiPageContainerElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/MultiPageContainerElement')
+)
+const DateTimePickerElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/DateTimePickerElement')
+)
+const DateTimePickerElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm')
+)
+const MenuElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/MenuElement')
+)
+const MenuElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm')
+)
+const RatingElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm')
+)
+const RatingElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/RatingElement.vue')
+)
+const RatingInputElement = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/RatingInputElement.vue')
+)
+const RatingInputElementForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue')
+)
 
 export class ElementType extends Registerable {
   get name() {

@@ -1,8 +1,14 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
-import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
-import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
 import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AgentApplicationForm = lazyComponent(
+  () => import('@baserow/modules/agent/components/AgentApplicationForm')
+)
+const AgentApplicationSidebar = lazyComponent(
+  () => import('@baserow/modules/agent/components/AgentApplicationSidebar')
+)
 
 export class AgentApplicationType extends ApplicationType {
   static getType() {

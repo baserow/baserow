@@ -1,8 +1,14 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
-import UserPreview from '@baserow/modules/core/components/onboarding/UserPreview'
-import MoreStep from '@baserow/modules/core/components/onboarding/MoreStep'
 import AuthService from '@baserow/modules/core/services/auth'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const UserPreview = lazyComponent(
+  () => import('@baserow/modules/core/components/onboarding/UserPreview')
+)
+const MoreStep = lazyComponent(
+  () => import('@baserow/modules/core/components/onboarding/MoreStep')
+)
 
 export class OnboardingType extends Registerable {
   /**

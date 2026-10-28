@@ -1,7 +1,15 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import GenericViewAggregation from '@baserow/modules/database/components/aggregation/GenericViewAggregation'
-import DistributionAggregation from '@baserow/modules/database/components/aggregation/DistributionAggregation'
 import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const GenericViewAggregation = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/aggregation/GenericViewAggregation')
+)
+const DistributionAggregation = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/aggregation/DistributionAggregation')
+)
 
 export class ViewAggregationType extends Registerable {
   /**

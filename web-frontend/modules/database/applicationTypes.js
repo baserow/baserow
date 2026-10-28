@@ -1,13 +1,26 @@
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import Sidebar from '@baserow/modules/database/components/sidebar/Sidebar'
-import TemplateSidebar from '@baserow/modules/database/components/sidebar/TemplateSidebar'
-import TableTemplate from '@baserow/modules/database/components/table/TableTemplate'
 import { populateTable } from '@baserow/modules/database/store/table'
-import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
-import DatabaseForm from '@baserow/modules/database/components/form/DatabaseForm'
 import ApplicationContext from '@baserow/modules/database/components/application/ApplicationContext'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const Sidebar = lazyComponent(
+  () => import('@baserow/modules/database/components/sidebar/Sidebar')
+)
+const TemplateSidebar = lazyComponent(
+  () => import('@baserow/modules/database/components/sidebar/TemplateSidebar')
+)
+const TableTemplate = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TableTemplate')
+)
+const GridViewRowExpandButton = lazyComponent(
+  () =>
+    import('@baserow/modules/database/components/view/grid/GridViewRowExpandButton')
+)
+const DatabaseForm = lazyComponent(
+  () => import('@baserow/modules/database/components/form/DatabaseForm')
+)
 
 export class DatabaseApplicationType extends ApplicationType {
   static getType() {

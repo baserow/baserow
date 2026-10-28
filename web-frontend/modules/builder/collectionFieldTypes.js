@@ -1,18 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import BooleanField from '@baserow/modules/builder/components/elements/components/collectionField/BooleanField'
-import TextField from '@baserow/modules/builder/components/elements/components/collectionField/TextField'
-import LinkField from '@baserow/modules/builder/components/elements/components/collectionField/LinkField'
-import ButtonField from '@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue'
-import ButtonFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue'
-import BooleanFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm'
-import TagsField from '@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue'
-import TextFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm'
-import TagsFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue'
-import LinkFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm'
-import ImageField from '@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue'
-import ImageFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue'
-import RatingField from '@baserow/modules/builder/components/elements/components/collectionField/RatingField'
-import RatingFieldForm from '@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm'
 import {
   ensureArray,
   ensureBoolean,
@@ -24,6 +10,64 @@ import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { ClickEvent } from '@baserow/modules/builder/eventTypes'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const BooleanField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/BooleanField')
+)
+const TextField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/TextField')
+)
+const LinkField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/LinkField')
+)
+const ButtonField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/ButtonField.vue')
+)
+const ButtonFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/ButtonFieldForm.vue')
+)
+const BooleanFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/BooleanFieldForm')
+)
+const TagsField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/TagsField.vue')
+)
+const TextFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/TextFieldForm')
+)
+const TagsFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/TagsFieldForm.vue')
+)
+const LinkFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/LinkFieldForm')
+)
+const ImageField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/ImageField.vue')
+)
+const ImageFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/ImageFieldForm.vue')
+)
+const RatingField = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/RatingField')
+)
+const RatingFieldForm = lazyComponent(
+  () =>
+    import('@baserow/modules/builder/components/elements/components/collectionField/form/RatingFieldForm')
+)
 
 export class CollectionFieldType extends Registerable {
   get name() {

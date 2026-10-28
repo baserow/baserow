@@ -7,6 +7,7 @@ import {
   FIELDS_UNAVAILABLE,
   TABLE_MISSING,
 } from '@baserow/modules/database/utils/buttonField'
+import { unwrapLazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -187,7 +188,7 @@ describe('OpenUrlWorkflowActionType', () => {
     })
 
   test('it renders its own form, not a service one', () => {
-    expect(actionType.form).toBe(OpenUrlWorkflowActionForm)
+    expect(unwrapLazyComponent(actionType.form)).toBe(OpenUrlWorkflowActionForm)
     expect(actionType.icon).toBe('iconoir-link')
     expect(actionType.label).toBeTruthy()
   })

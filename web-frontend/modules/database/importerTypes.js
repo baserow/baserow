@@ -1,10 +1,22 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
-import TableCSVImporter from '@baserow/modules/database/components/table/TableCSVImporter'
-import TablePasteImporter from '@baserow/modules/database/components/table/TablePasteImporter'
-import TableXMLImporter from '@baserow/modules/database/components/table/TableXMLImporter'
-import TableJSONImporter from '@baserow/modules/database/components/table/TableJSONImporter'
-import TableExcelImporter from '@baserow/modules/database/components/table/TableExcelImporter'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const TableCSVImporter = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TableCSVImporter')
+)
+const TablePasteImporter = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TablePasteImporter')
+)
+const TableXMLImporter = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TableXMLImporter')
+)
+const TableJSONImporter = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TableJSONImporter')
+)
+const TableExcelImporter = lazyComponent(
+  () => import('@baserow/modules/database/components/table/TableExcelImporter')
+)
 
 export class ImporterType extends Registerable {
   /**

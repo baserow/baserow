@@ -1,5 +1,9 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const DefaultErrorPage = lazyComponent(
+  () => import('@baserow/modules/core/components/DefaultErrorPage')
+)
 
 /**
  * This type allow plugins to register a custom error page.

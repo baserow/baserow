@@ -1,5 +1,9 @@
 import { ErrorPageType } from '@baserow/modules/core/errorPageTypes'
-import PublicSiteErrorPage from '@baserow/modules/builder/components/PublicSiteErrorPage'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const PublicSiteErrorPage = lazyComponent(
+  () => import('@baserow/modules/builder/components/PublicSiteErrorPage')
+)
 
 export class PublicSiteErrorPageType extends ErrorPageType {
   getComponent() {

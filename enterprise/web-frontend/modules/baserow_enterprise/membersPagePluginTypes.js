@@ -1,10 +1,22 @@
 import { MembersPagePluginType } from '@baserow/modules/database/membersPagePluginTypes'
-import MembersRoleField from '@baserow_enterprise/components/MembersRoleField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
-import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
-import AdminHighestPaidRoleField from '@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const MembersRoleField = lazyComponent(
+  () => import('@baserow_enterprise/components/MembersRoleField')
+)
+const UserTeamsField = lazyComponent(
+  () => import('@baserow_enterprise/components/crudTable/fields/UserTeamsField')
+)
+const HighestPaidRoleField = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField')
+)
+const AdminHighestPaidRoleField = lazyComponent(
+  () =>
+    import('@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField')
+)
 
 export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
   static getType() {

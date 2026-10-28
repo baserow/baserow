@@ -1,5 +1,10 @@
 import { DatabaseOnboardingStepType } from '@baserow/modules/database/databaseOnboardingStepTypes'
-import AIDatabaseOnboardingForm from '@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const AIDatabaseOnboardingForm = lazyComponent(
+  () =>
+    import('@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm')
+)
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
