@@ -3284,41 +3284,36 @@ export const actions = {
         placeSnapshotRows(rowData, 0)
       }
     } else if (sections.length > 0) {
-      const startOffset = Math.min(
-        ...sections.map(
-          (section) => section.absoluteRowOffset + section.startPosition
+      // Unpadded, because the snapshot layout only knows the loaded groups; the
+      // follow-up fetch below fills the rest of the viewport.
+      const windows = getGroupByRowFetchWindows(sections, 0, getters.getCount)
+      // Only the first window asks for the field options and the count.
+      const responses = await Promise.all(
+        windows.map(({ offset, limit }, index) =>
+          GridService($client).fetchRowsInChunks({
+            chunkSize: $config.public.baserowRowPageSizeLimit,
+            gridId,
+            offset,
+            limit,
+            includeFieldOptions: includeFieldOptions && index === 0,
+            search: getters.getServerSearchTerm,
+            searchMode: getDefaultSearchModeFromEnv($config),
+            publicUrl: rootGetters['page/view/public/getIsPublic'],
+            publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+            groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
+            orderBy: getOrderBy(view, getters.getAdhocSorting),
+            filters: getFilters(view, getters.getAdhocFiltering),
+            excludeCount: index > 0 || getters.canExcludeCount,
+          })
         )
       )
-      const endOffset = Math.max(
-        ...sections.map(
-          (section) => section.absoluteRowOffset + section.endPosition
-        )
-      )
-      const requestOffset = startOffset
-      const limit = Math.max(0, endOffset - startOffset)
-
-      if (limit > 0) {
-        const { data } = await GridService($client).fetchRowsInChunks({
-          chunkSize: $config.public.baserowRowPageSizeLimit,
-          gridId,
-          offset: requestOffset,
-          limit,
-          includeFieldOptions,
-          search: getters.getServerSearchTerm,
-          searchMode: getDefaultSearchModeFromEnv($config),
-          publicUrl: rootGetters['page/view/public/getIsPublic'],
-          publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-          groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
-          orderBy: getOrderBy(view, getters.getAdhocSorting),
-          filters: getFilters(view, getters.getAdhocFiltering),
-          excludeCount: getters.canExcludeCount,
-        })
-        if ((state.groupBy.generation || 0) !== groupByGeneration) {
-          return true
-        }
-        rowData = data
-        placeSnapshotRows(rowData, requestOffset)
+      if ((state.groupBy.generation || 0) !== groupByGeneration) {
+        return true
       }
+      responses.forEach(({ data }, index) => {
+        placeSnapshotRows(data, windows[index].offset)
+      })
+      rowData = responses[0]?.data ?? null
     }
 
     commit('APPLY_GROUP_BY_STATE', {

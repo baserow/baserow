@@ -1275,13 +1275,17 @@ export function buildGroupBySectionPlacements({
 /**
  * The absolute row windows to fetch for the given sections. Each section is padded to
  * whole `bufferSize` pages and overlapping windows are merged, so the rows between
- * distant sections, like the ones of a large collapsed group, aren't fetched.
+ * distant sections, like the ones of a large collapsed group, aren't fetched. Without a
+ * `bufferSize`, the windows cover exactly the sections' rows.
  */
 export function getGroupByRowFetchWindows(sections, bufferSize, count) {
   const windows = sections
     .map((section) => {
       const start = section.absoluteRowOffset + section.startPosition
       const end = section.absoluteRowOffset + section.endPosition
+      if (!bufferSize) {
+        return { start, end }
+      }
       return {
         start: Math.max(
           Math.floor((start - bufferSize) / bufferSize) * bufferSize,

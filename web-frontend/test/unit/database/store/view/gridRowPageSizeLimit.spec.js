@@ -154,4 +154,61 @@ describe('Grid view rows respect the row page size limit', () => {
     expect(ids).toContain(9)
     expect(ids).toContain(999909)
   })
+
+  test('refreshing does not fetch the rows of a collapsed group between visible groups', async () => {
+    const requests = []
+    mockGridRows(mockServer, requests)
+    store.replaceState({
+      ...store.state,
+      grid: Object.assign(gridStore.state(), {
+        lastGridId: 1,
+        activeGroupBys: view.group_bys,
+        count: 1000000,
+        rowHeight: 33,
+        rowPadding: 0,
+        windowHeight: 3300,
+        fieldOptions: { 1: { hidden: false, order: 0 } },
+        groupBy: {
+          ...gridStore.state().groupBy,
+          collapse: { mode: 'expand', paths: [{ field_1: 'B' }] },
+          collapseInitialized: true,
+        },
+      }),
+    })
+    const groups = [
+      { value: 'A', rowCount: 5, rowOffset: 0 },
+      { value: 'B', rowCount: 999990, rowOffset: 5 },
+      { value: 'C', rowCount: 5, rowOffset: 999995 },
+    ]
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(200, {
+      pages: [
+        {
+          parent: {},
+          groups: groups.map(({ value, rowCount, rowOffset }, index) => ({
+            path: { field_1: value },
+            depth: 0,
+            row_count: rowCount,
+            sibling_index: index,
+            row_offset: rowOffset,
+          })),
+          offset: 0,
+          limit: 40,
+          group_count: 3,
+        },
+      ],
+    })
+
+    await store.dispatch('grid/refreshActiveGroupBys', {
+      view,
+      fields: [{ id: 1, type: 'text', name: 'Text' }],
+      scrollTop: 0,
+      preserveScroll: true,
+    })
+
+    // One window per visible group instead of a range over the collapsed one.
+    expect(requests.map(({ offset, limit }) => ({ offset, limit }))).toEqual([
+      { offset: 0, limit: 5 },
+      { offset: 999995, limit: 5 },
+    ])
+  })
 })
