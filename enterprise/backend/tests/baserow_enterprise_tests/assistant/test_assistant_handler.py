@@ -1,7 +1,12 @@
+import threading
 from datetime import datetime, timedelta, timezone
+
+from django.db import connection
 
 import pytest
 
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.models import (
@@ -9,6 +14,8 @@ from baserow_enterprise.assistant.models import (
     AssistantChatMessage,
     AssistantChatPrediction,
 )
+from baserow_enterprise.assistant.runs import ASSISTANT_RUN_TYPE
+from baserow_enterprise.assistant.types import AssistantMessageUnion
 
 
 @pytest.mark.django_db
@@ -39,31 +46,6 @@ def test_get_or_create_chat_rejects_uuid_from_another_user(
         AssistantHandler().get_or_create_chat(requester, workspace, chat.uuid)
 
     assert AssistantChat.objects.filter(uuid=chat.uuid).count() == 1
-
-
-@pytest.mark.asyncio
-async def test_astream_assistant_messages_closes_assistant_stream_on_early_close(
-    mocker,
-):
-    lifecycle_events = []
-    response_message = object()
-
-    async def assistant_stream(_message):
-        try:
-            yield response_message
-        finally:
-            lifecycle_events.append("assistant-stream-exit")
-
-    assistant = mocker.Mock()
-    assistant.astream_messages = assistant_stream
-    handler = AssistantHandler()
-    mocker.patch.object(handler, "get_assistant", return_value=assistant)
-    stream = handler.astream_assistant_messages(object(), "Hello")
-
-    assert await anext(stream) is response_message
-    await stream.aclose()
-
-    assert lifecycle_events == ["assistant-stream-exit"]
 
 
 @pytest.mark.django_db
@@ -454,3 +436,50 @@ def test_delete_predictions_return_count_matches_deleted(enterprise_data_fixture
     assert deleted_count == 5
     # Should have 2 rated predictions remaining
     assert AssistantChatPrediction.objects.count() == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_chat_snapshot_reads_messages_and_run_at_one_point_in_time(
+    enterprise_data_fixture, mocker
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace)
+    run = ChatRunHandler().create_run(ASSISTANT_RUN_TYPE, chat.id, workspace, user, {})
+
+    def complete_from_another_connection() -> None:
+        ChatRun.objects.filter(id=run.id).update(status=ChatRunStatus.COMPLETED)
+        connection.close()
+
+    list_chat_messages = AssistantHandler.list_chat_messages
+
+    def list_then_answer(
+        handler: AssistantHandler, listed_chat: AssistantChat
+    ) -> list[AssistantMessageUnion]:
+        messages = list_chat_messages(handler, listed_chat)
+        thread = threading.Thread(target=complete_from_another_connection)
+        thread.start()
+        thread.join()
+        return messages
+
+    mocker.patch.object(AssistantHandler, "list_chat_messages", list_then_answer)
+
+    snapshot = AssistantHandler().get_chat_snapshot(chat)
+
+    assert snapshot.active_run.id == run.id
+    assert ChatRun.objects.get(id=run.id).status == ChatRunStatus.COMPLETED
+
+
+@pytest.mark.django_db
+def test_the_chat_snapshot_reads_a_fresh_title_instead_of_the_callers_object(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Provisional"
+    )
+    AssistantChat.objects.filter(id=chat.id).update(title="Saved final title")
+
+    assert AssistantHandler().get_chat_snapshot(chat).chat_title == "Saved final title"
+    assert chat.title == "Provisional"

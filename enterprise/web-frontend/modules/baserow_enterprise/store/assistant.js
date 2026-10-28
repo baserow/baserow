@@ -1,15 +1,66 @@
 import assistant from '@baserow_enterprise/services/assistant'
+import { ASSISTANT_RUN_TYPE } from '@baserow_enterprise/chatRunTypes'
+import {
+  getStoredChatUuid,
+  getTabId,
+  storeChatUuid,
+  getStoredOnboardingRunId,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
+import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 
-const MESSAGE_TYPE = {
-  MESSAGE: 'ai/message', // The main AI message content, both for partial and final answers
-  THINKING: 'ai/thinking', // Update the status bar in the UI
-  REASONING: 'ai/reasoning', // Show reasoning steps before the final answer
-  NAVIGATION: 'ai/navigation', // Navigate the user to a specific location in the UI
-  ERROR: 'ai/error', // Show an error message
-  CHAT_TITLE: 'chat/title', // Update the chat title
-  AI_STARTED: 'ai/started', // Indicates the AI started generating a response
-  AI_CANCELLED: 'ai/cancelled', // Indicates the AI generation was cancelled
+function parseMessage(message) {
+  return {
+    role: message.type === 'human' ? 'human' : 'ai',
+    loading: false,
+    ...message,
+  }
+}
+
+/**
+ * The answer a run is still writing, shown after the chat's saved messages.
+ * Its text reads as reasoning until the final answer arrives.
+ */
+function inFlightMessage(follower) {
+  const { text, reasoning } = follower.view
+  return {
+    id: `run-${follower.runId}`,
+    role: 'ai',
+    content: text,
+    loading: !text,
+    reasoning: Boolean(text) && reasoning,
+    can_submit_feedback: false,
+  }
+}
+
+const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
+
+/**
+ * How Kuma took a message: a run answers it, the chat still answers another
+ * one, or it was refused, which the chat explains.
+ */
+export const SEND_OUTCOME = {
+  ACCEPTED: 'accepted',
+  BUSY: 'busy',
+  FAILED: 'failed',
+}
+
+/**
+ * @returns {string} Why Kuma refused to start answering, for the chat.
+ */
+function refusalMessage(error, i18n) {
+  const handler = error.handler
+  if (handler?.isTooManyRequests()) {
+    return i18n.t('assistant.runLimitReached')
+  }
+  // The UI builds the rest of the body, so only the message's length can fail.
+  if (handler?.hasRequestBodyValidationError()) {
+    return i18n.t('assistant.runMessageTooLong')
+  }
+  const detail = handler?.detail
+  return typeof detail === 'string' && detail
+    ? detail
+    : i18n.t('assistant.runFailedToStart')
 }
 
 export const state = () => ({
@@ -18,11 +69,12 @@ export const state = () => ({
   chats: [],
   isLoadingChats: false,
   uiLocation: null,
-  uiLocationHistory: [],
   // A message asked for from outside the panel, like the prompt on the workspace
   // homepage. The panel picks it up when it mounts, which is the only moment it
   // can send it, and it survives `reset` for that reason.
   pendingPrompt: null,
+  // Kuma only navigates a tab whose panel is open.
+  panelOpen: false,
 })
 
 export const mutations = {
@@ -42,10 +94,6 @@ export const mutations = {
     chat.running = value
   },
 
-  SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, message = '' }) {
-    chat.runningMessage = message
-  },
-
   SET_ASSISTANT_CANCELLING(state, { chat, value }) {
     chat.cancelling = value
   },
@@ -59,9 +107,7 @@ export const mutations = {
   },
 
   UPDATE_MESSAGE(state, { id, updates }) {
-    const messageIndex = state.messages.findIndex(
-      (m) => m.id === id || m._uuid === id
-    )
+    const messageIndex = state.messages.findIndex((m) => m.id === id)
     if (messageIndex !== -1) {
       const updatedMessage = {
         ...state.messages[messageIndex],
@@ -75,25 +121,19 @@ export const mutations = {
     state.messages = []
   },
 
-  SET_CURRENT_MESSAGE_ID(state, { chat, messageId }) {
-    chat.currentMessageId = messageId
-  },
-
   SET_CHATS(state, chats) {
     const fetched = chats.map((chat) => ({
       id: chat.uuid,
+      chatId: chat.chat_id ?? null,
       title: chat.title,
       createdAt: chat.created_on,
       updatedAt: chat.updated_on,
-      status: chat.status,
       loading: false,
       running: false,
       reasoning: false,
       cancelling: false,
-      currentMessageId: null,
     }))
-    // A chat created client-side is only persisted once its first message is
-    // sent, so the fetched list does not contain it yet.
+    // A new chat is saved with its first message, so the fetched list can miss it.
     const current = state.chats.find((c) => c.id === state.currentChatId)
     const unsaved =
       current && !fetched.some((c) => c.id === current.id) ? [current] : []
@@ -122,13 +162,38 @@ export const mutations = {
     }
   },
 
-  SET_UI_LOCATION(state, location) {
-    state.uiLocation = location || null
-    state.uiLocationHistory.push(location)
+  SET_PANEL_OPEN(state, value) {
+    state.panelOpen = value
   },
 
-  CLEAR_UI_LOCATION_HISTORY(state) {
-    state.uiLocationHistory = []
+  UPSERT_MESSAGE(state, message) {
+    const index = state.messages.findIndex((m) => m.id === message.id)
+    if (index !== -1) {
+      state.messages.splice(index, 1, message)
+      return
+    }
+    // Saved ids grow in chat order, so a late answer goes back to its place.
+    const next = Number.isInteger(message.id)
+      ? state.messages.findIndex(
+          (m) => Number.isInteger(m.id) && m.id > message.id
+        )
+      : -1
+    if (next === -1) {
+      state.messages.push(message)
+    } else {
+      state.messages.splice(next, 0, message)
+    }
+  },
+
+  REMOVE_MESSAGE(state, id) {
+    const index = state.messages.findIndex((m) => m.id === id)
+    if (index !== -1) {
+      state.messages.splice(index, 1)
+    }
+  },
+
+  SET_UI_LOCATION(state, location) {
+    state.uiLocation = location || null
   },
 }
 
@@ -137,9 +202,40 @@ export const actions = {
     commit('SET_PENDING_PROMPT', prompt)
   },
 
+  setPanelOpen({ commit, rootGetters }, value) {
+    commit('SET_PANEL_OPEN', value)
+    const runId = getStoredOnboardingRunId()
+    const follower = runId && rootGetters['chatRuns/getFollower'](runId)
+    if (value && follower?.finished) {
+      this.$registry
+        .get('chatRunType', ASSISTANT_RUN_TYPE)
+        .openOnboardingTable(follower)
+    }
+  },
+
+  /**
+   * Shows a message a run saved, by id so it never shows twice, when the
+   * run's chat is the one shown.
+   */
+  forceAddRunMessage({ commit, getters }, { chatId, message }) {
+    if (getters.currentChat?.chatId === chatId) {
+      commit('UPSERT_MESSAGE', parseMessage(message))
+    }
+  },
+
+  forceUpdateChatTitle({ commit, state }, { chatId, title }) {
+    const chat = state.chats.find((c) => c.chatId === chatId)
+    if (chat) {
+      commit('UPDATE_CHAT', { id: chat.id, updates: { title } })
+    }
+  },
+
+  forceNavigate({ commit }, location) {
+    commit('SET_UI_LOCATION', location)
+  },
+
   reset({ commit }) {
     commit('CLEAR_MESSAGES')
-    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', null)
     commit('SET_CHATS', [])
   },
@@ -148,36 +244,148 @@ export const actions = {
     const id = uuidv4()
     commit('ADD_CHAT', { id, title: '' })
     commit('CLEAR_MESSAGES')
-    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', id)
 
     return id
   },
 
-  async selectChat({ commit }, chat) {
+  async selectChat({ commit, dispatch }, chat) {
     const { $client } = this
     commit('SET_CHAT_LOADING', { chat, value: true })
 
-    // Set role and loading state for each message
-    const parseMessage = (msg) => ({
-      role: msg.type === 'human' ? 'human' : 'ai',
-      loading: false,
-      ...msg,
-    })
-
     try {
-      const { messages } = await assistant($client).fetchChatMessages(chat.id)
+      const snapshot = await assistant($client).fetchChatMessages(chat.id)
       commit('SET_CURRENT_CHAT_ID', chat.id)
-      commit('SET_MESSAGES', messages.map(parseMessage))
+      commit('SET_MESSAGES', snapshot.messages.map(parseMessage))
+      await dispatch('followChatRuns', { chat, snapshot })
     } finally {
       commit('SET_CHAT_LOADING', { chat, value: false })
     }
   },
 
+  /**
+   * Shows a chat's runs: the answer of a run that finished while the snapshot
+   * was read, and the run still answering, followed from the snapshot so its
+   * past side effects aren't replayed.
+   */
+  async followChatRuns(
+    { commit, dispatch, rootGetters },
+    { chat, snapshot, subscribe = true }
+  ) {
+    const chatId = snapshot.chat_id
+    commit('UPDATE_CHAT', {
+      id: chat.id,
+      updates: {
+        chatId,
+        ...(typeof snapshot.chat_title === 'string'
+          ? { title: snapshot.chat_title }
+          : {}),
+      },
+    })
+    storeChatUuid(chat.id)
+    if (subscribe) {
+      await dispatch(
+        'chatRuns/subscribeToChat',
+        { runType: ASSISTANT_RUN_TYPE, chatId },
+        { root: true }
+      )
+    }
+    const historyMessages = new Map(
+      snapshot.messages.map((message) => [message.id, message])
+    )
+    const latest = snapshot.latest_run
+    if (latest && isTerminalStatus(latest.status)) {
+      await dispatch(
+        'chatRuns/follow',
+        {
+          runId: latest.id,
+          runType: ASSISTANT_RUN_TYPE,
+          chatId,
+          context: { chatUuid: chat.id },
+          attach: false,
+        },
+        { root: true }
+      )
+      await dispatch(
+        'chatRuns/applySnapshot',
+        {
+          runId: latest.id,
+          snapshot: {
+            ...latest,
+            message: historyMessages.get(latest.message?.id) || latest.message,
+          },
+        },
+        { root: true }
+      )
+    }
+    if (snapshot.active_run) {
+      await dispatch(
+        'chatRuns/follow',
+        {
+          runId: snapshot.active_run.id,
+          runType: ASSISTANT_RUN_TYPE,
+          chatId,
+          context: { chatUuid: chat.id },
+        },
+        { root: true }
+      )
+    }
+    // Add answers saved after this history read; history keeps newer feedback.
+    const saved = rootGetters['chatRuns/getFollowersOfChat'](
+      ASSISTANT_RUN_TYPE,
+      chatId
+    ).filter((follower) => follower.finished && follower.view.message)
+    for (const follower of saved) {
+      if (!historyMessages.has(follower.view.message.id)) {
+        commit('UPSERT_MESSAGE', parseMessage(follower.view.message))
+      }
+    }
+  },
+
+  async refreshCurrentChat({ state, commit, dispatch }) {
+    const chat = state.chats.find((c) => c.id === state.currentChatId)
+    if (!chat) return
+    try {
+      const snapshot = await assistant(this.$client).fetchChatMessages(chat.id)
+      if (state.currentChatId !== chat.id) return
+      // Refused prompts and unsaved answers exist only in this tab.
+      for (const message of snapshot.messages) {
+        commit('UPSERT_MESSAGE', parseMessage(message))
+      }
+      await dispatch('followChatRuns', { chat, snapshot, subscribe: false })
+    } catch (error) {
+      if (!error.handler && !error.response) throw error
+    }
+  },
+
+  /**
+   * Reopens the chat this tab showed before a reload, unless a chat was
+   * chosen meanwhile. A chat that can't be read is forgotten.
+   *
+   * @throws Anything but a failed request, such as a run type's bug.
+   */
+  async restoreOpenChat({ state, dispatch }) {
+    if (state.currentChatId) {
+      return
+    }
+    const chat = state.chats.find((c) => c.id === getStoredChatUuid())
+    if (!chat) {
+      return
+    }
+    try {
+      await dispatch('selectChat', chat)
+    } catch (error) {
+      if (!error.handler) {
+        throw error
+      }
+      storeChatUuid(null)
+    }
+  },
+
   clearChat({ commit }) {
     commit('CLEAR_MESSAGES')
-    commit('CLEAR_UI_LOCATION_HISTORY')
     commit('SET_CURRENT_CHAT_ID', null)
+    storeChatUuid(null)
   },
 
   async fetchChats({ commit }, workspaceId) {
@@ -193,188 +401,224 @@ export const actions = {
     }
   },
 
-  handleStreamingResponse({ commit, state }, { chat, id, update }) {
-    const { $client, $i18n } = this
-    switch (update.type) {
-      case MESSAGE_TYPE.AI_STARTED:
-        commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: update.message_id })
-        break
-      case MESSAGE_TYPE.AI_CANCELLED:
-        commit('UPDATE_MESSAGE', {
-          id,
-          updates: {
-            content: $i18n.t('assistant.messageCancelled'),
-            loading: false,
-            error: false,
-            reasoning: false,
-            cancelled: true,
-          },
-        })
-        commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
-        commit('SET_ASSISTANT_RUNNING', { chat, value: false })
-        commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
-        break
-      case MESSAGE_TYPE.MESSAGE:
-        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-          chat,
-          message: $i18n.t('assistant.statusAnswering'),
-        })
-        commit('UPDATE_MESSAGE', {
-          id,
-          updates: {
-            id: update.id || id,
-            content: update.content,
-            sources: update.sources,
-            can_submit_feedback: update.can_submit_feedback,
-            loading: false,
-            reasoning: false,
-          },
-        })
-        break
-      case MESSAGE_TYPE.REASONING:
-        commit('UPDATE_MESSAGE', {
-          id,
-          updates: {
-            id: update.id || id,
-            content: update.content,
-            can_submit_feedback: false,
-            loading: false,
-            reasoning: true,
-          },
-        })
-        break
-      case MESSAGE_TYPE.THINKING:
-        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-          chat,
-          message: update.content,
-        })
-        break
-      case MESSAGE_TYPE.NAVIGATION:
-        commit('SET_UI_LOCATION', update.location)
-        break
-      case MESSAGE_TYPE.CHAT_TITLE:
-        // The stream's own chat, because the user can have moved on to another
-        // conversation by the time the title arrives.
-        commit('UPDATE_CHAT', {
-          id: chat.id,
-          updates: { title: update.content },
-        })
-        break
-      case MESSAGE_TYPE.ERROR:
-        commit('UPDATE_MESSAGE', {
-          id,
-          updates: {
-            content: update.content,
-            loading: false,
-            error: true,
-            reasoning: false,
-            can_submit_feedback: false,
-          },
-        })
-        break
-    }
-  },
-
-  async sendMessage(
-    { commit, state, dispatch, getters },
-    { message, workspace }
-  ) {
-    const { $client, $i18n } = this
+  /**
+   * Sends the message and hands its response to the run's follower once the
+   * response names its run. A lost connection is recovered from the chat's
+   * history, never by sending again.
+   *
+   * @returns {Promise<{outcome: string, runId: string|null}>} Settles once Kuma
+   *   accepts or refuses the message, not when its run ends.
+   * @throws Anything but a failed request, such as a run type's bug.
+   */
+  async startRun({ state, commit, dispatch, getters }, { message, workspace }) {
     let chat = state.chats.find((c) => c.id === state.currentChatId)
     if (!chat) {
       await dispatch('createChat', workspace.id)
       chat = state.chats.find((c) => c.id === state.currentChatId)
     }
-
-    const userMessage = {
-      id: uuidv4(),
+    const draftId = uuidv4()
+    const previousIds = new Set(state.messages.map((m) => m.id))
+    commit('ADD_MESSAGE', {
+      id: draftId,
       role: 'human',
       content: message,
       loading: false,
-    }
-    commit('ADD_MESSAGE', userMessage)
-    const aiMessageId = uuidv4()
-    const aiMessage = {
-      _uuid: aiMessageId,
-      id: aiMessageId, // Temporary ID, will be updated when the final message arrives
-      role: 'ai',
-      content: '',
-      loading: true,
-      reasoning: false,
-    }
-    commit('ADD_MESSAGE', aiMessage)
-    commit('SET_ASSISTANT_RUNNING', { chat, value: true })
-    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-      chat,
-      message: $i18n.t('assistant.statusThinking'),
     })
-    const uiContext = getters.uiContext
-
-    try {
-      await assistant($client).sendMessage(
-        state.currentChatId,
-        message,
-        uiContext,
-        async (progressEvent) => {
-          await dispatch('handleStreamingResponse', {
-            chat,
-            id: aiMessageId,
-            update: progressEvent,
-          })
-        }
-      )
-      // If the AI message was never updated but the request finished, set a generic error message.
-      if (
-        state.messages.find((m) => m.id === aiMessageId && m.content === '')
-      ) {
-        throw new Error('The assistant did not provide a response.')
-      }
-    } catch (error) {
-      // Don't show error if the request was cancelled by user
-      if (error.cancelled) {
-        return
-      }
-      commit('UPDATE_MESSAGE', {
-        id: aiMessageId,
-        updates: {
-          content:
-            error.data?.detail ||
-            error.message ||
-            'Oops! Something went wrong on the server. Please try again.',
-          loading: false,
-          error: true,
-          reasoning: false,
+    commit('SET_ASSISTANT_RUNNING', { chat, value: true })
+    const controller = new AbortController()
+    // Logout must abort this response until a follower adopts it.
+    const unwatchAuth = this.watch(
+      (_, rootGetters) => rootGetters['auth/isAuthenticated'],
+      (authenticated) => {
+        if (!authenticated) controller.abort()
+      },
+      { flush: 'sync' }
+    )
+    let runId = null
+    let originalAdopted = false
+    let resolveAccepted, rejectAccepted
+    const accepted = new Promise((resolve, reject) => {
+      resolveAccepted = resolve
+      rejectAccepted = reject
+    })
+    const register = async (metadata, attach = false) => {
+      if (runId) return
+      runId = metadata.id
+      originalAdopted = !attach
+      const chatId = metadata.chat_id
+      commit('UPDATE_CHAT', { id: chat.id, updates: { chatId } })
+      await dispatch(
+        'chatRuns/follow',
+        {
+          runId,
+          runType: ASSISTANT_RUN_TYPE,
+          chatId,
+          context: { chatUuid: chat.id },
+          controller: attach ? null : controller,
+          attach,
         },
-      })
-    } finally {
+        { root: true }
+      )
+      if (state.currentChatId === chat.id) {
+        commit('REMOVE_MESSAGE', draftId)
+        storeChatUuid(chat.id)
+        await dispatch(
+          'chatRuns/subscribeToChat',
+          {
+            runType: ASSISTANT_RUN_TYPE,
+            chatId,
+          },
+          { root: true }
+        )
+      }
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
-      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
+      resolveAccepted({ outcome: SEND_OUTCOME.ACCEPTED, runId })
     }
+    assistant(this.$client)
+      .sendMessage(
+        chat.id,
+        message,
+        getters.uiContext,
+        async (record) => {
+          if (controller.signal.aborted) return
+          if (record._run?.id) {
+            // A follower that already saw the run end ignores later records.
+            if (record.type === 'human' && state.currentChatId === chat.id) {
+              commit('REMOVE_MESSAGE', draftId)
+              commit('UPSERT_MESSAGE', parseMessage(record))
+            }
+            await register(record._run)
+          }
+          if (runId) {
+            await dispatch(
+              'chatRuns/acceptRecord',
+              { runId, record, controller },
+              { root: true }
+            )
+          }
+        },
+        { tabId: getTabId(), signal: controller.signal }
+      )
+      .then(() => {
+        if (!runId) throw new Error('The response carried no run.')
+      })
+      .catch(async (error) => {
+        if (controller.signal.aborted) {
+          resolveAccepted({ outcome: SEND_OUTCOME.FAILED, runId: null })
+          return
+        }
+        // The shared follower recovers the run read-only.
+        if (runId) return
+        const status = error.response?.status
+        if (!status || status >= 500) {
+          try {
+            const snapshot = await assistant(this.$client).fetchChatMessages(
+              chat.id
+            )
+            const candidate = snapshot.active_run || snapshot.latest_run
+            const savedHuman = snapshot.messages.find(
+              (m) =>
+                m.type === 'human' &&
+                m.content === message &&
+                !previousIds.has(m.id)
+            )
+            if (
+              candidate &&
+              savedHuman &&
+              candidate.human_message_id === savedHuman.id
+            ) {
+              await register(
+                { id: candidate.id, chat_id: snapshot.chat_id },
+                true
+              )
+              if (state.currentChatId === chat.id) {
+                commit('UPSERT_MESSAGE', parseMessage(savedHuman))
+              }
+              if (isTerminalStatus(candidate.status)) {
+                await dispatch(
+                  'chatRuns/applySnapshot',
+                  { runId, snapshot: candidate },
+                  { root: true }
+                )
+              }
+              return
+            }
+          } catch (readError) {
+            if (!readError.handler) throw readError
+          }
+        }
+        resolveAccepted(
+          await dispatch('handleRefusedMessage', { chat, draftId, error })
+        )
+      })
+      .catch(rejectAccepted)
+      .finally(() => {
+        unwatchAuth()
+        if (runId && originalAdopted)
+          dispatch(
+            'chatRuns/streamEnded',
+            { runId, controller },
+            { root: true }
+          )
+        commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+      })
+    return accepted
   },
 
-  async cancelMessage({ commit, state }) {
-    const { $client, $i18n } = this
-    if (!state.currentChatId) {
-      return
+  /**
+   * Shows why Kuma refused a message, unless the user left its chat meanwhile.
+   * A busy chat follows the message it is still answering instead, without
+   * the draft, and is busy even when re-reading it failed, so the text can go
+   * back into the input.
+   *
+   * @returns {Promise<{outcome: string, runId: null}>}
+   * @throws Anything but a failed request while re-reading a busy chat.
+   */
+  async handleRefusedMessage(
+    { state, commit, dispatch },
+    { chat, draftId, error }
+  ) {
+    const { $i18n } = this
+    if (state.currentChatId !== chat.id) {
+      return { outcome: SEND_OUTCOME.FAILED, runId: null }
     }
-
-    const chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat || !chat.running) {
-      return
+    if (error.handler?.code === CHAT_RUN_IN_PROGRESS) {
+      commit('REMOVE_MESSAGE', draftId)
+      try {
+        await dispatch('selectChat', chat)
+      } catch (readError) {
+        if (!readError.handler) {
+          throw readError
+        }
+      }
+      return { outcome: SEND_OUTCOME.BUSY, runId: null }
     }
-
-    commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
-    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
-      chat,
-      message: $i18n.t('assistant.statusCancelling'),
+    commit('ADD_MESSAGE', {
+      id: uuidv4(),
+      role: 'ai',
+      content: refusalMessage(error, $i18n),
+      loading: false,
+      error: true,
+      reasoning: false,
     })
+    return { outcome: SEND_OUTCOME.FAILED, runId: null }
+  },
 
-    try {
-      await assistant($client).cancelMessage(state.currentChatId)
-    } catch (error) {
-      commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
-      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
-      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
+  async sendMessage({ dispatch }, { message, workspace }) {
+    const { outcome, runId } = await dispatch('startRun', {
+      message,
+      workspace,
+    })
+    if (outcome === SEND_OUTCOME.ACCEPTED && runId) {
+      await dispatch('chatRuns/waitUntilFinished', runId, { root: true })
+    }
+    return outcome
+  },
+
+  async cancelMessage({ dispatch, getters }) {
+    const follower = getters.activeFollower
+    if (follower) {
+      await dispatch('chatRuns/cancelRun', follower.runId, { root: true })
     }
   },
 
@@ -418,11 +662,28 @@ export const getters = {
 
   pendingPrompt: (state) => state.pendingPrompt,
 
+  isPanelOpen: (state) => state.panelOpen,
+
   currentChat: (state) => {
     return state.chats.find((chat) => chat.id === state.currentChatId)
   },
 
-  messages: (state) => state.messages,
+  activeFollower: (state, getters, rootState, rootGetters) => {
+    const chatId = getters.currentChat?.chatId
+    if (!chatId) {
+      return null
+    }
+    const followers = rootGetters['chatRuns/getFollowersOfChat'](
+      ASSISTANT_RUN_TYPE,
+      chatId
+    )
+    return followers.filter((follower) => !follower.finished).at(-1) ?? null
+  },
+
+  messages: (state, getters) =>
+    getters.activeFollower
+      ? [...state.messages, inFlightMessage(getters.activeFollower)]
+      : state.messages,
 
   chats: (state) => state.chats,
 
@@ -494,10 +755,6 @@ export const getters = {
 
   uiLocation: (state) => {
     return state.uiLocation
-  },
-
-  uiLocationHistory: (state) => {
-    return state.uiLocationHistory
   },
 }
 

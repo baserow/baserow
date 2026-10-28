@@ -14,6 +14,11 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
+import {
+  storeChatUuid,
+  storeOnboardingRunId,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -143,6 +148,19 @@ export default defineNuxtPlugin({
 
     $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
     $store.registerModuleNuxtSafe('assistant', assistantStore)
+    $registry.register('chatRunType', new AssistantChatRunType(context))
+    if (import.meta.client) {
+      $store.watch(
+        (_, getters) => getters['auth/isAuthenticated'],
+        (authenticated) => {
+          if (!authenticated) {
+            storeChatUuid(null)
+            storeOnboardingRunId(null)
+          }
+        },
+        { flush: 'sync' }
+      )
+    }
 
     $registry.register('admin', new AuthProvidersType(context))
     $registry.unregister(

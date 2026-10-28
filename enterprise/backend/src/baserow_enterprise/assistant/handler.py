@@ -1,18 +1,61 @@
-from contextlib import aclosing
+from contextlib import AbstractContextManager, nullcontext
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import AsyncGenerator
-from uuid import UUID
+from typing import Any, Optional
+from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Count
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.models import ChatRun
+from baserow.core.db import IsolationLevel, transaction_atomic
 from baserow.core.models import Workspace
 
-from .assistant import Assistant
+from .assistant import Assistant, assistant_message_payload
 from .exceptions import AssistantChatDoesNotExist
-from .model_profiles import ResolvedAssistantModelProfile
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
+from .runs import ASSISTANT_RUN_TYPE
 from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
+
+PROVISIONAL_TITLE_LENGTH = 60
+
+
+def _provisional_title(content: str) -> str:
+    """
+    :param content: The first message of a chat.
+    :return: Its start on one line, shown in the chat list until the run
+        generates a title.
+    """
+
+    return " ".join(content.split())[:PROVISIONAL_TITLE_LENGTH]
+
+
+@dataclass(frozen=True)
+class ChatSnapshot:
+    """
+    A chat's title, messages, active run and latest run, read at one point in time.
+    """
+
+    messages: list[AssistantMessageUnion]
+    active_run: Optional[ChatRun]
+    latest_run: Optional[ChatRun]
+    chat_title: str
+
+
+def _snapshot_transaction() -> AbstractContextManager:
+    """
+    :return: A repeatable-read transaction on the primary, or nothing inside a
+        caller's transaction, whose isolation can't change.
+    """
+
+    if transaction.get_connection(DEFAULT_DB_ALIAS).in_atomic_block:
+        return nullcontext()
+    return transaction_atomic(
+        using=DEFAULT_DB_ALIAS, isolation_level=IsolationLevel.REPEATABLE_READ
+    )
 
 
 class AssistantHandler:
@@ -140,20 +183,85 @@ class AssistantHandler:
 
         return Assistant.list_chat_messages_for_chat(chat)
 
-    def get_assistant(
+    def get_chat_snapshot(self, chat: AssistantChat) -> ChatSnapshot:
+        """
+        Reads the chat's title, messages, active run and latest run in one
+        repeatable-read transaction, so a run can't start or end unseen between
+        the reads.
+
+        :param chat: The chat.
+        :return: The chat's snapshot.
+        """
+
+        with _snapshot_transaction():
+            chat_title = AssistantChat.objects.values_list("title", flat=True).get(
+                id=chat.id
+            )
+            messages = self.list_chat_messages(chat)
+            active_run = ChatRunHandler().get_active_run(ASSISTANT_RUN_TYPE, chat.id)
+            latest_run = (
+                ChatRun.objects.filter(run_type=ASSISTANT_RUN_TYPE, chat_id=chat.id)
+                .order_by("-created_on", "-id")
+                .first()
+            )
+        return ChatSnapshot(
+            messages=messages,
+            active_run=active_run,
+            latest_run=latest_run,
+            chat_title=chat_title,
+        )
+
+    def send_message(
         self,
-        chat: AssistantChat,
-        model_profile: ResolvedAssistantModelProfile | None = None,
-    ) -> Assistant:
+        user: AbstractUser,
+        workspace: Workspace,
+        chat_uuid: str | UUID,
+        content: str,
+        ui_context: UIContext,
+        tab_id: str,
+    ) -> tuple[ChatRun, dict[str, Any]]:
         """
-        Get the assistant for the given chat.
+        Saves a human message and starts the background run that answers it, in
+        one transaction, so a refused run leaves no message behind. A chat without
+        a title gets a provisional one, which the run replaces.
 
-        :param chat: The AI assistant chat to get the assistant for.
-        :param model_profile: The model resolution already checked for this request.
-        :return: The assistant for the given chat.
+        :param user: The user sending the message.
+        :param workspace: The workspace of the chat.
+        :param chat_uuid: The chat's client-generated uuid; a new uuid creates the
+            chat.
+        :param content: The message.
+        :param ui_context: What the user was looking at when sending it.
+        :param tab_id: The sending tab, the only one that receives Kuma's
+            navigation.
+        :return: The run, and the saved message as clients show it.
         """
 
-        return Assistant(chat, model_profile=model_profile)
+        with transaction.atomic():
+            chat, _ = self.get_or_create_chat(user, workspace, chat_uuid)
+            generate_title = not chat.title
+            if generate_title:
+                chat.title = _provisional_title(content)
+                chat.save(update_fields=["title", "updated_on"])
+            human_message = AssistantChatMessage.objects.create(
+                chat=chat, role=AssistantChatMessage.Role.HUMAN, content=content
+            )
+            serialized = assistant_message_payload(human_message)
+            run = ChatRunHandler().start_run(
+                ASSISTANT_RUN_TYPE,
+                chat.id,
+                workspace,
+                user,
+                {
+                    "human_message_id": human_message.id,
+                    "client_session_id": get_untrusted_client_session_id(user),
+                    "action_group_id": str(uuid4()),
+                    "ui_context": ui_context.model_dump(mode="json"),
+                    "origin_tab_id": tab_id,
+                    "generate_title": generate_title,
+                },
+                {"human_message": serialized},
+            )
+        return run, serialized
 
     def delete_predictions(
         self, older_than_days: int = 30, exclude_rated: bool = True
@@ -175,24 +283,3 @@ class AssistantHandler:
             queryset = queryset.filter(human_sentiment__isnull=True)
 
         return queryset.delete()
-
-    async def astream_assistant_messages(
-        self,
-        chat: AssistantChat,
-        human_message: str,
-        ui_context: UIContext | None = None,
-    ) -> AsyncGenerator[AssistantMessageUnion, None]:
-        """
-        Stream messages from the assistant for the given chat and new message.
-
-        :param chat: The AI assistant chat to get the assistant for.
-        :param human_message: The new message from the user.
-        :param ui_context: The UI context where the message was sent.
-        :return: An async generator yielding messages from the assistant.
-        """
-
-        assistant = self.get_assistant(chat)
-        message = HumanMessage(content=human_message, ui_context=ui_context)
-        async with aclosing(assistant.astream_messages(message)) as messages:
-            async for msg in messages:
-                yield msg

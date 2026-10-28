@@ -5,31 +5,24 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import threading
 import time
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
-from dataclasses import dataclass
 from types import ModuleType
 from typing import Any
 
 from pydantic_ai import Agent
-from pydantic_ai._utils import (  # noqa: PLC2701
-    run_until_complete,
-    using_thread_executor,
-)
+from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.tool_manager import ToolManager
-from pydantic_ai.toolsets import WrapperToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
-from baserow_enterprise.assistant.deps import ToolHelpers
+from baserow_enterprise.assistant.deps import ToolHelpers, bind_tool_helpers
 from baserow_enterprise.assistant.evals.registry import get_scenario, load_all
 from baserow_enterprise.assistant.evals.scenarios import make_fixtures
 from baserow_enterprise.assistant.evals.types import (
@@ -42,6 +35,7 @@ from baserow_enterprise.assistant.model_profiles import (
     resolve_assistant_model,
 )
 from baserow_enterprise.assistant.onboarding import onboarding_suggestions_agent
+from baserow_enterprise.assistant.tool_executor import ShieldedToolset, ToolExecutor
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
 from baserow_enterprise.assistant.tools.database import agents as database_agents
@@ -312,52 +306,8 @@ def ensure_worker_safe() -> None:
         raise EvalCaseCleanupError(_cleanup_error)
 
 
-class _CaseExecutor(ThreadPoolExecutor):
-    """Track actual sync work, even after its asyncio waiter is cancelled."""
-
-    def __init__(self):
-        super().__init__(thread_name_prefix="eval-tool")
-        self._futures = []
-        self._futures_lock = threading.Lock()
-        self.tool_tasks: list[asyncio.Task] = []
-
-    def submit(self, *args, **kwargs):
-        with self._futures_lock:
-            future = super().submit(*args, **kwargs)
-            self._futures.append(future)
-            return future
-
-    async def drain(self, timeout_s: float) -> None:
-        self.shutdown(wait=False, cancel_futures=True)
-        with self._futures_lock:
-            futures = list(self._futures)
-        # Keep the loop alive: synchronous tools can await async sub-agents.
-        await asyncio.wait_for(
-            asyncio.shield(
-                asyncio.gather(
-                    *(asyncio.wrap_future(future) for future in futures),
-                    *self.tool_tasks,
-                    return_exceptions=True,
-                )
-            ),
-            timeout_s,
-        )
-
-
-@dataclass
-class _CaseToolset(WrapperToolset):
-    tasks: list[asyncio.Task]
-
-    async def call_tool(self, name, tool_args, ctx, tool):
-        # Async tools can also spawn threads (e.g. sync_to_async search). Keep
-        # their coroutines alive so cancellation cannot detach that work.
-        task = asyncio.create_task(self.wrapped.call_tool(name, tool_args, ctx, tool))
-        self.tasks.append(task)
-        return await asyncio.shield(task)
-
-
 async def _run_with_timeout(
-    coro, timeout_s: float, helpers: ToolHelpers, executor: _CaseExecutor
+    coro, timeout_s: float, helpers: ToolHelpers, executor: ToolExecutor
 ):
     task = asyncio.create_task(coro)
     cleanup_deadline = None
@@ -386,7 +336,7 @@ async def _run_with_timeout(
             else TOOL_CLEANUP_TIMEOUT_S
         )
         try:
-            await executor.drain(remaining)
+            await asyncio.wait_for(executor.drain(), remaining)
         except TimeoutError as exc:
             raise EvalCaseCleanupError("Synchronous tools did not finish") from exc
 
@@ -425,11 +375,12 @@ def run_case(
 
     timeout_s = get_case_timeout_s()
     start = time.monotonic()
-    executor = _CaseExecutor()
+    executor = ToolExecutor()
     try:
         # Match production when a model batches dependent tool calls.
         with (
-            using_thread_executor(executor),
+            bind_tool_helpers(tool_helpers),
+            Agent.using_thread_executor(executor),
             ToolManager.parallel_execution_mode("sequential"),
         ):
             result = run_until_complete(
@@ -441,7 +392,7 @@ def run_case(
                         model=ctx.model,
                         model_settings=model_profile.get_settings(ORCHESTRATOR),
                         usage_limits=UsageLimits(request_limit=case.max_iters),
-                        toolsets=[_CaseToolset(ctx.toolset, executor.tool_tasks)],
+                        toolsets=[ShieldedToolset(ctx.toolset, executor)],
                     ),
                     timeout_s,
                     tool_helpers,

@@ -13,7 +13,7 @@
       }"
     >
       <div class="assistant__message-content">
-        <div class="assistant__message-bubble">
+        <div v-if="showsBubble(message)" class="assistant__message-bubble">
           <div
             v-if="waitingForAssistantResponse(message)"
             class="assistant__typing"
@@ -58,6 +58,9 @@
             />
           </template>
         </div>
+        <div v-if="outcomeKey(message)" class="assistant__message-run-outcome">
+          {{ $t(outcomeKey(message)) }}
+        </div>
 
         <AssistantMessageActions :message="message" />
         <div
@@ -75,6 +78,7 @@
 import MarkdownIt from 'markdown-it'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
+import { runOutcomeKey } from '@baserow_enterprise/utils/assistant'
 
 // Initialize markdown parser with safe settings
 const md = new MarkdownIt({
@@ -103,6 +107,16 @@ export default {
     }
   },
   methods: {
+    outcomeKey(message) {
+      return message.role === 'ai' ? runOutcomeKey(message) : null
+    },
+    /**
+     * An answer without text whose run failed, such as the empty answer of a
+     * run no worker picked up, shows only its note.
+     */
+    showsBubble(message) {
+      return Boolean(message.content) || !this.outcomeKey(message)
+    },
     waitingForAssistantResponse(message) {
       return message.role === 'ai' && message.loading && !message.content
     },

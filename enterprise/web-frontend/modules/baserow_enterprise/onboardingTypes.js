@@ -3,10 +3,13 @@ import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
-import { waitFor } from '@baserow/modules/core/utils/queue.js'
 import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep'
 import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import {
+  storeOnboardingRunId,
+  storePanelOpen,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 
 export class AIPromptOnboardingType extends OnboardingType {
   static getType() {
@@ -49,38 +52,34 @@ export class AIPromptOnboardingType extends OnboardingType {
     ].join(' ')
 
     callback(null, AssistantOnboardingMessage)
-    await this.app.$store.dispatch('assistant/sendMessage', {
+    return await this.handOff(message, workspace)
+  }
+
+  /**
+   * Starts the run that builds the database and returns at once, so the user
+   * waits in the workspace with Kuma's panel showing the run, which opens the
+   * first table it created when it's done, also after a reload.
+   */
+  async handOff(message, workspace) {
+    const { runId } = await this.app.$store.dispatch('assistant/startRun', {
       message,
       workspace,
     })
-    const chat = this.app.$store.getters['assistant/currentChat']
-    await waitFor(() => {
-      const currentChat = this.app.$store.getters['assistant/currentChat']
-      return !currentChat?.running
-    }, 50)
-    const tableLocation = this.app.$store.getters[
-      'assistant/uiLocationHistory'
-    ].filter((location) => location.type === 'database-table')[0]
-    if (!tableLocation) {
-      throw new Error('The assistant did not create a table.')
-    }
-    return { tableLocation, chat }
+    if (!runId) throw new Error('Kuma could not start building the database.')
+    storePanelOpen(true)
+    storeOnboardingRunId(runId)
+    return { workspace, runId }
   }
 
   getCompletedRoute(data, responses) {
     const response = responses[this.getType()]
     nextTick(async () => {
       await pageFinished(this.app)
-      await nextTick()
       await this.app.$bus.$emit('toggle-right-sidebar', true)
-      await this.app.$store.dispatch('assistant/selectChat', response.chat)
     })
     return {
-      name: 'database-table',
-      params: {
-        databaseId: response.tableLocation.database_id,
-        tableId: response.tableLocation.table_id,
-      },
+      name: 'workspace',
+      params: { workspaceId: response.workspace.id },
     }
   }
 }

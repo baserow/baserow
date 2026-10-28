@@ -1,7 +1,5 @@
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -16,7 +14,6 @@ from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
-    PartStartEvent,
     RetryPromptPart,
     TextPart,
     ToolCallPart,
@@ -24,7 +21,6 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
-from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.ai_provider.constants import (
@@ -71,14 +67,8 @@ from baserow_enterprise.assistant.prompts import (
 )
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
-    AiMessage,
-    AiMessageChunk,
     AiReasoningChunk,
-    AiStartedMessage,
-    AiThinkingMessage,
     ApplicationUIContext,
-    ChatTitleMessage,
-    HumanMessage,
     TableUIContext,
     UIContext,
     UserUIContext,
@@ -127,30 +117,9 @@ def _set_test_model(settings):
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq/test-model"
 
 
-@pytest.fixture
-def scoped_assistant_model(mocker):
-    """Provide Assistant with a model whose async lifecycle can be asserted."""
-
-    model = MagicMock()
-    model.__aenter__.return_value = model
-    model.__aexit__.return_value = None
-    mocker.patch(
-        "baserow_enterprise.assistant.model_profiles."
-        "ResolvedAssistantModelProfile.create_model",
-        return_value=model,
-    )
-    return model
-
-
-def assert_model_scope_closed(model):
-    model.__aenter__.assert_awaited_once_with()
-    model.__aexit__.assert_awaited_once()
-
-
 @pytest.mark.django_db
 def test_assistant_propagates_request_model_profile_to_tool_helpers(
     enterprise_data_fixture,
-    scoped_assistant_model,
 ):
     user = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -163,88 +132,6 @@ def test_assistant_propagates_request_model_profile_to_tool_helpers(
     assistant = Assistant(chat, model_profile=model_profile)
 
     assert assistant._tool_helpers.model_profile is model_profile
-
-
-@pytest.mark.asyncio
-async def test_astream_messages_closes_inner_stream_before_model_scope():
-    lifecycle_events = []
-
-    @asynccontextmanager
-    async def model_scope():
-        lifecycle_events.append("model-enter")
-        try:
-            yield
-        finally:
-            lifecycle_events.append("model-exit")
-
-    async def inner_stream(_message):
-        lifecycle_events.append("stream-enter")
-        try:
-            yield AiStartedMessage(message_id="1")
-        finally:
-            lifecycle_events.append("stream-exit")
-
-    assistant = Assistant.__new__(Assistant)
-    assistant._model = model_scope()
-    assistant._astream_messages_in_model_context = inner_stream
-    stream = assistant.astream_messages(HumanMessage(content="Hello"))
-
-    await anext(stream)
-    await stream.aclose()
-
-    assert lifecycle_events == [
-        "model-enter",
-        "stream-enter",
-        "stream-exit",
-        "model-exit",
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Mock helpers for pydantic-ai's run_stream_events async generator
-# ---------------------------------------------------------------------------
-
-
-async def _mock_run_stream_events(
-    answer: str, messages_json: bytes = b"[]"
-) -> AsyncIterator[Any]:
-    """
-    Async generator that mimics the events pulled from ``main_agent.run_stream_events()``,
-    yielding PartStartEvent, then AgentRunResultEvent.
-    """
-
-    # Emit a text part start with the full answer
-    yield PartStartEvent(index=0, part=TextPart(content=answer))
-
-    # Emit the final result event
-    mock_result = MagicMock()
-    mock_result.output = answer
-    mock_result.all_messages_json.return_value = messages_json
-    yield AgentRunResultEvent(result=mock_result)
-
-
-@asynccontextmanager
-async def _mock_run_stream_events_cm(
-    events: AsyncIterator[Any],
-) -> AsyncIterator[AsyncIterator[Any]]:
-    """run_stream_events() is a context manager yielding an iterator, so the double must be too."""
-
-    yield events
-
-
-def make_mock_run_stream_events_side_effect(
-    answer: str, messages_json: bytes = b"[]"
-) -> Callable[..., AbstractAsyncContextManager[AsyncIterator[Any]]]:
-    """Return a side_effect callable returning the context manager run_stream_events() now yields."""
-
-    def side_effect(
-        *args: Any, **kwargs: Any
-    ) -> AbstractAsyncContextManager[AsyncIterator[Any]]:
-        return _mock_run_stream_events_cm(
-            _mock_run_stream_events(answer, messages_json)
-        )
-
-    return side_effect
 
 
 # ---------------------------------------------------------------------------
@@ -1312,309 +1199,10 @@ class TestGetWorkspaceLicenseType:
 
 
 @pytest.mark.django_db
-class TestAssistantMessagePersistence:
-    """Test that messages are persisted correctly during streaming."""
-
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_persists_human_message(
-        self,
-        mock_run_stream_events,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test Chat"
-        )
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Hello"
-        )
-
-        assistant = Assistant(chat)
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-        )
-
-        async def consume_stream():
-            human_message = HumanMessage(content="Test message", ui_context=ui_context)
-            async for _ in assistant.astream_messages(human_message):
-                pass
-
-        async_to_sync(consume_stream)()
-
-        human_messages = AssistantChatMessage.objects.filter(
-            chat=chat, role=AssistantChatMessage.Role.HUMAN
-        ).count()
-        assert human_messages == 1
-
-        saved_message = AssistantChatMessage.objects.filter(
-            chat=chat, role=AssistantChatMessage.Role.HUMAN
-        ).first()
-        assert saved_message.content == "Test message"
-        assert_model_scope_closed(scoped_assistant_model)
-
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_persists_ai_message(
-        self,
-        mock_run_stream_events,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test Chat"
-        )
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Based on docs"
-        )
-
-        assistant = Assistant(chat)
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-        )
-
-        async def consume_stream():
-            human_message = HumanMessage(content="Question", ui_context=ui_context)
-            async for _ in assistant.astream_messages(human_message):
-                pass
-
-        async_to_sync(consume_stream)()
-
-        ai_messages = AssistantChatMessage.objects.filter(
-            chat=chat, role=AssistantChatMessage.Role.AI
-        ).count()
-        assert ai_messages == 1
-        saved_message = AssistantChatMessage.objects.get(
-            chat=chat, role=AssistantChatMessage.Role.AI
-        )
-        assert assistant._telemetry.trace_id
-        assert saved_message.prediction.prediction == {
-            "answer": "Based on docs",
-            "posthog_trace_id": assistant._telemetry.trace_id,
-        }
-        assert_model_scope_closed(scoped_assistant_model)
-
-    @patch("baserow_enterprise.assistant.agents.title_agent.run")
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_persists_chat_title(
-        self,
-        mock_run_stream_events,
-        mock_title_run,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Hello"
-        )
-
-        mock_title_result = MagicMock()
-        mock_title_result.output = "Greeting"
-        mock_title_run.return_value = mock_title_result
-
-        assistant = Assistant(chat)
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-        )
-
-        async def consume_stream():
-            human_message = HumanMessage(content="Hello", ui_context=ui_context)
-            async for _ in assistant.astream_messages(human_message):
-                pass
-
-        async_to_sync(consume_stream)()
-
-        chat.refresh_from_db()
-        assert chat.title == "Greeting"
-        assert_model_scope_closed(scoped_assistant_model)
-
-
-@pytest.mark.django_db
-class TestAssistantStreaming:
-    """Test streaming behavior of the Assistant."""
-
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_yields_answer_chunks(
-        self,
-        mock_run_stream_events,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test Chat"
-        )
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Hello world"
-        )
-
-        assistant = Assistant(chat)
-
-        async def consume_stream():
-            messages = []
-            human_message = HumanMessage(content="Test")
-            async for msg in assistant.astream_messages(human_message):
-                messages.append(msg)
-            return messages
-
-        messages = async_to_sync(consume_stream)()
-
-        # Filter for final AiMessage
-        ai_messages = [m for m in messages if isinstance(m, AiMessage)]
-        assert len(ai_messages) == 1
-        assert ai_messages[0].content == "Hello world"
-        assert ai_messages[0].id is not None
-
-        # Should also have AiMessageChunk(s)
-        chunks = [
-            m
-            for m in messages
-            if isinstance(m, AiMessageChunk) and not isinstance(m, AiMessage)
-        ]
-        assert len(chunks) >= 1
-        assert_model_scope_closed(scoped_assistant_model)
-
-    @patch("baserow_enterprise.assistant.agents.title_agent.run")
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_yields_title_for_new_chat(
-        self,
-        mock_run_stream_events,
-        mock_title_run,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Answer"
-        )
-
-        mock_title_result = MagicMock()
-        mock_title_result.output = "Title"
-        mock_title_run.return_value = mock_title_result
-
-        assistant = Assistant(chat)
-
-        async def consume_stream():
-            msgs = []
-            human_message = HumanMessage(content="Test")
-            async for msg in assistant.astream_messages(human_message):
-                msgs.append(msg)
-            return msgs
-
-        messages = async_to_sync(consume_stream)()
-
-        title_messages = [m for m in messages if isinstance(m, ChatTitleMessage)]
-        assert len(title_messages) == 1
-        assert title_messages[0].content == "Title"
-        assert_model_scope_closed(scoped_assistant_model)
-
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_yields_thinking_messages(
-        self,
-        mock_run_stream_events,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test Chat"
-        )
-
-        assistant = Assistant(chat)
-
-        async def mock_stream_with_thinking(*args, **kwargs):
-            # Emit thinking message via the event bus during streaming
-            assistant._event_bus.emit(AiThinkingMessage(content="still thinking..."))
-
-            # Yield text part then result
-            yield PartStartEvent(index=0, part=TextPart(content="Answer"))
-
-            mock_result = MagicMock()
-            mock_result.output = "Answer"
-            mock_result.all_messages_json.return_value = b"[]"
-            yield AgentRunResultEvent(result=mock_result)
-
-        mock_run_stream_events.side_effect = lambda *args, **kwargs: (
-            _mock_run_stream_events_cm(mock_stream_with_thinking(*args, **kwargs))
-        )
-
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-        )
-
-        async def consume_stream():
-            thinking = []
-            human_message = HumanMessage(content="Test", ui_context=ui_context)
-            async for msg in assistant.astream_messages(human_message):
-                if isinstance(msg, AiThinkingMessage):
-                    thinking.append(msg)
-            return thinking
-
-        thinking_messages = async_to_sync(consume_stream)()
-
-        assert len(thinking_messages) == 1
-        assert thinking_messages[0].content == "still thinking..."
-        assert_model_scope_closed(scoped_assistant_model)
-
-    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
-    def test_astream_messages_yields_ai_started_message(
-        self,
-        mock_run_stream_events,
-        enterprise_data_fixture,
-        scoped_assistant_model,
-    ):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test"
-        )
-
-        mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect(
-            "Hello"
-        )
-
-        assistant = Assistant(chat)
-        human_message = HumanMessage(content="Hello")
-
-        async def collect_messages():
-            messages = []
-            async for msg in assistant.astream_messages(human_message):
-                messages.append(msg)
-            return messages
-
-        messages = async_to_sync(collect_messages)()
-
-        assert len(messages) > 0
-        assert isinstance(messages[0], AiStartedMessage)
-        assert messages[0].message_id is not None
-        assert_model_scope_closed(scoped_assistant_model)
-
-
-@pytest.mark.django_db
 def test_stream_agent_run_drives_the_real_pydantic_ai_stream(enterprise_data_fixture):
     """
-    Exercises main_agent.run_stream_events for real, unmocked.
-
-    The other streaming tests patch run_stream_events with an async generator,
-    which cannot detect a change in how that call must be invoked. This one
-    fails if the call shape is wrong.
+    Exercises main_agent.run_stream_events for real, unmocked, so it fails if the
+    call shape is wrong.
     """
 
     from pydantic_ai.models.test import TestModel
@@ -1866,40 +1454,6 @@ class TestUIContext:
         assert user_context.id == user.id
         assert user_context.name == "John Doe"
         assert user_context.email == "john@example.com"
-
-    def test_human_message_with_ui_context(self):
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
-            database=ApplicationUIContext(id="db-123", name="My Database"),
-            user=UserUIContext(id=1, name="Test", email="test@test.com"),
-        )
-
-        human_message = HumanMessage(
-            content="How do I create a field?", ui_context=ui_context
-        )
-
-        assert human_message.content == "How do I create a field?"
-        assert human_message.ui_context.workspace.id == 1
-        assert human_message.ui_context.database.id == "db-123"
-
-
-@pytest.mark.django_db
-class TestAssistantCancellation:
-    """Test cancellation functionality in Assistant."""
-
-    def test_get_cancellation_cache_key(self, enterprise_data_fixture):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test"
-        )
-
-        from baserow_enterprise.assistant.assistant import (
-            get_assistant_cancellation_key,
-        )
-
-        cache_key = get_assistant_cancellation_key(str(chat.uuid))
-        assert cache_key == f"assistant:chat:{chat.uuid}:cancelled"
 
 
 @pytest.mark.django_db
