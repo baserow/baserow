@@ -2452,15 +2452,15 @@ describe('Buffered rows search', () => {
     expect(rowsInStore[0]).toBeUndefined()
   })
 
-  test('request size does not exceed the row page size limit', async () => {
-    const requestedLimits = []
+  test('visible rows are fetched in chunks within the row page size limit', async () => {
+    const requests = []
     const service = () => ({
       fetchRows({ limit, offset }) {
-        requestedLimits.push(limit)
+        requests.push({ offset, limit })
         const results = Array.from({ length: limit }, (_, index) => ({
           id: offset + index + 1,
         }))
-        return { data: { count: 10, results } }
+        return { data: { count: 100, results } }
       },
     })
     const populateRow = (row) => {
@@ -2469,22 +2469,25 @@ describe('Buffered rows search', () => {
     }
     const store = createStore(
       { service, populateRow },
-      { requestSize: 100, viewId: 1, rows: Array(10).fill(null) }
+      { requestSize: 40, viewId: 1, rows: Array(100).fill(null) }
     )
     const originalLimit = store.$config.public.baserowRowPageSizeLimit
-    store.$config.public.baserowRowPageSizeLimit = 3
+    store.$config.public.baserowRowPageSizeLimit = 20
     try {
       await store.dispatch('test/fetchMissingRowsInNewRange', {
-        startIndex: 0,
-        endIndex: 1,
+        startIndex: 40,
+        endIndex: 70,
       })
     } finally {
       store.$config.public.baserowRowPageSizeLimit = originalLimit
     }
 
-    expect(requestedLimits).toEqual([3])
-    expect(store.getters['test/getRows'].slice(0, 4).map((r) => r?.id)).toEqual(
-      [1, 2, 3, undefined]
+    for (const { limit } of requests) {
+      expect(limit).toBeLessThanOrEqual(20)
+    }
+    const visibleRows = store.getters['test/getRows'].slice(40, 71)
+    expect(visibleRows.map((row) => row?.id)).toEqual(
+      Array.from({ length: 31 }, (_, index) => 41 + index)
     )
   })
 })
