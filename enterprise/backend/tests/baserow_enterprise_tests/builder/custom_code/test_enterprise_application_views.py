@@ -344,9 +344,13 @@ def test_untrusted_custom_code_requires_explicit_consent(
         authenticate_builder_preview(api_client, builder, user)
         route = f"api:enterprise:builder_preview_custom_code:{code_type}"
     else:
+        builder.untrusted_content = False
+        builder.save(update_fields=["untrusted_content"])
         domain = data_fixture.create_builder_custom_domain(builder=builder)
         builder = DomainHandler().publish(domain).published_to
-        assert builder.untrusted_content is True
+        # Public asset endpoints also protect existing copies marked untrusted.
+        builder.untrusted_content = True
+        builder.save(update_fields=["untrusted_content"])
         route = f"api:enterprise:custom_code:public_{code_type}"
 
     from baserow.api.applications.serializers import (
