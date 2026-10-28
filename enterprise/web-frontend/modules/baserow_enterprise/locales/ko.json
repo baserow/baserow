@@ -52,7 +52,10 @@
         "createdColumn": "생성일",
         "subjectsColumn": "멤버",
         "roleColumn": "기본 역할",
-        "roleHelpText": "데이터베이스와 테이블의 역할로 재정의할 수 있습니다."
+        "roleHelpText": "데이터베이스와 테이블의 역할로 재정의할 수 있습니다.",
+        "emptyDescription": "사람과 에이전트를 팀으로 묶어 접근 권한을 함께 관리하세요. 부서나 프로젝트별로 팀을 만든 다음 역할을 지정하세요.",
+        "search": "팀 검색",
+        "emptyTitle": "아직 팀이 없습니다"
     },
     "subjectSampleField": {
         "titleAttr": "이 팀에는 {subjectCount}명의 멤버가 있습니다."
@@ -292,7 +295,8 @@
     },
     "membersRoleField": {
         "noAccessHelpText": "이 사용자는 리소스에 대한 명시적 액세스가 필요합니다.",
-        "adminHelpText": "관리자는 다른 관리자의 역할을 제한할 수 있습니다."
+        "adminHelpText": "관리자는 다른 관리자의 역할을 제한할 수 있습니다.",
+        "adminFullAccessHelpText": "관리자는 이 워크스페이스의 모든 항목에 전체 접근 권한을 갖습니다. 데이터베이스, 테이블 또는 뷰에서 관리자의 역할을 낮출 수 없습니다. 관리자의 권한을 제한하려면 먼저 워크스페이스 역할을 낮추세요."
     },
     "membersPagePlugin": {
         "roleHelpText": "데이터베이스와 테이블의 역할로 재정의할 수 있습니다."
@@ -969,7 +973,8 @@
     },
     "subjectType": {
         "team": "팀",
-        "teams": "팀"
+        "teams": "팀",
+        "teamMembers": "멤버 {count}명"
     },
     "fieldPermissionSubjectsSelector": {
         "accessNote": "선택해도 테이블 접근 권한이 부여되지는 않습니다. 선택된 사용자, 에이전트 또는 선택된 팀의 멤버는 이 테이블이 있는 위치에서 편집자, 빌더 또는 관리자 역할도 가지고 있어야 합니다.",
@@ -1011,5 +1016,46 @@
         "title": "만들고 싶은 것을 알려주세요",
         "placeholder": "회사 자산 관리 도구 만들기",
         "build": "만들기"
+    },
+    "inviteModal": {
+        "memberRoute": "멤버 초대"
+    },
+    "scopeInvitationTarget": {
+        "title": "{name} 공유",
+        "application": "애플리케이션",
+        "table": "테이블",
+        "view": "뷰"
+    },
+    "shareScope": {
+        "pendingNoWorkspaceRole": "워크스페이스 역할 없음",
+        "searchPlaceholder": "{subjects} 검색 또는 이메일 입력",
+        "searchSubjectsPlaceholder": "{subjects} 검색",
+        "workspaceInvitationRequired": "새로운 사람을 초대하려면 워크스페이스 초대 권한이 필요합니다. 기존 워크스페이스 멤버에게는 접근 권한을 부여할 수 있습니다.",
+        "add": "추가",
+        "addAs": "{count}명을 {role} 역할로 추가",
+        "inviteEmailDescription": "이 {type}에만 {role} 역할이 부여되며 워크스페이스 역할은 부여되지 않습니다",
+        "alreadyInvited": "이 {type}에 대한 초대가 이미 대기 중입니다.\n다시 초대하는 대신 아래 목록에서 역할을 변경할 수 있습니다.",
+        "alreadyAssigned": "이 {type}에 이미 역할이 있습니다.\n아래 목록에서 변경할 수 있습니다.",
+        "alreadyAdmin": "{level} 관리자이므로 이 {type}에 이미 전체 접근 권한이 있습니다.\n권한을 제한하려면 먼저 {level} 역할을 낮추세요.",
+        "noResults": "일치하는 {subjects} 항목이 없습니다. 새로운 사람을 초대하려면 전체 이메일 주소를 입력하세요.",
+        "noSubjectResults": "일치하는 {subjects} 항목이 없습니다.",
+        "directAccess": "이 {type}에 대한 직접 접근 권한",
+        "emptyTitle": "아직 이 {type}에 역할이 지정된 사람이 없습니다.",
+        "invitePending": "초대 대기 중",
+        "noWorkspaceRole": "워크스페이스 역할 없음 - 이 {type}에만 적용",
+        "inheritedAdminHelpText": "{level} 관리자는 이 {type}에 항상 전체 접근 권한을 갖습니다. 여기에서 지정한 역할은 영향을 주지 않습니다. 권한을 제한하려면 먼저 {level} 역할을 낮추세요.",
+        "emptyDescription": "아래의 모든 사람은 상위 수준에서 접근 권한을 상속받습니다.",
+        "inheritedAccess": "접근 권한도 있음",
+        "scopeAdminHelpText": "이 {type} 및 그 안의 모든 항목에 전체 접근 권한을 갖습니다. 내부 항목에 지정된 역할은 이 사용자에게 영향을 주지 않습니다. 권한을 제한하려면 먼저 이 역할을 낮추세요.",
+        "inherited": "(상속됨)",
+        "everyoneAt": "{name}의 모든 사람",
+        "fromWorkspace": "워크스페이스에서 상속",
+        "roleCount": "{role} {count}명",
+        "manageWorkspaceRoles": "워크스페이스 역할 관리",
+        "fromWorkspaceExplanation": "모든 사람은 이 {type}을 포함하여 워크스페이스 내의 모든 항목에서 워크스페이스 역할을 유지합니다.",
+        "error": {
+            "title": "데이터를 가져올 수 없습니다",
+            "description": "멤버 데이터를 가져오는 동안 오류가 발생했습니다."
+        }
     }
 }
