@@ -1142,77 +1142,11 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         return values
 
 
-class LocalBaserowListRowsUserServiceType(
-    ListServiceTypeMixin,
-    LocalBaserowTableServiceSearchableMixin,
-    LocalBaserowTableServiceFilterableMixin,
-    LocalBaserowTableServiceSortableMixin,
-    LocalBaserowViewServiceType,
-):
+class LocalBaserowTableRowsListServiceTypeMixin(ListServiceTypeMixin):
     """
-    This service gives access to a list of rows from the same Baserow instance as the
-    one hosting the application.
+    For services returning a list of rows of their table, allowing them to be used
+    as collection data source.
     """
-
-    type = "local_baserow_list_rows"
-    model_class = LocalBaserowListRows
-    dispatch_types = [
-        DispatchTypes.DATA,
-        DispatchTypes.ACTION,
-    ]
-    serializer_mixins = (
-        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
-        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
-    )
-
-    @property
-    def simple_formula_fields(self):
-        return (
-            super().simple_formula_fields
-            + LocalBaserowTableServiceSearchableMixin.mixin_simple_formula_fields
-        )
-
-    @property
-    def allowed_fields(self):
-        return (
-            super().allowed_fields
-            + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
-            + LocalBaserowTableServiceSearchableMixin.mixin_allowed_fields
-            + ["default_result_count"]
-        )
-
-    @property
-    def serializer_field_names(self):
-        return (
-            super().serializer_field_names
-            + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
-            + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
-            + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
-            + ["default_result_count"]
-        )
-
-    @property
-    def serializer_field_overrides(self):
-        return {
-            **super().serializer_field_overrides,
-            **LocalBaserowTableServiceSortableMixin.mixin_serializer_field_overrides,
-            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
-            **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
-        }
-
-    class SerializedDict(
-        LocalBaserowViewServiceType.SerializedDict,
-        LocalBaserowTableServiceSortableMixin.SerializedDict,
-        LocalBaserowTableServiceSearchableMixin.SerializedDict,
-        LocalBaserowTableServiceFilterableMixin.SerializedDict,
-    ):
-        default_result_count: int
-
-    def get_max_result_limit(self, service: Service):
-        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
-
-    def get_default_result_limit(self, service: Service):
-        return service.default_result_count
 
     def get_name_property(self, service: ServiceSubClass) -> Optional[str]:
         """
@@ -1285,6 +1219,116 @@ class LocalBaserowListRowsUserServiceType(
         )
 
         return [imported_field_dbname, *rest]
+
+    def get_record_names(
+        self,
+        service: LocalBaserowListRows,
+        record_ids: List[int],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, str]:
+        """
+        Return the record name associated with each one of the provided record ids.
+
+        :param service: The table service.
+        :param record_ids: A list containing the record identifiers.
+        :param dispatch_context: The context used for the dispatch.
+        :return: A dictionary mapping each record id to its name.
+        :raises ServiceImproperlyConfiguredDispatchException: When service has no
+            associated table.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
+        """
+
+        if not service.table_id:
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
+        try:
+            table = TableHandler().get_table(service.table_id)
+            # NOTE: This is an expensive operation, so in the future we need to
+            # calculate the list of used fields for searching/sorting/filtering
+            # and pass them to `get_model`.
+            # See: https://gitlab.com/baserow/baserow/-/issues/3062
+            model = table.get_model()
+            queryset = self.build_queryset(
+                service, table, dispatch_context, model
+            ).filter(pk__in=record_ids)
+            record_names = {row.id: str(row) for row in queryset}
+            return record_names
+        except TableDoesNotExist as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            ) from e
+
+
+class LocalBaserowListRowsUserServiceType(
+    LocalBaserowTableRowsListServiceTypeMixin,
+    LocalBaserowTableServiceSearchableMixin,
+    LocalBaserowTableServiceFilterableMixin,
+    LocalBaserowTableServiceSortableMixin,
+    LocalBaserowViewServiceType,
+):
+    """
+    This service gives access to a list of rows from the same Baserow instance as the
+    one hosting the application.
+    """
+
+    type = "local_baserow_list_rows"
+    model_class = LocalBaserowListRows
+    dispatch_types = [
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
+    ]
+    serializer_mixins = (
+        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
+        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
+    )
+
+    @property
+    def simple_formula_fields(self):
+        return (
+            super().simple_formula_fields
+            + LocalBaserowTableServiceSearchableMixin.mixin_simple_formula_fields
+        )
+
+    @property
+    def allowed_fields(self):
+        return (
+            super().allowed_fields
+            + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
+            + LocalBaserowTableServiceSearchableMixin.mixin_allowed_fields
+            + ["default_result_count"]
+        )
+
+    @property
+    def serializer_field_names(self):
+        return (
+            super().serializer_field_names
+            + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
+            + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
+            + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
+            + ["default_result_count"]
+        )
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            **LocalBaserowTableServiceSortableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
+        }
+
+    class SerializedDict(
+        LocalBaserowViewServiceType.SerializedDict,
+        LocalBaserowTableServiceSortableMixin.SerializedDict,
+        LocalBaserowTableServiceSearchableMixin.SerializedDict,
+        LocalBaserowTableServiceFilterableMixin.SerializedDict,
+    ):
+        default_result_count: int
+
+    def get_max_result_limit(self, service: Service):
+        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
+
+    def get_default_result_limit(self, service: Service):
+        return service.default_result_count
 
     def dispatch_data(
         self,
@@ -1400,43 +1444,6 @@ class LocalBaserowListRowsUserServiceType(
         )
 
         return DispatchResult(data=result)
-
-    def get_record_names(
-        self,
-        service: LocalBaserowListRows,
-        record_ids: List[int],
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, str]:
-        """
-        Return the record name associated with each one of the provided record ids.
-
-        :param service: The table service.
-        :param record_ids: A list containing the record identifiers.
-        :param dispatch_context: The context used for the dispatch.
-        :return: A dictionary mapping each record id to its name.
-        :raises ServiceImproperlyConfiguredDispatchException: When service has no
-            associated table.
-        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
-        """
-
-        if not service.table_id:
-            raise ServiceImproperlyConfiguredDispatchException("No table selected")
-        try:
-            table = TableHandler().get_table(service.table_id)
-            # NOTE: This is an expensive operation, so in the future we need to
-            # calculate the list of used fields for searching/sorting/filtering
-            # and pass them to `get_model`.
-            # See: https://gitlab.com/baserow/baserow/-/issues/3062
-            model = table.get_model()
-            queryset = self.build_queryset(
-                service, table, dispatch_context, model
-            ).filter(pk__in=record_ids)
-            record_names = {row.id: str(row) for row in queryset}
-            return record_names
-        except TableDoesNotExist as e:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "The selected table is trashed"
-            ) from e
 
 
 class LocalBaserowAggregateRowsUserServiceType(

@@ -6,7 +6,7 @@ from django.db import IntegrityError, ProgrammingError, connection, router, tran
 from django.db.models import Exists, Model, OuterRef, QuerySet
 
 from loguru import logger
-from pgvector.django import HnswIndex
+from pgvector.django import CosineDistance, HnswIndex
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.search.handler import SearchDatabaseSchemaEditor
@@ -15,6 +15,16 @@ from baserow.core.psycopg import errors, sql
 from baserow.core.utils import to_camel_case
 
 from .models import AbstractSemanticSearchChunk
+
+# Within this number of distinct rows, similarities are computed exactly instead
+# of with the approximate vector index. Exact results matter most when filters
+# leave few rows, and the vector index can't apply those filters itself.
+EXACT_SEARCH_MAX_ROWS = 2000
+
+# The vector index is shared by all fields of the workspace, so it must look at
+# more candidates than requested to still find enough chunks of the searched
+# field after filtering on it.
+MAX_INDEX_CANDIDATES = 1000
 
 
 def get_vector_table_name(workspace_id: int) -> str:
@@ -114,6 +124,17 @@ def _ignore_missing_table():
     except ProgrammingError as exc:
         if not isinstance(exc.__cause__, errors.UndefinedTable):
             raise
+
+
+@lru_cache(maxsize=1)
+def _supports_iterative_index_scans() -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+        row = cursor.fetchone()
+    if not row:
+        return False
+    major, minor = (int(part) for part in row[0].split(".")[:2])
+    return (major, minor) >= (0, 8)
 
 
 class SemanticSearchVectorTable:
@@ -300,3 +321,62 @@ class SemanticSearchVectorTable:
                 ),
                 [target_field_id, source_field_id],
             )
+
+    def get_similarities(
+        self,
+        field_ids: list[int],
+        query_embedding: list[float],
+        row_ids: list[int],
+        limit: int,
+    ) -> list[tuple[int, int, float]]:
+        """
+        Returns `(row_id, field_id, similarity)` of the most similar rows within the
+        provided rows, using the chunk of the fields that matches best. Nothing is
+        returned if the table doesn't exist.
+        """
+
+        distance = CosineDistance("embedding", query_embedding)
+        best_chunks = (
+            self.model.objects.filter(field_id__in=field_ids, row_id__in=row_ids)
+            .order_by("row_id", distance)
+            .distinct("row_id")
+            .values("id")
+        )
+        with _ignore_missing_table():
+            return list(
+                self.model.objects.filter(id__in=best_chunks)
+                .annotate(similarity=1 - distance)
+                .order_by("-similarity")
+                .values_list("row_id", "field_id", "similarity")[:limit]
+            )
+        return []
+
+    def get_nearest_chunks(
+        self, field_ids: list[int], query_embedding: list[float], limit: int
+    ) -> list[tuple[int, int, float]]:
+        """
+        Returns `(row_id, field_id, similarity)` of the nearest chunks of the fields
+        using the approximate vector index. A row can occur multiple times. Nothing
+        is returned if the table doesn't exist.
+        """
+
+        distance = CosineDistance("embedding", query_embedding)
+        # The settings only apply to the transaction of the missing table check.
+        with _ignore_missing_table():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("SET LOCAL hnsw.ef_search = {value}").format(
+                        value=sql.Literal(min(max(limit, 40), MAX_INDEX_CANDIDATES))
+                    )
+                )
+                if _supports_iterative_index_scans():
+                    # Keeps scanning the index until enough chunks of the fields are
+                    # found, instead of filtering a fixed number of candidates.
+                    cursor.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
+            return list(
+                self.model.objects.filter(field_id__in=field_ids)
+                .annotate(similarity=1 - distance)
+                .order_by(distance)
+                .values_list("row_id", "field_id", "similarity")[:limit]
+            )
+        return []

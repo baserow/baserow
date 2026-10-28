@@ -31,6 +31,7 @@ describe('Builder workflow action types', () => {
       'update_row',
       'local_baserow_update_rows',
       'delete_row',
+      'local_baserow_semantic_search',
       'start_workflow',
       'http_request',
       'smtp_email',

@@ -57,10 +57,26 @@ def register_xls_file_reader_features():
 
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
     from baserow.contrib.database.fields.registries import field_extension_registry
     from baserow.contrib.database.search.registries import search_data_updater_registry
+    from baserow.core.services.registries import service_type_registry
     from baserow_enterprise.api.semantic_search.settings_data_types import (
         SemanticSearchSettingsDataType,
+    )
+    from baserow_enterprise.automation.nodes.node_types import (
+        LocalBaserowSemanticSearchActionNodeType,
+    )
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        LocalBaserowSemanticSearchActionType,
+    )
+    from baserow_enterprise.integrations.local_baserow.service_types import (
+        LocalBaserowSemanticSearchServiceType,
     )
     from baserow_enterprise.semantic_search.field_extension_types import (
         SemanticSearchFieldExtensionType,
@@ -96,6 +112,11 @@ def register_semantic_search_features():
     field_extension_registry.register(SemanticSearchFieldExtensionType())
     search_data_updater_registry.register(SemanticSearchDataUpdaterType())
     settings_data_registry.register(SemanticSearchSettingsDataType())
+    service_type_registry.register(LocalBaserowSemanticSearchServiceType())
+    automation_node_type_registry.register(LocalBaserowSemanticSearchActionNodeType())
+    builder_workflow_action_type_registry.register(
+        LocalBaserowSemanticSearchActionType()
+    )
 
     import baserow_enterprise.semantic_search.receivers  # noqa: F401
 

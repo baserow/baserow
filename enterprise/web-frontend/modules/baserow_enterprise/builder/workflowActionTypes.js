@@ -3,6 +3,7 @@ import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
+import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 
 export class CoreCodeWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
@@ -32,5 +33,22 @@ export class CoreXLSFileReaderWorkflowActionType extends WorkflowActionServiceTy
 
   getOrder() {
     return 80
+  }
+}
+
+export class LocalBaserowSemanticSearchWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'local_baserow_semantic_search'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowSemanticSearchServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 45.5
   }
 }
