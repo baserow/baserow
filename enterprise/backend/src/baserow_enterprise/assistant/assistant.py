@@ -83,26 +83,47 @@ _UNFINISHED_ANSWER = (
 
 
 _TITLE_MAX_CHARS = 50
-# A Markdown heading or bold marker, then an optional "Title:" label.
-_TITLE_PREFIX = re.compile(
-    r"^\s*(#+\s+)?(\*\*)?\s*(title\s*(\*\*)?\s*:\s*(\*\*)?)?\s*", re.IGNORECASE
-)
-_TITLE_QUOTES = ('"', "'")
+_TITLE_HEADING = re.compile(r"^#+(\s+|$)")
+_TITLE_LABEL = re.compile(r"^(\*\*)?title\s*(\*\*)?\s*:\s*(\*\*)?\s*", re.IGNORECASE)
+_TITLE_WRAPPERS = ("**", '"', "'")
+_TITLE_MARKUP = "#*\"' "
+
+
+def _unwrap(line: str, marker: str) -> str:
+    """
+    Remove *marker* when it wraps the whole line and appears nowhere else in it,
+    so that markers belonging to the title stay.
+
+    :param line: The line to unwrap.
+    :param marker: The opening and closing marker, like ``**`` or a quote.
+    :return: The line without the wrapping marker.
+    """
+
+    inner = line[len(marker) : -len(marker)]
+    if (
+        len(line) >= 2 * len(marker)
+        and line.startswith(marker)
+        and line.endswith(marker)
+        and marker not in inner
+    ):
+        return inner.strip()
+    return line
 
 
 def _clean_title_line(line: str) -> str:
     """
-    Remove Markdown markers, a "Title:" label and quotes around the whole line,
-    keeping characters that belong to the title.
+    Remove a Markdown heading, a "Title:" label and bold or quotes around the
+    whole line, keeping characters that belong to the title.
 
     :param line: One line of the title agent's output.
-    :return: The cleaned line, empty when nothing is left.
+    :return: The cleaned line, empty when only markup is left.
     """
 
-    line = _TITLE_PREFIX.sub("", line).strip().removesuffix("**").strip()
-    if len(line) >= 2 and line[0] == line[-1] and line[0] in _TITLE_QUOTES:
-        line = line[1:-1].strip()
-    return line
+    line = _TITLE_HEADING.sub("", line.strip())
+    line = _TITLE_LABEL.sub("", line)
+    for marker in _TITLE_WRAPPERS:
+        line = _unwrap(line, marker)
+    return line if line.strip(_TITLE_MARKUP) else ""
 
 
 def _short_title(text: str) -> str:

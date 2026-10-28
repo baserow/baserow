@@ -92,3 +92,54 @@ def test_every_assistant_toolset_refreshes_db_connections():
         assert isinstance(tool_type.get_toolset(), AssistantFunctionToolset), (
             tool_type.type
         )
+
+
+def _toolsets_with_tools(toolsets) -> list:
+    return [ts for ts in toolsets if not isinstance(ts, FunctionToolset) or ts.tools]
+
+
+@pytest.mark.django_db
+def test_dynamic_toolset_refreshes_db_connections(data_fixture):
+    from pydantic_ai import Tool
+
+    from baserow_enterprise.assistant.agents import dynamic_toolset
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = make_test_ctx(user, workspace)
+    ctx.deps.dynamic_tools.append(Tool(lambda: "ok", name="row_tool"))
+
+    assert isinstance(dynamic_toolset(ctx), AssistantFunctionToolset)
+
+
+@pytest.mark.django_db
+def test_nested_agent_toolsets_refresh_db_connections(data_fixture, monkeypatch):
+    from baserow_enterprise.assistant.tools.database import agents as database_agents
+
+    from .utils import create_fake_tool_helpers
+
+    toolsets = []
+
+    def record_run(agent, prompt, **kwargs):
+        toolsets.extend(_toolsets_with_tools(agent.toolsets))
+        toolsets.extend(_toolsets_with_tools(kwargs.get("toolsets", [])))
+
+    monkeypatch.setattr(database_agents, "run_agent_sync_with_model", record_run)
+    monkeypatch.setattr(
+        database_agents, "get_formula_type_tool", lambda user, workspace: lambda: ""
+    )
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, primary=True)
+    helpers = create_fake_tool_helpers()
+
+    database_agents.run_formula_generation(
+        user, workspace, "Generate", helpers.model_profile
+    )
+    database_agents.generate_sample_rows(user, workspace, helpers, [table])
+
+    assert len(toolsets) == 2
+    for toolset in toolsets:
+        assert isinstance(toolset, AssistantFunctionToolset)

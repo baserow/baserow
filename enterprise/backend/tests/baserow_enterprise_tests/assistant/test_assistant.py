@@ -3182,6 +3182,34 @@ class TestAssistantRunFailures:
         assert "private user data" not in trace["$ai_error"]
         assert "private user data" not in json.dumps(trace["$ai_output_state"])
 
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_content_filter_refusal_is_not_recorded(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        from pydantic_ai.exceptions import ContentFilterError
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = ContentFilterError(
+            "Content filter triggered. Refusal: 'private user data'"
+        )
+
+        _run_chat(chat, workspace, user)
+
+        trace = _captured_trace(mock_get_client)
+        assert trace["$ai_error"] == "Content filter triggered"
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
@@ -3214,6 +3242,12 @@ class TestAssistantRunFailures:
         ("Learn C#", "Learn C#"),
         ("#1 priority tasks", "#1 priority tasks"),
         ('"Quarterly" report', '"Quarterly" report'),
+        ('"Sales" and "Marketing"', '"Sales" and "Marketing"'),
+        ("'Q3' vs 'Q4'", "'Q3' vs 'Q4'"),
+        ("**kwargs explained", "**kwargs explained"),
+        ("**Title:** **Plan**", "Plan"),
+        ("#\nQuarterly report", "Quarterly report"),
+        ('"\nQuarterly report', "Quarterly report"),
     ],
 )
 @patch("baserow_enterprise.assistant.agents.title_agent.run")

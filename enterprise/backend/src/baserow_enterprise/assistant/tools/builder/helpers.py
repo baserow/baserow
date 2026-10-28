@@ -1436,14 +1436,20 @@ def create_login_page(
     user: AbstractUser, builder: Builder, user_source_id: int
 ) -> Page:
     """
-    Set up the builder's login page with an auth_form element. A page the
-    model already created at /login is used, so links to it keep working.
-    Otherwise a Login page is created at the first free /login path.
+    Set up the builder's login page with an auth_form element for the user
+    source. A page the model already created at /login is used when anonymous
+    visitors can see it, so links to it keep working. Otherwise a Login page is
+    created at the first free /login path.
     """
 
     from baserow_enterprise.builder.elements.models import AuthFormElement
 
-    page = Page.objects.filter(builder=builder, path="/login", shared=False).first()
+    page = Page.objects.filter(
+        builder=builder,
+        path="/login",
+        shared=False,
+        visibility=Page.VISIBILITY_TYPES.ALL,
+    ).first()
     if page is None:
         path = "/login"
         suffix = 0
@@ -1452,7 +1458,11 @@ def create_login_page(
             path = f"/login-{suffix}"
         page = PageService().create_page(user, builder, "Login", path)
 
-    if not AuthFormElement.objects.filter(page=page).exists():
+    auth_forms = AuthFormElement.objects.filter(page=page)
+    # A form without a user source can't log anyone in, so it gets this one.
+    for auth_form in auth_forms.filter(user_source__isnull=True):
+        UpdateElementActionType.do(user, auth_form, {"user_source_id": user_source_id})
+    if not auth_forms.filter(user_source_id=user_source_id).exists():
         auth_form_type = element_type_registry.get("auth_form")
         CreateElementActionType.do(
             user, auth_form_type, page, {"user_source_id": user_source_id}

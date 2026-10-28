@@ -45,7 +45,7 @@ from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ContentFilterError, ModelHTTPError
 
 from baserow.core.posthog import get_posthog_client
 from baserow_enterprise.assistant.models import AssistantChat
@@ -575,6 +575,9 @@ def _error_message(exception: Exception) -> str:
         message = (
             f"status_code: {exception.status_code}, model_name: {exception.model_name}"
         )
+    elif isinstance(exception, ContentFilterError):
+        # The message can quote the model's refusal.
+        message = "Content filter triggered"
     else:
         message = getattr(exception, "message", None) or str(exception)
     return message[:_ERROR_MAX_CHARS]

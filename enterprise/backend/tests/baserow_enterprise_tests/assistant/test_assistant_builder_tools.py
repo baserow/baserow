@@ -3964,15 +3964,24 @@ def test_update_page_returns_an_invalid_path_to_the_model(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
-    "trashed, expected_path, reuses_page",
-    [(False, "/login", True), (True, "/login-1", False)],
+    "trashed, visibility, existing_form, expected_path, reuses_page, forms",
+    [
+        (False, "all", None, "/login", True, 1),
+        (False, "all", "unbound", "/login", True, 1),
+        (False, "all", "other", "/login", True, 2),
+        (False, "logged-in", None, "/login-1", False, 1),
+        (True, "all", None, "/login-1", False, 1),
+    ],
 )
 def test_setup_user_source_puts_the_login_form_on_the_login_path(
-    data_fixture, trashed, expected_path, reuses_page
+    data_fixture, trashed, visibility, existing_form, expected_path, reuses_page, forms
 ):
     from baserow_enterprise.assistant.tools.builder.tools import setup_user_source
     from baserow_enterprise.assistant.tools.builder.types.user_source import (
         UserSourceSetup,
+    )
+    from baserow_enterprise.builder.elements.element_types import (
+        AuthFormElementType,
     )
     from baserow_enterprise.builder.elements.models import AuthFormElement
 
@@ -3981,8 +3990,21 @@ def test_setup_user_source_puts_the_login_form_on_the_login_path(
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     existing = data_fixture.create_builder_page(
-        builder=builder, name="Sign in", path="/login", trashed=trashed
+        builder=builder,
+        name="Sign in",
+        path="/login",
+        trashed=trashed,
+        visibility=visibility,
     )
+    if existing_form is not None:
+        other = (
+            data_fixture.create_user_source_with_first_type(application=builder)
+            if existing_form == "other"
+            else None
+        )
+        data_fixture.create_builder_element(
+            AuthFormElementType, page=existing, user_source=other
+        )
 
     result = setup_user_source(
         make_test_ctx(user, workspace),
@@ -3994,6 +4016,8 @@ def test_setup_user_source_puts_the_login_form_on_the_login_path(
     login_page = Page.objects.get(id=result["login_page_id"])
     assert login_page.path == expected_path
     assert (login_page.id == existing.id) is reuses_page
-    assert AuthFormElement.objects.filter(page=login_page).count() == 1
+    login_forms = AuthFormElement.objects.filter(page=login_page)
+    assert login_forms.count() == forms
+    assert login_forms.filter(user_source_id=result["user_source_id"]).count() == 1
     builder.refresh_from_db()
     assert builder.login_page_id == login_page.id

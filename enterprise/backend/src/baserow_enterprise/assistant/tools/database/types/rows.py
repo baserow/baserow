@@ -142,7 +142,7 @@ def _link_row_field_def(orm_field, orm_field_type):
         return FieldDefinition()
 
     linked_pk = linked_primary_key.db_column
-    queryset = linked_model.objects.all().enhance_by_fields(
+    queryset = linked_model.objects.only("id", linked_pk).enhance_by_fields(
         only_field_ids=[linked_primary_key.id]
     )
     # Skip rows without a primary value, as the "is not empty" filter does, for
@@ -163,8 +163,8 @@ def _link_row_field_def(orm_field, orm_field_type):
             .get_filters_and_annotations()
         )
         queryset = queryset.annotate(**annotations).filter(q)
-    # The readable value, as the link field accepts it and from_django_orm
-    # shows it.
+    # The readable value, as from_django_orm shows it. Not every field type
+    # accepts it back, so the description points to the IDs as well.
     examples = [(row.id, str(row)) for row in queryset[:10]]
 
     def to_django_orm(value):
@@ -197,7 +197,8 @@ def _link_row_field_def(orm_field, orm_field_type):
     desc += (
         f" Linked table ID: {orm_field.link_row_table_id}. "
         "Names must exactly match existing rows; this does not create linked rows. "
-        "Use the examples below or list_rows on the linked table to find valid values."
+        "IDs always work. Use the examples below or list_rows on the linked table "
+        "to find them."
     )
     if examples:
         desc += (
