@@ -20,6 +20,7 @@ from baserow.core.auth_provider.auth_provider_types import AuthProviderType
 from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.auth_provider.types import UserInfo
 from baserow.core.cache import global_cache
+from baserow.core.user.utils import normalize_email_address
 from baserow_enterprise.api.sso.oauth2.errors import ERROR_INVALID_PROVIDER_URL
 from baserow_enterprise.sso.exceptions import AuthFlowError, InvalidProviderUrl
 from baserow_enterprise.sso.utils import (
@@ -671,7 +672,7 @@ class OpenIdConnectAuthProviderTypeMixin:
         if not name:
             name = email
 
-        email_verified = bool(oauth_response_data.get("email_verified", True))
+        email_verified = self._resolve_email_verified(email, oauth_response_data)
 
         return email, name, email_verified
 
@@ -711,9 +712,45 @@ class OpenIdConnectAuthProviderTypeMixin:
         if not name:
             name = email
 
-        email_verified = bool(decoded_token.get("email_verified", True))
+        email_verified = self._resolve_email_verified(email, decoded_token)
 
         return email, name, email_verified
+
+    def _resolve_email_verified(self, identifier: Any, claims: Dict[str, Any]) -> bool:
+        """
+        Returns whether the provider verified the value used to identify the user.
+
+        The `email_verified` claim only describes the standard `email` claim, so it
+        only applies when the identifier read with `email_attr_key` is that email.
+        When users are identified by another value (e.g. the AWS Cognito user id),
+        the claim says nothing about it and is ignored.
+
+        :param identifier: The value read from the claims with `email_attr_key`.
+        :param claims: The id_token claims or the user_info endpoint response.
+        :return: False if the provider reports the identifying email as
+            unverified, True otherwise.
+        """
+
+        email_claim = claims.get("email")
+        # Normalized the way the account is looked up, so a differently written
+        # copy of the email (spaces, letter case, unicode) is still checked.
+        if (
+            not identifier
+            or not email_claim
+            or normalize_email_address(str(identifier))
+            != normalize_email_address(str(email_claim))
+        ):
+            logger.debug(
+                "OIDC identifier is not the email claim, skipping email_verified."
+            )
+            return True
+
+        email_verified = claims.get("email_verified", True)
+        # Some providers (e.g. the AWS Cognito user_info endpoint) send the claim
+        # as a string.
+        if isinstance(email_verified, str):
+            return email_verified.strip().lower() == "true"
+        return bool(email_verified)
 
     def _get_verifying_key(self, instance, id_token, retry_on_fail=True):
         """
