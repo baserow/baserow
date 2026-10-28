@@ -101,6 +101,23 @@ export class InvitationTargetType extends Registerable {
       'The invitation links of this target type are not supported.'
     )
   }
+
+  /**
+   * What anyone with a link that grants the admin role can do, shown before
+   * such a link is created.
+   */
+  getInvitationLinkAdminWarning(workspace, target) {
+    return this.$t('invitationLinkAdminConfirmModal.message')
+  }
+
+  /**
+   * What deleting a link of the target means, shown before it is deleted.
+   */
+  getInvitationLinkDeleteWarning(workspace, target) {
+    return this.$t('invitationLinkDeleteModal.deleteWarning', {
+      workspaceName: workspace.name,
+    })
+  }
 }
 
 export class WorkspaceInvitationTargetType extends InvitationTargetType {

@@ -3,9 +3,7 @@
     <h2 class="box__title">
       {{ $t('invitationLinkAdminConfirmModal.title') }}
     </h2>
-    <p>
-      {{ $t('invitationLinkAdminConfirmModal.message') }}
-    </p>
+    <p>{{ message }}</p>
     <div class="actions">
       <ul class="action__links">
         <li>
@@ -24,11 +22,17 @@ import modal from '@baserow/modules/core/mixins/modal'
 
 /**
  * Asks before an invitation link grants the admin role, because anyone with the
- * link can then join the workspace as an admin.
+ * link can then join as an admin. The `message` says what such an admin can do.
  */
 export default {
   name: 'InvitationLinkAdminConfirmModal',
   mixins: [modal],
+  props: {
+    message: {
+      type: String,
+      required: true,
+    },
+  },
   emits: ['confirm'],
   methods: {
     onConfirm() {

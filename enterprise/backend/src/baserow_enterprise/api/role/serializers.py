@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
+from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
 from baserow_enterprise.models import (
@@ -318,6 +319,98 @@ class UpdateScopedInvitationSerializer(serializers.Serializer):
         required=True,
         help_text="The uid of the role granted on the scope once the invitation is "
         "accepted.",
+    )
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+
+
+class ScopedInvitationLinkSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a permanent invitation link that gives a role on one scope, used
+    for managing them.
+    """
+
+    permissions = serializers.CharField(
+        read_only=True,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = (
+            "id",
+            "workspace",
+            "name",
+            "slug",
+            "permissions",
+            "scope_id",
+            "scope_type",
+            "created_on",
+        )
+        read_only_fields = fields
+
+
+class CreateScopedInvitationLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    permissions = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
+    )
+    scope_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The ID of the scope object the link gives a role on.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    def to_internal_value(self, data):
+        """
+        Populate the scope with the actual object.
+        """
+
+        try:
+            result = super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+        try:
+            result["scope"] = result["scope_type"].get_object_for_this_type(
+                id=result["scope_id"]
+            )
+        except ObjectDoesNotExist:
+            raise ScopeNotExist()
+        return result
+
+
+class UpdateScopedInvitationLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    permissions = RoleField(
+        model=Role,
+        required=False,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
     )
 
     def to_internal_value(self, data):

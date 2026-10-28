@@ -97,8 +97,11 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.role.actions import (
             BatchAssignRoleActionType,
             CreateScopedInvitationActionType,
+            CreateScopedInvitationLinkActionType,
             DeleteScopedInvitationActionType,
+            DeleteScopedInvitationLinkActionType,
             UpdateScopedInvitationActionType,
+            UpdateScopedInvitationLinkActionType,
         )
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
@@ -169,6 +172,9 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(CreateScopedInvitationActionType())
         action_type_registry.register(UpdateScopedInvitationActionType())
         action_type_registry.register(DeleteScopedInvitationActionType())
+        action_type_registry.register(CreateScopedInvitationLinkActionType())
+        action_type_registry.register(UpdateScopedInvitationLinkActionType())
+        action_type_registry.register(DeleteScopedInvitationLinkActionType())
         action_type_registry.register(UpdateFieldPermissionsActionType())
 
         trash_item_type_registry.register(TeamTrashableItemType())
@@ -223,6 +229,17 @@ class BaserowEnterpriseConfig(AppConfig):
 
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
+
+        from baserow.core.registries import invitation_link_scope_type_registry
+
+        from .role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
+        from .role.invitation_link_scope_types import RoleInvitationLinkScopeType
+
+        for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP:
+            if scope_type_name != "workspace":
+                invitation_link_scope_type_registry.register(
+                    RoleInvitationLinkScopeType(scope_type_name)
+                )
 
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,

@@ -114,14 +114,20 @@ def cascade_workspace_user_delete(sender, instance, **kwargs):
 
 def cascade_scope_delete(sender, instance, **kwargs):
     """
-    Delete role assignments and pending scoped invitations linked to deleted scope.
+    Delete role assignments, pending scoped invitations and invitation links linked
+    to deleted scope.
     """
+
+    from baserow.core.models import WorkspaceInvitationLink
 
     from .models import RoleAssignment, WorkspaceScopedInvitation
 
     scope_ct = ContentType.objects.get_for_model(instance)
     RoleAssignment.objects.filter(scope_id=instance.id, scope_type=scope_ct).delete()
     WorkspaceScopedInvitation.objects.filter(
+        scope_id=instance.id, scope_type=scope_ct
+    ).delete()
+    WorkspaceInvitationLink.objects.filter(
         scope_id=instance.id, scope_type=scope_ct
     ).delete()
 

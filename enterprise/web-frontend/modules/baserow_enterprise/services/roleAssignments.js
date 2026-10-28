@@ -68,5 +68,30 @@ export default (client) => {
     deleteScopedInvitation(scopedInvitationId) {
       return client.delete(`/role/invitations/${scopedInvitationId}/`)
     },
+    getScopedInvitationLinks(workspaceId, scopeId, scopeType) {
+      return client.get(`/role/${workspaceId}/invitation-links/`, {
+        params: {
+          scope_id: scopeId,
+          scope_type: scopeType,
+        },
+      })
+    },
+    createScopedInvitationLink(
+      workspaceId,
+      { permissions, scopeId, scopeType, name = '' }
+    ) {
+      return client.post(`/role/${workspaceId}/invitation-links/`, {
+        name,
+        permissions,
+        scope_id: scopeId,
+        scope_type: scopeType,
+      })
+    },
+    updateScopedInvitationLink(invitationLinkId, values) {
+      return client.patch(`/role/invitation-links/${invitationLinkId}/`, values)
+    },
+    deleteScopedInvitationLink(invitationLinkId) {
+      return client.delete(`/role/invitation-links/${invitationLinkId}/`)
+    },
   }
 }

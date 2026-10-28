@@ -40,6 +40,7 @@ from .exceptions import (
     CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
+    InstanceTypeDoesNotExist,
     InvalidPermissionContext,
     InvalidWorkspaceRole,
     LastAdminOfWorkspace,
@@ -94,7 +95,9 @@ from .operations import (
 )
 from .registries import (
     ImportExportConfig,
+    InvitationLinkScopeType,
     application_type_registry,
+    invitation_link_scope_type_registry,
     object_scope_type_registry,
     operation_type_registry,
     permission_manager_type_registry,
@@ -1617,7 +1620,9 @@ class CoreHandler:
         self, invitation_link_id: int, base_queryset: Optional[QuerySet] = None
     ) -> WorkspaceInvitationLink:
         """
-        Selects a workspace invitation link with a given id from the database.
+        Selects a workspace invitation link with a given id from the database. By
+        default only links to the workspace itself are selected, links to an object
+        of the workspace are managed where the roles on that object are.
 
         :param invitation_link_id: The identifier of the link that must be returned.
         :param base_queryset: The base queryset from where to select the link.
@@ -1626,7 +1631,9 @@ class CoreHandler:
         """
 
         if base_queryset is None:
-            base_queryset = WorkspaceInvitationLink.objects
+            base_queryset = WorkspaceInvitationLink.objects.filter(
+                scope_type__isnull=True
+            )
 
         try:
             return base_queryset.select_related("workspace").get(id=invitation_link_id)
@@ -1636,7 +1643,7 @@ class CoreHandler:
                 "not exist."
             ) from e
 
-    def _invitation_link_signups_allowed(self) -> bool:
+    def invitation_link_signups_allowed(self) -> bool:
         """
         Whether the instance settings let new people sign up through an invitation
         link, which links need to be created or used.
@@ -1665,26 +1672,56 @@ class CoreHandler:
 
         feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
-        if not self._invitation_link_signups_allowed():
+        if not self.invitation_link_signups_allowed():
             raise WorkspaceInvitationLinkDoesNotExist(
                 "Invitation links can't be used while signups are disabled."
             )
 
         try:
-            return WorkspaceInvitationLink.objects.select_related(
-                "workspace", "created_by"
+            invitation_link = WorkspaceInvitationLink.objects.select_related(
+                "workspace", "created_by", "scope_type"
             ).get(slug=slug, workspace__trashed=False)
         except WorkspaceInvitationLink.DoesNotExist as e:
             raise WorkspaceInvitationLinkDoesNotExist(
                 "The workspace invitation link does not exist."
             ) from e
 
+        if invitation_link.scope_type_id is not None:
+            scope_type = self.get_invitation_link_scope_type(invitation_link)
+            if scope_type is None or not scope_type.is_usable(invitation_link):
+                raise WorkspaceInvitationLinkDoesNotExist(
+                    "The object of the workspace invitation link can't be joined."
+                )
+
+        return invitation_link
+
+    def get_invitation_link_scope_type(
+        self, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[InvitationLinkScopeType]:
+        """
+        Returns the type that handles the object an invitation link targets.
+
+        :param invitation_link: A link that targets an object of the workspace.
+        :return: The type of the object of the link, or None if links can't target
+            objects of that type, for example because the module that handles them
+            isn't installed.
+        """
+
+        model_class = invitation_link.scope_type.model_class()
+        if model_class is None:
+            return None
+        try:
+            object_scope_type = object_scope_type_registry.get_by_model(model_class)
+            return invitation_link_scope_type_registry.get(object_scope_type.type)
+        except InstanceTypeDoesNotExist:
+            return None
+
     def list_workspace_invitation_links(
         self, user: AbstractUser, workspace: Workspace
     ) -> QuerySet[WorkspaceInvitationLink]:
         """
-        Returns the invitation links of the workspace if the user is allowed to
-        manage them.
+        Returns the invitation links to the workspace itself if the user is allowed
+        to manage them. Links to an object of the workspace aren't included.
 
         :param user: The user on whose behalf the links are listed.
         :param workspace: The workspace of which the links must be returned.
@@ -1699,7 +1736,9 @@ class CoreHandler:
             context=workspace,
         )
 
-        return WorkspaceInvitationLink.objects.filter(workspace=workspace)
+        return WorkspaceInvitationLink.objects.filter(
+            workspace=workspace, scope_type__isnull=True
+        )
 
     def create_workspace_invitation_link(
         self,
@@ -1732,7 +1771,7 @@ class CoreHandler:
             context=workspace,
         )
 
-        if not self._invitation_link_signups_allowed():
+        if not self.invitation_link_signups_allowed():
             raise WorkspaceInvitationLinkSignupsDisabled(
                 "Invitation links can't be created while signups are disabled."
             )
@@ -1813,7 +1852,8 @@ class CoreHandler:
     ) -> Optional[str]:
         """
         Returns the current permissions of a member of the workspace of the link
-        when joining through the link would raise them.
+        when joining through the link would raise them. For a link to an object of
+        the workspace, these are the permissions the member has on that object.
 
         :param user: The user who opened the link, possibly anonymous.
         :param invitation_link: The link the user opened.
@@ -1831,9 +1871,15 @@ class CoreHandler:
             .values_list("permissions", flat=True)
             .first()
         )
-        if permissions is None or not self._invitation_link_raises_permissions(
-            permissions, invitation_link
-        ):
+        if permissions is None:
+            return None
+
+        if invitation_link.scope_type_id is not None:
+            return self.get_invitation_link_scope_type(invitation_link).get_raised_role(
+                user, invitation_link
+            )
+
+        if not self._invitation_link_raises_permissions(permissions, invitation_link):
             return None
         return permissions
 
@@ -1843,7 +1889,9 @@ class CoreHandler:
         """
         Adds the user to the workspace of the link with the permissions of the
         link. Someone who is already a member gets the permissions of the link when
-        they are an upgrade, and otherwise keeps their current permissions.
+        they are an upgrade, and otherwise keeps their current permissions. A link
+        to an object of the workspace gives its permissions on that object only,
+        and with the same rule: they're never lowered.
 
         :param user: The user who joins the workspace.
         :param invitation_link: The link the user joins through.
@@ -1853,17 +1901,30 @@ class CoreHandler:
 
         feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
-        workspace_user = self.add_user_to_workspace(
-            invitation_link.workspace, user, permissions=invitation_link.permissions
-        )
-
-        # A link can raise the role of a member, but never lowers it.
-        if self._invitation_link_raises_permissions(
-            workspace_user.permissions, invitation_link
-        ):
-            workspace_user = self.force_update_workspace_user(
-                user, workspace_user, permissions=invitation_link.permissions
+        if invitation_link.scope_type_id is not None:
+            scope_type = self.get_invitation_link_scope_type(invitation_link)
+            workspace_user = self.add_user_to_workspace(
+                invitation_link.workspace,
+                user,
+                permissions=scope_type.get_newcomer_permissions(invitation_link),
             )
+            # A link can raise the role of a member on its object, but never
+            # lowers it.
+            if scope_type.get_raised_role(user, invitation_link) is not None:
+                scope_type.give_role(user, invitation_link)
+        else:
+            workspace_user = self.add_user_to_workspace(
+                invitation_link.workspace,
+                user,
+                permissions=invitation_link.permissions,
+            )
+            # A link can raise the role of a member, but never lowers it.
+            if self._invitation_link_raises_permissions(
+                workspace_user.permissions, invitation_link
+            ):
+                workspace_user = self.force_update_workspace_user(
+                    user, workspace_user, permissions=invitation_link.permissions
+                )
 
         workspace_user_joined_via_invitation_link.send(
             sender=self,
