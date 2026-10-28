@@ -63,7 +63,7 @@ def get_widget_data(
     """\
     Read the figures widgets show.
 
-    WHEN to use: The user asks what a widget or dashboard shows, or you need to check a widget's result after changing it.
+    WHEN to use: The user asks what a widget or dashboard shows, or asks a question a widget already answers, like the count of one category of a chart. Also to check a widget's result after changing it.
     WHAT it does: Computes each widget's data as the dashboard shows it now.
     RETURNS: For a summary {"result": value}; for a chart {"results": [...]}, one row per category with a value per series. Numbers come as strings. A widget not set up yet has configured: false.
     """
@@ -96,6 +96,7 @@ def create_widgets(
     WHEN to use: User wants a figure, a chart or a pie chart of table data on a dashboard.
     WHAT it does: A summary shows one field aggregated over the rows, like the sum of Amount. A chart (BAR or LINE) or pie_chart (PIE or DOUGHNUT) shows one or more series, optionally per value of group_by_field_id. Set view_id to aggregate only the rows a view shows.
     RETURNS: The created widgets, and an error for each one that failed, naming the aggregations that fit when one doesn't fit its field.
+    DO NOT USE when: The user asks a question. Answer it with get_widget_data on the existing widgets, or with list_rows; never add a widget, view or filter only to compute an answer.
     HOW: Use get_tables_schema first for the table and field IDs. Create the dashboard with create_builders when it doesn't exist. Charts need a premium licence.
     REQUIRED: `dashboard_id` and `widgets` must arrive in the same call.
     """
