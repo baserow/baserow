@@ -510,6 +510,14 @@ except ValueError as exc:
         f"separated list of rate limits, for example '30/m,100/h'. {exc}"
     ) from exc
 
+# The number of letters and digits in the code of a permanent workspace invite
+# link. Shorter codes are easier to guess, so 7 is the minimum, and the code
+# must fit the 50 characters of its column.
+BASEROW_WORKSPACE_INVITATION_LINK_LENGTH = min(
+    50,
+    max(7, int(os.getenv("BASEROW_WORKSPACE_INVITATION_LINK_LENGTH", "") or 12)),
+)
+
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
         "baserow.throttling.handler.ConcurrentUserRequestsThrottle",

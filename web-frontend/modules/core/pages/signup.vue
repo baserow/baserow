@@ -13,7 +13,7 @@
       <div class="auth__head">
         <span class="auth__head-text">
           {{ $t('signup.loginText') }}
-          <nuxt-link :to="{ name: 'login' }">
+          <nuxt-link :to="loginRoute">
             {{ $t('action.login') }}
           </nuxt-link></span
         >
@@ -36,7 +36,11 @@
       </template>
       <template v-else>
         <template v-if="loginButtons.length">
-          <LoginButtons :invitation="invitation" :hide-if-no-buttons="true" />
+          <LoginButtons
+            :invitation="invitation"
+            :original="invitationLinkPath"
+            :hide-if-no-buttons="true"
+          />
 
           <div class="auth__separator">
             {{ $t('common.or') }}
@@ -46,6 +50,7 @@
         <PasswordRegister
           v-if="passwordLoginEnabled"
           :invitation="invitation"
+          :invitation-link="invitationLink"
           @success="next"
         >
         </PasswordRegister>
@@ -53,6 +58,7 @@
         <LoginActions
           v-if="!shouldShowAdminSignupPage"
           :invitation="invitation"
+          :original="invitationLinkPath"
         ></LoginActions>
       </template>
     </template>
@@ -119,8 +125,44 @@ const { data: invitation } = await useAsyncData(
   }
 )
 
+// Fetch the invitation link the visitor came from, if any.
+const invitationLinkSlug = route.query.invitationLinkSlug
+const { data: invitationLink } = await useAsyncData(
+  `signup-invitation-link-${invitationLinkSlug || 'none'}`,
+  async () => {
+    if (!invitationLinkSlug || store.getters['auth/isAuthenticated']) {
+      return null
+    }
+
+    try {
+      const { data } =
+        await WorkspaceService($client).fetchInvitationLinkBySlug(
+          invitationLinkSlug
+        )
+      return data
+    } catch {
+      return null
+    }
+  }
+)
+
 // Computed properties
 const settings = computed(() => store.getters['settings/get'])
+// Someone who already has an account comes back to the link after logging in,
+// also through single sign-on, which signs new people up through the link.
+const invitationLinkPath = computed(() =>
+  invitationLink.value
+    ? router.resolve({
+        name: 'invitation-link',
+        params: { slug: invitationLink.value.slug },
+      }).href
+    : null
+)
+const loginRoute = computed(() =>
+  invitationLinkPath.value
+    ? { name: 'login', query: { original: invitationLinkPath.value } }
+    : { name: 'login' }
+)
 const loginActions = computed(
   () => store.getters['authProvider/getAllLoginActions']
 )
@@ -135,7 +177,7 @@ const isSignupEnabled = computed(() => {
   return (
     settings.value.allow_new_signups ||
     (settings.value.allow_signups_via_workspace_invitations &&
-      invitation.value?.id)
+      (invitation.value?.id || invitationLink.value?.slug))
   )
 })
 
@@ -156,11 +198,10 @@ const next = (params) => {
   ) {
     displayEmailNotVerified.value = true
   } else {
-    const to = invitation.value?.workspace_id
-      ? {
-          name: 'workspace',
-          params: { workspaceId: invitation.value.workspace_id },
-        }
+    const workspaceId =
+      invitation.value?.workspace_id ?? invitationLink.value?.workspace_id
+    const to = workspaceId
+      ? { name: 'workspace', params: { workspaceId } }
       : { name: 'all-workspaces' }
     router.push(to).then(() => {
       store.dispatch('settings/hideAdminSignupPage')

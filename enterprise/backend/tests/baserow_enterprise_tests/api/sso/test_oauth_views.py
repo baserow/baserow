@@ -38,6 +38,9 @@ def create_get_user_info_stub(provider):
                 name="Test User",
                 language=data.get("language", "en"),
                 workspace_invitation_token=data.get("workspace_invitation_token", None),
+                workspace_invitation_link_slug=data.get(
+                    "workspace_invitation_link_slug", None
+                ),
             ),
             data.get("original", ""),
         )
@@ -330,6 +333,107 @@ def test_oauth2_callback_signup_workspace_invitation_email_mismatch(
                 "error?error=errorWorkspaceInvitationEmailMismatch"
             )
         )
+
+
+def _oauth2_callback_with_invitation_link(api_client, provider, slug):
+    with patch(GET_USER_INFO, create_get_user_info_stub(provider)):
+        session = api_client.session
+        session["oauth_request_data"] = json.dumps(
+            {
+                "original": "templates",
+                "workspace_invitation_link_slug": slug,
+                "oauth_state": "generated_oauth_state",
+            }
+        )
+        session.save()
+        api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+        return api_client.get(
+            reverse(
+                "api:enterprise_sso_oauth2:callback",
+                kwargs={"provider_id": provider.id},
+            )
+            + "?code=validcode",
+            format="json",
+        )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_oauth2_callback_signup_workspace_invitation_link(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        permissions="MEMBER"
+    )
+    data_fixture.update_settings(
+        allow_new_signups=False, allow_signups_via_workspace_invitations=True
+    )
+
+    response = _oauth2_callback_with_invitation_link(
+        api_client, provider, invitation_link.slug
+    )
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/templates?token="
+    )
+    params = dict(parse_qsl(urlparse(response.headers["Location"]).query))
+    user = get_user_from_token(params["token"], token_class=RefreshToken)
+    assert user.email == "testuser@example.com"
+    # The link allowed the signup, but joining is confirmed on the link page that
+    # the user returns to, because signing in with a provider can need no click.
+    assert not WorkspaceUser.objects.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_oauth2_callback_signin_with_workspace_invitation_link_does_not_join(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+    user = data_fixture.create_user(email="testuser@example.com")
+    provider.users.add(user)
+    invitation_link = data_fixture.create_workspace_invitation_link()
+
+    response = _oauth2_callback_with_invitation_link(
+        api_client, provider, invitation_link.slug
+    )
+
+    # Existing users confirm joining on the link page they return to.
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/templates?token="
+    )
+    assert not WorkspaceUser.objects.filter(
+        user=user, workspace=invitation_link.workspace
+    ).exists()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_oauth2_callback_signup_workspace_invitation_link_invalid(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+
+    response = _oauth2_callback_with_invitation_link(api_client, provider, "unknown")
+
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorInvitationLinkInvalid"
+    )
+    assert not WorkspaceUser.objects.filter(user__email="testuser@example.com").exists()
 
 
 @pytest.mark.django_db

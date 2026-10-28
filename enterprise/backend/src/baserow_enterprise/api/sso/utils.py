@@ -25,6 +25,7 @@ class SsoErrorCode(Enum):
     DIFFERENT_PROVIDER = "errorDifferentProvider"
     UNVERIFIED_EMAIL = "errorUnverifiedEmail"
     GROUP_INVITATION_EMAIL_MISMATCH = "errorWorkspaceInvitationEmailMismatch"
+    INVITATION_LINK_INVALID = "errorInvitationLinkInvalid"
     SIGNUP_DISABLED = "errorSignupDisabled"
     APPLICATION_USER_LIMIT_REACHED = "errorApplicationUserLimitReached"
 

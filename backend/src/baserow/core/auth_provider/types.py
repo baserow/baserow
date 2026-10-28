@@ -19,4 +19,5 @@ class UserInfo:
     name: str
     language: Optional[str] = None
     workspace_invitation_token: Optional[str] = None
+    workspace_invitation_link_slug: Optional[str] = None
     email_verified: bool = True
