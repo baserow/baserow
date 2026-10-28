@@ -7,7 +7,11 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import ParseError, UnsupportedMediaType
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_504_GATEWAY_TIMEOUT
+from rest_framework.status import (
+    HTTP_204_NO_CONTENT,
+    HTTP_404_NOT_FOUND,
+    HTTP_504_GATEWAY_TIMEOUT,
+)
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions
@@ -64,8 +68,22 @@ class CoreHTTPTriggerView(APIView):
     """
 
     permission_classes = (AllowAny,)
-    throttle_classes = (CoreHTTPTriggerRateThrottle,)
     http_method_names = ["get", "post", "put", "patch", "delete"]
+
+    def get_throttles(self):
+        self.trigger_throttle = CoreHTTPTriggerRateThrottle()
+        return [*super().get_throttles(), self.trigger_throttle]
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        # The throttle reserves a slot before this view runs. A uid that
+        # doesn't belong to any trigger has no budget to count against, so its
+        # slot is given back and nothing is kept for it.
+        if response.status_code == HTTP_404_NOT_FOUND and hasattr(
+            self, "trigger_throttle"
+        ):
+            self.trigger_throttle.release()
+
+        return super().finalize_response(request, response, *args, **kwargs)
 
     def check_body_size(self, request):
         """

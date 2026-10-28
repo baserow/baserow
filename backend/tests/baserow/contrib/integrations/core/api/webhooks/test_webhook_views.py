@@ -11,19 +11,25 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
+    HTTP_404_NOT_FOUND,
     HTTP_405_METHOD_NOT_ALLOWED,
     HTTP_413_REQUEST_ENTITY_TOO_LARGE,
     HTTP_429_TOO_MANY_REQUESTS,
 )
+from rest_framework.throttling import BaseThrottle
 
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.integrations.core.api.webhooks.throttling import (
+    CoreHTTPTriggerRateThrottle,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.core.services.registries import service_type_registry
+from baserow.throttling.handler import _get_redis_cli
 from baserow.throttling.types import RateLimit
 
 
@@ -524,3 +530,49 @@ def test_rate_limits_can_be_switched_off(api_client, data_fixture, settings):
     for _ in range(3):
         resp, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
         assert resp.status_code == HTTP_204_NO_CONTENT
+
+
+def test_http_trigger_keeps_the_default_throttles():
+    class DefaultThrottle(BaseThrottle):
+        pass
+
+    view = CoreHTTPTriggerView()
+
+    with patch.object(CoreHTTPTriggerView, "throttle_classes", (DefaultThrottle,)):
+        throttles = view.get_throttles()
+
+    assert [type(throttle) for throttle in throttles] == [
+        DefaultThrottle,
+        CoreHTTPTriggerRateThrottle,
+    ]
+
+
+@pytest.mark.django_db
+def test_unknown_http_trigger_keeps_no_rate_limit_state(api_client, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    uid = uuid.uuid4()
+
+    for _ in range(2):
+        resp = api_client.post(get_url(uid), {}, format="json")
+        assert resp.status_code == HTTP_404_NOT_FOUND
+
+    assert not _get_redis_cli().exists(f"baserow_rate_limit:core_http_trigger:{uid}")
+
+
+@pytest.mark.django_db
+def test_oversized_body_counts_towards_the_rate_limit(
+    api_client, data_fixture, settings
+):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    node = data_fixture.create_core_http_trigger_node()
+
+    too_large, _ = post_webhook(api_client, node.service.uid, "x" * 11, "text/plain")
+    second, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+
+    assert too_large.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
