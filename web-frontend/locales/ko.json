@@ -96,7 +96,10 @@
         "automationDesc": "반복적인 작업과 워크플로우를 자동화하세요.",
         "automation": "자동화",
         "cantSelectAutomationWorkflowTitle": "자동화를 선택할 수 없습니다.",
-        "cantSelectAutomationWorkflowDescription": "이 자동화에는 워크플로가 없어 선택할 수 없습니다. 사이드바를 사용해 워크플로를 생성하세요."
+        "cantSelectAutomationWorkflowDescription": "이 자동화에는 워크플로가 없어 선택할 수 없습니다. 사이드바를 사용해 워크플로를 생성하세요.",
+        "agent": "에이전트",
+        "agents": "에이전트",
+        "agentDesc": "워크스페이스에 에이전트를 만드세요."
     },
     "settingType": {
         "account": "계정",
