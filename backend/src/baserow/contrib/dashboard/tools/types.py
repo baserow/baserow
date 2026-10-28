@@ -30,8 +30,10 @@ AggregationType = Annotated[
     str,
     Field(
         description="How the field's values are aggregated, for example sum, "
-        "average, min, max, median, std_dev, variance, not_empty_count, "
-        "empty_count, unique_count. Which ones fit depends on the field type."
+        "average, min, max, median, std_dev, variance, count, not_empty_count, "
+        "empty_count, unique_count. Which ones fit depends on the field type. "
+        "count counts the rows, whatever their value in the field; "
+        "not_empty_count counts only the rows where the field has a value."
     ),
 ]
 GroupByFieldId = Annotated[

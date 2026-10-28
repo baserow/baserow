@@ -1,9 +1,14 @@
+from unittest.mock import patch
+
 import pytest
 from pydantic_ai import ModelRetry
 
 from baserow.contrib.dashboard.widgets.models import Widget
+from baserow.core.integrations.models import Integration
 from baserow_enterprise.assistant.assistant import _mode_for_ui_context
 from baserow_enterprise.assistant.deps import AgentMode
+from baserow_enterprise.assistant.tools.core.tools import create_builders
+from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
 from baserow_enterprise.assistant.tools.dashboard.tools import (
     create_widgets,
     delete_widgets,
@@ -44,6 +49,28 @@ def _summary(table, amount, aggregation_type="sum"):
         "field_id": amount.id,
         "aggregation_type": aggregation_type,
     }
+
+
+@pytest.mark.django_db
+def test_create_builders_adds_a_dashboard_without_an_integration_event(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = make_test_ctx(user, workspace)
+
+    with patch(
+        "baserow.core.integrations.signals.integration_created.send"
+    ) as integration_created:
+        result = create_builders(
+            ctx,
+            [BuilderItemCreate(name="Sales", type="dashboard")],
+            thought="New dashboard",
+        )
+
+    dashboard_id = result["created_builders"][0]["id"]
+    assert Integration.objects.filter(application_id=dashboard_id).count() == 1
+    integration_created.assert_not_called()
 
 
 @pytest.mark.django_db

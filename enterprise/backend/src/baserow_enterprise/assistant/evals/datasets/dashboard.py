@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.contrib.dashboard.tools.widgets import create_widgets, list_widgets
+from baserow.contrib.dashboard.tools.widgets import (
+    create_widgets,
+    get_widget_data,
+    list_widgets,
+)
 from baserow.core.tools import ToolContext
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.deps import AgentMode
@@ -192,7 +196,22 @@ register_case(
 # Adds a chart grouped by a single select (needs premium)
 # ---------------------------------------------------------------------------
 
-COUNT_AGGREGATIONS = {"count", "not_empty_count", "unique_count"}
+
+def _chart_values(scenario: EvalScenario, widget_id: int) -> dict[str, list[str]]:
+    """The values a chart grouped by Stage shows for each stage."""
+
+    (widget,) = get_widget_data(
+        ToolContext(user=scenario.user, workspace=scenario.workspace), [widget_id]
+    )["widgets"]
+    if not widget["configured"]:
+        return {}
+    group_by = scenario.refs["stage"].name
+    return {
+        str(row["id"]): [
+            str(value) for key, value in row.items() if key not in ("id", group_by)
+        ]
+        for row in widget["data"]["results"]
+    }
 
 
 def _check_adds_chart_by_stage(
@@ -206,16 +225,21 @@ def _check_adds_chart_by_stage(
         and w["table_id"] == scenario.refs["deals"].id
         and w["group_by_field_id"] == scenario.refs["stage"].id
         and len(w["series"]) == 1
-        and w["series"][0]["aggregation_type"] in COUNT_AGGREGATIONS
     ]
+    values = _chart_values(scenario, matching[0]["id"]) if len(matching) == 1 else {}
     return [
         CheckResult(
             "called create_widgets", tool_called(output, "create_widgets") >= 1
         ),
         CheckResult(
-            "one chart counting Deals grouped by Stage",
+            "one chart of Deals grouped by Stage",
             len(matching) == 1 and len(widgets) == 1,
             hint=f"widgets: {widgets}",
+        ),
+        CheckResult(
+            "the chart shows 2 Won and 1 Lost",
+            values.get("Won") == ["2"] and values.get("Lost") == ["1"],
+            hint=f"values: {values}",
         ),
     ]
 
@@ -367,6 +391,10 @@ UNREQUESTED_WRITE_TOOLS = (
 )
 
 
+# The 2 next to Won, with no other number between them.
+WON_DEALS = re.compile(r"\b2\b[^.\d]{0,40}\bwon\b|\bwon\b[^.\d]{0,40}\b2\b", re.I)
+
+
 def _check_answers_from_chart(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
@@ -385,7 +413,7 @@ def _check_answers_from_chart(
         ),
         CheckResult(
             "answer gives 2 Won deals",
-            re.search(r"\b2\b", output.answer) is not None,
+            WON_DEALS.search(output.answer) is not None,
             hint=output.answer[:200],
         ),
         CheckResult(

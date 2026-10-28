@@ -142,8 +142,8 @@ def test_create_widget_rejects_field_of_other_table(
     assert result["errors"] == [
         {
             "index": 0,
-            "error": f"Field {other_amount.id} of table {table.id} not found in this "
-            "workspace.",
+            "error": f"Invalid value. The field with ID {other_amount.id} is not "
+            "related to the given table.",
         }
     ]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
@@ -178,7 +178,11 @@ def test_create_widget_rejects_view_of_other_table(
     )
 
     assert result["errors"] == [
-        {"index": 0, "error": f"View {other_view.id} not found in this workspace."}
+        {
+            "index": 0,
+            "error": f"Invalid value. The view with ID {other_view.id} is not "
+            f"related to the given table {table.id}.",
+        }
     ]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
     assert Action.objects.filter(user=ctx.user).count() == 0
@@ -499,7 +503,7 @@ def test_a_missing_field_is_named(dashboard_ctx, sales_table):
     assert result["errors"] == [
         {
             "index": 0,
-            "error": f"Field 999999 of table {table.id} not found in this workspace.",
+            "error": "The field with id 999999 does not exist.",
         }
     ]
 

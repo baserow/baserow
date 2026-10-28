@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field, TypeAdapter
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
@@ -21,7 +22,6 @@ from baserow.contrib.dashboard.data_sources.dispatch_context import (
 from baserow.contrib.dashboard.data_sources.exceptions import (
     DashboardDataSourceImproperlyConfigured,
 )
-from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.contrib.dashboard.tools.dashboards import get_dashboard_in_workspace
 from baserow.contrib.dashboard.tools.types import (
@@ -40,18 +40,19 @@ from baserow.contrib.dashboard.widgets.exceptions import (
 )
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.service import WidgetService
+from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import ListViewsOperationType
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import InstanceTypeDoesNotExist, PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.registry import Registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.tools import ToolContext
@@ -72,6 +73,9 @@ def get_widget_in_workspace(ctx: ToolContext, widget_id: int) -> Widget:
     """
     Get a widget of a dashboard in the context's workspace.
 
+    :param ctx: The user and workspace the tool acts for.
+    :param widget_id: The widget to get.
+    :return: The specific widget.
     :raises WidgetDoesNotExist: When the widget is missing, trashed, in another
         workspace or hidden from the user.
     """
@@ -91,32 +95,21 @@ def widget_item_error(exc: Exception) -> str:
     """
     ``item_error_message``, with the widget configuration errors and the table,
     view or field a data source names that isn't found.
+
+    :param exc: The exception the item raised.
+    :return: The message for the item.
     """
 
     if isinstance(
         exc, (WidgetImproperlyConfigured, DashboardDataSourceImproperlyConfigured)
     ):
         return "Invalid value. " + str(exc)
-    if (
-        isinstance(
-            exc, (Table.DoesNotExist, View.DoesNotExist, DatabaseField.DoesNotExist)
-        )
-        and exc.args
-    ):
+    if isinstance(exc, (Table.DoesNotExist, View.DoesNotExist)) and exc.args:
         return f"{exc.args[0]} not found in this workspace."
+    if isinstance(exc, FieldDoesNotExist) and exc.args:
+        # Raised by the service for a field id that doesn't exist at all.
+        return str(exc)
     return item_error_message(exc)
-
-
-def _specific_services(service_ids: list[int]) -> dict[int, Service]:
-    services = specific_iterator(
-        Service.objects.filter(id__in=service_ids).select_related("content_type"),
-        per_content_type_queryset_hook=(
-            lambda model, queryset: service_type_registry.get_by_model(
-                model
-            ).enhance_queryset(queryset)
-        ),
-    )
-    return {service.id: service for service in services}
 
 
 def describe_widget(widget: Widget, service: Service | None = None) -> dict[str, Any]:
@@ -126,6 +119,7 @@ def describe_widget(widget: Widget, service: Service | None = None) -> dict[str,
     :param widget: The specific widget.
     :param service: The specific service of the widget's data source. Read from
         the widget when not given.
+    :return: The widget's id, type, title, description and data source.
     """
 
     widget_type = widget.get_type().type
@@ -140,7 +134,10 @@ def describe_widget(widget: Widget, service: Service | None = None) -> dict[str,
     if service is None and data_source_id is not None:
         service_id = widget.data_source.service_id
         if service_id is not None:
-            service = _specific_services([service_id]).get(service_id)
+            # With the series and group bys of a chart prefetched.
+            (service,) = ServiceHandler().get_services(
+                base_queryset=Service.objects.filter(id=service_id)
+            )
 
     description["table_id"] = getattr(service, "table_id", None)
     description["view_id"] = getattr(service, "view_id", None)
@@ -179,25 +176,17 @@ def list_widgets(
 
     dashboard = get_dashboard_in_workspace(ctx, dashboard_id)
     widgets = WidgetService().get_widgets(ctx.user, dashboard.id)
-    data_source_ids = [
-        w.data_source_id for w in widgets if getattr(w, "data_source_id", None)
-    ]
-    service_by_data_source = dict(
-        DashboardDataSource.objects.filter(id__in=data_source_ids).values_list(
-            "id", "service_id"
+    services = {
+        data_source.id: data_source.service
+        for data_source in DashboardDataSourceService().get_data_sources(
+            ctx.user, dashboard.id
         )
-    )
-    services = _specific_services(
-        [sid for sid in service_by_data_source.values() if sid is not None]
-    )
+    }
     return {
         "dashboard": {"id": dashboard.id, "name": dashboard.name},
         "widgets": [
             describe_widget(
-                widget,
-                services.get(
-                    service_by_data_source.get(getattr(widget, "data_source_id", None))
-                ),
+                widget, services.get(getattr(widget, "data_source_id", None))
             )
             for widget in widgets
         ],
@@ -264,86 +253,88 @@ def get_widget_data(
 # ---------------------------------------------------------------------------
 
 
-def _check_aggregation(
-    field: DatabaseField, aggregation_type: str, registry: Registry
-) -> None:
+def _check_visible(ctx: ToolContext, config: dict[str, Any]) -> None:
     """
-    :param registry: The aggregations the widget's service can compute.
-    :raises DjangoValidationError: When the aggregation doesn't exist or can't be
-        used on the field, naming the ones that can.
-    """
+    Check that the user can see the table and view of a data source in the
+    context's workspace. The service checks the rest, but raises a permission
+    error for these, which would fail the whole call instead of this widget.
 
-    try:
-        if registry.get(aggregation_type).field_is_compatible(field):
-            return
-    except registry.does_not_exist_exception_class:
-        pass
-    fitting = sorted(
-        aggregation.type
-        for aggregation in registry.get_all()
-        if aggregation.field_is_compatible(field)
-    )
-    raise DjangoValidationError(
-        f"{aggregation_type} can't be used on field '{field.name}'. "
-        f"Use one of: {', '.join(fitting)}."
-    )
-
-
-def _check_data_source(
-    ctx: ToolContext, widget: Widget, config: dict[str, Any]
-) -> None:
-    """
-    Check that the table, view and fields of a widget's data source are in the
-    context's workspace, and that its service can compute each aggregation on its
-    field.
-
-    :raises Table.DoesNotExist: When the table isn't a table of the workspace the
+    :param ctx: The user and workspace the tool acts for.
+    :param config: The data source the widget gets.
+    :raises Table.DoesNotExist: When the table isn't one of the workspace the
         user can see.
-    :raises View.DoesNotExist: When the view isn't a view of the table the user
+    :raises View.DoesNotExist: When the view isn't one of the workspace the user
         can see, like another user's personal view.
-    :raises DatabaseField.DoesNotExist: When a field isn't a field of the table.
     """
 
-    table = (
-        TableHandler()
-        .list_workspace_tables(ctx.user, ctx.workspace)
-        .filter(id=config["table_id"])
-        .first()
-    )
-    if table is None:
+    tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
+    if not tables.filter(id=config["table_id"]).exists():
         raise Table.DoesNotExist(f"Table {config['table_id']}")
-    if config["view_id"] is not None:
-        views = CoreHandler().filter_queryset(
-            ctx.user,
-            ListViewsOperationType.type,
-            View.objects.filter(table=table),
-            workspace=ctx.workspace,
-        )
-        if not views.filter(id=config["view_id"]).exists():
-            raise View.DoesNotExist(f"View {config['view_id']}")
+    if config["view_id"] is None:
+        return
+    views = CoreHandler().filter_queryset(
+        ctx.user,
+        ListViewsOperationType.type,
+        View.objects.filter(table__database__workspace_id=ctx.workspace.id),
+        workspace=ctx.workspace,
+    )
+    if not views.filter(id=config["view_id"]).exists():
+        raise View.DoesNotExist(f"View {config['view_id']}")
 
+
+def _unfitting_aggregation(
+    service: Service, config: dict[str, Any]
+) -> DjangoValidationError | None:
+    """
+    The first aggregation of a data source that its service can't compute on its
+    field, as an error naming the ones it can. Called after the service refused the
+    values, to tell the caller what to use instead.
+
+    :param service: The specific service of the widget's data source.
+    :param config: The data source the widget was given.
+    :return: The error, or None when every aggregation fits its field.
+    """
+
+    registry = service_type_registry.get_by_model(service).aggregation_registry
     aggregations = _aggregations(config)
-    field_ids = {field_id for field_id, _ in aggregations}
-    if config.get("group_by_field_id") is not None:
-        field_ids.add(config["group_by_field_id"])
     fields = {
         field.id: field
         for field in specific_iterator(
-            DatabaseField.objects.filter(id__in=field_ids, table=table)
+            DatabaseField.objects.filter(
+                id__in=[field_id for field_id, _ in aggregations],
+                table_id=config["table_id"],
+            )
         )
     }
-    missing = sorted(field_ids - set(fields))
-    if missing:
-        raise DatabaseField.DoesNotExist(
-            f"Field {', '.join(map(str, missing))} of table {table.id}"
-        )
-    service = widget.data_source.service.specific
-    registry = service_type_registry.get_by_model(service).aggregation_registry
     for field_id, aggregation_type in aggregations:
-        _check_aggregation(fields[field_id], aggregation_type, registry)
+        field = fields.get(field_id)
+        if field is None:
+            continue
+        try:
+            if registry.get(aggregation_type).field_is_compatible(field):
+                continue
+        except registry.does_not_exist_exception_class:
+            pass
+        fitting = sorted(
+            aggregation.type
+            for aggregation in registry.get_all()
+            if aggregation.field_is_compatible(field)
+        )
+        return DjangoValidationError(
+            f"{aggregation_type} can't be used on field '{field.name}'. "
+            f"Use one of: {', '.join(fitting)}."
+        )
+    return None
 
 
 def _aggregations(config: dict[str, Any]) -> list[tuple[int, str]]:
+    """
+    The field and aggregation of each value a data source computes.
+
+    :param config: A summary's or a chart's data source.
+    :return: One (field_id, aggregation_type) pair for each value.
+    """
+
     if "series" in config:
         return [(s["field_id"], s["aggregation_type"]) for s in config["series"]]
     return [(config["field_id"], config["aggregation_type"])]
@@ -360,6 +351,7 @@ def _series_ids(
 
     :param series: The series the chart gets.
     :param existing: The series it has, with their ids, in order.
+    :return: For each series, the id it keeps, or None for a new one.
     """
 
     def key(s):
@@ -388,6 +380,7 @@ def _data_source_values(
     :param previous: The data source it has, when it is updated. Only the values
         that change are sent.
     :param existing_series: The chart's series with their ids, in order.
+    :return: The values to send to the data source's service.
     """
 
     changed = {
@@ -423,7 +416,12 @@ def _data_source_values(
 
 
 def _data_source_config(description: dict[str, Any]) -> dict[str, Any]:
-    """The data source part of ``describe_widget``, in the shape of a definition."""
+    """
+    The data source part of ``describe_widget``, in the shape of a definition.
+
+    :param description: A widget as ``describe_widget`` returns it.
+    :return: Its table, view, and field and aggregation or series and group by.
+    """
 
     keys = ["table_id", "view_id"]
     if description["type"] in SUMMARY_WIDGET_TYPES:
@@ -440,7 +438,17 @@ def _update_data_source(
     previous: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
+    Set a widget's data source to the given table, view, fields and aggregations.
+
+    :param ctx: The user and workspace the tool acts for.
+    :param widget: The widget whose data source changes.
+    :param config: The data source the widget gets.
+    :param previous: The data source it has, when it is updated.
     :return: The values sent to the service.
+    :raises DjangoValidationError: When an aggregation doesn't fit its field,
+        naming the ones that do.
+    :raises DRFValidationError: When the view or a field doesn't belong to the
+        table.
     """
 
     service = widget.data_source.service.specific
@@ -457,12 +465,20 @@ def _update_data_source(
         else None
     )
     values = _data_source_values(config, previous, existing_series)
-    UpdateDashboardDataSourceActionType.do(
-        ctx.user,
-        widget.data_source_id,
-        service_type_registry.get_by_model(service),
-        values,
-    )
+    try:
+        # The service checks that the view and fields belong to the table, and
+        # that each aggregation fits its field.
+        UpdateDashboardDataSourceActionType.do(
+            ctx.user,
+            widget.data_source_id,
+            service_type_registry.get_by_model(service),
+            values,
+        )
+    except (DRFValidationError, InstanceTypeDoesNotExist) as exc:
+        unfitting = _unfitting_aggregation(service, config)
+        if unfitting is None:
+            raise
+        raise unfitting from exc
     return values
 
 
@@ -471,6 +487,10 @@ def _series_config(widget: Widget, restyle: bool = False) -> list[dict[str, Any]
     One entry for each series of a chart. The chart only draws a series in its
     own type when the series has an entry. A series that has one keeps its type,
     and its color, unless ``restyle`` draws every series as the chart's type.
+
+    :param widget: The chart, with its data source already updated.
+    :param restyle: Whether every series takes the chart's type.
+    :return: The chart's ``series_config``.
     """
 
     widget.data_source.refresh_from_db()
@@ -493,6 +513,14 @@ def _series_config(widget: Widget, restyle: bool = False) -> list[dict[str, Any]
 
 
 def _describe(ctx: ToolContext, widget_id: int) -> dict[str, Any]:
+    """
+    A widget as list_widgets describes it, read again after a write.
+
+    :param ctx: The user and workspace the tool acts for.
+    :param widget_id: The widget to describe.
+    :return: The widget's description.
+    """
+
     return describe_widget(WidgetService().get_widget(ctx.user, widget_id))
 
 
@@ -500,8 +528,14 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     """
     Create a widget and configure its data source, through undoable actions.
 
-    :raises Table.DoesNotExist, View.DoesNotExist, DatabaseField.DoesNotExist:
-        When the table, view or a field isn't in the workspace.
+    :param ctx: The user and workspace the tool acts for.
+    :param dashboard_id: The dashboard that gets the widget.
+    :param spec: The widget and its data source.
+    :return: The created widget.
+    :raises Table.DoesNotExist, View.DoesNotExist: When the user can't see the
+        table or view in the workspace.
+    :raises DRFValidationError: When the view or a field doesn't belong to the
+        table.
     :raises DjangoValidationError: When an aggregation doesn't fit its field.
     :raises FeaturesNotAvailableError: When a chart is created without premium.
     """
@@ -512,9 +546,8 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     if chart_type is not None:
         data["default_series_chart_type"] = chart_type
     widget = CreateWidgetActionType.do(ctx.user, dashboard_id, spec.type, data)
-    # After the widget, whose service tells which aggregations fit. The item's
-    # savepoint drops the widget when the check fails.
-    _check_data_source(ctx, widget, config)
+    # The item's savepoint drops the widget when its data source is refused.
+    _check_visible(ctx, config)
     _update_data_source(ctx, widget, config)
     if spec.type not in SUMMARY_WIDGET_TYPES:
         widget = WidgetService().get_widget(ctx.user, widget.id)
@@ -578,6 +611,8 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     """
     Change a widget and its data source, leaving out values that don't change.
 
+    :param ctx: The user and workspace the tool acts for.
+    :param spec: The widget and the values that change.
     :return: Whether anything changed.
     :raises DjangoValidationError: When a value doesn't fit the widget's type, or
         an aggregation doesn't fit its field.
@@ -620,7 +655,7 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
         new_config["group_by_row_id"] = False
     data_source_changed = new_config != config
     if data_source_changed:
-        _check_data_source(ctx, widget, new_config)
+        _check_visible(ctx, new_config)
 
     new_data = {
         key: given[key]

@@ -29,6 +29,9 @@ def get_dashboard_in_workspace(ctx: ToolContext, dashboard_id: int) -> Dashboard
     """
     Get a dashboard of the context's workspace.
 
+    :param ctx: The user and workspace the tool acts for.
+    :param dashboard_id: The dashboard to get.
+    :return: The dashboard.
     :raises ApplicationDoesNotExist: When the dashboard is missing, trashed, in
         another workspace or hidden from the user.
     """

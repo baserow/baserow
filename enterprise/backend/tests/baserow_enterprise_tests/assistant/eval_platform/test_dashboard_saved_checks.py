@@ -60,6 +60,41 @@ def test_adds_revenue_summary_check():
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_adds_chart_by_stage_check_reads_the_figures():
+    def add(aggregation_type):
+        def prepare(ctx, scenario):
+            create_widgets(
+                ctx,
+                scenario.refs["dashboard"].id,
+                [
+                    {
+                        "type": "chart",
+                        "title": "Deals by stage",
+                        "table_id": scenario.refs["deals"].id,
+                        "series": [
+                            {
+                                "field_id": scenario.refs["deals"]
+                                .field_set.get(name="Name")
+                                .id,
+                                "aggregation_type": aggregation_type,
+                            }
+                        ],
+                        "group_by_field_id": scenario.refs["stage"].id,
+                    }
+                ],
+            )
+
+        return prepare
+
+    case_id = "dashboard/adds-chart-by-stage"
+    output = _output("create_widgets")
+    assert all(_run(case_id, output, add("count")).values())
+    # Name is empty on every deal, so the chart shows 0 for each stage.
+    assert not all(_run(case_id, output, add("not_empty_count")).values())
+
+
+@pytest.mark.django_db
 def test_changes_to_average_check():
     def change(ctx, scenario):
         update_widgets(
@@ -113,3 +148,5 @@ def test_answers_from_chart_check_fails_on_an_added_widget_or_a_stray_2():
     assert not all(_run(case_id, good, change_and_add).values())
     stray = _output("update_widgets", answer="3 deals as of 2026-10-28.")
     assert not all(_run(case_id, stray, change).values())
+    lost = _output("update_widgets", answer="Won has 1 deal, Lost has 2.")
+    assert not all(_run(case_id, lost, change).values())
