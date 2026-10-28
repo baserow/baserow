@@ -99,7 +99,12 @@
         "cantSelectAutomationWorkflowDescription": "Automatizaci se nepodařilo vybrat, protože nemá žádné pracovní postupy. Vytvořte jej pomocí postranního panelu.",
         "agent": "Agent",
         "agents": "Agenti",
-        "agentDesc": "Vytvořte agenta ve svém pracovním prostoru."
+        "agentDesc": "Vytvořte agenta ve svém pracovním prostoru.",
+        "viewDatabase": "Zobrazit databázi",
+        "viewBuilder": "Zobrazit aplikaci",
+        "viewDashboard": "Zobrazit nástěnku",
+        "viewAutomation": "Zobrazit automatizaci",
+        "viewAgent": "Zobrazit agenta"
     },
     "settingType": {
         "account": "Účet",
@@ -481,7 +486,15 @@
         "fieldDataConstraintTitle": "Porušení omezení dat pole",
         "fieldDataConstraintDescription": "Operaci nelze dokončit kvůli porušení existujících omezení.",
         "userFileDoesNotExistTitle": "Obrázek neexistuje",
-        "userFileDoesNotExistDescription": "Hodnota odkazuje na obrázek, který už neexistuje. Odeberte jej a zkuste to znovu."
+        "userFileDoesNotExistDescription": "Hodnota odkazuje na obrázek, který už neexistuje. Odeberte jej a zkuste to znovu.",
+        "invitationEmailNotVerifiedTitle": "Pozvánka nebyla přijata.",
+        "invitationEmailNotVerifiedDescription": "Otevřete odkaz v e-mailu s pozvánkou a přijměte ji, nebo nejprve ověřte svou e-mailovou adresu.",
+        "templateBlockedTitle": "Šablona je zablokovaná",
+        "templateBlockedDescription": "Šablona je zablokovaná a nelze ji nainstalovat.",
+        "templateHasNoContentTitle": "Šablona nemá žádný obsah",
+        "templateHasNoContentDescription": "Šablona nemá žádný obsah.",
+        "templateUpdatedTitle": "Tato šablona byla aktualizována",
+        "templateUpdatedDescription": "Šablona se od doby, kdy jste ji otevřeli, změnila. Nyní je zobrazena její nejnovější verze; nainstalujte ji znovu."
     },
     "importerType": {
         "csv": "Importovat soubor CSV",
