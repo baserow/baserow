@@ -13,7 +13,7 @@ from baserow.core.chat_runs.constants import (
     RUN_RETENTION,
 )
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
-from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.handler import ChatRunHandler, LeaseRenewal
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.registries import ChatRunType, chat_run_type_registry
 from baserow.core.chat_runs.tasks import prune_chat_runs
@@ -80,7 +80,7 @@ def workspace_limited(fake_run_type, mocker):
     mocker.patch.object(
         fake_run_type, "get_max_active_runs_per_user", return_value=None
     )
-    mocker.patch.object(
+    return mocker.patch.object(
         fake_run_type, "get_max_active_runs_per_workspace", return_value=2
     )
 
@@ -102,7 +102,9 @@ def test_per_workspace_limit_counts_every_user(create_run, workspace_limited):
         create_run(chat_id=3, workspace=first.workspace)
     with pytest.raises(ChatRunLimitReached):
         ChatRunHandler().create_run("fake", 4, first.workspace, None, {})
-    create_run(chat_id=5)
+    other_workspace_run = create_run(chat_id=5)
+    # The workspace lets a run type set the limit per plan.
+    workspace_limited.assert_called_with(other_workspace_run.workspace)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -175,6 +177,27 @@ def test_claim_once_and_cancel_durably_without_redis(create_run):
     handler.request_cancel(run.id)
     assert handler.get_run(run.id).cancel_requested_at == first
     assert handler.renew_lease(run.id).cancel_requested
+
+
+@pytest.mark.parametrize(
+    "state,renewal,statements",
+    [
+        ("running", LeaseRenewal(alive=True, cancel_requested=False), 1),
+        ("stopping", LeaseRenewal(alive=True, cancel_requested=True), 2),
+        ("ended", LeaseRenewal(alive=False, cancel_requested=False), 2),
+    ],
+)
+def test_a_lease_renewal_takes_one_statement_while_the_run_goes_on(
+    create_run, django_assert_num_queries, state, renewal, statements
+):
+    run = create_run(claim=True)
+    if state == "stopping":
+        ChatRunHandler().request_cancel(run.id)
+    elif state == "ended":
+        ChatRunHandler().finish_run(run.id, "completed")
+
+    with django_assert_num_queries(statements):
+        assert ChatRunHandler().renew_lease(run.id) == renewal
 
 
 def test_queued_stop_is_terminal_and_cannot_be_claimed(create_run):

@@ -81,7 +81,7 @@ independently.
 | Celery: watch for Stop | The runner starts `journal.keep_alive`, which calls `ChatRunHandler.renew_lease` through `sync_to_async`. It sets `journal.stop_requested` when cancellation is requested. The adapter observes it and lets running tools finish. |
 | Celery: save the answer | When `execute` returns a `ChatRunOutcome`, the runner calls `_finish` through `sync_to_async`. `_finish` calls the adapter's `persist_outcome` and the handler's `finish_run` in one transaction. After commit, the runner calls `journal.publish_finished`. |
 | HTTP: stream output | The view returns an iterator without running it. On the HTTP event loop, `_send_response` consumes the product's iterator, which consumes `follow_run`. The follower calls `ChatRunBuffer.read` to wait for Redis output. |
-| HTTP: check durable state | `follow_run` calls `_read_state` through `sync_to_async`. When the stream opens, it calls `ChatRunService.snapshot`, which checks `can_read` once. Later reads skip that check and happen only on `run.finished` or after 5 s without output. Each read calls `serialize_outcome`, which also supplies the final saved result. |
+| HTTP: check durable state | `follow_run` calls `_read_state` through `sync_to_async`. When the stream opens, the core view checks `can_read` through `ChatRunService.get_run` and passes the serialized run to `follow_run` as `initial_state`. Later reads skip that check and happen only on `run.finished` or after 5 s without output. Each read calls `serialize_outcome`, which also supplies the final saved result. |
 
 `async_to_sync` and `sync_to_async` bridge synchronous and async code within the
 current process. They do not enqueue Celery tasks. The journal's flushing and

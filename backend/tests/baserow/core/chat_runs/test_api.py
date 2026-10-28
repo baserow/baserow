@@ -145,25 +145,44 @@ def test_stream_encodes_records_from_the_given_cursor(request_stream, mocker):
         "cursor": f"{'a' * 32}:2-0",
         "replayed": False,
     }
+    heartbeat = {"kind": "run.heartbeat", "data": {}, "cursor": None, "replayed": False}
     cursors = []
 
-    async def follow_run(run, user, cursor=None):
+    async def follow_run(run, user, cursor=None, *, initial_state=None):
         cursors.append(cursor)
-        yield {"kind": "run.heartbeat", "data": {}, "cursor": cursor, "replayed": False}
+        yield heartbeat
         yield delta
 
     mocker.patch("baserow.api.chat_runs.views.follow_run", follow_run)
     response = request_stream(f"?cursor={CURSOR}")
     assert response.status_code == 200
     assert response["Content-Type"] == "text/event-stream"
-    assert async_to_sync(read_body)(response) == "\n\n" + json.dumps(delta) + "\n\n"
+    # Followers count heartbeats as records, to restart a stream that stalled.
+    assert async_to_sync(read_body)(response) == "".join(
+        json.dumps(record) + "\n\n" for record in (heartbeat, delta)
+    )
     assert cursors == [CURSOR]
+
+
+def test_a_stream_reads_the_run_and_its_permission_once(
+    api_client, data_fixture, create_run, mocker
+):
+    user, token = data_fixture.create_user_and_token()
+    run = create_run(user=user, claim=True)
+    ChatRunHandler().finish_run(run.id, "completed", message={"id": 15})
+    snapshot = mocker.spy(ChatRunService, "snapshot")
+
+    response = api_client.get(url("stream", run.id), HTTP_AUTHORIZATION=f"JWT {token}")
+
+    record = json.loads(async_to_sync(read_body)(response))
+    assert (record["kind"], record["data"]["message"]) == ("run.finished", {"id": 15})
+    snapshot.assert_not_called()
 
 
 def test_closing_the_stream_closes_the_follower(mocker):
     closed = []
 
-    async def follow_run(run, user, cursor=None):
+    async def follow_run(run, user, cursor=None, *, initial_state=None):
         try:
             yield {"kind": "text.delta"}
         finally:

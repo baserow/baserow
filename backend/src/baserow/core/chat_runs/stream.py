@@ -141,6 +141,7 @@ async def follow_run(
     *,
     replay: bool = True,
     snapshot: Callable | None = None,
+    initial_state: dict | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield ordered output, compatible heartbeats, and authoritative completion.
 
@@ -160,6 +161,8 @@ async def follow_run(
     :param cursor: The last cursor the client saw, or None to read from the start.
     :param replay: False only for the response that created a brand-new run.
     :param snapshot: Async callback replacing the saved-state reads, for tests.
+    :param initial_state: The run's serialized state, already read with the
+        user's read permission checked, to start from without reading it again.
     :return: The output records, in order, ending with ``run.finished``.
     """
 
@@ -173,7 +176,7 @@ async def follow_run(
 
     loop = asyncio.get_running_loop()
     output = _OutputReader(run.id, cursor, replay)
-    state = await read_state(user)
+    state = initial_state if initial_state is not None else await read_state(user)
     next_status = loop.time() + STATUS_INTERVAL_SECONDS
     while _is_active(state):
         if loop.time() >= next_status:

@@ -15,10 +15,9 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions, validate_query_parameters
 from baserow.api.schemas import get_error_schema
-from baserow.core.chat_runs.constants import ChatRunEventKind
 from baserow.core.chat_runs.exceptions import ChatRunDoesNotExist
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.chat_runs.service import ChatRunService
+from baserow.core.chat_runs.service import ChatRunService, serialize_run
 from baserow.core.chat_runs.stream import follow_run
 
 from .errors import ERROR_CHAT_RUN_DOES_NOT_EXIST
@@ -67,22 +66,26 @@ class ChatRunCancelView(APIView):
 
 
 async def encode_records(
-    run: ChatRun, user: AbstractUser, cursor: str | None
+    run: ChatRun,
+    user: AbstractUser,
+    cursor: str | None,
+    initial_state: dict | None = None,
 ) -> AsyncIterator[str]:
     """Encode the run's records as JSON separated by blank lines.
 
     :param run: The run to follow.
     :param user: The user reading it.
     :param cursor: The cursor to resume after, or None to read from the start.
-    :return: The encoded records; a heartbeat is a bare separator.
+    :param initial_state: The run's saved state, already read for this user.
+    :return: The encoded records, heartbeats included, so a follower can tell a
+        quiet stream from a stalled one.
     """
 
-    async with aclosing(follow_run(run, user, cursor)) as records:
+    async with aclosing(
+        follow_run(run, user, cursor, initial_state=initial_state)
+    ) as records:
         async for record in records:
-            if record["kind"] == ChatRunEventKind.RUN_HEARTBEAT:
-                yield "\n\n"
-            else:
-                yield json.dumps(record) + "\n\n"
+            yield json.dumps(record) + "\n\n"
 
 
 class ChatRunStreamView(APIView):
@@ -95,7 +98,8 @@ class ChatRunStreamView(APIView):
         operation_id="stream_chat_run",
         description=(
             "Follow a run's output as JSON records separated by blank lines, ending "
-            "with `run.finished`. Pass the last received `cursor` to resume."
+            "with `run.finished`. While no output arrives, a `run.heartbeat` record "
+            "is sent every few seconds. Pass the last received `cursor` to resume."
         ),
         parameters=[ChatRunStreamQuerySerializer],
         responses={
@@ -111,7 +115,9 @@ class ChatRunStreamView(APIView):
     ) -> StreamingHttpResponse:
         run = ChatRunService().get_run(request.user, run_id)
         response = StreamingHttpResponse(
-            encode_records(run, request.user, query_params.get("cursor")),
+            encode_records(
+                run, request.user, query_params.get("cursor"), serialize_run(run)
+            ),
             content_type="text/event-stream",
         )
         response["Cache-Control"] = "no-cache"

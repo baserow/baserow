@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .constants import MAX_ACTIVE_RUNS_PER_USER
@@ -27,9 +28,10 @@ class ChatRunType(Instance):
 
         return MAX_ACTIVE_RUNS_PER_USER
 
-    def get_max_active_runs_per_workspace(self) -> int | None:
+    def get_max_active_runs_per_workspace(self, workspace: Workspace) -> int | None:
         """Limit how many runs of this type one workspace may have queued or running.
 
+        :param workspace: The workspace the new run belongs to.
         :return: The limit, or None for no per-workspace limit.
         """
 
