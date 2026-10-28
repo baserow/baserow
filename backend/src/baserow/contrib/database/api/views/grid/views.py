@@ -280,6 +280,7 @@ class GridViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                     "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
                 ]
             ),
@@ -1198,6 +1199,7 @@ class PublicGridViewRowsView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                     "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
                 ]
             ),

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -166,6 +167,7 @@ class GalleryViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                     "ERROR_ORDER_BY_FIELD_NOT_FOUND",
                     "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                 ]
@@ -249,7 +251,9 @@ class GalleryViewView(APIView):
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
 
-        paginator = GalleryLimitOffsetPagination()
+        paginator = GalleryLimitOffsetPagination(
+            limit_page_size=settings.ROW_PAGE_SIZE_LIMIT
+        )
         page = paginator.paginate_queryset(queryset, request, self)
 
         limit_linked_items = parse_limit_linked_items_params(request)
@@ -431,6 +435,7 @@ class PublicGalleryViewRowsView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_PAGE_SIZE_LIMIT",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
@@ -504,7 +509,9 @@ class PublicGalleryViewRowsView(APIView):
         if count:
             return Response({"count": queryset.count()})
 
-        paginator = GalleryLimitOffsetPagination()
+        paginator = GalleryLimitOffsetPagination(
+            limit_page_size=settings.ROW_PAGE_SIZE_LIMIT
+        )
         page = paginator.paginate_queryset(queryset, request, self)
 
         limit_linked_items = parse_limit_linked_items_params(request)

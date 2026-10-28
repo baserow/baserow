@@ -223,15 +223,15 @@ def _get_paginator(request: Request) -> Pageable:
 
     if EXCLUDE_COUNT_API_PARAM.name in request.GET:
         if LimitOffsetPagination.limit_query_param in request.GET:
-            paginator = LimitOffsetPaginationWithoutCount()
+            paginator_class = LimitOffsetPaginationWithoutCount
         else:
-            paginator = PageNumberPaginationWithoutCount()
+            paginator_class = PageNumberPaginationWithoutCount
     else:
         if LimitOffsetPagination.limit_query_param in request.GET:
-            paginator = LimitOffsetPagination()
+            paginator_class = LimitOffsetPagination
         else:
-            paginator = PageNumberPagination()
-    return paginator
+            paginator_class = PageNumberPagination
+    return paginator_class(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)
 
 
 def parse_limit_linked_items_params(request) -> Optional[int]:

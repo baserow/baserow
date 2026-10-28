@@ -1,4 +1,4 @@
-from rest_framework.pagination import LimitOffsetPagination
+from baserow.api.pagination import LimitOffsetPagination
 
 
 class GalleryLimitOffsetPagination(LimitOffsetPagination):

@@ -954,4 +954,48 @@ describe('Kanban view store', () => {
     expect(store.state.field.items[0].id).toBe(1)
     expect(store.state.field.items[0].select_options).toHaveLength(1)
   })
+
+  test('row requests stay within the row page size limit', async () => {
+    const kanbanStoreWithView = testApp.createStore({
+      modules: {
+        kanban: kanbanStore,
+        view: {
+          namespaced: true,
+          getters: { get: () => () => view },
+        },
+      },
+    })
+    const originalLimit =
+      kanbanStoreWithView.$config.public.baserowRowPageSizeLimit
+    kanbanStoreWithView.$config.public.baserowRowPageSizeLimit = 20
+
+    const requests = []
+    testApp.mock.onGet('/database/views/kanban/1/').reply((config) => {
+      requests.push({
+        limit: config.params.get('limit'),
+        selectOptions: config.params.getAll('select_option'),
+      })
+      return [
+        200,
+        { rows: { 1: { count: 30, results: [] } }, field_options: {} },
+      ]
+    })
+
+    try {
+      await kanbanStoreWithView.dispatch('kanban/fetchInitial', {
+        kanbanId: 1,
+        singleSelectFieldId: 1,
+      })
+      await kanbanStoreWithView.dispatch('kanban/fetchMore', {
+        selectOptionId: 1,
+      })
+    } finally {
+      kanbanStoreWithView.$config.public.baserowRowPageSizeLimit = originalLimit
+    }
+
+    expect(requests).toEqual([
+      { limit: '20', selectOptions: [] },
+      { limit: '20', selectOptions: ['1,20,0'] },
+    ])
+  })
 })
