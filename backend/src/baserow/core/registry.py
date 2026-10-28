@@ -557,6 +557,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         self,
         instance: T,
         prop_name: str,
+        import_export_config: Optional[Any] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -567,6 +568,7 @@ class EasyImportExportMixin(Generic[T], ABC):
 
         :param instance: the instance to serialize.
         :param prop_name: the prop name to serialize.
+        :param import_export_config: Export settings to pass to nested objects.
         :return: the serialized version of for the given prop_name
         """
 
@@ -598,6 +600,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         `import_serialized` method. This dict is also JSON serializable.
 
         :param instance: The instance that must be serialized.
+        :param import_export_config: Export settings, including sensitive data handling.
         :param files_zip: The zip file where the files must be stored.
         :param storage: The storage where the files must be stored.
         :param cache: The cache instance that is used to cache the files.
@@ -613,7 +616,12 @@ class EasyImportExportMixin(Generic[T], ABC):
                 None
                 if exclude_sensitive_data and key in self.sensitive_fields
                 else self.serialize_property(
-                    instance, key, files_zip=files_zip, storage=storage, cache=cache
+                    instance,
+                    key,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                    cache=cache,
                 )
             )
             for key in self.get_property_names()

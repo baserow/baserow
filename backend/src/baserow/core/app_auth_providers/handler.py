@@ -8,6 +8,7 @@ from baserow.core.app_auth_providers.auth_provider_types import AppAuthProviderT
 from baserow.core.app_auth_providers.models import AppAuthProvider
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
 from baserow.core.auth_provider.handler import BaseAuthProviderHandler
+from baserow.core.registries import ImportExportConfig
 
 if TYPE_CHECKING:
     from baserow.core.user_sources.models import UserSource
@@ -64,13 +65,18 @@ class AppAuthProviderHandler(BaseAuthProviderHandler):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: ImportExportConfig | None = None,
     ):
         """
-        Export an app auth provider.
+        Export an app auth provider using the parent's export settings.
         """
 
         return app_auth_provider.get_type().export_serialized(
-            app_auth_provider, files_zip=files_zip, storage=storage, cache=cache
+            app_auth_provider,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     @classmethod

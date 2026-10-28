@@ -629,7 +629,11 @@ class PageHandler:
         # Get serialized version of all elements of the current page
         serialized_elements = [
             ElementHandler().export_element(
-                e, files_zip=files_zip, storage=storage, cache=cache
+                e,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for e in ElementHandler().get_elements(page=page)
         ]

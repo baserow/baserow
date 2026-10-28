@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from typing import TypedDict
+
 from django.core.exceptions import ImproperlyConfigured
 
 import pytest
@@ -9,10 +12,11 @@ from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
     InstanceTypeDoesNotExist,
 )
-from baserow.core.registries import subject_type_registry
+from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
+    EasyImportExportMixin,
     Instance,
     MapAPIExceptionsInstanceMixin,
     ModelInstanceMixin,
@@ -221,3 +225,52 @@ def test_get_subject_returns_none_for_a_deleted_subject(data_fixture):
 
 def test_get_subject_returns_none_for_a_type_not_stored_in_the_database():
     assert subject_type_registry.get_subject(AnonymousUserSubjectType.type, 1) is None
+
+
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False, None])
+def test_easy_export_redacts_nested_sensitive_fields(exclude_sensitive_data):
+    """Nested exports inherit redaction settings without changing their source."""
+
+    class ChildType(EasyImportExportMixin):
+        sensitive_fields = ["token"]
+
+        class SerializedDict(TypedDict):
+            name: str
+            token: str
+
+    class ParentType(EasyImportExportMixin):
+        class SerializedDict(TypedDict):
+            child: dict
+
+        def serialize_property(
+            self, instance, prop_name, import_export_config=None, **kwargs
+        ):
+            if prop_name == "child":
+                return ChildType().export_serialized(
+                    instance.child, import_export_config=import_export_config, **kwargs
+                )
+            return super().serialize_property(
+                instance, prop_name, import_export_config=import_export_config, **kwargs
+            )
+
+    child = SimpleNamespace(name="API", token="secret")
+    config = (
+        None
+        if exclude_sensitive_data is None
+        else ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=exclude_sensitive_data,
+        )
+    )
+
+    exported = ParentType().export_serialized(
+        SimpleNamespace(child=child), import_export_config=config
+    )
+
+    assert exported == {
+        "child": {
+            "name": "API",
+            "token": None if exclude_sensitive_data else "secret",
+        }
+    }
+    assert child.token == "secret"

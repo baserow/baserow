@@ -195,6 +195,7 @@ class LocalBaserowTableServiceFilterableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -214,7 +215,12 @@ class LocalBaserowTableServiceFilterableMixin:
             return self.serialize_filter_groups(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_filters(self, value, id_mapping, import_export_config=None):
@@ -738,6 +744,7 @@ class LocalBaserowTableServiceSortableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -754,7 +761,12 @@ class LocalBaserowTableServiceSortableMixin:
             return self.serialize_sortings(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_sorts(self, value, id_mapping, import_export_config=None):

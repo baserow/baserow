@@ -558,3 +558,28 @@ def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
     assert imported.slug != dashboard.slug
     assert imported.public_password == ""
     assert imported.show_logo is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_dashboard_export_passes_config_to_widgets(
+    data_fixture, monkeypatch, exclude_sensitive_data
+):
+    """Widget types can redact their configuration during a Dashboard export."""
+
+    widget = data_fixture.create_summary_widget(title="Private")
+    monkeypatch.setattr(widget.get_type(), "sensitive_fields", ["title"])
+
+    exported = DashboardApplicationType().export_serialized(
+        widget.dashboard,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=exclude_sensitive_data,
+        ),
+    )
+
+    assert exported["widgets"][0]["title"] == (
+        None if exclude_sensitive_data else "Private"
+    )
+    widget.refresh_from_db()
+    assert widget.title == "Private"

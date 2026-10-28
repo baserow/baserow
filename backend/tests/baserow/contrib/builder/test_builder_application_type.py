@@ -29,6 +29,7 @@ from baserow.contrib.builder.models import (
 )
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.handler import ThemeHandler
+from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -2387,3 +2388,38 @@ def test_get_application_id_for_url(data_fixture, settings):
         )
         == builder_to.id
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_builder_export_passes_config_to_elements_and_theme(
+    data_fixture, monkeypatch, exclude_sensitive_data
+):
+    """Element and theme types can redact values during a full Builder export."""
+
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_heading_element(page=page, value="Private")
+    theme_type = theme_config_block_registry.get("typography")
+    theme = getattr(page.builder, theme_type.related_name_in_builder_model)
+    monkeypatch.setattr(element.get_type(), "sensitive_fields", ["value"])
+    monkeypatch.setattr(theme_type, "sensitive_fields", ["heading_1_font_family"])
+
+    exported = BuilderApplicationType().export_serialized(
+        page.builder,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=exclude_sensitive_data,
+        ),
+    )
+
+    exported_page = next(p for p in exported["pages"] if p["id"] == page.id)
+    assert exported_page["elements"][0]["value"] == (
+        None if exclude_sensitive_data else element.value
+    )
+    assert exported["theme"]["heading_1_font_family"] == (
+        None if exclude_sensitive_data else theme.heading_1_font_family
+    )
+    element.refresh_from_db()
+    theme.refresh_from_db()
+    assert element.value["formula"] == "Private"
+    assert theme.heading_1_font_family is not None

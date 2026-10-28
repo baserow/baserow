@@ -638,10 +638,12 @@ class ElementHandler:
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        import_export_config: ImportExportConfig | None = None,
     ):
         """
         Serializes the given element.
 
+        :param import_export_config: Export settings passed to nested objects.
         :param element: The instance to serialize.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Storage to use.
@@ -649,7 +651,11 @@ class ElementHandler:
         """
 
         return element.get_type().export_serialized(
-            element, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def get_import_context_addition(

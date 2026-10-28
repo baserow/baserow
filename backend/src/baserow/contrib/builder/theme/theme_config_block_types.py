@@ -178,6 +178,7 @@ class PageThemeConfigBlockType(ThemeConfigBlockType):
         self,
         theme_config_block: ThemeConfigBlock,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -198,6 +199,7 @@ class PageThemeConfigBlockType(ThemeConfigBlockType):
         return super().serialize_property(
             theme_config_block,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

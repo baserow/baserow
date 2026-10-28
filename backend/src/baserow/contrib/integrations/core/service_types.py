@@ -400,6 +400,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         self,
         service: CoreHTTPRequestService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -436,7 +437,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -1340,6 +1346,7 @@ class CoreRouterServiceType(CoreServiceType):
         self,
         service: CoreRouterService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1365,7 +1372,12 @@ class CoreRouterServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
@@ -2220,6 +2232,7 @@ class CoreResponseServiceType(CoreServiceType):
         self,
         service: CoreResponseService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2234,7 +2247,12 @@ class CoreResponseServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -2460,6 +2478,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         self,
         service: CoreHTTPTriggerService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2478,7 +2497,12 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             return str(service.uid)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def process_webhook_request(
