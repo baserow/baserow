@@ -70,12 +70,23 @@
                 v$.values.ai_settings?.[providerType.type]?.[setting.key]
                   ?.$errors[0]?.$message
               "
-              :required="!setting.optional"
+              :required="isSettingRequired(providerType.type, setting)"
               class="margin-bottom-2"
             >
               <FormInput
                 v-model.trim="
                   v$.values.ai_settings[providerType.type][setting.key].$model
+                "
+                v-bind="
+                  setting.key === 'api_key'
+                    ? {
+                        type: 'password',
+                        autocomplete: 'new-password',
+                        placeholder: canKeepStoredApiKey(providerType.type)
+                          ? $t('aiForm.apiKeyKeepPlaceholder')
+                          : '',
+                      }
+                    : {}
                 "
                 @blur="
                   v$.values.ai_settings[providerType.type][setting.key].$touch()
@@ -164,6 +175,11 @@ export default {
           type,
           this.values.ai_settings[type]
         )
+        if (this.hasStoredApiKey(type) && 'api_key' in parsedValues) {
+          // Untouched (`null`) is dropped on submit to keep the stored key; an
+          // empty string clears it.
+          parsedValues.api_key = null
+        }
         this.values.ai_settings[type] = parsedValues
       }
     })
@@ -176,6 +192,36 @@ export default {
     getProviderSettings(providerType) {
       const modelType = this.$registry.get('generativeAIModel', providerType)
       return modelType ? modelType.getSettings() : []
+    },
+    hasStoredApiKey(providerType) {
+      // The API never returns the key itself, only whether one is saved.
+      return (
+        this.defaultValues.ai_settings?.[providerType]?.has_api_key === true
+      )
+    },
+    /**
+     * Mirrors the backend: the stored key is only kept while every connection
+     * setting other than the key and `models` is unchanged.
+     */
+    canKeepStoredApiKey(providerType) {
+      if (!this.hasStoredApiKey(providerType)) {
+        return false
+      }
+      const stored = this.defaultValues.ai_settings[providerType]
+      const current = this.values.ai_settings[providerType] || {}
+      return this.getProviderSettings(providerType)
+        .filter(({ key }) => key !== 'api_key' && key !== 'models')
+        .every(({ key }) => (current[key] || '') === (stored[key] || ''))
+    },
+    isSettingRequired(providerType, setting) {
+      if (
+        setting.key === 'api_key' &&
+        this.values.ai_settings[providerType]?.api_key === null &&
+        this.canKeepStoredApiKey(providerType)
+      ) {
+        return false
+      }
+      return !setting.optional
     },
     isProviderOverridden(providerType) {
       return this.providerOverrides[providerType] || false
@@ -206,7 +252,7 @@ export default {
 
           settings.forEach((setting) => {
             const value = this.values.ai_settings[type][setting.key]
-            if (value !== undefined) {
+            if (value !== undefined && value !== null) {
               const serialize = setting.serialize || ((value) => value)
               serializedSettings[type][setting.key] = serialize(value)
             }
@@ -234,9 +280,12 @@ export default {
         const settings = this.getProviderSettings(type)
         const providerValidations = {}
         settings.forEach((setting) => {
-          providerValidations[setting.key] = setting.optional
-            ? {}
-            : { required }
+          providerValidations[setting.key] = this.isSettingRequired(
+            type,
+            setting
+          )
+            ? { required }
+            : {}
         })
 
         validations.values.ai_settings[type] = providerValidations

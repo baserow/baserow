@@ -132,7 +132,8 @@
     "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. A provider override is self-contained: include its own credentials or host, because connection fields are never combined with inherited credentials.",
     "overrideWorkspaceSettings": "Override workspace settings for this provider",
     "inherited": "Inherited",
-    "overridden": "Overridden"
+    "overridden": "Overridden",
+    "apiKeyKeepPlaceholder": "Leave blank to keep the saved API key"
   },
   "aiAgentServiceForm": {
     "integrationLabel": "Integration",

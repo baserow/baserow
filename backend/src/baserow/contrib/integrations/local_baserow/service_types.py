@@ -23,6 +23,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.database.api.fields.serializers import (
     FieldSerializer,
     serialize_public_field,
@@ -122,6 +123,7 @@ from baserow.core.formula.validator import (
     ensure_object,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
@@ -296,6 +298,49 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     class SerializedDict(ServiceDict):
         table_id: int
+
+    def get_acting_user(
+        self, service: ServiceSubClass, dispatch_context: DispatchContext
+    ) -> Subject:
+        """
+        Returns the subject whose permissions and identity this dispatch runs under,
+        once the service's table is checked to belong to its integration's
+        workspace, as the table is read through the integration.
+
+        :param service: The service being dispatched.
+        :param dispatch_context: The context this dispatch runs in.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table belongs
+            to another workspace, or no subject can act.
+        :return: The acting subject.
+        """
+
+        if service.table_id and not self.is_table_in_integration_workspace(service):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table belongs to another workspace."
+            )
+
+        return super().get_acting_user(service, dispatch_context)
+
+    def is_table_in_integration_workspace(
+        self, service: ServiceSubClass, table: Optional["Table"] = None
+    ) -> bool:
+        """
+        Returns whether the service's table belongs to its integration's workspace,
+        as the table is read through the integration. A service without an
+        integration has nothing to compare against.
+
+        :param service: The service in question.
+        :param table: The service's table, if already at hand.
+        :return: True when the table may be read through the integration.
+        """
+
+        if not service.integration_id:
+            return True
+
+        table = table or service.table
+        return IntegrationHandler().is_integration_usable(
+            service.integration, workspace_id=table.database.workspace_id
+        )
 
     def get_permission_workspace(self, service: ServiceSubClass) -> Workspace:
         """
@@ -599,7 +644,48 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             else:
                 values["table"] = None
 
-        return super().prepare_values(values, user, instance)
+        values = super().prepare_values(values, user, instance)
+        self._check_table_workspace(values, instance)
+        return values
+
+    def _check_table_workspace(
+        self, values: Dict[str, Any], instance: Optional[ServiceSubClass] = None
+    ):
+        """
+        Validates that the service's table belongs to its integration's workspace,
+        as the table is read through the integration.
+
+        :param values: The prepared values.
+        :param instance: The current instance if it exists.
+        :raises RequestBodyValidationException: When the table belongs to another
+            workspace.
+        """
+
+        table = (
+            values["table"] if "table" in values else getattr(instance, "table", None)
+        )
+        integration = (
+            values["integration"]
+            if "integration" in values
+            else getattr(instance, "integration", None)
+        )
+        if table is None or integration is None:
+            return
+
+        if not IntegrationHandler().is_integration_usable(
+            integration, workspace_id=table.database.workspace_id
+        ):
+            raise RequestBodyValidationException(
+                {
+                    "table_id": [
+                        {
+                            "detail": f"The table with ID {table.id} is not related "
+                            "to the given workspace.",
+                            "code": "invalid_table",
+                        }
+                    ]
+                }
+            )
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
@@ -3048,8 +3134,17 @@ class LocalBaserowRowsSignalTriggerServiceType(
 
             return self._prepare_result(local_model, data_to_process)
 
+        # A service reading the table through an integration of another
+        # workspace isn't dispatched.
+        services = [
+            service
+            for service in self._get_services_to_dispatch(
+                table, **kwargs
+            ).select_related("integration__application")
+            if self.is_table_in_integration_workspace(service, table)
+        ]
         self._process_event(
-            self._get_services_to_dispatch(table, **kwargs),
+            services,
             get_data,
             user=user,
         )

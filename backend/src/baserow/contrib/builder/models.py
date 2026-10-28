@@ -152,6 +152,6 @@ class Builder(Application):
 
         if not self.workspace_id:
             domain = DomainHandler().get_domain_for_builder(self)
-            return domain.builder.workspace
+            return domain.builder.workspace if domain else None
         else:
             return self.workspace

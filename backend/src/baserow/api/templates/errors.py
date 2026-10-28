@@ -30,3 +30,13 @@ ERROR_NO_APPLICATIONS_SELECTED = (
     HTTP_400_BAD_REQUEST,
     "At least one application must be selected.",
 )
+ERROR_TEMPLATE_BLOCKED = (
+    "ERROR_TEMPLATE_BLOCKED",
+    HTTP_400_BAD_REQUEST,
+    "The template is blocked and can't be installed.",
+)
+ERROR_TEMPLATE_UPDATED = (
+    "ERROR_TEMPLATE_UPDATED",
+    HTTP_400_BAD_REQUEST,
+    "The template was updated after it was opened.",
+)

@@ -2365,7 +2365,7 @@ def test_local_baserow_fields_updated_prepare_values_resets_field_on_table_chang
     )
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
-    new_table = data_fixture.create_database_table(user=user)
+    new_table = data_fixture.create_database_table(database=table.database, user=user)
     service = data_fixture.create_local_baserow_fields_updated_service(
         table=table, fields=[field]
     )

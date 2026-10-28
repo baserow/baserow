@@ -6,6 +6,7 @@
     :icon="icon"
     append-icon="iconoir-nav-arrow-down"
     :disabled="readOnly"
+    :loading="loading"
     aria-haspopup="true"
     @click="$emit('click', $event)"
   >
@@ -20,6 +21,7 @@ defineProps({
   icon: { type: String, default: 'iconoir-shield' },
   roleName: { type: String, required: true },
   readOnly: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
 })
 defineEmits(['click'])
 </script>

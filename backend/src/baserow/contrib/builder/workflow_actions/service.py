@@ -7,6 +7,9 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.preview import BuilderPreviewActor
 from baserow.contrib.builder.workflow_actions.exceptions import (
@@ -43,7 +46,7 @@ from baserow.contrib.builder.workflow_actions.types import (
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
 )
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
@@ -352,6 +355,17 @@ class BuilderWorkflowActionService:
             workspace=workflow_action.page.builder.workspace,
             context=workflow_action,
         )
+
+        # The permission managers already enforce this, but only as long as
+        # `element_visibility` runs before `allow_public_builder`. Check it here
+        # too so a hidden element's action can never be dispatched.
+        visibility_manager = ElementVisibilityPermissionManager()
+        if visibility_manager.actor_is_supported(
+            user
+        ) and not visibility_manager.actor_can_dispatch_workflow_action(
+            user, workflow_action
+        ):
+            raise PermissionDenied(user)
 
         # A published builder has no workspace of its own; the licence that
         # decides whether the action type may run is the one of the workspace

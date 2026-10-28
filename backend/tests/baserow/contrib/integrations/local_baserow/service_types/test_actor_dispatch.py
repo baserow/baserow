@@ -98,7 +98,9 @@ def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
         user=user,
         authorized_agent=agent,
     )
-    table, name_field = _table_with_name_field(data_fixture, user)
+    table, name_field = _table_with_name_field(
+        data_fixture, user, workspace=page.builder.workspace
+    )
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration,
         table=table,
@@ -151,8 +153,12 @@ def test_get_permission_workspace_falls_back_to_the_table(data_fixture):
     assert workspace == table.database.workspace
 
 
-def _table_with_name_field(data_fixture, user):
-    database = data_fixture.create_database_application(user=user)
+def _table_with_name_field(data_fixture, user, workspace=None):
+    database = (
+        data_fixture.create_database_application(user=user)
+        if workspace is None
+        else data_fixture.create_database_application(workspace=workspace)
+    )
     table = TableHandler().create_table_and_fields(
         user=user,
         database=database,

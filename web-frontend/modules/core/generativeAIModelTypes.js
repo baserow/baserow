@@ -63,6 +63,10 @@ export class GenerativeAIModelType extends Registerable {
       return false
     }
     return this.getRequiredIntegrationSettings().every((key) => {
+      // The API returns a saved key as `has_api_key`, never the key itself.
+      if (key === 'api_key' && settings.has_api_key === true) {
+        return true
+      }
       const value = settings[key]
       return typeof value === 'string' ? value.trim() !== '' : Boolean(value)
     })

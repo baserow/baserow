@@ -1,7 +1,8 @@
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser
+from django.db import OperationalError, transaction
 
 from rest_framework import serializers
 
@@ -27,8 +28,11 @@ from baserow.api.import_export.serializers import (
     InstalledApplicationsSerializer,
 )
 from baserow.api.templates.errors import (
+    ERROR_TEMPLATE_BLOCKED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
+    ERROR_TEMPLATE_HAS_NO_CONTENT,
+    ERROR_TEMPLATE_UPDATED,
 )
 from baserow.api.templates.serializers import TemplateSerializer
 from baserow.api.workspaces.serializers import WorkspaceSerializer
@@ -42,12 +46,16 @@ from baserow.core.actions import (
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     DuplicateApplicationMaxLocksExceededException,
+    InstallTemplateMaxLocksExceededException,
     PermissionDenied,
+    PermissionException,
     TemplateDoesNotExist,
     TemplateFileDoesNotExist,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
+    is_max_lock_exceeded_exception,
 )
+from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -55,6 +63,9 @@ from baserow.core.import_export.exceptions import (
     ImportExportResourceInvalidFile,
 )
 from baserow.core.import_export.handler import ImportExportHandler
+from baserow.core.jobs.constants import JOB_CANCELLED
+from baserow.core.jobs.exceptions import JobCancelled
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import JobType
 from baserow.core.models import (
     Application,
@@ -63,6 +74,7 @@ from baserow.core.models import (
     ImportApplicationsJob,
     ImportExportResource,
     InstallTemplateJob,
+    Template,
 )
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
@@ -70,7 +82,13 @@ from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
 )
 from baserow.core.service import CoreService
-from baserow.core.utils import Progress
+from baserow.core.user_templates.exceptions import (
+    TemplateBlocked,
+    TemplateHasNoContent,
+    TemplateUpdated,
+)
+from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.utils import ChildProgressBuilder, Progress
 
 
 class DuplicateApplicationJobType(JobType):
@@ -146,12 +164,30 @@ class InstallTemplateJobType(JobType):
     type = "install_template"
     model_class = InstallTemplateJob
     max_count = 1
+    # A user template is installed in a transaction the job commits itself, see
+    # `_commit_install`.
+    lock_on_cancel = True
 
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
         TemplateFileDoesNotExist: ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
+        TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+        TemplateUpdated: ERROR_TEMPLATE_UPDATED,
+        InstallTemplateMaxLocksExceededException: ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED,
+    }
+
+    # The access is checked again when a user template is installed, see `run`.
+    # The first matching exception wins, so a subclass comes before its parent.
+    job_exceptions_map = {
+        UserNotInWorkspace: "The user doesn't belong to the workspace.",
+        PermissionException: ERROR_PERMISSION_DENIED[2],
+        TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
+        TemplateHasNoContent: "The content of the template was removed.",
+        InstallTemplateMaxLocksExceededException: InstallTemplateMaxLocksExceededException.message,
     }
 
     request_serializer_field_names = [
@@ -195,20 +231,67 @@ class InstallTemplateJobType(JobType):
             context=workspace,
         )
 
-        # ensure everything is ok for the installation, otherwise
-        # raise an exception immediately without submitting the job
-        template = handler.get_template(values["template_id"])
-        handler.get_valid_template_path_or_raise(template)
+        # Only the root is looked up, so the id of a revision is unknown too.
+        root = Template.objects.filter(
+            id=values["template_id"],
+            root__isnull=True,
+            marked_for_deletion_at__isnull=True,
+        ).first()
+        # With the feature off, a user template is looked up like an official one
+        # below, which doesn't find it.
+        if (
+            root is not None
+            and root.type == Template.Type.USER
+            and feature_flag_is_enabled(FF_USER_TEMPLATES)
+        ):
+            # The resolved revision is pinned, so that an update of the template
+            # before the job runs doesn't change what's installed.
+            template = UserTemplateHandler().get_installable_revision(
+                user, root, latest=values.get("latest", False)
+            )
+            # The user installs the revision they were shown. If another one was
+            # made public, or the owner updated it in another tab since, the user
+            # is told, so that they see what they install first.
+            revision_id = values.get("revision_id")
+            if revision_id is not None and revision_id != template.id:
+                raise TemplateUpdated(
+                    f"The template {root.id} was updated after revision "
+                    f"{revision_id} was shown."
+                )
+        else:
+            # ensure everything is ok for the installation, otherwise
+            # raise an exception immediately without submitting the job
+            template = handler.get_template(values["template_id"])
+            handler.get_valid_template_path_or_raise(template)
 
         return {
             "workspace": workspace,
             "template": template,
         }
 
+    def enhance_queryset(self, queryset):
+        return queryset.select_related("workspace", "template__root")
+
+    def transaction_atomic_context(self, job: InstallTemplateJob):
+        # The export of a user template runs its own transactions, so `run` opens
+        # the transaction of the install itself.
+        if job.template.type == Template.Type.USER:
+            return nullcontext()
+        return super().transaction_atomic_context(job)
+
+    def is_cancellable(self, job: InstallTemplateJob) -> bool:
+        # A user template install is committed with its `installed_applications`.
+        # An official install sets them in the transaction of the job, so it stays
+        # cancellable until it ends.
+        return not job.installed_applications
+
     def run(self, job: InstallTemplateJob, progress: Progress) -> List[Application]:
         progress_builder = progress.create_child_builder(
             represents_progress=progress.total
         )
+
+        if job.template.type == Template.Type.USER:
+            return self._run_user_template_install(job, progress_builder)
 
         installed_applications = action_type_registry.get_by_type(
             InstallTemplateActionType
@@ -218,6 +301,75 @@ class InstallTemplateJobType(JobType):
         job.save(update_fields=("installed_applications",))
 
         return installed_applications
+
+    def _run_user_template_install(
+        self, job: InstallTemplateJob, progress_builder: ChildProgressBuilder
+    ) -> List[Application]:
+        """
+        Installs the pinned revision of a user template. Its content is
+        serialized first, outside any transaction, and everything written into the
+        target workspace, the count included, is committed together at the commit
+        point, so that a failure or a cancellation leaves nothing behind.
+        """
+
+        # The access may have changed since the job was requested.
+        CoreHandler().check_permissions(
+            job.user,
+            CreateApplicationsWorkspaceOperationType.type,
+            workspace=job.workspace,
+            context=job.workspace,
+        )
+        user_template_handler = UserTemplateHandler()
+        user_template_handler.check_install_access(job.user, job.template)
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
+        try:
+            content = user_template_handler.serialize_template_content(
+                job.template,
+                progress_builder=progress.create_child_builder(represents_progress=50),
+            )
+            with transaction.atomic():
+                installed_applications = action_type_registry.get_by_type(
+                    InstallTemplateActionType
+                ).do(
+                    job.user,
+                    job.workspace,
+                    job.template,
+                    progress_builder=progress.create_child_builder(
+                        represents_progress=50
+                    ),
+                    content=content,
+                )
+                self._commit_install(job, installed_applications)
+        except BaseException as exc:
+            # Nothing was committed, so the job must not be saved as if it had.
+            job.installed_applications = []
+            # Caught outside the transaction, which is rolled back by now.
+            if isinstance(exc, OperationalError) and is_max_lock_exceeded_exception(
+                exc
+            ):
+                raise InstallTemplateMaxLocksExceededException() from exc
+            raise
+
+        return installed_applications
+
+    def _commit_install(
+        self, job: InstallTemplateJob, installed_applications: List[Application]
+    ) -> None:
+        """
+        Commits the install of a user template, as the last step of its
+        transaction. The row of the job stays locked until the transaction
+        commits, so a cancellation is either noticed here or refused afterwards,
+        see `is_cancellable`.
+
+        :raises JobCancelled: If the job was cancelled in the meantime.
+        """
+
+        if JobHandler.lock_job(job).state == JOB_CANCELLED:
+            raise JobCancelled()
+
+        job.installed_applications = [app.id for app in installed_applications]
+        job.save(update_fields=("installed_applications",))
 
 
 @contextmanager

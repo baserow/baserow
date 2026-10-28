@@ -20,6 +20,12 @@ EXPECTED = {
     "delete_fields": (False, True),
     "create_views": (False, False),
     "create_view_filters": (False, False),
+    "list_workflows": (True, False),
+    "list_nodes": (True, False),
+    "create_workflows": (False, False),
+    "add_nodes": (False, False),
+    "update_nodes": (False, True),
+    "delete_nodes": (False, True),
     # Disabled tools, annotated so they are ready when enabled.
     "update_table": (False, True),
     "delete_table": (False, True),

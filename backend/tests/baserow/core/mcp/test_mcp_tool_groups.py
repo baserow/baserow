@@ -3,6 +3,10 @@ from django.shortcuts import reverse
 import pytest
 
 from baserow.core.mcp.groups import (
+    AREA_AUTOMATION,
+    GROUP_AUTOMATION_DELETE,
+    GROUP_AUTOMATION_EDIT,
+    GROUP_AUTOMATION_READ,
     GROUP_DATABASE_DELETE,
     GROUP_DATABASE_EDIT,
     GROUP_DATABASE_READ,
@@ -49,11 +53,29 @@ def test_core_database_tool_groups():
     assert "create_table" not in groups
 
 
+def test_core_automation_tool_groups():
+    groups = {tool.name: tool.group for tool in mcp_tool_registry.get_all()}
+    assert groups["list_workflows"] == GROUP_AUTOMATION_READ
+    assert groups["list_nodes"] == GROUP_AUTOMATION_READ
+    assert groups["create_workflows"] == GROUP_AUTOMATION_EDIT
+    assert groups["add_nodes"] == GROUP_AUTOMATION_EDIT
+    assert groups["update_nodes"] == GROUP_AUTOMATION_EDIT
+    assert groups["delete_nodes"] == GROUP_AUTOMATION_DELETE
+    for group in (
+        GROUP_AUTOMATION_READ,
+        GROUP_AUTOMATION_EDIT,
+        GROUP_AUTOMATION_DELETE,
+    ):
+        assert mcp_tool_group_registry.get(group).area == AREA_AUTOMATION
+
+
 def test_read_only_preset_groups_hold_only_read_only_tools():
     preset = {g.type for g in mcp_tool_group_registry.get_all() if g.read_only_preset}
     assert GROUP_DATABASE_READ in preset
     assert GROUP_DATABASE_EDIT not in preset
     assert GROUP_DATABASE_DELETE not in preset
+    # Automations are turned on in Settings, not by the preset.
+    assert GROUP_AUTOMATION_READ not in preset
     for tool in mcp_tool_registry.get_all():
         if tool.group in preset:
             assert tool.read_only, tool.name

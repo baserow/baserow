@@ -7,7 +7,7 @@
         :workspace="workspace"
         :scope-type-name="scopeTypeName"
         :subjects="pickableSubjects"
-        :assigned-keys="assignedKeys"
+        :assigned-roles="assignedRoles"
         :pending-emails="pendingEmails"
         :inherited-admins="inheritedAdmins"
         :roles="assignableRoles"
@@ -15,41 +15,50 @@
         :email-disabled-reason="emailDisabledReason"
         :disabled="loading || adding"
         @add="add"
-      />
-      <p v-if="emailDisabledReason" class="margin-top-1">
-        {{ emailDisabledReason }}
-      </p>
-      <CaptchaWidget
-        v-if="canInviteNewUsers"
-        ref="captchaWidget"
-        class="margin-top-2"
-        context="workspace_invitation"
-        @token="onCaptchaToken"
-      />
-      <h3 class="invite-list__title">
-        {{ $t('shareScope.directAccess', { type: scopeTypeName }) }}
-      </h3>
-      <div v-if="loading" class="loading"></div>
-      <ScopeAccessList
-        v-else
-        :items="accessItems"
-        :roles="assignableRoles"
-        :empty-title="$t('shareScope.emptyTitle', { type: scopeTypeName })"
-        :empty-description="$t('shareScope.emptyDescription')"
-        :workspace="workspace"
-        @role-updated="updateItemRole"
-      />
-      <h3 class="invite-list__title">
-        {{ $t('shareScope.inheritedAccess') }}
-        <span class="invite-list__title-muted">
-          {{ $t('shareScope.inherited') }}
-        </span>
-      </h3>
-      <ScopeInheritedAccess
-        :workspace="workspace"
-        :scope-type-name="scopeTypeName"
-      />
+      >
+        <p v-if="emailDisabledReason" class="margin-top-1">
+          {{ emailDisabledReason }}
+        </p>
+        <CaptchaWidget
+          v-if="canInviteNewUsers"
+          ref="captchaWidget"
+          class="margin-top-2"
+          context="workspace_invitation"
+          @token="onCaptchaToken"
+        />
+        <h3 class="invite-list__title">
+          {{ $t('shareScope.directAccess', { type: scopeTypeName }) }}
+        </h3>
+        <div v-if="loading" class="loading"></div>
+        <ScopeAccessList
+          v-else
+          :items="accessItems"
+          :roles="assignableRoles"
+          :empty-title="$t('shareScope.emptyTitle', { type: scopeTypeName })"
+          :empty-description="$t('shareScope.emptyDescription')"
+          :workspace="workspace"
+          @role-updated="updateItemRole"
+        />
+        <h3 class="invite-list__title">
+          {{ $t('shareScope.inheritedAccess') }}
+          <span class="invite-list__title-muted">
+            {{ $t('shareScope.inherited') }}
+          </span>
+        </h3>
+        <div v-if="loading" class="loading"></div>
+        <ScopeInheritedAccess
+          v-else-if="effectiveAccess !== null"
+          :workspace="workspace"
+          :target="target"
+          :target-type="targetType"
+          :effective-access="effectiveAccess"
+          :direct-keys="Object.keys(assignedRoles)"
+          @navigate="$emit('navigate', $event)"
+          @close="$emit('close')"
+        />
+      </ShareScopeInput>
     </template>
+    <ScopeNoAccessModal ref="noAccessModal" />
   </div>
 </template>
 
@@ -62,6 +71,7 @@ import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ScopeInheritedAccess from '@baserow_enterprise/components/invitation/ScopeInheritedAccess'
+import ScopeNoAccessModal from '@baserow_enterprise/components/invitation/ScopeNoAccessModal'
 import ShareScopeInput from '@baserow_enterprise/components/invitation/ShareScopeInput'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
@@ -71,10 +81,11 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
  * members, teams and agents, with a role on the object, or invites a new person
  * by email with a role on the object only. Below it, everyone with a direct
  * role is listed, pending invitations included, followed by who else reaches
- * the object through the workspace. Subjects can be given no access on the
- * object, which takes it away from them below their workspace role; an
- * invitation can't, as there is no point in inviting someone to nothing. Only
- * assignable subject types take part; anonymous visitors are display-only.
+ * the object through a level above it, by their effective access. Subjects can
+ * be given no access on the object, which takes it away from them below their
+ * workspace role; an invitation can't, as there is no point in inviting someone
+ * to nothing. Only assignable subject types take part; anonymous visitors are
+ * display-only.
  *
  * A user or agent who is an admin of the workspace, or holds the admin role
  * themselves on the database or table the object is in, keeps full access to
@@ -82,6 +93,9 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
  * with an explanation, and the picker lists them with that reason instead of
  * offering them. A team's admin role never protects its members, so it is
  * shown as any other role.
+ *
+ * Following a link out of the dialog, such as to the members page, emits
+ * `close` so that the modal doesn't stay open over that page.
  */
 export default {
   name: 'MemberInvitationRoute',
@@ -89,6 +103,7 @@ export default {
     CaptchaWidget,
     ScopeAccessList,
     ScopeInheritedAccess,
+    ScopeNoAccessModal,
     ShareScopeInput,
   },
   mixins: [error, emailInvitations],
@@ -106,6 +121,7 @@ export default {
       required: true,
     },
   },
+  emits: ['navigate', 'close'],
   data() {
     return {
       loading: false,
@@ -114,6 +130,9 @@ export default {
       roleAssignments: [],
       parentRoleAssignments: {},
       scopedInvitations: [],
+      effectiveAccess: null,
+      // Counts the effective access requests, so only the latest one applies.
+      effectiveAccessRequest: 0,
       subjects: {},
     }
   },
@@ -178,13 +197,18 @@ export default {
       )
     },
     /**
-     * The keys of the members, teams and agents that already hold a role on
-     * the object, which the picker lists as such rather than offers.
+     * The roles of the members, teams and agents that already hold a role on
+     * the object by their key, which the picker lists as such rather than
+     * offers.
      */
-    assignedKeys() {
-      return this.roleAssignments.map(
-        ({ subject_type: subjectType, subject }) =>
-          `${subjectType}:${subject.id}`
+    assignedRoles() {
+      return Object.fromEntries(
+        this.roleAssignments.map(
+          ({ subject_type: subjectType, subject, role }) => [
+            `${subjectType}:${subject.id}`,
+            role,
+          ]
+        )
       )
     },
     pendingEmails() {
@@ -301,9 +325,8 @@ export default {
             subtitle: subjectType.getSubtitle(subject),
             badge: subjectType.getBadge(),
             badgeColor: 'neutral',
-            initials: subjectType.getInitials(subject),
-            icon: subjectType.iconClass,
-            color: subjectType.avatarColor,
+            avatarComponent: subjectType.avatarComponent,
+            subject,
             roleUid: adminLevel ? 'ADMIN' : roleAssignment.role,
             roles: adminLevel
               ? [this.adminRole].filter(Boolean)
@@ -327,6 +350,7 @@ export default {
         this.fetchRoleAssignments(),
         this.fetchParentRoleAssignments(),
         this.fetchScopedInvitations(),
+        this.fetchEffectiveAccess(),
         ...this.subjectTypes.map((subjectType) =>
           this.fetchSubjects(subjectType)
         ),
@@ -352,6 +376,28 @@ export default {
       } catch (error) {
         this.roleAssignments = []
         this.showFetchError()
+      }
+    },
+    /**
+     * Fetches who has access to the object and where it comes from, for the
+     * summary of who reaches it through a level above. Without it the rest of
+     * the dialog still works, so a failure only notifies. Every change refetches
+     * it, so the response of an older request is ignored once a newer one was
+     * made, whichever arrives last.
+     */
+    async fetchEffectiveAccess() {
+      const request = ++this.effectiveAccessRequest
+      try {
+        const { data } = await RoleAssignmentsService(
+          this.$client
+        ).getEffectiveAccess(this.workspace.id, this.scope.id, this.scopeType)
+        if (request === this.effectiveAccessRequest) {
+          this.effectiveAccess = data
+        }
+      } catch (error) {
+        if (request === this.effectiveAccessRequest) {
+          notifyIf(error)
+        }
       }
     },
     /**
@@ -434,10 +480,24 @@ export default {
      * what wasn't added yet is still picked.
      */
     async add(selection, roleUid) {
-      this.adding = true
-      this.hideError()
       const subjects = selection.filter(({ type }) => type !== 'email')
       const emails = selection.filter(({ type }) => type === 'email')
+      if (
+        subjects.length > 0 &&
+        roleUid === 'NO_ACCESS' &&
+        !(await this.$refs.noAccessModal.ask(
+          this.$t(
+            'shareScope.noAccessSelectionDescription',
+            { count: subjects.length, type: this.scopeTypeName },
+            subjects.length
+          )
+        ))
+      ) {
+        return
+      }
+
+      this.adding = true
+      this.hideError()
 
       try {
         if (subjects.length > 0) {
@@ -455,6 +515,7 @@ export default {
             roleAssignments.filter(Boolean)
           )
           subjects.forEach((item) => this.$refs.input.remove(item))
+          this.fetchEffectiveAccess()
         }
         await this.sendInvitations(
           emails,
@@ -478,11 +539,24 @@ export default {
         this.adding = false
       }
     },
-    updateItemRole(item, roleUid) {
+    async updateItemRole(item, roleUid) {
       if (item.kind === 'invitation') {
         return this.updateScopedInvitationRole(item.scopedInvitation, roleUid)
       }
-      return this.updateRoleAssignment(item.roleAssignment, roleUid)
+      if (
+        roleUid === 'NO_ACCESS' &&
+        item.roleUid !== 'NO_ACCESS' &&
+        !(await this.$refs.noAccessModal.ask(
+          this.$t('shareScope.noAccessDescription', {
+            name: item.name,
+            type: this.scopeTypeName,
+          })
+        ))
+      ) {
+        return
+      }
+      await this.updateRoleAssignment(item.roleAssignment, roleUid)
+      this.fetchEffectiveAccess()
     },
     async updateRoleAssignment(roleAssignment, newRole) {
       const index = this.roleAssignments.findIndex(
@@ -517,7 +591,7 @@ export default {
     /**
      * Changes the role a pending invitation grants on the object, or revokes it
      * when `newRole` is null. Only this object is revoked, the invitation itself
-     * stays on the workspace's invites page.
+     * stays pending in the workspace.
      */
     async updateScopedInvitationRole(scopedInvitation, newRole) {
       const index = this.scopedInvitations.findIndex(

@@ -1,3 +1,5 @@
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
@@ -123,6 +125,26 @@ class TeamResponseSerializer(serializers.ModelSerializer):
             "subject_sample",
         )
         extra_kwargs = {"id": {"read_only": True}}
+
+
+class TeamListResponseSerializer(TeamResponseSerializer):
+    """
+    A team in the list of teams, with the number of roles it holds on databases,
+    tables and restricted views, given as `role_assignment_counts` in the context.
+    """
+
+    role_assignment_count = serializers.SerializerMethodField(
+        help_text="Enterprise or advanced only: the number of roles this team holds "
+        "on databases, tables and restricted views whose roles the requesting user "
+        "may read. Null when roles don't apply to the workspace."
+    )
+
+    class Meta(TeamResponseSerializer.Meta):
+        fields = (*TeamResponseSerializer.Meta.fields, "role_assignment_count")
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_role_assignment_count(self, obj):
+        return self.context.get("role_assignment_counts", {}).get(obj)
 
 
 class GetTeamsViewParamsSerializer(

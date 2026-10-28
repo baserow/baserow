@@ -24,6 +24,7 @@
         $t('shareScope.inviteEmailDescription', { role, type: scopeTypeName })
       }}
     </template>
+    <slot></slot>
   </InviteInput>
 </template>
 
@@ -34,12 +35,13 @@ import InviteInput from '@baserow/modules/core/components/invitation/InviteInput
  * The input of the share dialog: the common invite input listing the subjects
  * of the workspace next to new email addresses. `subjects` holds the subjects
  * that can be picked per subject type, and every type in it gets a tab. A
- * subject whose key is in `assignedKeys` already holds a role on the object
+ * subject whose key is in `assignedRoles` already holds a role on the object
  * and an address in `pendingEmails` already has an invitation on it, so both
  * are listed with that reason rather than offered. So is a subject in
  * `inheritedAdmins`, who has full access to the object already. Submitting emits `add` with
  * the picked items and the chosen role uid; the parent calls `remove()` and
- * `reset()` once they were added.
+ * `reset()` once they were added. The default slot is what the dialog shows
+ * below the input, including while the suggestions popup is open.
  */
 export default {
   name: 'ShareScopeInput',
@@ -63,12 +65,13 @@ export default {
       default: () => ({}),
     },
     /**
-     * The `<subject type>:<id>` keys of the subjects with a role on the object.
+     * The role uids of the subjects with a role on the object, as
+     * `{ '<subject type>:<id>': '<role uid>' }`.
      */
-    assignedKeys: {
-      type: Array,
+    assignedRoles: {
+      type: Object,
       required: false,
-      default: () => [],
+      default: () => ({}),
     },
     pendingEmails: {
       type: Array,
@@ -156,8 +159,15 @@ export default {
       })
       return [
         ...subjects.map((option) => {
-          if (this.assignedKeys.includes(option.key)) {
-            return { ...option, disabledReason: assigned }
+          const roleUid = this.assignedRoles[option.key]
+          if (roleUid) {
+            return {
+              ...option,
+              disabledReason: assigned,
+              disabledHint: this.$t('shareScope.roleHere', {
+                role: this.getRoleName(roleUid),
+              }),
+            }
           }
           if (this.inheritedAdmins[option.key]) {
             return {
@@ -166,6 +176,7 @@ export default {
                 type: this.scopeTypeName,
                 level: this.inheritedAdmins[option.key],
               }),
+              disabledHint: this.$t('shareScope.adminHint'),
             }
           }
           return option
@@ -180,11 +191,18 @@ export default {
           icon: 'iconoir-mail',
           color: 'neutral',
           disabledReason: pending,
+          disabledHint: this.$t('inviteInput.invitedHint'),
         })),
       ]
     },
   },
   methods: {
+    getRoleName(roleUid) {
+      return (
+        this.workspace._.roles.find(({ uid }) => uid === roleUid)?.name ??
+        roleUid
+      )
+    },
     /**
      * The tab names as one list for a sentence, like "members, teams, agents"
      * for the `unit` type or "members, teams, or agents" for `disjunction`.

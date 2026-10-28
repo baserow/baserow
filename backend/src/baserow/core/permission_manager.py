@@ -18,6 +18,7 @@ from baserow.core.notifications.operations import (
 from baserow.core.user_sources.operations import (
     ListUserSourcesApplicationOperationType,
     LoginUserSourceOperationType,
+    ReadUserSourceOperationType,
 )
 
 from .agents.operations import (
@@ -45,6 +46,7 @@ from .operations import (
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
     ReadWorkspaceOperationType,
+    RestoreWorkspaceOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -57,6 +59,7 @@ from .registries import (
     subject_type_registry,
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
+from .trash.operations import EmptyWorkspaceTrashOperationType
 
 User = get_user_model()
 
@@ -164,6 +167,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
+        ReadUserSourceOperationType.type,
         LoginUserSourceOperationType.type,
         ReadFieldRuleOperationType.type,
     ]
@@ -399,6 +403,8 @@ class BasicPermissionManagerType(PermissionManagerType):
         ListWorkspaceUsersWorkspaceOperationType.type,
         UpdateWorkspaceOperationType.type,
         DeleteWorkspaceOperationType.type,
+        RestoreWorkspaceOperationType.type,
+        EmptyWorkspaceTrashOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
         CreateAgentOperationType.type,

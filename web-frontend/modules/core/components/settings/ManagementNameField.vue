@@ -1,13 +1,24 @@
 <template>
   <div class="management-name-field">
+    <component
+      :is="column.additionalProps.avatarComponent"
+      v-if="column.additionalProps.avatarComponent"
+      :subject="row"
+      size="large"
+      aria-hidden="true"
+    />
     <Avatar
+      v-else
       :icon="column.additionalProps.icon || ''"
       :initials="column.additionalProps.icon ? '' : initials"
       :color="column.additionalProps.color || 'blue'"
       :rounded="!column.additionalProps.icon"
+      size="large"
       aria-hidden="true"
     />
-    <span class="management-name-field__name">{{ row[column.key] }}</span>
+    <span class="management-name-field__name" :title="row[column.key]">{{
+      row[column.key]
+    }}</span>
     <Badge
       v-if="
         row.user_id != null && row.user_id === column.additionalProps.userId

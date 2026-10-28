@@ -485,7 +485,7 @@ def test_workspace_user_added(
     data_fixture,
 ):
     user_1 = data_fixture.create_user()
-    user_2 = data_fixture.create_user()
+    user_2 = data_fixture.create_user(email_verified=True)
     workspace = data_fixture.create_workspace()
     workspace_user_1 = data_fixture.create_user_workspace(
         user=user_1, workspace=workspace

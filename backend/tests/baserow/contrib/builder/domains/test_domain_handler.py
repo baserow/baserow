@@ -223,7 +223,7 @@ def test_get_published_builder_for_trashed_builder(data_fixture):
 
 
 @pytest.mark.django_db
-def test_domain_publishing(data_fixture):
+def test_domain_publishing(data_fixture, django_capture_on_commit_callbacks):
     builder = data_fixture.create_builder_application()
 
     domain1 = data_fixture.create_builder_custom_domain(builder=builder)
@@ -259,9 +259,10 @@ def test_domain_publishing(data_fixture):
     assert progress.progress == progress.total
 
     # Let's publish it a second time.
-    DomainHandler().publish(domain1, progress)
+    with django_capture_on_commit_callbacks(execute=True):
+        DomainHandler().publish(domain1, progress)
 
-    # Following a re-publish, the builder-by-domain cache is invalidated
+    # Once the re-publish is committed, the builder-by-domain cache is invalidated
     assert global_cache.get(builder_by_domain_cache_key, default="after") == "after"
 
     assert Builder.objects.count() == 2

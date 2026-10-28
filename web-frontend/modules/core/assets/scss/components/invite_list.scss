@@ -1,9 +1,12 @@
 // The lists below the invite input: who already has access, or which
 // invitations are pending.
-.invite-list__title {
-  margin: 24px 0 8px;
+.invite-list__title,
+// Keeps its distance from the input it follows, also as the first heading
+// below it, where headings otherwise lose their top margin.
+.invite-list__title:first-child {
+  margin: 24px 0 12px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: $palette-neutral-1200;
 }
 
@@ -24,6 +27,10 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 0;
+
+  &:first-child {
+    padding-top: 0;
+  }
 
   // Rows are separated from each other, the list has no rule of its own.
   & + & {
@@ -49,30 +56,27 @@
 .invite-list__name {
   display: flex;
   align-items: center;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
   color: $palette-neutral-1200;
 }
 
 .invite-list__subtitle {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 20px;
   color: $palette-neutral-900;
 }
 
 .invite-list__items--scrollable {
-  // Six rows, including text, padding and separators.
-  max-height: 390px;
+  // Show five full rows and half of the next as a cue that the list scrolls.
+  max-height: 357px;
   padding-right: 12px;
   overflow-y: auto;
   scrollbar-gutter: stable;
 
   .invite-list__item {
     min-height: 65px;
-  }
-
-  .invite-list__name,
-  .invite-list__subtitle {
-    line-height: 20px;
   }
 }
 
@@ -82,7 +86,7 @@
   font-size: 13px;
   line-height: 20px;
   color: $palette-neutral-900;
-  border: 1px dashed $palette-neutral-200;
+  border: 1px dashed $palette-neutral-400;
 
   @include rounded($rounded-md);
 }

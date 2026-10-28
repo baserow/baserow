@@ -95,7 +95,11 @@ from .exceptions import (
 )
 from .field_cache import FieldCache
 from .models import Field, FieldConstraint, SelectOption, SpecificFieldForUpdate
-from .registries import field_converter_registry, field_type_registry
+from .registries import (
+    field_converter_registry,
+    field_extension_registry,
+    field_type_registry,
+)
 from .signals import (
     before_field_deleted,
     field_created,
@@ -207,7 +211,7 @@ class FieldHandler:
         :return: A queryset with select and prefetch related fields set.
         """
 
-        return Field.objects.select_related(
+        queryset = Field.objects.select_related(
             "content_type", "table__database__workspace"
         ).prefetch_related(
             Prefetch(
@@ -220,6 +224,7 @@ class FieldHandler:
             "select_options",
             "field_constraints",
         )
+        return field_extension_registry.enhance_fields_queryset(queryset)
 
     def get_fields(
         self,
@@ -443,6 +448,8 @@ class FieldHandler:
             field_cache,
             skip_search_updates,
         )
+        for extension in field_extension_registry.get_all():
+            extension.after_create(user, instance, extension.extract_values(kwargs))
         SearchHandler.schedule_update_search_data(table, fields=[instance])
 
         field_created.send(
@@ -834,6 +841,10 @@ class FieldHandler:
             field, old_field, update_collector, field_cache
         )
 
+        for extension in field_extension_registry.get_all():
+            extension.after_update(
+                user, field, old_field, extension.extract_values(kwargs)
+            )
         ViewHandler().field_updated(field)
         if needs_to_update_search_data:
             SearchHandler.schedule_update_search_data(field.table, fields=[field])
@@ -942,6 +953,9 @@ class FieldHandler:
         specific_field = field.specific
         field_type = field_type_registry.get_by_model(specific_field)
         serialized_field = field_type.export_serialized(specific_field)
+        # The extensions copy their own values in `after_duplicate`, because unlike
+        # creating a field, duplicating one must not validate them again.
+        serialized_field.pop("extensions", None)
         progress.increment()
 
         new_name = self.find_next_unused_field_name(
@@ -979,6 +993,13 @@ class FieldHandler:
 
         if duplicate_data and field_type.keep_data_on_duplication:
             FieldDataBackupHandler.duplicate_field_data(field, new_field)
+        for extension in field_extension_registry.get_all():
+            extension.after_duplicate(
+                user,
+                specific_field,
+                new_field,
+                duplicate_data and field_type.keep_data_on_duplication,
+            )
         progress.increment()
 
         return new_field, updated_fields

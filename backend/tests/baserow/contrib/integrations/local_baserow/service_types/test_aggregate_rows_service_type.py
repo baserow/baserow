@@ -130,7 +130,12 @@ def test_create_local_baserow_aggregate_rows_service(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -286,7 +291,12 @@ def test_local_baserow_aggregate_rows_prepare_values_incorrect_field(data_fixtur
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     table_2 = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table_2)
     view = data_fixture.create_grid_view(user=user, table=table)
@@ -333,7 +343,12 @@ def test_local_baserow_aggregate_rows_prepare_values_incompatible_aggregation_ty
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
     integration = data_fixture.create_local_baserow_integration(
@@ -362,7 +377,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_table(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -403,7 +423,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -488,7 +513,9 @@ def test_local_baserow_aggregate_rows_dispatch_with_null_result(
 
     user = data_fixture.create_user()
     dashboard = data_fixture.create_builder_page(user=user).builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=dashboard.workspace)
+    )
     field = getattr(data_fixture, field_factory)(table=table)
     integration = data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
@@ -516,7 +543,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_total(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -556,7 +588,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view_filters(data_fixtu
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -601,7 +638,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_service_filters(data_fi
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     field_2 = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
@@ -655,7 +697,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_search(data_fixture):
         user = data_fixture.create_user()
         page = data_fixture.create_builder_page(user=user)
         dashboard = page.builder
-        table = data_fixture.create_database_table(user=user)
+        table = data_fixture.create_database_table(
+            database=data_fixture.create_database_application(
+                workspace=page.builder.workspace
+            ),
+            user=user,
+        )
         field = data_fixture.create_text_field(table=table)
         field_2 = data_fixture.create_number_field(table=table)
         RowHandler().create_rows(
@@ -699,7 +746,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_deleted(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -740,7 +792,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_trashed(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,
@@ -783,7 +840,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_type_not_compatible_an
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     dashboard = page.builder
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_number_field(table=table)
     RowHandler().create_rows(
         user,

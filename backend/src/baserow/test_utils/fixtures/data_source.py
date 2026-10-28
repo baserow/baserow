@@ -30,6 +30,12 @@ class DataSourceFixtures:
                 user = self.create_user()
 
             builder = kwargs.pop("builder", None)
+            if builder is None and kwargs.get("table") is not None:
+                # The table is read through the builder's integration, so they
+                # share a workspace.
+                builder = self.create_builder_application(
+                    user=user, workspace=kwargs["table"].database.workspace
+                )
             page_args = kwargs.pop("page_args", {})
             page = self.create_builder_page(user=user, builder=builder, **page_args)
 

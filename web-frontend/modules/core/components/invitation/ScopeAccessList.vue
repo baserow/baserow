@@ -7,7 +7,14 @@
     <ul v-else class="invite-list__items invite-list__items--scrollable">
       <li v-for="item in items" :key="item.key" class="invite-list__item">
         <div class="invite-list__subject">
+          <component
+            :is="item.avatarComponent"
+            v-if="item.avatarComponent"
+            :subject="item.subject"
+            size="large"
+          />
           <Avatar
+            v-else
             :initials="item.initials"
             :icon="item.initials ? '' : item.icon"
             :color="item.color"
@@ -69,7 +76,8 @@ export default {
   components: { ScopeRoleSelector },
   props: {
     /**
-     * Rows of `{ key, name, subtitle, badge, badgeColor, initials, icon, color,
+     * Rows of `{ key, name, subtitle, badge, badgeColor, avatarComponent, subject,
+     * initials, icon, color,
      * roleUid, roles, disabled, allowRemovingRole, helpText }`, prepared by the
      * caller. `helpText`, when set, explains the role next to it.
      */

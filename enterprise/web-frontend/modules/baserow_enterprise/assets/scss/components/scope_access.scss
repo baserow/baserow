@@ -1,6 +1,11 @@
 .scope-inherited-access__context {
-  max-width: 320px;
-  padding: 12px 16px;
+  width: 260px;
+}
+
+.scope-inherited-access__explanation {
+  margin: 0;
+  padding: 12px;
   font-size: 13px;
   line-height: 20px;
+  color: $palette-neutral-900;
 }

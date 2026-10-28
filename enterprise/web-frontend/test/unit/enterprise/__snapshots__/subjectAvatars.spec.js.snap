@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`agent avatar owns its appearance in compact and large lists > compact 1`] = `
+"<div class="avatar avatar--medium avatar--purple agent-avatar"><i class="baserow-icon-agent avatar__icon"></i>
+  <!--v-if-->
+  <!--v-if-->
+</div>"
+`;
+
+exports[`agent avatar owns its appearance in compact and large lists > large 1`] = `
+"<div class="avatar avatar--large avatar--purple agent-avatar"><i class="baserow-icon-agent avatar__icon"></i>
+  <!--v-if-->
+  <!--v-if-->
+</div>"
+`;
+
+exports[`team avatar owns its appearance in compact and large lists > compact 1`] = `
+"<div class="avatar avatar--medium avatar--yellow"><i class="baserow-icon-team avatar__icon"></i>
+  <!--v-if-->
+  <!--v-if-->
+</div>"
+`;
+
+exports[`team avatar owns its appearance in compact and large lists > large 1`] = `
+"<div class="avatar avatar--large avatar--yellow"><i class="baserow-icon-team avatar__icon"></i>
+  <!--v-if-->
+  <!--v-if-->
+</div>"
+`;
+
+exports[`user avatar owns its appearance in compact and large lists > compact 1`] = `
+"<div class="avatar avatar--rounded avatar--medium avatar--blue">
+  <!--v-if-->
+  <!--v-if--><span class="avatar__initials">AL</span>
+</div>"
+`;
+
+exports[`user avatar owns its appearance in compact and large lists > large 1`] = `
+"<div class="avatar avatar--rounded avatar--large avatar--blue">
+  <!--v-if-->
+  <!--v-if--><span class="avatar__initials">AL</span>
+</div>"
+`;

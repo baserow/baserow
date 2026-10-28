@@ -1,8 +1,7 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, test, beforeEach, afterEach } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, test, beforeEach, afterEach, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import MembersTable from '@baserow/modules/core/components/settings/members/MembersTable'
-import MembersInvitesTable from '@baserow/modules/core/components/settings/members/MembersInvitesTable'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 
@@ -10,7 +9,7 @@ describe('Management pages', () => {
   let app
   const roles = [
     { uid: 'ADMIN', name: 'Admin', icon: 'iconoir-crown' },
-    { uid: 'MEMBER', name: 'Member', icon: 'iconoir-group' },
+    { uid: 'MEMBER', name: 'Member', icon: 'baserow-icon-team' },
   ]
   const workspace = { id: 1, name: 'Design', users: [], _: { roles } }
 
@@ -35,6 +34,7 @@ describe('Management pages', () => {
           two_factor_auth: { is_enabled: true },
         },
       ])
+      app.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [])
       app.authenticate({
         id: 42,
         first_name: 'Alex',
@@ -67,9 +67,15 @@ describe('Management pages', () => {
         'managementPages.you'
       )
       expect(wrapper.get('tbody').text()).toContain('alex@example.com')
-      expect(wrapper.get('tbody').text()).toContain(
-        'twoFactorAuthField.enabled'
+      expect(wrapper.get('.management-table__boolean').element.checked).toBe(
+        true
       )
+      expect(wrapper.get('.management-table__boolean').element.disabled).toBe(
+        true
+      )
+      expect(
+        wrapper.get('.management-table__boolean').attributes('aria-label')
+      ).toBe('twoFactorAuthField.enabled')
       expect(
         wrapper.get('.member-role-field__link').attributes('disabled')
       ).toBeDefined()
@@ -79,20 +85,78 @@ describe('Management pages', () => {
     }
   )
 
-  test('invites keep their email and role with a contextual search', async () => {
+  const mountMembersTable = (hasPermission = () => true) => {
+    app.mock.onGet('/workspaces/users/workspace/1/').reply(200, [])
+    return app.mount(MembersTable, {
+      props: { workspace },
+      global: {
+        mocks: {
+          $hasPermission: hasPermission,
+          $t: (key, params) =>
+            key === 'membersSettings.membersTable.pendingInvitations'
+              ? `Pending invitations (${params.count})`
+              : key,
+        },
+      },
+    })
+  }
+  const pendingInvitationsButton = (wrapper) =>
+    wrapper
+      .findAll('.data-table__actions .button')
+      .find((button) => button.text().startsWith('Pending invitations'))
+
+  test('pending invitations are counted and open the invite modal', async () => {
+    app.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [
+      { id: 10, workspace: 1, email: 'alex@example.com' },
+      { id: 11, workspace: 1, email: 'sam@example.com' },
+    ])
+    const wrapper = await mountMembersTable()
+    await flushPromises()
+
+    const button = pendingInvitationsButton(wrapper)
+    expect(button.text()).toBe('Pending invitations (2)')
+    const show = vi.spyOn(wrapper.vm.$refs.inviteModal, 'show')
+    await button.trigger('click')
+    expect(show).toHaveBeenCalled()
+  })
+
+  test('pending invitations are not offered when there are none', async () => {
+    app.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [])
+    const wrapper = await mountMembersTable()
+    await flushPromises()
+
+    expect(pendingInvitationsButton(wrapper)).toBeUndefined()
+  })
+
+  test('pending invitations are not fetched without the permission to list them', async () => {
+    const wrapper = await mountMembersTable(
+      (operation) => operation !== 'workspace.list_invitations'
+    )
+    await flushPromises()
+
+    expect(pendingInvitationsButton(wrapper)).toBeUndefined()
+    expect(
+      app.mock.history.get.filter(({ url }) =>
+        url.startsWith('/workspaces/invitations/')
+      )
+    ).toHaveLength(0)
+  })
+
+  test('pending invitations are recounted when one is sent from the modal', async () => {
     app.mock
       .onGet('/workspaces/invitations/workspace/1/')
-      .reply(200, [
-        { id: 10, email: 'alex@example.com', permissions: 'MEMBER' },
-      ])
-    const wrapper = await app.mount(MembersInvitesTable, {
-      props: { workspace },
-      global: { mocks: { $hasPermission: () => true } },
-    })
-    expect(wrapper.get('tbody').text()).toContain('alex@example.com')
-    expect(wrapper.get('.member-role-field__link').text()).toBe('Member')
-    expect(wrapper.get('input').attributes('placeholder')).toBe(
-      'membersSettings.invitesTable.search'
+      .replyOnce(200, [])
+      .onGet('/workspaces/invitations/workspace/1/')
+      .replyOnce(200, [{ id: 10, workspace: 1, email: 'alex@example.com' }])
+    const wrapper = await mountMembersTable()
+    await flushPromises()
+    expect(pendingInvitationsButton(wrapper)).toBeUndefined()
+
+    wrapper.vm.$bus.$emit('invite-submitted', { id: 10, workspace: 1 })
+    await flushPromises()
+
+    expect(pendingInvitationsButton(wrapper).text()).toBe(
+      'Pending invitations (1)'
     )
   })
 
@@ -125,7 +189,6 @@ describe('Management pages', () => {
 
   test.each([
     ['settings-members', true],
-    ['settings-invites', true],
     ['settings-teams', true],
     ['settings-agents', true],
     ['dashboard', false],

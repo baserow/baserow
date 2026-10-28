@@ -4,9 +4,13 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import Any
 
-from baserow.core.formula.parser.exceptions import BaserowFormulaException
-from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
-from baserow.core.formula.parser.parser import get_parse_tree_for_formula
+from baserow.contrib.automation.tools.formulas import (  # noqa: F401
+    EMPTY_FORMULA,
+    FORMULA_PREFIX,
+    is_string_literal,
+    is_valid_formula,
+    wrap_static_string,
+)
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaMode,
@@ -21,15 +25,9 @@ logger = logging.getLogger(__name__)
 # Formula Detection Constants and Helpers
 # =============================================================================
 
-FORMULA_PREFIX = "$formula:"
-
-# An empty string literal, used as a placeholder for values that are either
-# missing or resolved later on by the formula generator agent.
-EMPTY_FORMULA = "''"
-
-# Detects raw formula syntax the LLM might write instead of using $formula:.
-# Matches: get('...'), concat(...), {{ ... }}, comparison operators, if(...),
-# today(), now().
+# Raw formula syntax the builder tools send to the generator, which also fixes
+# near misses such as ``get ('x')``. The automation tools store formulas as
+# written, so they use the stricter pattern in ``automation.tools.formulas``.
 RAW_FORMULA_RE = re.compile(
     r"\bget\s*\(|\bconcat\s*\(|\{\{.*\}\}"
     r"|\b(?:equal|not_equal|greater_than|less_than"
@@ -40,14 +38,8 @@ RAW_FORMULA_RE = re.compile(
 
 def needs_formula(value: str | None) -> bool:
     """
-    Check if a value requires formula processing.
-
-    Returns True for explicit ``$formula:`` prefixed values *and* for raw
-    formula expressions the LLM may write inline (e.g. ``get('field')``
-    or ``{{ get('field') }}``).
-
-    :param value: The string value to check, or None.
-    :return: True if the value needs formula generation.
+    Whether a builder value needs the formula generator: it holds a ``$formula:``
+    description or looks like formula syntax.
     """
 
     if not value:
@@ -100,60 +92,6 @@ def literal_or_placeholder(value: str | None) -> str:
     if not value or needs_formula(value):
         return EMPTY_FORMULA
     return wrap_static_string(value)
-
-
-def is_valid_formula(value: str) -> bool:
-    """
-    Check whether the given formula can be parsed.
-
-    :param value: The formula to parse.
-    :return: True if the formula is syntactically valid.
-    """
-
-    try:
-        get_parse_tree_for_formula(value)
-    except (BaserowFormulaException, RecursionError):
-        return False
-    return True
-
-
-def is_string_literal(value: str) -> bool:
-    """
-    Check whether the given formula is a single, complete string literal.
-
-    Used to detect values the LLM already quoted itself (e.g. ``'Submit'``).
-    Inspecting the first and last character isn't enough: ``'Managers' Week'``
-    looks quoted, but is invalid syntax.
-
-    :param value: The formula to parse.
-    :return: True if the formula is exactly one string literal.
-    """
-
-    try:
-        tree = get_parse_tree_for_formula(value)
-    except (BaserowFormulaException, RecursionError):
-        return False
-    return isinstance(tree.expr(), BaserowFormula.StringLiteralContext)
-
-
-def wrap_static_string(value: str) -> str:
-    """
-    Wrap a static string as a Baserow formula literal.
-
-    If the value already *is* a valid string literal (e.g. ``'Submit'``), it is
-    returned unchanged to avoid double-wrapping which would produce escaped
-    quotes visible in the UI (e.g. ``'\\'Submit\\''``). Anything else is escaped
-    the same way the frontend does it, so that values containing apostrophes
-    (``Sales Managers' Week``) or backslashes still produce parsable formulas.
-
-    :param value: Plain text string or already-quoted formula literal.
-    :return: Formula-compatible string literal with proper escaping.
-    """
-
-    if is_string_literal(value):
-        return value
-    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
-    return f"'{escaped}'"
 
 
 def ensure_valid_formula(formula: str) -> str:

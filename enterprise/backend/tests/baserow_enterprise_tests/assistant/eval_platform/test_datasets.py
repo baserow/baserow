@@ -234,12 +234,16 @@ EXPECTED_CASE_IDS = {
         "builder/setup-user-source-new-table",
     ],
     "kuma-automation": [
+        "automation/adds-slack-to-router-branch",
+        "automation/changes-router-condition",
         "automation/creates-email-notification-workflow",
         "automation/creates-router-workflow",
         "automation/creates-row-with-field-values",
         "automation/creates-update-row-workflow",
         "automation/creates-weekly-slack-reminder",
         "automation/creates-workflow",
+        "automation/deletes-node",
+        "automation/edits-email-subject",
         "automation/lists-workflows",
     ],
     "kuma-prod-replay": [
@@ -287,7 +291,7 @@ class TestDatasetCounts:
         assert len(grouped["kuma-database"]) == 21
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 32
-        assert len(grouped["kuma-automation"]) == 7
+        assert len(grouped["kuma-automation"]) == 11
         assert len(grouped["kuma-prod-replay"]) == 7
 
     def test_case_ids_match_inventory(self):

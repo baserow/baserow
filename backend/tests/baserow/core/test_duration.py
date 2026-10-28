@@ -1,12 +1,16 @@
 import re
+import time
 from datetime import timedelta
 
 import pytest
 
 from baserow.core.duration import (
+    DURATION_REGEXPS,
     format_value_with_duration_format,
     is_valid_duration_format,
+    parse_duration_value,
     parse_value_with_duration_format,
+    postgres_interval_to_seconds,
     tokenize_duration_format,
 )
 
@@ -428,3 +432,46 @@ class TestFormatValueWithDurationFormat:
     def test_parsed_format_returns_correct_duration(self, duration, format_str):
         formatted = format_value_with_duration_format(duration, format_str)
         assert parse_value_with_duration_format(formatted, format_str) == duration
+
+
+class TestParseDurationValue:
+    @pytest.mark.parametrize(
+        "value",
+        ["1x5", "1:1x5", "1:1:1x5", "1d 1x5", "1 1x5s", "1d 1:1:1x5", "1d 1:1x5"],
+    )
+    def test_fraction_separator_must_be_a_dot(self, value):
+        assert not any(regex.match(value) for regex in DURATION_REGEXPS)
+
+    @pytest.mark.parametrize(
+        "value",
+        ["1" * 1000 + ":1:1." + "1" * 1000, "1" * 2000 + "x", " " * 2000 + "1"],
+        ids=["colons", "digits", "spaces"],
+    )
+    def test_rejects_oversized_values_before_parsing(self, value, mocker):
+        regex = mocker.Mock(**{"match.return_value": None})
+        mocker.patch.dict(
+            "baserow.core.duration.DURATION_REGEXPS", {regex: {}}, clear=True
+        )
+        fallback = mocker.patch("baserow.core.duration.postgres_interval_to_seconds")
+
+        with pytest.raises(ValueError, match="too long"):
+            parse_duration_value(value, "h:mm:ss.s")
+
+        regex.match.assert_not_called()
+        fallback.assert_not_called()
+
+
+def test_postgres_interval_parsing_cost_grows_linearly():
+    def fastest_run(value):
+        runs = []
+        for _ in range(5):
+            start = time.perf_counter()
+            postgres_interval_to_seconds(value)
+            runs.append(time.perf_counter() - start)
+        return min(runs)
+
+    short = fastest_run("1" * 500 + "x")
+    long = fastest_run("1" * 2000 + "x")
+
+    # 4 times the input is about 4 times slower when linear, 16 when quadratic.
+    assert long < short * 8

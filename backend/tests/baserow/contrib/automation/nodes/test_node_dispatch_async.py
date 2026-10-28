@@ -152,18 +152,21 @@ def create_workflow(
     if user is None:
         user = data_fixture.create_user()
 
-    workspace = data_fixture.create_workspace(user=user)
-    integration = data_fixture.create_local_baserow_integration(user=user)
-    database = data_fixture.create_database_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type="local_baserow_rows_created"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=workflow.automation
+    )
+    database = data_fixture.create_database_application(
+        workspace=workflow.automation.workspace
+    )
     trigger_table = data_fixture.create_database_table(database=database)
     trigger_table_field_a = data_fixture.create_text_field(table=trigger_table)
     trigger_table_field_b = data_fixture.create_text_field(table=trigger_table)
     action_table = data_fixture.create_database_table(database=database)
     action_table_field = data_fixture.create_text_field(table=action_table)
 
-    workflow = data_fixture.create_automation_workflow(
-        user, trigger_type="local_baserow_rows_created"
-    )
     trigger = workflow.get_trigger()
     trigger_service = trigger.service.specific
     trigger_service.table = trigger_table
@@ -1407,7 +1410,10 @@ def test_dispatch_node_dispatches_action_router(data_fixture):
 def test_dispatch_node_with_advanced_formulas(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user,
+        application=data_fixture.create_automation_application(workspace=workspace),
+    )
     database = data_fixture.create_database_application(workspace=workspace)
 
     trigger_table, trigger_table_fields, _ = data_fixture.build_table(
@@ -1428,7 +1434,9 @@ def test_dispatch_node_with_advanced_formulas(data_fixture):
         columns=[("Name", "text")],
         rows=[],
     )
-    workflow = data_fixture.create_automation_workflow(user, state="live")
+    workflow = data_fixture.create_automation_workflow(
+        user, state="live", automation=integration.application
+    )
     trigger = workflow.get_trigger()
     trigger_service = trigger.service.specific
     trigger_service.table = trigger_table
@@ -1500,11 +1508,15 @@ def test_dispatch_node_dispatches_router_edge_simulation(
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user,
+        application=data_fixture.create_automation_application(workspace=workspace),
+    )
     database = data_fixture.create_database_application(workspace=workspace)
 
     # Create trigger
     workflow = data_fixture.create_automation_workflow(
+        automation=integration.application,
         user=user,
         trigger_type="local_baserow_rows_created",
     )

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -6,7 +6,10 @@ from django.db.models import QuerySet
 
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
+from baserow.core.integrations.exceptions import (
+    IntegrationDoesNotExist,
+    IntegrationNotInApplication,
+)
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
@@ -225,24 +228,22 @@ class ServiceHandler:
         service_type.before_delete(service)
         service.delete()
 
-    def dispatch_service(
-        self,
-        service: Service,
-        dispatch_context: DispatchContext,
-    ) -> DispatchResult:
+    def _check_service_integration(
+        self, service: Service, application_id: Optional[int] = None
+    ):
         """
-        Dispatch the given service.
+        Checks that the service can read through its integration before it's used.
 
-        :param service: The service to be dispatched.
-        :param dispatch_context: The context used for the dispatch.
-        :return: The result of dispatching the service.
+        :param service: The service about to be used.
+        :param application_id: When given, the service's integration must belong
+            to this application.
+        :raises ServiceImproperlyConfiguredDispatchException: When the integration
+            is trashed, belongs to another application, or is required but missing.
         """
-
-        service_type = service.get_type()
 
         if service.integration_id is not None:
             try:
-                IntegrationHandler().get_integration(
+                integration = IntegrationHandler().get_integration(
                     service.integration_id, specific=False
                 )
             except IntegrationDoesNotExist:
@@ -253,12 +254,61 @@ class ServiceHandler:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration used by this service has been trashed."
                 )
-        elif service_type.requires_integration(service):
+            try:
+                IntegrationHandler().check_integration_usable(
+                    integration, application_id=application_id
+                )
+            except IntegrationNotInApplication as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration used by this service belongs to another "
+                    "application."
+                ) from exc
+        elif service.get_type().requires_integration(service):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"
             )
 
-        return service_type.dispatch(service, dispatch_context)
+    def dispatch_service(
+        self,
+        service: Service,
+        dispatch_context: DispatchContext,
+        application_id: Optional[int] = None,
+    ) -> DispatchResult:
+        """
+        Dispatch the given service.
+
+        :param service: The service to be dispatched.
+        :param dispatch_context: The context used for the dispatch.
+        :param application_id: When given, the service's integration must belong
+            to this application.
+        :return: The result of dispatching the service.
+        """
+
+        self._check_service_integration(service, application_id)
+        return service.get_type().dispatch(service, dispatch_context)
+
+    def get_record_names(
+        self,
+        service: Service,
+        record_ids: List[int],
+        dispatch_context: DispatchContext,
+        application_id: Optional[int] = None,
+    ) -> Dict[int, str]:
+        """
+        Returns the name of each of the given records of the service.
+
+        :param service: The service the records are read through.
+        :param record_ids: The record identifiers.
+        :param dispatch_context: The context used for the dispatch.
+        :param application_id: When given, the service's integration must belong
+            to this application.
+        :return: A dictionary mapping each record id to its name.
+        """
+
+        self._check_service_integration(service, application_id)
+        return service.get_type().get_record_names(
+            service, record_ids, dispatch_context
+        )
 
     def export_service(
         self,

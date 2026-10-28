@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from django.core.files.base import ContentFile
-from django.db import connection, transaction
+from django.db import transaction
 
 import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
+from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import (
@@ -25,7 +26,6 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.job_types import ExportApplicationsJobType
 from baserow.core.jobs.constants import (
     JOB_CANCELLED,
@@ -46,10 +46,9 @@ from baserow.core.models import (
     Workspace,
     WorkspaceUser,
 )
-from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
+from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_templates.actions import CreateUserTemplateActionType
-from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.exceptions import NoApplicationsSelected
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
@@ -63,10 +62,15 @@ from baserow.core.utils import Progress
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
+    cancel_in_another_connection,
     copied_applications,
+    create_content,
     create_source,
+    deny_export,
     find_values,
-    read_archive,
+    long_ago,
+    purge,
+    serialized_content,
     start_job,
 )
 
@@ -119,7 +123,9 @@ def test_create_user_template_job(data_fixture):
     assert list(template.categories.all()) == [category]
     assert template.type == Template.Type.USER
     assert template.review_state == Template.ReviewState.NOT_SUBMITTED
-    assert template.archive.name == job.archive_name
+    # The template is copied directly, without an archive.
+    assert not template.archive
+    assert job.archive_name == ""
     template.full_clean(exclude=["open_application"])
 
     template_workspace = template.workspace
@@ -132,16 +138,10 @@ def test_create_user_template_job(data_fixture):
         "dashboard",
         "automation",
     }
-    assert get_default_storage().exists(job.archive_name)
     assert set(
         Application.objects.filter(workspace=workspace).values_list("id", flat=True)
     ) == {application.id for application in applications}
-
-    assert ImportExportResource.objects.count() == 0
-    assert ImportExportResource.objects_and_trash.count() == 2
-    ImportExportHandler().permanently_delete_trashed_resources()
-    assert ImportExportResource.objects_and_trash.count() == 0
-    assert get_default_storage().exists(job.archive_name)
+    assert not ImportExportResource.objects_and_trash.exists()
 
     action_done.assert_called_once()
     action_kwargs = action_done.call_args.kwargs
@@ -256,24 +256,17 @@ def test_create_user_template_job_clears_references_outside_the_selection(data_f
         f".{source['text_field'].db_column}.*.value')"
     )
 
-    archive = read_archive(job.archive_name)
-    assert archive
-    for key, value in find_values(archive, CLEARED_KEYS):
+    content = serialized_content(job.template)
+    assert content
+    for key, value in find_values(content, CLEARED_KEYS):
         assert value in (None, ""), f"{key} = {value}"
 
 
 def test_create_user_template_job_without_export_permission(data_fixture):
     source = create_source(data_fixture)
-    check_permissions = CoreHandler.check_permissions
 
-    def deny_export(self, actor, operation_name, *args, **kwargs):
-        if operation_name == ExportWorkspaceOperationType.type:
-            raise PermissionDenied()
-        return check_permissions(self, actor, operation_name, *args, **kwargs)
-
-    with patch.object(CoreHandler, "check_permissions", deny_export):
-        with pytest.raises(PermissionDenied):
-            start_job(source["user"], source["workspace"], [source["builder"]])
+    with deny_export(), pytest.raises(PermissionDenied):
+        start_job(source["user"], source["workspace"], [source["builder"]])
 
     assert CreateUserTemplateJob.objects.count() == 0
     assert Template.objects.count() == 0
@@ -369,76 +362,98 @@ def test_create_user_template_job_fails_when_the_source_workspace_is_gone(
         CreateUserTemplateJobType().run(job, Progress(100))
 
 
-def test_create_user_template_job_cleans_up_on_error(data_fixture):
+def test_create_user_template_job_cleans_up_on_error_after_the_copy(data_fixture):
     source = create_source(data_fixture)
 
-    with patch(
-        "baserow.core.import_export.handler.ImportExportHandler."
-        "import_multiple_applications",
-        side_effect=PermissionDenied("Fails mid-import"),
+    # The owner is deleted while the applications are copied.
+    with (
+        patch(
+            "baserow.core.user_templates.handler.UserTemplateHandler.create_template_root",
+            side_effect=UserNotFound("The owner of the template was deleted."),
+        ),
+        pytest.raises(UserNotFound),
     ):
-        job = start_job(source["user"], source["workspace"], [source["database"]])
-
-    assert job.state == JOB_FAILED
-    assert_no_copy_left(source["workspace"])
-
-
-def test_create_user_template_job_cleans_up_on_error_after_storing_the_archive(
-    data_fixture,
-):
-    source = create_source(data_fixture)
-
-    with patch(
-        "baserow.core.user_templates.handler.UserTemplateHandler.create_template_root",
-        side_effect=PermissionDenied("Fails at the end"),
-    ):
-        job = start_job(source["user"], source["workspace"], [source["database"]])
-
-    assert job.state == JOB_FAILED
-    assert job.archive_name
-    assert_no_copy_left(source["workspace"])
-
-
-def test_create_user_template_job_cleans_up_an_archive_written_before_an_error(
-    data_fixture,
-):
-    source = create_source(data_fixture)
-    storage = get_default_storage()
-    save = storage.save
-
-    def save_then_fail(name, content, *args, **kwargs):
-        stored_name = save(name, content, *args, **kwargs)
-        if name.startswith("template-revisions/"):
-            raise OSError("The connection was reset after the upload")
-        return stored_name
-
-    with patch.object(storage, "save", save_then_fail), pytest.raises(OSError):
         start_job(source["user"], source["workspace"], [source["database"]])
 
     assert CreateUserTemplateJob.objects.get().state == JOB_FAILED
     assert_no_copy_left(source["workspace"])
 
 
-def test_create_user_template_job_cleans_up_when_cancelled(data_fixture):
-    source = create_source(data_fixture)
-    export_workspace_applications = ImportExportHandler.export_workspace_applications
+def test_create_user_template_job_fails_on_the_second_application(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    databases = []
+    for name in ["First", "Second"]:
+        database = data_fixture.create_database_application(
+            workspace=workspace, name=name
+        )
+        data_fixture.create_database_table(database=database)
+        databases.append(database)
+    import_serialized = DatabaseApplicationType.import_serialized
     calls = []
 
-    def cancel_during_archive_export(self, *args, **kwargs):
-        calls.append(args)
+    def import_serialized_failing_at_the_end(self, *args, **kwargs):
+        application = import_serialized(self, *args, **kwargs)
+        calls.append(application)
         if len(calls) == 2:
-            JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
-        return export_workspace_applications(self, *args, **kwargs)
+            raise PermissionDenied("Fails at the end of the second application")
+        return application
+
+    delete_content_without_template = (
+        UserTemplateHandler.delete_content_without_template
+    )
+    left_at_the_clean_up = []
+
+    def record_what_is_left(self, workspace_id, archive_name):
+        left_at_the_clean_up.append(
+            (
+                sorted(
+                    Application.objects_and_trash.filter(
+                        workspace_id=workspace_id
+                    ).values_list("name", flat=True)
+                ),
+                Table.objects_and_trash.filter(
+                    database__workspace_id=workspace_id
+                ).count(),
+            )
+        )
+        return delete_content_without_template(self, workspace_id, archive_name)
+
+    with (
+        patch.object(
+            DatabaseApplicationType,
+            "import_serialized",
+            import_serialized_failing_at_the_end,
+        ),
+        patch.object(
+            UserTemplateHandler,
+            "delete_content_without_template",
+            record_what_is_left,
+        ),
+    ):
+        job = start_job(user, workspace, databases)
+
+    assert job.state == JOB_FAILED
+    # The failed application is rolled back, so only whole applications are left
+    # for the clean up.
+    assert left_at_the_clean_up[0] == (["First"], 1)
+    assert_no_copy_left(workspace)
+
+
+def test_create_user_template_job_cleans_up_when_cancelled(data_fixture):
+    source = create_source(data_fixture)
+    import_applications = CoreHandler.import_applications_to_workspace
+
+    def cancel_during_the_copy(self, *args, **kwargs):
+        JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
+        return import_applications(self, *args, **kwargs)
 
     with patch.object(
-        ImportExportHandler,
-        "export_workspace_applications",
-        cancel_during_archive_export,
+        CoreHandler, "import_applications_to_workspace", cancel_during_the_copy
     ):
         job = start_job(source["user"], source["workspace"], [source["database"]])
 
     assert job.state == JOB_CANCELLED
-    assert len(calls) == 2
     assert_no_copy_left(source["workspace"])
 
 
@@ -446,8 +461,7 @@ def test_create_user_template_job_raising_job_cancelled_cleans_up(data_fixture):
     source = create_source(data_fixture)
 
     with patch(
-        "baserow.core.import_export.handler.ImportExportHandler."
-        "import_multiple_applications",
+        "baserow.core.handler.CoreHandler.import_applications_to_workspace",
         side_effect=JobCancelled(),
     ):
         job = start_job(source["user"], source["workspace"], [source["database"]])
@@ -537,7 +551,7 @@ def test_create_user_template_job_cancel_is_kept_when_content_is_tracked_after_i
     track_content = CreateUserTemplateJobType._track_content
 
     def cancel_then_track(self, job, **content):
-        if "archive_name" in content:
+        if "template_workspace" in content:
             JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
             # A progress update that read the cache before the cancel writes the
             # state of the worker back.
@@ -575,16 +589,9 @@ def test_create_user_template_job_concurrent_cancel_waits_for_the_commit(
     save_template = CreateUserTemplateJobType._save_template
     outcome = {}
 
-    def cancel():
-        try:
-            JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
-            outcome["cancel"] = "accepted"
-        except JobNotCancellable:
-            outcome["cancel"] = "refused"
-        finally:
-            connection.close()
-
-    with test_thread(cancel) as thread:
+    with test_thread(
+        cancel_in_another_connection, outcome, CreateUserTemplateJob
+    ) as thread:
 
         def save_with_a_concurrent_cancel(self, job, template):
             save_template(self, job, template)
@@ -658,7 +665,6 @@ def test_create_user_template_job_keeps_the_template_on_error_after_the_commit(
     template = Template.objects.get()
     assert template.id == job.template_id
     assert template.workspace.application_set.count() == 1
-    assert get_default_storage().exists(template.archive.name)
 
 
 def test_create_user_template_job_logs_a_failed_clean_up_after_a_cancel(data_fixture):
@@ -666,8 +672,7 @@ def test_create_user_template_job_logs_a_failed_clean_up_after_a_cancel(data_fix
 
     with (
         patch(
-            "baserow.core.import_export.handler.ImportExportHandler."
-            "import_multiple_applications",
+            "baserow.core.handler.CoreHandler.import_applications_to_workspace",
             side_effect=JobCancelled(),
         ),
         patch.object(
@@ -684,10 +689,8 @@ def test_create_user_template_job_logs_a_failed_clean_up_after_a_cancel(data_fix
 
 
 def create_unfinished_job(data_fixture, user, **kwargs):
-    template_workspace = data_fixture.create_workspace(name="Copy")
-    data_fixture.create_database_application(workspace=template_workspace)
-    archive_name = get_default_storage().save(
-        "template-revisions/unfinished.zip", ContentFile(b"archive")
+    template_workspace, archive_name = create_content(
+        data_fixture, "Copy", "unfinished.zip"
     )
     return CreateUserTemplateJob.objects.create(
         user=user,
@@ -939,29 +942,6 @@ def test_deleting_the_user_as_the_copy_is_created_cleans_up(data_fixture):
     assert not UserTemplateContentToDelete.objects.exists()
 
 
-def test_deleting_the_user_as_the_archive_is_stored_cleans_up(data_fixture):
-    source = create_source(data_fixture)
-    track_content = CreateUserTemplateJobType._track_content
-
-    def track_then_delete_user(self, job, **content):
-        track_content(self, job, **content)
-        if "archive_name" in content:
-            # The deletion of the job doesn't see the archive, stored after it.
-            delete_user(source["user"])
-
-    with (
-        patch.object(
-            CreateUserTemplateJobType, "_track_content", track_then_delete_user
-        ),
-        pytest.raises(Exception),
-    ):
-        start_job(source["user"], source["workspace"], [source["database"]])
-
-    assert not CreateUserTemplateJob.objects.exists()
-    assert_no_copy_left(source["workspace"])
-    assert not UserTemplateContentToDelete.objects.exists()
-
-
 def test_deleting_a_finished_job_keeps_the_template(data_fixture):
     source = create_source(data_fixture)
     job = start_job(source["user"], source["workspace"], [source["database"]])
@@ -971,7 +951,6 @@ def test_deleting_a_finished_job_keeps_the_template(data_fixture):
 
     template.refresh_from_db()
     assert Workspace.objects.filter(id=template.workspace_id).exists()
-    assert get_default_storage().exists(template.archive.name)
 
 
 def test_create_user_template_job_max_count(data_fixture):
@@ -1006,11 +985,9 @@ def test_purge_waits_for_a_create_job_that_committed_its_template(data_fixture):
     def run_then_purge(job):
         result = run(job)
         Template.objects.filter(id=job.template_id).update(
-            marked_for_deletion_at=datetime.now(tz=timezone.utc)
-            - USER_TEMPLATE_DELETION_GRACE_PERIOD
-            - timedelta(hours=1)
+            marked_for_deletion_at=long_ago()
         )
-        UserTemplateHandler().delete_marked_templates()
+        purge()
         skipped.append(Template.objects.filter(id=job.template_id).exists())
         return result
 
@@ -1021,13 +998,11 @@ def test_purge_waits_for_a_create_job_that_committed_its_template(data_fixture):
     job = CreateUserTemplateJob.objects.get(id=job.id)
     assert job.state == JOB_FINISHED, job.error
     template_workspace_id = job.template.workspace_id
-    archive_name = job.template.archive.name
 
-    UserTemplateHandler().delete_marked_templates()
+    purge()
 
     assert not Template.objects.filter(id=job.template_id).exists()
     assert not CreateUserTemplateJob.objects.filter(id=job.id).exists()
     assert not Workspace.objects_and_trash.filter(id=template_workspace_id).exists()
-    assert not get_default_storage().exists(archive_name)
     # The workspace the template was created from is kept.
     assert Workspace.objects.filter(id=workspace.id).exists()

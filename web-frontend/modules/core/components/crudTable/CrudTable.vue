@@ -1,5 +1,5 @@
 <template>
-  <div class="data-table">
+  <div class="data-table" :class="$attrs.class">
     <header class="data-table__header">
       <h1 class="data-table__title">
         <slot name="title" :count="totalCount" :loading="initialLoading"></slot>
@@ -20,9 +20,28 @@
     <slot name="header-filters"></slot>
     <div
       class="data-table__body"
-      :class="{ 'data-table__body--empty': showEmptyState }"
+      :class="{
+        'data-table__body--empty': showEmptyState,
+        'data-table__body--fixed': fixedLayout,
+      }"
     >
-      <table class="data-table__table" :aria-busy="loading">
+      <table
+        class="data-table__table"
+        :class="{ 'data-table__table--fixed': fixedLayout }"
+        :style="{ minWidth: minTableWidth || undefined }"
+        :aria-busy="loading"
+      >
+        <colgroup v-if="fixedLayout">
+          <col
+            v-for="col in columns"
+            :key="col.key"
+            :style="{
+              width:
+                columnWidths[col.key] ||
+                (col.widthPerc ? `${col.widthPerc}%` : undefined),
+            }"
+          />
+        </colgroup>
         <thead v-if="!showEmptyState">
           <tr v-if="loading" class="data-table__table-row" aria-hidden="true">
             <th
@@ -38,7 +57,11 @@
             <th
               v-for="col in columns"
               :key="'head-' + col.key"
-              :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
+              :style="
+                !fixedLayout && col.widthPerc
+                  ? `--width: ${col.widthPerc}%`
+                  : ''
+              "
               class="data-table__table-cell data-table__table-cell--header"
               :class="{
                 'data-table__table-cell--sticky-left': col.stickyLeft,
@@ -116,10 +139,10 @@
             :key="row[rowIdKey]"
             :row="row"
             :columns="columns"
+            :expand-column-key="expandColumnKey"
             :expandable="canExpandRow(row)"
             :expanded="canExpandRow(row) && expandedRows.has(row[rowIdKey])"
-            :expand-column-key="expandColumnKey"
-            :cell-attrs="$attrs"
+            :cell-attrs="cellAttrs"
             @toggle="toggleRow(row)"
             @row-context="$emit('row-context', $event)"
             @row-update="updateRow"
@@ -206,12 +229,16 @@ export default {
   inheritAttrs: false,
   props: {
     searchPlaceholder: { type: String, default: null },
+    /** Opt in to content-independent sizing; widths accept CSS lengths. */
+    fixedLayout: { type: Boolean, default: false },
+    columnWidths: { type: Object, default: () => ({}) },
+    minTableWidth: { type: String, default: null },
     /** With an expanded-row slot, optionally restrict expansion to eligible rows. */
     rowExpandable: {
       type: Function,
       default: null,
     },
-    /** Column containing the disclosure control; defaults to the first column. */
+    /** Column containing the disclosure control; defaults to the first. */
     expandColumnKey: {
       type: String,
       default: null,
@@ -318,6 +345,11 @@ export default {
     }
   },
   computed: {
+    cellAttrs() {
+      const attrs = { ...this.$attrs }
+      delete attrs.class
+      return attrs
+    },
     hasActiveFilters() {
       return !!this.searchQuery || Object.keys(this.filters).length > 0
     },
@@ -422,7 +454,11 @@ export default {
     /**
      * Fetches the rows of a given page and adds them to the state.
      */
-    async fetch(page = null) {
+    /**
+     * Fetches the rows of a page. A `silent` fetch keeps showing the current
+     * rows until the new ones arrive, for when they were only changed in place.
+     */
+    async fetch(page = null, { silent = false } = {}) {
       if (page == null && this.service.options.isPaginated) {
         page = 1
       }
@@ -434,7 +470,9 @@ export default {
       // A newer request can resolve before an older one, so the response of an
       // older request must never overwrite the state of a newer one.
       const fetchId = ++this.lastFetchId
-      this.loading = true
+      if (!silent) {
+        this.loading = true
+      }
       try {
         const { data } = await this.service.fetch(
           this.service.options.baseUrl,
@@ -498,8 +536,8 @@ export default {
         this.totalCount = Math.max(0, this.totalCount - 1)
       }
     },
-    refresh() {
-      return this.fetch(this.page)
+    refresh({ silent = false } = {}) {
+      return this.fetch(this.page, { silent })
     },
   },
 }

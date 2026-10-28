@@ -126,9 +126,13 @@ const GROUP_LABELS = {
   database_read: 'mcpToolPicker.databaseRead',
   database_edit: 'mcpToolPicker.databaseEdit',
   database_delete: 'mcpToolPicker.databaseDelete',
+  automation_read: 'mcpToolPicker.automationRead',
+  automation_edit: 'mcpToolPicker.automationEdit',
+  automation_delete: 'mcpToolPicker.automationDelete',
 }
 const AREA_LABELS = {
   database: 'mcpToolPicker.areaDatabase',
+  automation: 'mcpToolPicker.areaAutomation',
 }
 
 // The tools the user sees: a tool is only listed under one of the groups.

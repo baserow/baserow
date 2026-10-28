@@ -126,6 +126,15 @@ The following tools are currently enabled:
 | `delete_fields` | Delete (trash) fields |
 | `create_views` | Create views in a table |
 | `create_view_filters` | Add filters to views |
+| `list_workflows` | List automations and their workflows |
+| `list_nodes` | List a workflow's nodes with their output paths |
+| `create_workflows` | Create workflows with a trigger and nodes |
+| `add_nodes` | Add nodes to a workflow |
+| `update_nodes` | Change node labels, settings and router conditions |
+| `delete_nodes` | Delete (trash) workflow nodes |
+
+The automation tools are off in the "Read only" preset. Turn them on at
+consent or under **Settings > Connected apps**.
 
 ## 4. Test scenarios
 
@@ -188,6 +197,27 @@ where State is Open"*
 
 Expected: Claude calls `create_views`, then `create_view_filters`. The view
 shows the filter in Baserow.
+
+### Automations
+
+Connect with the "Read only" preset, then turn on the automation tools under
+**Settings > Connected apps**. Ask Claude: *"In my automation, create a
+workflow that runs when a row is created in [table name]. If the row's
+[number field] is above 100, email me with the row's Name in the subject."*
+
+Expected: Claude calls `list_workflows` to find the automation, then
+`create_workflows` with a "rows created" trigger, a router whose condition
+is a formula such as `greater_than(get('previous_node.<id>.0.field_<id>'), 100)`
+and an email node. The workflow appears in Baserow with the router branch and
+the email node on it.
+
+Ask Claude to set the email subject to `concat('Big order ', ` (an unfinished
+formula). Expected: `update_nodes` returns it in `formula_errors` with the
+parser's message, the subject keeps its previous value, and Claude fixes it with another
+`update_nodes` call after reading the node's output paths with `list_nodes`.
+
+Ask Claude to delete the email node. Expected: `delete_nodes` moves it to the
+trash. Deleting the router while a node is on its branch is refused.
 
 ## 5. Verify disabled tools are not exposed
 

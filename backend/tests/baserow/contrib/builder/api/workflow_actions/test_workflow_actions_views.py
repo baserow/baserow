@@ -16,6 +16,7 @@ from rest_framework.status import (
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.preview import (
     BuilderPreviewActor,
     BuilderPreviewGrantHandler,
@@ -675,7 +676,9 @@ def test_update_create_row_workflow_action(api_client, data_fixture):
         rows=[],
     )
     field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
@@ -786,7 +789,9 @@ def test_update_update_row_workflow_action(api_client, data_fixture):
     model = table.get_model()
     first_row = model.objects.get()
     field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
@@ -859,7 +864,12 @@ def test_update_workflow_action_service_without_type(api_client, data_fixture):
     )
     first_row = table.get_model().objects.get()
     field = table.field_set.get(name="Animal")
-    page = data_fixture.create_builder_page(user=user)
+    page = data_fixture.create_builder_page(
+        user=user,
+        builder=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+    )
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
         page=page, element=element, event=EventTypes.CLICK, user=user
@@ -997,7 +1007,9 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
     )
     color_field = table.field_set.get(name="Color")
     animal_field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
@@ -1051,7 +1063,9 @@ def test_create_row_action_uses_clicked_property_row_of_get_row_source(
     product_name = data_fixture.create_text_field(
         table=products, name="Name", primary=True
     )
-    suppliers = data_fixture.create_database_table(user=user)
+    suppliers = data_fixture.create_database_table(
+        database=products.database, user=user
+    )
     linked_products = data_fixture.create_link_row_field(
         table=suppliers, link_row_table=products, name="Products"
     )
@@ -1067,7 +1081,9 @@ def test_create_row_action_uses_clicked_property_row_of_get_row_source(
         values={linked_products.db_column: [first_product.id, second_product.id]},
     )
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=products.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=user,
@@ -1121,7 +1137,9 @@ def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
         columns=[("Name", "text")],
         rows=[],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     integration = data_fixture.create_local_baserow_integration(
@@ -1256,7 +1274,9 @@ def test_dispatch_local_baserow_delete_row_workflow_action(api_client, data_fixt
     )
     model = table.get_model()
     first_row = model.objects.all()[0]
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     integration = data_fixture.create_local_baserow_integration(
@@ -1310,7 +1330,9 @@ def test_dispatch_published_workflow_action_does_not_update_sample_data(
     )
     color_field = table.field_set.get(name="Color")
     animal_field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     published_builder = data_fixture.create_builder_application(workspace=None)
     data_fixture.create_builder_custom_domain(
         builder=builder, published_to=published_builder
@@ -1371,7 +1393,9 @@ def test_dispatch_local_baserow_create_row_workflow_action_field_constraint(
     model = table.get_model()
     model.objects.create(**{f"field_{fruit_field.id}": "Apple"})
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
@@ -1417,7 +1441,9 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
     first_row = model.objects.all()[0]
     color_field = table.field_set.get(name="Color")
     animal_field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
@@ -1493,7 +1519,9 @@ def test_dispatch_local_baserow_update_row_workflow_action_without_a_row_to_upda
     table, fields, rows = data_fixture.build_table(
         user=user, columns=[("Animal", "text")], rows=[["Horse"]]
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
@@ -1544,7 +1572,9 @@ def test_dispatch_local_baserow_update_row_workflow_action_field_constraint(
     # Create another row, which we'll update to 'Apple' to simulate a unique constraint
     second_row = model.objects.create(**{f"field_{fruit_field.id}": "Banana"})
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
@@ -1789,7 +1819,9 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
     color_field = wa_table.field_set.get(name="Color")
     animal_field = wa_table.field_set.get(name="Animal")
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=wa_table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
 
@@ -1801,6 +1833,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
     )
 
     table, fields, rows = data_fixture.build_table(
+        database=wa_table.database,
         user=user,
         columns=[
             ("Name", "text"),
@@ -1814,6 +1847,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
         ],
     )
     table2, fields2, rows2 = data_fixture.build_table(
+        database=wa_table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -2040,6 +2074,7 @@ def workflow_action_hidden_fields_fixture(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     table, fields, _ = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(workspace=workspace),
         columns=[
             ("Food", "text"),
             ("Spiciness", "number"),
@@ -2213,6 +2248,7 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     )
 
     table_2, fields_2, _ = data_fixture.build_table(
+        database=service.table.database,
         user=user,
         columns=[
             ("Name", "text"),
@@ -2309,7 +2345,10 @@ def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoin
         application=builder, user=user
     )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[]
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
     )
     if endpoint == "workflow":
         element = data_fixture.create_builder_button_element(page=page)
@@ -2364,6 +2403,190 @@ def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoin
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "actor,page_visibility,element_kwargs,event,expected_status",
+    [
+        ("anonymous", "all", {"visibility": "all"}, EventTypes.CLICK, 200),
+        ("anonymous", "all", {"visibility": "logged-in"}, EventTypes.CLICK, 401),
+        ("anonymous", "logged-in", {"visibility": "all"}, EventTypes.CLICK, 401),
+        ("anonymous", "all", None, EventTypes.CLICK, 200),
+        ("anonymous", "logged-in", None, EventTypes.CLICK, 401),
+        ("user_source", "logged-in", None, EventTypes.CLICK, 200),
+        ("user_source", "all", {"visibility": "not-logged"}, EventTypes.CLICK, 401),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["admin"]},
+            EventTypes.CLICK,
+            401,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["member"]},
+            EventTypes.CLICK,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "allow_all_except", "roles": ["member"]},
+            EventTypes.CLICK,
+            401,
+        ),
+        # An after-login action is dispatched by the user who has just logged
+        # in, but its login form was submitted by a logged-out visitor, so the
+        # element only has to be visible to that visitor or to the new user.
+        (
+            "user_source",
+            "all",
+            {"visibility": "not-logged"},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"role_type": "disallow_all_except", "roles": ["admin"]},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        (
+            "user_source",
+            "all",
+            {"visibility": "logged-in"},
+            EventTypes.AFTER_LOGIN,
+            200,
+        ),
+        ("anonymous", "all", {"visibility": "logged-in"}, EventTypes.AFTER_LOGIN, 401),
+    ],
+)
+def test_public_dispatch_respects_element_and_page_visibility(
+    api_client,
+    data_fixture,
+    actor,
+    page_visibility,
+    element_kwargs,
+    event,
+    expected_status,
+):
+    """
+    An action can only be dispatched by a visitor who can see its element, or
+    its page for an action bound to the page itself (`element_kwargs` None). An
+    after-login action is also dispatchable when a logged-out visitor can see
+    its element, because that visitor is the one who submitted the login form.
+    """
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder, integration=integration, user=user
+    )
+    user_row = user_source.table.get_model().objects.first()
+    setattr(user_row, user_source.role_field.db_column, "member")
+    user_row.save()
+    page = data_fixture.create_builder_page(
+        builder=builder, visibility=Page.VISIBILITY_TYPES(page_visibility)
+    )
+    element = None
+    if element_kwargs is not None:
+        element = data_fixture.create_builder_button_element(
+            page=page, **element_kwargs
+        )
+    table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Public row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=event, service=service
+    )
+
+    headers = {}
+    if actor == "user_source":
+        external_user = data_fixture.create_user_source_user(
+            user_source=user_source, user_id=user_row.id
+        )
+        headers["HTTP_AUTHORIZATION"] = (
+            f"JWT {external_user.get_refresh_token().access_token}"
+        )
+
+    body = {}
+    if element is not None:
+        # The frontend always sends the action's element along, so the metadata
+        # validation must accept it even for a hidden after-login form.
+        body["metadata"] = {"data_source": {"element": element.id}}
+    url = reverse("api:builder:workflow_action:dispatch", args=[workflow_action.id])
+    response = api_client.post(url, body, format="json", **headers)
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == 401:
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    assert table.get_model().objects.count() == (1 if expected_status == 200 else 0)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("own_element,expected_status", [(True, 200), (False, 400)])
+def test_public_dispatch_metadata_element_must_be_the_action_element_or_visible(
+    api_client, data_fixture, own_element, expected_status
+):
+    """
+    The element sent in the dispatch metadata is only exempt from the visibility
+    check when it is the element of the dispatched action; any other element the
+    visitor cannot see is refused.
+    """
+
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    button = data_fixture.create_builder_button_element(page=page)
+    hidden_element = data_fixture.create_builder_button_element(
+        page=page, visibility="logged-in"
+    )
+    table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Public row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=button, event=EventTypes.CLICK, service=service
+    )
+    metadata_element = button if own_element else hidden_element
+
+    url = reverse("api:builder:workflow_action:dispatch", args=[workflow_action.id])
+    response = api_client.post(
+        url,
+        {"metadata": {"data_source": {"element": metadata_element.id}}},
+        format="json",
+    )
+
+    assert response.status_code == expected_status, response.json()
+    if expected_status == 400:
+        assert response.json()["error"] == "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN"
+    assert table.get_model().objects.count() == (1 if expected_status == 200 else 0)
+
+
+@pytest.mark.django_db
 def test_dispatch_current_record_action_when_data_source_is_filtered_by_other_data_source(
     api_client, data_fixture
 ):
@@ -2379,11 +2602,14 @@ def test_dispatch_current_record_action_when_data_source_is_filtered_by_other_da
         user=user, columns=[("Key", "text")], rows=[["alpha"]]
     )
     table, fields, rows = data_fixture.build_table(
+        database=lookup_table.database,
         user=user,
         columns=[("Key", "text"), ("Status", "text")],
         rows=[["alpha", "open"], ["alpha", "open"], ["alpha", "open"]],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=lookup_table.database.workspace
+    )
     page = data_fixture.create_builder_page(builder=builder)
     integration = data_fixture.create_local_baserow_integration(
         application=builder, user=user
@@ -2462,7 +2688,10 @@ def test_public_dispatch_checks_deactivation_against_the_publishing_workspace(
         application=builder, user=user
     )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[]
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
     )
     element = data_fixture.create_builder_button_element(page=page)
     service = data_fixture.create_local_baserow_upsert_row_service(
@@ -2660,7 +2889,10 @@ def test_dispatch_workflow_action_skips_required_check_for_form_field_hidden_by_
         application=builder, user=user
     )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Notes", "text")], rows=[]
+        database=data_fixture.create_database_application(workspace=draft.workspace),
+        user=user,
+        columns=[("Notes", "text")],
+        rows=[],
     )
 
     headers = {}
@@ -2804,3 +3036,146 @@ def test_update_notification_workflow_action_drops_plain_format(
 
     workflow_action.refresh_from_db()
     assert "format" not in workflow_action.title
+
+
+def _create_mismatched_integration(data_fixture, kind, user, builder):
+    """
+    Returns an integration a `create_row` workflow action in `builder` must
+    refuse: one of another type, or one belonging to another builder.
+    """
+
+    if kind == "other_type":
+        return data_fixture.create_smtp_integration(application=builder)
+    if kind == "other_builder":
+        other_builder = data_fixture.create_builder_application(
+            workspace=builder.workspace
+        )
+        return data_fixture.create_local_baserow_integration(
+            application=other_builder, authorized_user=user
+        )
+    # A builder in a workspace the user isn't a member of.
+    return data_fixture.create_local_baserow_integration()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+def test_create_workflow_action_rejects_mismatched_integration(
+    api_client, data_fixture, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    integration = _create_mismatched_integration(data_fixture, kind, user, page.builder)
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": CreateRowWorkflowActionType.type,
+            "event": "click",
+            "element_id": element.id,
+            "service": {"integration_id": integration.id},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
+    assert not BuilderWorkflowAction.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_integration", [True, False])
+@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+def test_update_workflow_action_rejects_mismatched_integration(
+    api_client, data_fixture, kind, has_integration
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service
+    if not has_integration:
+        service.integration = None
+        service.save()
+    original_integration_id = service.integration_id
+    other_integration = _create_mismatched_integration(
+        data_fixture, kind, user, page.builder
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.patch(
+        url,
+        {"service": {"integration_id": other_integration.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
+    service.refresh_from_db()
+    assert service.integration_id == original_integration_id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["other_builder", "other_workspace"])
+def test_dispatch_workflow_action_refuses_integration_of_another_application(
+    api_client, data_fixture, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    if kind == "other_builder":
+        other_builder = data_fixture.create_builder_application(
+            workspace=page.builder.workspace
+        )
+        authorized_user = user
+    else:
+        # A builder in a workspace the user isn't a member of.
+        authorized_user = data_fixture.create_user()
+        other_builder = data_fixture.create_builder_application(user=authorized_user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=other_builder, authorized_user=authorized_user
+    )
+    table, _, _ = data_fixture.build_table(
+        user=authorized_user, columns=[("Name", "text")], rows=[["Secret"]]
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.integration = integration
+    service.table = table
+    service.save()
+
+    response = api_client.post(
+        reverse(
+            "api:builder:workflow_action:dispatch",
+            kwargs={"workflow_action_id": workflow_action.id},
+        ),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+        "detail": "The integration used by this service belongs to another "
+        "application.",
+    }
+    assert table.get_model().objects.count() == 1

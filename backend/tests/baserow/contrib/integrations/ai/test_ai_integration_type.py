@@ -4,6 +4,7 @@ import pytest
 
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.models import AIIntegration
+from baserow.core.integrations.exceptions import IntegrationCredentialRequired
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.registries import ImportExportConfig
@@ -512,3 +513,78 @@ def test_get_integration_provider_settings_ignores_workspace_settings(data_fixtu
         is None
     )
     assert integration_type.get_provider_settings(integration, "openai") == {}
+
+
+@pytest.mark.django_db
+def test_ai_integration_update_ignores_stored_settings_that_are_not_targets(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = AIIntegration.objects.create(
+        application=application,
+        ai_settings={
+            "openai": {
+                "api_key": "sk-stored",
+                "models": ["gpt-4"],
+                "no_longer_a_setting": "value",
+            }
+        },
+    )
+
+    updated = IntegrationService().update_integration(
+        user, integration, ai_settings={"openai": {"models": ["gpt-4o"]}}
+    )
+
+    assert updated.integration.ai_settings["openai"] == {
+        "api_key": "sk-stored",
+        "models": ["gpt-4o"],
+    }
+
+
+@pytest.mark.django_db
+def test_ai_integration_update_omitting_a_target_keeps_the_api_key(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type_registry.get("ai"),
+        application=application,
+        ai_settings={
+            "openai": {
+                "api_key": "sk-stored",
+                "models": ["gpt-4"],
+                "base_url": "https://eu.api.openai.com/v1",
+            }
+        },
+    )
+
+    updated = IntegrationService().update_integration(
+        user, integration, ai_settings={"openai": {"models": ["gpt-4o"]}}
+    )
+
+    # Without `base_url` the key goes to the provider's default host, which the
+    # caller cannot choose.
+    assert updated.integration.ai_settings["openai"] == {
+        "api_key": "sk-stored",
+        "models": ["gpt-4o"],
+    }
+
+
+@pytest.mark.django_db
+def test_ai_integration_update_changing_a_target_requires_the_api_key(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type_registry.get("ai"),
+        application=application,
+        ai_settings={"openai": {"api_key": "sk-stored", "models": ["gpt-4"]}},
+    )
+
+    with pytest.raises(IntegrationCredentialRequired):
+        IntegrationService().update_integration(
+            user,
+            integration,
+            ai_settings={"openai": {"base_url": "https://other.example"}},
+        )

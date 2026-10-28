@@ -32,6 +32,11 @@ class Automation(Application):
         blank=True,
     )
 
+    def get_workspace(self):
+        if not self.workspace_id and self.published_from_id:
+            return self.published_from.automation.workspace
+        return self.workspace
+
     def get_parent(self):
         # If we had select related workspace we want to keep it
         self.application_ptr.workspace = self.workspace

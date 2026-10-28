@@ -124,7 +124,7 @@ export class UsersAdminType extends AdminType {
   }
 
   getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getName() {

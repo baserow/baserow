@@ -2,6 +2,7 @@ import { AgentExtensionType } from '@baserow/modules/core/agentExtensionTypes'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentTeamsCell from '@baserow_enterprise/components/agents/AgentTeamsCell'
+import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
 
 export class EnterpriseTeamsAgentExtensionType extends AgentExtensionType {
   static getType() {
@@ -21,5 +22,22 @@ export class EnterpriseTeamsAgentExtensionType extends AgentExtensionType {
         AgentTeamsCell
       ),
     ]
+  }
+}
+
+export class EnterpriseRolesAgentExtensionType extends AgentExtensionType {
+  static getType() {
+    return 'enterpriseRoles'
+  }
+
+  isActive(workspace) {
+    return this.app.$hasFeature(EnterpriseFeatures.RBAC, workspace.id)
+  }
+
+  getRowExpansion() {
+    return getSubjectRoleAssignmentsRowExpansion({
+      subjectType: 'core.Agent',
+      columnKey: 'role_uid',
+    })
   }
 }

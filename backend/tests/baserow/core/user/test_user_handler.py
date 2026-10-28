@@ -806,6 +806,26 @@ def test_verify_email_address(data_fixture):
 
 
 @pytest.mark.django_db
+@patch("baserow.core.user.handler.broadcast_to_users")
+def test_verify_email_address_tells_the_open_tabs_of_the_user(
+    mock_broadcast_to_users, data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    token = UserHandler().create_email_verification_token(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        UserHandler().verify_email_address(token)
+
+    mock_broadcast_to_users.delay.assert_called_once_with(
+        [user.id],
+        {
+            "type": "user_data_updated",
+            "user_data": {"user": {"email_verified": True}},
+        },
+    )
+
+
+@pytest.mark.django_db
 def test_verify_email_address_expired(data_fixture):
     user = data_fixture.create_user()
 

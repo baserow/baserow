@@ -55,6 +55,19 @@ const team = {
 const emailPick = (email) => ({ key: `email:${email}`, type: 'email', email })
 // What the route asked the picker to do, reset on every mount.
 const picker = { removed: [], resets: 0 }
+// The answer the no access confirmation gives, and what it was asked.
+const noAccessModal = { answer: true, asked: [] }
+const effectiveAccess = [
+  {
+    subject_type: 'auth.User',
+    subject_id: 9,
+    role: 'EDITOR',
+    source_scope_type: 'workspace',
+    source_scope_id: 12,
+    through_teams: false,
+    teams: [],
+  },
+]
 // A captcha widget that needs a moment to issue every token, like the real
 // one does after a reset.
 const captchaWidget = {
@@ -100,6 +113,9 @@ function createClient({
       const scopeType = config?.params?.scope_type
       if (url === '/role/12/' && scopeType in assignmentsPerScopeType) {
         return Promise.resolve({ data: assignmentsPerScopeType[scopeType] })
+      }
+      if (url === '/role/12/effective-access/') {
+        return Promise.resolve({ data: effectiveAccess })
       }
       if (url === '/role/12/invitations/') {
         return Promise.resolve({
@@ -177,6 +193,8 @@ async function mountRoute(
 ) {
   picker.removed = []
   picker.resets = 0
+  noAccessModal.answer = true
+  noAccessModal.asked = []
   const app = {
     $client: client,
     $hasPermission: (operation) =>
@@ -205,7 +223,7 @@ async function mountRoute(
           props: [
             'subjects',
             'pendingEmails',
-            'assignedKeys',
+            'assignedRoles',
             'roles',
             'emailRoleUids',
             'emailDisabledReason',
@@ -219,10 +237,12 @@ async function mountRoute(
             '{{ (subjects["core.Agent"] || []).map((a) => a.name).join(",") }}' +
             '</div>' +
             '<div class="picker-pending">{{ pendingEmails.join(",") }}</div>' +
-            '<div class="picker-assigned">{{ assignedKeys.join(",") }}</div>' +
+            '<div class="picker-assigned">{{ JSON.stringify(assignedRoles) }}</div>' +
             '<div class="picker-admins">{{ JSON.stringify(inheritedAdmins) }}</div>' +
             '<div class="picker-roles">{{ roles.map((r) => r.uid).join(",") }}' +
-            '|{{ emailRoleUids.join(",") }}</div>',
+            '|{{ emailRoleUids.join(",") }}</div>' +
+            // What the dialog shows below the input.
+            '<slot />',
           methods: {
             reset() {
               picker.resets += 1
@@ -243,7 +263,23 @@ async function mountRoute(
                 '<div class="access-locks">{{ items.map((i) => i.key + "=" + ' +
                 'i.roleUid + ":" + (i.helpText || "")).join(",") }}</div>',
             },
-        ScopeInheritedAccess: { template: '<div class="inherited"></div>' },
+        ScopeInheritedAccess: {
+          name: 'ScopeInheritedAccess',
+          props: ['effectiveAccess', 'directKeys'],
+          template:
+            '<div class="inherited">{{ effectiveAccess.map((e) => ' +
+            'e.subject_type + ":" + e.subject_id).join(",") }}' +
+            '|{{ directKeys.join(",") }}</div>',
+        },
+        ScopeNoAccessModal: {
+          template: '<div></div>',
+          methods: {
+            ask(description) {
+              noAccessModal.asked.push(description)
+              return Promise.resolve(noAccessModal.answer)
+            },
+          },
+        },
         CaptchaWidget: captcha
           ? captchaWidget
           : { template: '<div></div>', methods: { reset() {} } },
@@ -263,7 +299,9 @@ test('lists pending invitations first and tells the picker who already has a rol
     // with a role on the table as such.
     expect(wrapper.find('.picker').text()).toBe('Mark Delgado,Jane Roe')
     expect(wrapper.find('.picker-pending').text()).toBe('olga@x.com')
-    expect(wrapper.find('.picker-assigned').text()).toBe('auth.User:8')
+    expect(wrapper.find('.picker-assigned').text()).toBe(
+      '{"auth.User:8":"VIEWER"}'
+    )
     expect(wrapper.find('.picker-agents').text()).toBe('')
     expect(wrapper.find('.picker-agents').attributes('data-enabled')).toBe(
       'true'
@@ -306,7 +344,7 @@ test('uses the shared list to change and revoke only a scoped invitation', async
     realList: true,
   })
   try {
-    expect(wrapper.find('.invite-list__items--scrollable').exists()).toBe(true)
+    expect(wrapper.find('.invite-list__items').exists()).toBe(true)
     const row = wrapper.find('.invite-list__item')
     expect(row.find('.invite-list__name').text()).toContain('olga@x.com')
     expect(row.find('.invite-list__role > a').text()).toBe('Editor')
@@ -760,6 +798,134 @@ test('shows a locked admin role with an explanation in the list', async () => {
       .map((link) => link.text().trim())
     expect(options).toContain('Admin')
     expect(options).not.toContain('No access')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('summarises access and forwards navigation to the owning modal', async () => {
+  const client = createClient()
+  const wrapper = await mountRoute(client, createTargetType())
+  try {
+    expect(client.get).toHaveBeenCalledWith('/role/12/effective-access/', {
+      params: { scope_id: 20, scope_type: 'database_table' },
+    })
+    expect(wrapper.find('.inherited').text()).toBe('auth.User:9|auth.User:8')
+
+    const parentTarget = {
+      type: 'scope',
+      scopeType: 'application',
+      scope: database,
+    }
+    wrapper
+      .findComponent({ name: 'ScopeInheritedAccess' })
+      .vm.$emit('navigate', parentTarget)
+    expect(wrapper.emitted('navigate')).toEqual([[parentTarget]])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('asks before giving no access and refreshes who else has access', async () => {
+  const client = createClient()
+  const wrapper = await mountRoute(client, createTargetType())
+  const markRow = {
+    kind: 'auth.User',
+    name: 'Mark Delgado',
+    roleUid: 'VIEWER',
+    roleAssignment: {
+      id: 5,
+      subject_type: 'auth.User',
+      subject: { id: 8 },
+      scope_id: 20,
+      scope_type: 'database_table',
+    },
+  }
+  const effectiveAccessFetches = () =>
+    client.get.mock.calls.filter(
+      ([url]) => url === '/role/12/effective-access/'
+    ).length
+  try {
+    noAccessModal.answer = false
+    await wrapper.vm.add([team, emailPick('new@x.com')], 'NO_ACCESS')
+    await wrapper.vm.updateItemRole(markRow, 'NO_ACCESS')
+    await flushPromises()
+    expect(noAccessModal.asked).toEqual([
+      'shareScope.noAccessSelectionDescription - 1',
+      'shareScope.noAccessDescription',
+    ])
+    expect(client.post).not.toHaveBeenCalled()
+    expect(effectiveAccessFetches()).toBe(1)
+
+    // No other role, nor an invitation, asks first.
+    await wrapper.vm.updateItemRole(markRow, 'EDITOR')
+    await wrapper.vm.updateItemRole(
+      { kind: 'invitation', scopedInvitation: { id: 1 } },
+      'VIEWER'
+    )
+    expect(noAccessModal.asked).toHaveLength(2)
+
+    noAccessModal.answer = true
+    await wrapper.vm.updateItemRole(markRow, 'NO_ACCESS')
+    await flushPromises()
+    expect(client.post).toHaveBeenLastCalledWith('/role/12/', {
+      subject_id: 8,
+      subject_type: 'auth.User',
+      scope_id: 20,
+      scope_type: 'database_table',
+      role: 'NO_ACCESS',
+    })
+    expect(effectiveAccessFetches()).toBe(3)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('keeps who else has access from the latest request only', async () => {
+  const client = createClient()
+  const wrapper = await mountRoute(client, createTargetType())
+  const deferred = () => {
+    let resolve
+    const promise = new Promise((resolvePromise) => (resolve = resolvePromise))
+    return { promise, resolve }
+  }
+  const older = deferred()
+  const newer = deferred()
+  client.get
+    .mockImplementationOnce(() => older.promise)
+    .mockImplementationOnce(() => newer.promise)
+  try {
+    wrapper.vm.fetchEffectiveAccess()
+    wrapper.vm.fetchEffectiveAccess()
+    newer.resolve({ data: [{ ...effectiveAccess[0], subject_id: 2 }] })
+    await flushPromises()
+    older.resolve({ data: [{ ...effectiveAccess[0], subject_id: 1 }] })
+    await flushPromises()
+
+    expect(wrapper.find('.inherited').text()).toBe('auth.User:2|auth.User:8')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('shows a loading state for who else has access until it is fetched', async () => {
+  const client = createClient()
+  let resolveEffectiveAccess
+  const get = client.get.getMockImplementation()
+  client.get.mockImplementation((url, config) =>
+    url === '/role/12/effective-access/'
+      ? new Promise((resolve) => (resolveEffectiveAccess = resolve))
+      : get(url, config)
+  )
+  const wrapper = await mountRoute(client, createTargetType())
+  try {
+    expect(wrapper.findAll('.loading')).toHaveLength(2)
+    expect(wrapper.find('.inherited').exists()).toBe(false)
+
+    resolveEffectiveAccess({ data: effectiveAccess })
+    await flushPromises()
+    expect(wrapper.find('.loading').exists()).toBe(false)
+    expect(wrapper.find('.inherited').exists()).toBe(true)
   } finally {
     wrapper.unmount()
   }

@@ -5,13 +5,22 @@ from django.db import OperationalError
 import pytest
 from celery.exceptions import Retry
 from freezegun import freeze_time
+from kombu.exceptions import OperationalError as BrokerError
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
+from baserow.contrib.database.search.registries import (
+    SearchDataUpdaterType,
+    search_data_updater_registry,
+)
+from baserow.contrib.database.search.search_data_updater_types import (
+    FullTextSearchDataUpdaterType,
+)
 from baserow.contrib.database.search.tasks import (
     periodic_check_pending_search_data,
     schedule_update_search_data,
+    update_search_data,
 )
 from baserow.contrib.database.table.handler import TableHandler
 
@@ -149,3 +158,63 @@ def test_periodic_check_continues_after_transient_error_on_one_table(data_fixtur
         periodic_check_pending_search_data()
 
     assert len(scheduled) == 2
+
+
+class RecordingSearchDataUpdaterType(SearchDataUpdaterType):
+    type = "recording"
+
+    def __init__(self):
+        super().__init__()
+        self.queued = []
+        self.scheduled = []
+
+    def get_queued_field_ids(self, table, field_ids):
+        return field_ids
+
+    def queue_pending_updates(self, field_ids, row_ids=None, **values):
+        self.queued.append((field_ids, row_ids))
+
+    def schedule(self, table_id, new_pending_updates=True):
+        self.scheduled.append(table_id)
+
+
+@pytest.fixture
+def recording_search_data_updater_type():
+    before = search_data_updater_registry.registry.copy()
+    updater_type = RecordingSearchDataUpdaterType()
+    search_data_updater_registry.register(updater_type)
+    yield updater_type
+    search_data_updater_registry.registry = before
+
+
+@pytest.mark.django_db(transaction=True)
+def test_failing_broker_doesnt_prevent_other_types_from_queuing_changes(
+    data_fixture, recording_search_data_updater_type
+):
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_text_field(table=table)
+
+    with patch.object(
+        update_search_data, "apply_async", side_effect=BrokerError("broker is down")
+    ):
+        schedule_update_search_data(table.id, field_ids=[field.id])
+
+    assert PendingSearchValueUpdate.objects.filter(field_id=field.id).exists()
+    assert recording_search_data_updater_type.queued == [([field.id], None)]
+    assert recording_search_data_updater_type.scheduled == [table.id]
+
+
+@pytest.mark.django_db
+def test_changes_while_the_update_task_runs_make_it_run_again(data_fixture):
+    table = data_fixture.create_database_table()
+    updater_type = search_data_updater_registry.get(FullTextSearchDataUpdaterType.type)
+    lock = update_search_data.generate_lock(
+        update_search_data.name, task_args=[table.id]
+    )
+    update_search_data.aquire_lock(lock, "running-task-id")
+    try:
+        updater_type.schedule(table.id, new_pending_updates=True)
+    finally:
+        update_search_data.unlock(lock)
+
+    assert updater_type._get_reschedule_flag(table.id).is_set()

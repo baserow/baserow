@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import re
+import socket
 from datetime import timedelta
 from decimal import Decimal
 from ipaddress import ip_network
@@ -191,6 +192,29 @@ BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
 BASEROW_ROLE_USAGE_QUEUE = os.getenv("BASEROW_GROUP_STORAGE_USAGE_QUEUE", "export")
 
 CELERY_BROKER_URL = REDIS_URL
+# Without these, a broker connection that is dropped silently (e.g. by a NAT or
+# conntrack timeout) is never detected and the worker keeps waiting on the dead
+# socket forever without consuming new tasks. TCP keepalive probes detect the dead
+# peer, the socket timeout makes blocked reads fail instead of hanging and the
+# health check pings idle connections. The socket timeout must stay well above
+# kombu's BRPOP timeout of 1 second.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_keepalive": True,
+    # Start probing after 60s idle and give up after 3 unanswered probes 10s apart.
+    # TCP_KEEPIDLE is Linux only, so skip the options the platform doesn't have.
+    "socket_keepalive_options": {
+        getattr(socket, option): value
+        for option, value in (
+            ("TCP_KEEPIDLE", 60),
+            ("TCP_KEEPINTVL", 10),
+            ("TCP_KEEPCNT", 3),
+        )
+        if hasattr(socket, option)
+    },
+    "socket_timeout": 30,
+    "socket_connect_timeout": 30,
+    "health_check_interval": 25,
+}
 CELERY_TASK_ROUTES = {
     "baserow.contrib.database.export.tasks.run_export_job": {"queue": "export"},
     "baserow.contrib.database.export.tasks.clean_up_old_jobs": {"queue": "export"},
@@ -557,6 +581,13 @@ ACCESS_TOKEN_LIFETIME = timedelta(
 REFRESH_TOKEN_LIFETIME = timedelta(
     hours=int(os.getenv("BASEROW_REFRESH_TOKEN_LIFETIME_HOURS", 24 * 7))  # 7 days
 )
+# Every refresh returns a new refresh token and revokes the one that was used.
+ROTATE_REFRESH_TOKENS = str_to_bool(
+    os.getenv("BASEROW_ROTATE_REFRESH_TOKENS") or "true"
+)
+# A revoked refresh token keeps working for this long, so tabs that refresh at the
+# same time don't log each other out. Using it later revokes the whole session.
+REFRESH_TOKEN_REUSE_GRACE_PERIOD = timedelta(seconds=30)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": ACCESS_TOKEN_LIFETIME,
@@ -1671,8 +1702,10 @@ PERMISSION_MANAGERS = [
     "staff",
     "allow_if_template",
     "allow_builder_preview",
-    "allow_public_builder",
+    # Must run before `allow_public_builder`, which allows every dispatch on a
+    # published builder and would leave hidden elements' actions dispatchable.
     "element_visibility",
+    "allow_public_builder",
     "member",
     "token",
     "write_field_values",

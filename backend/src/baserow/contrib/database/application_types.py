@@ -19,7 +19,10 @@ from django.utils.translation import gettext as _
 from baserow.contrib.database.api.serializers import DatabaseSerializer
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    field_extension_registry,
+    field_type_registry,
+)
 from baserow.contrib.database.fields.utils.field_constraint import (
     build_django_field_constraints,
 )
@@ -313,7 +316,14 @@ class DatabaseApplicationType(ApplicationType):
             database.table_set.all()
             .select_related("data_sync")
             .prefetch_related(
-                Prefetch("field_set", queryset=specific_queryset(Field.objects.all())),
+                Prefetch(
+                    "field_set",
+                    queryset=specific_queryset(
+                        field_extension_registry.enhance_fields_queryset(
+                            Field.objects.all()
+                        )
+                    ),
+                ),
                 "field_set__select_options",
                 Prefetch(
                     "view_set",

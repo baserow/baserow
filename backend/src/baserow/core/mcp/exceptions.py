@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 from loguru import logger
 from pydantic import ValidationError
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -119,6 +120,9 @@ def to_mcp_error(exc: Exception) -> str | None:
         return "Invalid value. " + " ".join(exc.messages)
     if isinstance(exc, RequestBodyValidationException):
         return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail["detail"]))
+    # Raised with a reason, like a node type that is deactivated on this instance.
+    if isinstance(exc, DRFPermissionDenied):
+        return str(exc.detail)
     if isinstance(exc, DRFValidationError):
         return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail))
     # Before the generic rule. `Registry.get` passes the client's type name and a

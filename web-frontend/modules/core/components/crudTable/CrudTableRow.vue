@@ -28,10 +28,12 @@
             @row-context="(payload) => $emit('row-context', payload)"
             @row-update="$emit('row-update', $event)"
             @row-delete="$emit('row-delete', $event)"
-            @refresh="$emit('refresh')"
+            @refresh="$emit('refresh', $event)"
           />
           <button
-            v-if="expandable && col.key === (expandColumnKey || columns[0].key)"
+            v-if="
+              expandable && col.key === (expandColumnKey || columns[0]?.key)
+            "
             type="button"
             class="data-table__expand"
             :aria-label="

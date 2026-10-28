@@ -41,6 +41,7 @@ def data_source_fixture(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(workspace=workspace),
         columns=[
             ("Name", "text"),
             ("Color", "text"),
@@ -69,6 +70,7 @@ def data_source_fixture(data_fixture):
     user_source_user_token = user_source_user.get_refresh_token().access_token
 
     return {
+        "workspace": workspace,
         "user": user,
         "token": token,
         "user_source_user": user_source_user,
@@ -233,7 +235,12 @@ def test_create_data_source_page_does_not_exist(api_client, data_fixture):
 def test_update_data_source(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     view = data_fixture.create_grid_view(user, table=table)
     data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page
@@ -329,7 +336,12 @@ def test_update_data_source_page_only_preserves_service_values(
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     page2 = data_fixture.create_builder_page(user=user, builder=page.builder)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page, name="name", table=table, row_id="'42'"
     )
@@ -546,7 +558,12 @@ def test_update_data_source_with_filters(api_client, data_fixture):
 def test_update_data_source_with_filter_groups(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     text_field = data_fixture.create_text_field(table=table)
     data_source1 = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table
@@ -628,7 +645,12 @@ def test_update_data_source_filters_only_preserves_groups(api_client, data_fixtu
 
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     text_field = data_fixture.create_text_field(table=table)
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table
@@ -709,7 +731,12 @@ def test_update_data_source_filter_groups_only_preserves_filters(
 
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     text_field = data_fixture.create_text_field(table=table)
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table
@@ -768,7 +795,12 @@ def test_update_data_source_filter_groups_only_preserves_filters(
 def test_update_data_source_change_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_local_baserow_aggregate_rows_service(
         table_id=table.id,
     )
@@ -1113,7 +1145,9 @@ def test_dispatch_data_source(api_client, data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1290,7 +1324,9 @@ def test_dispatch_data_source_with_adhoc_filters(api_client, data_fixture):
     filterable_field = table.field_set.get(name="Name")
     private_field = table.field_set.get(name="SSN")
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1400,7 +1436,9 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
     sortable_field = table.field_set.get(name="Name")
     private_field = table.field_set.get(name="SSN")
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1508,7 +1546,9 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
     searchable_field = table.field_set.get(name="Name")
     private_field = table.field_set.get(name="SSN")
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1610,6 +1650,7 @@ def test_dispatch_data_source_with_adhoc_search_and_filter_referencing_other_dat
             rows=[["a@x.com"]],
         )
         clients_table, _, _ = data_fixture.build_table(
+            database=members_table.database,
             user=user,
             columns=[("Client name", "text"), ("Tenant", "text")],
             rows=[["Acme", "a@x.com"], ["Globex", "b@x.com"]],
@@ -1618,7 +1659,9 @@ def test_dispatch_data_source_with_adhoc_search_and_filter_referencing_other_dat
     client_name_field = clients_table.field_set.get(name="Client name")
     tenant_field = clients_table.field_set.get(name="Tenant")
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=members_table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1701,6 +1744,9 @@ def test_dispatch_data_source_with_element_from_shared_page(api_client, data_fix
 
     page_with_element = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page_with_element.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -1712,7 +1758,6 @@ def test_dispatch_data_source_with_element_from_shared_page(api_client, data_fix
         ],
     )
 
-    page_with_element = data_fixture.create_builder_page(user=user)
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=page_with_element.builder
     )
@@ -1785,7 +1830,9 @@ def test_dispatch_data_source_permission_denied(api_client, data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1828,7 +1875,9 @@ def test_dispatch_data_source_using_formula(api_client, data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2013,7 +2062,9 @@ def test_dispatch_data_sources(api_client, data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2111,6 +2162,7 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_an_other(
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -2123,7 +2175,9 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_an_other(
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2200,6 +2254,7 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -2212,7 +2267,9 @@ def test_dispatch_data_sources_with_formula_using_datasource_calling_a_shared_da
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2282,7 +2339,9 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2348,7 +2407,12 @@ def test_get_record_names_published_builder(
     page = data_source_fixture["page"]
     page.builder.workspace = None
     page.builder.save()
-    data_fixture.create_builder_custom_domain(published_to=page.builder)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=data_source_fixture["workspace"]
+        ),
+        published_to=page.builder,
+    )
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=data_source_fixture["user"],
         page=page,
@@ -2395,7 +2459,10 @@ def test_get_record_names(api_client, data_fixture):
     )
 
     # There must exist one database with a primary column for the record name
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+    )
     data_fixture.create_text_field(name="Name", table=table, primary=True)
 
     model = table.get_model(attribute_names=True)
@@ -2408,6 +2475,7 @@ def test_get_record_names(api_client, data_fixture):
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=user,
+        page=data_fixture.create_builder_page(user=user, builder=builder),
         table=table,
         integration=integration,
     )
@@ -2604,7 +2672,10 @@ def test_dispatch_data_sources_list_rows_with_elements(
     data_source_fixture["page"].builder.workspace = None
     data_source_fixture["page"].builder.save()
     data_fixture.create_builder_custom_domain(
-        published_to=data_source_fixture["page"].builder
+        builder=data_fixture.create_builder_application(
+            workspace=data_source_fixture["workspace"]
+        ),
+        published_to=data_source_fixture["page"].builder,
     )
 
     url = reverse(
@@ -2691,7 +2762,10 @@ def test_dispatch_data_sources_get_row_with_elements(
     data_source_fixture["page"].builder.workspace = None
     data_source_fixture["page"].builder.save()
     data_fixture.create_builder_custom_domain(
-        published_to=data_source_fixture["page"].builder
+        builder=data_fixture.create_builder_application(
+            workspace=data_source_fixture["workspace"]
+        ),
+        published_to=data_source_fixture["page"].builder,
     )
 
     url = reverse(
@@ -2733,6 +2807,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     user = data_source_fixture["user"]
     table_1, fields_1, rows_1 = data_fixture.build_table(
         user=user,
+        database=data_source_fixture["table"].database,
         columns=[
             ("Food", "text"),
         ],
@@ -2749,6 +2824,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     )
 
     table_2, fields_2, rows_2 = data_fixture.build_table(
+        database=table_1.database,
         user=user,
         columns=[
             ("Fruits", "text"),
@@ -2798,7 +2874,10 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     data_source_fixture["page"].builder.workspace = None
     data_source_fixture["page"].builder.save()
     data_fixture.create_builder_custom_domain(
-        published_to=data_source_fixture["page"].builder
+        builder=data_fixture.create_builder_application(
+            workspace=data_source_fixture["workspace"]
+        ),
+        published_to=data_source_fixture["page"].builder,
     )
 
     url = reverse(
@@ -2899,6 +2978,7 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=workspace),
         user=user,
         columns=[
             ("Food", "text"),
@@ -3037,3 +3117,310 @@ def test_dispatch_data_sources_view(
     mock_dispatch_page_data_sources.assert_called_once_with(
         ANY, mock_page, mock_dispatch_context
     )
+
+
+def _create_mismatched_integration(data_fixture, kind, user, builder):
+    """
+    Returns an integration a `local_baserow_list_rows` data source in `builder`
+    must refuse: one of another type, or one belonging to another builder.
+    """
+
+    if kind == "other_type":
+        return data_fixture.create_smtp_integration(application=builder)
+    if kind == "other_builder":
+        other_builder = data_fixture.create_builder_application(
+            workspace=builder.workspace
+        )
+        return data_fixture.create_local_baserow_integration(
+            application=other_builder, authorized_user=user
+        )
+    # A builder in a workspace the user isn't a member of.
+    return data_fixture.create_local_baserow_integration()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+def test_create_data_source_rejects_mismatched_integration(
+    api_client, data_fixture, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration = _create_mismatched_integration(data_fixture, kind, user, page.builder)
+
+    url = reverse("api:builder:data_source:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "name": "test",
+            "type": "local_baserow_list_rows",
+            "integration_id": integration.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
+    assert not DataSource.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_integration", [True, False])
+@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+def test_update_data_source_rejects_mismatched_integration(
+    api_client, data_fixture, kind, has_integration
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration_args={"authorized_user": user}
+    )
+    service = data_source.service
+    if not has_integration:
+        service.integration = None
+        service.save()
+    original_integration_id = service.integration_id
+    other_integration = _create_mismatched_integration(
+        data_fixture, kind, user, page.builder
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+    response = api_client.patch(
+        url,
+        {"integration_id": other_integration.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
+    service.refresh_from_db()
+    assert service.integration_id == original_integration_id
+
+
+def _create_foreign_integration_and_table(data_fixture, kind, user, builder):
+    """
+    Returns a `local_baserow` integration from another application than
+    `builder`, and a table its authorized user can read.
+    """
+
+    if kind == "other_builder":
+        other_builder = data_fixture.create_builder_application(
+            workspace=builder.workspace
+        )
+        authorized_user = user
+    else:
+        # A builder in a workspace the user isn't a member of.
+        authorized_user = data_fixture.create_user()
+        other_builder = data_fixture.create_builder_application(user=authorized_user)
+
+    integration = data_fixture.create_local_baserow_integration(
+        application=other_builder, authorized_user=authorized_user
+    )
+    table, _, _ = data_fixture.build_table(
+        user=authorized_user, columns=[("Name", "text")], rows=[["Secret"]]
+    )
+    return integration, table
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["other_builder", "other_workspace"])
+def test_dispatch_data_source_refuses_integration_of_another_application(
+    api_client, data_fixture, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration, table = _create_foreign_integration_and_table(
+        data_fixture, kind, user, page.builder
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:builder:data_source:dispatch",
+            kwargs={"data_source_id": data_source.id},
+        ),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+        "detail": "The integration used by this service belongs to another "
+        "application.",
+    }
+
+    response = api_client.post(
+        reverse("api:builder:data_source:dispatch-all", kwargs={"page_id": page.id}),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        str(data_source.id): {
+            "_error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "detail": "The integration used by this service belongs to another "
+            "application.",
+        }
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["other_builder", "other_workspace"])
+def test_get_record_names_refuses_integration_of_another_application(
+    api_client, data_fixture, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration, table = _create_foreign_integration_and_table(
+        data_fixture, kind, user, page.builder
+    )
+    row = table.get_model().objects.first()
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+
+    url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    response = api_client.get(
+        f"{url}?record_ids={row.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+        "detail": "The integration used by this service belongs to another "
+        "application.",
+    }
+
+
+def _create_table_in_another_workspace(data_fixture, user):
+    """
+    Returns a table in a workspace the user administers, other than the one of the
+    builder.
+    """
+
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, primary=True, name="Name")
+    table.get_model().objects.create(**{field.db_column: "Secret"})
+    return table
+
+
+@pytest.mark.django_db
+def test_create_data_source_rejects_table_of_another_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, authorized_user=user
+    )
+    table = _create_table_in_another_workspace(data_fixture, user)
+
+    response = api_client.post(
+        reverse("api:builder:data_source:list", kwargs={"page_id": page.id}),
+        {
+            "name": "test",
+            "type": "local_baserow_list_rows",
+            "integration_id": integration.id,
+            "table_id": table.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["table_id"][0]["code"] == "invalid_table"
+    assert not DataSource.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db
+def test_update_data_source_rejects_table_of_another_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, authorized_user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration
+    )
+    table = _create_table_in_another_workspace(data_fixture, user)
+
+    response = api_client.patch(
+        reverse(
+            "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+        ),
+        {"table_id": table.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["table_id"][0]["code"] == "invalid_table"
+    data_source.service.refresh_from_db()
+    assert data_source.service.specific.table_id != table.id
+
+
+@pytest.mark.django_db
+def test_dispatch_data_source_refuses_table_of_another_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, authorized_user=user
+    )
+    table = _create_table_in_another_workspace(data_fixture, user)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+    expected = {
+        "error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+        "detail": "The selected table belongs to another workspace.",
+    }
+
+    response = api_client.post(
+        reverse(
+            "api:builder:data_source:dispatch",
+            kwargs={"data_source_id": data_source.id},
+        ),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == expected
+
+    url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    row = table.get_model().objects.first()
+    response = api_client.get(
+        f"{url}?record_ids={row.id}", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == expected

@@ -1,6 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
 
@@ -21,6 +21,7 @@ const member = {
   icon: 'iconoir-user',
   color: 'blue',
   disabledReason: 'Already a member',
+  disabledHint: 'Member',
 }
 // An address with an invitation, listed the same way.
 const pending = {
@@ -32,6 +33,7 @@ const pending = {
   icon: 'iconoir-mail',
   color: 'neutral',
   disabledReason: 'Already invited',
+  disabledHint: 'Invited',
 }
 // Someone who can be picked.
 const pickable = {
@@ -46,8 +48,10 @@ const pickable = {
   color: 'blue',
 }
 
-async function mountInput(props = {}, batchLimit) {
+async function mountInput(props = {}, batchLimit, slots = {}, options = {}) {
   return await mountSuspended(InviteInput, {
+    ...options,
+    slots,
     props: {
       workspace,
       roles,
@@ -84,7 +88,10 @@ function itemTitles(wrapper) {
 }
 
 function resultsOpen(wrapper) {
-  return wrapper.findComponent({ name: 'Context' }).vm.isOpen()
+  return !wrapper
+    .find('.invite-input__results')
+    .classes()
+    .includes('visibility-hidden')
 }
 
 function paste(input, text) {
@@ -249,7 +256,127 @@ test('only takes email addresses when there is nothing to pick', async () => {
   }
 })
 
-test('lists what cannot be picked with its reason and makes an error chip of it', async () => {
+test('opens a context on focus while keeping the access summary visible', async () => {
+  const wrapper = await mountInput(
+    {
+      options: [member, pickable],
+      tabs: [{ value: 'auth.User', label: 'Members' }],
+    },
+    undefined,
+    { default: '<p class="below">Direct access</p>' }
+  )
+  try {
+    const belowShown = () => wrapper.find('.below').isVisible()
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(belowShown()).toBe(true)
+
+    // Nothing has to be typed to see who can be picked, and who can't be is
+    // listed with the hint.
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    expect(resultsOpen(wrapper)).toBe(true)
+    expect(belowShown()).toBe(true)
+    expect(itemTitles(wrapper)).toEqual(['Mark Delgado', 'Foo Bar Viewer'])
+    expect(wrapper.find('.invite-input__item--disabled').text()).toContain(
+      'Member'
+    )
+
+    await input.trigger('blur')
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(belowShown()).toBe(true)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('closes the results with the button next to the tabs', async () => {
+  const wrapper = await mountInput(
+    {
+      options: [pickable],
+      tabs: [{ value: 'auth.User', label: 'Members' }],
+    },
+    undefined,
+    { default: '<p class="below">Direct access</p>' }
+  )
+  try {
+    const belowShown = () => wrapper.find('.below').isVisible()
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    await wrapper.find('.invite-input__item').trigger('click')
+    await input.setValue('foo')
+
+    await wrapper.find('.invite-input__close').trigger('click')
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(belowShown()).toBe(true)
+    // What was picked and typed stays.
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
+    expect(input.element.value).toBe('foo')
+
+    await input.trigger('focus')
+    expect(resultsOpen(wrapper)).toBe(true)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('closes only the results on escape while they are open', async () => {
+  // Attached, so that the key events bubble up to the window.
+  const wrapper = await mountInput(
+    {
+      options: [pickable],
+      tabs: [{ value: 'auth.User', label: 'Members' }],
+    },
+    undefined,
+    {},
+    { attachTo: document.body }
+  )
+  const reachedWindow = vi.fn()
+  window.addEventListener('keyup', reachedWindow)
+  try {
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    expect(resultsOpen(wrapper)).toBe(true)
+
+    // The modal around it listens for the key going up on the window.
+    await input.trigger('keyup', { key: 'Escape' })
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(reachedWindow).not.toHaveBeenCalled()
+
+    // Without results open, escape is left to the modal.
+    await input.trigger('keyup', { key: 'Escape' })
+    expect(reachedWindow).toHaveBeenCalledTimes(1)
+  } finally {
+    window.removeEventListener('keyup', reachedWindow)
+    wrapper.unmount()
+  }
+})
+
+test('keeps the results open when a checkbox takes the focus', async () => {
+  const wrapper = await mountInput({
+    options: [pickable],
+    tabs: [{ value: 'auth.User', label: 'Members' }],
+  })
+  try {
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    const checkbox = wrapper.find('.invite-input__item input[type="checkbox"]')
+
+    // Clicking the label of a checkbox moves the focus to its native input,
+    // which must not close the list before the checkbox is toggled.
+    await input.trigger('blur', { relatedTarget: checkbox.element })
+    expect(resultsOpen(wrapper)).toBe(true)
+    await checkbox.setValue(true)
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
+
+    // Leaving for anything else still closes it.
+    await input.trigger('blur', { relatedTarget: null })
+    expect(resultsOpen(wrapper)).toBe(false)
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('lists what cannot be picked with a hint and makes an error chip of it', async () => {
   const wrapper = await mountInput()
   try {
     const input = wrapper.find('input')
@@ -259,9 +386,10 @@ test('lists what cannot be picked with its reason and makes an error chip of it'
     const row = wrapper.find('.invite-input__item')
     expect(row.classes()).toContain('invite-input__item--disabled')
     expect(itemTitles(wrapper)).toEqual(['Mark Delgado'])
-    expect(row.find('.invite-input__item-subtitle').text()).toBe(
-      'Already a member'
-    )
+    // The row keeps its subtitle, and the hint takes the place of the
+    // checkbox, with the reason as its tooltip.
+    expect(row.find('.invite-input__item-subtitle').exists()).toBe(false)
+    expect(row.find('.invite-input__item-hint').text()).toBe('Member')
     expect(row.find('input').exists()).toBe(false)
 
     // The row can't be picked, and the enter key only makes an error chip.
@@ -279,9 +407,7 @@ test('lists what cannot be picked with its reason and makes an error chip of it'
     // An address with an invitation is handled the same way.
     await input.setValue('Olga@x.com')
     expect(itemTitles(wrapper)).toEqual(['olga@x.com'])
-    expect(wrapper.find('.invite-input__item-subtitle').text()).toBe(
-      'Already invited'
-    )
+    expect(wrapper.find('.invite-input__item-hint').text()).toBe('Invited')
     await input.trigger('keydown', { key: 'Enter' })
     expect(errorChips(wrapper)).toEqual(['Mark Delgado', 'olga@x.com'])
   } finally {
@@ -557,6 +683,37 @@ test('picks every typed address on enter', async () => {
     await input.setValue('one@x.com')
     await input.trigger('keydown', { key: 'Enter' })
     expect(chips(wrapper)).toEqual(['one@x.com', 'two@x.com', 'olga@x.com'])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('dismisses the popup on outside click without clearing picks or search', async () => {
+  const wrapper = await mountInput(
+    {
+      options: [pickable],
+      tabs: [{ value: 'auth.User', label: 'Members' }],
+    },
+    undefined,
+    { default: '<p class="below">Direct access</p>' },
+    { attachTo: document.body }
+  )
+  try {
+    const input = wrapper.find('input')
+    await paste(input, 'foo@bar.com')
+    await input.setValue('foo')
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(true)
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    document.body.click()
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(false)
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer'])
+    expect(input.element.value).toBe('foo')
+    expect(wrapper.find('.below').isVisible()).toBe(true)
+    await input.trigger('focus')
+    await flushPromises()
+    expect(resultsOpen(wrapper)).toBe(true)
   } finally {
     wrapper.unmount()
   }

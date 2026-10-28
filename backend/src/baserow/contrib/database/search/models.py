@@ -10,9 +10,10 @@ class PendingSearchValueUpdateTrashManager(CTEManager):
         return super().get_queryset().filter(models.Q(deletion_workspace_id=None))
 
 
-class PendingSearchValueUpdate(models.Model):
+class AbstractPendingSearchDataUpdate(models.Model):
     """
-    A table to collect pending updates for TSVector values.
+    The queue of a search data updater, with the cells of which the search data must
+    be updated.
     """
 
     id = models.BigAutoField(
@@ -33,6 +34,18 @@ class PendingSearchValueUpdate(models.Model):
         db_default=models.functions.Now(),
         help_text="The time this update was last modified.",
     )
+
+    class Meta:
+        abstract = True
+        # Avoid duplicate entries for the same field and row.
+        unique_together = [("field_id", "row_id")]
+
+
+class PendingSearchValueUpdate(AbstractPendingSearchDataUpdate):
+    """
+    A table to collect pending updates for TSVector values.
+    """
+
     deletion_workspace_id = models.IntegerField(
         null=True,
         help_text=(
@@ -44,10 +57,7 @@ class PendingSearchValueUpdate(models.Model):
     objects = PendingSearchValueUpdateTrashManager()
     objects_and_trash = CTEManager()
 
-    class Meta:
-        # Avoid duplicate entries for the same field and row.
-        unique_together = [("field_id", "row_id")]
-
+    class Meta(AbstractPendingSearchDataUpdate.Meta):
         indexes = [
             # Speed up deletion of pending updates
             models.Index(

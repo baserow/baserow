@@ -16,9 +16,24 @@ export default (client) => {
     install(workspaceId, templateId) {
       return client.post(`/templates/install/${workspaceId}/${templateId}/`)
     },
-    asyncInstall(workspaceId, templateId) {
+    /**
+     * Installs the template into the workspace. The `revisionId` is the one of
+     * the template that was shown, so that the install is refused if the template
+     * was updated since.
+     */
+    asyncInstall(
+      workspaceId,
+      templateId,
+      { latest = false, revisionId = null } = {}
+    ) {
+      const params = latest ? { latest: true } : {}
+      if (revisionId !== null) {
+        params.revision_id = revisionId
+      }
       return client.post(
-        `/templates/install/${workspaceId}/${templateId}/async/`
+        `/templates/install/${workspaceId}/${templateId}/async/`,
+        null,
+        { params }
       )
     },
     delete(slug) {

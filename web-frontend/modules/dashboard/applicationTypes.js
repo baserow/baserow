@@ -31,6 +31,11 @@ export class DashboardApplicationType extends ApplicationType {
     return i18n.t('applicationType.dashboards')
   }
 
+  getViewLabel() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('applicationType.viewDashboard')
+  }
+
   getDescription() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboardDesc')

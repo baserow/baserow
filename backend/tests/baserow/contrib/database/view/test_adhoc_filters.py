@@ -128,3 +128,29 @@ def test_deserialize_dispatch_filters():
     assert AdHocFilters.deserialize_dispatch_filters(serialized_filters) == filters
     with pytest.raises(FiltersParamValidationException):
         AdHocFilters.deserialize_dispatch_filters("{invalid]")
+
+
+def test_adhoc_filters_get_api_filters_field_ids():
+    assert AdHocFilters.from_dict({}).get_api_filters_field_ids() == set()
+
+    data = {
+        "filter_type": "AND",
+        "filters": [{"field": 1, "type": "equal", "value": "a"}],
+        "groups": [
+            {
+                "filter_type": "OR",
+                "filters": [{"field": 2, "type": "equal", "value": "b"}],
+                "groups": [
+                    {
+                        "filter_type": "AND",
+                        "filters": [
+                            {"field": 3, "type": "equal", "value": "c"},
+                            {"field": 1, "type": "equal", "value": "d"},
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    adhoc_filters = AdHocFilters.from_dict(data)
+    assert adhoc_filters.get_api_filters_field_ids() == {1, 2, 3}

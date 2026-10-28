@@ -176,7 +176,9 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -221,7 +223,9 @@ def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fix
             ["Volkswagen", "Green"],
         ],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -283,7 +287,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -342,6 +348,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -354,7 +361,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -423,6 +432,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -435,7 +445,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -647,6 +659,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_another_dat
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -659,7 +672,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_another_dat
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1554,7 +1569,9 @@ def test_current_record_provider_get_data_chunk(data_fixture):
         ],
     )
     field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
@@ -1606,7 +1623,12 @@ def test_current_record_provider_for_table_bound_to_parent_property(data_fixture
         values={options_field.db_column: [first_option.id, second_option.id]},
     )
 
-    page = data_fixture.create_builder_page(user=user)
+    page = data_fixture.create_builder_page(
+        user=user,
+        builder=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+    )
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table, integration_args={"authorized_user": user}
     )
@@ -1657,7 +1679,9 @@ def test_current_record_provider_with_element_created_after_it(data_fixture):
         rows=[["Apple"], ["Banana"], ["Cherry"]],
     )
     field = table.field_set.get(name="Fruit")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(

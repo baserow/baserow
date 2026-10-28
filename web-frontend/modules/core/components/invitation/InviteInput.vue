@@ -15,8 +15,15 @@
           :class="{ 'invite-input__chip--error': chipError(item) !== null }"
           @mousedown.prevent
         >
-          <i class="invite-input__chip-icon" :class="item.icon"></i>
-          {{ item.name }}
+          <component
+            :is="item.avatarComponent"
+            v-if="item.avatarComponent"
+            :subject="item.subject"
+            size="small"
+            aria-hidden="true"
+          />
+          <i v-else class="invite-input__chip-icon" :class="item.icon"></i>
+          <span class="invite-input__chip-label">{{ item.name }}</span>
           <a class="invite-input__chip-remove" @click.stop="remove(item)">
             <i class="iconoir-cancel"></i>
           </a>
@@ -28,12 +35,20 @@
           :placeholder="selected.length === 0 ? placeholderText : ''"
           :disabled="disabled"
           @focus="open = true"
-          @blur="open = false"
+          @blur="blur"
           @keydown.enter.prevent="pickEmails(query)"
-          @keydown.escape="open = false"
+          @keyup.escape="escape"
           @keydown.delete="removeLastWhenEmpty"
           @paste="paste"
         />
+        <a
+          v-if="query !== ''"
+          class="invite-input__clear"
+          @mousedown.prevent
+          @click.stop="clearQuery"
+        >
+          <i class="iconoir-cancel"></i>
+        </a>
       </div>
       <WorkspaceRoleSelector
         v-model="roleUid"
@@ -71,7 +86,7 @@
       ref="results"
       class="invite-input__results"
       :style="{ width: resultsWidth }"
-      :hide-on-click-outside="false"
+      @hidden="close"
       @mousedown.prevent
     >
       <div v-if="tabs.length > 0" class="invite-input__tabs">
@@ -84,6 +99,14 @@
         >
           {{ tab.label }}
         </a>
+        <a
+          role="button"
+          :title="$t('action.close')"
+          class="invite-input__close"
+          @click="close"
+        >
+          <i class="iconoir-cancel"></i>
+        </a>
       </div>
       <ul class="invite-input__list">
         <li
@@ -92,7 +115,7 @@
           class="invite-input__item"
           @click="toggle(option)"
         >
-          <Avatar icon="iconoir-mail" color="neutral" rounded size="medium" />
+          <Avatar icon="iconoir-mail" color="neutral" rounded size="large" />
           <div class="invite-input__item-text">
             <div class="invite-input__item-title">
               {{ $t('inviteInput.inviteEmail', { email: option.name }) }}
@@ -118,24 +141,35 @@
           :class="{ 'invite-input__item--disabled': option.disabledReason }"
           @click="toggle(option)"
         >
+          <component
+            :is="option.avatarComponent"
+            v-if="option.avatarComponent"
+            :subject="option.subject"
+            size="large"
+          />
           <Avatar
+            v-else
             :initials="option.initials"
             :icon="option.initials ? '' : option.icon"
             :color="option.color"
             rounded
-            size="medium"
+            size="large"
           />
           <div class="invite-input__item-text">
             <div class="invite-input__item-title">{{ option.name }}</div>
-            <div
-              v-if="option.disabledReason || option.subtitle"
-              class="invite-input__item-subtitle"
-            >
-              {{ option.disabledReason || option.subtitle }}
+            <div v-if="option.subtitle" class="invite-input__item-subtitle">
+              {{ option.subtitle }}
             </div>
           </div>
+          <span
+            v-if="option.disabledReason"
+            v-tooltip:[chipTooltipOptions]="option.disabledReason"
+            class="invite-input__item-hint"
+          >
+            {{ option.disabledHint }}
+          </span>
           <Checkbox
-            v-if="!option.disabledReason"
+            v-else
             :checked="isSelected(option)"
             @click.stop
             @update:model-value="toggle(option)"
@@ -146,6 +180,7 @@
         {{ noResultsTextOrDefault }}
       </div>
     </Context>
+    <slot></slot>
   </div>
 </template>
 
@@ -180,10 +215,12 @@ export function extractEmails(text) {
  * the parent calls `remove()` or `reset()` once they were added.
  *
  * An option is an object of `{ key, type, id, name, subtitle, search,
- * initials, icon, color }` with an optional `email` for someone who can be
+ * avatarComponent, subject }` with an optional `email` for someone who can be
  * found by their address. One that can't be picked, because it already has a
  * role, an invitation or whatever else, carries the reason in
- * `disabledReason`: it is listed with that reason instead of a checkbox, and an
+ * `disabledReason` and a short version of it, like "Editor here", in
+ * `disabledHint`: it is listed with the hint in place of a checkbox and the
+ * reason as its tooltip, so that every row keeps the same height, and an
  * address that belongs to it turns into a chip marked as an error that is left
  * out of what is submitted. The same happens to every new address while a role
  * outside `emailRoleUids` is chosen, for a role that can be given to a member
@@ -193,14 +230,19 @@ export function extractEmails(text) {
  * why, so the input needs to know nothing about members, agents or invitations.
  *
  * `tabs` are `{ value, label }` matching the option types, and an "All" tab is
- * added in front. Without tabs the list only opens once something is typed.
+ * added in front. With tabs the list opens on focus and shows every option,
+ * including those that can't be picked with their hint, so nobody has to be
+ * remembered by name. Without tabs it only opens once something is typed.
  *
  * A result row toggles on click, and so does its checkbox. The checkbox is a
  * label around a native input, whose click would bubble to the row and toggle
  * it back, so the checkbox keeps its click to itself and toggles through its
  * own change event instead. The list stays open while the chips and the list
- * itself are clicked, because neither takes the focus away from the input. It
- * opens in a context below the input, as wide as it, over what follows.
+ * itself are clicked, because neither takes the focus away from the input,
+ * except for the native input of a checkbox, which gets the focus when its
+ * label is clicked and hands it straight back. The results open in an anchored
+ * context below the input, leaving the default slot visible. Closing the context
+ * keeps the picks and search so they can be continued on focus.
  */
 export default {
   name: 'InviteInput',
@@ -263,11 +305,11 @@ export default {
     return {
       chipTooltipOptions: CHIP_TOOLTIP_OPTIONS,
       query: '',
+      resultsWidth: 'auto',
       open: false,
       activeTab: TAB_ALL,
       selected: [],
       roleUid: this.initialRoleUid(this.roles),
-      resultsWidth: null,
     }
   },
   computed: {
@@ -320,8 +362,9 @@ export default {
     /**
      * The options matching the tab and the search. An address row is about an
      * address rather than a kind of subject, so it shows under every tab. What
-     * can't be picked only shows up when it is searched for, to explain why it
-     * isn't offered, and stays out of the way otherwise.
+     * can't be picked is listed with the reason why it isn't offered, but an
+     * address that can't be picked only shows up when it is searched for, as
+     * it isn't someone to browse for.
      */
     visibleOptions() {
       return this.options.filter(
@@ -329,7 +372,9 @@ export default {
           (this.activeTab === TAB_ALL ||
             option.type === 'email' ||
             option.type === this.activeTab) &&
-          (!option.disabledReason || this.normalizedQuery !== '') &&
+          (option.type !== 'email' ||
+            !option.disabledReason ||
+            this.normalizedQuery !== '') &&
           option.search.toLowerCase().includes(this.normalizedQuery)
       )
     },
@@ -367,12 +412,7 @@ export default {
      * nothing to show until something is typed.
      */
     showResults() {
-      return (
-        this.open &&
-        (this.tabs.length > 0 ||
-          this.options.some((option) => !option.disabledReason) ||
-          this.normalizedQuery !== '')
-      )
+      return this.open && (this.tabs.length > 0 || this.normalizedQuery !== '')
     },
     nothingToShow() {
       return this.emailOptions.length === 0 && this.visibleOptions.length === 0
@@ -401,13 +441,10 @@ export default {
       if (show) {
         this.showResultsContext()
       } else {
-        this.$refs.results.hide()
+        this.$refs.results.hide(false)
       }
     },
-    /**
-     * The chips can wrap onto another line, which moves the bottom of the
-     * input that the results sit below.
-     */
+    // Picking chips can wrap the input onto another line.
     'selected.length'() {
       if (this.showResults) {
         this.$nextTick(() => this.showResultsContext())
@@ -443,6 +480,47 @@ export default {
       const row = this.$refs.row
       this.resultsWidth = `${row.offsetWidth}px`
       this.$refs.results.show(row, 'bottom', 'left', 8)
+    },
+    /**
+     * Escape closes the results when they are open, and only them: the modal
+     * around the input closes on the key going up as well, so it must not
+     * reach it then.
+     */
+    escape(event) {
+      if (this.showResults) {
+        event.stopPropagation()
+        this.close()
+      }
+    },
+    /**
+     * Closes the results and leaves the input, so that they open again once it
+     * is focused. The input is left first, as leaving it keeps the results of a
+     * search open.
+     */
+    close() {
+      this.$refs.input.blur()
+      this.open = false
+    },
+    /**
+     * Closes the results, unless the focus went to something inside them, like
+     * the native input of a checkbox, which would remove the checkbox before
+     * its change event toggles the row. Results of a search stay, so that what
+     * was typed isn't lost by clicking elsewhere.
+     */
+    blur(event) {
+      if (
+        this.$refs.results
+          ?.getTeleportedElement()
+          ?.contains(event.relatedTarget)
+      ) {
+        this.focus()
+        return
+      }
+      this.open = this.normalizedQuery !== ''
+    },
+    clearQuery() {
+      this.query = ''
+      this.focus()
     },
     optionWithEmail(email) {
       return this.options.find(

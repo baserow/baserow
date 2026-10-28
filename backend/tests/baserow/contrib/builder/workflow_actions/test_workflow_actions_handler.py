@@ -245,6 +245,7 @@ def test_dispatch_workflow_action_doesnt_trigger_formula_recursion(data_fixture)
     database = data_fixture.create_database_application(workspace=workspace)
     builder = data_fixture.create_builder_application(workspace=workspace)
     table, fields, rows = data_fixture.build_table(
+        database=database,
         user=user,
         columns=[
             ("Name", "text"),

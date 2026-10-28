@@ -156,7 +156,7 @@ class AuthProviderType(BaseAuthProviderType):
                 user_info.workspace_invitation_token
             )
             action_type_registry.get(AcceptWorkspaceInvitationActionType.type).do(
-                user, invitation
+                user, invitation, token=user_info.workspace_invitation_token
             )
 
         return user

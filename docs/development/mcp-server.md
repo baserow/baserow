@@ -117,6 +117,12 @@ Some tools are currently disabled (`enabled = False`) and hidden from MCP client
 | `delete_fields` | enabled | Delete (trash) fields (shared with Kuma) |
 | `create_views` | enabled | Create views in a table (shared with Kuma) |
 | `create_view_filters` | enabled | Add filters to views (shared with Kuma) |
+| `list_workflows` | enabled | List the automations of the workspace and their workflows (shared with Kuma) |
+| `list_nodes` | enabled | List a workflow's nodes in order, with their branches and output paths (shared with Kuma) |
+| `create_workflows` | enabled | Create workflows with a trigger and nodes (shared with Kuma) |
+| `add_nodes` | enabled | Add nodes to a workflow (shared with Kuma) |
+| `update_nodes` | enabled | Change node labels, settings and router conditions (shared with Kuma) |
+| `delete_nodes` | enabled | Delete (trash) workflow nodes (shared with Kuma) |
 | `update_table` | disabled | Rename a table |
 | `delete_table` | disabled | Delete (trash) a table |
 
@@ -130,6 +136,8 @@ list_databases
             ├─ update_rows(table_id, [{id: 1, Name: "Bob"}])
             └─ delete_rows(table_id, [1, 2])
 ```
+
+The automation tools are in their own groups (`automation_read`, `automation_edit`, `automation_delete`) and are not part of the "Read only" preset, so a user turns them on at consent or later under Settings. A value that takes a formula is stored as written when it is a valid formula and quoted when it is a literal. A formula is invalid when it doesn't parse, or reads a `previous_node` path the node doesn't output (the paths `list_nodes` shows). An invalid formula comes back in `formula_errors` for the client to fix with `update_nodes`: on a new node the value is left empty, on an update it keeps what it had. A formula can name a node created earlier in the same call by its ref, as in `get('previous_node.trigger.0.id')`. Over MCP no model is called; Kuma repairs those values with its formula generator after the nodes are committed.
 
 ## Adding a new tool
 

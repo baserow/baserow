@@ -32,7 +32,11 @@
     "areaDatabase": "Databases",
     "databaseRead": "Read tables and rows",
     "databaseEdit": "Create and change",
-    "databaseDelete": "Delete"
+    "databaseDelete": "Delete",
+    "areaAutomation": "Automations",
+    "automationRead": "Read workflows and nodes",
+    "automationEdit": "Create and change",
+    "automationDelete": "Delete"
   },
   "paginator": {
     "page": "Page",
@@ -135,7 +139,11 @@
   },
   "InstallTemplateJobType": {
     "installing": "Installing",
-    "installedTitle": "Template installed"
+    "installedTitle": "Template installed",
+    "installingTitle": "Installing {name}",
+    "installedMessage": "Successfully installed {name}",
+    "failedTitle": "{name} couldn't be installed",
+    "dismiss": "Dismiss"
   },
   "sidebar": {
     "createWorkspace": "Create workspace",
@@ -398,9 +406,12 @@
     "title": "Invitation",
     "message": "{by} has invited you to join {workspace}.",
     "reject": "Reject",
-    "accept": "Accept"
+    "accept": "Accept",
+    "emailNotVerified": "Verify your email address to accept this invitation, or open the link in the invitation email.",
+    "sendVerificationEmail": "Send verification email"
   },
   "inviteModal": {
+    "backTo": "Back to {level}: {title}",
     "emailRoute": "Email invite",
     "linkRoute": "Create link",
     "emailTitle": "Invite members by email",
@@ -421,6 +432,8 @@
     "inviteEmailDescription": "Joins the workspace as {role}",
     "alreadyInvited": "An invitation is already pending.\nYou can change its role on the Invites page instead of inviting again.",
     "alreadyMember": "Already a member of this workspace",
+    "invitedHint": "Invited",
+    "memberHint": "Member",
     "roleNotForEmails": "Someone new can't be invited with the {role} role",
     "noResults": "Type a full email address to invite someone."
   },
@@ -550,13 +563,16 @@
   "templateInstall": {
     "use": "Use this template",
     "selectWorkspace": "Choose workspace",
+    "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
-    "copyLink": "Copy sharing link"
+    "copyLink": "Copy sharing link",
+    "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
+    "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
+    "createWorkspace": "Create workspace"
   },
   "templateDetails": {
     "back": "Back to Templates",
     "contents": "What’s inside",
-    "actions": "Actions",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
     "delete": "Delete"
@@ -627,6 +643,8 @@
     "name": "Name",
     "visibility": "Visibility",
     "lastUpdated": "Last updated",
+    "used": "Used",
+    "usedTimes": "{count} time | {count} times",
     "emptyTitle": "You have not created any template yet",
     "emptyDescription": "Turn your work into a template that you can preview and share later.",
     "noWorkspace": "A template is created from a workspace. Create or join a workspace first.",
@@ -1020,10 +1038,10 @@
   },
   "membersSettings": {
     "membersTabTitle": "Members",
-    "invitesTabTitle": "Invites",
     "membersTable": {
       "title": "{userAmount} members in {workspaceName}",
       "inviteMember": "Invite members",
+      "pendingInvitations": "Pending invitations ({count})",
       "emptyTitle": "No members yet",
       "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
@@ -1041,20 +1059,6 @@
         "remove": "Remove from workspace"
       },
       "search": "Search members"
-    },
-    "invitesTable": {
-      "title": "{invitesAmount} pending invites in {workspaceName}",
-      "emptyTitle": "No pending invites",
-      "emptyDescription": "Invite people to join this workspace. You can track and manage their invitations here until they accept.",
-      "columns": {
-        "email": "Email",
-        "role": "Default role"
-      },
-      "actions": {
-        "copyEmail": "Copy email",
-        "remove": "Cancel invite"
-      },
-      "search": "Search invites"
     },
     "membersInviteModal": {
       "errors": {

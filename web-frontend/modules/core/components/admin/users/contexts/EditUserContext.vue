@@ -54,7 +54,7 @@
             }"
             @click.prevent="impersonate"
           >
-            <i class="context__menu-item-icon iconoir-group"></i>
+            <i class="context__menu-item-icon baserow-icon-team"></i>
             {{ $t('editUserContext.impersonate') }}
           </a>
         </li>
