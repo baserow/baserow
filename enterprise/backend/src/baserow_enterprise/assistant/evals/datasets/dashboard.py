@@ -48,6 +48,25 @@ def _dashboard_ui_context(user, workspace, dashboard: Dashboard) -> str:
     ).format()
 
 
+def _grant_premium(user) -> None:
+    """
+    Give the user the premium licence of the premium tests. Charts need it. The
+    eval database is disposable and runs with the debug licence key, which that
+    licence is signed for, on instance id "1".
+    """
+
+    from baserow_premium_tests.fixtures import VALID_100_SEAT_LICENSE_UNTIL_YEAR_2099
+
+    from baserow.core.models import Settings
+    from baserow_premium.license.models import License, LicenseUser
+
+    Settings.objects.update(instance_id="1")
+    licence, _ = License.objects.get_or_create(
+        license=VALID_100_SEAT_LICENSE_UNTIL_YEAR_2099.decode()
+    )
+    LicenseUser.objects.get_or_create(user=user, license=licence)
+
+
 def _sales_workspace(fx: Fixtures, with_revenue_widget: bool = False) -> EvalScenario:
     """
     A workspace with an Orders table (Customer, Amount), a Deals table (Name,
@@ -196,16 +215,22 @@ def _check_adds_chart_by_stage(
     ]
 
 
+@register_scenario("dashboard-sales-premium")
+def _sales_premium_scenario(fx: Fixtures) -> EvalScenario:
+    scenario = _sales_workspace(fx)
+    _grant_premium(scenario.user)
+    return scenario
+
+
 register_case(
     EvalCase(
         id="dashboard/adds-chart-by-stage",
         dataset="kuma-dashboard",
         prompt=PROMPT_ADDS_CHART_BY_STAGE,
-        scenario="dashboard-sales",
+        scenario="dashboard-sales-premium",
         checks=_check_adds_chart_by_stage,
         mode=AgentMode.DASHBOARD,
         max_iters=15,
-        metadata={"requires": "premium licence for chart widgets"},
     )
 )
 
