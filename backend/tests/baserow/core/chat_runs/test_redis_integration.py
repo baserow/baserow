@@ -123,7 +123,7 @@ async def test_hundred_http_followers_leave_rest_and_threads_available(monkeypat
             ):
                 yield json.dumps(event).encode() + b"\n\n"
 
-        return StreamingHttpResponse(records())
+        return StreamingHttpResponse(records()), None
 
     monkeypatch.setattr(streaming, "_prepare", prepare)
 
@@ -133,7 +133,9 @@ async def test_hundred_http_followers_leave_rest_and_threads_available(monkeypat
         await send({"type": "http.response.body", "body": b""})
 
     router = streaming.AsyncStreamingHTTPRouter(
-        ConcurrencyLimiterASGI(rest_app, max_concurrency=1), max_streams=100
+        ConcurrencyLimiterASGI(rest_app, max_concurrency=1),
+        max_streams=100,
+        max_streams_per_user=1,
     )
 
     def send(index):

@@ -165,6 +165,7 @@ if ASGI_HTTP_MAX_CONCURRENT_STREAMS <= 0:
     raise ImproperlyConfigured(
         "BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS must be greater than zero."
     )
+ASGI_HTTP_MAX_CONCURRENT_STREAMS_PER_USER = 10
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
