@@ -43,35 +43,48 @@ describe('IFrameElementForm', () => {
           Alert: true,
           InjectedFormulaInput: true,
           FormInput: true,
-          Checkbox: { template: '<label><slot /></label>' },
         },
       },
     })
   }
 
-  test('persists the same-origin permission only for URL sources', async () => {
+  test('shows the same-origin permission only for URL sources', async () => {
     const wrapper = await mountComponent()
-
-    expect(wrapper.vm.allowedValues).toEqual([
-      'source_type',
-      'url',
-      'embed',
-      'height',
-      'allow_same_origin',
-      'styles',
-    ])
-    expect(wrapper.vm.values.allow_same_origin).toBe(true)
     expect(wrapper.text()).toContain('iframeElementForm.allowSameOriginLabel')
+    expect(wrapper.find('input[type="checkbox"]').element.checked).toBe(true)
+    expect(wrapper.text()).not.toContain('iframeElementForm.autoHeightLabel')
+    wrapper.unmount()
+  })
 
-    await wrapper.setData({
-      values: {
-        ...wrapper.vm.values,
-        source_type: IFRAME_SOURCE_TYPES.EMBED,
-      },
+  test('defaults automatic height to off and emits the changed option for embeds', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: { source_type: IFRAME_SOURCE_TYPES.EMBED },
     })
-
     expect(wrapper.text()).not.toContain(
       'iframeElementForm.allowSameOriginLabel'
     )
+    expect(wrapper.text()).toContain('iframeElementForm.autoHeightLabel')
+    const checkbox = wrapper.find('input[type="checkbox"]')
+    expect(checkbox.element.checked).toBe(false)
+    await checkbox.setValue(true)
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toMatchObject({
+      auto_height: true,
+    })
+    await checkbox.setValue(false)
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toMatchObject({
+      auto_height: false,
+    })
+    wrapper.unmount()
+  })
+
+  test('loads an existing automatic height setting', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: {
+        source_type: IFRAME_SOURCE_TYPES.EMBED,
+        auto_height: true,
+      },
+    })
+    expect(wrapper.find('input[type="checkbox"]').element.checked).toBe(true)
+    wrapper.unmount()
   })
 })

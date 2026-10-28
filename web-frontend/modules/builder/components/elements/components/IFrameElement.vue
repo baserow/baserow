@@ -26,18 +26,23 @@
     <template v-else>
       <client-only
         ><iframe
+          :key="autoHeight ? resolvedEmbed : null"
+          ref="iframe"
           class="iframe-element__iframe"
-          :height="element.height"
+          :height="
+            autoHeight ? (measuredHeight ?? element.height) : element.height
+          "
           :src="
             element.source_type === IFRAME_SOURCE_TYPES.URL ? resolvedURL : null
           "
           :srcdoc="
             element.source_type === IFRAME_SOURCE_TYPES.EMBED
-              ? resolvedEmbed
+              ? embedSrcdoc
               : null
           "
           :sandbox="sandboxPermissions"
           :style="isEditMode ? 'pointer-events: none' : ''"
+          @load="onIframeLoad"
         >
         </iframe>
         <template #placeholder>
@@ -55,6 +60,10 @@
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import {
+  createAutoHeightEmbed,
+  EMBED_HEIGHT_MESSAGE,
+} from '@baserow/modules/builder/utils/iframe'
 
 export default {
   name: 'IFrameElement',
@@ -72,7 +81,21 @@ export default {
       required: true,
     },
   },
+  data() {
+    return { measuredHeight: null }
+  },
   computed: {
+    autoHeight() {
+      return (
+        this.element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
+        this.element.auto_height === true
+      )
+    },
+    embedSrcdoc() {
+      return this.autoHeight
+        ? createAutoHeightEmbed(this.resolvedEmbed)
+        : this.resolvedEmbed
+    },
     resolvedURL() {
       return ensureString(this.resolveFormula(this.element.url))
     },
@@ -128,6 +151,43 @@ export default {
     },
     IFRAME_SOURCE_TYPES() {
       return IFRAME_SOURCE_TYPES
+    },
+  },
+  watch: {
+    embedSrcdoc() {
+      this.measuredHeight = null
+    },
+  },
+  mounted() {
+    window.addEventListener('message', this.onEmbedHeight)
+  },
+  beforeUnmount() {
+    window.removeEventListener('message', this.onEmbedHeight)
+  },
+  methods: {
+    onIframeLoad() {
+      this.measuredHeight = null
+      if (this.autoHeight) {
+        this.$refs.iframe?.contentWindow?.postMessage(
+          { type: `${EMBED_HEIGHT_MESSAGE}:request` },
+          '*'
+        )
+      }
+    },
+    onEmbedHeight(event) {
+      const iframe = this.$refs.iframe
+      if (
+        !this.autoHeight ||
+        !iframe ||
+        !event.source ||
+        event.source !== iframe.contentWindow ||
+        event.data?.type !== EMBED_HEIGHT_MESSAGE ||
+        !Number.isSafeInteger(event.data.height) ||
+        event.data.height < 0
+      ) {
+        return
+      }
+      this.measuredHeight = event.data.height
     },
   },
 }

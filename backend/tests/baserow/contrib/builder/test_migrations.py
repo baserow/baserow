@@ -841,3 +841,34 @@ def test_0077_builder_breakpoints_preserves_existing_applications(
     builder = Builder.objects.get(id=builder.id)
 
     assert builder.breakpoints == {"mobile": 500, "tablet": 768}
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0081_iframe_auto_height_preserves_existing_and_old_version_writes(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        [("builder", "0080_builderworkflowaction_trashed_and_more")]
+    )
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Builder = old_state.apps.get_model("builder", "Builder")
+    Page = old_state.apps.get_model("builder", "Page")
+    OldIFrame = old_state.apps.get_model("builder", "IFrameElement")
+    builder = Builder.objects.create(
+        order=1,
+        name="Builder",
+        workspace=Workspace.objects.create(name="Workspace"),
+        content_type=ContentType.objects.get_for_model(Builder),
+    )
+    page = Page.objects.create(order=1, builder=builder, name="Page", path="page/")
+    content_type = ContentType.objects.get_for_model(OldIFrame)
+    existing = OldIFrame.objects.create(page=page, content_type=content_type)
+
+    new_state = migrator.migrate([("builder", "0081_iframeelement_auto_height")])
+    IFrame = new_state.apps.get_model("builder", "IFrameElement")
+    assert IFrame.objects.get(pk=existing.pk).auto_height is False
+
+    # The previous application version omits the new column during deployment.
+    old_version_write = OldIFrame.objects.create(page=page, content_type=content_type)
+    assert IFrame.objects.get(pk=old_version_write.pk).auto_height is False

@@ -16,7 +16,7 @@
 
     <Alert type="warning" class="margin-bottom-2">
       <template #title>{{ $t('iframeElementForm.warningTitle') }}</template>
-      {{ $t('iframeElementForm.warningMessage') }}
+      <p>{{ $t('iframeElementForm.warningMessage') }}</p>
     </Alert>
 
     <FormGroup
@@ -62,6 +62,17 @@
       />
     </FormGroup>
     <FormGroup
+      v-if="values.source_type === IFRAME_SOURCE_TYPES.EMBED"
+      small-label
+      class="margin-bottom-2"
+      :optional="false"
+    >
+      <Checkbox v-model="v$.values.auto_height.$model">{{
+        $t('iframeElementForm.autoHeightLabel')
+      }}</Checkbox>
+      <template #helper>{{ $t('iframeElementForm.autoHeightHelp') }}</template>
+    </FormGroup>
+    <FormGroup
       :label="$t('iframeElementForm.heightLabel')"
       small-label
       required
@@ -104,6 +115,7 @@ export default {
         'url',
         'embed',
         'height',
+        'auto_height',
         'allow_same_origin',
         'styles',
       ],
@@ -112,6 +124,7 @@ export default {
         url: {},
         embed: {},
         height: 300,
+        auto_height: false,
         allow_same_origin: false,
         styles: {},
       },
@@ -155,6 +168,7 @@ export default {
         source_type: {},
         url: {},
         embed: {},
+        auto_height: {},
         allow_same_origin: {},
       },
     }
