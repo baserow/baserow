@@ -88,3 +88,77 @@ def test_viewer_cannot_change_widgets(data_fixture, enable_enterprise, synced_ro
         update_widgets(ctx, [{"widget_id": widget.id, "title": "New"}])
     with pytest.raises(PermissionException):
         delete_widgets(ctx, [widget.id])
+
+
+@pytest.mark.django_db
+def test_a_refused_write_keeps_nothing_of_the_batch(
+    data_fixture, enable_enterprise, synced_roles
+):
+    from baserow.contrib.dashboard.widgets.models import Widget
+    from baserow_enterprise.role.handler import RoleAssignmentHandler
+    from baserow_enterprise.role.models import Role
+
+    ctx, editable, widget = _workspace_with_role(data_fixture, "BUILDER")
+    viewable = data_fixture.create_dashboard_application(workspace=ctx.workspace)
+    other = data_fixture.create_summary_widget(dashboard=viewable)
+    RoleAssignmentHandler().assign_role(
+        ctx.user,
+        ctx.workspace,
+        role=Role.objects.get(uid="VIEWER"),
+        scope=viewable.application_ptr,
+    )
+
+    with pytest.raises(PermissionException):
+        update_widgets(
+            ctx,
+            [
+                {"widget_id": widget.id, "title": "Changed"},
+                {"widget_id": other.id, "title": "Changed"},
+            ],
+        )
+    with pytest.raises(PermissionException):
+        delete_widgets(ctx, [widget.id, other.id])
+
+    widget.refresh_from_db()
+    assert widget.title != "Changed"
+    assert not Widget.objects_and_trash.get(id=widget.id).trashed
+
+
+@pytest.mark.django_db
+def test_personal_view_of_another_user_is_not_found(
+    data_fixture, enable_enterprise, synced_roles
+):
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    ctx, dashboard, _ = _workspace_with_role(data_fixture, "BUILDER")
+    admin = ctx.workspace.workspaceuser_set.exclude(user=ctx.user).get().user
+    database = data_fixture.create_database_application(workspace=ctx.workspace)
+    table = data_fixture.create_database_table(database=database)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    personal = ViewHandler().create_view(
+        user=admin,
+        table=table,
+        type_name="grid",
+        name="Mine",
+        ownership_type="personal",
+    )
+
+    result = create_widgets(
+        ctx,
+        dashboard.id,
+        [
+            {
+                "type": "summary",
+                "title": "Total",
+                "table_id": table.id,
+                "view_id": personal.id,
+                "field_id": amount.id,
+                "aggregation_type": "sum",
+            }
+        ],
+    )
+
+    assert result["created"] == []
+    assert result["errors"] == [
+        {"index": 0, "error": f"View {personal.id} not found in this workspace."}
+    ]

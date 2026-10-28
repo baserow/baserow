@@ -440,3 +440,44 @@ def test_chart_grouped_by_row_id_is_listed_as_such(premium_data_fixture):
     )
     assert result["errors"] == []
     assert result["updated"][0]["group_by_row_id"] is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_chart_type_must_fit_the_widget_type(premium_data_fixture):
+    import pydantic
+
+    ctx, dashboard, table, _, amount, _ = _setup(premium_data_fixture)
+    widget_id = create_widgets(
+        ctx,
+        dashboard.id,
+        [
+            {
+                "type": "chart",
+                "title": "Bars",
+                "table_id": table.id,
+                "series": [{"field_id": amount.id, "aggregation_type": "sum"}],
+            }
+        ],
+    )["created"][0]["id"]
+
+    with pytest.raises(pydantic.ValidationError, match="'BAR' or 'LINE'"):
+        create_widgets(
+            ctx,
+            dashboard.id,
+            [
+                {
+                    "type": "chart",
+                    "title": "Ring",
+                    "table_id": table.id,
+                    "series": [{"field_id": amount.id, "aggregation_type": "sum"}],
+                    "chart_type": "DOUGHNUT",
+                }
+            ],
+        )
+    result = update_widgets(ctx, [{"widget_id": widget_id, "chart_type": "DOUGHNUT"}])
+
+    assert result["errors"][0]["error"] == (
+        "Invalid value. A chart is drawn as BAR or LINE; use a pie_chart for PIE "
+        "or DOUGHNUT."
+    )

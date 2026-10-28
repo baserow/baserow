@@ -253,7 +253,7 @@ Ask Claude to change the total to an average. Expected: `update_widgets`
 changes the aggregation and the dashboard shows the new figure.
 
 Ask Claude to delete the chart. Expected: `delete_widgets` moves it to the
-trash. Undo in Baserow brings it back.
+trash, and restoring it from the trash brings it back.
 
 In a workspace without a premium licence, ask for a chart. Expected: the
 error says the feature needs a licence, not "Internal error."

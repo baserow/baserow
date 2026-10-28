@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.tools.widgets import create_widgets, list_widgets
 from baserow.core.tools import ToolContext
@@ -368,16 +370,22 @@ UNREQUESTED_WRITE_TOOLS = (
 def _check_answers_from_chart(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    (widget,) = _widgets(scenario)
+    widgets = _widgets(scenario)
+    chart = next((w for w in widgets if w["id"] == scenario.refs["widget_id"]), None)
     return [
         CheckResult(
             "the chart is a doughnut",
-            widget["chart_type"] == "DOUGHNUT",
-            hint=f"widget: {widget}",
+            chart is not None and chart["chart_type"] == "DOUGHNUT",
+            hint=f"widgets: {widgets}",
+        ),
+        CheckResult(
+            "no widget was added",
+            len(widgets) == 1,
+            hint=f"widgets: {widgets}",
         ),
         CheckResult(
             "answer gives 2 Won deals",
-            "2" in output.answer,
+            re.search(r"\b2\b", output.answer) is not None,
             hint=output.answer[:200],
         ),
         CheckResult(

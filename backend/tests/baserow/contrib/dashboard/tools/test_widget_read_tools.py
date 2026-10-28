@@ -109,7 +109,12 @@ def test_get_widget_data_marks_unconfigured_widget(dashboard_ctx, summary_widget
 
     assert result["errors"] == []
     assert result["widgets"] == [
-        {"widget_id": new.id, "configured": False, "data": None},
+        {
+            "widget_id": new.id,
+            "configured": False,
+            "data": None,
+            "problem": "The field property is missing.",
+        },
         {"widget_id": configured.id, "configured": True, "data": {"result": "5"}},
     ]
 

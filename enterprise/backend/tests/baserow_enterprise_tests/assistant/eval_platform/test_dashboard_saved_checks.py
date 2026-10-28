@@ -1,5 +1,7 @@
 """The dashboard eval checks pass on the expected end state and fail without it."""
 
+from django.test.utils import override_settings
+
 import pytest
 
 from baserow.contrib.dashboard.tools.widgets import create_widgets, update_widgets
@@ -79,3 +81,35 @@ def test_reads_widget_check():
     assert not all(
         _run(case_id, _output("get_widget_data", answer="It shows 120.")).values()
     )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_answers_from_chart_check_fails_on_an_added_widget_or_a_stray_2():
+    def change(ctx, scenario):
+        update_widgets(
+            ctx, [{"widget_id": scenario.refs["widget_id"], "chart_type": "DOUGHNUT"}]
+        )
+
+    def change_and_add(ctx, scenario):
+        change(ctx, scenario)
+        create_widgets(
+            ctx,
+            scenario.refs["dashboard"].id,
+            [
+                {
+                    "type": "summary",
+                    "title": "Won",
+                    "table_id": scenario.refs["deals"].id,
+                    "field_id": scenario.refs["deals"].field_set.get(name="Name").id,
+                    "aggregation_type": "not_empty_count",
+                }
+            ],
+        )
+
+    case_id = "dashboard/answers-from-chart"
+    good = _output("update_widgets", "get_widget_data", answer="2 deals are Won.")
+    assert all(_run(case_id, good, change).values())
+    assert not all(_run(case_id, good, change_and_add).values())
+    stray = _output("update_widgets", answer="3 deals as of 2026-10-28.")
+    assert not all(_run(case_id, stray, change).values())

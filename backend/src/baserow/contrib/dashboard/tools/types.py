@@ -34,13 +34,6 @@ AggregationType = Annotated[
         "empty_count, unique_count. Which ones fit depends on the field type."
     ),
 ]
-ChartType = Annotated[
-    Literal["BAR", "LINE", "PIE", "DOUGHNUT"] | None,
-    Field(
-        description="How the chart draws its series: BAR or LINE for a chart, PIE "
-        "or DOUGHNUT for a pie chart. null keeps the default."
-    ),
-]
 GroupByFieldId = Annotated[
     int | None,
     Field(
@@ -74,20 +67,37 @@ class SummaryWidgetCreate(BaseModel):
 
 
 class ChartWidgetCreate(BaseModel):
-    """A chart or pie chart: series of aggregated fields, grouped by a field."""
+    """A chart: series of aggregated fields, grouped by a field."""
 
-    type: Literal["chart", "pie_chart"]
+    type: Literal["chart"]
     title: Title
     description: Description = ""
     table_id: TableId
     view_id: ViewId = None
     series: Series
     group_by_field_id: GroupByFieldId = None
-    chart_type: ChartType = None
+    chart_type: Annotated[
+        Literal["BAR", "LINE"] | None,
+        Field(description="How the chart draws its series. null draws bars."),
+    ] = None
 
+
+class PieChartWidgetCreate(ChartWidgetCreate):
+    """A pie chart: series of aggregated fields, grouped by a field."""
+
+    type: Literal["pie_chart"]
+    chart_type: Annotated[
+        Literal["PIE", "DOUGHNUT"] | None,
+        Field(description="How the pie chart draws its series. null draws a pie."),
+    ] = None
+
+
+# The chart types each widget type can be drawn as.
+CHART_TYPES = {"chart": ("BAR", "LINE"), "pie_chart": ("PIE", "DOUGHNUT")}
 
 WidgetCreate = Annotated[
-    SummaryWidgetCreate | ChartWidgetCreate, Field(discriminator="type")
+    SummaryWidgetCreate | ChartWidgetCreate | PieChartWidgetCreate,
+    Field(discriminator="type"),
 ]
 
 

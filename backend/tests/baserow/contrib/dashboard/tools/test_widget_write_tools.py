@@ -139,7 +139,13 @@ def test_create_widget_rejects_field_of_other_table(
     result = create_widgets(ctx, dashboard.id, [_summary(table, other_amount)])
 
     assert result["created"] == []
-    assert result["errors"] == [{"index": 0, "error": NOT_FOUND}]
+    assert result["errors"] == [
+        {
+            "index": 0,
+            "error": f"Field {other_amount.id} of table {table.id} not found in this "
+            "workspace.",
+        }
+    ]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
 
 
@@ -151,7 +157,10 @@ def test_create_widget_rejects_table_of_other_workspace(data_fixture, dashboard_
 
     result = create_widgets(ctx, dashboard.id, [_summary(foreign_table, foreign_field)])
 
-    assert result["errors"] == [{"index": 0, "error": NOT_FOUND}]
+    # The same message as for a table that doesn't exist.
+    assert result["errors"] == [
+        {"index": 0, "error": f"Table {foreign_table.id} not found in this workspace."}
+    ]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
 
 
@@ -168,7 +177,9 @@ def test_create_widget_rejects_view_of_other_table(
         ctx, dashboard.id, [_summary(table, amount, view_id=other_view.id)]
     )
 
-    assert result["errors"] == [{"index": 0, "error": NOT_FOUND}]
+    assert result["errors"] == [
+        {"index": 0, "error": f"View {other_view.id} not found in this workspace."}
+    ]
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
     assert Action.objects.filter(user=ctx.user).count() == 0
 
@@ -474,3 +485,53 @@ def test_widget_configuration_errors_are_reported_as_invalid_values():
     assert widget_item_error(DashboardDataSourceImproperlyConfigured("No field.")) == (
         "Invalid value. No field."
     )
+
+
+@pytest.mark.django_db
+def test_a_missing_field_is_named(dashboard_ctx, sales_table):
+    ctx, dashboard = dashboard_ctx
+    table, _, _ = sales_table
+
+    result = create_widgets(
+        ctx, dashboard.id, [_summary(table, type("F", (), {"id": 999999})())]
+    )
+
+    assert result["errors"] == [
+        {
+            "index": 0,
+            "error": f"Field 999999 of table {table.id} not found in this workspace.",
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_a_missing_table_is_named(dashboard_ctx, sales_table):
+    ctx, dashboard = dashboard_ctx
+    _, _, amount = sales_table
+    missing = type("T", (), {"id": 999999})()
+
+    result = create_widgets(ctx, dashboard.id, [_summary(missing, amount)])
+
+    assert result["errors"] == [
+        {"index": 0, "error": "Table 999999 not found in this workspace."}
+    ]
+
+
+@pytest.mark.django_db
+def test_get_widget_data_says_why_a_widget_is_not_configured(
+    data_fixture, dashboard_ctx, sales_table
+):
+    from baserow.contrib.database.fields.handler import FieldHandler
+
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+    FieldHandler().delete_field(ctx.user, amount)
+
+    (widget,) = get_widget_data(ctx, [widget_id])["widgets"]
+
+    assert widget["configured"] is False
+    assert widget["data"] is None
+    assert widget["problem"]

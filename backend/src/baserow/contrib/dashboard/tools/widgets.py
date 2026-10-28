@@ -25,6 +25,7 @@ from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.contrib.dashboard.tools.dashboards import get_dashboard_in_workspace
 from baserow.contrib.dashboard.tools.types import (
+    CHART_TYPES,
     WidgetCreate,
     WidgetUpdate,
 )
@@ -43,8 +44,10 @@ from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.operations import ListViewsOperationType
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.registry import Registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -85,12 +88,22 @@ def get_widget_in_workspace(ctx: ToolContext, widget_id: int) -> Widget:
 
 
 def widget_item_error(exc: Exception) -> str:
-    """``item_error_message``, with the widget configuration errors."""
+    """
+    ``item_error_message``, with the widget configuration errors and the table,
+    view or field a data source names that isn't found.
+    """
 
     if isinstance(
         exc, (WidgetImproperlyConfigured, DashboardDataSourceImproperlyConfigured)
     ):
         return "Invalid value. " + str(exc)
+    if (
+        isinstance(
+            exc, (Table.DoesNotExist, View.DoesNotExist, DatabaseField.DoesNotExist)
+        )
+        and exc.args
+    ):
+        return f"{exc.args[0]} not found in this workspace."
     return item_error_message(exc)
 
 
@@ -207,8 +220,9 @@ def get_widget_data(
     returns {"result": <value>}. A chart returns {"results": [...]}, one row per
     category of its group by field, or a single row without one, with a value
     for each series named after its field and aggregation. Numbers come as
-    strings. A widget that has no field or aggregation set yet returns
-    configured: false.
+    strings. A widget that can't compute its figures, because it has no field
+    or aggregation set yet or reads a field, table or integration that is gone,
+    returns configured: false and the problem.
     """
 
     widgets = []
@@ -226,9 +240,14 @@ def get_widget_data(
                 except (
                     DashboardDataSourceImproperlyConfigured,
                     ServiceImproperlyConfiguredDispatchException,
-                ):
+                ) as exc:
                     widgets.append(
-                        {"widget_id": widget_id, "configured": False, "data": None}
+                        {
+                            "widget_id": widget_id,
+                            "configured": False,
+                            "data": None,
+                            "problem": str(exc),
+                        }
                     )
                     continue
             # Decimals and dates as the API renders them.
@@ -280,7 +299,8 @@ def _check_data_source(
 
     :raises Table.DoesNotExist: When the table isn't a table of the workspace the
         user can see.
-    :raises View.DoesNotExist: When the view isn't a view of the table.
+    :raises View.DoesNotExist: When the view isn't a view of the table the user
+        can see, like another user's personal view.
     :raises DatabaseField.DoesNotExist: When a field isn't a field of the table.
     """
 
@@ -291,12 +311,16 @@ def _check_data_source(
         .first()
     )
     if table is None:
-        raise Table.DoesNotExist()
-    if (
-        config["view_id"] is not None
-        and not View.objects.filter(id=config["view_id"], table=table).exists()
-    ):
-        raise View.DoesNotExist()
+        raise Table.DoesNotExist(f"Table {config['table_id']}")
+    if config["view_id"] is not None:
+        views = CoreHandler().filter_queryset(
+            ctx.user,
+            ListViewsOperationType.type,
+            View.objects.filter(table=table),
+            workspace=ctx.workspace,
+        )
+        if not views.filter(id=config["view_id"]).exists():
+            raise View.DoesNotExist(f"View {config['view_id']}")
 
     aggregations = _aggregations(config)
     field_ids = {field_id for field_id, _ in aggregations}
@@ -308,8 +332,11 @@ def _check_data_source(
             DatabaseField.objects.filter(id__in=field_ids, table=table)
         )
     }
-    if set(fields) != field_ids:
-        raise DatabaseField.DoesNotExist()
+    missing = sorted(field_ids - set(fields))
+    if missing:
+        raise DatabaseField.DoesNotExist(
+            f"Field {', '.join(map(str, missing))} of table {table.id}"
+        )
     service = widget.data_source.service.specific
     registry = service_type_registry.get_by_model(service).aggregation_registry
     for field_id, aggregation_type in aggregations:
@@ -527,16 +554,19 @@ def create_widgets(
 
     created = []
     errors = []
-    for index, spec in enumerate(specs):
-        ctx.update_status(_("Creating widget %(title)s...") % {"title": spec.title})
-        try:
-            with transaction.atomic():
-                widget = create_widget(ctx, dashboard.id, spec)
-                created.append(_describe(ctx, widget.id))
-        except PermissionException:
-            raise
-        except Exception as exc:
-            errors.append({"index": index, "error": widget_item_error(exc)})
+    # A write the user may not make fails the call, and keeps none of the widgets
+    # created before it.
+    with transaction.atomic():
+        for index, spec in enumerate(specs):
+            ctx.update_status(_("Creating widget %(title)s...") % {"title": spec.title})
+            try:
+                with transaction.atomic():
+                    widget = create_widget(ctx, dashboard.id, spec)
+                    created.append(_describe(ctx, widget.id))
+            except PermissionException:
+                raise
+            except Exception as exc:
+                errors.append({"index": index, "error": widget_item_error(exc)})
     return {"created": created, "errors": errors}
 
 
@@ -571,6 +601,15 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     if not_for_type:
         raise DjangoValidationError(
             f"{', '.join(not_for_type)} can't be used on a {widget_type} widget."
+        )
+    chart_types = CHART_TYPES.get(widget_type, ())
+    if "chart_type" in given and given["chart_type"] not in chart_types:
+        other_type, other_chart_types = next(
+            item for item in CHART_TYPES.items() if item[0] != widget_type
+        )
+        raise DjangoValidationError(
+            f"A {widget_type} is drawn as {' or '.join(chart_types)}; use a "
+            f"{other_type} for {' or '.join(other_chart_types)}."
         )
 
     config = _data_source_config(current)
@@ -633,22 +672,25 @@ def update_widgets(
 
     updated = []
     errors = []
-    for index, spec in enumerate(specs):
-        ctx.update_status(_("Updating widget %(id)s...") % {"id": spec.widget_id})
-        try:
-            with transaction.atomic():
-                if update_widget(ctx, spec):
-                    updated.append(_describe(ctx, spec.widget_id))
-        except PermissionException:
-            raise
-        except Exception as exc:
-            errors.append(
-                {
-                    "index": index,
-                    "widget_id": spec.widget_id,
-                    "error": widget_item_error(exc),
-                }
-            )
+    # A write the user may not make fails the call, and keeps none of the changes
+    # made before it.
+    with transaction.atomic():
+        for index, spec in enumerate(specs):
+            ctx.update_status(_("Updating widget %(id)s...") % {"id": spec.widget_id})
+            try:
+                with transaction.atomic():
+                    if update_widget(ctx, spec):
+                        updated.append(_describe(ctx, spec.widget_id))
+            except PermissionException:
+                raise
+            except Exception as exc:
+                errors.append(
+                    {
+                        "index": index,
+                        "widget_id": spec.widget_id,
+                        "error": widget_item_error(exc),
+                    }
+                )
     return {"updated": updated, "errors": errors}
 
 
@@ -665,21 +707,24 @@ def delete_widgets(
 ) -> dict[str, Any]:
     """
     Delete widgets from their dashboards. They go to the trash and can be
-    restored from there or with undo. A widget that can't be deleted is listed
-    in errors and the others are still deleted.
+    restored from there. A widget that can't be deleted is listed in errors and
+    the others are still deleted.
     """
 
     deleted = []
     errors = []
-    for widget_id in widget_ids:
-        try:
-            with transaction.atomic():
-                get_widget_in_workspace(ctx, widget_id)
-                DeleteWidgetActionType.do(ctx.user, widget_id)
-        except PermissionException:
-            raise
-        except Exception as exc:
-            errors.append({"widget_id": widget_id, "error": widget_item_error(exc)})
-            continue
-        deleted.append(widget_id)
+    # A deletion the user may not make fails the call, and keeps none of the
+    # widgets deleted before it.
+    with transaction.atomic():
+        for widget_id in widget_ids:
+            try:
+                with transaction.atomic():
+                    get_widget_in_workspace(ctx, widget_id)
+                    DeleteWidgetActionType.do(ctx.user, widget_id)
+            except PermissionException:
+                raise
+            except Exception as exc:
+                errors.append({"widget_id": widget_id, "error": widget_item_error(exc)})
+                continue
+            deleted.append(widget_id)
     return {"deleted": deleted, "errors": errors}

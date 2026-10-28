@@ -94,20 +94,27 @@ def create_dashboards(
 
     created = []
     errors = []
-    for index, name in enumerate(names):
-        ctx.update_status(_("Creating dashboard %(name)s...") % {"name": name})
-        try:
-            with transaction.atomic():
-                # init_with_data adds the Baserow integration its widgets read
-                # their tables through.
-                dashboard = CreateApplicationActionType.do(
-                    ctx.user, ctx.workspace, "dashboard", name=name, init_with_data=True
-                )
-        except PermissionException:
-            raise
-        except Exception as exc:
-            errors.append({"index": index, "error": item_error_message(exc)})
-            continue
-        created.append({"id": dashboard.id, "name": dashboard.name})
+    # A write the user may not make fails the call, and keeps none of the
+    # dashboards created before it.
+    with transaction.atomic():
+        for index, name in enumerate(names):
+            ctx.update_status(_("Creating dashboard %(name)s...") % {"name": name})
+            try:
+                with transaction.atomic():
+                    # init_with_data adds the Baserow integration its widgets read
+                    # their tables through.
+                    dashboard = CreateApplicationActionType.do(
+                        ctx.user,
+                        ctx.workspace,
+                        "dashboard",
+                        name=name,
+                        init_with_data=True,
+                    )
+            except PermissionException:
+                raise
+            except Exception as exc:
+                errors.append({"index": index, "error": item_error_message(exc)})
+                continue
+            created.append({"id": dashboard.id, "name": dashboard.name})
 
     return {"created": created, "errors": errors}
