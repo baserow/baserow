@@ -169,12 +169,13 @@ def create_builders(
 def switch_mode(
     ctx: RunContext[AssistantDeps],
     mode: Annotated[
-        Literal["database", "application", "automation", "explain"],
+        Literal["database", "application", "automation", "dashboard", "explain"],
         Field(
             description=(
                 "Target mode: 'database' for table/field/view/row ops, "
                 "'application' for page/element/data-source ops, "
                 "'automation' for workflow/node ops, "
+                "'dashboard' for widget ops, "
                 "'explain' for answering Baserow questions."
             )
         ),
@@ -184,7 +185,7 @@ def switch_mode(
     ],
 ) -> str:
     """\
-    Switch between domain modes (database, application, automation, explain).
+    Switch between domain modes (database, application, automation, dashboard, explain).
 
     WHEN to use: Task needs tools from a different domain, or user asks a how-to question (→ "explain").
     WHAT it does: Changes the available toolset to the target domain's tools.

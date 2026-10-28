@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 from loguru import logger
 from pydantic import ValidationError
+from rest_framework.exceptions import APIException
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -11,6 +12,9 @@ from baserow.core.exceptions import (
     InstanceTypeDoesNotExist,
     PermissionException,
     UserNotInWorkspace,
+)
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
 )
 
 
@@ -125,6 +129,15 @@ def to_mcp_error(exc: Exception) -> str | None:
         return str(exc.detail)
     if isinstance(exc, DRFValidationError):
         return "Invalid value. " + "; ".join(flatten_error_detail(exc.detail))
+    # Any other client error, like a feature that needs a licence (402). Those
+    # come as an error code and a message.
+    if isinstance(exc, APIException) and exc.status_code < 500:
+        detail = exc.detail
+        if isinstance(detail, dict) and "detail" in detail:
+            detail = detail["detail"]
+        return "; ".join(flatten_error_detail(detail))
+    if isinstance(exc, ServiceImproperlyConfiguredDispatchException):
+        return "Invalid value. " + str(exc)
     # Before the generic rule. `Registry.get` passes the client's type name and a
     # message, while `Registry.get_by_model` passes only a message for a server bug.
     if isinstance(exc, InstanceTypeDoesNotExist):

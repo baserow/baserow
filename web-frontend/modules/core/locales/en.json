@@ -36,7 +36,11 @@
     "areaAutomation": "Automations",
     "automationRead": "Read workflows and nodes",
     "automationEdit": "Create and change",
-    "automationDelete": "Delete"
+    "automationDelete": "Delete",
+    "areaDashboard": "Dashboards",
+    "dashboardRead": "Read dashboards and widgets",
+    "dashboardEdit": "Create and change",
+    "dashboardDelete": "Delete"
   },
   "paginator": {
     "page": "Page",

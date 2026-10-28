@@ -174,6 +174,58 @@ describe('McpToolPicker', () => {
     expect(area.text()).not.toContain('Read automations')
   })
 
+  test('labels the dashboard groups and area', async () => {
+    const dashboardGroups = [
+      {
+        type: 'dashboard_read',
+        title: 'Read dashboards',
+        area: 'dashboard',
+        read_only_preset: true,
+      },
+      {
+        type: 'dashboard_edit',
+        title: 'Edit dashboards',
+        area: 'dashboard',
+        read_only_preset: false,
+      },
+      {
+        type: 'dashboard_delete',
+        title: 'Delete in dashboards',
+        area: 'dashboard',
+        read_only_preset: false,
+      },
+    ]
+    const dashboardTools = [
+      ['list_widgets', 'dashboard_read'],
+      ['create_widgets', 'dashboard_edit'],
+      ['delete_widgets', 'dashboard_delete'],
+    ].map(([name, group]) => ({
+      name,
+      title: name,
+      read_only: group === 'dashboard_read',
+      destructive: group === 'dashboard_delete',
+      group,
+    }))
+    const { wrapper } = await mount({
+      groups: dashboardGroups,
+      tools: dashboardTools,
+    })
+    const area = wrapper.find('[data-test="mcp-tool-picker-area-dashboard"]')
+    const group = (key) =>
+      wrapper.find(`[data-test="mcp-tool-picker-group-${key}"]`)
+    expect(area.text()).toContain('mcpToolPicker.areaDashboard')
+    expect(group('dashboard_read').text()).toContain(
+      'mcpToolPicker.dashboardRead'
+    )
+    expect(group('dashboard_edit').text()).toContain(
+      'mcpToolPicker.dashboardEdit'
+    )
+    expect(group('dashboard_delete').text()).toContain(
+      'mcpToolPicker.dashboardDelete'
+    )
+    expect(area.text()).not.toContain('Read dashboards')
+  })
+
   test('shows the ticked tools from the model value', async () => {
     const { wrapper } = await mount({ modelValue: ['create_rows'] })
     expect(ticked(wrapper)).toEqual(['create_rows'])

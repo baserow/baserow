@@ -239,6 +239,15 @@ export default {
               },
             })
           })
+        } else if (newLocation.type === 'dashboard') {
+          waitFor(() =>
+            store.getters['application/get'](newLocation.dashboard_id)
+          ).then(() => {
+            router.push({
+              name: 'dashboard-application',
+              params: { dashboardId: newLocation.dashboard_id },
+            })
+          })
         }
       },
     },

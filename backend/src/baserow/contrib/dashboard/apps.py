@@ -154,3 +154,33 @@ class DashboardConfig(AppConfig):
         from .search_types import DashboardSearchType
 
         workspace_search_registry.register(DashboardSearchType())
+
+        from baserow.contrib.dashboard.mcp.dashboards.tools import (
+            CreateDashboardsMcpTool,
+            ListDashboardsMcpTool,
+        )
+        from baserow.contrib.dashboard.mcp.widgets.tools import (
+            CreateWidgetsMcpTool,
+            DeleteWidgetsMcpTool,
+            GetWidgetDataMcpTool,
+            ListWidgetsMcpTool,
+            UpdateWidgetsMcpTool,
+        )
+        from baserow.core.mcp.groups import (
+            DashboardDeleteMCPToolGroup,
+            DashboardEditMCPToolGroup,
+            DashboardReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_group_registry.register(DashboardReadMCPToolGroup())
+        mcp_tool_group_registry.register(DashboardEditMCPToolGroup())
+        mcp_tool_group_registry.register(DashboardDeleteMCPToolGroup())
+        mcp_tool_registry.register(ListDashboardsMcpTool())
+        mcp_tool_registry.register(ListWidgetsMcpTool())
+        mcp_tool_registry.register(GetWidgetDataMcpTool())
+        mcp_tool_registry.register(CreateDashboardsMcpTool())
+        mcp_tool_registry.register(CreateWidgetsMcpTool())
+        mcp_tool_registry.register(UpdateWidgetsMcpTool())
+        mcp_tool_registry.register(DeleteWidgetsMcpTool())

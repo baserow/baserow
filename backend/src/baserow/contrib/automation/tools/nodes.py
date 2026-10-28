@@ -10,7 +10,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from loguru import logger
 from pydantic import Field
 
 from baserow.contrib.automation.nodes.actions import (
@@ -42,11 +41,8 @@ from baserow.contrib.database.table.models import Table
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.mcp.exceptions import (
-    INTERNAL_ERROR_MESSAGE,
-    to_mcp_error,
-)
 from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import item_error_message
 
 
 def get_node_in_workspace(ctx: ToolContext, node_id: int) -> AutomationNode:
@@ -261,27 +257,6 @@ def list_nodes(
 # ---------------------------------------------------------------------------
 # Writing nodes
 # ---------------------------------------------------------------------------
-
-
-def item_error_message(exc: Exception) -> str:
-    """
-    The message for one node that failed while the others go on. Call it from the
-    ``except`` block, so an unexpected error is logged with its traceback.
-    """
-
-    message = to_mcp_error(exc)
-    if (
-        message is None
-        and not isinstance(exc, AttributeError)
-        and type(exc).__module__.startswith("baserow")
-    ):
-        # Baserow's own errors (AutomationNodeNotDeletable, ...) say what the
-        # caller did wrong.
-        message = str(exc) or type(exc).__name__
-    if message is None:
-        logger.exception("Unexpected error in an automation tool item: {}", exc)
-        return INTERNAL_ERROR_MESSAGE
-    return message
 
 
 def check_tables_in_workspace(ctx: ToolContext, table_ids: set[int]) -> None:
