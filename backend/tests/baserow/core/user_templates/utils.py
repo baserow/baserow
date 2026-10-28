@@ -20,6 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggreg
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
@@ -27,9 +28,16 @@ from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
+from baserow.core.user_templates.archive import (
+    new_template_archive_name,
+    template_archive_dir,
+)
 from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.job_types import CreateUserTemplateJobType
+from baserow.core.user_templates.job_types import (
+    CreateUserTemplateJobType,
+    DownloadUserTemplateJobType,
+)
 from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
 
 ICON = "iconoir-view-grid"
@@ -151,6 +159,31 @@ def install(user, workspace, template, latest=False):
     return run_job(request_install(user, workspace, template, latest))
 
 
+def request_download(user, template, latest=False):
+    """Requests a download without running it, like a job waiting in the queue."""
+
+    with queued():
+        return JobHandler().create_and_start_job(
+            user, DownloadUserTemplateJobType.type, slug=template.slug, latest=latest
+        )
+
+
+def download(user, template, latest=False):
+    return run_job(request_download(user, template, latest))
+
+
+def create_template_with_content(data_fixture, user=None, **kwargs):
+    """A user template whose workspace holds a table with a row and a grid view."""
+
+    workspace = data_fixture.create_workspace(name="Content")
+    table = data_fixture.create_template_table(workspace, "Projects", "First")
+    view = data_fixture.create_grid_view(table=table)
+    template = data_fixture.create_user_template(
+        user=user, workspace=workspace, **kwargs
+    )
+    return template, table, view
+
+
 def create_template(data_fixture, user, **kwargs):
     """A user template whose content can be copied, without running a job."""
 
@@ -163,6 +196,50 @@ def create_template(data_fixture, user, **kwargs):
 def store_archive(name="template.zip"):
     return get_default_storage().save(
         f"template-revisions/{name}", ContentFile(b"archive")
+    )
+
+
+def store_template_archive(revision):
+    """
+    Stores a file as the current archive of the revision, like a build does,
+    without exporting anything.
+    """
+
+    name = get_default_storage().save(
+        new_template_archive_name(revision.id), ContentFile(b"archive")
+    )
+    Template.objects.filter(id=revision.id).update(archive=name)
+    revision.archive.name = name
+    return name
+
+
+def template_archive_names(revision):
+    """The names of the files in the directory of the archives of the revision."""
+
+    directory = template_archive_dir(revision.id)
+    try:
+        _, files = get_default_storage().listdir(directory)
+    except FileNotFoundError:
+        return []
+    return sorted(f"{directory}{file_name}" for file_name in files)
+
+
+def import_archive(data_fixture, user, name):
+    """
+    Imports the archive like a user importing a downloaded file into a new
+    workspace of theirs, and returns the imported applications.
+    """
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="template.zip", is_valid=True
+    )
+    with get_default_storage().open(name, "rb") as archive:
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=archive.read()
+        )
+    workspace = data_fixture.create_workspace(user=user, name="Imported")
+    return ImportExportHandler().import_workspace_applications(
+        user=user, workspace=workspace, resource=resource
     )
 
 

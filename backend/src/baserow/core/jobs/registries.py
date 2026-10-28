@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type
+from typing import Any, Dict, Optional, Type
 
 from django.contrib.auth.models import AbstractUser
 
@@ -162,6 +162,24 @@ class JobType(
         """
 
         return values
+
+    def get_existing_job(
+        self, user: AbstractUser, values: Dict[str, Any]
+    ) -> Optional[AnyJob]:
+        """
+        Lets a job type hand back an already pending or running job instead of
+        creating a new one, so that several requests for the same work share one
+        job. It's called with the prepared values, before the new job is built and
+        before `can_schedule_or_raise`, so a returned job never counts toward
+        `max_count`. A job type that returns a job must make sure two concurrent
+        requests can't both miss it, for example by locking a row.
+
+        :param user: The user requesting the job.
+        :param values: The values returned by `prepare_values`.
+        :return: The job to return as is, or None to create a new one.
+        """
+
+        return None
 
     def after_job_creation(self, job: AnyJob, values: Dict[str, Any]):
         """

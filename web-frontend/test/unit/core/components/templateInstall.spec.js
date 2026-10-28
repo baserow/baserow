@@ -303,6 +303,165 @@ describe('TemplateInstall', () => {
     expect(installToasts()).toHaveLength(0)
   })
 
+  describe('download', () => {
+    const userTemplate = {
+      id: 5,
+      type: 'user',
+      slug: 'crm-a1b2c3',
+      name: 'CRM',
+    }
+    const runningJob = () => ({
+      id: 20,
+      type: 'download_user_template',
+      state: 'pending',
+      progress_percentage: 0,
+      human_readable_error: '',
+      url: null,
+      file_name: 'crm.zip',
+    })
+
+    // The copied label is left out of the texts of the menu.
+    const mountWithMenu = async (props, { mocks = {} } = {}) => {
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props,
+        global: { mocks, stubs: { Copied: true } },
+      })
+      await flushPromises()
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      await flushPromises()
+      return wrapper
+    }
+
+    const menuTexts = (wrapper) =>
+      wrapper.findAll('.context__menu-item-link').map((link) => link.text())
+
+    const downloadLink = (wrapper) =>
+      wrapper
+        .findAll('.context__menu-item-link')
+        .find((link) => link.text() === 'templateInstall.download')
+
+    // The click doesn't bubble, so that only the item handles it. In the tests the
+    // menu is rendered again with a new element, which its check of the clicks
+    // outside of it would take as one.
+    const clickDownload = async (wrapper) => {
+      downloadLink(wrapper).element.dispatchEvent(
+        new MouseEvent('click', { bubbles: false, cancelable: true })
+      )
+      await flushPromises()
+    }
+
+    const menuIsOpen = (wrapper) =>
+      wrapper.findComponent({ name: 'Context' }).vm.isOpen()
+
+    const downloadRequests = () =>
+      testApp.mock.history.post
+        .filter((request) => request.url === '/jobs/')
+        .map((request) => JSON.parse(request.data))
+
+    const downloadToasts = () =>
+      testApp.store.state.toast.items.filter(
+        (toast) => toast.type === 'downloadTemplate'
+      )
+
+    const errorToasts = () =>
+      testApp.store.state.toast.items.filter((toast) => toast.type === 'error')
+
+    test.each([
+      ['a user template', userTemplate, true, ['download']],
+      ['an official template', template, true, []],
+      ['a user template while user templates are off', userTemplate, false, []],
+    ])('menu of %s', async (_, shown, flag, extra) => {
+      signIn()
+      const wrapper = await mountWithMenu(
+        { template: shown },
+        { mocks: { $featureFlagIsEnabled: () => flag } }
+      )
+
+      expect(menuTexts(wrapper)).toStrictEqual([
+        'templateInstall.copyLink',
+        ...extra.map((item) => `templateInstall.${item}`),
+      ])
+    })
+
+    test.each([false, true])(
+      'starts the download job with its toast, then closes the menu (latest: %s)',
+      async (latest) => {
+        signIn()
+        let reply = null
+        testApp.mock.onPost('/jobs/').reply(
+          () =>
+            new Promise((resolve) => {
+              reply = resolve
+            })
+        )
+        const wrapper = await mountWithMenu({ template: userTemplate, latest })
+
+        await clickDownload(wrapper)
+
+        // While the job is requested the item shows it, and the menu stays open.
+        expect(downloadLink(wrapper).classes()).toContain(
+          'context__menu-item-link--loading'
+        )
+        expect(menuIsOpen(wrapper)).toBe(true)
+
+        // A second click doesn't request it again.
+        await clickDownload(wrapper)
+        expect(downloadRequests()).toStrictEqual([
+          { type: 'download_user_template', slug: 'crm-a1b2c3', latest },
+        ])
+
+        reply([200, runningJob()])
+        await flushPromises()
+
+        expect(downloadToasts().map((toast) => toast.data)).toStrictEqual([
+          {
+            jobId: 20,
+            template_name: 'CRM',
+            slug: 'crm-a1b2c3',
+            latest,
+            autoDownload: true,
+          },
+        ])
+        expect(menuIsOpen(wrapper)).toBe(false)
+      }
+    )
+
+    test('shows why a template is not downloaded', async () => {
+      signIn()
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onPost('/jobs/').reply(400, {
+        error: 'ERROR_TEMPLATE_BLOCKED',
+        detail: 'The template is blocked.',
+      })
+      const wrapper = await mountWithMenu({ template: userTemplate })
+
+      await clickDownload(wrapper)
+
+      expect(errorToasts().map((toast) => toast.title)).toStrictEqual([
+        'clientHandler.templateBlockedTitle',
+      ])
+      expect(downloadToasts()).toHaveLength(0)
+      expect(testApp.store.getters['job/getAll']).toHaveLength(0)
+      expect(downloadLink(wrapper).classes()).not.toContain(
+        'context__menu-item-link--loading'
+      )
+    })
+
+    test('sends an anonymous visitor to the login page and back', async () => {
+      const wrapper = await mountWithMenu({ template: userTemplate })
+
+      await clickDownload(wrapper)
+
+      expect(push).toHaveBeenCalledWith({
+        name: 'login',
+        query: { original: '/template/crm-a1b2c3' },
+      })
+      expect(downloadRequests()).toHaveLength(0)
+    })
+  })
+
   describe('without a workspace', () => {
     const userTemplate = {
       id: 5,

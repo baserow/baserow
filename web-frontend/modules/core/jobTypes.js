@@ -2,6 +2,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { Registerable } from '@baserow/modules/core/registry'
 import SidebarApplicationPendingJob from '@baserow/modules/core/components/sidebar/SidebarApplicationPendingJob'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
+import { triggerDownload } from '@baserow/modules/core/utils/download'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -318,6 +319,129 @@ export class CreateUserTemplateJobType extends JobType {
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('createUserTemplateJobType.name')
+  }
+}
+
+/**
+ * Prepares the archive of a user template. The job is shared, so a click can get
+ * one already in the store. Its toast saves the archive once.
+ */
+export class DownloadUserTemplateJobType extends JobType {
+  static getType() {
+    return 'download_user_template'
+  }
+
+  getName() {
+    return 'downloadUserTemplate'
+  }
+
+  async onJobDone(job) {
+    const store = this.app.$store
+    let toast
+    try {
+      toast = await this.updateDownloadToast(job)
+    } finally {
+      await store.dispatch('job/forceDelete', job)
+    }
+    // Only a download clicked in this page saves the file by itself, once. The
+    // job of a download started before the page was loaded only shows the button.
+    if (toast?.data.autoDownload) {
+      await store.dispatch('toast/update', {
+        toast,
+        data: { autoDownload: false },
+      })
+      await this.downloadArchive(toast.data)
+    }
+  }
+
+  async onJobFailed(job) {
+    try {
+      await this.updateDownloadToast(job)
+    } finally {
+      await this.app.$store.dispatch('job/forceDelete', job)
+    }
+  }
+
+  findDownloadToast(jobId) {
+    return this.app.$store.state.toast.items.find(
+      (toast) =>
+        toast.type === 'downloadTemplate' && toast.data?.jobId === jobId
+    )
+  }
+
+  /**
+   * Shows one toast per job. A new job replaces the ended toasts of the same
+   * download.
+   */
+  async addDownloadToast(job, template, { latest = false } = {}) {
+    const store = this.app.$store
+    if (this.findDownloadToast(job.id)) {
+      return
+    }
+    const ended = store.state.toast.items.filter(
+      (toast) =>
+        toast.type === 'downloadTemplate' &&
+        toast.data?.slug === template.slug &&
+        toast.data?.latest === latest &&
+        ['finished', 'failed'].includes(toast.data?.state)
+    )
+    for (const toast of ended) {
+      await store.dispatch('toast/remove', toast)
+    }
+    await store.dispatch('toast/add', {
+      type: 'downloadTemplate',
+      data: {
+        jobId: job.id,
+        template_name: template.name,
+        slug: template.slug,
+        latest,
+        autoDownload: true,
+      },
+    })
+  }
+
+  /**
+   * Writes the final fields of the job into its toast, or shows one if there is
+   * none, because the download was started before the page was loaded. The toast
+   * then shows the result after the job is removed from the store.
+   */
+  async updateDownloadToast(job) {
+    const store = this.app.$store
+    const data = {
+      jobId: job.id,
+      state: job.state,
+      url: job.url,
+      file_name: job.file_name,
+      human_readable_error: job.human_readable_error,
+    }
+    const toast = this.findDownloadToast(job.id)
+    if (toast) {
+      await store.dispatch('toast/update', { toast, data })
+    } else {
+      await store.dispatch('toast/add', { type: 'downloadTemplate', data })
+    }
+    return this.findDownloadToast(job.id)
+  }
+
+  /**
+   * Saves the archive of a finished job, the way `DownloadLink` saves a file.
+   */
+  async downloadArchive({ url, file_name: filename }) {
+    const { $config: config, $i18n: i18n, $store: store } = this.app
+    if (!url) {
+      return
+    }
+    try {
+      await triggerDownload(url, filename, {
+        viaXhr: `${config.public.downloadFileViaXhr}` === '1',
+      })
+    } catch (error) {
+      // The file couldn't be fetched from the storage.
+      await store.dispatch('toast/error', {
+        title: i18n.t('clientHandler.notCompletedTitle'),
+        message: i18n.t('clientHandler.notCompletedDescription'),
+      })
+    }
   }
 }
 

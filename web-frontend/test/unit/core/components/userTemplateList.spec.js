@@ -400,6 +400,7 @@ describe('UserTemplateList', () => {
     expect(links.map((link) => link.text())).toStrictEqual([
       'userTemplateList.editDetails',
       'userTemplateList.updateContent',
+      'userTemplateList.download',
       'userTemplateList.delete',
     ])
 
@@ -410,6 +411,146 @@ describe('UserTemplateList', () => {
     await wrapper.findAll('.context__menu-item-link')[0].trigger('click')
     expect(wrapper.emitted('edit')[1]).toStrictEqual([templates[0], 'details'])
     expect(wrapper.emitted('selected')).toBeUndefined()
+  })
+
+  // The job a download request starts, or gets when one already runs.
+  const downloadJob = (id, template) => ({
+    id,
+    type: 'download_user_template',
+    state: 'pending',
+    progress_percentage: 0,
+    human_readable_error: '',
+    url: null,
+    file_name: `${template.slug}.zip`,
+  })
+
+  // Replies to the download request of each template, when the test resolves it.
+  const holdDownloadRequests = () => {
+    const replies = {}
+    testApp.mock.onPost('/jobs/').reply((config) => {
+      const { slug } = JSON.parse(config.data)
+      return new Promise((resolve) => {
+        replies[slug] = resolve
+      })
+    })
+    return replies
+  }
+
+  const downloadRequests = () =>
+    testApp.mock.history.post
+      .filter((request) => request.url === '/jobs/')
+      .map((request) => JSON.parse(request.data))
+
+  const downloadToasts = () =>
+    testApp.store.state.toast.items.filter(
+      (toast) => toast.type === 'downloadTemplate'
+    )
+
+  const menuLink = (wrapper, text) =>
+    wrapper
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text() === text)
+
+  // The click doesn't bubble, so that only the item handles it. In the tests the
+  // menu is rendered again with a new element, which its check of the clicks
+  // outside of it would take as one.
+  const clickDownload = async (wrapper) => {
+    menuLink(wrapper, 'userTemplateList.download').element.dispatchEvent(
+      new MouseEvent('click', { bubbles: false, cancelable: true })
+    )
+    await flushPromises()
+  }
+
+  test('downloads the latest revision of a row, then closes its actions', async () => {
+    const templates = [
+      userTemplate(1, 'Sprint Tracker'),
+      userTemplate(2, 'Growth Playbook'),
+    ]
+    mockPages(page(templates))
+    const replies = holdDownloadRequests()
+    const wrapper = await mountComponent()
+    const context = wrapper.findComponent({ name: 'Context' }).vm
+
+    await wrapper
+      .findAll('.user-template-list__actions .button-icon')[1]
+      .trigger('click')
+    await clickDownload(wrapper)
+
+    // The user's own template, so its latest revision.
+    expect(downloadRequests()).toStrictEqual([
+      {
+        type: 'download_user_template',
+        slug: 'growth-playbook-a1b2c3',
+        latest: true,
+      },
+    ])
+
+    replies['growth-playbook-a1b2c3']([200, downloadJob(20, templates[1])])
+    await flushPromises()
+
+    expect(downloadToasts()).toHaveLength(1)
+    expect(context.isOpen()).toBe(false)
+    expect(wrapper.emitted('selected')).toBeUndefined()
+  })
+
+  test('keeps the actions of another row open when a download starts', async () => {
+    const templates = [
+      userTemplate(1, 'Sprint Tracker'),
+      userTemplate(2, 'Growth Playbook'),
+    ]
+    mockPages(page(templates))
+    const replies = holdDownloadRequests()
+    const wrapper = await mountComponent()
+    const context = wrapper.findComponent({ name: 'Context' }).vm
+    const actionButtons = wrapper.findAll(
+      '.user-template-list__actions .button-icon'
+    )
+
+    await actionButtons[1].trigger('click')
+    await clickDownload(wrapper)
+
+    // While the job is requested, the actions of the other row are opened.
+    await actionButtons[0].trigger('click')
+    expect(context.isOpen()).toBe(true)
+
+    replies['growth-playbook-a1b2c3']([200, downloadJob(20, templates[1])])
+    await flushPromises()
+
+    expect(downloadToasts()).toHaveLength(1)
+    expect(context.isOpen()).toBe(true)
+    await menuLink(wrapper, 'userTemplateList.editDetails').trigger('click')
+    expect(wrapper.emitted('edit')).toStrictEqual([[templates[0], 'details']])
+  })
+
+  test('requests another row while a request runs', async () => {
+    const templates = [
+      userTemplate(1, 'Sprint Tracker'),
+      userTemplate(2, 'Growth Playbook'),
+    ]
+    mockPages(page(templates))
+    holdDownloadRequests()
+    const wrapper = await mountComponent()
+    const actionButtons = wrapper.findAll(
+      '.user-template-list__actions .button-icon'
+    )
+    const isLoading = () =>
+      menuLink(wrapper, 'userTemplateList.download')
+        .classes()
+        .includes('context__menu-item-link--loading')
+
+    await actionButtons[1].trigger('click')
+    await clickDownload(wrapper)
+    expect(isLoading()).toBe(true)
+
+    // The other row's item isn't loading, and its click requests it too.
+    await actionButtons[0].trigger('click')
+    expect(isLoading()).toBe(false)
+    await clickDownload(wrapper)
+    expect(downloadRequests().map((request) => request.slug)).toStrictEqual([
+      'growth-playbook-a1b2c3',
+      'sprint-tracker-a1b2c3',
+    ])
+    expect(isLoading()).toBe(true)
   })
 
   test('asks to delete a template with the last action', async () => {

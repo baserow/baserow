@@ -184,6 +184,19 @@
               </li>
               <li class="context__menu-item context__menu-item--with-separator">
                 <a
+                  class="context__menu-item-link"
+                  :class="{
+                    'context__menu-item-link--loading':
+                      focusedTemplate && isDownloading(focusedTemplate),
+                  }"
+                  @click.prevent="downloadTemplate()"
+                >
+                  <i class="context__menu-item-icon iconoir-download"></i>
+                  {{ $t('userTemplateList.download') }}
+                </a>
+              </li>
+              <li class="context__menu-item context__menu-item--with-separator">
+                <a
                   class="context__menu-item-link context__menu-item-link--delete"
                   @click.prevent="askToDelete()"
                 >
@@ -207,6 +220,7 @@ import debounce from 'lodash/debounce'
 import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
 
@@ -253,6 +267,7 @@ const searchInput = ref(null)
 const actionsContext = ref(null)
 // The template whose actions are shown.
 const focusedTemplate = ref(null)
+const { isDownloading, download } = useUserTemplateDownload()
 const search = ref('')
 const templates = ref([])
 const count = ref(0)
@@ -363,6 +378,20 @@ function edit(mode) {
   const template = focusedTemplate.value
   actionsContext.value.hide()
   emit('edit', template, mode)
+}
+
+/**
+ * The menu stays open, showing the loading state, until the download started.
+ * Hiding it clears the focused template, so it's read first. When the menu of
+ * another row was opened in the meantime, that one stays open.
+ */
+async function downloadTemplate() {
+  // The user's own templates, so their latest revision.
+  const template = focusedTemplate.value
+  const downloaded = await download(template, { latest: true })
+  if (downloaded && focusedTemplate.value?.id === template.id) {
+    actionsContext.value?.hide()
+  }
 }
 
 function askToDelete() {

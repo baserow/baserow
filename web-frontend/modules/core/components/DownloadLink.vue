@@ -15,6 +15,11 @@
 </template>
 
 <script>
+import {
+  downloadViaXhr,
+  getDownloadHref,
+} from '@baserow/modules/core/utils/download'
+
 export default {
   name: 'DownloadLink',
   props: {
@@ -44,54 +49,22 @@ export default {
       return `${this.$config.public.downloadFileViaXhr}` === '1'
     },
     href() {
-      // Add the filename to the query string
-      const url = new URL(this.url)
-      url.searchParams.set('dl', this.filename)
-      return url.toString()
+      return getDownloadHref(this.url, this.filename)
     },
   },
   methods: {
     async download() {
       this.loading = true
-      // We are using fetch here to avoid extra header
-      // as we need to add them to CORS later
-      const response = await fetch(this.url, {
-        // Needed to prevent chrome not sending the Origin header in the actual GET
-        // request. Without this header S3 will not respond with will not respond with
-        // the correct CORS headers
-        cache: 'no-store',
-      })
-      const blob = await response.blob()
-      const data = window.URL.createObjectURL(blob)
-
-      this.loading = false
-
-      // Create temporary anchor element to trigger the download
-      const a = document.createElement('a')
-      a.style = 'display: none'
-      a.href = data
-      a.target = '_blank'
-      a.download = this.filename
-      document.body.appendChild(a)
-      a.onclick = (e) => {
-        // prevent modal/whatever closing
-        e.stopPropagation()
+      try {
+        await downloadViaXhr(this.url, this.filename)
+      } finally {
+        this.loading = false
       }
-      a.click()
-
-      setTimeout(function () {
-        // Remove the element
-        document.body.removeChild(a)
-        // Release resource on after triggering the download
-        window.URL.revokeObjectURL(data)
-      }, 500)
     },
     onClick(event) {
       if (this.downloadXHR) {
         event.preventDefault()
         this.download().catch((error) => {
-          // In any case, to be sure the loading animation will not last
-          this.loading = false
           if (this.onError) {
             this.onError(error)
           } else {
