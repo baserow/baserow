@@ -567,6 +567,42 @@ msgid ""
 "revoked."
 msgstr ""
 
+#: src/baserow_enterprise/role/actions.py:413
+msgid "Create scoped invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/role/actions.py:415
+#, python-format
+msgid ""
+"Invitation link (%(invitation_link_id)s) created to join \"%(group_name)s\" "
+"(%(group_id)s) as %(role_uid)s on \"%(scope_type_name)s\" (%(scope_id)s)."
+msgstr ""
+
+#: src/baserow_enterprise/role/actions.py:480
+msgid "Update scoped invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/role/actions.py:482
+#, python-format
+msgid ""
+"Invitation link (%(invitation_link_id)s) to join \"%(group_name)s\" "
+"(%(group_id)s) on \"%(scope_type_name)s\" (%(scope_id)s) changed from "
+"\"%(original_name)s\" as %(original_role_uid)s to \"%(name)s\" as "
+"%(role_uid)s."
+msgstr ""
+
+#: src/baserow_enterprise/role/actions.py:554
+msgid "Delete scoped invitation link"
+msgstr ""
+
+#: src/baserow_enterprise/role/actions.py:556
+#, python-format
+msgid ""
+"Invitation link \"%(name)s\" (%(invitation_link_id)s) to join "
+"\"%(group_name)s\" (%(group_id)s) as %(role_uid)s on \"%(scope_type_name)s\" "
+"(%(scope_id)s) deleted."
+msgstr ""
+
 #: src/baserow_enterprise/teams/actions.py:21
 #, python-format
 msgid "in team \"%(team_name)s\" (%(team_id)s) "

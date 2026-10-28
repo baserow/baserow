@@ -202,6 +202,59 @@ msgid ""
 "\"%(group_name)s\" (%(group_id)s)."
 msgstr ""
 
+#: src/baserow/core/actions.py:1119
+msgid "Create workspace invitation link"
+msgstr ""
+
+#: src/baserow/core/actions.py:1121
+#, python-format
+msgid ""
+"Invitation link (%(invitation_link_id)s) created to join \"%(group_name)s\" "
+"(%(group_id)s) as %(permissions)s."
+msgstr ""
+
+#: src/baserow/core/actions.py:1175
+msgid "Update workspace invitation link"
+msgstr ""
+
+#: src/baserow/core/actions.py:1177
+#, python-format
+msgid ""
+"Invitation link (%(invitation_link_id)s) to join \"%(group_name)s\" "
+"(%(group_id)s) changed from \"%(original_name)s\" as "
+"%(original_permissions)s to \"%(name)s\" as %(permissions)s."
+msgstr ""
+
+#: src/baserow/core/actions.py:1245
+msgid "Delete workspace invitation link"
+msgstr ""
+
+#: src/baserow/core/actions.py:1247
+#, python-format
+msgid ""
+"Invitation link \"%(name)s\" (%(invitation_link_id)s) to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s deleted."
+msgstr ""
+
+#: src/baserow/core/actions.py:1298 src/baserow/core/actions.py:1305
+msgid "Join workspace via invitation link"
+msgstr ""
+
+#: src/baserow/core/actions.py:1300
+#, python-format
+msgid ""
+"Joined \"%(group_name)s\" (%(group_id)s) through invitation link "
+"(%(invitation_link_id)s) as %(permissions)s."
+msgstr ""
+
+#: src/baserow/core/actions.py:1307
+#, python-format
+msgid ""
+"Joined \"%(group_name)s\" (%(group_id)s) through invitation link "
+"(%(invitation_link_id)s) as %(permissions)s on \"%(scope_type_name)s\" "
+"(%(scope_id)s)."
+msgstr ""
+
 #: src/baserow/core/actions.py:1095
 msgid "Leave group"
 msgstr ""
@@ -642,7 +695,8 @@ msgstr ""
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) created via \"%(auth_provider_type)s\" "
-"(%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
+"(%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s, "
+"invitation link: %(with_invitation_link)s)"
 msgstr ""
 
 #: src/baserow/core/user/actions.py:122

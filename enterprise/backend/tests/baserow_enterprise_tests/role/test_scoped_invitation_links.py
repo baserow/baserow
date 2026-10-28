@@ -311,6 +311,61 @@ def test_link_to_trashed_or_deleted_object_cannot_be_used(data_fixture):
 
 
 @pytest.mark.django_db
+def test_links_to_an_application_and_a_view(api_client, data_fixture):
+    admin, workspace, database, table_a, table_b = setup_workspace(data_fixture)
+    application = database.application_ptr
+    # Roles are given on the base view, like on the base application.
+    view = data_fixture.create_grid_view(table=table_a).view_ptr
+    list_url = reverse(
+        "api:enterprise:role:scoped_invitation_links",
+        kwargs={"workspace_id": workspace.id},
+    )
+    token = data_fixture.generate_token(admin)
+
+    def create(scope_type, scope_id, permissions):
+        response = api_client.post(
+            list_url,
+            {
+                "permissions": permissions,
+                "scope_type": scope_type,
+                "scope_id": scope_id,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK, response.json()
+        return WorkspaceInvitationLink.objects.get(id=response.json()["id"])
+
+    application_link = create("application", application.id, "EDITOR")
+    view_link = create("database_view", view.id, "VIEWER")
+    application_newcomer = data_fixture.create_user()
+    view_newcomer = data_fixture.create_user()
+
+    for user, link in [
+        (application_newcomer, application_link),
+        (view_newcomer, view_link),
+    ]:
+        CoreHandler().join_workspace_via_invitation_link(
+            user, CoreHandler().get_workspace_invitation_link_by_slug(link.slug)
+        )
+
+    assert role_on(application_newcomer, application) == "EDITOR"
+    assert can_read_table(application_newcomer, workspace, table_a)
+    assert role_on(view_newcomer, view) == "VIEWER"
+    assert not can_read_table(view_newcomer, workspace, table_b)
+
+    TrashHandler.trash(admin, workspace, database, database)
+    for link in [application_link, view_link]:
+        with pytest.raises(WorkspaceInvitationLinkDoesNotExist):
+            CoreHandler().get_workspace_invitation_link_by_slug(link.slug)
+
+    TrashHandler.permanently_delete(database)
+    assert not WorkspaceInvitationLink.objects.filter(
+        id__in=[application_link.id, view_link.id]
+    ).exists()
+
+
+@pytest.mark.django_db
 def test_link_to_object_cannot_be_used_without_rbac(data_fixture):
     admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
     table_link = create_link(admin, workspace, table_a, "EDITOR")
