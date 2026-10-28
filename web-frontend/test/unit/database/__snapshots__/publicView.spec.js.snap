@@ -17,6 +17,8 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
       
       
       
+      
+      
     </div>
     <div
       class="toasts__container-bottom"

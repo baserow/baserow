@@ -1,9 +1,17 @@
 from contextlib import nullcontext
+from datetime import timedelta
 from functools import partial
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
+from django.utils.text import slugify
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from loguru import logger
 from rest_framework import serializers
 
@@ -17,10 +25,12 @@ from baserow.api.templates.errors import (
     ERROR_INVALID_TEMPLATE_CATEGORY,
     ERROR_INVALID_TEMPLATE_ICON,
     ERROR_NO_APPLICATIONS_SELECTED,
+    ERROR_TEMPLATE_BLOCKED,
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
 )
 from baserow.core.action.registries import action_type_registry
+from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.exceptions import (
     PermissionException,
     TemplateDoesNotExist,
@@ -32,11 +42,15 @@ from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
+from baserow.core.models import Template
+from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
 )
+from baserow.core.user_templates.archive import has_valid_archive
 from baserow.core.user_templates.constants import (
     USER_TEMPLATE_DESCRIPTION_MAX_LENGTH,
     USER_TEMPLATE_ICON_MAX_LENGTH,
@@ -45,11 +59,15 @@ from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
     InvalidTemplateIcon,
     NoApplicationsSelected,
+    TemplateBlocked,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.models import CreateUserTemplateJob
+from baserow.core.user_templates.models import (
+    CreateUserTemplateJob,
+    DownloadUserTemplateJob,
+)
 from baserow.core.user_templates.service import UserTemplateService
 from baserow.core.utils import Progress
 
@@ -61,6 +79,9 @@ CREATE_REQUIRED_FIELDS = [
     "category_ids",
 ]
 DETAILS_FIELDS = ["name", "description", "icon", "category_ids"]
+# How many revisions of other users' download jobs a jobs listing checks the access
+# to, beyond which it only shows the user's own jobs.
+MAX_FOREIGN_DOWNLOAD_REVISIONS_TO_SCOPE = 50
 TEMPLATE_FIELD_NAMES = [
     "workspace_id",
     "application_ids",
@@ -416,3 +437,207 @@ class CreateUserTemplateJobType(JobType):
             logger.exception(
                 f"Deleting the content of create user template job {job.id} failed."
             )
+
+
+class DownloadUserTemplateJobSerializerMixin(serializers.Serializer):
+    """The archive a finished download user template job hands out."""
+
+    url = serializers.SerializerMethodField(
+        help_text="The URL of the archive once the job is finished, which imports "
+        "like a workspace export."
+    )
+    file_name = serializers.SerializerMethodField(
+        help_text="The name to save the archive as."
+    )
+
+    @extend_schema_field(OpenApiTypes.URI)
+    def get_url(self, instance: DownloadUserTemplateJob) -> Optional[str]:
+        revision = instance.revision
+        # Cached state, which is finished before the job row is saved.
+        if not instance.finished or revision is None or not revision.archive.name:
+            return None
+        # The storage may sign the URL with the current workspace.
+        try:
+            set_current_workspace_id(revision.workspace_id)
+            return get_default_storage().url(revision.archive.name)
+        finally:
+            clear_current_workspace_id()
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_file_name(self, instance: DownloadUserTemplateJob) -> Optional[str]:
+        revision = instance.revision
+        if revision is None:
+            return None
+        return f"{slugify(revision.name) or 'template'}.zip"
+
+
+class DownloadUserTemplateJobType(JobType):
+    """
+    Hands out the archive of the revision of a user template that the user would
+    install, so that it can be imported into another workspace. The archive is
+    built on the first download, and reused until Baserow is upgraded, see
+    `has_valid_archive`. The job is shared, see `get_existing_job`.
+    """
+
+    type = "download_user_template"
+    model_class = DownloadUserTemplateJob
+    max_count = 1
+    lock_on_cancel = True
+
+    api_exceptions_map = {
+        TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
+        TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
+    }
+
+    job_exceptions_map = {
+        # Also lost access before the run, and the revision deleted during the
+        # build.
+        TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
+        TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
+        TemplateHasNoContent: "The content of the template was removed.",
+    }
+
+    request_serializer_field_names = ["slug", "latest"]
+    request_serializer_field_overrides = {
+        "slug": serializers.CharField(
+            max_length=50, help_text="The slug of the user template to download."
+        ),
+        "latest": serializers.BooleanField(
+            default=False,
+            help_text="Whether to download the latest revision of the user "
+            "template, which only its owner may. Otherwise it's the revision the "
+            "user would install.",
+        ),
+    }
+
+    serializer_mixins = [DownloadUserTemplateJobSerializerMixin]
+    # Otherwise the request serializer gets the `url` and `file_name` fields too.
+    request_serializer_mixins = []
+    serializer_field_names = ["url", "file_name"]
+
+    def transaction_atomic_context(self, job: DownloadUserTemplateJob):
+        """
+        Each application exports in its own `repeatable_read` transaction.
+        """
+
+        return nullcontext()
+
+    def is_cancellable(self, job: DownloadUserTemplateJob) -> bool:
+        # Other users may wait for the same job.
+        return False
+
+    def prepare_values(
+        self, values: Dict[str, Any], user: AbstractUser
+    ) -> Dict[str, Any]:
+        handler = UserTemplateHandler()
+        slug = values["slug"]
+        root = handler.get_user_template_root_by_slug(slug)
+        if root is None:
+            raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
+
+        revision = handler.get_installable_revision(
+            user, root, latest=values.get("latest", False)
+        )
+        return {"revision": revision}
+
+    def get_existing_job(
+        self, user: AbstractUser, values: Dict[str, Any]
+    ) -> Optional[DownloadUserTemplateJob]:
+        """
+        Returns the pending or running download job of the revision, whoever
+        started it. The revision stays locked until the caller's transaction ends,
+        so that two requests can't both start a job. A failed job isn't reused, nor
+        one older than the soft time limit.
+        """
+
+        revision = values["revision"]
+        started_after = timezone.now() - timedelta(
+            seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT
+        )
+        with transaction.atomic():
+            list(
+                Template.objects.select_for_update(no_key=True)
+                .filter(id=revision.id)
+                .values_list("id", flat=True)
+            )
+            return (
+                DownloadUserTemplateJob.objects.filter(
+                    revision_id=revision.id, created_on__gte=started_after
+                )
+                .is_pending_or_running()
+                .select_related("revision")
+                .order_by("id")
+                .first()
+            )
+
+    def run(self, job: DownloadUserTemplateJob, progress: Progress):
+        revision = job.revision
+        if revision is None:
+            raise TemplateDoesNotExist("The template was deleted.")
+        # The access may have changed since the job was requested, like install.
+        self._check_access(job, revision)
+        # A repeated download reuses the archive.
+        if has_valid_archive(revision):
+            progress.increment(progress.total)
+            return
+        try:
+            UserTemplateHandler().build_template_archive(
+                revision,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=progress.total
+                ),
+            )
+        except TemplateDoesNotExist:
+            # Saving the job with the deleted revision would fail.
+            job.revision = None
+            raise
+        # The access may have been lost while the archive was built. The archive
+        # stays for later downloads, but this job doesn't hand it out.
+        revision.get_root().refresh_from_db(
+            fields=["owner", "public_revision", "blocked_at", "marked_for_deletion_at"]
+        )
+        job.user.refresh_from_db(fields=["is_active"])
+        self._check_access(job, revision)
+
+    def _check_access(self, job: DownloadUserTemplateJob, revision: Template):
+        """
+        Checks the access like install does, but unlike install, a download fails
+        once the template is marked for deletion too, so that its archive isn't
+        handed out after the owner deleted it.
+        """
+
+        if revision.get_root().marked_for_deletion_at is not None:
+            raise TemplateDoesNotExist("The template was deleted.")
+        UserTemplateHandler().check_install_access(job.user, revision)
+
+    def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
+        return queryset.select_related("revision")
+
+    def scope_queryset_to_user(
+        self, user: AbstractUser, queryset: JobQuerySet
+    ) -> JobQuerySet:
+        """
+        Shows the user's own jobs, and the jobs of other users that build the
+        revision the user can download now, so that a user who got the job of
+        another user can follow it. The access is checked once per template, and
+        only up to `MAX_FOREIGN_DOWNLOAD_REVISIONS_TO_SCOPE` revisions, beyond
+        which only the user's own jobs are shown.
+        """
+
+        foreign_revisions = list(
+            Template.objects.filter(
+                id__in=queryset.exclude(user=user)
+                .exclude(revision=None)
+                .values("revision_id")
+            ).select_related("root")[: MAX_FOREIGN_DOWNLOAD_REVISIONS_TO_SCOPE + 1]
+        )
+        if not foreign_revisions:
+            return queryset.filter(user=user)
+        if len(foreign_revisions) > MAX_FOREIGN_DOWNLOAD_REVISIONS_TO_SCOPE:
+            return queryset.filter(user=user)
+
+        allowed_revision_ids = UserTemplateHandler().get_downloadable_revision_ids(
+            user, foreign_revisions
+        )
+        return queryset.filter(Q(user=user) | Q(revision_id__in=allowed_revision_ids))

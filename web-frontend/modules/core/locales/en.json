@@ -145,6 +145,15 @@
     "failedTitle": "{name} couldn't be installed",
     "dismiss": "Dismiss"
   },
+  "downloadTemplateToast": {
+    "preparingTitle": "Preparing download…",
+    "preparingMessage": "Exporting \"{name}\" as a workspace file",
+    "readyTitle": "Download ready",
+    "readyMessage": "\"{name}\" is ready to download",
+    "failedTitle": "Download failed",
+    "download": "Download",
+    "dismiss": "Dismiss"
+  },
   "sidebar": {
     "createWorkspace": "Create workspace",
     "addNewWorkspace": "Add new workspace",
@@ -566,6 +575,7 @@
     "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
     "copyLink": "Copy sharing link",
+    "download": "Download",
     "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
     "createWorkspace": "Create workspace"
@@ -661,6 +671,7 @@
     "actions": "Actions",
     "editDetails": "Edit details",
     "updateContent": "Update template content",
+    "download": "Download",
     "delete": "Delete"
   },
   "trashSidebar": {
