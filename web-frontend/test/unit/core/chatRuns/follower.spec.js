@@ -267,6 +267,17 @@ describe('core HTTP run follower without a product adapter', () => {
     })
   })
 
+  test('a stream refused for lack of capacity is retried with the next status check', async () => {
+    type.openStream.mockRejectedValue({ response: { status: 503 } })
+    await follow({ attach: true })
+    await flushPromises()
+    expect(type.openStream).toHaveBeenCalledTimes(1)
+    expect(api.get).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(type.openStream).toHaveBeenCalledTimes(2)
+  })
+
   test('lifecycle and subscription confirmations do not renew an exhausted reconnect budget', async () => {
     type.openStream.mockRejectedValue(new Error('offline'))
     await store.dispatch('chatRuns/subscribeToChat', {

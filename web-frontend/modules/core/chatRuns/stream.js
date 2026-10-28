@@ -45,7 +45,11 @@ export function createStreamAdapter(onRecord, signal) {
       }
       const xhr = new XMLHttpRequest()
       const reader = createRecordReader(() => xhr.responseText, onRecord)
-      const abort = () => xhr.abort()
+      const abort = () => {
+        xhr.abort()
+        // Aborting a request that is already done fires no event.
+        reject(cancelled())
+      }
       const settle = () => signal?.removeEventListener('abort', abort)
       signal?.addEventListener('abort', abort, { once: true })
 

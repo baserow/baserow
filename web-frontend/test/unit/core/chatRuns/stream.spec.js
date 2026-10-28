@@ -42,7 +42,8 @@ class FakeXHR {
 
   abort() {
     this.aborted = true
-    this.onabort()
+    // Aborting a request that is already done fires no event.
+    if (!this.done) this.onabort()
   }
 
   receive(text) {
@@ -122,13 +123,18 @@ describe('core chat run stream', () => {
     }
   )
 
-  test('aborting closes the response', async () => {
-    const controller = new AbortController()
-    const request = stream(() => {}, controller.signal)
-    controller.abort()
-    await expect(request).rejects.toMatchObject({ cancelled: true })
-    expect(FakeXHR.last.aborted).toBe(true)
-  })
+  test.each(['loading', 'done'])(
+    'aborting closes a %s response',
+    async (state) => {
+      const controller = new AbortController()
+      const request = stream(() => {}, controller.signal)
+      // Chrome can fire the last progress event after the request is done.
+      FakeXHR.last.done = state === 'done'
+      controller.abort()
+      await expect(request).rejects.toMatchObject({ cancelled: true })
+      expect(FakeXHR.last.aborted).toBe(true)
+    }
+  )
 
   test('an expired token is refreshed once and the stream is read again', async () => {
     const testApp = new TestApp()

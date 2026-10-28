@@ -183,6 +183,7 @@ export const actions = {
       },
     })
     const type = this.$registry.get('chatRunType', follower.runType)
+    let refused = false
     // The promise remains owned here after the UI closes.
     Promise.resolve()
       .then(() =>
@@ -194,21 +195,30 @@ export const actions = {
       )
       .catch((error) => {
         if (runtimes.get(this)?.get(runId)?.controller !== controller) return
-        if ([401, 403, 404].includes(error.response?.status)) {
+        const status = error.response?.status
+        if ([401, 403, 404].includes(status)) {
           dispatch('unavailable', runId)
         }
+        refused = status === 503
       })
-      .finally(() => dispatch('streamEnded', { runId, controller }))
+      .finally(() => dispatch('streamEnded', { runId, controller, refused }))
   },
 
-  streamEnded({ state, commit, dispatch }, { runId, controller }) {
+  streamEnded(
+    { state, commit, dispatch },
+    { runId, controller, refused = false }
+  ) {
     const follower = state.followers[runId]
     if (!follower) return
     const current = runtime(this, runId)
     if (current.controller !== controller) return
     current.controller = null
     commit('UPDATE_FOLLOWER', { runId, values: { streaming: false } })
-    if (!follower.finished && !current.suspended) {
+    if (follower.finished || current.suspended) return
+    // A server out of stream slots asks to retry later, not at once.
+    if (refused) {
+      scheduleStatus(this, runId)
+    } else {
       dispatch('checkStatus', runId)
     }
   },
