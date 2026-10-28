@@ -33,15 +33,19 @@ from baserow.contrib.dashboard.widgets.actions import (
     DeleteWidgetActionType,
     UpdateWidgetActionType,
 )
-from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
+from baserow.contrib.dashboard.widgets.exceptions import (
+    WidgetDoesNotExist,
+    WidgetImproperlyConfigured,
+)
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.contrib.database.fields.models import Field as DatabaseField
-from baserow.contrib.database.fields.registries import field_aggregation_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.core.db import specific_iterator
+from baserow.core.exceptions import PermissionException
+from baserow.core.registry import Registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -53,9 +57,8 @@ from baserow.core.tools.errors import item_error_message
 MAX_WIDGET_DATA = 20
 MAX_WIDGET_WRITES = 20
 
-# Aggregations a widget can't show: distribution returns the share of each value,
-# not one figure.
-UNSUPPORTED_AGGREGATION_TYPES = {"distribution"}
+WIDGET_CREATES = TypeAdapter(list[WidgetCreate])
+WIDGET_UPDATES = TypeAdapter(list[WidgetUpdate])
 
 # The widget types whose data source is one aggregated field. Charts and pie charts
 # are premium and read their series from the grouped aggregate service.
@@ -66,16 +69,29 @@ def get_widget_in_workspace(ctx: ToolContext, widget_id: int) -> Widget:
     """
     Get a widget of a dashboard in the context's workspace.
 
-    :raises WidgetDoesNotExist: When the widget is missing, trashed or in another
-        workspace.
-    :raises PermissionException: When the user may not read it.
+    :raises WidgetDoesNotExist: When the widget is missing, trashed, in another
+        workspace or hidden from the user.
     """
 
     if not Widget.objects.filter(
         id=widget_id, dashboard__workspace_id=ctx.workspace.id
     ).exists():
         raise WidgetDoesNotExist()
-    return WidgetService().get_widget(ctx.user, widget_id)
+    try:
+        return WidgetService().get_widget(ctx.user, widget_id)
+    except PermissionException:
+        # Not found, like a missing widget, so the result doesn't tell which.
+        raise WidgetDoesNotExist()
+
+
+def widget_item_error(exc: Exception) -> str:
+    """``item_error_message``, with the widget configuration errors."""
+
+    if isinstance(
+        exc, (WidgetImproperlyConfigured, DashboardDataSourceImproperlyConfigured)
+    ):
+        return "Invalid value. " + str(exc)
+    return item_error_message(exc)
 
 
 def _specific_services(service_ids: list[int]) -> dict[int, Service]:
@@ -129,6 +145,8 @@ def describe_widget(widget: Widget, service: Service | None = None) -> dict[str,
         {"field_id": s.field_id, "aggregation_type": s.aggregation_type} for s in series
     ]
     description["group_by_field_id"] = group_bys[0].field_id if group_bys else None
+    # Grouped by row id in the UI: one category per row.
+    description["group_by_row_id"] = bool(group_bys) and group_bys[0].field_id is None
     description["chart_type"] = getattr(widget, "default_series_chart_type", None)
     return description
 
@@ -141,8 +159,9 @@ def list_widgets(
     List the widgets of a dashboard with what each one shows: its type (summary,
     chart or pie_chart), title, description, and the table, view, fields and
     aggregations it reads. A summary has one field_id and aggregation_type, a
-    chart has series and an optional group_by_field_id. Use get_widget_data to
-    read the figures a widget shows.
+    chart has series and an optional group_by_field_id, or group_by_row_id true
+    when each row is a category. Use get_widget_data to read the figures a widget
+    shows.
     """
 
     dashboard = get_dashboard_in_workspace(ctx, dashboard_id)
@@ -212,11 +231,11 @@ def get_widget_data(
                         {"widget_id": widget_id, "configured": False, "data": None}
                     )
                     continue
+            # Decimals and dates as the API renders them.
+            data = json.loads(json.dumps(data, cls=DjangoJSONEncoder))
         except Exception as exc:
-            errors.append({"widget_id": widget_id, "error": item_error_message(exc)})
+            errors.append({"widget_id": widget_id, "error": widget_item_error(exc)})
             continue
-        # Decimals and dates as the API renders them.
-        data = json.loads(json.dumps(data, cls=DjangoJSONEncoder))
         widgets.append({"widget_id": widget_id, "configured": True, "data": data})
     return {"widgets": widgets, "errors": errors}
 
@@ -226,25 +245,24 @@ def get_widget_data(
 # ---------------------------------------------------------------------------
 
 
-def _check_aggregation(field: DatabaseField, aggregation_type: str) -> None:
+def _check_aggregation(
+    field: DatabaseField, aggregation_type: str, registry: Registry
+) -> None:
     """
+    :param registry: The aggregations the widget's service can compute.
     :raises DjangoValidationError: When the aggregation doesn't exist or can't be
         used on the field, naming the ones that can.
     """
 
-    if aggregation_type not in UNSUPPORTED_AGGREGATION_TYPES:
-        try:
-            if field_aggregation_registry.get(aggregation_type).field_is_compatible(
-                field
-            ):
-                return
-        except field_aggregation_registry.does_not_exist_exception_class:
-            pass
+    try:
+        if registry.get(aggregation_type).field_is_compatible(field):
+            return
+    except registry.does_not_exist_exception_class:
+        pass
     fitting = sorted(
         aggregation.type
-        for aggregation in field_aggregation_registry.get_all()
-        if aggregation.type not in UNSUPPORTED_AGGREGATION_TYPES
-        and aggregation.field_is_compatible(field)
+        for aggregation in registry.get_all()
+        if aggregation.field_is_compatible(field)
     )
     raise DjangoValidationError(
         f"{aggregation_type} can't be used on field '{field.name}'. "
@@ -252,10 +270,13 @@ def _check_aggregation(field: DatabaseField, aggregation_type: str) -> None:
     )
 
 
-def _check_data_source(ctx: ToolContext, config: dict[str, Any]) -> None:
+def _check_data_source(
+    ctx: ToolContext, widget: Widget, config: dict[str, Any]
+) -> None:
     """
     Check that the table, view and fields of a widget's data source are in the
-    context's workspace, and that each aggregation fits its field.
+    context's workspace, and that its service can compute each aggregation on its
+    field.
 
     :raises Table.DoesNotExist: When the table isn't a table of the workspace the
         user can see.
@@ -289,8 +310,10 @@ def _check_data_source(ctx: ToolContext, config: dict[str, Any]) -> None:
     }
     if set(fields) != field_ids:
         raise DatabaseField.DoesNotExist()
+    service = widget.data_source.service.specific
+    registry = service_type_registry.get_by_model(service).aggregation_registry
     for field_id, aggregation_type in aggregations:
-        _check_aggregation(fields[field_id], aggregation_type)
+        _check_aggregation(fields[field_id], aggregation_type, registry)
 
 
 def _aggregations(config: dict[str, Any]) -> list[tuple[int, str]]:
@@ -299,10 +322,37 @@ def _aggregations(config: dict[str, Any]) -> list[tuple[int, str]]:
     return [(config["field_id"], config["aggregation_type"])]
 
 
+def _series_ids(
+    series: list[dict[str, Any]], existing: list[dict[str, Any]]
+) -> list[int | None]:
+    """
+    The id each series of a chart keeps, so its color and chart type stay. A
+    series given again keeps its id wherever it moves. The others take the ids
+    left over in order, so a series whose field or aggregation changes keeps its
+    style too.
+
+    :param series: The series the chart gets.
+    :param existing: The series it has, with their ids, in order.
+    """
+
+    def key(s):
+        return s["field_id"], s["aggregation_type"]
+
+    left = list(existing)
+    ids: list[int | None] = []
+    for new in series:
+        match = next((old for old in left if key(old) == key(new)), None)
+        if match is not None:
+            left.remove(match)
+        ids.append(match["id"] if match is not None else None)
+    rest = iter(old["id"] for old in left)
+    return [next(rest, None) if id_ is None else id_ for id_ in ids]
+
+
 def _data_source_values(
     config: dict[str, Any],
     previous: dict[str, Any] | None = None,
-    series_ids: list[int] | None = None,
+    existing_series: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     The service values of a widget's data source.
@@ -310,8 +360,7 @@ def _data_source_values(
     :param config: The data source the widget gets.
     :param previous: The data source it has, when it is updated. Only the values
         that change are sent.
-    :param series_ids: The ids of the chart's series, in order. A series given at
-        the same position keeps its id, so its color and chart type stay.
+    :param existing_series: The chart's series with their ids, in order.
     """
 
     changed = {
@@ -326,19 +375,22 @@ def _data_source_values(
     # The grouped aggregate service (premium) takes the series and group bys
     # under the names of their relations. It drops the sorts they no longer match.
     if "series" in changed or table_changed:
-        ids = series_ids or []
+        ids = _series_ids(config["series"], existing_series or [])
         values["service_aggregation_series"] = [
             {
-                **({"id": ids[index]} if index < len(ids) else {}),
+                **({"id": id_} if id_ is not None else {}),
                 "field_id": series["field_id"],
                 "aggregation_type": series["aggregation_type"],
             }
-            for index, series in enumerate(config["series"])
+            for id_, series in zip(ids, config["series"])
         ]
-    if "group_by_field_id" in changed or table_changed:
+    if changed & {"group_by_field_id", "group_by_row_id"} or table_changed:
         group_by = config["group_by_field_id"]
+        # A group by without a field groups by row id.
         values["service_aggregation_group_bys"] = (
-            [{"field_id": group_by}] if group_by is not None else []
+            [{"field_id": group_by}]
+            if group_by is not None or config.get("group_by_row_id")
+            else []
         )
     return values
 
@@ -350,7 +402,7 @@ def _data_source_config(description: dict[str, Any]) -> dict[str, Any]:
     if description["type"] in SUMMARY_WIDGET_TYPES:
         keys += ["field_id", "aggregation_type"]
     else:
-        keys += ["series", "group_by_field_id"]
+        keys += ["series", "group_by_field_id", "group_by_row_id"]
     return {key: description[key] for key in keys}
 
 
@@ -365,12 +417,19 @@ def _update_data_source(
     """
 
     service = widget.data_source.service.specific
-    series_ids = (
-        [series.id for series in service.service_aggregation_series.all()]
+    existing_series = (
+        [
+            {
+                "id": series.id,
+                "field_id": series.field_id,
+                "aggregation_type": series.aggregation_type,
+            }
+            for series in service.service_aggregation_series.all()
+        ]
         if hasattr(service, "service_aggregation_series")
         else None
     )
-    values = _data_source_values(config, previous, series_ids)
+    values = _data_source_values(config, previous, existing_series)
     UpdateDashboardDataSourceActionType.do(
         ctx.user,
         widget.data_source_id,
@@ -421,12 +480,14 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     """
 
     config = spec.model_dump(exclude={"type", "title", "description", "chart_type"})
-    _check_data_source(ctx, config)
     data = {"title": spec.title, "description": spec.description}
     chart_type = getattr(spec, "chart_type", None)
     if chart_type is not None:
         data["default_series_chart_type"] = chart_type
     widget = CreateWidgetActionType.do(ctx.user, dashboard_id, spec.type, data)
+    # After the widget, whose service tells which aggregations fit. The item's
+    # savepoint drops the widget when the check fails.
+    _check_data_source(ctx, widget, config)
     _update_data_source(ctx, widget, config)
     if spec.type not in SUMMARY_WIDGET_TYPES:
         widget = WidgetService().get_widget(ctx.user, widget.id)
@@ -462,7 +523,7 @@ def create_widgets(
     """
 
     dashboard = get_dashboard_in_workspace(ctx, dashboard_id)
-    specs = TypeAdapter(list[WidgetCreate]).validate_python(widgets)
+    specs = WIDGET_CREATES.validate_python(widgets)
 
     created = []
     errors = []
@@ -471,14 +532,14 @@ def create_widgets(
         try:
             with transaction.atomic():
                 widget = create_widget(ctx, dashboard.id, spec)
+                created.append(_describe(ctx, widget.id))
+        except PermissionException:
+            raise
         except Exception as exc:
-            errors.append({"index": index, "error": item_error_message(exc)})
-            continue
-        created.append(_describe(ctx, widget.id))
+            errors.append({"index": index, "error": widget_item_error(exc)})
     return {"created": created, "errors": errors}
 
 
-WIDGET_VALUES = {"title", "description", "chart_type"}
 SUMMARY_VALUES = {"field_id", "aggregation_type"}
 CHART_VALUES = {"series", "group_by_field_id", "chart_type"}
 
@@ -495,7 +556,13 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     widget = get_widget_in_workspace(ctx, spec.widget_id)
     current = describe_widget(widget)
     widget_type = current["type"]
-    given = spec.model_dump(exclude_none=True, exclude={"widget_id"})
+    given = spec.model_dump(exclude_none=True, exclude={"widget_id", "clear"})
+    set_and_cleared = sorted(set(given) & set(spec.clear))
+    if set_and_cleared:
+        raise DjangoValidationError(
+            f"{', '.join(set_and_cleared)} can't be both set and cleared."
+        )
+    given.update(dict.fromkeys(spec.clear))
 
     not_for_type = sorted(
         set(given)
@@ -510,9 +577,11 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     new_config = {**config, **{k: v for k, v in given.items() if k in config}}
     if new_config["table_id"] != config["table_id"] and "view_id" not in given:
         new_config["view_id"] = None
+    if "group_by_field_id" in given:
+        new_config["group_by_row_id"] = False
     data_source_changed = new_config != config
     if data_source_changed:
-        _check_data_source(ctx, new_config)
+        _check_data_source(ctx, widget, new_config)
 
     new_data = {
         key: given[key]
@@ -553,14 +622,14 @@ def update_widgets(
 ) -> dict[str, Any]:
     """
     Change widgets: their title, description, chart type, or what they show.
-    Only the values given change. Setting series replaces all the series of a
-    chart. Changing table_id needs the fields of the new table too, and clears
+    Only the values given change; clear removes the view or the group by.
+    Setting series replaces all the series of a chart. Changing table_id needs the fields of the new table too, and clears
     the view unless view_id is given. Each widget is saved on its own: a widget
     that fails is listed in errors and the others are kept. Returns the widgets
     that changed, as list_widgets describes them.
     """
 
-    specs = TypeAdapter(list[WidgetUpdate]).validate_python(widgets)
+    specs = WIDGET_UPDATES.validate_python(widgets)
 
     updated = []
     errors = []
@@ -568,18 +637,18 @@ def update_widgets(
         ctx.update_status(_("Updating widget %(id)s...") % {"id": spec.widget_id})
         try:
             with transaction.atomic():
-                changed = update_widget(ctx, spec)
+                if update_widget(ctx, spec):
+                    updated.append(_describe(ctx, spec.widget_id))
+        except PermissionException:
+            raise
         except Exception as exc:
             errors.append(
                 {
                     "index": index,
                     "widget_id": spec.widget_id,
-                    "error": item_error_message(exc),
+                    "error": widget_item_error(exc),
                 }
             )
-            continue
-        if changed:
-            updated.append(_describe(ctx, spec.widget_id))
     return {"updated": updated, "errors": errors}
 
 
@@ -607,8 +676,10 @@ def delete_widgets(
             with transaction.atomic():
                 get_widget_in_workspace(ctx, widget_id)
                 DeleteWidgetActionType.do(ctx.user, widget_id)
+        except PermissionException:
+            raise
         except Exception as exc:
-            errors.append({"widget_id": widget_id, "error": item_error_message(exc)})
+            errors.append({"widget_id": widget_id, "error": widget_item_error(exc)})
             continue
         deleted.append(widget_id)
     return {"deleted": deleted, "errors": errors}

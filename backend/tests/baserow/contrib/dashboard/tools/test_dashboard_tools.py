@@ -172,3 +172,13 @@ def test_widget_create_picks_the_model_by_type():
     assert summary.field_id == 2
     assert chart.series[0].aggregation_type == "sum"
     assert chart.group_by_field_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["", "x" * 161])
+def test_create_dashboards_rejects_invalid_names(dashboard_ctx, name):
+    ctx, _ = dashboard_ctx
+
+    with pytest.raises(pydantic.ValidationError):
+        create_dashboards(ctx, ["Fine", name])
+    assert not Dashboard.objects.filter(name="Fine").exists()

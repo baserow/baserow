@@ -27,6 +27,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
+from baserow.core.tools.errors import item_error_message
 
 
 def get_automation_in_workspace(ctx: ToolContext, automation_id: int) -> Automation:
@@ -247,7 +248,6 @@ def create_workflows_in_automation(
         check_node_refs,
         check_tables_in_workspace,
         create_node,
-        item_error_message,
         node_table_ids,
         table_field_ids,
     )

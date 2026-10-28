@@ -78,6 +78,7 @@ def test_create_chart_widget_with_series_and_group_by(premium_data_fixture):
             {"field_id": amount.id, "aggregation_type": "max"},
         ],
         "group_by_field_id": stage.id,
+        "group_by_row_id": False,
         "chart_type": "LINE",
     }
     assert list_widgets(ctx, dashboard.id)["widgets"] == [created]
@@ -196,9 +197,9 @@ def test_create_chart_widget_without_licence_reports_feature_error(
     )
 
     assert result["created"] == []
-    error = result["errors"][0]["error"]
-    assert error != "Internal error."
-    assert "licen" in error.lower() or "feature" in error.lower()
+    assert result["errors"][0]["error"] == (
+        "The related user does not have access to these features."
+    )
     assert Widget.objects.filter(dashboard=dashboard).count() == 0
 
 
@@ -334,3 +335,108 @@ def test_changing_the_group_by_keeps_series_styles(premium_data_fixture):
     assert result["errors"] == []
     assert result["updated"][0]["group_by_field_id"] == region.id
     assert _styles(widget_id) == before
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_chart_rejects_aggregation_the_chart_service_does_not_have(
+    premium_data_fixture,
+):
+    ctx, dashboard, table, *_ = _setup(premium_data_fixture)
+    date = premium_data_fixture.create_date_field(table=table, name="Closed")
+
+    result = create_widgets(
+        ctx,
+        dashboard.id,
+        [
+            {
+                "type": "chart",
+                "title": "First close",
+                "table_id": table.id,
+                "series": [{"field_id": date.id, "aggregation_type": "min_date"}],
+            }
+        ],
+    )
+
+    assert result["created"] == []
+    error = result["errors"][0]["error"]
+    assert "min_date can't be used on field 'Closed'. Use one of: " in error
+    assert "min_date," not in error and "max_date" not in error
+    assert Widget.objects.filter(dashboard=dashboard).count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_removing_a_series_keeps_the_style_of_the_others(premium_data_fixture):
+    ctx, _, amount, widget_id = _styled_chart(premium_data_fixture)
+    before = _styles(widget_id)
+
+    result = update_widgets(
+        ctx,
+        [
+            {
+                "widget_id": widget_id,
+                "series": [{"field_id": amount.id, "aggregation_type": "max"}],
+            }
+        ],
+    )
+
+    assert result["errors"] == []
+    assert _styles(widget_id) == [before[1]]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_reordering_series_keeps_their_styles(premium_data_fixture):
+    ctx, _, amount, widget_id = _styled_chart(premium_data_fixture)
+    before = _styles(widget_id)
+
+    update_widgets(
+        ctx,
+        [
+            {
+                "widget_id": widget_id,
+                "series": [
+                    {"field_id": amount.id, "aggregation_type": "max"},
+                    {"field_id": amount.id, "aggregation_type": "sum"},
+                ],
+            }
+        ],
+    )
+
+    assert _styles(widget_id) == [before[1], before[0]]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_chart_clears_the_group_by(premium_data_fixture):
+    ctx, _, _, widget_id = _styled_chart(premium_data_fixture)
+
+    result = update_widgets(
+        ctx, [{"widget_id": widget_id, "clear": ["group_by_field_id"]}]
+    )
+
+    assert result["errors"] == []
+    assert result["updated"][0]["group_by_field_id"] is None
+    assert result["updated"][0]["group_by_row_id"] is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_chart_grouped_by_row_id_is_listed_as_such(premium_data_fixture):
+    ctx, _, _, widget_id = _styled_chart(premium_data_fixture)
+    widget = Widget.objects.get(id=widget_id).specific
+    # How the UI stores "group by row id".
+    widget.data_source.service.specific.service_aggregation_group_bys.update(
+        field_id=None
+    )
+
+    (listed,) = list_widgets(ctx, widget.dashboard_id)["widgets"]
+    assert listed["group_by_field_id"] is None
+    assert listed["group_by_row_id"] is True
+
+    result = update_widgets(
+        ctx, [{"widget_id": widget_id, "clear": ["group_by_field_id"]}]
+    )
+    assert result["errors"] == []
+    assert result["updated"][0]["group_by_row_id"] is False

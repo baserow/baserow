@@ -1450,6 +1450,8 @@ class LocalBaserowAggregateRowsUserServiceType(
 
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
+    # The aggregations the service can compute.
+    aggregation_registry = field_aggregation_registry
     dispatch_types = [
         DispatchTypes.DATA,
         DispatchTypes.ACTION,

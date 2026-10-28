@@ -354,3 +354,123 @@ def test_undo_restores_a_deleted_widget(data_fixture, sales_table):
 
     assert not Widget.objects_and_trash.get(id=widget_id).trashed
     assert get_widget_data(ctx, [widget_id])["widgets"][0]["configured"] is True
+
+
+@pytest.mark.django_db
+def test_update_widget_clears_the_view(data_fixture, dashboard_ctx, sales_table):
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    view = data_fixture.create_grid_view(table=table)
+    widget_id = create_widgets(
+        ctx, dashboard.id, [_summary(table, amount, view_id=view.id)]
+    )["created"][0]["id"]
+
+    result = update_widgets(ctx, [{"widget_id": widget_id, "clear": ["view_id"]}])
+
+    assert result["errors"] == []
+    assert result["updated"][0]["view_id"] is None
+
+
+@pytest.mark.django_db
+def test_update_widget_rejects_a_value_set_and_cleared(
+    data_fixture, dashboard_ctx, sales_table
+):
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    view = data_fixture.create_grid_view(table=table)
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+
+    result = update_widgets(
+        ctx, [{"widget_id": widget_id, "view_id": view.id, "clear": ["view_id"]}]
+    )
+
+    assert result["updated"] == []
+    assert "view_id" in result["errors"][0]["error"]
+
+
+@pytest.mark.django_db
+def test_update_summary_widget_rejects_clearing_the_group_by(
+    dashboard_ctx, sales_table
+):
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+
+    result = update_widgets(
+        ctx, [{"widget_id": widget_id, "clear": ["group_by_field_id"]}]
+    )
+
+    assert result["updated"] == []
+    assert "group_by_field_id" in result["errors"][0]["error"]
+
+
+@pytest.mark.django_db
+def test_create_widget_rolls_back_when_it_cannot_be_described(
+    dashboard_ctx, sales_table, monkeypatch
+):
+    from baserow.contrib.dashboard.tools import widgets
+
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(widgets, "describe_widget", fail)
+    result = create_widgets(ctx, dashboard.id, [_summary(table, amount)])
+
+    assert result == {
+        "created": [],
+        "errors": [{"index": 0, "error": "Internal error."}],
+    }
+    assert Widget.objects.filter(dashboard=dashboard).count() == 0
+
+
+@pytest.mark.django_db
+def test_update_widget_rolls_back_when_it_cannot_be_described(
+    dashboard_ctx, sales_table, monkeypatch
+):
+    from baserow.contrib.dashboard.tools import widgets
+
+    ctx, dashboard = dashboard_ctx
+    table, _, amount = sales_table
+    widget_id = create_widgets(ctx, dashboard.id, [_summary(table, amount)])["created"][
+        0
+    ]["id"]
+    describe = widgets.describe_widget
+    calls = []
+
+    def fail_after_update(*args, **kwargs):
+        calls.append(args)
+        # The first call reads the widget before the update.
+        if len(calls) > 1:
+            raise RuntimeError("boom")
+        return describe(*args, **kwargs)
+
+    monkeypatch.setattr(widgets, "describe_widget", fail_after_update)
+    result = update_widgets(ctx, [{"widget_id": widget_id, "title": "Revenue"}])
+
+    assert result["updated"] == []
+    assert result["errors"][0]["error"] == "Internal error."
+    assert Widget.objects.get(id=widget_id).title == "Total"
+
+
+def test_widget_configuration_errors_are_reported_as_invalid_values():
+    from baserow.contrib.dashboard.data_sources.exceptions import (
+        DashboardDataSourceImproperlyConfigured,
+    )
+    from baserow.contrib.dashboard.tools.widgets import widget_item_error
+    from baserow.contrib.dashboard.widgets.exceptions import (
+        WidgetImproperlyConfigured,
+    )
+
+    assert widget_item_error(WidgetImproperlyConfigured("No series.")) == (
+        "Invalid value. No series."
+    )
+    assert widget_item_error(DashboardDataSourceImproperlyConfigured("No field.")) == (
+        "Invalid value. No field."
+    )

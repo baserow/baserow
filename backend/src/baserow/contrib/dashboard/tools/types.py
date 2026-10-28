@@ -91,10 +91,13 @@ WidgetCreate = Annotated[
 ]
 
 
+KEEP = "Leave out to keep the current one; remove it with clear."
+
+
 class WidgetUpdate(BaseModel):
     """
-    The changes to one widget. A value left null keeps what the widget has.
-    field_id and aggregation_type are for a summary widget, series,
+    The changes to one widget. A value left out or null keeps what the widget
+    has. field_id and aggregation_type are for a summary widget, series,
     group_by_field_id and chart_type for a chart or pie chart.
     """
 
@@ -108,9 +111,33 @@ class WidgetUpdate(BaseModel):
             "fields of the new table too."
         ),
     ] = None
-    view_id: ViewId = None
+    view_id: Annotated[
+        int | None,
+        Field(
+            description="A view of the table. Only the rows the view shows are "
+            f"aggregated, after its filters. {KEEP}"
+        ),
+    ] = None
     field_id: Annotated[int | None, Field(description="The field to aggregate.")] = None
     aggregation_type: AggregationType | None = None
     series: Series | None = None
-    group_by_field_id: GroupByFieldId = None
-    chart_type: ChartType = None
+    group_by_field_id: Annotated[
+        int | None,
+        Field(
+            description=f"The field whose values become the chart's categories. {KEEP}"
+        ),
+    ] = None
+    chart_type: Annotated[
+        Literal["BAR", "LINE", "PIE", "DOUGHNUT"] | None,
+        Field(
+            description="How the chart draws its series: BAR or LINE for a chart, "
+            "PIE or DOUGHNUT for a pie chart. Every series is redrawn this way."
+        ),
+    ] = None
+    clear: Annotated[
+        list[Literal["view_id", "group_by_field_id"]],
+        Field(
+            description="Values to remove: view_id to aggregate every row, "
+            "group_by_field_id to show a chart without categories."
+        ),
+    ] = []

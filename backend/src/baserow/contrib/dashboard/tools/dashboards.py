@@ -9,11 +9,11 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 
-from pydantic import Field
+from pydantic import Field, TypeAdapter
 
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.core.actions import CreateApplicationActionType
-from baserow.core.exceptions import PermissionException
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
@@ -21,20 +21,27 @@ from baserow.core.tools.errors import item_error_message
 
 MAX_DASHBOARDS = 20
 
+DashboardName = Annotated[str, Field(min_length=1, max_length=160)]
+DASHBOARD_NAMES = TypeAdapter(list[DashboardName])
+
 
 def get_dashboard_in_workspace(ctx: ToolContext, dashboard_id: int) -> Dashboard:
     """
     Get a dashboard of the context's workspace.
 
-    :raises ApplicationDoesNotExist: When the dashboard is missing, trashed or in
-        another workspace.
+    :raises ApplicationDoesNotExist: When the dashboard is missing, trashed, in
+        another workspace or hidden from the user.
     """
 
-    return CoreService().get_application(
-        ctx.user,
-        dashboard_id,
-        base_queryset=Dashboard.objects.filter(workspace=ctx.workspace),
-    )
+    try:
+        return CoreService().get_application(
+            ctx.user,
+            dashboard_id,
+            base_queryset=Dashboard.objects.filter(workspace=ctx.workspace),
+        )
+    except PermissionException:
+        # Not found, like a missing dashboard, so the result doesn't tell which.
+        raise ApplicationDoesNotExist(dashboard_id)
 
 
 def list_dashboards(ctx: ToolContext) -> dict[str, Any]:
@@ -66,11 +73,12 @@ def list_dashboards(ctx: ToolContext) -> dict[str, Any]:
 def create_dashboards(
     ctx: ToolContext,
     names: Annotated[
-        list[str],
+        list[DashboardName],
         Field(
             min_length=1,
             max_length=MAX_DASHBOARDS,
-            description="The names of the dashboards to create, at most 20.",
+            description="The names of the dashboards to create, at most 20, each "
+            "at most 160 characters.",
         ),
     ],
 ) -> dict[str, Any]:
@@ -82,6 +90,7 @@ def create_dashboards(
 
     if not names:
         raise DjangoValidationError("names must hold at least one name.")
+    names = DASHBOARD_NAMES.validate_python(names)
 
     created = []
     errors = []
