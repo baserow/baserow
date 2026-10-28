@@ -279,4 +279,61 @@ describe('Auth store', () => {
       'info-neutral',
     ])
   })
+
+  test('ignores the result of an install that arrives after logout', async () => {
+    const job = {
+      id: 10,
+      type: 'install_template',
+      state: 'started',
+      progress_percentage: 64,
+      workspace: { id: 1 },
+      template: { id: 5, name: 'Project Tracker' },
+      installed_applications: [],
+      human_readable_error: '',
+    }
+    await store.dispatch('toast/add', {
+      type: 'installTemplate',
+      data: { jobId: 10, template_name: 'Project Tracker' },
+    })
+    await store.dispatch('job/forceCreate', { ...job })
+    // The job status is requested before the user logs out, and the response
+    // arrives after.
+    let respond
+    const responded = new Promise((resolve) => {
+      respond = resolve
+    })
+    testApp.mock.onGet('/jobs/').reply(async () => {
+      await responded
+      return [
+        200,
+        {
+          jobs: [
+            {
+              ...job,
+              state: 'finished',
+              progress_percentage: 100,
+              installed_applications: [
+                {
+                  id: 1,
+                  name: 'Projects',
+                  order: 1,
+                  type: 'database',
+                  workspace: { id: 1 },
+                  tables: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]
+    })
+    const polling = store.dispatch('job/updateAll', [10])
+
+    await store.dispatch('auth/clearAllStoreUserData')
+    respond()
+    await polling
+
+    expect(store.state.toast.items).toEqual([])
+    expect(store.getters['application/get'](1)).toBeUndefined()
+  })
 })

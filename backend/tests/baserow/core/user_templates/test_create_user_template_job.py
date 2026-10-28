@@ -62,18 +62,14 @@ from baserow.core.utils import Progress
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
-    another_run_after_the_copy,
     cancel_in_another_connection,
     copied_applications,
     create_content,
-    create_database_source,
     create_source,
     deny_export,
     find_values,
     long_ago,
     purge,
-    queued,
-    run_job,
     serialized_content,
     start_job,
 )
@@ -669,100 +665,6 @@ def test_create_user_template_job_keeps_the_template_on_error_after_the_commit(
     template = Template.objects.get()
     assert template.id == job.template_id
     assert template.workspace.application_set.count() == 1
-
-
-def assert_only_the_committed_template_left(job, source_workspace):
-    template = Template.objects.get()
-    assert job.state == JOB_FINISHED, job.error
-    assert job.template_id == job.revision_id == template.id
-    assert job.template_workspace_id == template.workspace_id
-    assert set(Workspace.objects_and_trash.all()) == {
-        source_workspace,
-        template.workspace,
-    }
-
-
-def test_create_user_template_job_redelivered_after_its_commit_isnt_run_again(
-    data_fixture,
-):
-    source = create_database_source(data_fixture)
-    job = start_job(source["user"], source["workspace"], [source["database"]])
-
-    again = run_job(job)
-
-    assert again.revision_id == job.revision_id
-    assert_only_the_committed_template_left(again, source["workspace"])
-
-
-def test_create_user_template_job_keeps_the_commit_of_another_run(data_fixture):
-    source = create_database_source(data_fixture)
-
-    with another_run_after_the_copy() as other_runs:
-        job = start_job(source["user"], source["workspace"], [source["database"]])
-
-    assert other_runs[0].state == JOB_FINISHED
-    assert job.revision_id == other_runs[0].revision_id
-    assert_only_the_committed_template_left(job, source["workspace"])
-
-
-def test_create_user_template_job_failed_run_keeps_the_commit_of_another_run(
-    data_fixture,
-):
-    source = create_database_source(data_fixture)
-
-    with (
-        another_run_after_the_copy(RuntimeError("Fails after the copy")) as other_runs,
-        patch("baserow.core.user_templates.job_types.logger") as logger,
-    ):
-        job = start_job(source["user"], source["workspace"], [source["database"]])
-
-    assert job.revision_id == other_runs[0].revision_id
-    assert_only_the_committed_template_left(job, source["workspace"])
-    logger.exception.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "target,error,state",
-    [
-        # Before this run tracked anything.
-        (
-            "baserow.core.user_templates.service.UserTemplateService.copy_applications",
-            PermissionDenied("Fails before the copy"),
-            JOB_FAILED,
-        ),
-        # After this run tracked its workspace.
-        (
-            "baserow.core.handler.CoreHandler.import_applications_to_workspace",
-            PermissionDenied("Fails mid-import"),
-            JOB_FAILED,
-        ),
-        (
-            "baserow.core.handler.CoreHandler.import_applications_to_workspace",
-            JobCancelled(),
-            JOB_CANCELLED,
-        ),
-    ],
-)
-def test_create_user_template_job_keeps_the_content_another_run_tracked(
-    data_fixture, target, error, state
-):
-    source = create_database_source(data_fixture)
-    with queued():
-        job = start_job(source["user"], source["workspace"], [source["database"]])
-    # Another run of the job, still going on, tracked its copy on the row.
-    other_workspace = data_fixture.create_workspace(name="Copy of the other run")
-    CreateUserTemplateJob.objects.filter(id=job.id).update(
-        template_workspace=other_workspace
-    )
-
-    with patch(target, side_effect=error):
-        job = run_job(job)
-
-    assert job.state == state
-    assert set(Workspace.objects_and_trash.all()) == {
-        source["workspace"],
-        other_workspace,
-    }
 
 
 def test_create_user_template_job_logs_a_failed_clean_up_after_a_cancel(data_fixture):

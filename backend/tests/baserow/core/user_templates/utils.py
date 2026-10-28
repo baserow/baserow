@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -28,8 +27,6 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
-from baserow.core.user_templates.models import CreateUserTemplateJob
-from baserow.core.user_templates.service import UserTemplateService
 from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
 
 ICON = "iconoir-view-grid"
@@ -365,27 +362,3 @@ def copied_applications(template):
         application.get_type().type: application.specific
         for application in template.workspace.application_set.all()
     }
-
-
-@contextmanager
-def another_run_after_the_copy(error=None):
-    """
-    Runs the latest job again, like a redelivery of its task, right after the
-    first run copied its content, and then raises `error` in the first run if
-    given. Yields the list the other run is added to.
-    """
-
-    copy_applications = UserTemplateService.copy_applications
-    calls, other_runs = [], []
-
-    def copy_then_run_again(service, *args, **kwargs):
-        content = copy_applications(service, *args, **kwargs)
-        calls.append(content)
-        if len(calls) == 1:
-            other_runs.append(run_job(CreateUserTemplateJob.objects.latest("id")))
-            if error is not None:
-                raise error
-        return content
-
-    with patch.object(UserTemplateService, "copy_applications", copy_then_run_again):
-        yield other_runs

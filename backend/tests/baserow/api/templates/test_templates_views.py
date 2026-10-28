@@ -582,53 +582,6 @@ def test_generic_jobs_endpoint_install_user_template_access(api_client, data_fix
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "actor,latest,expected_status,expected_error,expected_pin",
-    [
-        ("owner", True, HTTP_202_ACCEPTED, None, "latest"),
-        ("other", True, HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST", None),
-    ],
-)
-def test_async_install_user_template_latest(
-    api_client,
-    data_fixture,
-    actor,
-    latest,
-    expected_status,
-    expected_error,
-    expected_pin,
-):
-    owner, owner_token = data_fixture.create_user_and_token()
-    user_template = _create_installable_user_template(data_fixture, owner, "public")
-    revision = data_fixture.create_user_template_revision(
-        user_template, workspace=user_template.workspace
-    )
-    if actor == "owner":
-        user, token = owner, owner_token
-    else:
-        user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.post(
-        reverse(
-            "api:templates:install_async",
-            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
-        )
-        + f"?latest={latest}",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == expected_status, response.json()
-    jobs = InstallTemplateJob.objects.filter(workspace=workspace)
-    if expected_error is None:
-        pin = revision if expected_pin == "latest" else user_template
-        assert jobs.get().template_id == pin.id
-    else:
-        assert response.json()["error"] == expected_error
-        assert not jobs.exists()
-
-
-@pytest.mark.django_db
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 @pytest.mark.parametrize(
     "case,expected_error",

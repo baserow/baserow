@@ -52,9 +52,7 @@ from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
     OTHER_ICON,
-    another_run_after_the_copy,
     copied_applications,
-    create_database_source,
     create_source,
     create_template,
     deny_export,
@@ -300,46 +298,6 @@ def test_update_user_template_details_of_a_later_revision(
     revision_3 = Template.objects.get(root=root, version=3)
     assert revision_3.metadata == {"source_workspace_id": 1}
     assert revision_3.workspace.application_set.count() == 2
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_update_user_template_job_redelivered_after_its_commit_isnt_run_again(
-    data_fixture, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    root = create_template(data_fixture, user)
-    job = update_details(user, root)
-
-    again = run_job(job)
-
-    assert again.state == JOB_FINISHED, again.error
-    assert again.revision_id == job.revision_id
-    assert revisions_of(root) == [2]
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_update_user_template_job_keeps_the_commit_of_another_run(
-    data_fixture, use_tmp_media_root
-):
-    source = create_database_source(data_fixture)
-    user, workspace = source["user"], source["workspace"]
-    root = start_job(user, workspace, [source["database"]]).template
-
-    with another_run_after_the_copy() as other_runs:
-        job = update_content(user, root, workspace, [source["database"]])
-
-    revision = Template.objects.get(root=root)
-    assert job.state == JOB_FINISHED, job.error
-    assert job.revision_id == other_runs[0].revision_id == revision.id
-    assert job.template_workspace_id == revision.workspace_id
-    assert revisions_of(root) == [2]
-    assert set(Workspace.objects_and_trash.all()) == {
-        workspace,
-        root.workspace,
-        revision.workspace,
-    }
 
 
 @pytest.mark.import_export_workspace

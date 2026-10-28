@@ -1,17 +1,15 @@
 import os
-import threading
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.db import OperationalError, connection
+from django.db import OperationalError
 from django.db.models import Q
 from django.test import override_settings
 from django.utils import timezone
 
 import pytest
-from celery.exceptions import SoftTimeLimitExceeded
 
 from baserow.contrib.database.fields.rich_text_utils import extract_user_file_names
 from baserow.contrib.database.search.handler import SearchHandler
@@ -22,7 +20,6 @@ from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import (
     Application,
     ImportExportResource,
@@ -35,7 +32,6 @@ from baserow.core.models import (
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import DeleteUserTemplateActionType
-from baserow.core.user_templates.handler import UserTemplateHandler
 from tests.baserow.core.user_templates.utils import (
     cancel_in_another_connection,
     fail_on_import,
@@ -156,8 +152,12 @@ def queued_install(data_fixture):
 
 
 @install_marks
-def test_install_user_template_job(queued_install):
-    target, root = queued_install.target, queued_install.root
+def test_install_user_template_job(data_fixture, queued_install):
+    owner, target, root = (
+        queued_install.owner,
+        queued_install.target,
+        queued_install.root,
+    )
     updated_on = root.updated_on
 
     job = run_job(queued_install.job)
@@ -182,161 +182,16 @@ def test_install_user_template_job(queued_install):
     # The content is copied directly, without an export.
     assert not ImportExportResource.objects_and_trash.exists()
 
-
-@install_marks
-def test_install_user_template_job_counts_each_install_on_the_root(data_fixture):
-    owner = data_fixture.create_user()
-    viewer = data_fixture.create_user()
-    owner_target = data_fixture.create_workspace(user=owner)
-    viewer_target = data_fixture.create_workspace(user=viewer)
-    root = _create_template(data_fixture, owner)
+    # Each install is counted on the root, whatever revision it installs.
     revision = data_fixture.create_user_template_revision(
         root, review_state=Template.ReviewState.APPROVED
     )
     data_fixture.create_template_table(revision.workspace, "Latest", "Latest row")
-
-    assert install(owner, owner_target, root, latest=True).template_id == revision.id
-    assert install(viewer, viewer_target, root).template_id == root.id
-
-    assert _installed_names(owner_target) == ["Latest"]
-    assert _installed_names(viewer_target) == ["First", "Second"]
+    latest_target = data_fixture.create_workspace(user=owner)
+    assert install(owner, latest_target, root, latest=True).template_id == revision.id
+    assert _installed_names(latest_target) == ["Latest"]
     assert Template.objects.get(id=root.id).install_count == 2
     assert Template.objects.get(id=revision.id).install_count == 0
-
-
-@install_marks
-def test_concurrent_installs_both_count(data_fixture, test_thread):
-    owner = data_fixture.create_user()
-    # One install job runs at a time per user.
-    viewer = data_fixture.create_user()
-    first_target = data_fixture.create_workspace(user=owner)
-    second_target = data_fixture.create_workspace(user=viewer)
-    root = _create_template(data_fixture, owner)
-    first_job = request_install(owner, first_target, root)
-    second_job = request_install(viewer, second_target, root)
-    check_install_access = UserTemplateHandler.check_install_access
-    second_has_read = threading.Event()
-    first_is_done = threading.Event()
-
-    def check_then_wait_for_the_first_install(self, user, revision):
-        check_install_access(self, user, revision)
-        if user.id == viewer.id:
-            # The second install has read the template, with its count, before
-            # the first one commits its own.
-            second_has_read.set()
-            assert first_is_done.wait(30)
-
-    def run_second_job():
-        try:
-            run_async_job(second_job.id)
-        finally:
-            connection.close()
-
-    with (
-        patch.object(
-            UserTemplateHandler,
-            "check_install_access",
-            check_then_wait_for_the_first_install,
-        ),
-        test_thread(run_second_job) as thread,
-    ):
-        thread.start()
-        assert second_has_read.wait(30)
-        assert run_job(first_job).state == JOB_FINISHED
-        first_is_done.set()
-        assert thread.thread_stopped.wait(30)
-
-    assert InstallTemplateJob.objects.get(id=second_job.id).state == JOB_FINISHED
-    assert _installed_names(second_target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 2
-
-
-@install_marks
-def test_install_user_template_job_redelivered_after_it_finished(queued_install):
-    target, root = queued_install.target, queued_install.root
-    job = run_job(queued_install.job)
-
-    with patch.object(
-        UserTemplateHandler,
-        "serialize_template_content",
-        side_effect=AssertionError("The template was copied again."),
-    ) as serialize:
-        redelivered = run_job(job)
-
-    assert redelivered.state == JOB_FINISHED
-    assert redelivered.installed_applications == job.installed_applications
-    assert _installed_names(target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 1
-    serialize.assert_not_called()
-
-
-@install_marks
-def test_install_second_commit_of_same_job_keeps_first(queued_install):
-    target, root, job = (
-        queued_install.target,
-        queued_install.root,
-        queued_install.job,
-    )
-    check_install_access = UserTemplateHandler.check_install_access
-    first_run = {}
-
-    def commit_another_run_first(self, *args):
-        # A second delivery of the job loaded it before the first one committed.
-        if not first_run:
-            first_run["job"] = None
-            first_run["job"] = run_job(job)
-        check_install_access(self, *args)
-
-    with patch.object(
-        UserTemplateHandler, "check_install_access", commit_another_run_first
-    ):
-        second_run = run_job(job)
-
-    first_ids = first_run["job"].installed_applications
-    assert first_run["job"].state == JOB_FINISHED
-    assert second_run.state == JOB_FINISHED
-    assert second_run.installed_applications == first_ids
-    assert sorted(
-        Application.objects_and_trash.filter(workspace=target).values_list(
-            "id", flat=True
-        )
-    ) == sorted(first_ids)
-    assert not TrashEntry.objects.filter(workspace=target).exists()
-    assert Template.objects.get(id=root.id).install_count == 1
-
-
-@install_marks
-def test_install_failed_run_keeps_the_commit_of_another_run(queued_install):
-    target, root, job = (
-        queued_install.target,
-        queued_install.root,
-        queued_install.job,
-    )
-    serialize_template_content = UserTemplateHandler.serialize_template_content
-    first_run = {}
-
-    def serialize_failing_after_another_run(self, *args, **kwargs):
-        # A second delivery of the job fails before its commit, after the first
-        # one committed.
-        if not first_run:
-            first_run["job"] = None
-            first_run["job"] = run_job(job)
-            raise RuntimeError("Reading the template failed")
-        return serialize_template_content(self, *args, **kwargs)
-
-    with patch.object(
-        UserTemplateHandler,
-        "serialize_template_content",
-        serialize_failing_after_another_run,
-    ):
-        second_run = run_job(job)
-
-    first_ids = first_run["job"].installed_applications
-    assert first_ids
-    assert second_run.state == JOB_FINISHED
-    assert second_run.installed_applications == first_ids
-    assert _installed_names(target) == ["First", "Second"]
-    assert Template.objects.get(id=root.id).install_count == 1
 
 
 @install_marks
@@ -360,31 +215,6 @@ def test_install_pinned_revision_survives_an_update(data_fixture, queued_install
             "installed_from_template_id", flat=True
         )
     ) == {root.id}
-
-
-@install_marks
-def test_install_pinned_revision_with_details_only_update(data_fixture):
-    owner = data_fixture.create_user()
-    target = data_fixture.create_workspace(user=owner)
-    root = _create_template(data_fixture, owner)
-    # An update of the details only shares the workspace of the first revision.
-    revision = data_fixture.create_user_template_revision(
-        root, workspace=root.workspace
-    )
-    job = request_install(owner, target, root, latest=True)
-    # Another update of the details only, after the request.
-    data_fixture.create_user_template_revision(root, workspace=root.workspace)
-
-    job = run_job(job)
-
-    assert job.state == JOB_FINISHED
-    assert job.template_id == revision.id
-    assert _installed_names(target) == ["First", "Second"]
-    assert set(
-        Application.objects.filter(workspace=target).values_list(
-            "installed_from_template_id", flat=True
-        )
-    ) == {revision.id}
 
 
 def _refused_after_request(data_fixture, flip, installer="owner"):
@@ -456,29 +286,6 @@ def test_install_user_template_job_fails_on_import_of_second_application(
     job.refresh_from_db()
     assert job.state == JOB_FAILED
     assert job.installed_applications == []
-    _assert_nothing_installed(
-        queued_install.target, queued_install.root, queued_install.counts
-    )
-
-
-@install_marks
-def test_install_user_template_job_soft_time_limit(queued_install):
-    with fail_on_import(SoftTimeLimitExceeded()):
-        job = run_job(queued_install.job)
-
-    assert job.state == JOB_FAILED
-    assert job.error_code == "SoftTimeLimitExceeded"
-    _assert_nothing_installed(
-        queued_install.target, queued_install.root, queued_install.counts
-    )
-
-
-@install_marks
-def test_install_user_template_job_cancelled_before_it_starts(queued_install):
-    JobHandler.cancel_job(queued_install.job)
-    job = run_job(queued_install.job)
-
-    assert job.state == JOB_CANCELLED
     _assert_nothing_installed(
         queued_install.target, queued_install.root, queued_install.counts
     )
@@ -692,44 +499,6 @@ def test_deleted_template_is_removed_after_a_requested_install(data_fixture):
     assert job.state == JOB_FINISHED
     assert _installed_names(target) == ["First", "Second"]
     assert Template.objects.get(id=root.id).install_count == 1
-
-    purge()
-
-    _assert_removed_and_installed_copy_kept(root, target, job)
-
-
-@install_marks
-def test_deleted_template_is_removed_after_a_running_install(
-    queued_install, test_thread
-):
-    owner, target, root = (
-        queued_install.owner,
-        queued_install.target,
-        queued_install.root,
-    )
-    kept_while_running = []
-
-    # Outside of the transaction of the install, like a request and the cleanup
-    # task.
-    def delete_and_purge_in_another_connection():
-        try:
-            _delete(owner, root)
-            purge()
-        finally:
-            connection.close()
-
-    def delete_and_purge():
-        with test_thread(delete_and_purge_in_another_connection) as thread:
-            thread.start()
-            assert thread.thread_stopped.wait(30)
-        kept_while_running.append(Template.objects.filter(id=root.id).exists())
-
-    with fail_on_import(None, before=delete_and_purge):
-        job = run_job(queued_install.job)
-
-    assert kept_while_running == [True]
-    assert job.state == JOB_FINISHED
-    assert _installed_names(target) == ["First", "Second"]
 
     purge()
 

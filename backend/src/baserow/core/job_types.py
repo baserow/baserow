@@ -4,7 +4,6 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 from django.db import OperationalError, transaction
 
-from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
@@ -161,17 +160,6 @@ class DuplicateApplicationJobType(JobType):
         return new_application_clone
 
 
-class _InstallAlreadyCommitted(Exception):
-    """
-    Raised at the commit point of a user template install when another run of
-    the same job committed first, so that this run is rolled back.
-    """
-
-    def __init__(self, installed_application_ids: List[int]):
-        super().__init__("The install was already committed by another run.")
-        self.installed_application_ids = installed_application_ids
-
-
 class InstallTemplateJobType(JobType):
     type = "install_template"
     model_class = InstallTemplateJob
@@ -324,10 +312,6 @@ class InstallTemplateJobType(JobType):
         point, so that a failure or a cancellation leaves nothing behind.
         """
 
-        # A redelivered job that was already installed isn't installed again.
-        if job.installed_applications:
-            return self._get_installed_applications(job.installed_applications)
-
         # The access may have changed since the job was requested.
         CoreHandler().check_permissions(
             job.user,
@@ -357,22 +341,7 @@ class InstallTemplateJobType(JobType):
                     content=content,
                 )
                 self._commit_install(job, installed_applications)
-        except _InstallAlreadyCommitted as exc:
-            job.installed_applications = exc.installed_application_ids
-            return self._get_installed_applications(exc.installed_application_ids)
         except BaseException as exc:
-            # Another run of the job may have committed the install in the
-            # meantime, and this failure mustn't be saved over its result.
-            if isinstance(exc, Exception):
-                with transaction.atomic():
-                    committed_ids = JobHandler.lock_job(job).installed_applications
-                if committed_ids:
-                    logger.exception(
-                        f"The install template job {job.id} failed, but another "
-                        "run of it committed the install."
-                    )
-                    job.installed_applications = committed_ids
-                    return self._get_installed_applications(committed_ids)
             # Nothing was committed, so the job must not be saved as if it had.
             job.installed_applications = []
             # Caught outside the transaction, which is rolled back by now.
@@ -394,25 +363,13 @@ class InstallTemplateJobType(JobType):
         see `is_cancellable`.
 
         :raises JobCancelled: If the job was cancelled in the meantime.
-        :raises _InstallAlreadyCommitted: If another run of the job committed
-            first.
         """
 
-        locked_job = JobHandler.lock_job(job)
-        if locked_job.state == JOB_CANCELLED:
+        if JobHandler.lock_job(job).state == JOB_CANCELLED:
             raise JobCancelled()
-        if locked_job.installed_applications:
-            raise _InstallAlreadyCommitted(locked_job.installed_applications)
 
         job.installed_applications = [app.id for app in installed_applications]
         job.save(update_fields=("installed_applications",))
-
-    def _get_installed_applications(
-        self, application_ids: List[int]
-    ) -> List[Application]:
-        return list(
-            Application.objects.filter(id__in=application_ids).order_by("order", "id")
-        )
 
 
 @contextmanager
