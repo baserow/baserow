@@ -4,24 +4,24 @@ from typing import Dict, List, Optional, Union
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
+    ActionType,
     ActionTypeDescription,
-    UndoableActionType,
 )
 from baserow.core.models import Workspace
-from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.models import Team, TeamSubject
-from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.scopes import TeamsActionScopeType
 from baserow_enterprise.teams.handler import TeamHandler
 
 TEAM_CONTEXT = _('in team "%(team_name)s" (%(team_id)s) ')
 
+# None of the team actions are undoable, like role assignments and workspace
+# invitations: undoing them would add or remove someone's access without asking.
 
-class CreateTeamActionType(UndoableActionType):
+
+class CreateTeamActionType(ActionType):
     type = "create_team"
     description = ActionTypeDescription(
         _("Create team"),
@@ -51,8 +51,7 @@ class CreateTeamActionType(UndoableActionType):
         """
         Creates a new team for an existing user. See
         baserow_enterprise.teams.handler.TeamHandler.create_team
-        for more details. Undoing this action deletes the created team,
-        redoing it restores it from the trash.
+        for more details.
 
         :param user: The user creating the team.
         :param name: The name to give the team.
@@ -78,28 +77,8 @@ class CreateTeamActionType(UndoableActionType):
     def scope(cls, workspace_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(workspace_id)
 
-    @classmethod
-    def undo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_undo: Action,
-    ):
-        TeamHandler().delete_team_by_id(user, params.team_id)
 
-    @classmethod
-    def redo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_redo: Action,
-    ):
-        TrashHandler.restore_item(
-            user, "team", params.team_id, parent_trash_item_id=None
-        )
-
-
-class UpdateTeamActionType(UndoableActionType):
+class UpdateTeamActionType(ActionType):
     type = "update_team"
     description = ActionTypeDescription(
         _("Update team"),
@@ -135,7 +114,6 @@ class UpdateTeamActionType(UndoableActionType):
         Updates an existing team instance.
         See baserow_enterprise.teams.handler.TeamHandler.update_team
             for further details.
-        Undoing this action restore the original_name while redoing set name again.
 
         :param user: The user on whose behalf the team is updated.
         :param team: The team instance that needs to be updated.
@@ -178,26 +156,8 @@ class UpdateTeamActionType(UndoableActionType):
     def scope(cls, workspace_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(workspace_id)
 
-    @classmethod
-    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        team = TeamHandler().get_team(user, params.team_id)
-        original_role = params.original_default_role_uid
-        if original_role:
-            original_role = RoleAssignmentHandler().get_role_by_uid(original_role)
-        TeamHandler().update_team(
-            user, team, params.original_name, default_role=original_role
-        )
 
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        team = TeamHandler().get_team(user, params.team_id)
-        new_role = params.default_role_uid
-        if new_role:
-            new_role = RoleAssignmentHandler().get_role_by_uid(new_role)
-        TeamHandler().update_team(user, team, params.name, default_role=new_role)
-
-
-class DeleteTeamActionType(UndoableActionType):
+class DeleteTeamActionType(ActionType):
     type = "delete_team"
     description = ActionTypeDescription(
         _("Delete team"),
@@ -218,7 +178,7 @@ class DeleteTeamActionType(UndoableActionType):
         Deletes an existing team instance if the user has access to the
         related workspace. The `team_deleted` signal is also called. See
         baserow_enterprise.teams.handler.TeamHandler.delete_team for further details.
-        Undoing this action restores the team and redoing trashes it.
+        The team can still be restored from the trash.
 
         :param user: The user on whose behalf the team is deleted.
         :param team: The team instance that needs to be deleted.
@@ -237,17 +197,8 @@ class DeleteTeamActionType(UndoableActionType):
     def scope(cls, workspace_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(workspace_id)
 
-    @classmethod
-    def undo(cls, user, params: Params, action_being_undone: Action):
-        TeamHandler().restore_team_by_id(user, params.team_id)
 
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        team_for_update = TeamHandler().get_team_for_update(user, params.team_id)
-        TeamHandler().delete_team(user, team_for_update)
-
-
-class CreateTeamSubjectActionType(UndoableActionType):
+class CreateTeamSubjectActionType(ActionType):
     type = "create_team_subject"
     description = ActionTypeDescription(
         _("Create team subject"), _("Subject (%(subject_id)s) created"), TEAM_CONTEXT
@@ -279,8 +230,7 @@ class CreateTeamSubjectActionType(UndoableActionType):
         """
         Creates a new subject for an existing team. See
         baserow_enterprise.teams.handler.TeamHandler.create_subject
-        for more details. Undoing this action deletes the created subject,
-        redoing it restores it from the trash.
+        for more details.
 
         :param user: The user creating the team.
         :param subject_lookup: The subject's identifier. A dictionary pointing to
@@ -305,34 +255,8 @@ class CreateTeamSubjectActionType(UndoableActionType):
     def scope(cls, workspace_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(workspace_id)
 
-    @classmethod
-    def undo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_undo: Action,
-    ):
-        team = TeamHandler().get_team(user, params.team_id)
-        TeamHandler().delete_subject_by_id(user, params.subject_id, team)
 
-    @classmethod
-    def redo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_redo: Action,
-    ):
-        team = TeamHandler().get_team(user, params.team_id)
-        TeamHandler().create_subject(
-            user,
-            params.subject_lookup,
-            params.subject_subject_type_natural_key,
-            team,
-            params.subject_id,
-        )
-
-
-class DeleteTeamSubjectActionType(UndoableActionType):
+class DeleteTeamSubjectActionType(ActionType):
     type = "delete_team_subject"
     description = ActionTypeDescription(
         _("Delete team subject"),
@@ -360,7 +284,7 @@ class DeleteTeamSubjectActionType(UndoableActionType):
         Deletes an existing subject instance if the user has access to the
         related workspace. The `team_subject_deleted` signal is also called. See
         baserow_enterprise.teams.handler.TeamHandler.delete_team_subject for
-        further details. Undoing this action restores the subject and redoing trashes it
+        further details.
 
         :param user: The user on whose behalf the team is deleted.
         :param team: The team instance that needs to be deleted.
@@ -385,19 +309,3 @@ class DeleteTeamSubjectActionType(UndoableActionType):
     @classmethod
     def scope(cls, team_id: int) -> ActionScopeStr:
         return TeamsActionScopeType.value(team_id)
-
-    @classmethod
-    def undo(cls, user, params: Params, action_being_undone: Action):
-        team = TeamHandler().get_team(user, params.team_id)
-        TeamHandler().create_subject(
-            user,
-            {"pk": params.subject_subject_id},
-            params.subject_subject_type_natural_key,
-            team,
-            params.subject_id,
-        )
-
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        team = TeamHandler().get_team(user, params.team_id)
-        TeamHandler().delete_subject_by_id(user, params.subject_id, team)
